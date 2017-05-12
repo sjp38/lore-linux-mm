@@ -1,44 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3706B02EE
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 01:56:57 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w79so4758728wme.7
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 22:56:57 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o35si2447676edb.318.2017.05.11.22.56.56
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC626B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 02:18:12 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u21so40027937pgn.5
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:18:12 -0700 (PDT)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id d1si2500271pli.110.2017.05.11.23.18.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 May 2017 22:56:56 -0700 (PDT)
-Date: Fri, 12 May 2017 07:56:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Kernel problem
-Message-ID: <20170512055655.GA6803@dhcp22.suse.cz>
-References: <DM5PR15MB13399384EF35EF4451D31C2183ED0@DM5PR15MB1339.namprd15.prod.outlook.com>
- <bbde3fc7-fa8c-7872-1099-44a3c293ffba@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bbde3fc7-fa8c-7872-1099-44a3c293ffba@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 May 2017 23:18:11 -0700 (PDT)
+Received: by mail-pg0-x234.google.com with SMTP id u28so25549380pgn.1
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:18:11 -0700 (PDT)
+Message-ID: <1494569882.21563.8.camel@gmail.com>
+Subject: [RFC summary] Enable Coherent Device Memory
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Fri, 12 May 2017 16:18:02 +1000
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Frank Vosberg <frank.vosberg@sscs.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu 11-05-17 09:57:25, Randy Dunlap wrote:
-[...]
-> I'll let someone else comment on the actual warning message:
-> Creating hierarchies with use_hierarchy==0 (flat hierarchy) is considered deprecated. If you believe that your setup is correct, we kindly ask you to contact linux-mm@kvack.org and let us know
+Here is a summary of the RFC I posted for coherent device memory
+(see https://lwn.net/Articles/720380/)
 
-Well, this warning just says that using not hierarchical memory cgroup
-hierarchy is a bad idea and this behavior will not be supported for ever
-(or for v2 cgroup for that matter). It should warn users who are using
-old kernels to either change their configuration or complain that they
-have a valid usecase for such a configuration so that we can think of an
-alternative approach. From the original email it is not clear to me
-whether this configuration is intentional or not, though.
--- 
-Michal Hocko
-SUSE Labs
+I did an FAQ in one of the emails, I am extending that to summary form
+so that we can move ahead towards decision making
+
+What is coherent device memory?
+ - Please see the RFC (https://lwn.net/Articles/720380/) and
+   https://lwn.net/Articles/717601/
+Why do we need to isolate memory?
+ - CDM memory is not meant for normal usage, applications can request for it
+   explictly. Oflload their compute to the device where the memory is
+   (the offload is via a user space API like CUDA/openCL/...)
+How do we isolate the memory - NUMA or HMM-CDM?
+ - Since the memory is coherent, NUMA provides the mechanism to isolate to
+   a large extent via mempolicy. With NUMA we also get autonuma/kswapd/etc
+   running. Something we would like to avoid. NUMA gives the application
+   a transparent view of memory, in the sense that all mm features work,
+   like direct page cache allocation in coherent device memory, limiting
+   memory via cgroups if required, etc. With CPUSets, its
+   possible for us to isolate allocation. One challenge is that the
+   admin on the system may use them differently and applications need to
+   be aware of running in the right cpuset to allocate memory from the
+   CDM node. Putting all applications in the cpuset with the CDM node is
+   not the right thing to do, which means the application needs to move itself
+   to the right cpuset before requesting for CDM memory. It's not impossible
+   to use CPUsets, just hard to configure correctly.
+  - With HMM, we would need a HMM variant HMM-CDM, so that we are not marking
+   the pages as unavailable, page cache cannot do directly to coherent memory.
+   Audit of mm paths is required. Most of the other things should work.
+   User access to HMM-CDM memory behind ZONE_DEVICE is via a device driver.
+Do we need to isolate node attributes independent of coherent device memory?
+ - Christoph Lameter thought it would be useful to isolate node attributes,
+   specifically ksm/autonuma for low latency suff.
+Why do we need migration?
+ - Depending on where the memory is being accessed from, we would like to
+   migrate pages between system and coherent device memory. HMM provides
+   DMA offload capability that is useful in both cases.
+What is the larger picture - end to end?
+ - Applications can allocate memory on the device or in system memory,
+   offload the compute via user space API. Migration can be used for performance
+   if required since it helps to keep the memory local to the compute.
+
+Comments from the thread
+
+1. If we go down the NUMA path, we need to live with the limitations of
+   what comes with the cpuless NUMA node
+2. The changes made to cpusets and mempolicies, make the code more complex
+3. We need a good end to end story
+
+The comments from the thread were responded to
+
+How do we go about implementing CDM then?
+
+The recommendation from John Hubbard/Mel Gorman and Michal Hocko is to
+use HMM-CDM to solve the problem. Jerome/Balbir and Ben H prefer NUMA-CDM.
+There were suggestions that NUMA might not be ready or is the best approach
+in the long term, but we are yet to identify what changes to NUMA would
+enable it to support NUMA-CDM.
+
+The trade-offs and limitations/advantages of both approaches are in the
+RFC thread and in the summary above. It seems like the from the discussions
+with Michal/Mel/John the direction is to use HMM-CDM for now (both from the
+thread and from mm-summit). Can we build consensus on this and move forward?
+Are there any objections? Did I miss or misrepresent anything from the threads?
+It would be good to get feedback from Andrew Morton and Rik Van Riel as well.
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
