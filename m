@@ -1,189 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C7A226B0038
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 02:38:20 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id v4so10494248wmb.8
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:38:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h15si2691022eda.106.2017.05.11.23.38.18
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 727A46B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 04:11:12 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id e79so33631611ioi.6
+        for <linux-mm@kvack.org>; Fri, 12 May 2017 01:11:12 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id 23si2334767ioc.12.2017.05.12.01.11.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 May 2017 23:38:19 -0700 (PDT)
-Date: Fri, 12 May 2017 08:38:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
-Message-ID: <20170512063815.GC6803@dhcp22.suse.cz>
-References: <20170413115615.GB11795@dhcp22.suse.cz>
- <20170417020210.GA1351@js1304-desktop>
- <20170424130936.GB1746@dhcp22.suse.cz>
- <20170425034255.GB32583@js1304-desktop>
- <20170427150636.GM4706@dhcp22.suse.cz>
- <20170502040129.GA27335@js1304-desktop>
- <20170502133229.GK14593@dhcp22.suse.cz>
- <20170511021240.GA22319@js1304-desktop>
- <20170511091304.GH26782@dhcp22.suse.cz>
- <20170512020046.GA5538@js1304-desktop>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 May 2017 01:11:11 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/madvise: Dont poison entire HugeTLB page for single
+ page errors
+Date: Fri, 12 May 2017 08:10:01 +0000
+Message-ID: <20170512081001.GA13069@hori1.linux.bs1.fc.nec.co.jp>
+References: <893ecbd7-e9fa-7a54-fc62-43f8a5b8107f@linux.vnet.ibm.com>
+ <20170420110627.12307-1-khandual@linux.vnet.ibm.com>
+In-Reply-To: <20170420110627.12307-1-khandual@linux.vnet.ibm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <57BB4D2CF3C3E44FA7F709499D589F35@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170512020046.GA5538@js1304-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Fri 12-05-17 11:00:48, Joonsoo Kim wrote:
-> On Thu, May 11, 2017 at 11:13:04AM +0200, Michal Hocko wrote:
-> > On Thu 11-05-17 11:12:43, Joonsoo Kim wrote:
-> > > Sorry for the late response. I was on a vacation.
-> > > 
-> > > On Tue, May 02, 2017 at 03:32:29PM +0200, Michal Hocko wrote:
-> > > > On Tue 02-05-17 13:01:32, Joonsoo Kim wrote:
-> > > > > On Thu, Apr 27, 2017 at 05:06:36PM +0200, Michal Hocko wrote:
-> > > > [...]
-> > > > > > I see this point and I agree that using a specific zone might be a
-> > > > > > _nicer_ solution in the end but you have to consider another aspects as
-> > > > > > well. The main one I am worried about is a long term maintainability.
-> > > > > > We are really out of page flags and consuming one for a rather specific
-> > > > > > usecase is not good. Look at ZONE_DMA. I am pretty sure that almost
-> > > > > > no sane HW needs 16MB zone anymore, yet we have hard time to get rid
-> > > > > > of it and so we have that memory laying around unused all the time
-> > > > > > and blocking one page flag bit. CMA falls into a similar category
-> > > > > > AFAIU. I wouldn't be all that surprised if a future HW will not need CMA
-> > > > > > allocations in few years, yet we will have to fight to get rid of it
-> > > > > > like we do with ZONE_DMA. And not only that. We will also have to fight
-> > > > > > finding page flags for other more general usecases in the meantime.
-> > > > > 
-> > > > > This maintenance problem is inherent. This problem exists even if we
-> > > > > uses MIGRATETYPE approach. We cannot remove many hooks for CMA if a
-> > > > > future HW will not need CMA allocation in few years. The only
-> > > > > difference is that one takes single zone bit only for CMA user and the
-> > > > > other approach takes many hooks that we need to take care about it all
-> > > > > the time.
-> > > > 
-> > > > And I consider this a big difference. Because while hooks are not nice
-> > > > they will affect CMA users (in a sense of bugs/performance etc.). While
-> > > > an additional bit consumed will affect potential future and more generic
-> > > > features.
-> > > 
-> > > Because these hooks are so tricky and are spread on many places,
-> > > bugs about these hooks can be made by *non-CMA* user and they hurt
-> > > *CMA* user. These hooks could also delay non-CMA user's development speed
-> > > since there are many hooks about CMA and understanding how CMA is managed
-> > > is rather difficult.
-> > 
-> > Than make those hooks easier to maintain. Seriously this is a
-> > non-argument.
-> 
-> I can't understand what you said here. 
+On Thu, Apr 20, 2017 at 04:36:27PM +0530, Anshuman Khandual wrote:
+> Currently soft_offline_page() migrates the entire HugeTLB page, then
+> dequeues it from the active list by making it a dangling HugeTLB page
+> which ofcourse can not be used further and marks the entire HugeTLB
+> page as poisoned. This might be a costly waste of memory if the error
+> involved affects only small section of the entire page.
+>=20
+> This changes the behaviour so that only the affected page is marked
+> poisoned and then the HugeTLB page is released back to buddy system.
 
-I wanted to say that you can make those hooks so non-intrusive that
-nobody outside of the CMA has to even care that CMA exists.
+Hi Anshuman,
 
-> With zone approach, someone who
-> isn't related to CMA don't need to understand how CMA is managed.
-> 
-> > 
-> > [...]
-> > 
-> > > > And all this can be isolated to CMA specific hooks with mostly minimum
-> > > > impact to most users. I hear you saying that zone approach is more natural
-> > > > and I would agree if we wouldn't have to care about the number of zones.
-> > > 
-> > > I attach a solution about one more bit in page flags although I don't
-> > > agree with your opinion that additional bit is no-go approach. Just
-> > > note that we have already used three bits for zone encoding in some
-> > > configuration due to ZONE_DEVICE.
-> > 
-> > I am absolutely not happy about ZONE_DEVICE but there is _no_ other
-> > viable solution right now. I know that people behind this are still
-> > considering struct page over direct pfn usage but they are not in the
-> > same situation as CMA which _can_ work without additional zone.
-> 
-> IIUC, ZONE_DEVICE can reuse the other zone and migratetype.
+This is a good catch, and we can solve this issue now because freeing
+hwpoisoned page (previously forbidden) is available now.
 
-They are not going to migrate anything or define any allocation fallback
-policy because those pages are outside of the page allocator completely.
-And that is why a zone approach is a reasonable approach. There are
-probably other ways and I will certainly push going that way.
+And I'm thinking that the same issue for hard/soft-offline on free
+hugepages can be solved, so I'll submit a patchset which includes
+updated version of your patch.
 
-[...]
+Thanks,
+Naoya Horiguchi
 
-> > If you _really_ insist on using zone for CMA then reuse ZONE_MOVABLE.
-> > I absolutely miss why do you push a specialized zone so hard.
-> 
-> As I said before, there is no fundamental issue to reuse ZONE_MOVABLE.
-> I just don't want to reuse it because they have a different
-> characteristic. In MM subsystem context, their characteristic is the same.
-> However, CMA memory should be used for the device in runtime so more
-> allocation guarantee is needed. See the offline_pages() in
-> mm/memory_hotplug.c. They can bear in 120 sec to offline the
-> memory but CMA memory can't.
-
-This is just an implementation detail. Pinned pages in the CMA ranges
-should be easilly checked. Moreover memory hotplug cares only about
-hotplugable memory and placing CMA ranges there could be seen as a
-configuration bug.
-
-> And, this is a design issue. I don't want to talk about why should we
-> pursuit the good design. Originally, ZONE exists to manage different
-> type of memory. Migratetype is not for that purpose. Using separate
-> zone fits the original purpose. Mixing them would be a bad design and
-> we would esaily encounter the unexpected problem in the future.
-
-As I've said earlier. Abusing ZONE_MOVABLE is not ideal either. I would
-rather keep the status quo and fix the cluttered code and make it easier
-to follow. But if you absolutely insist that a specialized zone is
-necessary then ZONE_MOVABLE a) already exists and we do not need to
-consume another bit b) most of the CMA zone characteristics overlap
-with MOVABLE. So it is the least painful zone to use with the current
-restrictions we have.
-
-> > [...]
-> > > > No, but I haven't heard any single argument that those bugs are
-> > > > impossible to fix with the current approach. They might be harder to fix
-> > > > but if I can chose between harder for CMA and harder for other more
-> > > > generic HW independent features I will go for the first one. And do not
-> > > > take me wrong, I have nothing against CMA as such. It solves a real life
-> > > > problem. I just believe it doesn't deserve to consume a new bit in page
-> > > > flags because that is just too scarce resource.
-> > > 
-> > > As I mentioned above, I think that maintenance overhead due to CMA
-> > > deserves to consume a new bit in page flags. It also provide us
-> > > extendability to introduce more zones in the future.
-> > > 
-> > > Anyway, this value-judgement is subjective so I guess that we
-> > > cannot agree with each other. To solve your concern,
-> > > I make following solution. Please let me know your opinion about this.
-> > > This patch can be applied on top of my ZONE_CMA series.
-> > 
-> > I don not think this makes situation any easier or more acceptable for
-> > merging.
-> 
-> Please say the reason. This implementation don't use additional bit in
-> page flags that you concerned about. And, there is no performance
-> regression at least in my simple test.
-
-I really do not want to question your "simple test" but page_zonenum is
-used in many performance sensitive paths and proving it doesn't regress
-would require testing many different workload. Are you going to do that?
-
-> > But I feel we are looping without much progress. So let me NAK this
-> > until it is _proven_ that the current code is unfixable nor ZONE_MOVABLE
-> > can be reused
-> 
-> I want to open all the possibilty so could you check that ZONE_MOVABLE
-> can be overlapped with other zones? IIRC, your rework doesn't allow
-> it.
-
-My rework keeps the status quo, which is based on the assumption that
-zones cannot overlap. A longer term plan is that this restriction is
-removed. As I've said earlier overlapping zones is an interesting
-concept which is definitely worth pursuing.
-
--- 
-Michal Hocko
-SUSE Labs
+>=20
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+> The number of poisoned pages on the system has reduced as seen from
+> dmesg triggered with 'echo m > /proc/sysrq-enter' on powerpc.
+>=20
+>  include/linux/hugetlb.h | 1 +
+>  mm/hugetlb.c            | 2 +-
+>  mm/memory-failure.c     | 9 ++++-----
+>  3 files changed, 6 insertions(+), 6 deletions(-)
+>=20
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 7a5917d..f6b80a4 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -470,6 +470,7 @@ static inline pgoff_t basepage_index(struct page *pag=
+e)
+>  	return __basepage_index(page);
+>  }
+> =20
+> +extern int dissolve_free_huge_page(struct page *page);
+>  extern int dissolve_free_huge_pages(unsigned long start_pfn,
+>  				    unsigned long end_pfn);
+>  static inline bool hugepage_migration_supported(struct hstate *h)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 1edfdb8..2fb9ba3 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1444,7 +1444,7 @@ static int free_pool_huge_page(struct hstate *h, no=
+demask_t *nodes_allowed,
+>   * number of free hugepages would be reduced below the number of reserve=
+d
+>   * hugepages.
+>   */
+> -static int dissolve_free_huge_page(struct page *page)
+> +int dissolve_free_huge_page(struct page *page)
+>  {
+>  	int rc =3D 0;
+> =20
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 27f7210..1e377fd 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1597,13 +1597,12 @@ static int soft_offline_huge_page(struct page *pa=
+ge, int flags)
+>  			ret =3D -EIO;
+>  	} else {
+>  		/* overcommit hugetlb page will be freed to buddy */
+> +		SetPageHWPoison(page);
+> +		num_poisoned_pages_inc();
+> +
+>  		if (PageHuge(page)) {
+> -			set_page_hwpoison_huge_page(hpage);
+>  			dequeue_hwpoisoned_huge_page(hpage);
+> -			num_poisoned_pages_add(1 << compound_order(hpage));
+> -		} else {
+> -			SetPageHWPoison(page);
+> -			num_poisoned_pages_inc();
+> +			dissolve_free_huge_page(hpage);
+>  		}
+>  	}
+>  	return ret;
+> --=20
+> 1.8.5.2
+>=20
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
