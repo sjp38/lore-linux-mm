@@ -1,37 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C10906B0038
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 01:53:31 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id i63so39694348pgd.15
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 22:53:31 -0700 (PDT)
-Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
-        by mx.google.com with ESMTPS id h62si2360372pge.75.2017.05.11.22.53.30
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3706B02EE
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 01:56:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w79so4758728wme.7
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 22:56:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o35si2447676edb.318.2017.05.11.22.56.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 May 2017 22:53:31 -0700 (PDT)
-Received: by mail-pg0-x22f.google.com with SMTP id u187so25258229pgb.0
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 22:53:30 -0700 (PDT)
-Date: Fri, 12 May 2017 14:53:22 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: mm/kasan: zero_p4d_populate() problem?
-Message-ID: <20170512055320.GA16929@js1304-desktop>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 May 2017 22:56:56 -0700 (PDT)
+Date: Fri, 12 May 2017 07:56:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Kernel problem
+Message-ID: <20170512055655.GA6803@dhcp22.suse.cz>
+References: <DM5PR15MB13399384EF35EF4451D31C2183ED0@DM5PR15MB1339.namprd15.prod.outlook.com>
+ <bbde3fc7-fa8c-7872-1099-44a3c293ffba@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <bbde3fc7-fa8c-7872-1099-44a3c293ffba@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Frank Vosberg <frank.vosberg@sscs.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hello, Kirill.
+On Thu 11-05-17 09:57:25, Randy Dunlap wrote:
+[...]
+> I'll let someone else comment on the actual warning message:
+> Creating hierarchies with use_hierarchy==0 (flat hierarchy) is considered deprecated. If you believe that your setup is correct, we kindly ask you to contact linux-mm@kvack.org and let us know
 
-I found that zero_p4d_populate() in mm/kasan/kasan_init.c of
-next-20170511 doesn't get the benefit of the kasan_zero_pud.
-Do we need to fix it by adding
-"pud_populate(&init_mm, pud, lm_alias(kasan_zero_pud));" when
-alignment requirement is met?
-
-Thanks.
+Well, this warning just says that using not hierarchical memory cgroup
+hierarchy is a bad idea and this behavior will not be supported for ever
+(or for v2 cgroup for that matter). It should warn users who are using
+old kernels to either change their configuration or complain that they
+have a valid usecase for such a configuration so that we can think of an
+alternative approach. From the original email it is not clear to me
+whether this configuration is intentional or not, though.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
