@@ -1,43 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7C36B02EE
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 07:04:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y65so40524232pff.13
-        for <linux-mm@kvack.org>; Fri, 12 May 2017 04:04:04 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id o82si3132400pfi.82.2017.05.12.04.04.03
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F82A6B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 08:27:32 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id a46so12251095qte.3
+        for <linux-mm@kvack.org>; Fri, 12 May 2017 05:27:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d188si3273002qkg.104.2017.05.12.05.27.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 May 2017 04:04:04 -0700 (PDT)
-Date: Fri, 12 May 2017 14:04:01 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: mm/kasan: zero_p4d_populate() problem?
-Message-ID: <20170512110401.xbmkfp4alatikyuq@black.fi.intel.com>
-References: <20170512055320.GA16929@js1304-desktop>
+        Fri, 12 May 2017 05:27:31 -0700 (PDT)
+Date: Fri, 12 May 2017 09:27:06 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170512122704.GA30528@amt.cnet>
+References: <20170425135717.375295031@redhat.com>
+ <20170425135846.203663532@redhat.com>
+ <20170502102836.4a4d34ba@redhat.com>
+ <20170502165159.GA5457@amt.cnet>
+ <20170502131527.7532fc2e@redhat.com>
+ <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170512055320.GA16929@js1304-desktop>
+In-Reply-To: <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-On Fri, May 12, 2017 at 02:53:22PM +0900, Joonsoo Kim wrote:
-> Hello, Kirill.
+On Thu, May 11, 2017 at 10:37:07AM -0500, Christoph Lameter wrote:
+> On Tue, 2 May 2017, Luiz Capitulino wrote:
 > 
-> I found that zero_p4d_populate() in mm/kasan/kasan_init.c of
-> next-20170511 doesn't get the benefit of the kasan_zero_pud.
-> Do we need to fix it by adding
-> "pud_populate(&init_mm, pud, lm_alias(kasan_zero_pud));" when
-> alignment requirement is met?
+> > Ah, OK. Got this now. I'll give this patch a try. But I think we want
+> > to hear from Christoph (who worked on reducing the vmstat interruptions
+> > in the past).
+> 
+> A bit confused by this one. The vmstat worker is already disabled if there
+> are no updates. Also the patches by Chris Metcalf on data plane mode add a
+> prctl to quiet the vmstat workers.
+> 
+> Why do we need more than this?
 
-It's not a fix, but optimization. But it makes sense to implement this.
+If there are vmstat statistic updates on a given CPU, and you don't
+want intervention from the vmstat worker, you change the behaviour of
+stat data collection to directly write to the global structures (which
+disables the performance optimization of collecting data in per-cpu
+counters).
 
-Feel free to send a patch.
+This way you can disable vmstat worker (because it causes undesired
+latencies), while allowing vmstatistics to function properly.
 
--- 
- Kirill A. Shutemov
+The prctl from Chris Metcalf patchset allows one to disable vmstat
+worker per CPU? If so, they replace the functionality of the patch
+"[patch 3/3] MM: allow per-cpu vmstat_worker configuration" 
+of the -v2 series of my patchset, and we can use it instead.
+
+Is it integrated already?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
