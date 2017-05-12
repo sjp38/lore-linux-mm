@@ -1,92 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DE19F6B02EE
-	for <linux-mm@kvack.org>; Thu, 11 May 2017 16:59:42 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id s94so26555182ioe.14
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 13:59:42 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z13si1166756ioz.78.2017.05.11.13.59.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 May 2017 13:59:41 -0700 (PDT)
-Subject: Re: [v3 0/9] parallelized "struct page" zeroing
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
- <20170509181234.GA4397@dhcp22.suse.cz>
- <fae4a92c-e78c-32cb-606a-8e5087acb13f@oracle.com>
- <20170510072419.GC31466@dhcp22.suse.cz>
- <3f5f1416-aa91-a2ff-cc89-b97fcaa3e4db@oracle.com>
- <20170510145726.GM31466@dhcp22.suse.cz>
- <ab667486-54a0-a36e-6797-b5f7b83c10f7@oracle.com>
- <9088ad7e-8b3b-8eba-2fdf-7b0e36e4582e@oracle.com>
-Message-ID: <65b8a658-76d1-0617-ece8-ff7a3c1c4046@oracle.com>
-Date: Thu, 11 May 2017 16:59:33 -0400
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 851256B0038
+	for <linux-mm@kvack.org>; Thu, 11 May 2017 21:34:23 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u187so36202060pgb.0
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 18:34:23 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id l192si1781374pga.13.2017.05.11.18.34.21
+        for <linux-mm@kvack.org>;
+        Thu, 11 May 2017 18:34:22 -0700 (PDT)
+Date: Fri, 12 May 2017 10:34:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v10 1/3] mm, THP, swap: Delay splitting THP during
+ swap out
+Message-ID: <20170512013416.GA9545@bbox>
+References: <20170425125658.28684-2-ying.huang@intel.com>
+ <20170427053141.GA1925@bbox>
+ <87mvb21fz1.fsf@yhuang-dev.intel.com>
+ <20170428084044.GB19510@bbox>
+ <20170501104430.GA16306@cmpxchg.org>
+ <20170501235332.GA4411@bbox>
+ <20170510135654.GD17121@cmpxchg.org>
+ <20170510232556.GA26521@bbox>
+ <20170511012213.GA27659@bbox>
+ <20170511104058.GD6244@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <9088ad7e-8b3b-8eba-2fdf-7b0e36e4582e@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170511104058.GD6244@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-We should either keep memset() only for deferred struct pages as what I 
-have in my patches.
+Hi Hannes,
 
-Another option is to add a new function struct_page_clear() which would 
-default to memset() and to something else on platforms that decide to 
-optimize it.
+On Thu, May 11, 2017 at 06:40:58AM -0400, Johannes Weiner wrote:
+> On Thu, May 11, 2017 at 10:22:13AM +0900, Minchan Kim wrote:
+> > On Thu, May 11, 2017 at 08:25:56AM +0900, Minchan Kim wrote:
+> > > On Wed, May 10, 2017 at 09:56:54AM -0400, Johannes Weiner wrote:
+> > > > Hi Michan,
+> > > > 
+> > > > On Tue, May 02, 2017 at 08:53:32AM +0900, Minchan Kim wrote:
+> > > > > @@ -1144,7 +1144,7 @@ void swap_free(swp_entry_t entry)
+> > > > >  /*
+> > > > >   * Called after dropping swapcache to decrease refcnt to swap entries.
+> > > > >   */
+> > > > > -void swapcache_free(swp_entry_t entry)
+> > > > > +void __swapcache_free(swp_entry_t entry)
+> > > > >  {
+> > > > >  	struct swap_info_struct *p;
+> > > > >  
+> > > > > @@ -1156,7 +1156,7 @@ void swapcache_free(swp_entry_t entry)
+> > > > >  }
+> > > > >  
+> > > > >  #ifdef CONFIG_THP_SWAP
+> > > > > -void swapcache_free_cluster(swp_entry_t entry)
+> > > > > +void __swapcache_free_cluster(swp_entry_t entry)
+> > > > >  {
+> > > > >  	unsigned long offset = swp_offset(entry);
+> > > > >  	unsigned long idx = offset / SWAPFILE_CLUSTER;
+> > > > > @@ -1182,6 +1182,14 @@ void swapcache_free_cluster(swp_entry_t entry)
+> > > > >  }
+> > > > >  #endif /* CONFIG_THP_SWAP */
+> > > > >  
+> > > > > +void swapcache_free(struct page *page, swp_entry_t entry)
+> > > > > +{
+> > > > > +	if (!PageTransHuge(page))
+> > > > > +		__swapcache_free(entry);
+> > > > > +	else
+> > > > > +		__swapcache_free_cluster(entry);
+> > > > > +}
+> > > > 
+> > > > I don't think this is cleaner :/
+> > 
+> > Let's see a example add_to_swap. Without it, it looks like that.
+> > 
+> > int add_to_swap(struct page *page)
+> > {
+> >         entry = get_swap_page(page);
+> >         ..
+> >         ..
+> > fail:
+> >         if (PageTransHuge(page))
+> >                 swapcache_free_cluster(entry);
+> >         else
+> >                 swapcache_free(entry);
+> > }
+> > 
+> > It doesn't looks good to me because get_swap_page hides
+> > where entry allocation is from cluster or slot but when
+> > we free the entry allocated, we should be aware of the
+> > internal and call right function. :(
+> 
+> This could be nicer indeed. I just don't like the underscore versions
+> much, but symmetry with get_swap_page() would be nice.
+> 
+> How about put_swap_page()? :)
 
-On SPARC it would call STBIs, and we would do one membar call after all 
-"struct pages" are initialized.
+Good idea. It's the best one I can do now.
+Actually, get_swap_page is awkward to me. Maybe it would be nicer to
+rename it with get_swap_[slot|entry] but, I will postpone it if someone
+would be on same page with me in future.
 
-I think what I sent out already is cleaner and better solution, because 
-I am not sure what kind of performance we would see on other chips.
+> 
+> That can call the appropriate swapcache_free function then.
 
-On 05/11/2017 04:47 PM, Pasha Tatashin wrote:
->>>
->>> Have you measured that? I do not think it would be super hard to
->>> measure. I would be quite surprised if this added much if anything at
->>> all as the whole struct page should be in the cache line already. We do
->>> set reference count and other struct members. Almost nobody should be
->>> looking at our page at this time and stealing the cache line. On the
->>> other hand a large memcpy will basically wipe everything away from the
->>> cpu cache. Or am I missing something?
->>>
-> 
-> Here is data for single thread (deferred struct page init is disabled):
-> 
-> Intel CPU E7-8895 v3 @ 2.60GHz  1T memory
-> -----------------------------------------
-> time to memset "struct pages in memblock: 11.28s
-> time to init "struct pag"es:               4.90s
-> 
-> Moving memset into __init_single_page()
-> time to init and memset "struct page"es:   8.39s
-> 
-> SPARC M6 @ 3600 MHz  1T memory
-> -----------------------------------------
-> time to memset "struct pages in memblock:  1.60s
-> time to init "struct pag"es:               3.37s
-> 
-> Moving memset into __init_single_page()
-> time to init and memset "struct page"es:  12.99s
-> 
-> 
-> So, moving memset() into __init_single_page() benefits Intel. I am 
-> actually surprised why memset() is so slow on intel when it is called 
-> from memblock. But, hurts SPARC, I guess these membars at the end of 
-> memset() kills the performance.
-> 
-> Also, when looking at these values, remeber that Intel has twice as many 
-> "struct page" for the same amount of memory.
-> 
-> Pasha
-> -- 
-> To unsubscribe from this list: send the line "unsubscribe sparclinux" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Yub.
+Thanks for the review!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
