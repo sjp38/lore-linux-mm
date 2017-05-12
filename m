@@ -1,79 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E326B0038
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 09:39:29 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e64so43158263pfd.3
-        for <linux-mm@kvack.org>; Fri, 12 May 2017 06:39:29 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id h15si3433097plk.259.2017.05.12.06.39.27
-        for <linux-mm@kvack.org>;
-        Fri, 12 May 2017 06:39:28 -0700 (PDT)
-Subject: Re: 8 Gigabytes and constantly swapping
-References: <171e8fa1-3f14-dc18-09b5-48399b250a30@internode.on.net>
- <64c96dd6-651c-eee8-2a30-65e60988d7d8@I-love.SAKURA.ne.jp>
-From: Arthur Marsh <arthur.marsh@internode.on.net>
-Message-ID: <b64f3ec1-0839-3051-d030-164625620712@internode.on.net>
-Date: Fri, 12 May 2017 23:09:24 +0930
-MIME-Version: 1.0
-In-Reply-To: <64c96dd6-651c-eee8-2a30-65e60988d7d8@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2836E6B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 11:11:21 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id r63so41608394itc.2
+        for <linux-mm@kvack.org>; Fri, 12 May 2017 08:11:21 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id i201si3513782ioa.192.2017.05.12.08.11.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 May 2017 08:11:20 -0700 (PDT)
+Date: Fri, 12 May 2017 10:11:14 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+In-Reply-To: <20170512122704.GA30528@amt.cnet>
+Message-ID: <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
+References: <20170425135717.375295031@redhat.com> <20170425135846.203663532@redhat.com> <20170502102836.4a4d34ba@redhat.com> <20170502165159.GA5457@amt.cnet> <20170502131527.7532fc2e@redhat.com> <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
+ <20170512122704.GA30528@amt.cnet>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
+On Fri, 12 May 2017, Marcelo Tosatti wrote:
 
-
-Tetsuo Handa wrote on 12/05/17 20:26:
-> On 2017/05/12 17:51, Arthur Marsh wrote:
->> I've been building the Linus git head kernels as the source gets updated and
->> the one built about 3 hours ago managed to get stuck with kswapd0 as the highest
->> consumer of CPU cycles (but still under 1 percent) of processes listed by top for
->> over 15 minutes, after which I hit the power switch and rebooted with a Debian
->> 4.11.0 kernel.
+> > A bit confused by this one. The vmstat worker is already disabled if there
+> > are no updates. Also the patches by Chris Metcalf on data plane mode add a
+> > prctl to quiet the vmstat workers.
+> >
+> > Why do we need more than this?
 >
-> Did the /bin/top process continue showing up-to-dated statistics rather than
-> refrain from showing up-to-dated statistics? (I wonder why you had to hit
-> the power switch before trying SysRq-m/SysRq-f etc.)
+> If there are vmstat statistic updates on a given CPU, and you don't
+> want intervention from the vmstat worker, you change the behaviour of
+> stat data collection to directly write to the global structures (which
+> disables the performance optimization of collecting data in per-cpu
+> counters).
 
-Yes, the /bin/top process continued updating.
+Hmmm.... Ok. That is going to be expensive if you do this for each
+individual vmstat update.
 
-The load average reached a high figure (over 14).
+> This way you can disable vmstat worker (because it causes undesired
+> latencies), while allowing vmstatistics to function properly.
 
-kswapd0 was using more CPU cycles than anything else but was still under 
-1 percent.
+Best then to run the vmstat update mechanism when you leave kernel mode to
+get all the updates in one go.
 
-There was still a lot of swap space free (about 3 GiB).
 
-buffer/cache dropped below 1 GiB out of 8 GiB RAM.
-
-I would have used alt-sysrq-f but had only recently enabled it in my 
-kernel builds and didn't think to look it up on my other pc.
-
+> The prctl from Chris Metcalf patchset allows one to disable vmstat
+> worker per CPU? If so, they replace the functionality of the patch
+> "[patch 3/3] MM: allow per-cpu vmstat_worker configuration"
+> of the -v2 series of my patchset, and we can use it instead.
 >
-> If yes, assuming that reading statistics involves memory allocation requests,
-> there was no load at at all despite firefox and chromium were running?
+> Is it integrated already?
 
-Wait time was over 98 percent, load average over 14.
+The data plane mode patches disables vmstat processing  by updating the
+vmstats immediately if necessary and switching off the kworker thread.
 
->
-> If no, all allocation requests got stuck waiting for memory reclaim?
-...
-> More description of what happened and how you confirmed that
-> the /bin/top process continued working would be helpful.
->
->
+So the kworker wont be running until the next time statistics are checked
+by the shepherd task from a remote cpu. If the counters have been updated
+then the shepherd task will reenable the kworker. This is already merged
+and has been working for a long time. Data plan mode has not been merged
+yet but the infrastructure in vmstat.c is there because NOHZ needs it too.
 
-It was as if kswapd0 was just left waiting to swap pages in and out 
-without any other processes getting to complete what they were trying to do.
+See linux/vmstat.c:quiet_vmstat()
 
-It does seem to be related to chromium starting up several processes 
-when opening extra windows/tabs.
+It would be easy to add a /proc file that allows the quieting of the
+vmstat workers for a certain cpu. Just make it call the quiet_vmstat() on
+the right cpu.
 
-Thanks for your help!
+This will quiet vmstat down. The shepherd task will check the stats in 2
+second intervals and will then reenable when necessasry.
 
-Arthur.
+Note that we already are updating the global structures directly if the
+differential gets too high. Reducing the differential may get you what you
+want.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
