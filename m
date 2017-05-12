@@ -1,96 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AC626B0038
-	for <linux-mm@kvack.org>; Fri, 12 May 2017 02:18:12 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u21so40027937pgn.5
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:18:12 -0700 (PDT)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id d1si2500271pli.110.2017.05.11.23.18.11
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C7A226B0038
+	for <linux-mm@kvack.org>; Fri, 12 May 2017 02:38:20 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id v4so10494248wmb.8
+        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:38:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h15si2691022eda.106.2017.05.11.23.38.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 May 2017 23:18:11 -0700 (PDT)
-Received: by mail-pg0-x234.google.com with SMTP id u28so25549380pgn.1
-        for <linux-mm@kvack.org>; Thu, 11 May 2017 23:18:11 -0700 (PDT)
-Message-ID: <1494569882.21563.8.camel@gmail.com>
-Subject: [RFC summary] Enable Coherent Device Memory
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Fri, 12 May 2017 16:18:02 +1000
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 May 2017 23:38:19 -0700 (PDT)
+Date: Fri, 12 May 2017 08:38:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v7 0/7] Introduce ZONE_CMA
+Message-ID: <20170512063815.GC6803@dhcp22.suse.cz>
+References: <20170413115615.GB11795@dhcp22.suse.cz>
+ <20170417020210.GA1351@js1304-desktop>
+ <20170424130936.GB1746@dhcp22.suse.cz>
+ <20170425034255.GB32583@js1304-desktop>
+ <20170427150636.GM4706@dhcp22.suse.cz>
+ <20170502040129.GA27335@js1304-desktop>
+ <20170502133229.GK14593@dhcp22.suse.cz>
+ <20170511021240.GA22319@js1304-desktop>
+ <20170511091304.GH26782@dhcp22.suse.cz>
+ <20170512020046.GA5538@js1304-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170512020046.GA5538@js1304-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-Here is a summary of the RFC I posted for coherent device memory
-(see https://lwn.net/Articles/720380/)
+On Fri 12-05-17 11:00:48, Joonsoo Kim wrote:
+> On Thu, May 11, 2017 at 11:13:04AM +0200, Michal Hocko wrote:
+> > On Thu 11-05-17 11:12:43, Joonsoo Kim wrote:
+> > > Sorry for the late response. I was on a vacation.
+> > > 
+> > > On Tue, May 02, 2017 at 03:32:29PM +0200, Michal Hocko wrote:
+> > > > On Tue 02-05-17 13:01:32, Joonsoo Kim wrote:
+> > > > > On Thu, Apr 27, 2017 at 05:06:36PM +0200, Michal Hocko wrote:
+> > > > [...]
+> > > > > > I see this point and I agree that using a specific zone might be a
+> > > > > > _nicer_ solution in the end but you have to consider another aspects as
+> > > > > > well. The main one I am worried about is a long term maintainability.
+> > > > > > We are really out of page flags and consuming one for a rather specific
+> > > > > > usecase is not good. Look at ZONE_DMA. I am pretty sure that almost
+> > > > > > no sane HW needs 16MB zone anymore, yet we have hard time to get rid
+> > > > > > of it and so we have that memory laying around unused all the time
+> > > > > > and blocking one page flag bit. CMA falls into a similar category
+> > > > > > AFAIU. I wouldn't be all that surprised if a future HW will not need CMA
+> > > > > > allocations in few years, yet we will have to fight to get rid of it
+> > > > > > like we do with ZONE_DMA. And not only that. We will also have to fight
+> > > > > > finding page flags for other more general usecases in the meantime.
+> > > > > 
+> > > > > This maintenance problem is inherent. This problem exists even if we
+> > > > > uses MIGRATETYPE approach. We cannot remove many hooks for CMA if a
+> > > > > future HW will not need CMA allocation in few years. The only
+> > > > > difference is that one takes single zone bit only for CMA user and the
+> > > > > other approach takes many hooks that we need to take care about it all
+> > > > > the time.
+> > > > 
+> > > > And I consider this a big difference. Because while hooks are not nice
+> > > > they will affect CMA users (in a sense of bugs/performance etc.). While
+> > > > an additional bit consumed will affect potential future and more generic
+> > > > features.
+> > > 
+> > > Because these hooks are so tricky and are spread on many places,
+> > > bugs about these hooks can be made by *non-CMA* user and they hurt
+> > > *CMA* user. These hooks could also delay non-CMA user's development speed
+> > > since there are many hooks about CMA and understanding how CMA is managed
+> > > is rather difficult.
+> > 
+> > Than make those hooks easier to maintain. Seriously this is a
+> > non-argument.
+> 
+> I can't understand what you said here. 
 
-I did an FAQ in one of the emails, I am extending that to summary form
-so that we can move ahead towards decision making
+I wanted to say that you can make those hooks so non-intrusive that
+nobody outside of the CMA has to even care that CMA exists.
 
-What is coherent device memory?
- - Please see the RFC (https://lwn.net/Articles/720380/) and
-   https://lwn.net/Articles/717601/
-Why do we need to isolate memory?
- - CDM memory is not meant for normal usage, applications can request for it
-   explictly. Oflload their compute to the device where the memory is
-   (the offload is via a user space API like CUDA/openCL/...)
-How do we isolate the memory - NUMA or HMM-CDM?
- - Since the memory is coherent, NUMA provides the mechanism to isolate to
-   a large extent via mempolicy. With NUMA we also get autonuma/kswapd/etc
-   running. Something we would like to avoid. NUMA gives the application
-   a transparent view of memory, in the sense that all mm features work,
-   like direct page cache allocation in coherent device memory, limiting
-   memory via cgroups if required, etc. With CPUSets, its
-   possible for us to isolate allocation. One challenge is that the
-   admin on the system may use them differently and applications need to
-   be aware of running in the right cpuset to allocate memory from the
-   CDM node. Putting all applications in the cpuset with the CDM node is
-   not the right thing to do, which means the application needs to move itself
-   to the right cpuset before requesting for CDM memory. It's not impossible
-   to use CPUsets, just hard to configure correctly.
-  - With HMM, we would need a HMM variant HMM-CDM, so that we are not marking
-   the pages as unavailable, page cache cannot do directly to coherent memory.
-   Audit of mm paths is required. Most of the other things should work.
-   User access to HMM-CDM memory behind ZONE_DEVICE is via a device driver.
-Do we need to isolate node attributes independent of coherent device memory?
- - Christoph Lameter thought it would be useful to isolate node attributes,
-   specifically ksm/autonuma for low latency suff.
-Why do we need migration?
- - Depending on where the memory is being accessed from, we would like to
-   migrate pages between system and coherent device memory. HMM provides
-   DMA offload capability that is useful in both cases.
-What is the larger picture - end to end?
- - Applications can allocate memory on the device or in system memory,
-   offload the compute via user space API. Migration can be used for performance
-   if required since it helps to keep the memory local to the compute.
+> With zone approach, someone who
+> isn't related to CMA don't need to understand how CMA is managed.
+> 
+> > 
+> > [...]
+> > 
+> > > > And all this can be isolated to CMA specific hooks with mostly minimum
+> > > > impact to most users. I hear you saying that zone approach is more natural
+> > > > and I would agree if we wouldn't have to care about the number of zones.
+> > > 
+> > > I attach a solution about one more bit in page flags although I don't
+> > > agree with your opinion that additional bit is no-go approach. Just
+> > > note that we have already used three bits for zone encoding in some
+> > > configuration due to ZONE_DEVICE.
+> > 
+> > I am absolutely not happy about ZONE_DEVICE but there is _no_ other
+> > viable solution right now. I know that people behind this are still
+> > considering struct page over direct pfn usage but they are not in the
+> > same situation as CMA which _can_ work without additional zone.
+> 
+> IIUC, ZONE_DEVICE can reuse the other zone and migratetype.
 
-Comments from the thread
+They are not going to migrate anything or define any allocation fallback
+policy because those pages are outside of the page allocator completely.
+And that is why a zone approach is a reasonable approach. There are
+probably other ways and I will certainly push going that way.
 
-1. If we go down the NUMA path, we need to live with the limitations of
-   what comes with the cpuless NUMA node
-2. The changes made to cpusets and mempolicies, make the code more complex
-3. We need a good end to end story
+[...]
 
-The comments from the thread were responded to
+> > If you _really_ insist on using zone for CMA then reuse ZONE_MOVABLE.
+> > I absolutely miss why do you push a specialized zone so hard.
+> 
+> As I said before, there is no fundamental issue to reuse ZONE_MOVABLE.
+> I just don't want to reuse it because they have a different
+> characteristic. In MM subsystem context, their characteristic is the same.
+> However, CMA memory should be used for the device in runtime so more
+> allocation guarantee is needed. See the offline_pages() in
+> mm/memory_hotplug.c. They can bear in 120 sec to offline the
+> memory but CMA memory can't.
 
-How do we go about implementing CDM then?
+This is just an implementation detail. Pinned pages in the CMA ranges
+should be easilly checked. Moreover memory hotplug cares only about
+hotplugable memory and placing CMA ranges there could be seen as a
+configuration bug.
 
-The recommendation from John Hubbard/Mel Gorman and Michal Hocko is to
-use HMM-CDM to solve the problem. Jerome/Balbir and Ben H prefer NUMA-CDM.
-There were suggestions that NUMA might not be ready or is the best approach
-in the long term, but we are yet to identify what changes to NUMA would
-enable it to support NUMA-CDM.
+> And, this is a design issue. I don't want to talk about why should we
+> pursuit the good design. Originally, ZONE exists to manage different
+> type of memory. Migratetype is not for that purpose. Using separate
+> zone fits the original purpose. Mixing them would be a bad design and
+> we would esaily encounter the unexpected problem in the future.
 
-The trade-offs and limitations/advantages of both approaches are in the
-RFC thread and in the summary above. It seems like the from the discussions
-with Michal/Mel/John the direction is to use HMM-CDM for now (both from the
-thread and from mm-summit). Can we build consensus on this and move forward?
-Are there any objections? Did I miss or misrepresent anything from the threads?
-It would be good to get feedback from Andrew Morton and Rik Van Riel as well.
+As I've said earlier. Abusing ZONE_MOVABLE is not ideal either. I would
+rather keep the status quo and fix the cluttered code and make it easier
+to follow. But if you absolutely insist that a specialized zone is
+necessary then ZONE_MOVABLE a) already exists and we do not need to
+consume another bit b) most of the CMA zone characteristics overlap
+with MOVABLE. So it is the least painful zone to use with the current
+restrictions we have.
 
-Balbir Singh.
+> > [...]
+> > > > No, but I haven't heard any single argument that those bugs are
+> > > > impossible to fix with the current approach. They might be harder to fix
+> > > > but if I can chose between harder for CMA and harder for other more
+> > > > generic HW independent features I will go for the first one. And do not
+> > > > take me wrong, I have nothing against CMA as such. It solves a real life
+> > > > problem. I just believe it doesn't deserve to consume a new bit in page
+> > > > flags because that is just too scarce resource.
+> > > 
+> > > As I mentioned above, I think that maintenance overhead due to CMA
+> > > deserves to consume a new bit in page flags. It also provide us
+> > > extendability to introduce more zones in the future.
+> > > 
+> > > Anyway, this value-judgement is subjective so I guess that we
+> > > cannot agree with each other. To solve your concern,
+> > > I make following solution. Please let me know your opinion about this.
+> > > This patch can be applied on top of my ZONE_CMA series.
+> > 
+> > I don not think this makes situation any easier or more acceptable for
+> > merging.
+> 
+> Please say the reason. This implementation don't use additional bit in
+> page flags that you concerned about. And, there is no performance
+> regression at least in my simple test.
+
+I really do not want to question your "simple test" but page_zonenum is
+used in many performance sensitive paths and proving it doesn't regress
+would require testing many different workload. Are you going to do that?
+
+> > But I feel we are looping without much progress. So let me NAK this
+> > until it is _proven_ that the current code is unfixable nor ZONE_MOVABLE
+> > can be reused
+> 
+> I want to open all the possibilty so could you check that ZONE_MOVABLE
+> can be overlapped with other zones? IIRC, your rework doesn't allow
+> it.
+
+My rework keeps the status quo, which is based on the assumption that
+zones cannot overlap. A longer term plan is that this restriction is
+removed. As I've said earlier overlapping zones is an interesting
+concept which is definitely worth pursuing.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
