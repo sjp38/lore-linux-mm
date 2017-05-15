@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A287A6B02F3
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 07:25:39 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p29so109542005pgn.3
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 04:25:39 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 895086B02F4
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 07:25:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b74so67973586pfd.2
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 04:25:40 -0700 (PDT)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id y64si10640992plh.78.2017.05.15.04.25.38
+        by mx.google.com with ESMTPS id y64si10640992plh.78.2017.05.15.04.25.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 04:25:38 -0700 (PDT)
+        Mon, 15 May 2017 04:25:39 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v11 2/5] mm, THP, swap: Unify swap slot free functions to put_swap_page
-Date: Mon, 15 May 2017 19:25:19 +0800
-Message-Id: <20170515112522.32457-3-ying.huang@intel.com>
+Subject: [PATCH -mm -v11 3/5] mm, THP, swap: Move anonymous THP split logic to vmscan
+Date: Mon, 15 May 2017 19:25:20 +0800
+Message-Id: <20170515112522.32457-4-ying.huang@intel.com>
 In-Reply-To: <20170515112522.32457-1-ying.huang@intel.com>
 References: <20170515112522.32457-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,174 +22,127 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kerne
 
 From: Minchan Kim <minchan@kernel.org>
 
-Now, get_swap_page takes struct page and allocates swap space
-according to page size(ie, normal or THP) so it would be more
-cleaner to introduce put_swap_page which is a counter function
-of get_swap_page. Then, it calls right swap slot free function
-depending on page's size.
+The add_to_swap aims to allocate swap_space(ie, swap slot and
+swapcache) so if it fails due to lack of space in case of THP
+or something(hdd swap but tries THP swapout) *caller* rather
+than add_to_swap itself should split the THP page and retry it
+with base page which is more natural.
 
-[ying.huang@intel.com: minor cleanup and fix]
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/swap.h | 12 ++----------
- mm/shmem.c           |  2 +-
- mm/swap_state.c      | 13 +++----------
- mm/swapfile.c        | 16 ++++++++++++++--
- mm/vmscan.c          |  2 +-
- 5 files changed, 21 insertions(+), 24 deletions(-)
+ include/linux/swap.h |  4 ++--
+ mm/swap_state.c      | 23 ++++++-----------------
+ mm/vmscan.c          | 17 ++++++++++++++++-
+ 3 files changed, 24 insertions(+), 20 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d18876384de0..ead6fd7966b4 100644
+index ead6fd7966b4..5ab1c98c7d27 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -387,6 +387,7 @@ static inline long get_nr_swap_pages(void)
+@@ -353,7 +353,7 @@ extern struct address_space *swapper_spaces[];
+ 		>> SWAP_ADDRESS_SPACE_SHIFT])
+ extern unsigned long total_swapcache_pages(void);
+ extern void show_swap_cache_info(void);
+-extern int add_to_swap(struct page *, struct list_head *list);
++extern int add_to_swap(struct page *page);
+ extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
+ extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
+ extern void __delete_from_swap_cache(struct page *);
+@@ -473,7 +473,7 @@ static inline struct page *lookup_swap_cache(swp_entry_t swp)
+ 	return NULL;
+ }
  
- extern void si_swapinfo(struct sysinfo *);
- extern swp_entry_t get_swap_page(struct page *page);
-+extern void put_swap_page(struct page *page, swp_entry_t entry);
- extern swp_entry_t get_swap_page_of_type(int);
- extern int get_swap_pages(int n, bool cluster, swp_entry_t swp_entries[]);
- extern int add_swap_count_continuation(swp_entry_t, gfp_t);
-@@ -394,7 +395,6 @@ extern void swap_shmem_alloc(swp_entry_t);
- extern int swap_duplicate(swp_entry_t);
- extern int swapcache_prepare(swp_entry_t);
- extern void swap_free(swp_entry_t);
--extern void swapcache_free(swp_entry_t);
- extern void swapcache_free_entries(swp_entry_t *entries, int n);
- extern int free_swap_and_cache(swp_entry_t);
- extern int swap_type_of(dev_t, sector_t, struct block_device **);
-@@ -453,7 +453,7 @@ static inline void swap_free(swp_entry_t swp)
+-static inline int add_to_swap(struct page *page, struct list_head *list)
++static inline int add_to_swap(struct page *page)
  {
+ 	return 0;
  }
- 
--static inline void swapcache_free(swp_entry_t swp)
-+static inline void put_swap_page(struct page *page, swp_entry_t swp)
- {
- }
- 
-@@ -578,13 +578,5 @@ static inline bool mem_cgroup_swap_full(struct page *page)
- }
- #endif
- 
--#ifdef CONFIG_THP_SWAP
--extern void swapcache_free_cluster(swp_entry_t entry);
--#else
--static inline void swapcache_free_cluster(swp_entry_t entry)
--{
--}
--#endif
--
- #endif /* __KERNEL__*/
- #endif /* _LINUX_SWAP_H */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 29948d7da172..82158edaefdb 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1326,7 +1326,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
- 
- 	mutex_unlock(&shmem_swaplist_mutex);
- free_swap:
--	swapcache_free(swap);
-+	put_swap_page(page, swap);
- redirty:
- 	set_page_dirty(page);
- 	if (wbc->for_reclaim)
 diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 16ff89d058f4..0ad214d7a7ad 100644
+index 0ad214d7a7ad..9c71b6b2562f 100644
 --- a/mm/swap_state.c
 +++ b/mm/swap_state.c
-@@ -231,10 +231,7 @@ int add_to_swap(struct page *page, struct list_head *list)
- 	return 1;
+@@ -184,7 +184,7 @@ void __delete_from_swap_cache(struct page *page)
+  * Allocate swap space for the page and add the page to the
+  * swap cache.  Caller needs to hold the page lock. 
+  */
+-int add_to_swap(struct page *page, struct list_head *list)
++int add_to_swap(struct page *page)
+ {
+ 	swp_entry_t entry;
+ 	int err;
+@@ -192,12 +192,12 @@ int add_to_swap(struct page *page, struct list_head *list)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
  
- fail_free:
--	if (PageTransHuge(page))
--		swapcache_free_cluster(entry);
--	else
--		swapcache_free(entry);
-+	put_swap_page(page, entry);
- fail:
- 	if (PageTransHuge(page) && !split_huge_page_to_list(page, list))
- 		goto retry;
-@@ -259,11 +256,7 @@ void delete_from_swap_cache(struct page *page)
- 	__delete_from_swap_cache(page);
- 	spin_unlock_irq(&address_space->tree_lock);
+-retry:
+ 	entry = get_swap_page(page);
+ 	if (!entry.val)
+-		goto fail;
++		return 0;
++
+ 	if (mem_cgroup_try_charge_swap(page, entry))
+-		goto fail_free;
++		goto fail;
  
--	if (PageTransHuge(page))
--		swapcache_free_cluster(entry);
--	else
--		swapcache_free(entry);
--
-+	put_swap_page(page, entry);
- 	page_ref_sub(page, hpage_nr_pages(page));
- }
- 
-@@ -415,7 +408,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 	/*
+ 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+@@ -218,23 +218,12 @@ int add_to_swap(struct page *page, struct list_head *list)
  		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
  		 * clear SWAP_HAS_CACHE flag.
  		 */
--		swapcache_free(entry);
-+		put_swap_page(new_page, entry);
- 	} while (err != -ENOMEM);
+-		goto fail_free;
+-
+-	if (PageTransHuge(page)) {
+-		err = split_huge_page_to_list(page, list);
+-		if (err) {
+-			delete_from_swap_cache(page);
+-			return 0;
+-		}
+-	}
++		goto fail;
  
- 	if (new_page)
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index f4c0f2a92bf0..90b91f48d401 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1148,7 +1148,7 @@ void swap_free(swp_entry_t entry)
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
-  */
--void swapcache_free(swp_entry_t entry)
-+static void swapcache_free(swp_entry_t entry)
- {
- 	struct swap_info_struct *p;
+ 	return 1;
  
-@@ -1160,7 +1160,7 @@ void swapcache_free(swp_entry_t entry)
+-fail_free:
+-	put_swap_page(page, entry);
+ fail:
+-	if (PageTransHuge(page) && !split_huge_page_to_list(page, list))
+-		goto retry;
++	put_swap_page(page, entry);
+ 	return 0;
  }
  
- #ifdef CONFIG_THP_SWAP
--void swapcache_free_cluster(swp_entry_t entry)
-+static void swapcache_free_cluster(swp_entry_t entry)
- {
- 	unsigned long offset = swp_offset(entry);
- 	unsigned long idx = offset / SWAPFILE_CLUSTER;
-@@ -1184,8 +1184,20 @@ void swapcache_free_cluster(swp_entry_t entry)
- 	swap_free_cluster(si, idx);
- 	spin_unlock(&si->lock);
- }
-+#else
-+static inline void swapcache_free_cluster(swp_entry_t entry)
-+{
-+}
- #endif /* CONFIG_THP_SWAP */
- 
-+void put_swap_page(struct page *page, swp_entry_t entry)
-+{
-+	if (!PageTransHuge(page))
-+		swapcache_free(entry);
-+	else
-+		swapcache_free_cluster(entry);
-+}
-+
- void swapcache_free_entries(swp_entry_t *entries, int n)
- {
- 	struct swap_info_struct *p, *prev;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9f6c7ae5857f..b39ccabbe2dc 100644
+index b39ccabbe2dc..d58a37f79219 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -708,7 +708,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
- 		mem_cgroup_swapout(page, swap);
- 		__delete_from_swap_cache(page);
- 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
--		swapcache_free(swap);
-+		put_swap_page(page, swap);
- 	} else {
- 		void (*freepage)(struct page *);
- 		void *shadow = NULL;
+@@ -1125,8 +1125,23 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		    !PageSwapCache(page)) {
+ 			if (!(sc->gfp_mask & __GFP_IO))
+ 				goto keep_locked;
+-			if (!add_to_swap(page, page_list))
++			if (!add_to_swap(page)) {
++				if (!PageTransHuge(page))
++					goto activate_locked;
++				/* Split THP and swap individual base pages */
++				if (split_huge_page_to_list(page, page_list))
++					goto activate_locked;
++				if (!add_to_swap(page))
++					goto activate_locked;
++			}
++
++			/* XXX: We don't support THP writes */
++			if (PageTransHuge(page) &&
++				  split_huge_page_to_list(page, page_list)) {
++				delete_from_swap_cache(page);
+ 				goto activate_locked;
++			}
++
+ 			may_enter_fs = 1;
+ 
+ 			/* Adding to swap updated mapping */
 -- 
 2.11.0
 
