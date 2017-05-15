@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1401C6B02EE
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 05:00:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l73so41509456pfj.8
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 02:00:38 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d185si10368583pgc.362.2017.05.15.02.00.37
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E3DF46B0315
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 05:00:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e16so97760345pfj.15
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 02:00:43 -0700 (PDT)
+Received: from mail-pg0-f66.google.com (mail-pg0-f66.google.com. [74.125.83.66])
+        by mx.google.com with ESMTPS id j1si10095571pfb.208.2017.05.15.02.00.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 02:00:37 -0700 (PDT)
-Date: Mon, 15 May 2017 11:00:27 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: Low memory killer problem
-Message-ID: <20170515090027.GA18167@kroah.com>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A004D@CN-MBX05.HTC.COM.TW>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
- <20170515080535.GA22076@kroah.com>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F84@CN-MBX03.HTC.COM.TW>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F84@CN-MBX03.HTC.COM.TW>
+        Mon, 15 May 2017 02:00:43 -0700 (PDT)
+Received: by mail-pg0-f66.google.com with SMTP id h64so11455187pge.3
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 02:00:43 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 08/14] mm, compaction: skip over holes in __reset_isolation_suitable
+Date: Mon, 15 May 2017 10:58:21 +0200
+Message-Id: <20170515085827.16474-9-mhocko@kernel.org>
+In-Reply-To: <20170515085827.16474-1-mhocko@kernel.org>
+References: <20170515085827.16474-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhiyuan_zhu@htc.com
-Cc: vinmenon@codeaurora.org, linux-mm@kvack.org, skhiani@codeaurora.org, torvalds@linux-foundation.org, Jet_Li@htc.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, May 15, 2017 at 08:22:38AM +0000, zhiyuan_zhu@htc.com wrote:
-> Dear Greg, 
-> 
-> Very sorry my mail history is lost.
-> 
-> I found a part of ION memory will be return to system in android platform,
-> But these memorys  cana??t accounted in low-memory-killer strategy.
-> a?|
-> And I also found ION memory comes from,  kmalloc/vmalloc/alloc pages/reserved memory.
-> I understand reserved memory shouldn't accounted to free memory.
-> But the memory which alloced by kmalloc/vmalloc/alloc pages, can be reclaimed.
-> 
-> But the low-memory killer can't accounted this part,
-> Many thanks.
-> 
-> Code location, 
->    ---> drivers/staging/android/lowmemorykiller.c  A -> lowmem_scan
+From: Michal Hocko <mhocko@suse.com>
 
-That file is gone from the latest kernel release, sorry.  So there's not
-much we can do about this code anymore.
+__reset_isolation_suitable walks the whole zone pfn range and it tries
+to jump over holes by checking the zone for each page. It might still
+stumble over offline pages, though. Skip those by checking
+pfn_to_online_page()
 
-See the mailing list archives for what should be used instead of this
-code, there is a plan for what to do.
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/compaction.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-Also note that the ION code has had a lot of reworks lately as well.
-
-good luck!
-
-greg k-h
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 613c59e928cb..fb548e4c7bd4 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -236,10 +236,9 @@ static void __reset_isolation_suitable(struct zone *zone)
+ 
+ 		cond_resched();
+ 
+-		if (!pfn_valid(pfn))
++		page = pfn_to_online_page(pfn);
++		if (!page)
+ 			continue;
+-
+-		page = pfn_to_page(pfn);
+ 		if (zone != page_zone(page))
+ 			continue;
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
