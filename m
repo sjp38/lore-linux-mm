@@ -1,72 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCF156B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:22:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c6so97684415pfj.5
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:22:44 -0700 (PDT)
-Received: from tyimss.htc.com (tyimss.htc.com. [220.128.71.150])
-        by mx.google.com with ESMTPS id w24si4871106pfl.345.2017.05.15.01.22.43
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA616B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:28:16 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id x64so105873827pgd.6
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:28:16 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0127.outbound.protection.outlook.com. [104.47.2.127])
+        by mx.google.com with ESMTPS id z84si10155031pfk.178.2017.05.15.01.28.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 May 2017 01:22:44 -0700 (PDT)
-From: <zhiyuan_zhu@htc.com>
-Subject: RE: Low memory killer problem
-Date: Mon, 15 May 2017 08:22:38 +0000
-Message-ID: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F84@CN-MBX03.HTC.COM.TW>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A004D@CN-MBX05.HTC.COM.TW>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
- <20170515080535.GA22076@kroah.com>
-In-Reply-To: <20170515080535.GA22076@kroah.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 15 May 2017 01:28:15 -0700 (PDT)
+Subject: Re: [PATCH] mm/kasan: use kasan_zero_pud for p4d table
+References: <1494829255-23946-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <60aff3a2-35d5-53f4-65eb-f28d577dab55@virtuozzo.com>
+Date: Mon, 15 May 2017 11:29:57 +0300
 MIME-Version: 1.0
+In-Reply-To: <1494829255-23946-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: vinmenon@codeaurora.org, linux-mm@kvack.org, skhiani@codeaurora.org, torvalds@linux-foundation.org, Jet_Li@htc.com
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-RGVhciBHcmVnLCANCg0KVmVyeSBzb3JyeSBteSBtYWlsIGhpc3RvcnkgaXMgbG9zdC4NCg0KSSBm
-b3VuZCBhIHBhcnQgb2YgSU9OIG1lbW9yeSB3aWxsIGJlIHJldHVybiB0byBzeXN0ZW0gaW4gYW5k
-cm9pZCBwbGF0Zm9ybSwNCkJ1dCB0aGVzZSBtZW1vcnlzICBjYW7igJl0IGFjY291bnRlZCBpbiBs
-b3ctbWVtb3J5LWtpbGxlciBzdHJhdGVneS4NCuKApg0KQW5kIEkgYWxzbyBmb3VuZCBJT04gbWVt
-b3J5IGNvbWVzIGZyb20sICBrbWFsbG9jL3ZtYWxsb2MvYWxsb2MgcGFnZXMvcmVzZXJ2ZWQgbWVt
-b3J5Lg0KSSB1bmRlcnN0YW5kIHJlc2VydmVkIG1lbW9yeSBzaG91bGRuJ3QgYWNjb3VudGVkIHRv
-IGZyZWUgbWVtb3J5Lg0KQnV0IHRoZSBtZW1vcnkgd2hpY2ggYWxsb2NlZCBieSBrbWFsbG9jL3Zt
-YWxsb2MvYWxsb2MgcGFnZXMsIGNhbiBiZSByZWNsYWltZWQuDQoNCkJ1dCB0aGUgbG93LW1lbW9y
-eSBraWxsZXIgY2FuJ3QgYWNjb3VudGVkIHRoaXMgcGFydCwNCk1hbnkgdGhhbmtzLg0KDQpDb2Rl
-IGxvY2F0aW9uLCANCiAgIC0tLT4gZHJpdmVycy9zdGFnaW5nL2FuZHJvaWQvbG93bWVtb3J5a2ls
-bGVyLmMgIMKgLT4gbG93bWVtX3NjYW4NCg0KQ29kZSByZXZpZXcsDQo0MTUgICAgICAgICBvdGhl
-cl9mcmVlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfRlJFRV9QQUdFUyk7DQo0MTYgDQo0MTcgICAg
-ICAgICBpZiAoZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfU0hNRU0pICsgZ2xvYmFsX3BhZ2Vfc3RhdGUo
-TlJfTUxPQ0spICsgdG90YWxfc3dhcGNhY2hlX3BhZ2VzKCkgPA0KNDE4ICAgICAgICAgICAgICAg
-ICBnbG9iYWxfcGFnZV9zdGF0ZShOUl9GSUxFX1BBR0VTKSArIHpjYWNoZV9wYWdlcygpKQ0KNDE5
-ICAgICAgICAgICAgICAgICBvdGhlcl9maWxlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfRklMRV9Q
-QUdFUykgKyB6Y2FjaGVfcGFnZXMoKSAtDQo0MjAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfU0hNRU0pIC0NCjQyMiAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0b3RhbF9zd2Fw
-Y2FjaGVfcGFnZXMoKTsNCg0KU28sIG90aGVyX2ZyZWUgbWVhbnM6ICBNZW1GcmVlLA0Kb3RoZXJf
-ZmlsZSBtZWFuczogQnVmZmVycyArIENhY2hlZCAtIFNoTUVNIC0gU3dhcENhY2hlLg0KQW5kIHBh
-cnQgb2YgICggSW9uSW5Vc2UgLSBJb25Ub3RhbCApIHNob3VsZCBiZSByZWNsYWltZWQgYnV0IG5v
-dCBhY2NvdW50ZWQuDQpUaGFua3MuDQoNCk1lbWluZm8gZXhhbXBsZQ0KJCBhZGIgc2hlbGwgY2F0
-IC9wcm9jL21lbWluZm8NCk1lbVRvdGFsOiAgICAgICAgMzgwNTMxMiBrQg0KTWVtRnJlZTogICAg
-ICAgICAxNDQ2MjIwIGtCDQpNZW1BdmFpbGFibGU6ICAgIDIzODgzODQga0INCkJ1ZmZlcnM6ICAg
-ICAgICAgICAxNjc5NiBrQg0KQ2FjaGVkOiAgICAgICAgICAxMTkwODY4IGtCDQrigKYNCklvblRv
-dGFsOiAgICAgICAgIDIyNDI1MiBrQg0KSW9uSW5Vc2U6ICAgICAgICAgMTk5MTA4IGtCDQoNCg0K
-VGhhbmtzDQpCUg0KWmhpeXVhbiB6aHUNCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZy
-b206IEdyZWcgS0ggW21haWx0bzpncmVna2hAbGludXhmb3VuZGF0aW9uLm9yZ10gDQpTZW50OiBN
-b25kYXksIE1heSAxNSwgMjAxNyA0OjA2IFBNDQpUbzogWmhpeXVhbiBaaHUo5pyx5b+X6YGgKQ0K
-Q2M6IHZpbm1lbm9uQGNvZGVhdXJvcmEub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7IHNraGlhbmlA
-Y29kZWF1cm9yYS5vcmc7IHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRpb24ub3JnDQpTdWJqZWN0OiBS
-ZTogTG93IG1lbW9yeSBraWxsZXIgcHJvYmxlbQ0KDQpPbiBNb24sIE1heSAxNSwgMjAxNyBhdCAw
-NzoyNToyMEFNICswMDAwLCB6aGl5dWFuX3podUBodGMuY29tIHdyb3RlOg0KPiBMb29wIE1NIG1h
-aW50YWluZXJzLA0KPiANCj4gIA0KPiANCj4gRGVhciBBbGwsDQo+IA0KPiAgDQo+IA0KPiBXaG8g
-Y2FuIHRhbGsgYWJvdXQgdGhpcyBwcm9ibGVtPyBUaGFua3MuDQoNCldoYXQgcHJvYmxlbT8NCg0K
-PiBNYXliZSB0aGlzIGlzIGxvd21lbW9yeSBraWxsZXLigJlzIGJ1ZyA/DQoNClRoaXMgY29kZSBp
-cyBub3cgcmVtb3ZlZCBmcm9tIHRoZSBrZXJuZWwsIHNvIEkgZG91YnQgdGhlcmUgY291bGQgYmUg
-YSBidWcgaW4gaXQgOikNCg0KPiBJT04gbWVtb3J5IGlzIGNvbXBsZXggbm93LCB3ZSBuZWVkIHRv
-IGhhdmUgYSBicmVha2Rvd24gZm9yIHRoZW0sIEkgdGhpbmsuDQoNCldoYXQgZG8geW91IG1lYW4g
-YnkgdGhpcz8NCg0KdGhhbmtzLA0KDQpncmVnIGstaA0KDQo=
+On 05/15/2017 09:20 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> There is missing optimization in zero_p4d_populate() that can save
+> some memory when mapping zero shadow. Implement it like as others.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+
+
+> ---
+>  mm/kasan/kasan_init.c | 12 ++++++++++++
+>  1 file changed, 12 insertions(+)
+> 
+> diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+> index b96a5f7..554e4c0 100644
+> --- a/mm/kasan/kasan_init.c
+> +++ b/mm/kasan/kasan_init.c
+> @@ -118,6 +118,18 @@ static void __init zero_p4d_populate(pgd_t *pgd, unsigned long addr,
+>  
+>  	do {
+>  		next = p4d_addr_end(addr, end);
+> +		if (IS_ALIGNED(addr, P4D_SIZE) && end - addr >= P4D_SIZE) {
+> +			pud_t *pud;
+> +			pmd_t *pmd;
+> +
+> +			p4d_populate(&init_mm, p4d, lm_alias(kasan_zero_pud));
+> +			pud = pud_offset(p4d, addr);
+> +			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
+> +			pmd = pmd_offset(pud, addr);
+> +			pmd_populate_kernel(&init_mm, pmd,
+> +						lm_alias(kasan_zero_pte));
+> +			continue;
+> +		}
+>  
+>  		if (p4d_none(*p4d)) {
+>  			p4d_populate(&init_mm, p4d,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
