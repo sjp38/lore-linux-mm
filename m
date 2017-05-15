@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AF00F6B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:05:46 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o25so106576552pgc.1
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:05:46 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e5si10348080pga.100.2017.05.15.01.05.45
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C156B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:09:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c6so97526469pfj.5
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:09:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 33si9772014plk.81.2017.05.15.01.09.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 01:05:46 -0700 (PDT)
-Date: Mon, 15 May 2017 10:05:35 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: Low memory killer problem
-Message-ID: <20170515080535.GA22076@kroah.com>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A004D@CN-MBX05.HTC.COM.TW>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 May 2017 01:09:50 -0700 (PDT)
+Date: Mon, 15 May 2017 10:09:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: 8 Gigabytes and constantly swapping
+Message-ID: <20170515080945.GA6062@dhcp22.suse.cz>
+References: <171e8fa1-3f14-dc18-09b5-48399b250a30@internode.on.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
+In-Reply-To: <171e8fa1-3f14-dc18-09b5-48399b250a30@internode.on.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhiyuan_zhu@htc.com
-Cc: vinmenon@codeaurora.org, linux-mm@kvack.org, skhiani@codeaurora.org, torvalds@linux-foundation.org
+To: Arthur Marsh <arthur.marsh@internode.on.net>
+Cc: linux-mm@kvack.org
 
-On Mon, May 15, 2017 at 07:25:20AM +0000, zhiyuan_zhu@htc.com wrote:
-> Loop MM maintainers,
+On Fri 12-05-17 18:21:27, Arthur Marsh wrote:
+> I've been building the Linus git head kernels as the source gets updated and
+> the one built about 3 hours ago managed to get stuck with kswapd0 as the
+> highest consumer of CPU cycles (but still under 1 percent) of processes
+> listed by top for over 15 minutes, after which I hit the power switch and
+> rebooted with a Debian 4.11.0 kernel.
 > 
->  
+> The previous kernel built less than 24 hours earlier did not have this
+> problem.
 > 
-> Dear All,
+> CPU is an Athlon64 (Athlon II X4, 4 cores), RAM is 8GiB, swap is 4GiB, load
+> was mainly firefox and chromium. Opening a new window in chromium seemed to
+> help trigger the problem.
 > 
->  
+> It's not much information to go on, just wondered if anyone else had
+> experienced similar issues?
 > 
-> Who can talk about this problem? Thanks.
+> I'm happy to supply more configuration information and run tests including
+> with kernels built with test patches applied.
 
-What problem?
-
-> Maybe this is lowmemory killera??s bug ?
-
-This code is now removed from the kernel, so I doubt there could be a
-bug in it :)
-
-> ION memory is complex now, we need to have a breakdown for them, I think.
-
-What do you mean by this?
-
-thanks,
-
-greg k-h
+Is this 32b or 64b kernel? Could you take /proc/vmstat snapshots ever
+second while the kswapd is active?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
