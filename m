@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F32C6B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 15:38:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a66so109585196pfl.6
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 12:38:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 88si4536482plc.82.2017.05.15.12.38.22
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 153276B02C4
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 15:48:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c2so109331441pfd.9
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 12:48:06 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id w20si11531978pgj.290.2017.05.15.12.48.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 May 2017 12:38:23 -0700 (PDT)
-Date: Mon, 15 May 2017 21:38:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v3 0/9] parallelized "struct page" zeroing
-Message-ID: <20170515193817.GC7551@dhcp22.suse.cz>
-References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
- <20170509181234.GA4397@dhcp22.suse.cz>
- <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 May 2017 12:48:05 -0700 (PDT)
+Date: Mon, 15 May 2017 22:48:00 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
+ above 47-bits
+Message-ID: <20170515194759.di5pojt46e2lxo2p@black.fi.intel.com>
+References: <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
+ <201705152204.F4FmHH4W%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+In-Reply-To: <201705152204.F4FmHH4W%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Mon 15-05-17 14:12:10, Pasha Tatashin wrote:
-> Hi Michal,
+On Mon, May 15, 2017 at 10:49:43PM +0800, kbuild test robot wrote:
+> Hi Kirill,
 > 
-> After looking at your suggested memblock_virt_alloc_core() change again, I
-> decided to keep what I have. I do not want to inline
-> memblock_virt_alloc_internal(), because it is not a performance critical
-> path, and by inlining it we will unnecessarily increase the text size on all
-> platforms.
+> [auto build test ERROR on linus/master]
+> [also build test ERROR on v4.12-rc1 next-20170515]
+> [cannot apply to tip/x86/core xen-tip/linux-next]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Kirill-A-Shutemov/x86-5-level-paging-enabling-for-v4-12-Part-4/20170515-202736
+> config: i386-defconfig (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/cache.h:4:0,
+>                     from include/linux/printk.h:8,
+>                     from include/linux/kernel.h:13,
+>                     from mm/mmap.c:11:
+>    mm/mmap.c: In function 'arch_get_unmapped_area_topdown':
+>    arch/x86/include/asm/processor.h:878:50: error: 'TASK_SIZE_LOW' undeclared (first use in this function)
+>     #define TASK_UNMAPPED_BASE  __TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
 
-I do not insist but I would really _prefer_ if the bool zero argument
-didn't proliferate all over the memblock API.
- 
-> Also, because it will be very hard to make sure that no platform regresses
-> by making memset() default in _memblock_virt_alloc_core() (as I already
-> showed last week at least sun4v SPARC64 will require special changes in
-> order for this to work), I decided to make it available only for "deferred
-> struct page init" case. As, what is already in the patch.
+Thanks. Fixup is below.
 
-I do not think this is the right approach. Your measurements just show
-that sparc could have a more optimized memset for small sizes. If you
-keep the same memset only for the parallel initialization then you
-just hide this fact. I wouldn't worry about other architectures. All
-sane architectures should simply work reasonably well when touching a
-single or only few cache lines at the same time. If some arches really
-suffer from small memsets then the initialization should be driven by a
-specific ARCH_WANT_LARGE_PAGEBLOCK_INIT rather than making this depend
-on DEFERRED_INIT. Or if you are too worried then make it opt-in and make
-it depend on ARCH_WANT_PER_PAGE_INIT and make it enabled for x86 and
-sparc after memset optimization.
+Let me know if I need to send the full patch:
 
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index aaed58b03ddb..65663de9287b 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -794,6 +794,7 @@ static inline void spin_lock_prefetch(const void *x)
+  */
+ #define IA32_PAGE_OFFSET	PAGE_OFFSET
+ #define TASK_SIZE		PAGE_OFFSET
++#define TASK_SIZE_LOW		TASK_SIZE
+ #define TASK_SIZE_MAX		TASK_SIZE
+ #define DEFAULT_MAP_WINDOW	TASK_SIZE
+ #define STACK_TOP		TASK_SIZE
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
