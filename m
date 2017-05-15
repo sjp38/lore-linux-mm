@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E13376B0390
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 09:35:09 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id u13so52020429qku.11
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 06:35:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o40si10710200qtf.236.2017.05.15.06.35.08
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DD746B02F4
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 10:12:27 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q6so99393273pgn.12
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 07:12:27 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id a74si10763216pfl.231.2017.05.15.07.12.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 06:35:09 -0700 (PDT)
-From: Waiman Long <longman@redhat.com>
-Subject: [RFC PATCH v2 17/17] sched: Make cpu/cpuacct threaded controllers
-Date: Mon, 15 May 2017 09:34:16 -0400
-Message-Id: <1494855256-12558-18-git-send-email-longman@redhat.com>
-In-Reply-To: <1494855256-12558-1-git-send-email-longman@redhat.com>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+        Mon, 15 May 2017 07:12:26 -0700 (PDT)
+Date: Mon, 15 May 2017 17:11:19 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv5, REBASED 8/9] x86: Enable 5-level paging support
+Message-ID: <20170515141118.wh45ham64unjk5y2@black.fi.intel.com>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+ <20170515121218.27610-9-kirill.shutemov@linux.intel.com>
+ <9af22de7-89f3-576a-f933-c4e593924091@suse.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9af22de7-89f3-576a-f933-c4e593924091@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
-Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de, longman@redhat.com
+To: Juergen Gross <jgross@suse.com>
+Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Make cpu and cpuacct cgroup controllers usable within a threaded cgroup.
+On Mon, May 15, 2017 at 02:31:00PM +0200, Juergen Gross wrote:
+> > diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+> > index 027987638e98..12205e6dfa59 100644
+> > --- a/arch/x86/xen/Kconfig
+> > +++ b/arch/x86/xen/Kconfig
+> > @@ -5,6 +5,7 @@
+> >  config XEN
+> >  	bool "Xen guest support"
+> >  	depends on PARAVIRT
+> > +	depends on !X86_5LEVEL
+> 
+> I'd rather put this under "config XEN_PV".
 
-Signed-off-by: Waiman Long <longman@redhat.com>
----
- kernel/sched/core.c    | 1 +
- kernel/sched/cpuacct.c | 1 +
- 2 files changed, 2 insertions(+)
+Makes sense.
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index b041081..479f69e 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -7453,6 +7453,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
- 	.legacy_cftypes	= cpu_legacy_files,
- 	.dfl_cftypes	= cpu_files,
- 	.early_init	= true,
-+	.threaded	= true,
- #ifdef CONFIG_CGROUP_CPUACCT
- 	/*
- 	 * cpuacct is enabled together with cpu on the unified hierarchy
-diff --git a/kernel/sched/cpuacct.c b/kernel/sched/cpuacct.c
-index fc1cf13..853d18a 100644
---- a/kernel/sched/cpuacct.c
-+++ b/kernel/sched/cpuacct.c
-@@ -414,4 +414,5 @@ struct cgroup_subsys cpuacct_cgrp_subsys = {
- 	.css_free	= cpuacct_css_free,
- 	.legacy_cftypes	= files,
- 	.early_init	= true,
-+	.threaded	= true,
- };
--- 
-1.8.3.1
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----------------------8<----------------------------
