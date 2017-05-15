@@ -1,53 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C156B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:09:51 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c6so97526469pfj.5
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:09:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 33si9772014plk.81.2017.05.15.01.09.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7116B02E1
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:27 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 10so20776986wml.4
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:10:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l47si10705320wre.132.2017.05.15.01.10.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 May 2017 01:09:50 -0700 (PDT)
-Date: Mon, 15 May 2017 10:09:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 8 Gigabytes and constantly swapping
-Message-ID: <20170515080945.GA6062@dhcp22.suse.cz>
-References: <171e8fa1-3f14-dc18-09b5-48399b250a30@internode.on.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 May 2017 01:10:26 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4F89aRK121495
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:24 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2aedxn0yfw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:24 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Mon, 15 May 2017 02:10:23 -0600
+Subject: Re: mm: page allocation failures in swap_duplicate ->
+ add_swap_count_continuation
+References: <772d81b0-df36-8644-41ca-dc13d0c0f2b5@de.ibm.com>
+ <20170515080323.GD6056@dhcp22.suse.cz>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Date: Mon, 15 May 2017 10:10:17 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <171e8fa1-3f14-dc18-09b5-48399b250a30@internode.on.net>
+In-Reply-To: <20170515080323.GD6056@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <1c778ef8-b8ac-a62b-f5cf-35752582db6d@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arthur Marsh <arthur.marsh@internode.on.net>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri 12-05-17 18:21:27, Arthur Marsh wrote:
-> I've been building the Linus git head kernels as the source gets updated and
-> the one built about 3 hours ago managed to get stuck with kswapd0 as the
-> highest consumer of CPU cycles (but still under 1 percent) of processes
-> listed by top for over 15 minutes, after which I hit the power switch and
-> rebooted with a Debian 4.11.0 kernel.
+On 05/15/2017 10:03 AM, Michal Hocko wrote:
+> On Fri 12-05-17 11:18:42, Christian Borntraeger wrote:
+>> Folks,
+>>
+>> recently I have seen page allocation failures during
+>> paging in the paging code:
+>> e.g. 
+>>
+>> May 05 21:36:53  kernel: Call Trace:
+>> May 05 21:36:53  kernel: ([<0000000000112f62>] show_trace+0x62/0x78)
+>> May 05 21:36:53  kernel:  [<0000000000113050>] show_stack+0x68/0xe0 
+>> May 05 21:36:53  kernel:  [<00000000004fb97e>] dump_stack+0x7e/0xb0 
+>> May 05 21:36:53  kernel:  [<0000000000299262>] warn_alloc+0xf2/0x190 
+>> May 05 21:36:53  kernel:  [<000000000029a25a>] __alloc_pages_nodemask+0xeda/0xfe0 
+>> May 05 21:36:53  kernel:  [<00000000002fa570>] alloc_pages_current+0xb8/0x170 
+>> May 05 21:36:53  kernel:  [<00000000002f03fc>] add_swap_count_continuation+0x3c/0x280 
+>> May 05 21:36:53  kernel:  [<00000000002f068c>] swap_duplicate+0x4c/0x80 
+>> May 05 21:36:53  kernel:  [<00000000002dfbfa>] try_to_unmap_one+0x372/0x578 
+>> May 05 21:36:53  kernel:  [<000000000030131a>] rmap_walk_ksm+0x14a/0x1d8 
+>> May 05 21:36:53  kernel:  [<00000000002e0d60>] try_to_unmap+0x140/0x170 
+>> May 05 21:36:53  kernel:  [<00000000002abc9c>] shrink_page_list+0x944/0xad8 
+>> May 05 21:36:53  kernel:  [<00000000002ac720>] shrink_inactive_list+0x1e0/0x5b8 
+>> May 05 21:36:53  kernel:  [<00000000002ad642>] shrink_node_memcg+0x5e2/0x800 
+>> May 05 21:36:53  kernel:  [<00000000002ad954>] shrink_node+0xf4/0x360 
+>> May 05 21:36:53  kernel:  [<00000000002aeb00>] kswapd+0x330/0x810 
+>> May 05 21:36:53  kernel:  [<0000000000189f14>] kthread+0x144/0x168 
+>> May 05 21:36:53  kernel:  [<00000000008011ea>] kernel_thread_starter+0x6/0xc 
+>> May 05 21:36:53  kernel:  [<00000000008011e4>] kernel_thread_starter+0x0/0xc 
+>>
+>> This seems to be new in 4.11 but the relevant code did not seem to have
+>> changed.
+>>
+>> Something like this 
+>>
+>> diff --git a/mm/swapfile.c b/mm/swapfile.c
+>> index 1781308..b2dd53e 100644
+>> --- a/mm/swapfile.c
+>> +++ b/mm/swapfile.c
+>> @@ -3039,7 +3039,7 @@ int swap_duplicate(swp_entry_t entry)
+>>         int err = 0;
+>>  
+>>         while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
+>> -               err = add_swap_count_continuation(entry, GFP_ATOMIC);
+>> +               err = add_swap_count_continuation(entry, GFP_ATOMIC | __GFP_NOWARN);
+>>         return err;
+>>  }
+>>  
+>>
+>> seems not appropriate, because this code does not know if the caller can
+>> handle returned errors.
+>>
+>> Would something like the following (white space damaged cut'n'paste be ok?
+>> (the try_to_unmap_one change looks fine, not sure if copy_one_pte does the
+>> right thing)
 > 
-> The previous kernel built less than 24 hours earlier did not have this
-> problem.
-> 
-> CPU is an Athlon64 (Athlon II X4, 4 cores), RAM is 8GiB, swap is 4GiB, load
-> was mainly firefox and chromium. Opening a new window in chromium seemed to
-> help trigger the problem.
-> 
-> It's not much information to go on, just wondered if anyone else had
-> experienced similar issues?
-> 
-> I'm happy to supply more configuration information and run tests including
-> with kernels built with test patches applied.
+> No, it won't. If you want to silent the warning then explain _why_ it is
+> a good approach. It is not immediatelly clear to me.
 
-Is this 32b or 64b kernel? Could you take /proc/vmstat snapshots ever
-second while the kswapd is active?
--- 
-Michal Hocko
-SUSE Labs
+Consider my mail a bug report, not a proper fix. As far as I can tell, try_to_unmap_one
+can handle allocation failure gracefully, so not warn here _looks_ fine to me.
+> 
+>>
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 235ba51..3ae6f33 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -898,7 +898,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>>                 swp_entry_t entry = pte_to_swp_entry(pte);
+>>  
+>>                 if (likely(!non_swap_entry(entry))) {
+>> -                       if (swap_duplicate(entry) < 0)
+>> +                       if (swap_duplicate(entry, __GFP_NOWARN) < 0)
+>>                                 return entry.val;
+
+This code has special casing for the allocation failure path, but I cannot
+decide if it does the right thing here.
+
+
+> 
+> Moreover if you add a gfp_mask argument then the _full_ mask should be
+> given rather than just one of the modifiers.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
