@@ -1,65 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CFD16B02F2
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 10:54:40 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s62so113552576pgc.2
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 07:54:40 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w9si10933160pls.254.2017.05.15.07.54.39
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8566B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 11:53:31 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id h101so85137899ioi.10
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 08:53:31 -0700 (PDT)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id b19si12196099iof.159.2017.05.15.08.53.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 07:54:39 -0700 (PDT)
-Date: Mon, 15 May 2017 10:54:36 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [patch 15/18] mm/vmscan: Adjust system_state checks
-Message-ID: <20170515105436.276c59fe@gandalf.local.home>
-In-Reply-To: <20170514183613.675463242@linutronix.de>
-References: <20170514182716.347236777@linutronix.de>
-	<20170514183613.675463242@linutronix.de>
-MIME-Version: 1.0
+        Mon, 15 May 2017 08:53:30 -0700 (PDT)
+Date: Mon, 15 May 2017 10:53:28 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 0/4] RFC - Coherent Device Memory (Not for inclusion)
+In-Reply-To: <20170515125530.GH6056@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1705151050530.12308@east.gentwo.org>
+References: <20170419075242.29929-1-bsingharora@gmail.com> <20170502143608.GM14593@dhcp22.suse.cz> <1493875615.7934.1.camel@gmail.com> <20170504125250.GH31540@dhcp22.suse.cz> <1493912961.25766.379.camel@kernel.crashing.org> <20170505145238.GE31461@dhcp22.suse.cz>
+ <1493999822.25766.397.camel@kernel.crashing.org> <20170509113638.GJ6481@dhcp22.suse.cz> <1494337392.25766.446.camel@kernel.crashing.org> <20170515125530.GH6056@dhcp22.suse.cz>
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, srikar@linux.vnet.ibm.com, haren@linux.vnet.ibm.com, jglisse@redhat.com, mgorman@techsingularity.net, arbab@linux.vnet.ibm.com, vbabka@suse.cz
 
-On Sun, 14 May 2017 20:27:31 +0200
-Thomas Gleixner <tglx@linutronix.de> wrote:
+On Mon, 15 May 2017, Michal Hocko wrote:
 
-> To enable smp_processor_id() and might_sleep() debug checks earlier, it's
-> required to add system states between SYSTEM_BOOTING and SYSTEM_RUNNING.
-> 
-> Adjust the system_state check in kswapd_run() to handle the extra states.
-> 
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> With the proposed solution, they would need to set up mempolicy/cpuset
+> so I must be missing something here...
+>
+> > Of course, the special case of the HPC user trying to milk the last
+> > cycle out of the system is probably going to do what you suggest. But
+> > most users won't.
 
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Its going to be the HPC users who will be trying to take advantage of it
+anyways. I doubt that enterprise class users will even be buying the
+accellerators. If it goes that way (after a couple of years) we hopefully
+have matured things a bit and have experience how to configure the special
+NUMA nodes in the system to behave properly with an accellerator.
 
--- Steve
+I think the simplest way is to just go ahead create the NUMA node
+approach and see how much can be covered with the existing NUMA features.
+Then work from there to simplify and enhance.
 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: linux-mm@kvack.org
-> ---
->  mm/vmscan.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3643,7 +3643,7 @@ int kswapd_run(int nid)
->  	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
->  	if (IS_ERR(pgdat->kswapd)) {
->  		/* failure at boot is fatal */
-> -		BUG_ON(system_state == SYSTEM_BOOTING);
-> +		BUG_ON(system_state < SYSTEM_RUNNING);
->  		pr_err("Failed to start kswapd on node %d\n", nid);
->  		ret = PTR_ERR(pgdat->kswapd);
->  		pgdat->kswapd = NULL;
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
