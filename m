@@ -1,123 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7116B02E1
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:27 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 10so20776986wml.4
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:10:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l47si10705320wre.132.2017.05.15.01.10.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CCF156B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:22:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c6so97684415pfj.5
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:22:44 -0700 (PDT)
+Received: from tyimss.htc.com (tyimss.htc.com. [220.128.71.150])
+        by mx.google.com with ESMTPS id w24si4871106pfl.345.2017.05.15.01.22.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 01:10:26 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4F89aRK121495
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:24 -0400
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2aedxn0yfw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:10:24 -0400
-Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Mon, 15 May 2017 02:10:23 -0600
-Subject: Re: mm: page allocation failures in swap_duplicate ->
- add_swap_count_continuation
-References: <772d81b0-df36-8644-41ca-dc13d0c0f2b5@de.ibm.com>
- <20170515080323.GD6056@dhcp22.suse.cz>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Mon, 15 May 2017 10:10:17 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 May 2017 01:22:44 -0700 (PDT)
+From: <zhiyuan_zhu@htc.com>
+Subject: RE: Low memory killer problem
+Date: Mon, 15 May 2017 08:22:38 +0000
+Message-ID: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F84@CN-MBX03.HTC.COM.TW>
+References: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A004D@CN-MBX05.HTC.COM.TW>
+ <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
+ <20170515080535.GA22076@kroah.com>
+In-Reply-To: <20170515080535.GA22076@kroah.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20170515080323.GD6056@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <1c778ef8-b8ac-a62b-f5cf-35752582db6d@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: gregkh@linuxfoundation.org
+Cc: vinmenon@codeaurora.org, linux-mm@kvack.org, skhiani@codeaurora.org, torvalds@linux-foundation.org, Jet_Li@htc.com
 
-On 05/15/2017 10:03 AM, Michal Hocko wrote:
-> On Fri 12-05-17 11:18:42, Christian Borntraeger wrote:
->> Folks,
->>
->> recently I have seen page allocation failures during
->> paging in the paging code:
->> e.g. 
->>
->> May 05 21:36:53  kernel: Call Trace:
->> May 05 21:36:53  kernel: ([<0000000000112f62>] show_trace+0x62/0x78)
->> May 05 21:36:53  kernel:  [<0000000000113050>] show_stack+0x68/0xe0 
->> May 05 21:36:53  kernel:  [<00000000004fb97e>] dump_stack+0x7e/0xb0 
->> May 05 21:36:53  kernel:  [<0000000000299262>] warn_alloc+0xf2/0x190 
->> May 05 21:36:53  kernel:  [<000000000029a25a>] __alloc_pages_nodemask+0xeda/0xfe0 
->> May 05 21:36:53  kernel:  [<00000000002fa570>] alloc_pages_current+0xb8/0x170 
->> May 05 21:36:53  kernel:  [<00000000002f03fc>] add_swap_count_continuation+0x3c/0x280 
->> May 05 21:36:53  kernel:  [<00000000002f068c>] swap_duplicate+0x4c/0x80 
->> May 05 21:36:53  kernel:  [<00000000002dfbfa>] try_to_unmap_one+0x372/0x578 
->> May 05 21:36:53  kernel:  [<000000000030131a>] rmap_walk_ksm+0x14a/0x1d8 
->> May 05 21:36:53  kernel:  [<00000000002e0d60>] try_to_unmap+0x140/0x170 
->> May 05 21:36:53  kernel:  [<00000000002abc9c>] shrink_page_list+0x944/0xad8 
->> May 05 21:36:53  kernel:  [<00000000002ac720>] shrink_inactive_list+0x1e0/0x5b8 
->> May 05 21:36:53  kernel:  [<00000000002ad642>] shrink_node_memcg+0x5e2/0x800 
->> May 05 21:36:53  kernel:  [<00000000002ad954>] shrink_node+0xf4/0x360 
->> May 05 21:36:53  kernel:  [<00000000002aeb00>] kswapd+0x330/0x810 
->> May 05 21:36:53  kernel:  [<0000000000189f14>] kthread+0x144/0x168 
->> May 05 21:36:53  kernel:  [<00000000008011ea>] kernel_thread_starter+0x6/0xc 
->> May 05 21:36:53  kernel:  [<00000000008011e4>] kernel_thread_starter+0x0/0xc 
->>
->> This seems to be new in 4.11 but the relevant code did not seem to have
->> changed.
->>
->> Something like this 
->>
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index 1781308..b2dd53e 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -3039,7 +3039,7 @@ int swap_duplicate(swp_entry_t entry)
->>         int err = 0;
->>  
->>         while (!err && __swap_duplicate(entry, 1) == -ENOMEM)
->> -               err = add_swap_count_continuation(entry, GFP_ATOMIC);
->> +               err = add_swap_count_continuation(entry, GFP_ATOMIC | __GFP_NOWARN);
->>         return err;
->>  }
->>  
->>
->> seems not appropriate, because this code does not know if the caller can
->> handle returned errors.
->>
->> Would something like the following (white space damaged cut'n'paste be ok?
->> (the try_to_unmap_one change looks fine, not sure if copy_one_pte does the
->> right thing)
-> 
-> No, it won't. If you want to silent the warning then explain _why_ it is
-> a good approach. It is not immediatelly clear to me.
-
-Consider my mail a bug report, not a proper fix. As far as I can tell, try_to_unmap_one
-can handle allocation failure gracefully, so not warn here _looks_ fine to me.
-> 
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 235ba51..3ae6f33 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -898,7 +898,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->>                 swp_entry_t entry = pte_to_swp_entry(pte);
->>  
->>                 if (likely(!non_swap_entry(entry))) {
->> -                       if (swap_duplicate(entry) < 0)
->> +                       if (swap_duplicate(entry, __GFP_NOWARN) < 0)
->>                                 return entry.val;
-
-This code has special casing for the allocation failure path, but I cannot
-decide if it does the right thing here.
-
-
-> 
-> Moreover if you add a gfp_mask argument then the _full_ mask should be
-> given rather than just one of the modifiers.
-> 
+RGVhciBHcmVnLCANCg0KVmVyeSBzb3JyeSBteSBtYWlsIGhpc3RvcnkgaXMgbG9zdC4NCg0KSSBm
+b3VuZCBhIHBhcnQgb2YgSU9OIG1lbW9yeSB3aWxsIGJlIHJldHVybiB0byBzeXN0ZW0gaW4gYW5k
+cm9pZCBwbGF0Zm9ybSwNCkJ1dCB0aGVzZSBtZW1vcnlzICBjYW7igJl0IGFjY291bnRlZCBpbiBs
+b3ctbWVtb3J5LWtpbGxlciBzdHJhdGVneS4NCuKApg0KQW5kIEkgYWxzbyBmb3VuZCBJT04gbWVt
+b3J5IGNvbWVzIGZyb20sICBrbWFsbG9jL3ZtYWxsb2MvYWxsb2MgcGFnZXMvcmVzZXJ2ZWQgbWVt
+b3J5Lg0KSSB1bmRlcnN0YW5kIHJlc2VydmVkIG1lbW9yeSBzaG91bGRuJ3QgYWNjb3VudGVkIHRv
+IGZyZWUgbWVtb3J5Lg0KQnV0IHRoZSBtZW1vcnkgd2hpY2ggYWxsb2NlZCBieSBrbWFsbG9jL3Zt
+YWxsb2MvYWxsb2MgcGFnZXMsIGNhbiBiZSByZWNsYWltZWQuDQoNCkJ1dCB0aGUgbG93LW1lbW9y
+eSBraWxsZXIgY2FuJ3QgYWNjb3VudGVkIHRoaXMgcGFydCwNCk1hbnkgdGhhbmtzLg0KDQpDb2Rl
+IGxvY2F0aW9uLCANCiAgIC0tLT4gZHJpdmVycy9zdGFnaW5nL2FuZHJvaWQvbG93bWVtb3J5a2ls
+bGVyLmMgIMKgLT4gbG93bWVtX3NjYW4NCg0KQ29kZSByZXZpZXcsDQo0MTUgICAgICAgICBvdGhl
+cl9mcmVlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfRlJFRV9QQUdFUyk7DQo0MTYgDQo0MTcgICAg
+ICAgICBpZiAoZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfU0hNRU0pICsgZ2xvYmFsX3BhZ2Vfc3RhdGUo
+TlJfTUxPQ0spICsgdG90YWxfc3dhcGNhY2hlX3BhZ2VzKCkgPA0KNDE4ICAgICAgICAgICAgICAg
+ICBnbG9iYWxfcGFnZV9zdGF0ZShOUl9GSUxFX1BBR0VTKSArIHpjYWNoZV9wYWdlcygpKQ0KNDE5
+ICAgICAgICAgICAgICAgICBvdGhlcl9maWxlID0gZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfRklMRV9Q
+QUdFUykgKyB6Y2FjaGVfcGFnZXMoKSAtDQo0MjAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgZ2xvYmFsX3BhZ2Vfc3RhdGUoTlJfU0hNRU0pIC0NCjQyMiAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0b3RhbF9zd2Fw
+Y2FjaGVfcGFnZXMoKTsNCg0KU28sIG90aGVyX2ZyZWUgbWVhbnM6ICBNZW1GcmVlLA0Kb3RoZXJf
+ZmlsZSBtZWFuczogQnVmZmVycyArIENhY2hlZCAtIFNoTUVNIC0gU3dhcENhY2hlLg0KQW5kIHBh
+cnQgb2YgICggSW9uSW5Vc2UgLSBJb25Ub3RhbCApIHNob3VsZCBiZSByZWNsYWltZWQgYnV0IG5v
+dCBhY2NvdW50ZWQuDQpUaGFua3MuDQoNCk1lbWluZm8gZXhhbXBsZQ0KJCBhZGIgc2hlbGwgY2F0
+IC9wcm9jL21lbWluZm8NCk1lbVRvdGFsOiAgICAgICAgMzgwNTMxMiBrQg0KTWVtRnJlZTogICAg
+ICAgICAxNDQ2MjIwIGtCDQpNZW1BdmFpbGFibGU6ICAgIDIzODgzODQga0INCkJ1ZmZlcnM6ICAg
+ICAgICAgICAxNjc5NiBrQg0KQ2FjaGVkOiAgICAgICAgICAxMTkwODY4IGtCDQrigKYNCklvblRv
+dGFsOiAgICAgICAgIDIyNDI1MiBrQg0KSW9uSW5Vc2U6ICAgICAgICAgMTk5MTA4IGtCDQoNCg0K
+VGhhbmtzDQpCUg0KWmhpeXVhbiB6aHUNCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZy
+b206IEdyZWcgS0ggW21haWx0bzpncmVna2hAbGludXhmb3VuZGF0aW9uLm9yZ10gDQpTZW50OiBN
+b25kYXksIE1heSAxNSwgMjAxNyA0OjA2IFBNDQpUbzogWmhpeXVhbiBaaHUo5pyx5b+X6YGgKQ0K
+Q2M6IHZpbm1lbm9uQGNvZGVhdXJvcmEub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7IHNraGlhbmlA
+Y29kZWF1cm9yYS5vcmc7IHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRpb24ub3JnDQpTdWJqZWN0OiBS
+ZTogTG93IG1lbW9yeSBraWxsZXIgcHJvYmxlbQ0KDQpPbiBNb24sIE1heSAxNSwgMjAxNyBhdCAw
+NzoyNToyMEFNICswMDAwLCB6aGl5dWFuX3podUBodGMuY29tIHdyb3RlOg0KPiBMb29wIE1NIG1h
+aW50YWluZXJzLA0KPiANCj4gIA0KPiANCj4gRGVhciBBbGwsDQo+IA0KPiAgDQo+IA0KPiBXaG8g
+Y2FuIHRhbGsgYWJvdXQgdGhpcyBwcm9ibGVtPyBUaGFua3MuDQoNCldoYXQgcHJvYmxlbT8NCg0K
+PiBNYXliZSB0aGlzIGlzIGxvd21lbW9yeSBraWxsZXLigJlzIGJ1ZyA/DQoNClRoaXMgY29kZSBp
+cyBub3cgcmVtb3ZlZCBmcm9tIHRoZSBrZXJuZWwsIHNvIEkgZG91YnQgdGhlcmUgY291bGQgYmUg
+YSBidWcgaW4gaXQgOikNCg0KPiBJT04gbWVtb3J5IGlzIGNvbXBsZXggbm93LCB3ZSBuZWVkIHRv
+IGhhdmUgYSBicmVha2Rvd24gZm9yIHRoZW0sIEkgdGhpbmsuDQoNCldoYXQgZG8geW91IG1lYW4g
+YnkgdGhpcz8NCg0KdGhhbmtzLA0KDQpncmVnIGstaA0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
