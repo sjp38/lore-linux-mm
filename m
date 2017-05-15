@@ -1,155 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E38C6B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 15:16:14 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z15so93572060ite.14
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 12:16:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u130si11731176itb.69.2017.05.15.12.16.12
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F32C6B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 15:38:24 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a66so109585196pfl.6
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 12:38:24 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 88si4536482plc.82.2017.05.15.12.38.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 12:16:13 -0700 (PDT)
-Date: Mon, 15 May 2017 16:15:34 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
- configuration
-Message-ID: <20170515191531.GA31483@amt.cnet>
-References: <20170502102836.4a4d34ba@redhat.com>
- <20170502165159.GA5457@amt.cnet>
- <20170502131527.7532fc2e@redhat.com>
- <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
- <20170512122704.GA30528@amt.cnet>
- <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
- <20170512154026.GA3556@amt.cnet>
- <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
- <20170512161915.GA4185@amt.cnet>
- <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 May 2017 12:38:23 -0700 (PDT)
+Date: Mon, 15 May 2017 21:38:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+Message-ID: <20170515193817.GC7551@dhcp22.suse.cz>
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170509181234.GA4397@dhcp22.suse.cz>
+ <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+In-Reply-To: <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-On Fri, May 12, 2017 at 11:57:15AM -0500, Christoph Lameter wrote:
-> On Fri, 12 May 2017, Marcelo Tosatti wrote:
+On Mon 15-05-17 14:12:10, Pasha Tatashin wrote:
+> Hi Michal,
 > 
-> > > What exactly is the issue you are seeing and want to address? I think we
-> > > have similar aims and as far as I know the current situation is already
-> > > good enough for what you may need. You may just not be aware of how to
-> > > configure this.
-> >
-> > I want to disable vmstat worker thread completly from an isolated CPU.
-> > Because it adds overhead to a latency target, target which
-> > the lower the better.
-> 
-> NOHZ already does that. I wanted to know what your problem is that you
-> see. The latency issue has already been solved as far as I can tell .
-> Please tell me why the existing solutions are not sufficient for you.
+> After looking at your suggested memblock_virt_alloc_core() change again, I
+> decided to keep what I have. I do not want to inline
+> memblock_virt_alloc_internal(), because it is not a performance critical
+> path, and by inlining it we will unnecessarily increase the text size on all
+> platforms.
 
-We don't want vmstat_worker to execute on a given CPU, even if the local
-CPU updates vm-statistics. 
+I do not insist but I would really _prefer_ if the bool zero argument
+didn't proliferate all over the memblock API.
+ 
+> Also, because it will be very hard to make sure that no platform regresses
+> by making memset() default in _memblock_virt_alloc_core() (as I already
+> showed last week at least sun4v SPARC64 will require special changes in
+> order for this to work), I decided to make it available only for "deferred
+> struct page init" case. As, what is already in the patch.
 
-Because:
+I do not think this is the right approach. Your measurements just show
+that sparc could have a more optimized memset for small sizes. If you
+keep the same memset only for the parallel initialization then you
+just hide this fact. I wouldn't worry about other architectures. All
+sane architectures should simply work reasonably well when touching a
+single or only few cache lines at the same time. If some arches really
+suffer from small memsets then the initialization should be driven by a
+specific ARCH_WANT_LARGE_PAGEBLOCK_INIT rather than making this depend
+on DEFERRED_INIT. Or if you are too worried then make it opt-in and make
+it depend on ARCH_WANT_PER_PAGE_INIT and make it enabled for x86 and
+sparc after memset optimization.
 
-    vmstat_worker increases latency of the application
-       (i can measure it if you want on a given CPU,
-        how many ns's the following takes:
-
-            schedule_out(qemu-kvm-vcpu)
-            schedule_in(kworker_thread)
-            execute function to drain local vmstat counters to
-                global counters
-            schedule_out(kworker_thread)
-            schedule_in(qemu-kvm-vcpu)
-            x86 instruction to enter guest.
-                                                (*)
-
-But you can see right away without numbers that the sequence
-above is not desired.
-
-Why the existing solutions are not sufficient:
-
-1) task-isolation patchset seems too heavy for our usecase (we do 
-want IPIs, signals, etc).
-
-2) With upstream linux-2.6.git, if dpdk running inside a guest happens
-to trigger any vmstat update (say for example migration), we want the
-statistics transferred directly from the point where they are generated,
-and not the sequence (*).
-
-> > > I doubt that doing inline updates will do much good compared to what we
-> > > already have and what the dataplan mode can do.
-> >
-> > Can the dataplan mode disable vmstat worker thread completly on a given
-> > CPU?
-> 
-> That already occurs when you call quiet_vmstat() and is used by the NOHZ
-> logic. Configure that correctly and you should be fine.
-
-quiet_vmstat() is not called by anyone today (upstream code). Are you
-talking about task isolation patches?
-
-Those seem a little heavy to me, for example:
-
-1)
-"Each time through the loop of TIF work to do, if TIF_TASK_ISOLATION
-is set, we call the new task_isolation_enter() routine.  This
-takes any actions that might avoid a future interrupt to the core,
-such as a worker thread being scheduled that could be quiesced now
-(e.g. the vmstat worker) or a future IPI to the core to clean up some
-state that could be cleaned up now (e.g. the mm lru per-cpu cache).
-In addition, it reqeusts rescheduling if the scheduler dyntick is
-still running."
-
-For example, what about
-
-     static void do_sync_core(void *data)
-             on_each_cpu(do_sync_core, NULL, 1);
-
-You can't enable tracing with this feature?
-
-"Prior to returning to userspace,
-isolated tasks will arrange that no future kernel
-activity will interrupt the task while the task is running
-in userspace.  By default, attempting to re-enter the kernel
-while in this mode will cause the task to be terminated
-with a signal; you must explicitly use prctl() to disable
-task isolation before resuming normal use of the kernel."
-
-2)
-
-A qemu-kvm-vcpu thread, process which runs on the host system,
-executes guest code through
-
-    ioctl(KVM_RUN) --> vcpu_enter_guest --> x86 instruction to execute
-                                            guest code.
-
-So the "isolation period where task does not want to be interrupted"
-contains kernel code.
-
-3) Before using any service of the operating system, through a
-syscall, the application has to clear the TIF_TASK_ISOLATION flag,
-then do the syscall, and when returning to userspace, setting it again.
-
-Now what guarantees regarding low amount of interrupts do you provide
-while this task is in kernel mode?
-
-4)
-
-"We also support a new "task_isolation_debug" flag which forces
-the console stack to be dumped out regardless. We try to catch the
-original source of the interrupt, e.g. if an IPI is dispatched to a
-task-isolation task, we dump the backtrace of the remote core that is
-sending the IPI, rather than just dumping out a trace showing the core
-received an IPI from somewhere."
-
-KVM uses IPI's to for example send virtual interrupts and update the
-guest clock at certain conditions (for example after VM migration).
-
-So this seems a little heavy for our usecase.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
