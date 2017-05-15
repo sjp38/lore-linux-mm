@@ -1,67 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 644676B0315
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 08:13:00 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y65so101186835pff.13
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 05:13:00 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id v69si10633527pfk.110.2017.05.15.05.12.59
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 244746B0317
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 08:13:05 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id i63so110140656pgd.15
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 05:13:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id q201si10311924pfq.383.2017.05.15.05.13.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 05:12:59 -0700 (PDT)
+        Mon, 15 May 2017 05:13:04 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5, REBASED 0/9] x86: 5-level paging enabling for v4.12, Part 4
-Date: Mon, 15 May 2017 15:12:09 +0300
-Message-Id: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5, REBASED 7/9] x86/mm: Add support for 5-level paging for KASLR
+Date: Mon, 15 May 2017 15:12:16 +0300
+Message-Id: <20170515121218.27610-8-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Here's rebased version the fourth and the last bunch of of patches that brings
-initial 5-level paging enabling.
+With 5-level paging randomization happens on P4D level instead of PUD.
 
-Please review and consider applying.
+Maximum amount of physical memory also bumped to 52-bits for 5-level
+paging.
 
-Kirill A. Shutemov (9):
-  x86/asm: Fix comment in return_from_SYSCALL_64
-  x86/boot/64: Rewrite startup_64 in C
-  x86/boot/64: Rename init_level4_pgt and early_level4_pgt
-  x86/boot/64: Add support of additional page table level during early
-    boot
-  x86/mm: Add sync_global_pgds() for configuration with 5-level paging
-  x86/mm: Make kernel_physical_mapping_init() support 5-level paging
-  x86/mm: Add support for 5-level paging for KASLR
-  x86: Enable 5-level paging support
-  x86/mm: Allow to have userspace mappings above 47-bits
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/mm/kaslr.c | 81 ++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 62 insertions(+), 19 deletions(-)
 
- arch/x86/Kconfig                            |   5 +
- arch/x86/boot/compressed/head_64.S          |  23 ++++-
- arch/x86/entry/entry_64.S                   |   3 +-
- arch/x86/include/asm/elf.h                  |   4 +-
- arch/x86/include/asm/mpx.h                  |   9 ++
- arch/x86/include/asm/pgtable.h              |   2 +-
- arch/x86/include/asm/pgtable_64.h           |   6 +-
- arch/x86/include/asm/processor.h            |  11 ++-
- arch/x86/include/uapi/asm/processor-flags.h |   2 +
- arch/x86/kernel/espfix_64.c                 |   2 +-
- arch/x86/kernel/head64.c                    | 143 +++++++++++++++++++++++++---
- arch/x86/kernel/head_64.S                   | 134 ++++++--------------------
- arch/x86/kernel/machine_kexec_64.c          |   2 +-
- arch/x86/kernel/sys_x86_64.c                |  30 +++++-
- arch/x86/mm/dump_pagetables.c               |   2 +-
- arch/x86/mm/hugetlbpage.c                   |  27 +++++-
- arch/x86/mm/init_64.c                       | 108 +++++++++++++++++++--
- arch/x86/mm/kasan_init_64.c                 |  12 +--
- arch/x86/mm/kaslr.c                         |  81 ++++++++++++----
- arch/x86/mm/mmap.c                          |   6 +-
- arch/x86/mm/mpx.c                           |  33 ++++++-
- arch/x86/realmode/init.c                    |   2 +-
- arch/x86/xen/Kconfig                        |   1 +
- arch/x86/xen/mmu_pv.c                       |  18 ++--
- arch/x86/xen/xen-pvh.S                      |   2 +-
- 25 files changed, 480 insertions(+), 188 deletions(-)
-
+diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
+index aed206475aa7..af599167fe3c 100644
+--- a/arch/x86/mm/kaslr.c
++++ b/arch/x86/mm/kaslr.c
+@@ -6,12 +6,12 @@
+  *
+  * Entropy is generated using the KASLR early boot functions now shared in
+  * the lib directory (originally written by Kees Cook). Randomization is
+- * done on PGD & PUD page table levels to increase possible addresses. The
+- * physical memory mapping code was adapted to support PUD level virtual
+- * addresses. This implementation on the best configuration provides 30,000
+- * possible virtual addresses in average for each memory region. An additional
+- * low memory page is used to ensure each CPU can start with a PGD aligned
+- * virtual address (for realmode).
++ * done on PGD & P4D/PUD page table levels to increase possible addresses.
++ * The physical memory mapping code was adapted to support P4D/PUD level
++ * virtual addresses. This implementation on the best configuration provides
++ * 30,000 possible virtual addresses in average for each memory region.
++ * An additional low memory page is used to ensure each CPU can start with
++ * a PGD aligned virtual address (for realmode).
+  *
+  * The order of each memory region is not changed. The feature looks at
+  * the available space for the regions based on different configuration
+@@ -70,7 +70,7 @@ static __initdata struct kaslr_memory_region {
+ 	unsigned long *base;
+ 	unsigned long size_tb;
+ } kaslr_regions[] = {
+-	{ &page_offset_base, 64/* Maximum */ },
++	{ &page_offset_base, 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT) /* Maximum */ },
+ 	{ &vmalloc_base, VMALLOC_SIZE_TB },
+ 	{ &vmemmap_base, 1 },
+ };
+@@ -142,7 +142,10 @@ void __init kernel_randomize_memory(void)
+ 		 */
+ 		entropy = remain_entropy / (ARRAY_SIZE(kaslr_regions) - i);
+ 		prandom_bytes_state(&rand_state, &rand, sizeof(rand));
+-		entropy = (rand % (entropy + 1)) & PUD_MASK;
++		if (IS_ENABLED(CONFIG_X86_5LEVEL))
++			entropy = (rand % (entropy + 1)) & P4D_MASK;
++		else
++			entropy = (rand % (entropy + 1)) & PUD_MASK;
+ 		vaddr += entropy;
+ 		*kaslr_regions[i].base = vaddr;
+ 
+@@ -151,27 +154,21 @@ void __init kernel_randomize_memory(void)
+ 		 * randomization alignment.
+ 		 */
+ 		vaddr += get_padding(&kaslr_regions[i]);
+-		vaddr = round_up(vaddr + 1, PUD_SIZE);
++		if (IS_ENABLED(CONFIG_X86_5LEVEL))
++			vaddr = round_up(vaddr + 1, P4D_SIZE);
++		else
++			vaddr = round_up(vaddr + 1, PUD_SIZE);
+ 		remain_entropy -= entropy;
+ 	}
+ }
+ 
+-/*
+- * Create PGD aligned trampoline table to allow real mode initialization
+- * of additional CPUs. Consume only 1 low memory page.
+- */
+-void __meminit init_trampoline(void)
++static void __meminit init_trampoline_pud(void)
+ {
+ 	unsigned long paddr, paddr_next;
+ 	pgd_t *pgd;
+ 	pud_t *pud_page, *pud_page_tramp;
+ 	int i;
+ 
+-	if (!kaslr_memory_enabled()) {
+-		init_trampoline_default();
+-		return;
+-	}
+-
+ 	pud_page_tramp = alloc_low_page();
+ 
+ 	paddr = 0;
+@@ -192,3 +189,49 @@ void __meminit init_trampoline(void)
+ 	set_pgd(&trampoline_pgd_entry,
+ 		__pgd(_KERNPG_TABLE | __pa(pud_page_tramp)));
+ }
++
++static void __meminit init_trampoline_p4d(void)
++{
++	unsigned long paddr, paddr_next;
++	pgd_t *pgd;
++	p4d_t *p4d_page, *p4d_page_tramp;
++	int i;
++
++	p4d_page_tramp = alloc_low_page();
++
++	paddr = 0;
++	pgd = pgd_offset_k((unsigned long)__va(paddr));
++	p4d_page = (p4d_t *) pgd_page_vaddr(*pgd);
++
++	for (i = p4d_index(paddr); i < PTRS_PER_P4D; i++, paddr = paddr_next) {
++		p4d_t *p4d, *p4d_tramp;
++		unsigned long vaddr = (unsigned long)__va(paddr);
++
++		p4d_tramp = p4d_page_tramp + p4d_index(paddr);
++		p4d = p4d_page + p4d_index(vaddr);
++		paddr_next = (paddr & P4D_MASK) + P4D_SIZE;
++
++		*p4d_tramp = *p4d;
++	}
++
++	set_pgd(&trampoline_pgd_entry,
++		__pgd(_KERNPG_TABLE | __pa(p4d_page_tramp)));
++}
++
++/*
++ * Create PGD aligned trampoline table to allow real mode initialization
++ * of additional CPUs. Consume only 1 low memory page.
++ */
++void __meminit init_trampoline(void)
++{
++
++	if (!kaslr_memory_enabled()) {
++		init_trampoline_default();
++		return;
++	}
++
++	if (IS_ENABLED(CONFIG_X86_5LEVEL))
++		init_trampoline_p4d();
++	else
++		init_trampoline_pud();
++}
 -- 
 2.11.0
 
