@@ -1,315 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 360C86B02EE
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 14:35:32 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b20so26902978wma.11
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 11:35:32 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id e127si2680496wma.99.2017.05.15.11.35.30
-        for <linux-mm@kvack.org>;
-        Mon, 15 May 2017 11:35:30 -0700 (PDT)
-Date: Mon, 15 May 2017 20:35:17 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 17/32] x86/mm: Add support to access boot related data
- in the clear
-Message-ID: <20170515183517.mb4k2gp2qobbuvtm@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211921.10190.1537.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E38C6B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 15:16:14 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id z15so93572060ite.14
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 12:16:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u130si11731176itb.69.2017.05.15.12.16.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 May 2017 12:16:13 -0700 (PDT)
+Date: Mon, 15 May 2017 16:15:34 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170515191531.GA31483@amt.cnet>
+References: <20170502102836.4a4d34ba@redhat.com>
+ <20170502165159.GA5457@amt.cnet>
+ <20170502131527.7532fc2e@redhat.com>
+ <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
+ <20170512122704.GA30528@amt.cnet>
+ <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
+ <20170512154026.GA3556@amt.cnet>
+ <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
+ <20170512161915.GA4185@amt.cnet>
+ <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170418211921.10190.1537.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-On Tue, Apr 18, 2017 at 04:19:21PM -0500, Tom Lendacky wrote:
-> Boot data (such as EFI related data) is not encrypted when the system is
-> booted because UEFI/BIOS does not run with SME active. In order to access
-> this data properly it needs to be mapped decrypted.
+On Fri, May 12, 2017 at 11:57:15AM -0500, Christoph Lameter wrote:
+> On Fri, 12 May 2017, Marcelo Tosatti wrote:
 > 
-> The early_memremap() support is updated to provide an arch specific
-
-"Update early_memremap() to provide... "
-
-> routine to modify the pagetable protection attributes before they are
-> applied to the new mapping. This is used to remove the encryption mask
-> for boot related data.
+> > > What exactly is the issue you are seeing and want to address? I think we
+> > > have similar aims and as far as I know the current situation is already
+> > > good enough for what you may need. You may just not be aware of how to
+> > > configure this.
+> >
+> > I want to disable vmstat worker thread completly from an isolated CPU.
+> > Because it adds overhead to a latency target, target which
+> > the lower the better.
 > 
-> The memremap() support is updated to provide an arch specific routine
+> NOHZ already does that. I wanted to know what your problem is that you
+> see. The latency issue has already been solved as far as I can tell .
+> Please tell me why the existing solutions are not sufficient for you.
 
-Ditto. Passive tone always reads harder than an active tone,
-"doer"-sentence.
+We don't want vmstat_worker to execute on a given CPU, even if the local
+CPU updates vm-statistics. 
 
-> to determine if RAM remapping is allowed.  RAM remapping will cause an
-> encrypted mapping to be generated. By preventing RAM remapping,
-> ioremap_cache() will be used instead, which will provide a decrypted
-> mapping of the boot related data.
+Because:
+
+    vmstat_worker increases latency of the application
+       (i can measure it if you want on a given CPU,
+        how many ns's the following takes:
+
+            schedule_out(qemu-kvm-vcpu)
+            schedule_in(kworker_thread)
+            execute function to drain local vmstat counters to
+                global counters
+            schedule_out(kworker_thread)
+            schedule_in(qemu-kvm-vcpu)
+            x86 instruction to enter guest.
+                                                (*)
+
+But you can see right away without numbers that the sequence
+above is not desired.
+
+Why the existing solutions are not sufficient:
+
+1) task-isolation patchset seems too heavy for our usecase (we do 
+want IPIs, signals, etc).
+
+2) With upstream linux-2.6.git, if dpdk running inside a guest happens
+to trigger any vmstat update (say for example migration), we want the
+statistics transferred directly from the point where they are generated,
+and not the sequence (*).
+
+> > > I doubt that doing inline updates will do much good compared to what we
+> > > already have and what the dataplan mode can do.
+> >
+> > Can the dataplan mode disable vmstat worker thread completly on a given
+> > CPU?
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/io.h |    4 +
->  arch/x86/mm/ioremap.c     |  182 +++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/io.h        |    2 
->  kernel/memremap.c         |   20 ++++-
->  mm/early_ioremap.c        |   18 ++++
->  5 files changed, 219 insertions(+), 7 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-> index 7afb0e2..75f2858 100644
-> --- a/arch/x86/include/asm/io.h
-> +++ b/arch/x86/include/asm/io.h
-> @@ -381,4 +381,8 @@ extern int __must_check arch_phys_wc_add(unsigned long base,
->  #define arch_io_reserve_memtype_wc arch_io_reserve_memtype_wc
->  #endif
->  
-> +extern bool arch_memremap_do_ram_remap(resource_size_t offset, size_t size,
-> +				       unsigned long flags);
-> +#define arch_memremap_do_ram_remap arch_memremap_do_ram_remap
-> +
->  #endif /* _ASM_X86_IO_H */
-> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-> index 9bfcb1f..bce0604 100644
-> --- a/arch/x86/mm/ioremap.c
-> +++ b/arch/x86/mm/ioremap.c
-> @@ -13,6 +13,7 @@
->  #include <linux/slab.h>
->  #include <linux/vmalloc.h>
->  #include <linux/mmiotrace.h>
-> +#include <linux/efi.h>
->  
->  #include <asm/cacheflush.h>
->  #include <asm/e820/api.h>
-> @@ -21,6 +22,7 @@
->  #include <asm/tlbflush.h>
->  #include <asm/pgalloc.h>
->  #include <asm/pat.h>
-> +#include <asm/setup.h>
->  
->  #include "physaddr.h"
->  
-> @@ -419,6 +421,186 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
->  	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
->  }
->  
-> +/*
-> + * Examine the physical address to determine if it is an area of memory
-> + * that should be mapped decrypted.  If the memory is not part of the
-> + * kernel usable area it was accessed and created decrypted, so these
-> + * areas should be mapped decrypted.
-> + */
-> +static bool memremap_should_map_decrypted(resource_size_t phys_addr,
-> +					  unsigned long size)
-> +{
-> +	/* Check if the address is outside kernel usable area */
-> +	switch (e820__get_entry_type(phys_addr, phys_addr + size - 1)) {
-> +	case E820_TYPE_RESERVED:
-> +	case E820_TYPE_ACPI:
-> +	case E820_TYPE_NVS:
-> +	case E820_TYPE_UNUSABLE:
-> +		return true;
-> +	default:
-> +		break;
-> +	}
-> +
-> +	return false;
-> +}
-> +
-> +/*
-> + * Examine the physical address to determine if it is EFI data. Check
-> + * it against the boot params structure and EFI tables and memory types.
-> + */
-> +static bool memremap_is_efi_data(resource_size_t phys_addr,
-> +				 unsigned long size)
-> +{
-> +	u64 paddr;
-> +
-> +	/* Check if the address is part of EFI boot/runtime data */
-> +	if (efi_enabled(EFI_BOOT)) {
+> That already occurs when you call quiet_vmstat() and is used by the NOHZ
+> logic. Configure that correctly and you should be fine.
 
-Save indentation level:
+quiet_vmstat() is not called by anyone today (upstream code). Are you
+talking about task isolation patches?
 
-	if (!efi_enabled(EFI_BOOT))
-		return false;
+Those seem a little heavy to me, for example:
 
+1)
+"Each time through the loop of TIF work to do, if TIF_TASK_ISOLATION
+is set, we call the new task_isolation_enter() routine.  This
+takes any actions that might avoid a future interrupt to the core,
+such as a worker thread being scheduled that could be quiesced now
+(e.g. the vmstat worker) or a future IPI to the core to clean up some
+state that could be cleaned up now (e.g. the mm lru per-cpu cache).
+In addition, it reqeusts rescheduling if the scheduler dyntick is
+still running."
 
-> +		paddr = boot_params.efi_info.efi_memmap_hi;
-> +		paddr <<= 32;
-> +		paddr |= boot_params.efi_info.efi_memmap;
-> +		if (phys_addr == paddr)
-> +			return true;
-> +
-> +		paddr = boot_params.efi_info.efi_systab_hi;
-> +		paddr <<= 32;
-> +		paddr |= boot_params.efi_info.efi_systab;
+For example, what about
 
-So those two above look like could be two global vars which are
-initialized somewhere in the EFI init path:
+     static void do_sync_core(void *data)
+             on_each_cpu(do_sync_core, NULL, 1);
 
-efi_memmap_phys and efi_systab_phys or so.
+You can't enable tracing with this feature?
 
-Matt ?
+"Prior to returning to userspace,
+isolated tasks will arrange that no future kernel
+activity will interrupt the task while the task is running
+in userspace.  By default, attempting to re-enter the kernel
+while in this mode will cause the task to be terminated
+with a signal; you must explicitly use prctl() to disable
+task isolation before resuming normal use of the kernel."
 
-And then you won't need to create that paddr each time on the fly. I
-mean, it's not a lot of instructions but still...
+2)
 
-> +		if (phys_addr == paddr)
-> +			return true;
-> +
-> +		if (efi_table_address_match(phys_addr))
-> +			return true;
-> +
-> +		switch (efi_mem_type(phys_addr)) {
-> +		case EFI_BOOT_SERVICES_DATA:
-> +		case EFI_RUNTIME_SERVICES_DATA:
-> +			return true;
-> +		default:
-> +			break;
-> +		}
-> +	}
-> +
-> +	return false;
-> +}
-> +
-> +/*
-> + * Examine the physical address to determine if it is boot data by checking
-> + * it against the boot params setup_data chain.
-> + */
-> +static bool memremap_is_setup_data(resource_size_t phys_addr,
-> +				   unsigned long size)
-> +{
-> +	struct setup_data *data;
-> +	u64 paddr, paddr_next;
-> +
-> +	paddr = boot_params.hdr.setup_data;
-> +	while (paddr) {
-> +		bool is_setup_data = false;
+A qemu-kvm-vcpu thread, process which runs on the host system,
+executes guest code through
 
-You don't need that bool:
+    ioctl(KVM_RUN) --> vcpu_enter_guest --> x86 instruction to execute
+                                            guest code.
 
-static bool memremap_is_setup_data(resource_size_t phys_addr,
-                                   unsigned long size)
-{
-        struct setup_data *data;
-        u64 paddr, paddr_next;
+So the "isolation period where task does not want to be interrupted"
+contains kernel code.
 
-        paddr = boot_params.hdr.setup_data;
-        while (paddr) {
-                if (phys_addr == paddr)
-                        return true;
+3) Before using any service of the operating system, through a
+syscall, the application has to clear the TIF_TASK_ISOLATION flag,
+then do the syscall, and when returning to userspace, setting it again.
 
-                data = memremap(paddr, sizeof(*data), MEMREMAP_WB | MEMREMAP_DEC);
+Now what guarantees regarding low amount of interrupts do you provide
+while this task is in kernel mode?
 
-                paddr_next = data->next;
+4)
 
-                if ((phys_addr > paddr) && (phys_addr < (paddr + data->len))) {
-                        memunmap(data);
-                        return true;
-                }
+"We also support a new "task_isolation_debug" flag which forces
+the console stack to be dumped out regardless. We try to catch the
+original source of the interrupt, e.g. if an IPI is dispatched to a
+task-isolation task, we dump the backtrace of the remote core that is
+sending the IPI, rather than just dumping out a trace showing the core
+received an IPI from somewhere."
 
-                memunmap(data);
+KVM uses IPI's to for example send virtual interrupts and update the
+guest clock at certain conditions (for example after VM migration).
 
-                paddr = paddr_next;
-        }
-        return false;
-}
-
-Flow is a bit clearer.
-
-> +/*
-> + * Examine the physical address to determine if it is boot data by checking
-> + * it against the boot params setup_data chain (early boot version).
-> + */
-> +static bool __init early_memremap_is_setup_data(resource_size_t phys_addr,
-> +						unsigned long size)
-> +{
-> +	struct setup_data *data;
-> +	u64 paddr, paddr_next;
-> +
-> +	paddr = boot_params.hdr.setup_data;
-> +	while (paddr) {
-> +		bool is_setup_data = false;
-> +
-> +		if (phys_addr == paddr)
-> +			return true;
-> +
-> +		data = early_memremap_decrypted(paddr, sizeof(*data));
-> +
-> +		paddr_next = data->next;
-> +
-> +		if ((phys_addr > paddr) && (phys_addr < (paddr + data->len)))
-> +			is_setup_data = true;
-> +
-> +		early_memunmap(data, sizeof(*data));
-> +
-> +		if (is_setup_data)
-> +			return true;
-> +
-> +		paddr = paddr_next;
-> +	}
-> +
-> +	return false;
-> +}
-
-This one is begging to be unified with memremap_is_setup_data() to both
-call a __ worker function.
-
-> +
-> +/*
-> + * Architecture function to determine if RAM remap is allowed. By default, a
-> + * RAM remap will map the data as encrypted. Determine if a RAM remap should
-> + * not be done so that the data will be mapped decrypted.
-> + */
-> +bool arch_memremap_do_ram_remap(resource_size_t phys_addr, unsigned long size,
-> +				unsigned long flags)
-
-So this function doesn't do anything - it replies to a yes/no question.
-So the name should not say "do" but sound like a question. Maybe:
-
-	if (arch_memremap_can_remap( ... ))
-
-or so...
-
-> +{
-> +	if (!sme_active())
-> +		return true;
-> +
-> +	if (flags & MEMREMAP_ENC)
-> +		return true;
-> +
-> +	if (flags & MEMREMAP_DEC)
-> +		return false;
-
-So this looks strange to me: both flags MEMREMAP_ENC and _DEC override
-setup and efi data checking. But we want to remap setup and EFI  data
-*always* decrypted because that data was not encrypted as, as you say,
-firmware doesn't run with SME active.
-
-So my simple logic says that EFI stuff should *always* be mapped DEC,
-regardless of flags. Ditto for setup data. So that check below should
-actually *override* the flags checks and go before them, no?
-
-> +
-> +	if (memremap_is_setup_data(phys_addr, size) ||
-> +	    memremap_is_efi_data(phys_addr, size) ||
-> +	    memremap_should_map_decrypted(phys_addr, size))
-> +		return false;
-> +
-> +	return true;
-> +}
-> +
-> +/*
-> + * Architecture override of __weak function to adjust the protection attributes
-> + * used when remapping memory. By default, early_memremp() will map the data
-
-early_memremAp() - a is missing.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+So this seems a little heavy for our usecase.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
