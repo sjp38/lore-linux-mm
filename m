@@ -1,269 +1,281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 826186B02EE
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:47:20 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n75so19585016pfh.0
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:47:20 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id d8si10264937pgn.60.2017.05.15.01.47.18
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A396B0038
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 04:59:10 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id d127so106764209pga.11
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:59:10 -0700 (PDT)
+Received: from mail-pg0-f67.google.com (mail-pg0-f67.google.com. [74.125.83.67])
+        by mx.google.com with ESMTPS id h5si9968500pgf.112.2017.05.15.01.59.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 May 2017 01:47:19 -0700 (PDT)
-Message-ID: <59196AB1.1090106@huawei.com>
-Date: Mon, 15 May 2017 16:45:37 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3] arm64: fix the overlap between the kernel image and
- vmalloc address
-References: <1494387440-51703-1-git-send-email-zhongjiang@huawei.com> <20170510085503.q374eqnt6f6rc2tv@localhost>
-In-Reply-To: <20170510085503.q374eqnt6f6rc2tv@localhost>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 May 2017 01:59:08 -0700 (PDT)
+Received: by mail-pg0-f67.google.com with SMTP id s62so16207949pgc.0
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 01:59:08 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH -v4 0/14] mm: make movable onlining suck less
+Date: Mon, 15 May 2017 10:58:13 +0200
+Message-Id: <20170515085827.16474-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: ard.biesheuvel@linaro.org, mark.rutland@arm.com, labbott@redhat.com, linux-arm-kernel@lists.infradead.org, tanxiaojun@huawei.com, linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, Peter Zijlstra <peterz@infradead.org>, thgarnie@google.com, tglx@linutronix.de, mingo@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michal Hocko <mhocko@suse.com>, Tobias Regnery <tobias.regnery@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-ping,
+Hi,
+The last version of this series has been posted here [1]. The timing wasn't
+all that great so this is mostly a resubmit. I've added one additional patch
+to fix another pfn walker noticed by Joonsoo (this is patch 11) and also
+added a clarification for pfn_valid() and offline pages.
 
-I have sent various version to solve the issue.  Unfortunately, it fails to receive
-any comments for a long time. 
+There is still a lot of work on top - namely this implementation doesn't
+support reonlining to a different zone on the zones boundaries but I
+will do that in a separate series because this one is getting quite
+large already and it should work reasonably well now.
 
-Thanks
-zhongjiang
-On 2017/5/10 16:55, Catalin Marinas wrote:
-> Given that there are a lot more mm changes than arm64, cc'ing linux-mm
-> as well.
->
-> Patch below:
->
-> On Wed, May 10, 2017 at 11:37:20AM +0800, zhongjiang wrote:
->> Recently, xiaojun report the following issue.
->>
->> [ 4544.984139] Unable to handle kernel paging request at virtual address ffff804392800000
->> [ 4544.991995] pgd = ffff80096745f000
->> [ 4544.995369] [ffff804392800000] *pgd=0000000000000000
->> [ 4545.000297] Internal error: Oops: 96000005 [#1] PREEMPT SMP
->> [ 4545.005815] Modules linked in:
->> [ 4545.008843] CPU: 1 PID: 8976 Comm: cat Not tainted 4.11.0-rc6 #1
->> [ 4545.014790] Hardware name: ARM Juno development board (r1) (DT)
->> [ 4545.020653] task: ffff8009753fdb00 task.stack: ffff80097533c000
->> [ 4545.026520] PC is at __memcpy+0x100/0x180
->> [ 4545.030491] LR is at vread+0x144/0x280
->> [ 4545.034202] pc : [<ffff0000083a1000>] lr : [<ffff0000081c126c>] pstate: 20000145
->> [ 4545.041530] sp : ffff80097533fcb0
->> [ 4545.044811] x29: ffff80097533fcb0 x28: ffff800962d24000
->> [ 4545.050074] x27: 0000000000001000 x26: ffff8009753fdb00
->> [ 4545.055337] x25: ffff000008200000 x24: ffff800977801380
->> [ 4545.060600] x23: ffff8009753fdb00 x22: ffff800962d24000
->> [ 4545.065863] x21: 0000000000001000 x20: ffff000008200000
->> [ 4545.071125] x19: 0000000000001000 x18: 0000ffffefa323c0
->> [ 4545.076387] x17: 0000ffffa9c87440 x16: ffff0000081fdfd0
->> [ 4545.081649] x15: 0000ffffa9d01588 x14: 72a77346b2407be7
->> [ 4545.086911] x13: 5299400690000000 x12: b0000001f9001a79
->> [ 4545.092173] x11: 97fc098d91042260 x10: 0000000000000000
->> [ 4545.097435] x9 : 0000000000000000 x8 : 9110626091260021
->> [ 4545.102698] x7 : 0000000000001000 x6 : ffff800962d24000
->> [ 4545.107960] x5 : ffff8009778013b0 x4 : 0000000000000000
->> [ 4545.113222] x3 : 0400000000000001 x2 : 0000000000000f80
->> [ 4545.118484] x1 : ffff804392800000 x0 : ffff800962d24000
->> [ 4545.123745]
->> [ 4545.125220] Process cat (pid: 8976, stack limit = 0xffff80097533c000)
->> [ 4545.131598] Stack: (0xffff80097533fcb0 to 0xffff800975340000)
->> [ 4545.137289] fca0:                                   ffff80097533fd30 ffff000008270f64
->> [ 4545.145049] fcc0: 000000000000e000 000000003956f000 ffff000008f950d0 ffff80097533feb8
->> [ 4545.152809] fce0: 0000000000002000 ffff8009753fdb00 ffff800962d24000 ffff000008e8d3d8
->> [ 4545.160568] fd00: 0000000000001000 ffff000008200000 0000000000001000 ffff800962d24000
->> [ 4545.168327] fd20: 0000000000001000 ffff000008e884a0 ffff80097533fdb0 ffff00000826340c
->> [ 4545.176086] fd40: ffff800976bf2800 fffffffffffffffb 000000003956d000 ffff80097533feb8
->> [ 4545.183846] fd60: 0000000060000000 0000000000000015 0000000000000124 000000000000003f
->> [ 4545.191605] fd80: ffff000008962000 ffff8009753fdb00 ffff8009753fdb00 ffff8009753fdb00
->> [ 4545.199364] fda0: 0000000300000124 0000000000002000 ffff80097533fdd0 ffff0000081fb83c
->> [ 4545.207123] fdc0: 0000000000010000 ffff80097514f900 ffff80097533fe50 ffff0000081fcb28
->> [ 4545.214883] fde0: 0000000000010000 ffff80097514f900 0000000000000000 0000000000000000
->> [ 4545.222642] fe00: ffff80097533fe30 ffff0000081fca1c ffff80097514f900 0000000000000000
->> [ 4545.230401] fe20: 000000003956d000 ffff80097533feb8 ffff80097533fe50 ffff0000081fcb04
->> [ 4545.238160] fe40: 0000000000010000 ffff80097514f900 ffff80097533fe80 ffff0000081fe014
->> [ 4545.245919] fe60: ffff80097514f900 ffff80097514f900 000000003956d000 0000000000010000
->> [ 4545.253678] fe80: 0000000000000000 ffff000008082f30 0000000000000000 0000800977146000
->> [ 4545.261438] fea0: ffffffffffffffff 0000ffffa9c8745c 0000000000000124 0000000008202000
->> [ 4545.269197] fec0: 0000000000000003 000000003956d000 0000000000010000 0000000000000000
->> [ 4545.276956] fee0: 0000000000011011 0000000000000001 0000000000000011 0000000000000002
->> [ 4545.284715] ff00: 000000000000003f 1f3c201f7372686b 00000000ffffffff 0000000000000030
->> [ 4545.292474] ff20: 0000000000000038 0000000000000000 0000ffffa9bcca94 0000ffffa9d01588
->> [ 4545.300233] ff40: 0000000000000000 0000ffffa9c87440 0000ffffefa323c0 0000000000010000
->> [ 4545.307993] ff60: 000000000041a310 000000003956d000 0000000000000003 000000007fffe000
->> [ 4545.315751] ff80: 00000000004088d0 0000000000010000 0000000000000000 0000000000000000
->> [ 4545.323511] ffa0: 0000000000010000 0000ffffefa32690 0000000000404dcc 0000ffffefa32690
->> [ 4545.331270] ffc0: 0000ffffa9c8745c 0000000060000000 0000000000000003 000000000000003f
->> [ 4545.339029] ffe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [ 4545.346786] Call trace:
->> [ 4545.349207] Exception stack(0xffff80097533fae0 to 0xffff80097533fc10)
->> [ 4545.355586] fae0: 0000000000001000 0001000000000000 ffff80097533fcb0 ffff0000083a1000
->> [ 4545.363345] fb00: 000000003957c000 ffff80097533fc00 0000000020000145 0000000000000025
->> [ 4545.371105] fb20: ffff800962d24000 ffff000008e8d3d8 0000000000001000 ffff8009753fdb00
->> [ 4545.378864] fb40: 0000000000000000 0000000000000002 ffff80097533fd30 ffff000008082604
->> [ 4545.386623] fb60: 0000000000001000 0001000000000000 ffff80097533fd30 ffff0000083a0a90
->> [ 4545.394382] fb80: ffff800962d24000 ffff804392800000 0000000000000f80 0400000000000001
->> [ 4545.402140] fba0: 0000000000000000 ffff8009778013b0 ffff800962d24000 0000000000001000
->> [ 4545.409899] fbc0: 9110626091260021 0000000000000000 0000000000000000 97fc098d91042260
->> [ 4545.417658] fbe0: b0000001f9001a79 5299400690000000 72a77346b2407be7 0000ffffa9d01588
->> [ 4545.425416] fc00: ffff0000081fdfd0 0000ffffa9c87440
->> [ 4545.430248] [<ffff0000083a1000>] __memcpy+0x100/0x180
->> [ 4545.435253] [<ffff000008270f64>] read_kcore+0x21c/0x3b0
->> [ 4545.440429] [<ffff00000826340c>] proc_reg_read+0x64/0x90
->> [ 4545.445691] [<ffff0000081fb83c>] __vfs_read+0x1c/0x108
->> [ 4545.450779] [<ffff0000081fcb28>] vfs_read+0x80/0x130
->> [ 4545.455696] [<ffff0000081fe014>] SyS_read+0x44/0xa0
->> [ 4545.460528] [<ffff000008082f30>] el0_svc_naked+0x24/0x28
->> [ 4545.465790] Code: d503201f d503201f d503201f d503201f (a8c12027)
->> [ 4545.471852] ---[ end trace 4d1897f94759f461 ]---
->> [ 4545.476435] note: cat[8976] exited with preempt_count 2
->>
->> I find the issue is introduced when applying commit f9040773b7bb
->> ("arm64: move kernel image to base of vmalloc area"). This patch
->> make the kernel image overlap with vmalloc area. It will result in
->> vmalloc area have the huge page table. but the vmalloc_to_page is
->> not realize the change. and the function is public to any arch.
->>
->> I fix it by adding the another kernel image condition in vmalloc_to_page
->> to make it keep the accordance with previous vmalloc mapping.
->>
->> Fixes: f9040773b7bb ("arm64: move kernel image to base of vmalloc area")
->> Reported-by: tan xiaojun <tanxiaojun@huawei.com>
->> Signed-off-by: zhongjiang <zhongjiang@huawei.com>
->> ---
->>  arch/arm64/mm/mmu.c     |  2 +-
->>  include/linux/vmalloc.h |  1 +
->>  mm/vmalloc.c            | 35 ++++++++++++++++++++++++++++-------
->>  3 files changed, 30 insertions(+), 8 deletions(-)
->>
->> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
->> index 0c429ec..2265c39 100644
->> --- a/arch/arm64/mm/mmu.c
->> +++ b/arch/arm64/mm/mmu.c
->> @@ -509,7 +509,7 @@ static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
->>  	vma->addr	= va_start;
->>  	vma->phys_addr	= pa_start;
->>  	vma->size	= size;
->> -	vma->flags	= VM_MAP;
->> +	vma->flags	= VM_KERNEL;
->>  	vma->caller	= __builtin_return_address(0);
->>  
->>  	vm_area_add_early(vma);
->> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
->> index 0328ce0..c9245af 100644
->> --- a/include/linux/vmalloc.h
->> +++ b/include/linux/vmalloc.h
->> @@ -17,6 +17,7 @@
->>  #define VM_ALLOC		0x00000002	/* vmalloc() */
->>  #define VM_MAP			0x00000004	/* vmap()ed pages */
->>  #define VM_USERMAP		0x00000008	/* suitable for remap_vmalloc_range */
->> +#define VM_KERNEL		0x00000010	/* kernel pages */
->>  #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
->>  #define VM_NO_GUARD		0x00000040      /* don't add guard page */
->>  #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index 1dda6d8..601d940 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1967,11 +1967,28 @@ void *vmalloc_32_user(unsigned long size)
->>  EXPORT_SYMBOL(vmalloc_32_user);
->>  
->>  /*
->> + * kernel image overlap with the valloc area in arm64,it
->> + * will make the huge talbe page existence, if we walk the
->> + * all page talbe, it may be result in the panic.
->> + */
->> +static inline struct page *aligned_get_page(char *addr, struct vm_struct *vm)
->> +{
->> +	struct page *p = NULL;
->> +
->> +	if (vm->flags & VM_KERNEL)
->> +		p = virt_to_page(lm_alias(addr));
->> +	else
->> +		p = vmalloc_to_page(addr);
->> +
->> +	return p;
->> +}
->> +
->> +/*
->>   * small helper routine , copy contents to buf from addr.
->>   * If the page is not present, fill zero.
->>   */
->> -
->> -static int aligned_vread(char *buf, char *addr, unsigned long count)
->> +static int aligned_vread(char *buf, char *addr, unsigned long count,
->> +					struct vm_struct *vm)
->>  {
->>  	struct page *p;
->>  	int copied = 0;
->> @@ -1983,7 +2000,7 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
->>  		length = PAGE_SIZE - offset;
->>  		if (length > count)
->>  			length = count;
->> -		p = vmalloc_to_page(addr);
->> +		p = aligned_get_page(addr, vm);
->>  		/*
->>  		 * To do safe access to this _mapped_ area, we need
->>  		 * lock. But adding lock here means that we need to add
->> @@ -2010,7 +2027,8 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
->>  	return copied;
->>  }
->>  
->> -static int aligned_vwrite(char *buf, char *addr, unsigned long count)
->> +static int aligned_vwrite(char *buf, char *addr, unsigned long count,
->> +					struct vm_struct *vm)
->>  {
->>  	struct page *p;
->>  	int copied = 0;
->> @@ -2022,7 +2040,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
->>  		length = PAGE_SIZE - offset;
->>  		if (length > count)
->>  			length = count;
->> -		p = vmalloc_to_page(addr);
->> +		p = aligned_get_page(addr, vm);
->>  		/*
->>  		 * To do safe access to this _mapped_ area, we need
->>  		 * lock. But adding lock here means that we need to add
->> @@ -2109,7 +2127,7 @@ long vread(char *buf, char *addr, unsigned long count)
->>  		if (n > count)
->>  			n = count;
->>  		if (!(vm->flags & VM_IOREMAP))
->> -			aligned_vread(buf, addr, n);
->> +			aligned_vread(buf, addr, n, vm);
->>  		else /* IOREMAP area is treated as memory hole */
->>  			memset(buf, 0, n);
->>  		buf += n;
->> @@ -2190,7 +2208,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
->>  		if (n > count)
->>  			n = count;
->>  		if (!(vm->flags & VM_IOREMAP)) {
->> -			aligned_vwrite(buf, addr, n);
->> +			aligned_vwrite(buf, addr, n, vm);
->>  			copied++;
->>  		}
->>  		buf += n;
->> @@ -2710,6 +2728,9 @@ static int s_show(struct seq_file *m, void *p)
->>  	if (v->flags & VM_USERMAP)
->>  		seq_puts(m, " user");
->>  
->> +	if (v->flags & VM_KERNEL)
->> +		seq_puts(m, " kernel");
->> +
->>  	if (is_vmalloc_addr(v->pages))
->>  		seq_puts(m, " vpages");
->>  
->> -- 
->> 1.7.12.4
->>
->>
->> _______________________________________________
->> linux-arm-kernel mailing list
->> linux-arm-kernel@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-> .
->
+Joonsoo had some worries about pfn_valid and suggested to change its
+semantic to return false on offline holes but I would be rally worried
+to change a established semantic used by a lot of code and so I have
+introuduced pfn_to_online_page helper instead. If this is seen as a
+controversial point I would rather drop pfn_to_online_page and related
+patches as they are not stictly necessary because the code would be
+similarly broken as now wrt. offline holes.
+
+This is a rebase on top of the current mmotm tree (mmotm-2017-05-12-15-53)
+and the full series is in
+git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git try
+attempts/rewrite-mem_hotplug branch.
+
+Motivation:
+Movable onlining is a real hack with many downsides - mainly
+reintroduction of lowmem/highmem issues we used to have on 32b systems -
+but it is the only way to make the memory hotremove more reliable which
+is something that people are asking for.
+
+The current semantic of memory movable onlinening is really cumbersome,
+however. The main reason for this is that the udev driven approach is
+basically unusable because udev races with the memory probing while only
+the last memory block or the one adjacent to the existing zone_movable
+are allowed to be onlined movable. In short the criterion for the
+successful online_movable changes under udev's feet. A reliable udev
+approach would require a 2 phase approach where the first successful
+movable online would have to check all the previous blocks and online
+them in descending order. This is hard to be considered sane.
+
+This patchset aims at making the onlining semantic more usable. First of
+all it allows to online memory movable as long as it doesn't clash with
+the existing ZONE_NORMAL. That means that ZONE_NORMAL and ZONE_MOVABLE
+cannot overlap. Currently I preserve the original ordering semantic so
+the zone always precedes the movable zone but I have plans to remove this
+restriction in future because it is not really necessary.
+
+First 3 patches are cleanups which should be ready to be merged right
+away (unless I have missed something subtle of course).
+
+Patch 4 deals with ZONE_DEVICE dependencies down the __add_pages path.
+
+Patch 5 deals with implicit assumptions of register_one_node on pgdat
+initialization.
+
+Patches 6-10 deal with offline holes in the zone for pfn walkers. I
+hope I got all of them right but people familiar with compaction should
+double check this.
+
+Patch 11 is the core of the change. In order to make it easier to review
+I have tried it to be as minimalistic as possible and the large code
+removal is moved to patch 14.
+
+Patch 12 is a trivial follow up cleanup. Patch 13 fixes sparse warnings
+and finally patch 14 removes the unused code.
+
+I have tested the patches in kvm:
+# qemu-system-x86_64 -enable-kvm -monitor pty -m 2G,slots=4,maxmem=4G -numa node,mem=1G -numa node,mem=1G ...
+
+and then probed the additional memory by
+(qemu) object_add memory-backend-ram,id=mem1,size=1G
+(qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+
+Then I have used this simple script to probe the memory block by hand
+# cat probe_memblock.sh
+#!/bin/sh
+
+BLOCK_NR=$1
+
+# echo $((0x100000000+$BLOCK_NR*(128<<20))) > /sys/devices/system/memory/probe
+
+# for i in $(seq 10); do sh probe_memblock.sh $i; done
+# grep . /sys/devices/system/memory/memory3?/valid_zones 2>/dev/null 
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory35/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory36/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory37/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory38/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory39/valid_zones:Normal Movable
+
+The main difference to the original implementation is that all new
+memblocks can be both online_kernel and online_movable initially
+because there is no clash obviously. For the comparison the original
+implementation would have
+
+/sys/devices/system/memory/memory33/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory35/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory36/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory37/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory38/valid_zones:Normal                                                                                                                                                     
+/sys/devices/system/memory/memory39/valid_zones:Normal Movable
+
+Now
+# echo online_movable > /sys/devices/system/memory/memory34/state                                                                                                                                      
+# grep . /sys/devices/system/memory/memory3?/valid_zones 2>/dev/null                                                                                                                                   
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable                                                                                                                                                     
+/sys/devices/system/memory/memory34/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory35/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory36/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory37/valid_zones:Movable                                                                                                                                                            
+/sys/devices/system/memory/memory38/valid_zones:Movable
+/sys/devices/system/memory/memory39/valid_zones:Movable
+
+Block 33 can still be online both kernel and movable while all
+the remaining can be only movable.
+/proc/zonelist says
+Node 0, zone   Normal
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+--
+Node 0, zone  Movable
+  pages free     32753
+        min      85
+        low      117
+        high     149
+        spanned  32768
+        present  32768
+
+A new memblock at a lower address will result in a new memblock (32)
+which will still allow both Normal and Movable.
+# sh probe_memblock.sh 0
+# grep . /sys/devices/system/memory/memory3[2-5]/valid_zones 2>/dev/null
+/sys/devices/system/memory/memory32/valid_zones:Normal Movable
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+/sys/devices/system/memory/memory34/valid_zones:Movable
+/sys/devices/system/memory/memory35/valid_zones:Movable
+
+and online_kernel will convert it to the zone normal properly
+while 33 can be still onlined both ways.
+# echo online_kernel > /sys/devices/system/memory/memory32/state
+# grep . /sys/devices/system/memory/memory3[2-5]/valid_zones 2>/dev/null
+/sys/devices/system/memory/memory32/valid_zones:Normal
+/sys/devices/system/memory/memory33/valid_zones:Normal Movable
+/sys/devices/system/memory/memory34/valid_zones:Movable
+/sys/devices/system/memory/memory35/valid_zones:Movable
+
+/proc/zoneinfo will now tell
+Node 0, zone   Normal
+  pages free     65441
+        min      165
+        low      230
+        high     295
+        spanned  65536
+        present  65536
+--
+Node 0, zone  Movable
+  pages free     32740
+        min      82
+        low      114
+        high     146
+        spanned  32768
+        present  32768
+
+so both zones have one memblock spanned and present.
+
+Onlining 39 should associate this block to the movable zone
+# echo online > /sys/devices/system/memory/memory39/state
+
+/proc/zoneinfo will now tell
+Node 0, zone   Normal
+  pages free     32765
+        min      80
+        low      112
+        high     144
+        spanned  32768
+        present  32768
+--
+Node 0, zone  Movable
+  pages free     65501
+        min      160
+        low      225
+        high     290
+        spanned  196608
+        present  65536
+
+so we will have a movable zone which spans 6 memblocks, 2 present and 4
+representing a hole.
+
+Offlining both movable blocks will lead to the zone with no present
+pages which is the expected behavior I believe.
+# echo offline > /sys/devices/system/memory/memory39/state
+# echo offline > /sys/devices/system/memory/memory34/state
+# grep -A6 "Movable\|Normal" /proc/zoneinfo 
+Node 0, zone   Normal
+  pages free     32735
+        min      90
+        low      122
+        high     154
+        spanned  32768
+        present  32768
+--
+Node 0, zone  Movable
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  196608
+        present  0
+
+Any thoughts, complains, suggestions?
+
+As a bonus we will get a nice cleanup in the memory hotplug codebase.
+ arch/ia64/mm/init.c            |  11 +-
+ arch/powerpc/mm/mem.c          |  12 +-
+ arch/s390/mm/init.c            |  32 +--
+ arch/sh/mm/init.c              |  10 +-
+ arch/x86/mm/init_32.c          |   7 +-
+ arch/x86/mm/init_64.c          |  11 +-
+ drivers/base/memory.c          |  79 +++----
+ drivers/base/node.c            |  58 ++----
+ include/linux/memory_hotplug.h |  40 +++-
+ include/linux/mmzone.h         |  57 +++++-
+ include/linux/node.h           |  35 +++-
+ kernel/memremap.c              |   6 +-
+ mm/compaction.c                |   5 +-
+ mm/memory_hotplug.c            | 455 ++++++++++++++---------------------------
+ mm/page_alloc.c                |  13 +-
+ mm/page_isolation.c            |  26 ++-
+ mm/sparse.c                    |  48 ++++-
+ mm/vmstat.c                    |   4 +-
+ 18 files changed, 417 insertions(+), 492 deletions(-)
+
+Shortlog says:
+Michal Hocko (14):
+      mm: remove return value from init_currently_empty_zone
+      mm, memory_hotplug: use node instead of zone in can_online_high_movable
+      mm: drop page_initialized check from get_nid_for_pfn
+      mm, memory_hotplug: get rid of is_zone_device_section
+      mm, memory_hotplug: split up register_one_node
+      mm, memory_hotplug: consider offline memblocks removable
+      mm: consider zone which is not fully populated to have holes
+      mm, compaction: skip over holes in __reset_isolation_suitable
+      mm: __first_valid_page skip over offline pages
+      mm, vmstat: skip reporting offline pages in pagetypeinfo
+      mm, memory_hotplug: do not associate hotadded memory to zones until online
+      mm, memory_hotplug: replace for_device by want_memblock in arch_add_memory
+      mm, memory_hotplug: fix the section mismatch warning
+      mm, memory_hotplug: remove unused cruft after memory hotplug rework
+
+[1] http://lkml.kernel.org/r/20170421120512.23960-1-mhocko@kernel.org
 
 
 --
