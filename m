@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 90B7B6B02F4
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:55 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l73so58189099pfj.8
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:55 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id t8si7502140pfa.36.2017.05.15.18.17.54
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B476B02FA
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:59 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s62so125169020pgc.2
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:59 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id s68si12129515pfg.108.2017.05.15.18.17.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 18:17:54 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id u26so17848634pfd.2
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:54 -0700 (PDT)
+        Mon, 15 May 2017 18:17:58 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id s62so19215363pgc.0
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:58 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v1 05/11] mm/kasan: introduce per-page shadow memory infrastructure
-Date: Tue, 16 May 2017 10:16:43 +0900
-Message-Id: <1494897409-14408-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v1 06/11] mm/kasan: mark/unmark the target range that is for original shadow memory
+Date: Tue, 16 May 2017 10:16:44 +0900
+Message-Id: <1494897409-14408-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,411 +24,312 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-1. What is per-page shadow memory
+Now, we have the per-page shadow. The purpose of the per-page shadow is
+to check the page that is just used/checked in page size granularity.
+File cache pages/anonymous page are in this category. The other
+category is for being used by byte size granularity. Global variable,
+kernel stack and slab memory are in this category.
 
-This patch introduces infrastructure to support per-page shadow memory.
-Per-page shadow memory is the same with original shadow memory except
-the granualarity. It's one byte shows the shadow value for the page.
-The purpose of introducing this new shadow memory is to save memory
-consumption.
+This patch distinguishes them and mark the page that should be checked by
+the original shadow. Validity check for this page will be performed
+by using original shadow so we don't lose any checking accuracy even if
+we check other pages by using per-page shadow.
 
-2. Problem of current approach
-
-Until now, KASAN needs shadow memory for all the range of the memory
-so the amount of statically allocated memory is so large. It causes
-the problem that KASAN cannot run on the system with hard memory
-constraint. Even if KASAN can run, large memory consumption due to
-KASAN changes behaviour of the workload so we cannot validate
-the moment that we want to check.
-
-3. How does this patch fix the problem
-
-This patch tries to fix the problem by reducing memory consumption for
-the shadow memory. There are two observations.
-
-1) Type of memory usage can be distinguished well.
-2) Shadow memory is manipulated/checked in byte unit only for slab,
-kernel stack and global variable. Shadow memory for other usecases
-just show KASAN_FREE_PAGE or 0 (means valid) in page unit.
-
-With these two observations, I think an optimized way to support
-KASAN feature.
-
-1) Introduces per-page shadow that cover all the memory
-2) Checks validity of the access through per-page shadow except
-that checking object is a slab, kernel stack, global variable
-3) For those byte accessible types of object, allocate/map original
-shadow by on-demand and checks validity of the access through
-original shadow
-
-Instead original shadow statically consumes 1/8 bytes of the amount of
-total memory, per-page shadow statically consumes 1/PAGE_SIZE bytes of it.
-Extra memory is required for a slab, kernel stack and global variable by
-on-demand in runtime, however, it would not be larger than before.
-
-Following is the result of the memory consumption on my QEMU system.
-'runtime' shows the maximum memory usage for on-demand shadow allocation
-during the kernel build workload. Note that this patch just introduces
-an infrastructure. These benefit will be observed at the last patch
-in this series.
-
-Base vs Patched
-
-MemTotal: 858 MB vs 987 MB
-runtime: 0 MB vs 30MB
-Net Available: 858 MB vs 957 MB
-
-For 4096 MB QEMU system
-
-MemTotal: 3477 MB vs 4000 MB
-runtime: 0 MB vs 50MB
-Net Available: 3477 MB vs 3950 MB
-
-Memory consumption is reduced by 99 MB and 473 MB, respectively.
+Note that there is no code for global variable in this patch since it is
+a static area and it will be directly handled by architecture
+specific code.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/kasan.h | 41 +++++++++++++++++++++
- mm/kasan/kasan.c      | 98 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/kasan/kasan.h      | 12 +++++--
- mm/kasan/kasan_init.c | 31 ++++++++++++++++
- mm/kasan/report.c     | 28 +++++++++++++++
- 5 files changed, 207 insertions(+), 3 deletions(-)
+ include/linux/kasan.h | 15 ++++++++--
+ kernel/fork.c         |  7 +++++
+ mm/kasan/kasan.c      | 77 +++++++++++++++++++++++++++++++++++++++++++++------
+ mm/slab.c             |  9 ++++++
+ mm/slab_common.c      | 11 ++++++--
+ mm/slub.c             |  8 ++++++
+ 6 files changed, 115 insertions(+), 12 deletions(-)
 
 diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index 7e501b3..4390788 100644
+index 4390788..c8ef665 100644
 --- a/include/linux/kasan.h
 +++ b/include/linux/kasan.h
-@@ -15,6 +15,18 @@ struct task_struct;
- #include <asm/kasan.h>
- #include <asm/pgtable.h>
- 
-+#ifndef KASAN_PSHADOW_SIZE
-+#define KASAN_PSHADOW_SIZE 0
-+#endif
-+#ifndef KASAN_PSHADOW_START
-+#define KASAN_PSHADOW_START 0
-+#endif
-+#ifndef KASAN_PSHADOW_END
-+#define KASAN_PSHADOW_END 0
-+#endif
-+
-+extern unsigned long kasan_pshadow_offset;
-+
- extern unsigned char kasan_zero_page[PAGE_SIZE];
- extern pte_t kasan_zero_pte[PTRS_PER_PTE];
- extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
-@@ -30,6 +42,13 @@ extern p4d_t kasan_black_p4d[PTRS_PER_P4D];
- void kasan_populate_shadow(const void *shadow_start,
- 				const void *shadow_end,
- 				bool zero, bool private);
-+void kasan_early_init_pshadow(void);
-+
-+static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
-+{
-+	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET)
-+		<< KASAN_SHADOW_SCALE_SHIFT);
-+}
- 
- static inline void *kasan_mem_to_shadow(const void *addr)
- {
-@@ -37,6 +56,24 @@ static inline void *kasan_mem_to_shadow(const void *addr)
- 		+ KASAN_SHADOW_OFFSET;
- }
- 
-+static inline void *kasan_mem_to_pshadow(const void *addr)
-+{
-+	return (void *)((unsigned long)addr >> PAGE_SHIFT)
-+		+ kasan_pshadow_offset;
-+}
-+
-+static inline void *kasan_shadow_to_pshadow(const void *addr)
-+{
-+	/*
-+	 * KASAN_SHADOW_END needs special handling since
-+	 * it will overflow in kasan_shadow_to_mem()
-+	 */
-+	if ((unsigned long)addr == KASAN_SHADOW_END)
-+		return (void *)KASAN_PSHADOW_END;
-+
-+	return kasan_mem_to_pshadow(kasan_shadow_to_mem(addr));
-+}
-+
- /* Enable reporting bugs after kasan_disable_current() */
- extern void kasan_enable_current(void);
- 
-@@ -44,6 +81,8 @@ extern void kasan_enable_current(void);
- extern void kasan_disable_current(void);
- 
+@@ -83,6 +83,10 @@ extern void kasan_disable_current(void);
  void kasan_unpoison_shadow(const void *address, size_t size);
-+void kasan_poison_pshadow(const void *address, size_t size);
-+void kasan_unpoison_pshadow(const void *address, size_t size);
+ void kasan_poison_pshadow(const void *address, size_t size);
+ void kasan_unpoison_pshadow(const void *address, size_t size);
++int kasan_stack_alloc(const void *address, size_t size);
++void kasan_stack_free(const void *addr, size_t size);
++int kasan_slab_page_alloc(const void *address, size_t size, gfp_t flags);
++void kasan_slab_page_free(const void *addr, size_t size);
  
  void kasan_unpoison_task_stack(struct task_struct *task);
  void kasan_unpoison_stack_above_sp_to(const void *watermark);
-@@ -89,6 +128,8 @@ void kasan_restore_multi_shot(bool enabled);
- #else /* CONFIG_KASAN */
+@@ -100,7 +104,7 @@ void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
+ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
+ void kasan_init_slab_obj(struct kmem_cache *cache, const void *object);
  
+-void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
++int kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
+ void kasan_kfree_large(const void *ptr);
+ void kasan_poison_kfree(void *ptr);
+ void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
+@@ -130,6 +134,12 @@ void kasan_restore_multi_shot(bool enabled);
  static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
-+static inline void kasan_poison_pshadow(const void *address, size_t size) {}
-+static inline void kasan_unpoison_pshadow(const void *address, size_t size) {}
+ static inline void kasan_poison_pshadow(const void *address, size_t size) {}
+ static inline void kasan_unpoison_pshadow(const void *address, size_t size) {}
++static inline int kasan_stack_alloc(const void *address,
++					size_t size) { return 0; }
++static inline void kasan_stack_free(const void *addr, size_t size) {}
++static inline int kasan_slab_page_alloc(const void *address, size_t size,
++					gfp_t flags) { return 0; }
++static inline void kasan_slab_page_free(const void *addr, size_t size) {}
  
  static inline void kasan_unpoison_task_stack(struct task_struct *task) {}
  static inline void kasan_unpoison_stack_above_sp_to(const void *watermark) {}
+@@ -154,7 +164,8 @@ static inline void kasan_poison_object_data(struct kmem_cache *cache,
+ static inline void kasan_init_slab_obj(struct kmem_cache *cache,
+ 				const void *object) {}
+ 
+-static inline void kasan_kmalloc_large(void *ptr, size_t size, gfp_t flags) {}
++static inline int kasan_kmalloc_large(void *ptr, size_t size,
++				gfp_t flags) { return 0; }
+ static inline void kasan_kfree_large(const void *ptr) {}
+ static inline void kasan_poison_kfree(void *ptr) {}
+ static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 5d32780..6741d3c 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -237,6 +237,12 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
+ 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
+ 					     THREAD_SIZE_ORDER);
+ 
++	if (kasan_stack_alloc(page ? page_address(page) : NULL,
++				PAGE_SIZE << THREAD_SIZE_ORDER)) {
++		__free_pages(page, THREAD_SIZE_ORDER);
++		page = NULL;
++	}
++
+ 	return page ? page_address(page) : NULL;
+ #endif
+ }
+@@ -264,6 +270,7 @@ static inline void free_thread_stack(struct task_struct *tsk)
+ 	}
+ #endif
+ 
++	kasan_stack_free(tsk->stack, PAGE_SIZE << THREAD_SIZE_ORDER);
+ 	__free_pages(virt_to_page(tsk->stack), THREAD_SIZE_ORDER);
+ }
+ # else
 diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 97d3560..76b7b89 100644
+index 76b7b89..fb18283 100644
 --- a/mm/kasan/kasan.c
 +++ b/mm/kasan/kasan.c
-@@ -116,6 +116,30 @@ void kasan_unpoison_stack_above_sp_to(const void *watermark)
- 	kasan_unpoison_shadow(sp, size);
- }
+@@ -455,16 +455,31 @@ void *memcpy(void *dest, const void *src, size_t len)
  
-+static void kasan_mark_pshadow(const void *address, size_t size, u8 value)
-+{
-+	void *pshadow_start;
-+	void *pshadow_end;
-+
-+	if (!kasan_pshadow_inited())
-+		return;
-+
-+	pshadow_start = kasan_mem_to_pshadow(address);
-+	pshadow_end =  kasan_mem_to_pshadow(address + size);
-+
-+	memset(pshadow_start, value, pshadow_end - pshadow_start);
-+}
-+
-+void kasan_poison_pshadow(const void *address, size_t size)
-+{
-+	kasan_mark_pshadow(address, size, KASAN_PER_PAGE_BYPASS);
-+}
-+
-+void kasan_unpoison_pshadow(const void *address, size_t size)
-+{
-+	kasan_mark_pshadow(address, size, 0);
-+}
-+
- /*
-  * All functions below always inlined so compiler could
-  * perform better optimizations in each of __asan_loadX/__assn_storeX
-@@ -269,8 +293,82 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
- 	return false;
- }
- 
-+static __always_inline u8 pshadow_val_builtin(unsigned long addr, size_t size)
-+{
-+	u8 shadow_val = *(u8 *)kasan_mem_to_pshadow((void *)addr);
-+
-+	if (shadow_val == KASAN_PER_PAGE_FREE)
-+		return shadow_val;
-+
-+	if (likely(((addr + size - 1) & PAGE_MASK) >= (size - 1)))
-+		return shadow_val;
-+
-+	if (shadow_val != *(u8 *)kasan_mem_to_pshadow((void *)addr + size - 1))
-+		return KASAN_PER_PAGE_FREE;
-+
-+	return shadow_val;
-+}
-+
-+static __always_inline u8 pshadow_val_n(unsigned long addr, size_t size)
-+{
-+	u8 *start, *end;
-+	u8 shadow_val;
-+
-+	start = kasan_mem_to_pshadow((void *)addr);
-+	end = kasan_mem_to_pshadow((void *)addr + size - 1);
-+	size = end - start + 1;
-+
-+	shadow_val = *start;
-+	if (shadow_val == KASAN_PER_PAGE_FREE)
-+		return shadow_val;
-+
-+	while (size) {
-+		/*
-+		 * Different shadow value means that access is over
-+		 * the boundary. Report the error even if it is
-+		 * in the valid area.
-+		 */
-+		if (shadow_val != *start)
-+			return KASAN_PER_PAGE_FREE;
-+
-+		start++;
-+		size--;
-+	}
-+
-+	return shadow_val;
-+}
-+
-+static __always_inline u8 pshadow_val(unsigned long addr, size_t size)
-+{
-+	if (!kasan_pshadow_inited())
-+		return KASAN_PER_PAGE_BYPASS;
-+
-+	if (__builtin_constant_p(size)) {
-+		switch (size) {
-+		case 1:
-+		case 2:
-+		case 4:
-+		case 8:
-+		case 16:
-+			return pshadow_val_builtin(addr, size);
-+		default:
-+			BUILD_BUG();
+ void kasan_alloc_pages(struct page *page, unsigned int order)
+ {
+-	if (likely(!PageHighMem(page)))
+-		kasan_unpoison_shadow(page_address(page), PAGE_SIZE << order);
++	if (likely(!PageHighMem(page))) {
++		if (!kasan_pshadow_inited()) {
++			kasan_unpoison_shadow(page_address(page),
++					PAGE_SIZE << order);
++			return;
 +		}
++
++		kasan_unpoison_pshadow(page_address(page), PAGE_SIZE << order);
 +	}
-+
-+	return pshadow_val_n(addr, size);
-+}
-+
- static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
- {
-+	u8 shadow_val = pshadow_val(addr, size);
-+
-+	if (!shadow_val)
-+		return false;
-+
-+	if (shadow_val != KASAN_PER_PAGE_BYPASS)
-+		return true;
-+
- 	if (__builtin_constant_p(size)) {
- 		switch (size) {
- 		case 1:
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 1229298..e9a67ac 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -13,6 +13,9 @@
- #define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_free/kfree) */
- #define KASAN_GLOBAL_REDZONE    0xFA  /* redzone for global variable */
- 
-+#define KASAN_PER_PAGE_BYPASS	0xFF  /* page should be checked by per-byte shadow */
-+#define KASAN_PER_PAGE_FREE	0xFE  /* page was freed */
-+
- /*
-  * Stack redzone shadow values
-  * (Those are compiler's ABI, don't change them)
-@@ -90,10 +93,13 @@ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
- struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
- 					const void *object);
- 
--static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
-+static inline bool kasan_pshadow_inited(void)
- {
--	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET)
--		<< KASAN_SHADOW_SCALE_SHIFT);
-+#ifdef HAVE_KASAN_PER_PAGE_SHADOW
-+	return true;
-+#else
-+	return false;
-+#endif
  }
  
- void kasan_report(unsigned long addr, size_t size,
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
-index cd0a551..da9dcab 100644
---- a/mm/kasan/kasan_init.c
-+++ b/mm/kasan/kasan_init.c
-@@ -17,12 +17,15 @@
- #include <linux/memblock.h>
- #include <linux/mm.h>
- #include <linux/pfn.h>
-+#include <linux/vmalloc.h>
- 
- #include <asm/page.h>
- #include <asm/pgalloc.h>
- 
- #include "kasan.h"
- 
-+unsigned long kasan_pshadow_offset __read_mostly;
-+
- /*
-  * This page serves two purposes:
-  *   - It used as early shadow memory. The entire shadow region populated
-@@ -250,3 +253,31 @@ void __init kasan_populate_shadow(const void *shadow_start,
- 		kasan_p4d_populate(pgd, addr, next, zero, private);
- 	} while (pgd++, addr = next, addr != end);
- }
-+
-+void __init kasan_early_init_pshadow(void)
-+{
-+	static struct vm_struct pshadow;
-+	unsigned long kernel_offset;
-+	int i;
-+
-+	/*
-+	 * Temprorary map per-page shadow to per-byte shadow in order to
-+	 * pass the KASAN checks in vm_area_register_early()
-+	 */
-+	kernel_offset = (unsigned long)kasan_shadow_to_mem(
-+					(void *)KASAN_SHADOW_START);
-+	kasan_pshadow_offset = KASAN_SHADOW_START -
-+				(kernel_offset >> PAGE_SHIFT);
-+
-+	pshadow.size = KASAN_PSHADOW_SIZE;
-+	pshadow.flags = VM_ALLOC | VM_NO_GUARD;
-+	vm_area_register_early(&pshadow,
-+		(PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT));
-+
-+	kasan_pshadow_offset = (unsigned long)pshadow.addr -
-+					(kernel_offset >> PAGE_SHIFT);
-+
-+	BUILD_BUG_ON(KASAN_FREE_PAGE != KASAN_PER_PAGE_BYPASS);
-+	for (i = 0; i < PAGE_SIZE; i++)
-+		kasan_black_page[i] = KASAN_FREE_PAGE;
-+}
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index beee0e9..9b47e10 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -39,6 +39,26 @@
- #define SHADOW_BYTES_PER_ROW (SHADOW_BLOCKS_PER_ROW * SHADOW_BYTES_PER_BLOCK)
- #define SHADOW_ROWS_AROUND_ADDR 2
- 
-+static bool bad_in_pshadow(const void *addr, size_t size)
-+{
-+	u8 shadow_val;
-+	const void *end = addr + size;
-+
-+	if (!kasan_pshadow_inited())
-+		return false;
-+
-+	shadow_val = *(u8 *)kasan_mem_to_pshadow(addr);
-+	if (shadow_val == KASAN_PER_PAGE_FREE)
-+		return true;
-+
-+	for (; addr < end; addr += PAGE_SIZE) {
-+		if (shadow_val != *(u8 *)kasan_mem_to_pshadow(addr))
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
- static const void *find_first_bad_addr(const void *addr, size_t size)
+ void kasan_free_pages(struct page *page, unsigned int order)
  {
- 	u8 shadow_val = *(u8 *)kasan_mem_to_shadow(addr);
-@@ -62,6 +82,11 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
- 	const char *bug_type = "unknown-crash";
- 	u8 *shadow_addr;
- 
-+	if (bad_in_pshadow(info->access_addr, info->access_size)) {
-+		info->first_bad_addr = NULL;
-+		bug_type = "use-after-free";
-+		return bug_type;
+-	if (likely(!PageHighMem(page)))
+-		kasan_poison_shadow(page_address(page),
+-				PAGE_SIZE << order,
+-				KASAN_FREE_PAGE);
++	if (likely(!PageHighMem(page))) {
++		if (!kasan_pshadow_inited()) {
++			kasan_poison_shadow(page_address(page),
++					PAGE_SIZE << order,
++					KASAN_FREE_PAGE);
++			return;
++		}
++
++		kasan_mark_pshadow(page_address(page),
++					PAGE_SIZE << order,
++					KASAN_PER_PAGE_FREE);
 +	}
- 	info->first_bad_addr = find_first_bad_addr(info->access_addr,
- 						info->access_size);
+ }
  
-@@ -290,6 +315,9 @@ static void print_shadow_for_address(const void *addr)
- 	const void *shadow = kasan_mem_to_shadow(addr);
- 	const void *shadow_row;
+ /*
+@@ -700,19 +715,25 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ }
+ EXPORT_SYMBOL(kasan_kmalloc);
  
-+	if (!addr)
+-void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
++int kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+ {
+ 	struct page *page;
+ 	unsigned long redzone_start;
+ 	unsigned long redzone_end;
++	int err;
+ 
+ 	if (gfpflags_allow_blocking(flags))
+ 		quarantine_reduce();
+ 
+ 	if (unlikely(ptr == NULL))
+-		return;
++		return 0;
+ 
+ 	page = virt_to_page(ptr);
++	err = kasan_slab_page_alloc(ptr,
++		PAGE_SIZE << compound_order(page), flags);
++	if (err)
++		return err;
++
+ 	redzone_start = round_up((unsigned long)(ptr + size),
+ 				KASAN_SHADOW_SCALE_SIZE);
+ 	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
+@@ -720,6 +741,8 @@ void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+ 	kasan_unpoison_shadow(ptr, size);
+ 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
+ 		KASAN_PAGE_REDZONE);
++
++	return 0;
+ }
+ 
+ void kasan_krealloc(const void *object, size_t size, gfp_t flags)
+@@ -758,6 +781,25 @@ void kasan_kfree_large(const void *ptr)
+ 			KASAN_FREE_PAGE);
+ }
+ 
++int kasan_slab_page_alloc(const void *addr, size_t size, gfp_t flags)
++{
++	if (!kasan_pshadow_inited() || !addr)
++		return 0;
++
++	kasan_unpoison_shadow(addr, size);
++	kasan_poison_pshadow(addr, size);
++
++	return 0;
++}
++
++void kasan_slab_page_free(const void *addr, size_t size)
++{
++	if (!kasan_pshadow_inited() || !addr)
 +		return;
 +
- 	shadow_row = (void *)round_down((unsigned long)shadow,
- 					SHADOW_BYTES_PER_ROW)
- 		- SHADOW_ROWS_AROUND_ADDR * SHADOW_BYTES_PER_ROW;
++	kasan_poison_shadow(addr, size, KASAN_FREE_PAGE);
++}
++
+ int kasan_module_alloc(void *addr, size_t size)
+ {
+ 	void *ret;
+@@ -792,6 +834,25 @@ void kasan_free_shadow(const struct vm_struct *vm)
+ 		vfree(kasan_mem_to_shadow(vm->addr));
+ }
+ 
++int kasan_stack_alloc(const void *addr, size_t size)
++{
++	if (!kasan_pshadow_inited() || !addr)
++		return 0;
++
++	kasan_unpoison_shadow(addr, size);
++	kasan_poison_pshadow(addr, size);
++
++	return 0;
++}
++
++void kasan_stack_free(const void *addr, size_t size)
++{
++	if (!kasan_pshadow_inited() || !addr)
++		return;
++
++	kasan_poison_shadow(addr, size, KASAN_FREE_PAGE);
++}
++
+ static void register_global(struct kasan_global *global)
+ {
+ 	size_t aligned_size = round_up(global->size, KASAN_SHADOW_SCALE_SIZE);
+diff --git a/mm/slab.c b/mm/slab.c
+index 2a31ee3..77b8be6 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1418,7 +1418,15 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 		return NULL;
+ 	}
+ 
++	if (kasan_slab_page_alloc(page_address(page),
++			PAGE_SIZE << cachep->gfporder, flags)) {
++		__free_pages(page, cachep->gfporder);
++		return NULL;
++	}
++
+ 	if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
++		kasan_slab_page_free(page_address(page),
++				PAGE_SIZE << cachep->gfporder);
+ 		__free_pages(page, cachep->gfporder);
+ 		return NULL;
+ 	}
+@@ -1474,6 +1482,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	memcg_uncharge_slab(page, order, cachep);
++	kasan_slab_page_free(page_address(page), PAGE_SIZE << order);
+ 	__free_pages(page, order);
+ }
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 01a0fe2..4545975 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1112,9 +1112,16 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+ 
+ 	flags |= __GFP_COMP;
+ 	page = alloc_pages(flags, order);
+-	ret = page ? page_address(page) : NULL;
++	if (!page)
++		return NULL;
++
++	ret = page_address(page);
++	if (kasan_kmalloc_large(ret, size, flags)) {
++		__free_pages(page, order);
++		return NULL;
++	}
++
+ 	kmemleak_alloc(ret, size, 1, flags);
+-	kasan_kmalloc_large(ret, size, flags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(kmalloc_order);
+diff --git a/mm/slub.c b/mm/slub.c
+index 57e5156..721894c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1409,7 +1409,14 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+ 	else
+ 		page = __alloc_pages_node(node, flags, order);
+ 
++	if (kasan_slab_page_alloc(page ? page_address(page) : NULL,
++				PAGE_SIZE << order, flags)) {
++		__free_pages(page, order);
++		page = NULL;
++	}
++
+ 	if (page && memcg_charge_slab(page, flags, order, s)) {
++		kasan_slab_page_free(page_address(page), PAGE_SIZE << order);
+ 		__free_pages(page, order);
+ 		page = NULL;
+ 	}
+@@ -1667,6 +1674,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
+ 	memcg_uncharge_slab(page, order, s);
++	kasan_slab_page_free(page_address(page), PAGE_SIZE << order);
+ 	__free_pages(page, order);
+ }
+ 
 -- 
 2.7.4
 
