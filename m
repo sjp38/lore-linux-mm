@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8A56B03A5
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:30:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y65so121211275pff.13
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:30:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p2si10380354pfg.78.2017.05.16.02.30.01
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31A3E6B03A6
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:31:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p134so33981538wmg.3
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:31:46 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id k127si13467059wmg.128.2017.05.16.02.31.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 May 2017 02:30:01 -0700 (PDT)
-Date: Tue, 16 May 2017 11:29:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: per-cgroup memory reclaim stats
-Message-ID: <20170516092956.GF2481@dhcp22.suse.cz>
-References: <1494530183-30808-1-git-send-email-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 02:31:45 -0700 (PDT)
+Date: Tue, 16 May 2017 10:31:19 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] drm: use kvmalloc_array for drm_malloc*
+Message-ID: <20170516093119.GW19912@nuc-i3427.alporthouse.com>
+References: <20170516090606.5891-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1494530183-30808-1-git-send-email-guro@fb.com>
+In-Reply-To: <20170516090606.5891-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, Sean Paul <seanpaul@chromium.org>, David Airlie <airlied@linux.ie>, Michal Hocko <mhocko@suse.com>
 
-On Thu 11-05-17 20:16:23, Roman Gushchin wrote:
-> Track the following reclaim counters for every memory cgroup:
-> PGREFILL, PGSCAN, PGSTEAL, PGACTIVATE, PGDEACTIVATE, PGLAZYFREE and
-> PGLAZYFREED.
-
-yes, those are definitely useful. I have an old patch to add them as
-well but never managed to clean it up and post...
-
-> These values are exposed using the memory.stats interface of cgroup v2.
-
-Is there any reason to not add them to v1? This should be rather trivial
-after recent changes from Johannes.
-
-> The meaning of each value is the same as for global counters,
-> available using /proc/vmstat.
+On Tue, May 16, 2017 at 11:06:06AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Also, for consistency, rename mem_cgroup_count_vm_event() to
-> count_memcg_event_mm().
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Li Zefan <lizefan@huawei.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
+> drm_malloc* has grown their own kmalloc with vmalloc fallback
+> implementations. MM has grown kvmalloc* helpers in the meantime. Let's
+> use those because it a) reduces the code and b) MM has a better idea
+> how to implement fallbacks (e.g. do not vmalloc before kmalloc is tried
+> with __GFP_NORETRY).
 
-the patch itself looks good to me. I will have to double check it after
-I am done with what I am doing currently and then will add my Acked-by
+Better? The same idea. The only difference I was reluctant to hand out
+large pages for long lived objects. If that's the wisdom of the core mm,
+so be it.
+Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+-Chris
+
 -- 
-Michal Hocko
-SUSE Labs
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
