@@ -1,150 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E816B02C4
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 16:29:24 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id t26so60755890qtg.12
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 13:29:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b29si329663qtb.70.2017.05.16.13.29.23
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 653D46B02EE
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 16:49:33 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id q77so39371119vka.7
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 13:49:33 -0700 (PDT)
+Received: from mail-ua0-x22c.google.com (mail-ua0-x22c.google.com. [2607:f8b0:400c:c08::22c])
+        by mx.google.com with ESMTPS id j21si167631uag.168.2017.05.16.13.49.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 May 2017 13:29:23 -0700 (PDT)
-Date: Tue, 16 May 2017 22:29:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
-Message-ID: <20170516202919.GA2843@redhat.com>
-References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
- <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
- <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
+        Tue, 16 May 2017 13:49:31 -0700 (PDT)
+Received: by mail-ua0-x22c.google.com with SMTP id e28so107732269uah.0
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 13:49:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
+In-Reply-To: <20170516062318.GC16015@js1304-desktop>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com> <20170516062318.GC16015@js1304-desktop>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 16 May 2017 13:49:10 -0700
+Message-ID: <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On Wed, Apr 12, 2017 at 03:33:35PM +0200, Vlastimil Babka wrote:
-> On 03/02/2017 04:10 PM, Kirill A. Shutemov wrote:
-> > In case prot_numa, we are under down_read(mmap_sem). It's critical
-> > to not clear pmd intermittently to avoid race with MADV_DONTNEED
-> > which is also under down_read(mmap_sem):
-> > 
-> > 	CPU0:				CPU1:
-> > 				change_huge_pmd(prot_numa=1)
-> > 				 pmdp_huge_get_and_clear_notify()
-> > madvise_dontneed()
-> >  zap_pmd_range()
-> >   pmd_trans_huge(*pmd) == 0 (without ptl)
-> >   // skip the pmd
-> > 				 set_pmd_at();
-> > 				 // pmd is re-established
-> > 
-> > The race makes MADV_DONTNEED miss the huge pmd and don't clear it
-> > which may break userspace.
-> > 
-> > Found by code analysis, never saw triggered.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/huge_memory.c | 34 +++++++++++++++++++++++++++++++++-
-> >  1 file changed, 33 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index e7ce73b2b208..bb2b3646bd78 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1744,7 +1744,39 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> >  	if (prot_numa && pmd_protnone(*pmd))
-> >  		goto unlock;
-> >  
-> > -	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
-> > +	/*
-> > +	 * In case prot_numa, we are under down_read(mmap_sem). It's critical
-> > +	 * to not clear pmd intermittently to avoid race with MADV_DONTNEED
-> > +	 * which is also under down_read(mmap_sem):
-> > +	 *
-> > +	 *	CPU0:				CPU1:
-> > +	 *				change_huge_pmd(prot_numa=1)
-> > +	 *				 pmdp_huge_get_and_clear_notify()
-> > +	 * madvise_dontneed()
-> > +	 *  zap_pmd_range()
-> > +	 *   pmd_trans_huge(*pmd) == 0 (without ptl)
-> > +	 *   // skip the pmd
-> > +	 *				 set_pmd_at();
-> > +	 *				 // pmd is re-established
-> > +	 *
-> > +	 * The race makes MADV_DONTNEED miss the huge pmd and don't clear it
-> > +	 * which may break userspace.
-> > +	 *
-> > +	 * pmdp_invalidate() is required to make sure we don't miss
-> > +	 * dirty/young flags set by hardware.
-> > +	 */
-> > +	entry = *pmd;
-> > +	pmdp_invalidate(vma, addr, pmd);
-> > +
-> > +	/*
-> > +	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
-> > +	 * corrupt them.
-> > +	 */
-> 
-> pmdp_invalidate() does:
-> 
->         pmd_t entry = *pmdp;
->         set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
-> 
-> so it's not atomic and if CPU sets dirty or accessed in the middle of
-> this, they will be lost?
+On Mon, May 15, 2017 at 11:23 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+>> >
+>> > Hello, all.
+>> >
+>> > This is an attempt to recude memory consumption of KASAN. Please see
+>> > following description to get the more information.
+>> >
+>> > 1. What is per-page shadow memory
+>>
+>> Hi Joonsoo,
+>
+> Hello, Dmitry.
+>
+>>
+>> First I need to say that this is great work. I wanted KASAN to consume
+>
+> Thanks!
+>
+>> 1/8-th of _kernel_ memory rather than total physical memory for a long
+>> time.
+>>
+>> However, this implementation does not work inline instrumentation. And
+>> the inline instrumentation is the main mode for KASAN. Outline
+>> instrumentation is merely a rudiment to support gcc 4.9, and it needs
+>> to be removed as soon as we stop caring about gcc 4.9 (do we at all?
+>> is it the current compiler in any distro? Ubuntu 12 has 4.8, Ubuntu 14
+>> already has 5.4. And if you build gcc yourself or get a fresher
+>> compiler from somewhere else, you hopefully get something better than
+>> 4.9).
+>
+> Hmm... I don't think that outline instrumentation is something to be
+> removed. In embedded world, there is a fixed partition table and
+> enlarging the kernel binary would cause the problem. Changing that
+> table is possible but is really uncomfortable thing for debugging
+> something. So, I think that outline instrumentation has it's own merit.
 
-I agree it looks like the dirty bit can be lost. Furthermore this also
-loses a MMU notifier invalidate that will lead to corruption at the
-secondary MMU level (which will keep using the old protection
-permission, potentially keeping writing to a wrprotected page).
+Fair. Let's consider both as important.
 
-> 
-> But I don't see how the other invalidate caller
-> __split_huge_pmd_locked() deals with this either. Andrea, any idea?
+> Anyway, I have missed inline instrumentation completely.
+>
+> I will attach the fix in the bottom. It doesn't look beautiful
+> since it breaks layer design (some check will be done at report
+> function). However, I think that it's a good trade-off.
 
-The original code I wrote did this in __split_huge_page_map to create
-the "entry" to establish in the pte pagetables:
 
-    	       entry = mk_pte(page + i, vma->vm_page_prot);
-	       entry = maybe_mkwrite(pte_mkdirty(entry),
-	       	       		   vma);
+I can confirm that inline works with that patch.
 
-For anonymous memory the dirty bit is only meaningful for swapping,
-and THP couldn't be swapped so setting it unconditional avoided any
-issue with the pmdp_invalidate; pmdp_establish.
+I can also confirm that it reduces memory usage. I've booted qemu with
+2G ram and run some fixed workload. Before:
+31853 dvyukov   20   0 3043200 765464  21312 S 366.0  4.7   2:39.53
+qemu-system-x86
+ 7528 dvyukov   20   0 3043200 732444  21676 S 333.3  4.5   2:23.19
+qemu-system-x86
+After:
+6192 dvyukov   20   0 3043200 394244  20636 S  17.9  2.4   2:32.95
+qemu-system-x86
+ 6265 dvyukov   20   0 3043200 388860  21416 S 399.3  2.4   3:02.88
+qemu-system-x86
+ 9005 dvyukov   20   0 3043200 383564  21220 S 397.1  2.3   2:35.33
+qemu-system-x86
 
-pmdp_invalidate is needed primarily to avoid aliasing of two different
-TLB translation pointing from the same virtual address to the the same
-physical address that triggered machine checks (while needing to keep
-the pmd huge at all times, back then it was also splitting huge,
-splitting is a software bit so userland could still access the data,
-splitting bit only blocked kernel code to manipulate on it similar to
-what migration entry does right now upstream, except those prevent
-userland to access the page during split which is less efficient than
-the splitting bit, but at least it's only used for the physical split,
-back then there was no difference between virtual and physical split
-and physical split is less frequent than the virtual one right now).
+However, I see some very significant slowdowns with inline
+instrumentation. I did 3 tests:
+1. Boot speed, I measured time for a particular message to appear on
+console. Before:
+[    2.504652] random: crng init done
+[    2.435861] random: crng init done
+[    2.537135] random: crng init done
+After:
+[    7.263402] random: crng init done
+[    7.263402] random: crng init done
+[    7.174395] random: crng init done
 
-It looks like this needs a pmdp_populate that atomically grabs the
-value of the pmd and returns it like pmdp_huge_get_and_clear_notify
-does and a _notify variant to use "freeze" is false (if freeze is true
-the MMU notifier invalidate must have happened when the pmd was set to
-a migration entry). If pmdp_populate_notify (freeze==true)
-/pmd_populate (freeze==false) would return the old pmd value
-atomically with xchg() (just instead of setting it to 0 we should set
-it to the mknotpresent one), then we can set the dirty bit on the ptes
-(__split_huge_pmd_locked) or in the pmd itself in the change_huge_pmd
-accordingly.
+That's ~3x slowdown.
 
-If the "dirty" flag information is obtained by the pmd read before
-calling pmdp_invalidate is not ok (losing _notify also not ok).
+2. I've run bench_readv benchmark:
+https://raw.githubusercontent.com/google/sanitizers/master/address-sanitizer/kernel_buildbot/slave/bench_readv.c
+as:
+while true; do time ./bench_readv bench_readv 300000 1; done
 
-Thanks!
-Andrea
+Before:
+sys 0m7.299s
+sys 0m7.218s
+sys 0m6.973s
+sys 0m6.892s
+sys 0m7.035s
+sys 0m6.982s
+sys 0m6.921s
+sys 0m6.940s
+sys 0m6.905s
+sys 0m7.006s
+
+After:
+sys 0m8.141s
+sys 0m8.077s
+sys 0m8.067s
+sys 0m8.116s
+sys 0m8.128s
+sys 0m8.115s
+sys 0m8.108s
+sys 0m8.326s
+sys 0m8.529s
+sys 0m8.164s
+sys 0m8.380s
+
+This is ~19% slowdown.
+
+3. I've run bench_pipes benchmark:
+https://raw.githubusercontent.com/google/sanitizers/master/address-sanitizer/kernel_buildbot/slave/bench_pipes.c
+as:
+while true; do time ./bench_pipes 10 10000 1; done
+
+Before:
+sys 0m5.393s
+sys 0m6.178s
+sys 0m5.909s
+sys 0m6.024s
+sys 0m5.874s
+sys 0m5.737s
+sys 0m5.826s
+sys 0m5.664s
+sys 0m5.758s
+sys 0m5.421s
+sys 0m5.444s
+sys 0m5.479s
+sys 0m5.461s
+sys 0m5.417s
+
+After:
+sys 0m8.718s
+sys 0m8.281s
+sys 0m8.268s
+sys 0m8.334s
+sys 0m8.246s
+sys 0m8.267s
+sys 0m8.265s
+sys 0m8.437s
+sys 0m8.228s
+sys 0m8.312s
+sys 0m8.556s
+sys 0m8.680s
+
+This is ~52% slowdown.
+
+
+This does not look acceptable to me. I would ready to pay for this,
+say, 10% of performance. But it seems that this can have up to 2-4x
+slowdown for some workloads.
+
+
+Your use-case is embed devices where you care a lot about both code
+size and memory consumption, right?
+
+I see 2 possible ways forward:
+1. Enable this new mode only for outline, but keep current scheme for
+inline. Then outline will be "small but slow" type of configuration.
+2. Somehow fix slowness (at least in inline mode).
+
+
+> Mapping zero page to non-kernel memory could cause true-negative
+> problem since we cannot flush the TLB in all cpus. We will read zero
+> shadow value value in this case even if actual shadow value is not
+> zero. This is one of the reason that black page is introduced in this
+> patchset.
+
+What does make your current patch work then?
+Say we map a new shadow page, update the page shadow to say that there
+is mapped shadow. Then another CPU loads the page shadow and then
+loads from the newly mapped shadow. If we don't flush TLB, what makes
+the second CPU see the newly mapped shadow?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
