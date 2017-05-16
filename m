@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB056B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 13:35:52 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g67so24429211wrd.0
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 10:35:52 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id y16si2567089wry.218.2017.05.16.10.35.51
-        for <linux-mm@kvack.org>;
-        Tue, 16 May 2017 10:35:51 -0700 (PDT)
-Date: Tue, 16 May 2017 19:35:41 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 26/32] x86, drm, fbdev: Do not specify encrypted
- memory for video mappings
-Message-ID: <20170516173541.q2rbh5dhkluzsjae@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212056.10190.25468.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6476B02C4
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 14:53:17 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y22so24680589wry.1
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 11:53:17 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id q2si2720799wrc.29.2017.05.16.11.53.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 May 2017 11:53:16 -0700 (PDT)
+Message-Id: <20170516184736.119158930@linutronix.de>
+Date: Tue, 16 May 2017 20:42:46 +0200
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: [patch V2 15/17] mm/vmscan: Adjust system_state checks
+References: <20170516184231.564888231@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170418212056.10190.25468.stgit@tlendack-t1.amdoffice.net>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Disposition: inline;
+ filename=mm-vmscan--Adjust-system_state-checks.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Mark Rutland <mark.rutland@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
 
-On Tue, Apr 18, 2017 at 04:20:56PM -0500, Tom Lendacky wrote:
-> Since video memory needs to be accessed decrypted, be sure that the
-> memory encryption mask is not set for the video ranges.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/vga.h       |   13 +++++++++++++
->  arch/x86/mm/pageattr.c           |    2 ++
->  drivers/gpu/drm/drm_gem.c        |    2 ++
->  drivers/gpu/drm/drm_vm.c         |    4 ++++
->  drivers/gpu/drm/ttm/ttm_bo_vm.c  |    7 +++++--
->  drivers/gpu/drm/udl/udl_fb.c     |    4 ++++
->  drivers/video/fbdev/core/fbmem.c |   12 ++++++++++++
->  7 files changed, 42 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/vga.h b/arch/x86/include/asm/vga.h
-> index c4b9dc2..5c7567a 100644
-> --- a/arch/x86/include/asm/vga.h
-> +++ b/arch/x86/include/asm/vga.h
-> @@ -7,12 +7,25 @@
->  #ifndef _ASM_X86_VGA_H
->  #define _ASM_X86_VGA_H
->  
-> +#include <asm/cacheflush.h>
-> +
->  /*
->   *	On the PC, we can just recalculate addresses and then
->   *	access the videoram directly without any black magic.
-> + *	To support memory encryption however, we need to access
-> + *	the videoram as decrypted memory.
->   */
->  
-> +#ifdef CONFIG_AMD_MEM_ENCRYPT
-> +#define VGA_MAP_MEM(x, s)					\
-> +({								\
-> +	unsigned long start = (unsigned long)phys_to_virt(x);	\
-> +	set_memory_decrypted(start, (s) >> PAGE_SHIFT);		\
-> +	start;							\
-> +})
-> +#else
->  #define VGA_MAP_MEM(x, s) (unsigned long)phys_to_virt(x)
-> +#endif
+To enable smp_processor_id() and might_sleep() debug checks earlier, it's
+required to add system states between SYSTEM_BOOTING and SYSTEM_RUNNING.
 
-Can we push the check in and save us the ifdeffery?
+Adjust the system_state check in kswapd_run() to handle the extra states.
 
-#define VGA_MAP_MEM(x, s)                                       \
-({                                                              \
-        unsigned long start = (unsigned long)phys_to_virt(x);   \
-                                                                \
-        if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT))                 \
-                set_memory_decrypted(start, (s) >> PAGE_SHIFT); \
-                                                                \
-        start;                                                  \
-})
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org
+---
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-It does build here. :)
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3643,7 +3643,7 @@ int kswapd_run(int nid)
+ 	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
+ 	if (IS_ERR(pgdat->kswapd)) {
+ 		/* failure at boot is fatal */
+-		BUG_ON(system_state == SYSTEM_BOOTING);
++		BUG_ON(system_state < SYSTEM_RUNNING);
+ 		pr_err("Failed to start kswapd on node %d\n", nid);
+ 		ret = PTR_ERR(pgdat->kswapd);
+ 		pgdat->kswapd = NULL;
 
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
