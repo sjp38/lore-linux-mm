@@ -1,76 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EED3B6B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 04:27:50 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x25so130718021pgc.10
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 01:27:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b76si1079384pfd.382.2017.05.16.01.27.49
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A5E066B02E1
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 04:30:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e16so119778457pfj.15
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 01:30:02 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id p2si10265605pfg.78.2017.05.16.01.30.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 May 2017 01:27:50 -0700 (PDT)
-Date: Tue, 16 May 2017 10:27:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Patch v2] mm/vmscan: fix unsequenced modification and access
- warning
-Message-ID: <20170516082746.GA2481@dhcp22.suse.cz>
-References: <20170510071511.GA31466@dhcp22.suse.cz>
- <20170510082734.2055-1-nick.desaulniers@gmail.com>
- <20170510083844.GG31466@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170510083844.GG31466@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 01:30:01 -0700 (PDT)
+From: Matthew Auld <matthew.auld@intel.com>
+Subject: [PATCH 06/17] mm/shmem: expose driver overridable huge option
+Date: Tue, 16 May 2017 09:29:37 +0100
+Message-Id: <20170516082948.28090-7-matthew.auld@intel.com>
+In-Reply-To: <20170516082948.28090-1-matthew.auld@intel.com>
+References: <20170516082948.28090-1-matthew.auld@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Daniel Vetter <daniel@ffwll.ch>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-I have discussed this with our gcc guys and here is what they say:
+In i915 we are aiming to support huge GTT pages for the GPU, and to
+complement this we also want to enable THP for our shmem backed objects.
+Even though THP is supported in shmemfs it can only be enabled through
+the huge= mount option, but for users of the kernel mounted shm_mnt like
+i915, we are a little stuck. There is the sysfs knob shmem_enabled to
+either forcefully enable/disable the feature, but that seems to only be
+useful for testing purposes. What we propose is to expose a driver
+overridable huge option as part of shmem_inode_info to control the use
+of THP for a given mapping.
 
-On Wed 10-05-17 10:38:44, Michal Hocko wrote:
-[...]
-> But I
-> still do not understand which part of the code is undefined and why. My
-> reading and understanding of the C specification is that
-> struct A {
-> 	int a;
-> 	int b;
-> };
-> 
-> struct A f = { .a = c = foo(c), .b = c};
-> 
-> as long as foo(c) doesn't have any side effects because because .a is
-> initialized before b and the assignment ordering will make sure that c
-> is initialized before a.
-> 
-> 6.7.8 par 19 (ISO/IEC 9899)
-> 19 The initialization shall occur in initializer list order, each
->    initializer provided for a particular subobject overriding any
->    previously listed initializer for the same subobject; all subobjects
->    that are not initialized explicitly shall be initialized implicitly
->    the same as objects that have static storage duration.
-> 
-> So is my understanding of the specification wrong or is this a bug in
-> -Wunsequenced in Clang?
+Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Daniel Vetter <daniel@ffwll.ch>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+---
+ include/linux/shmem_fs.h | 20 ++++++++++++++++++++
+ mm/shmem.c               | 37 +++++++++++++++----------------------
+ 2 files changed, 35 insertions(+), 22 deletions(-)
 
-: This is not the reason why the above is okay.  The following part:
-:    { .a = c = ..., .b = c }
-: is okay because there's a sequence point after each full expression, and 
-: an initializer is a full expression, so there's a sequence point between 
-: both initializers.  The following part:
-:    { ... c = foo(c) ... }
-: is okay as well, because there's a sequence point after evaluating all 
-: arguments and before the actual call (otherwise the common 'i=next(i)' 
-: idiom doesn't work).  So both constructs that potentially could be sources 
-: of sequence point violations actually aren't and hence okay.  clangs 
-: warning is invalid.
-
-I guess it is worth reporting this to clang bugzilla. Could you take
-care of that Nick?
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index a7d6bd2a918f..4cfdb2e8e1d8 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -21,8 +21,28 @@ struct shmem_inode_info {
+ 	struct shared_policy	policy;		/* NUMA memory alloc policy */
+ 	struct simple_xattrs	xattrs;		/* list of xattrs */
+ 	struct inode		vfs_inode;
++	unsigned char		huge;           /* driver override sbinfo->huge */
+ };
+ 
++/*
++ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
++ *
++ * SHMEM_HUGE_NEVER:
++ *	disables huge pages for the mount;
++ * SHMEM_HUGE_ALWAYS:
++ *	enables huge pages for the mount;
++ * SHMEM_HUGE_WITHIN_SIZE:
++ *	only allocate huge pages if the page will be fully within i_size,
++ *	also respect fadvise()/madvise() hints;
++ * SHMEM_HUGE_ADVISE:
++ *	only allocate huge pages if requested with fadvise()/madvise();
++ */
++
++#define SHMEM_HUGE_NEVER	0
++#define SHMEM_HUGE_ALWAYS	1
++#define SHMEM_HUGE_WITHIN_SIZE	2
++#define SHMEM_HUGE_ADVISE	3
++
+ struct shmem_sb_info {
+ 	unsigned long max_blocks;   /* How many blocks are allowed */
+ 	struct percpu_counter used_blocks;  /* How many are allocated */
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e67d6ba4e98e..4fa042694957 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -346,25 +346,6 @@ static bool shmem_confirm_swap(struct address_space *mapping,
+ }
+ 
+ /*
+- * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
+- *
+- * SHMEM_HUGE_NEVER:
+- *	disables huge pages for the mount;
+- * SHMEM_HUGE_ALWAYS:
+- *	enables huge pages for the mount;
+- * SHMEM_HUGE_WITHIN_SIZE:
+- *	only allocate huge pages if the page will be fully within i_size,
+- *	also respect fadvise()/madvise() hints;
+- * SHMEM_HUGE_ADVISE:
+- *	only allocate huge pages if requested with fadvise()/madvise();
+- */
+-
+-#define SHMEM_HUGE_NEVER	0
+-#define SHMEM_HUGE_ALWAYS	1
+-#define SHMEM_HUGE_WITHIN_SIZE	2
+-#define SHMEM_HUGE_ADVISE	3
+-
+-/*
+  * Special values.
+  * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
+  *
+@@ -1715,6 +1696,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		swap_free(swap);
+ 
+ 	} else {
++		unsigned char sbinfo_huge = sbinfo->huge;
++
+ 		if (vma && userfaultfd_missing(vma)) {
+ 			*fault_type = handle_userfault(vmf, VM_UFFD_MISSING);
+ 			return 0;
+@@ -1727,7 +1710,10 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 			goto alloc_nohuge;
+ 		if (shmem_huge == SHMEM_HUGE_FORCE)
+ 			goto alloc_huge;
+-		switch (sbinfo->huge) {
++		/* driver override sbinfo->huge */
++		if (info->huge)
++			sbinfo_huge = info->huge;
++		switch (sbinfo_huge) {
+ 			loff_t i_size;
+ 			pgoff_t off;
+ 		case SHMEM_HUGE_NEVER:
+@@ -2032,10 +2018,13 @@ unsigned long shmem_get_unmapped_area(struct file *file,
+ 
+ 	if (shmem_huge != SHMEM_HUGE_FORCE) {
+ 		struct super_block *sb;
++		unsigned char sbinfo_huge = 0;
+ 
+ 		if (file) {
+ 			VM_BUG_ON(file->f_op != &shmem_file_operations);
+ 			sb = file_inode(file)->i_sb;
++			/* driver override sbinfo->huge */
++			sbinfo_huge = SHMEM_I(file_inode(file))->huge;
+ 		} else {
+ 			/*
+ 			 * Called directly from mm/mmap.c, or drivers/char/mem.c
+@@ -2045,7 +2034,8 @@ unsigned long shmem_get_unmapped_area(struct file *file,
+ 				return addr;
+ 			sb = shm_mnt->mnt_sb;
+ 		}
+-		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
++		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER &&
++		    sbinfo_huge == SHMEM_HUGE_NEVER)
+ 			return addr;
+ 	}
+ 
+@@ -4031,6 +4021,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
+ {
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	unsigned char sbinfo_huge = sbinfo->huge;
+ 	loff_t i_size;
+ 	pgoff_t off;
+ 
+@@ -4038,7 +4029,9 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
+ 		return true;
+ 	if (shmem_huge == SHMEM_HUGE_DENY)
+ 		return false;
+-	switch (sbinfo->huge) {
++	if (SHMEM_I(inode)->huge)
++		sbinfo_huge = SHMEM_I(inode)->huge;
++	switch (sbinfo_huge) {
+ 		case SHMEM_HUGE_NEVER:
+ 			return false;
+ 		case SHMEM_HUGE_ALWAYS:
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
