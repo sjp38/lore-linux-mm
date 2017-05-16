@@ -1,95 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C47D6B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 02:23:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e8so118539460pfl.4
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 23:23:29 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id v1si13383691pge.1.2017.05.15.23.23.28
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EED3B6B0038
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 04:27:50 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id x25so130718021pgc.10
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 01:27:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b76si1079384pfd.382.2017.05.16.01.27.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 23:23:28 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id f27so8408519pfe.0
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 23:23:28 -0700 (PDT)
-Date: Tue, 16 May 2017 15:23:21 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
- reduce memory consumption
-Message-ID: <20170516062318.GC16015@js1304-desktop>
-References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
- <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 May 2017 01:27:50 -0700 (PDT)
+Date: Tue, 16 May 2017 10:27:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Patch v2] mm/vmscan: fix unsequenced modification and access
+ warning
+Message-ID: <20170516082746.GA2481@dhcp22.suse.cz>
+References: <20170510071511.GA31466@dhcp22.suse.cz>
+ <20170510082734.2055-1-nick.desaulniers@gmail.com>
+ <20170510083844.GG31466@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+In-Reply-To: <20170510083844.GG31466@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
+To: Nick Desaulniers <nick.desaulniers@gmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 15, 2017 at 09:34:17PM -0700, Dmitry Vyukov wrote:
-> On Mon, May 15, 2017 at 6:16 PM,  <js1304@gmail.com> wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> > Hello, all.
-> >
-> > This is an attempt to recude memory consumption of KASAN. Please see
-> > following description to get the more information.
-> >
-> > 1. What is per-page shadow memory
+I have discussed this with our gcc guys and here is what they say:
+
+On Wed 10-05-17 10:38:44, Michal Hocko wrote:
+[...]
+> But I
+> still do not understand which part of the code is undefined and why. My
+> reading and understanding of the C specification is that
+> struct A {
+> 	int a;
+> 	int b;
+> };
 > 
-> Hi Joonsoo,
-
-Hello, Dmitry.
-
+> struct A f = { .a = c = foo(c), .b = c};
 > 
-> First I need to say that this is great work. I wanted KASAN to consume
-
-Thanks!
-
-> 1/8-th of _kernel_ memory rather than total physical memory for a long
-> time.
+> as long as foo(c) doesn't have any side effects because because .a is
+> initialized before b and the assignment ordering will make sure that c
+> is initialized before a.
 > 
-> However, this implementation does not work inline instrumentation. And
-> the inline instrumentation is the main mode for KASAN. Outline
-> instrumentation is merely a rudiment to support gcc 4.9, and it needs
-> to be removed as soon as we stop caring about gcc 4.9 (do we at all?
-> is it the current compiler in any distro? Ubuntu 12 has 4.8, Ubuntu 14
-> already has 5.4. And if you build gcc yourself or get a fresher
-> compiler from somewhere else, you hopefully get something better than
-> 4.9).
-
-Hmm... I don't think that outline instrumentation is something to be
-removed. In embedded world, there is a fixed partition table and
-enlarging the kernel binary would cause the problem. Changing that
-table is possible but is really uncomfortable thing for debugging
-something. So, I think that outline instrumentation has it's own merit.
-
-Anyway, I have missed inline instrumentation completely.
-
-I will attach the fix in the bottom. It doesn't look beautiful
-since it breaks layer design (some check will be done at report
-function). However, I think that it's a good trade-off.
-
+> 6.7.8 par 19 (ISO/IEC 9899)
+> 19 The initialization shall occur in initializer list order, each
+>    initializer provided for a particular subobject overriding any
+>    previously listed initializer for the same subobject; all subobjects
+>    that are not initialized explicitly shall be initialized implicitly
+>    the same as objects that have static storage duration.
 > 
-> Here is an example boot+scp log with inline instrumentation:
-> https://gist.githubusercontent.com/dvyukov/dfdc8b6972ddd260b201a85d5d5cdb5d/raw/2a032cd5be371c7ad6cad8f14c0a0610e6fa772e/gistfile1.txt
-> 
-> Joonsoo, can you think of a way to take advantages of your approach,
-> but make it work with inline instrumentation?
-> 
-> Will it work if we map a single zero page for whole shadow initially,
-> and then lazily map real shadow pages only for kernel memory, and then
-> remap it again to zero pages when the whole KASAN_SHADOW_SCALE_SHIFT
-> range of pages becomes unused (similarly to what you do in
-> kasan_unmap_shadow())?
+> So is my understanding of the specification wrong or is this a bug in
+> -Wunsequenced in Clang?
 
-Mapping zero page to non-kernel memory could cause true-negative
-problem since we cannot flush the TLB in all cpus. We will read zero
-shadow value value in this case even if actual shadow value is not
-zero. This is one of the reason that black page is introduced in this
-patchset.
+: This is not the reason why the above is okay.  The following part:
+:    { .a = c = ..., .b = c }
+: is okay because there's a sequence point after each full expression, and 
+: an initializer is a full expression, so there's a sequence point between 
+: both initializers.  The following part:
+:    { ... c = foo(c) ... }
+: is okay as well, because there's a sequence point after evaluating all 
+: arguments and before the actual call (otherwise the common 'i=next(i)' 
+: idiom doesn't work).  So both constructs that potentially could be sources 
+: of sequence point violations actually aren't and hence okay.  clangs 
+: warning is invalid.
 
-Thanks.
+I guess it is worth reporting this to clang bugzilla. Could you take
+care of that Nick?
+-- 
+Michal Hocko
+SUSE Labs
 
--------------------->8------------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
