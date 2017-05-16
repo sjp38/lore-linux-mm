@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B882E6B02EE
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 09:21:35 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c6so124896007pfj.5
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 06:21:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k29si13678694pfk.327.2017.05.16.06.21.34
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 920976B02C4
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 09:37:13 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id d6so89205499ioe.13
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 06:37:13 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id e100si13720272iod.147.2017.05.16.06.37.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 May 2017 06:21:34 -0700 (PDT)
-Date: Tue, 16 May 2017 15:21:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] drm: use kvmalloc_array for drm_malloc*
-Message-ID: <20170516132132.GJ2481@dhcp22.suse.cz>
-References: <20170516090606.5891-1-mhocko@kernel.org>
- <20170516092230.pzadndxm5gq4i4h6@phenom.ffwll.local>
- <20170516095254.GG2481@dhcp22.suse.cz>
- <20170516130856.hvq62uuq6wmnhvpg@phenom.ffwll.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170516130856.hvq62uuq6wmnhvpg@phenom.ffwll.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 06:37:12 -0700 (PDT)
+Date: Tue, 16 May 2017 08:37:11 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+In-Reply-To: <20170515191531.GA31483@amt.cnet>
+Message-ID: <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
+References: <20170502102836.4a4d34ba@redhat.com> <20170502165159.GA5457@amt.cnet> <20170502131527.7532fc2e@redhat.com> <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org> <20170512122704.GA30528@amt.cnet> <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
+ <20170512154026.GA3556@amt.cnet> <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org> <20170512161915.GA4185@amt.cnet> <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org> <20170515191531.GA31483@amt.cnet>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel@ffwll.ch>
-Cc: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, Sean Paul <seanpaul@chromium.org>, David Airlie <airlied@linux.ie>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-On Tue 16-05-17 15:08:56, Daniel Vetter wrote:
-> On Tue, May 16, 2017 at 11:52:55AM +0200, Michal Hocko wrote:
-> > On Tue 16-05-17 11:22:30, Daniel Vetter wrote:
-> > > On Tue, May 16, 2017 at 11:06:06AM +0200, Michal Hocko wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > drm_malloc* has grown their own kmalloc with vmalloc fallback
-> > > > implementations. MM has grown kvmalloc* helpers in the meantime. Let's
-> > > > use those because it a) reduces the code and b) MM has a better idea
-> > > > how to implement fallbacks (e.g. do not vmalloc before kmalloc is tried
-> > > > with __GFP_NORETRY).
-> > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Shouldn't we go one step further and just remove these wrappers, maybe
-> > > with cocci?
-> > 
-> > my cocci sucks...
-> > 
-> > > Especially drm_malloc_gfp is surpremely pointless after this
-> > > patch (and drm_malloc_ab probably not that useful either).
-> > 
-> > So what about the following instead? It passes allyesconfig compilation.
-> 
-> Yeah, looks good, but perhaps rebased onto your first patch. That way we
-> split the functional change from the refactor (not the first time innocent
-> looking changes in i915 gem code resulted in surprises).
+On Mon, 15 May 2017, Marcelo Tosatti wrote:
 
-OK, I will split it.
+> > NOHZ already does that. I wanted to know what your problem is that you
+> > see. The latency issue has already been solved as far as I can tell .
+> > Please tell me why the existing solutions are not sufficient for you.
+>
+> We don't want vmstat_worker to execute on a given CPU, even if the local
+> CPU updates vm-statistics.
 
-> Your patch also seems to need some stuff from -rc1, and atm drm-misc is
-> still pre-rc1, so I'll pull both patches in once that's sorted (I can do
-> the rebase myself, since it's rather trivial). But pls remind me in case
-> it falls through the cracks and isn't in linux-next by end of this week
-> :-)
+Instead of responding you repeat describing what you want.
 
-I have based it on top of the current linux next (next-20170516). Let me
-know if other tree is more appropriate.
--- 
-Michal Hocko
-SUSE Labs
+> Because:
+>
+>     vmstat_worker increases latency of the application
+>        (i can measure it if you want on a given CPU,
+>         how many ns's the following takes:
+
+That still is no use case. Just a measurement of vmstat_worker. Pointless.
+
+If you move the latency from the vmstat worker into the code thats
+updating the counters then you will require increased use of atomics
+which will increase contention which in turn will significantly
+increase the overall latency.
+
+> Why the existing solutions are not sufficient:
+>
+> 1) task-isolation patchset seems too heavy for our usecase (we do
+> want IPIs, signals, etc).
+
+Ok then minor delays from remote random events are tolerable?
+Then you can also have a vmstat update.
+
+> So this seems a little heavy for our usecase.
+
+Sorry all of this does not make sense to me. Maybe get some numbers of of
+an app with intensive OS access running with atomics vs vmstat worker?
+
+NOHZ currently disables the vmstat worker when no updates occur. This is
+applicable to DPDK and will provide a quiet vmstat worker free environment
+if no statistics activity is occurring.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
