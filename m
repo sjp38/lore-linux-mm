@@ -1,144 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 769706B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b86so33862819wmi.6
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:18:06 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h28si1135191wrb.113.2017.05.16.02.18.04
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3A26B02F3
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:22:34 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id v27so55206612qtg.6
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:22:34 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id c22si12830660qkb.219.2017.05.16.02.22.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 May 2017 02:18:05 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4G9Dr96125326
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:03 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2aftf42yuc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:03 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 16 May 2017 05:18:02 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH v2 1/2] mm/hugetlb: Cleanup ARCH_HAS_GIGANTIC_PAGE
-Date: Tue, 16 May 2017 14:47:43 +0530
-Message-Id: <1494926264-22463-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 16 May 2017 02:22:33 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id k74so21670767qke.2
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:22:33 -0700 (PDT)
+Date: Tue, 16 May 2017 11:22:30 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH] drm: use kvmalloc_array for drm_malloc*
+Message-ID: <20170516092230.pzadndxm5gq4i4h6@phenom.ffwll.local>
+References: <20170516090606.5891-1-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170516090606.5891-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, Sean Paul <seanpaul@chromium.org>, David Airlie <airlied@linux.ie>, Michal Hocko <mhocko@suse.com>
 
-This moves the #ifdef in C code to a Kconfig dependency. Also we move the
-gigantic_page_supported() function to be arch specific. This gives arch to
-conditionally enable runtime allocation of gigantic huge page. Architectures
-like ppc64 supports different gigantic huge page size (16G and 1G) based on the
-translation mode selected. This provides an opportunity for ppc64 to enable
-runtime allocation only w.r.t 1G hugepage.
+On Tue, May 16, 2017 at 11:06:06AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> drm_malloc* has grown their own kmalloc with vmalloc fallback
+> implementations. MM has grown kvmalloc* helpers in the meantime. Let's
+> use those because it a) reduces the code and b) MM has a better idea
+> how to implement fallbacks (e.g. do not vmalloc before kmalloc is tried
+> with __GFP_NORETRY).
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-No functional change in this patch.
+Shouldn't we go one step further and just remove these wrappers, maybe
+with cocci? Especially drm_malloc_gfp is surpremely pointless after this
+patch (and drm_malloc_ab probably not that useful either).
+-Daniel
+> ---
+>  include/drm/drm_mem_util.h | 23 ++---------------------
+>  1 file changed, 2 insertions(+), 21 deletions(-)
+> 
+> diff --git a/include/drm/drm_mem_util.h b/include/drm/drm_mem_util.h
+> index d0f6cf2e5324..b461e4e4e6db 100644
+> --- a/include/drm/drm_mem_util.h
+> +++ b/include/drm/drm_mem_util.h
+> @@ -43,31 +43,12 @@ static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
+>  /* Modeled after cairo's malloc_ab, it's like calloc but without the zeroing. */
+>  static __inline__ void *drm_malloc_ab(size_t nmemb, size_t size)
+>  {
+> -	if (size != 0 && nmemb > SIZE_MAX / size)
+> -		return NULL;
+> -
+> -	if (size * nmemb <= PAGE_SIZE)
+> -	    return kmalloc(nmemb * size, GFP_KERNEL);
+> -
+> -	return vmalloc(size * nmemb);
+> +	return kvmalloc_array(nmemb, size, GFP_KERNEL);
+>  }
+>  
+>  static __inline__ void *drm_malloc_gfp(size_t nmemb, size_t size, gfp_t gfp)
+>  {
+> -	if (size != 0 && nmemb > SIZE_MAX / size)
+> -		return NULL;
+> -
+> -	if (size * nmemb <= PAGE_SIZE)
+> -		return kmalloc(nmemb * size, gfp);
+> -
+> -	if (gfp & __GFP_RECLAIMABLE) {
+> -		void *ptr = kmalloc(nmemb * size,
+> -				    gfp | __GFP_NOWARN | __GFP_NORETRY);
+> -		if (ptr)
+> -			return ptr;
+> -	}
+> -
+> -	return __vmalloc(size * nmemb, gfp, PAGE_KERNEL);
+> +	return kvmalloc_array(nmemb, size, gfp);
+>  }
+>  
+>  static __inline void drm_free_large(void *ptr)
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/arm64/Kconfig               | 2 +-
- arch/arm64/include/asm/hugetlb.h | 4 ++++
- arch/s390/Kconfig                | 2 +-
- arch/s390/include/asm/hugetlb.h  | 3 +++
- arch/x86/Kconfig                 | 2 +-
- mm/hugetlb.c                     | 7 ++-----
- 6 files changed, 12 insertions(+), 8 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 3741859765cf..1f8c1f73aada 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -11,7 +11,7 @@ config ARM64
- 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
- 	select ARCH_HAS_ELF_RANDOMIZE
- 	select ARCH_HAS_GCOV_PROFILE_ALL
--	select ARCH_HAS_GIGANTIC_PAGE
-+	select ARCH_HAS_GIGANTIC_PAGE if MEMORY_ISOLATION && COMPACTION && CMA
- 	select ARCH_HAS_KCOV
- 	select ARCH_HAS_SET_MEMORY
- 	select ARCH_HAS_SG_CHAIN
-diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-index bbc1e35aa601..793bd73b0d07 100644
---- a/arch/arm64/include/asm/hugetlb.h
-+++ b/arch/arm64/include/asm/hugetlb.h
-@@ -83,4 +83,8 @@ extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
- extern void huge_ptep_clear_flush(struct vm_area_struct *vma,
- 				  unsigned long addr, pte_t *ptep);
- 
-+#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-+static inline bool gigantic_page_supported(void) { return true; }
-+#endif
-+
- #endif /* __ASM_HUGETLB_H */
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index a2dcef0aacc7..a41bbf420dda 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -67,7 +67,7 @@ config S390
- 	select ARCH_HAS_DEVMEM_IS_ALLOWED
- 	select ARCH_HAS_ELF_RANDOMIZE
- 	select ARCH_HAS_GCOV_PROFILE_ALL
--	select ARCH_HAS_GIGANTIC_PAGE
-+	select ARCH_HAS_GIGANTIC_PAGE if MEMORY_ISOLATION && COMPACTION && CMA
- 	select ARCH_HAS_KCOV
- 	select ARCH_HAS_SET_MEMORY
- 	select ARCH_HAS_SG_CHAIN
-diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-index cd546a245c68..89057b2cc8fe 100644
---- a/arch/s390/include/asm/hugetlb.h
-+++ b/arch/s390/include/asm/hugetlb.h
-@@ -112,4 +112,7 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
- 	return pte_modify(pte, newprot);
- }
- 
-+#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-+static inline bool gigantic_page_supported(void) { return true; }
-+#endif
- #endif /* _ASM_S390_HUGETLB_H */
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index cc98d5a294ee..30a6328136ac 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -22,7 +22,7 @@ config X86_64
- 	def_bool y
- 	depends on 64BIT
- 	# Options that are inherently 64-bit kernel only:
--	select ARCH_HAS_GIGANTIC_PAGE
-+	select ARCH_HAS_GIGANTIC_PAGE if MEMORY_ISOLATION && COMPACTION && CMA
- 	select ARCH_SUPPORTS_INT128
- 	select ARCH_USE_CMPXCHG_LOCKREF
- 	select HAVE_ARCH_SOFT_DIRTY
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3d0aab9ee80d..ce090186b992 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1024,9 +1024,7 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
- 		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
- 		nr_nodes--)
- 
--#if defined(CONFIG_ARCH_HAS_GIGANTIC_PAGE) && \
--	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
--	defined(CONFIG_CMA))
-+#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
- static void destroy_compound_gigantic_page(struct page *page,
- 					unsigned int order)
- {
-@@ -1158,8 +1156,7 @@ static int alloc_fresh_gigantic_page(struct hstate *h,
- 	return 0;
- }
- 
--static inline bool gigantic_page_supported(void) { return true; }
--#else
-+#else /* !CONFIG_ARCH_HAS_GIGANTIC_PAGE */
- static inline bool gigantic_page_supported(void) { return false; }
- static inline void free_gigantic_page(struct page *page, unsigned int order) { }
- static inline void destroy_compound_gigantic_page(struct page *page,
 -- 
-2.7.4
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
