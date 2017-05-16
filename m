@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 317416B02EE
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:29:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id x64so132026883pgd.6
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 03:29:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t66si13192690pfj.352.2017.05.16.03.29.00
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F12E6B03A0
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:35:20 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id c202so18867664wme.10
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 03:35:20 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c2si1452352wrb.192.2017.05.16.03.35.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 May 2017 03:29:00 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4GASx83003337
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:29:00 -0400
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2afv7bj7rc-1
+        Tue, 16 May 2017 03:35:18 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4GAT2Jr144583
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:35:17 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2afr98c6e3-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:29:00 -0400
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 06:35:17 -0400
 Received: from localhost
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 16 May 2017 20:28:52 +1000
-Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v4GASfHS63766756
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 20:28:49 +1000
-Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
-	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v4GASHRG004274
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 20:28:17 +1000
-Subject: Re: [PATCH v2 2/2] powerpc/mm/hugetlb: Add support for 1G huge pages
-References: <1494926264-22463-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1494926264-22463-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 16 May 2017 15:57:56 +0530
-MIME-Version: 1.0
-In-Reply-To: <1494926264-22463-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <04189f80-57fd-b921-20b9-565e1b307270@linux.vnet.ibm.com>
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 16 May 2017 11:35:15 +0100
+From: "Mike Rapoport" <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] exit: don't include unused userfaultfd_k.h
+Date: Tue, 16 May 2017 13:35:07 +0300
+Message-Id: <1494930907-3060-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mpe@ellerman.id.au, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 05/16/2017 02:47 PM, Aneesh Kumar K.V wrote:
-> POWER9 supports hugepages of size 2M and 1G in radix MMU mode. This patch
-> enables the usage of 1G page size for hugetlbfs. This also update the helper
-> such we can do 1G page allocation at runtime.
-> 
-> We still don't enable 1G page size on DD1 version. This is to avoid doing
-> workaround mentioned in commit: 6d3a0379ebdc8 (powerpc/mm: Add
-> radix__tlb_flush_pte_p9_dd1()
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Commit dd0db88d8094 (userfaultfd: non-cooperative: rollback
+userfaultfd_exit) removed userfaultfd callback from exit() which makes
+include of <linux/userfaultfd_k.h> unnecessary.
 
-Sounds good.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ kernel/exit.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 516acdb..5b1dc84 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -51,7 +51,6 @@
+ #include <linux/task_io_accounting_ops.h>
+ #include <linux/tracehook.h>
+ #include <linux/fs_struct.h>
+-#include <linux/userfaultfd_k.h>
+ #include <linux/init_task.h>
+ #include <linux/perf_event.h>
+ #include <trace/events/sched.h>
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
