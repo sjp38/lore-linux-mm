@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0726B0311
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:18:02 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c10so114861344pfg.10
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:02 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id p185si12005603pga.149.2017.05.15.18.18.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 918C76B0315
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:18:06 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id m5so48458627pfc.1
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:06 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id g1si12280485pln.18.2017.05.15.18.18.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 18:18:01 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id f27so7514741pfe.0
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:01 -0700 (PDT)
+        Mon, 15 May 2017 18:18:05 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id w69so17864571pfk.1
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:05 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v1 07/11] x86/kasan: use per-page shadow memory
-Date: Tue, 16 May 2017 10:16:45 +0900
-Message-Id: <1494897409-14408-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v1 08/11] mm/kasan: support on-demand shadow allocation/mapping
+Date: Tue, 16 May 2017 10:16:46 +0900
+Message-Id: <1494897409-14408-9-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,184 +24,285 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patch enables for x86 to use per-page shadow memory.
-Most of initialization code for per-page shadow memory is
-copied from the code for original shadow memory.
+Original shadow memory is only used when it is used by specific types
+of access. We can distinguish them and can allocate actual shadow memory
+on-demand to reduce memory consumption.
 
-There are two things that aren't trivial.
-1. per-page shadow memory for global variable is initialized
-as the bypass range. It's not the target for on-demand shadow
-memory allocation since shadow memory for global variable is
-always required.
-2. per-page shadow memory for the module is initialized as the
-bypass range since on-demand shadow memory allocation
-for the module is already implemented.
-
-Note that on-demand allocation for original shadow memory isn't
-implemented yet so there is no memory saving on this patch.
-It will be implemented in the following patch.
+There is a problem on this on-demand shadow memory. After setting up
+new mapping, we need to flush TLB entry in all cpus but it's not always
+possible in some contexts. Solving this problem isn't possible without
+considering architecture specific property so this patch introduces
+two architecture specific functions. Architecture who wants to use
+this feature needs to implemente them correctly.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- arch/x86/include/asm/kasan.h |  6 +++
- arch/x86/mm/kasan_init_64.c  | 87 +++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 84 insertions(+), 9 deletions(-)
+ arch/x86/mm/kasan_init_64.c |   9 +++
+ mm/kasan/kasan.c            | 133 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/kasan/kasan.h            |  16 ++++--
+ mm/kasan/kasan_init.c       |   2 +
+ 4 files changed, 154 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
-index f527b02..cfa63c7 100644
---- a/arch/x86/include/asm/kasan.h
-+++ b/arch/x86/include/asm/kasan.h
-@@ -18,6 +18,12 @@
-  */
- #define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (__VIRTUAL_MASK_SHIFT - 3)))
- 
-+#define HAVE_KASAN_PER_PAGE_SHADOW 1
-+#define KASAN_PSHADOW_SIZE	((1ULL << (47 - PAGE_SHIFT)))
-+#define KASAN_PSHADOW_START	(kasan_pshadow_offset + \
-+					(0xffff800000000000ULL >> PAGE_SHIFT))
-+#define KASAN_PSHADOW_END	(KASAN_PSHADOW_START + KASAN_PSHADOW_SIZE)
-+
- #ifndef __ASSEMBLY__
- 
- #ifdef CONFIG_KASAN
 diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index adc673b..1c300bf 100644
+index 1c300bf..136b73d 100644
 --- a/arch/x86/mm/kasan_init_64.c
 +++ b/arch/x86/mm/kasan_init_64.c
-@@ -15,19 +15,29 @@
- extern pgd_t early_level4_pgt[PTRS_PER_PGD];
- extern struct range pfn_mapped[E820_MAX_ENTRIES];
- 
--static int __init map_range(struct range *range)
-+static int __init map_range(struct range *range, bool pshadow)
- {
- 	unsigned long start;
- 	unsigned long end;
- 
--	start = (unsigned long)kasan_mem_to_shadow(pfn_to_kaddr(range->start));
--	end = (unsigned long)kasan_mem_to_shadow(pfn_to_kaddr(range->end));
-+	start = (unsigned long)pfn_to_kaddr(range->start);
-+	end = (unsigned long)pfn_to_kaddr(range->end);
- 
- 	/*
- 	 * end + 1 here is intentional. We check several shadow bytes in advance
- 	 * to slightly speed up fastpath. In some rare cases we could cross
- 	 * boundary of mapped shadow, so we just map some more here.
- 	 */
-+	if (pshadow) {
-+		start = (unsigned long)kasan_mem_to_pshadow((void *)start);
-+		end = (unsigned long)kasan_mem_to_pshadow((void *)end);
+@@ -239,3 +239,12 @@ void __init kasan_init(void)
+ 	init_task.kasan_depth = 0;
+ 	pr_info("KernelAddressSanitizer initialized\n");
+ }
 +
-+		return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
++void arch_kasan_map_shadow(unsigned long s, unsigned long e)
++{
++}
++
++bool arch_kasan_recheck_prepare(unsigned long addr, size_t size)
++{
++	return false;
++}
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index fb18283..8d59cf0 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -36,9 +36,13 @@
+ #include <linux/types.h>
+ #include <linux/vmalloc.h>
+ #include <linux/bug.h>
++#include <asm/cacheflush.h>
+ 
+ #include "kasan.h"
+ #include "../slab.h"
++#include "../internal.h"
++
++static DEFINE_SPINLOCK(shadow_lock);
+ 
+ void kasan_enable_current(void)
+ {
+@@ -140,6 +144,103 @@ void kasan_unpoison_pshadow(const void *address, size_t size)
+ 	kasan_mark_pshadow(address, size, 0);
+ }
+ 
++static bool kasan_black_shadow(pte_t *ptep)
++{
++	pte_t pte = *ptep;
++
++	if (pte_none(pte))
++		return true;
++
++	if (pte_pfn(pte) == kasan_black_page_pfn)
++		return true;
++
++	return false;
++}
++
++static int kasan_exist_shadow_pte(pte_t *ptep, pgtable_t token,
++			unsigned long addr, void *data)
++{
++	unsigned long *count = data;
++
++	if (kasan_black_shadow(ptep))
++		return 0;
++
++	(*count)++;
++	return 0;
++}
++
++static int kasan_map_shadow_pte(pte_t *ptep, pgtable_t token,
++			unsigned long addr, void *data)
++{
++	pte_t pte;
++	gfp_t gfp_flags = *(gfp_t *)data;
++	struct page *page;
++	unsigned long flags;
++
++	if (!kasan_black_shadow(ptep))
++		return 0;
++
++	page = alloc_page(gfp_flags);
++	if (!page)
++		return -ENOMEM;
++
++	__memcpy(page_address(page), kasan_black_page, PAGE_SIZE);
++
++	spin_lock_irqsave(&shadow_lock, flags);
++	if (!kasan_black_shadow(ptep))
++		goto out;
++
++	pte = mk_pte(page, PAGE_KERNEL);
++	set_pte_at(&init_mm, addr, ptep, pte);
++	page = NULL;
++
++out:
++	spin_unlock_irqrestore(&shadow_lock, flags);
++	if (page)
++		__free_page(page);
++
++	return 0;
++}
++
++static int kasan_map_shadow(const void *addr, size_t size, gfp_t flags)
++{
++	int err;
++	unsigned long shadow_start, shadow_end;
++	unsigned long count = 0;
++
++	if (!kasan_pshadow_inited())
++		return 0;
++
++	flags = flags & GFP_RECLAIM_MASK;
++	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
++	shadow_end = (unsigned long)kasan_mem_to_shadow(addr + size);
++	shadow_start = round_down(shadow_start, PAGE_SIZE);
++	shadow_end = ALIGN(shadow_end, PAGE_SIZE);
++
++	err = apply_to_page_range(&init_mm, shadow_start,
++				shadow_end - shadow_start,
++				kasan_exist_shadow_pte, &count);
++	if (err) {
++		pr_err("checking shadow entry is failed");
++		return err;
 +	}
 +
-+	start = (unsigned long)kasan_mem_to_shadow((void *)start);
-+	end = (unsigned long)kasan_mem_to_shadow((void *)end);
++	if (count == (shadow_end - shadow_start) / PAGE_SIZE)
++		goto out;
 +
- 	return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
++	err = apply_to_page_range(&init_mm, shadow_start,
++		shadow_end - shadow_start,
++		kasan_map_shadow_pte, (void *)&flags);
++
++out:
++	arch_kasan_map_shadow(shadow_start, shadow_end);
++	flush_cache_vmap(shadow_start, shadow_end);
++	if (err)
++		pr_err("mapping shadow entry is failed");
++
++	return err;
++}
++
+ /*
+  * All functions below always inlined so compiler could
+  * perform better optimizations in each of __asan_loadX/__assn_storeX
+@@ -389,6 +490,24 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
+ 	return memory_is_poisoned_n(addr, size);
  }
  
-@@ -49,11 +59,10 @@ static void __init clear_pgds(unsigned long start,
- 	}
- }
- 
--static void __init kasan_map_early_shadow(pgd_t *pgd)
-+static void __init kasan_map_early_shadow(pgd_t *pgd,
-+			unsigned long start, unsigned long end)
- {
- 	int i;
--	unsigned long start = KASAN_SHADOW_START;
--	unsigned long end = KASAN_SHADOW_END;
- 
- 	for (i = pgd_index(start); start < end; i++) {
- 		switch (CONFIG_PGTABLE_LEVELS) {
-@@ -109,8 +118,35 @@ void __init kasan_early_init(void)
- 	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
- 		kasan_zero_p4d[i] = __p4d(p4d_val);
- 
--	kasan_map_early_shadow(early_level4_pgt);
--	kasan_map_early_shadow(init_level4_pgt);
-+	kasan_map_early_shadow(early_level4_pgt,
-+		KASAN_SHADOW_START, KASAN_SHADOW_END);
-+	kasan_map_early_shadow(init_level4_pgt,
-+		KASAN_SHADOW_START, KASAN_SHADOW_END);
++static noinline void check_memory_region_slow(unsigned long addr,
++				size_t size, bool write,
++				unsigned long ret_ip)
++{
++	preempt_disable();
++	if (!arch_kasan_recheck_prepare(addr, size))
++		goto report;
 +
-+	kasan_early_init_pshadow();
-+
-+	kasan_map_early_shadow(early_level4_pgt,
-+		KASAN_PSHADOW_START, KASAN_PSHADOW_END);
-+	kasan_map_early_shadow(init_level4_pgt,
-+		KASAN_PSHADOW_START, KASAN_PSHADOW_END);
-+
-+	/* Prepare black shadow memory */
-+	pte_val = __pa_nodebug(kasan_black_page) | __PAGE_KERNEL_RO;
-+	pmd_val = __pa_nodebug(kasan_black_pte) | _KERNPG_TABLE;
-+	pud_val = __pa_nodebug(kasan_black_pmd) | _KERNPG_TABLE;
-+	p4d_val = __pa_nodebug(kasan_black_pud) | _KERNPG_TABLE;
-+
-+	for (i = 0; i < PTRS_PER_PTE; i++)
-+		kasan_black_pte[i] = __pte(pte_val);
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++)
-+		kasan_black_pmd[i] = __pmd(pmd_val);
-+
-+	for (i = 0; i < PTRS_PER_PUD; i++)
-+		kasan_black_pud[i] = __pud(pud_val);
-+
-+	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
-+		kasan_black_p4d[i] = __p4d(p4d_val);
- }
- 
- void __init kasan_init(void)
-@@ -135,7 +171,7 @@ void __init kasan_init(void)
- 		if (pfn_mapped[i].end == 0)
- 			break;
- 
--		if (map_range(&pfn_mapped[i]))
-+		if (map_range(&pfn_mapped[i], false))
- 			panic("kasan: unable to allocate shadow!");
- 	}
- 	kasan_populate_shadow(
-@@ -151,6 +187,39 @@ void __init kasan_init(void)
- 			(void *)KASAN_SHADOW_END,
- 			true, false);
- 
-+	/* For per-page shadow */
-+	clear_pgds(KASAN_PSHADOW_START, KASAN_PSHADOW_END);
-+
-+	kasan_populate_shadow((void *)KASAN_PSHADOW_START,
-+			kasan_mem_to_pshadow((void *)PAGE_OFFSET),
-+			true, false);
-+
-+	for (i = 0; i < E820_MAX_ENTRIES; i++) {
-+		if (pfn_mapped[i].end == 0)
-+			break;
-+
-+		if (map_range(&pfn_mapped[i], true))
-+			panic("kasan: unable to allocate shadow!");
++	if (!memory_is_poisoned(addr, size)) {
++		preempt_enable();
++		return;
 +	}
-+	kasan_populate_shadow(
-+		kasan_mem_to_pshadow((void *)PAGE_OFFSET + MAXMEM),
-+		kasan_mem_to_pshadow((void *)__START_KERNEL_map),
-+		true, false);
 +
-+	kasan_populate_shadow(
-+		kasan_mem_to_pshadow(_stext),
-+		kasan_mem_to_pshadow(_end),
-+		false, false);
++report:
++	preempt_enable();
++	kasan_report(addr, size, write, ret_ip);
++}
 +
-+	kasan_populate_shadow(
-+		kasan_mem_to_pshadow((void *)MODULES_VADDR),
-+		kasan_mem_to_pshadow((void *)MODULES_END),
-+		false, false);
-+
-+	kasan_populate_shadow(kasan_mem_to_pshadow((void *)MODULES_END),
-+			(void *)KASAN_PSHADOW_END,
-+			true, false);
-+
- 	load_cr3(init_level4_pgt);
- 	__flush_tlb_all();
+ static __always_inline void check_memory_region_inline(unsigned long addr,
+ 						size_t size, bool write,
+ 						unsigned long ret_ip)
+@@ -405,7 +524,7 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
+ 	if (likely(!memory_is_poisoned(addr, size)))
+ 		return;
  
+-	kasan_report(addr, size, write, ret_ip);
++	check_memory_region_slow(addr, size, write, ret_ip);
+ }
+ 
+ static void check_memory_region(unsigned long addr,
+@@ -783,9 +902,15 @@ void kasan_kfree_large(const void *ptr)
+ 
+ int kasan_slab_page_alloc(const void *addr, size_t size, gfp_t flags)
+ {
++	int err;
++
+ 	if (!kasan_pshadow_inited() || !addr)
+ 		return 0;
+ 
++	err = kasan_map_shadow(addr, size, flags);
++	if (err)
++		return err;
++
+ 	kasan_unpoison_shadow(addr, size);
+ 	kasan_poison_pshadow(addr, size);
+ 
+@@ -836,9 +961,15 @@ void kasan_free_shadow(const struct vm_struct *vm)
+ 
+ int kasan_stack_alloc(const void *addr, size_t size)
+ {
++	int err;
++
+ 	if (!kasan_pshadow_inited() || !addr)
+ 		return 0;
+ 
++	err = kasan_map_shadow(addr, size, THREADINFO_GFP);
++	if (err)
++		return err;
++
+ 	kasan_unpoison_shadow(addr, size);
+ 	kasan_poison_pshadow(addr, size);
+ 
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index e9a67ac..db04087 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -88,19 +88,25 @@ struct kasan_free_meta {
+ 	struct qlist_node quarantine_link;
+ };
+ 
++extern unsigned long kasan_black_page_pfn;
++
+ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+ 					const void *object);
+ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 					const void *object);
+ 
+-static inline bool kasan_pshadow_inited(void)
+-{
+ #ifdef HAVE_KASAN_PER_PAGE_SHADOW
+-	return true;
++void arch_kasan_map_shadow(unsigned long s, unsigned long e);
++bool arch_kasan_recheck_prepare(unsigned long addr, size_t size);
++
++static inline bool kasan_pshadow_inited(void) {	return true; }
++
+ #else
+-	return false;
++static inline void arch_kasan_map_shadow(unsigned long s, unsigned long e) { }
++static inline bool arch_kasan_recheck_prepare(unsigned long addr,
++					size_t size) { return false; }
++static inline bool kasan_pshadow_inited(void) {	return false; }
+ #endif
+-}
+ 
+ void kasan_report(unsigned long addr, size_t size,
+ 		bool is_write, unsigned long ip);
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index da9dcab..85dff70 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -25,6 +25,7 @@
+ #include "kasan.h"
+ 
+ unsigned long kasan_pshadow_offset __read_mostly;
++unsigned long kasan_black_page_pfn __read_mostly;
+ 
+ /*
+  * This page serves two purposes:
+@@ -278,6 +279,7 @@ void __init kasan_early_init_pshadow(void)
+ 					(kernel_offset >> PAGE_SHIFT);
+ 
+ 	BUILD_BUG_ON(KASAN_FREE_PAGE != KASAN_PER_PAGE_BYPASS);
++	kasan_black_page_pfn = PFN_DOWN(__pa(kasan_black_page));
+ 	for (i = 0; i < PAGE_SIZE; i++)
+ 		kasan_black_page[i] = KASAN_FREE_PAGE;
+ }
 -- 
 2.7.4
 
