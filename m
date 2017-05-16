@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 918C76B0315
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:18:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id m5so48458627pfc.1
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:06 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F23E56B0317
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:18:10 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id o25so125303866pgc.1
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:10 -0700 (PDT)
 Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id g1si12280485pln.18.2017.05.15.18.18.05
+        by mx.google.com with ESMTPS id h62si12118021pge.75.2017.05.15.18.18.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 18:18:05 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id w69so17864571pfk.1
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:05 -0700 (PDT)
+        Mon, 15 May 2017 18:18:10 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id w69so17864767pfk.1
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:18:10 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v1 08/11] mm/kasan: support on-demand shadow allocation/mapping
-Date: Tue, 16 May 2017 10:16:46 +0900
-Message-Id: <1494897409-14408-9-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v1 09/11] x86/kasan: support on-demand shadow mapping
+Date: Tue, 16 May 2017 10:16:47 +0900
+Message-Id: <1494897409-14408-10-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,284 +24,219 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Original shadow memory is only used when it is used by specific types
-of access. We can distinguish them and can allocate actual shadow memory
-on-demand to reduce memory consumption.
+Enable on-demand shadow mapping in x86.
 
-There is a problem on this on-demand shadow memory. After setting up
-new mapping, we need to flush TLB entry in all cpus but it's not always
-possible in some contexts. Solving this problem isn't possible without
-considering architecture specific property so this patch introduces
-two architecture specific functions. Architecture who wants to use
-this feature needs to implemente them correctly.
+x86 uses separate per-cpu kernel stack for interrupt/exception context.
+We need to populate shadow memory for them before they are used.
+
+And, there are two possible problems due to stable TLB entry when using
+on-demand shadow mapping since we cannot fully flush the TLB in
+some context and we need to handle these situation.
+
+1. write protection fault: original shadow memory for the page is
+mapped by black shadow page with write protection in default. When
+this page is allocated for a slab or kernel stack, new mapping is
+established but stable TLB isn't fully flushed. So, when marking
+the shadow value happen in other cpu, write protection fault will happen.
+Thanks to x86's spurious fault handling, stale TLB will be invalidated
+after one exception fault so there is no actual problem in this case.
+
+2. false-positive in KASAN shadow check: With above situation, if someone
+try to check shadow memory, wrong value would be read due to stale
+TLB entry. We need to recheck with flushing the stale TLB in this
+case. It is implemented in arch_kasan_recheck_prepare() and
+generic KASAN check function.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- arch/x86/mm/kasan_init_64.c |   9 +++
- mm/kasan/kasan.c            | 133 +++++++++++++++++++++++++++++++++++++++++++-
- mm/kasan/kasan.h            |  16 ++++--
- mm/kasan/kasan_init.c       |   2 +
- 4 files changed, 154 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/kasan.h     |  2 +
+ arch/x86/include/asm/processor.h |  4 ++
+ arch/x86/kernel/cpu/common.c     |  4 +-
+ arch/x86/kernel/setup_percpu.c   |  2 +
+ arch/x86/mm/kasan_init_64.c      | 82 +++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 90 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 1c300bf..136b73d 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -239,3 +239,12 @@ void __init kasan_init(void)
- 	init_task.kasan_depth = 0;
- 	pr_info("KernelAddressSanitizer initialized\n");
- }
-+
-+void arch_kasan_map_shadow(unsigned long s, unsigned long e)
-+{
-+}
-+
-+bool arch_kasan_recheck_prepare(unsigned long addr, size_t size)
-+{
-+	return false;
-+}
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index fb18283..8d59cf0 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -36,9 +36,13 @@
- #include <linux/types.h>
- #include <linux/vmalloc.h>
- #include <linux/bug.h>
-+#include <asm/cacheflush.h>
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+index cfa63c7..91a29ed 100644
+--- a/arch/x86/include/asm/kasan.h
++++ b/arch/x86/include/asm/kasan.h
+@@ -29,9 +29,11 @@
+ #ifdef CONFIG_KASAN
+ void __init kasan_early_init(void);
+ void __init kasan_init(void);
++void __init kasan_init_late(void);
+ #else
+ static inline void kasan_early_init(void) { }
+ static inline void kasan_init(void) { }
++static inline void kasan_init_late(void) { }
+ #endif
  
- #include "kasan.h"
- #include "../slab.h"
-+#include "../internal.h"
-+
-+static DEFINE_SPINLOCK(shadow_lock);
+ #endif
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 3cada99..516c972 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -377,6 +377,10 @@ DECLARE_INIT_PER_CPU(irq_stack_union);
  
- void kasan_enable_current(void)
- {
-@@ -140,6 +144,103 @@ void kasan_unpoison_pshadow(const void *address, size_t size)
- 	kasan_mark_pshadow(address, size, 0);
- }
- 
-+static bool kasan_black_shadow(pte_t *ptep)
-+{
-+	pte_t pte = *ptep;
+ DECLARE_PER_CPU(char *, irq_stack_ptr);
+ DECLARE_PER_CPU(unsigned int, irq_count);
 +
-+	if (pte_none(pte))
-+		return true;
++#define EXCEPTION_STKSZ_TOTAL ((N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ)
++DECLARE_PER_CPU(char, exception_stacks[EXCEPTION_STKSZ_TOTAL]);
 +
-+	if (pte_pfn(pte) == kasan_black_page_pfn)
-+		return true;
-+
-+	return false;
-+}
-+
-+static int kasan_exist_shadow_pte(pte_t *ptep, pgtable_t token,
-+			unsigned long addr, void *data)
-+{
-+	unsigned long *count = data;
-+
-+	if (kasan_black_shadow(ptep))
-+		return 0;
-+
-+	(*count)++;
-+	return 0;
-+}
-+
-+static int kasan_map_shadow_pte(pte_t *ptep, pgtable_t token,
-+			unsigned long addr, void *data)
-+{
-+	pte_t pte;
-+	gfp_t gfp_flags = *(gfp_t *)data;
-+	struct page *page;
-+	unsigned long flags;
-+
-+	if (!kasan_black_shadow(ptep))
-+		return 0;
-+
-+	page = alloc_page(gfp_flags);
-+	if (!page)
-+		return -ENOMEM;
-+
-+	__memcpy(page_address(page), kasan_black_page, PAGE_SIZE);
-+
-+	spin_lock_irqsave(&shadow_lock, flags);
-+	if (!kasan_black_shadow(ptep))
-+		goto out;
-+
-+	pte = mk_pte(page, PAGE_KERNEL);
-+	set_pte_at(&init_mm, addr, ptep, pte);
-+	page = NULL;
-+
-+out:
-+	spin_unlock_irqrestore(&shadow_lock, flags);
-+	if (page)
-+		__free_page(page);
-+
-+	return 0;
-+}
-+
-+static int kasan_map_shadow(const void *addr, size_t size, gfp_t flags)
-+{
-+	int err;
-+	unsigned long shadow_start, shadow_end;
-+	unsigned long count = 0;
-+
-+	if (!kasan_pshadow_inited())
-+		return 0;
-+
-+	flags = flags & GFP_RECLAIM_MASK;
-+	shadow_start = (unsigned long)kasan_mem_to_shadow(addr);
-+	shadow_end = (unsigned long)kasan_mem_to_shadow(addr + size);
-+	shadow_start = round_down(shadow_start, PAGE_SIZE);
-+	shadow_end = ALIGN(shadow_end, PAGE_SIZE);
-+
-+	err = apply_to_page_range(&init_mm, shadow_start,
-+				shadow_end - shadow_start,
-+				kasan_exist_shadow_pte, &count);
-+	if (err) {
-+		pr_err("checking shadow entry is failed");
-+		return err;
-+	}
-+
-+	if (count == (shadow_end - shadow_start) / PAGE_SIZE)
-+		goto out;
-+
-+	err = apply_to_page_range(&init_mm, shadow_start,
-+		shadow_end - shadow_start,
-+		kasan_map_shadow_pte, (void *)&flags);
-+
-+out:
-+	arch_kasan_map_shadow(shadow_start, shadow_end);
-+	flush_cache_vmap(shadow_start, shadow_end);
-+	if (err)
-+		pr_err("mapping shadow entry is failed");
-+
-+	return err;
-+}
-+
- /*
-  * All functions below always inlined so compiler could
-  * perform better optimizations in each of __asan_loadX/__assn_storeX
-@@ -389,6 +490,24 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
- 	return memory_is_poisoned_n(addr, size);
- }
- 
-+static noinline void check_memory_region_slow(unsigned long addr,
-+				size_t size, bool write,
-+				unsigned long ret_ip)
-+{
-+	preempt_disable();
-+	if (!arch_kasan_recheck_prepare(addr, size))
-+		goto report;
-+
-+	if (!memory_is_poisoned(addr, size)) {
-+		preempt_enable();
-+		return;
-+	}
-+
-+report:
-+	preempt_enable();
-+	kasan_report(addr, size, write, ret_ip);
-+}
-+
- static __always_inline void check_memory_region_inline(unsigned long addr,
- 						size_t size, bool write,
- 						unsigned long ret_ip)
-@@ -405,7 +524,7 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
- 	if (likely(!memory_is_poisoned(addr, size)))
- 		return;
- 
--	kasan_report(addr, size, write, ret_ip);
-+	check_memory_region_slow(addr, size, write, ret_ip);
- }
- 
- static void check_memory_region(unsigned long addr,
-@@ -783,9 +902,15 @@ void kasan_kfree_large(const void *ptr)
- 
- int kasan_slab_page_alloc(const void *addr, size_t size, gfp_t flags)
- {
-+	int err;
-+
- 	if (!kasan_pshadow_inited() || !addr)
- 		return 0;
- 
-+	err = kasan_map_shadow(addr, size, flags);
-+	if (err)
-+		return err;
-+
- 	kasan_unpoison_shadow(addr, size);
- 	kasan_poison_pshadow(addr, size);
- 
-@@ -836,9 +961,15 @@ void kasan_free_shadow(const struct vm_struct *vm)
- 
- int kasan_stack_alloc(const void *addr, size_t size)
- {
-+	int err;
-+
- 	if (!kasan_pshadow_inited() || !addr)
- 		return 0;
- 
-+	err = kasan_map_shadow(addr, size, THREADINFO_GFP);
-+	if (err)
-+		return err;
-+
- 	kasan_unpoison_shadow(addr, size);
- 	kasan_poison_pshadow(addr, size);
- 
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index e9a67ac..db04087 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -88,19 +88,25 @@ struct kasan_free_meta {
- 	struct qlist_node quarantine_link;
+ extern asmlinkage void ignore_sysret(void);
+ #else	/* X86_64 */
+ #ifdef CONFIG_CC_STACKPROTECTOR
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index c8b3987..d16c65a 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -1328,8 +1328,8 @@ static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
+ 	  [DEBUG_STACK - 1]			= DEBUG_STKSZ
  };
  
-+extern unsigned long kasan_black_page_pfn;
-+
- struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
- 					const void *object);
- struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
- 					const void *object);
+-static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
+-	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
++DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
++	[EXCEPTION_STKSZ_TOTAL]);
  
--static inline bool kasan_pshadow_inited(void)
--{
- #ifdef HAVE_KASAN_PER_PAGE_SHADOW
--	return true;
-+void arch_kasan_map_shadow(unsigned long s, unsigned long e);
-+bool arch_kasan_recheck_prepare(unsigned long addr, size_t size);
-+
-+static inline bool kasan_pshadow_inited(void) {	return true; }
-+
- #else
--	return false;
-+static inline void arch_kasan_map_shadow(unsigned long s, unsigned long e) { }
-+static inline bool arch_kasan_recheck_prepare(unsigned long addr,
-+					size_t size) { return false; }
-+static inline bool kasan_pshadow_inited(void) {	return false; }
+ /* May not be marked __init: used by software suspend */
+ void syscall_init(void)
+diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c
+index 10edd1e..cb3aeef 100644
+--- a/arch/x86/kernel/setup_percpu.c
++++ b/arch/x86/kernel/setup_percpu.c
+@@ -21,6 +21,7 @@
+ #include <asm/cpumask.h>
+ #include <asm/cpu.h>
+ #include <asm/stackprotector.h>
++#include <asm/kasan.h>
+ 
+ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
+ EXPORT_PER_CPU_SYMBOL(cpu_number);
+@@ -309,4 +310,5 @@ void __init setup_per_cpu_areas(void)
+ 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+ 			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
  #endif
--}
++	kasan_init_late();
+ }
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 136b73d..a185668 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -7,6 +7,7 @@
+ #include <linux/sched.h>
+ #include <linux/sched/task.h>
+ #include <linux/vmalloc.h>
++#include <linux/memblock.h>
  
- void kasan_report(unsigned long addr, size_t size,
- 		bool is_write, unsigned long ip);
-diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
-index da9dcab..85dff70 100644
---- a/mm/kasan/kasan_init.c
-+++ b/mm/kasan/kasan_init.c
-@@ -25,6 +25,7 @@
- #include "kasan.h"
+ #include <asm/e820/types.h>
+ #include <asm/tlbflush.h>
+@@ -15,6 +16,12 @@
+ extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
  
- unsigned long kasan_pshadow_offset __read_mostly;
-+unsigned long kasan_black_page_pfn __read_mostly;
++static __init void *early_alloc(size_t size, int node)
++{
++	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
++					BOOTMEM_ALLOC_ACCESSIBLE, node);
++}
++
+ static int __init map_range(struct range *range, bool pshadow)
+ {
+ 	unsigned long start;
+@@ -38,7 +45,9 @@ static int __init map_range(struct range *range, bool pshadow)
+ 	start = (unsigned long)kasan_mem_to_shadow((void *)start);
+ 	end = (unsigned long)kasan_mem_to_shadow((void *)end);
  
- /*
-  * This page serves two purposes:
-@@ -278,6 +279,7 @@ void __init kasan_early_init_pshadow(void)
- 					(kernel_offset >> PAGE_SHIFT);
+-	return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
++	kasan_populate_shadow((void *)start, (void *)end + 1,
++						false, true);
++	return 0;
+ }
  
- 	BUILD_BUG_ON(KASAN_FREE_PAGE != KASAN_PER_PAGE_BYPASS);
-+	kasan_black_page_pfn = PFN_DOWN(__pa(kasan_black_page));
- 	for (i = 0; i < PAGE_SIZE; i++)
- 		kasan_black_page[i] = KASAN_FREE_PAGE;
+ static void __init clear_pgds(unsigned long start,
+@@ -240,11 +249,80 @@ void __init kasan_init(void)
+ 	pr_info("KernelAddressSanitizer initialized\n");
+ }
+ 
++static void __init kasan_map_shadow_late(unsigned long start,
++					unsigned long end)
++{
++	unsigned long addr;
++	unsigned char *page;
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep;
++	pte_t pte;
++
++	for (addr = start; addr < end; addr += PAGE_SIZE) {
++		pgd = pgd_offset_k(addr);
++		p4d = p4d_offset(pgd, addr);
++		pud = pud_offset(p4d, addr);
++		pmd = pmd_offset(pud, addr);
++		ptep = pte_offset_kernel(pmd, addr);
++
++		page = early_alloc(PAGE_SIZE, NUMA_NO_NODE);
++		pte = pfn_pte(PFN_DOWN(__pa(page)), PAGE_KERNEL);
++		set_pte_at(&init_mm, addr, ptep, pte);
++	}
++}
++
++static void __init __kasan_init_late(unsigned long start, unsigned long end)
++{
++	unsigned long shadow_start, shadow_end;
++
++	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start);
++	shadow_start = round_down(shadow_start, PAGE_SIZE);
++	shadow_end = (unsigned long)kasan_mem_to_shadow((void *)end);
++	shadow_end = ALIGN(shadow_end, PAGE_SIZE);
++
++	kasan_map_shadow_late(shadow_start, shadow_end);
++	kasan_poison_pshadow((void *)start, ALIGN(end, PAGE_SIZE) - start);
++}
++
++void __init kasan_init_late(void)
++{
++	int cpu;
++	unsigned long start, end;
++
++	for_each_possible_cpu(cpu) {
++		end   = (unsigned long)per_cpu(irq_stack_ptr, cpu);
++		start = end - IRQ_STACK_SIZE;
++
++		__kasan_init_late(start, end);
++
++		start = (unsigned long)per_cpu(exception_stacks, cpu);
++		end = start + sizeof(exception_stacks);
++
++		__kasan_init_late(start, end);
++	}
++}
++
++/*
++ * We cannot flush the TLBs in other cpus due to deadlock
++ * so just flush the TLB in current cpu. Accessing stale TLB
++ * entry would cause following two problem and we can handle them.
++ *
++ * 1. write protection fault: It will be handled by spurious
++ * fault handler. It will invalidate stale TLB entry.
++ * 2. false-positive in KASAN shadow check: It will be
++ * handled by re-check with flushing local TLB.
++ */
+ void arch_kasan_map_shadow(unsigned long s, unsigned long e)
+ {
++	__flush_tlb_all();
+ }
+ 
+ bool arch_kasan_recheck_prepare(unsigned long addr, size_t size)
+ {
+-	return false;
++	__flush_tlb_all();
++
++	return true;
  }
 -- 
 2.7.4
