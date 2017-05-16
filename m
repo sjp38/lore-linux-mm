@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C56E96B02EE
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:44 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b74so82349661pfd.2
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:44 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id 1si12048301plx.288.2017.05.15.18.17.42
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F38836B02F2
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:46 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u21so124277847pgn.5
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:46 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id s10si12119046pfj.224.2017.05.15.18.17.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 18:17:42 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id s62so19214692pgc.0
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:42 -0700 (PDT)
+        Mon, 15 May 2017 18:17:46 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id u26so17848223pfd.2
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:46 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v1 02/11] mm/kasan: don't fetch the next shadow value speculartively
-Date: Tue, 16 May 2017 10:16:40 +0900
-Message-Id: <1494897409-14408-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v1 03/11] mm/kasan: handle unaligned end address in zero_pte_populate
+Date: Tue, 16 May 2017 10:16:41 +0900
+Message-Id: <1494897409-14408-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,163 +24,36 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Fetching the next shadow value speculartively has pros and cons.
-If shadow bytes are zero, we can exit the check with a single branch.
-However, it could cause unaligned access. And, if the next shadow value
-isn't zero, we need to do additional check. Next shadow value can be
-non-zero due to various reasons.
+It doesn't handle unaligned end address so last pte could not
+be initialized. Fix it.
 
-Moreoever, following patch will introduce on-demand shadow memory
-allocation/mapping and this speculartive fetch would cause more stale
-TLB case.
-
-So, I think that there is more side-effect than the benefit.
-This patch removes it.
+Note that this shadow memory can be used by others so map
+the actual page in this case.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/kasan/kasan.c | 104 +++++++++++++++++++++++--------------------------------
- 1 file changed, 44 insertions(+), 60 deletions(-)
+ mm/kasan/kasan_init.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 85ee45b0..97d3560 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -136,90 +136,74 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr)
- 
- static __always_inline bool memory_is_poisoned_2(unsigned long addr)
- {
--	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
--
--	if (unlikely(*shadow_addr)) {
--		if (memory_is_poisoned_1(addr + 1))
--			return true;
--
--		/*
--		 * If single shadow byte covers 2-byte access, we don't
--		 * need to do anything more. Otherwise, test the first
--		 * shadow byte.
--		 */
--		if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
--			return false;
-+	if (unlikely(memory_is_poisoned_1(addr)))
-+		return true;
- 
--		return unlikely(*(u8 *)shadow_addr);
--	}
-+	/*
-+	 * If single shadow byte covers 2-byte access, we don't
-+	 * need to do anything more. Otherwise, test the first
-+	 * shadow byte.
-+	 */
-+	if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
-+		return false;
- 
--	return false;
-+	return memory_is_poisoned_1(addr + 1);
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index 554e4c0..48559d9 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -61,6 +61,14 @@ static void __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
+ 		addr += PAGE_SIZE;
+ 		pte = pte_offset_kernel(pmd, addr);
+ 	}
++
++	if (addr == end)
++		return;
++
++	/* Population for unaligned end address */
++	zero_pte = pfn_pte(PFN_DOWN(
++		__pa(early_alloc(PAGE_SIZE, NUMA_NO_NODE))), PAGE_KERNEL);
++	set_pte_at(&init_mm, addr, pte, zero_pte);
  }
  
- static __always_inline bool memory_is_poisoned_4(unsigned long addr)
- {
--	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
--
--	if (unlikely(*shadow_addr)) {
--		if (memory_is_poisoned_1(addr + 3))
--			return true;
--
--		/*
--		 * If single shadow byte covers 4-byte access, we don't
--		 * need to do anything more. Otherwise, test the first
--		 * shadow byte.
--		 */
--		if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
--			return false;
-+	if (unlikely(memory_is_poisoned_1(addr + 3)))
-+		return true;
- 
--		return unlikely(*(u8 *)shadow_addr);
--	}
-+	/*
-+	 * If single shadow byte covers 4-byte access, we don't
-+	 * need to do anything more. Otherwise, test the first
-+	 * shadow byte.
-+	 */
-+	if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
-+		return false;
- 
--	return false;
-+	return memory_is_poisoned_1(addr);
- }
- 
- static __always_inline bool memory_is_poisoned_8(unsigned long addr)
- {
--	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-+	u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
- 
--	if (unlikely(*shadow_addr)) {
--		if (memory_is_poisoned_1(addr + 7))
--			return true;
-+	if (unlikely(*shadow_addr))
-+		return true;
- 
--		/*
--		 * If single shadow byte covers 8-byte access, we don't
--		 * need to do anything more. Otherwise, test the first
--		 * shadow byte.
--		 */
--		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
--			return false;
-+	/*
-+	 * If single shadow byte covers 8-byte access, we don't
-+	 * need to do anything more. Otherwise, test the first
-+	 * shadow byte.
-+	 */
-+	if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-+		return false;
- 
--		return unlikely(*(u8 *)shadow_addr);
--	}
-+	if (unlikely(memory_is_poisoned_1(addr + 7)))
-+		return true;
- 
- 	return false;
- }
- 
- static __always_inline bool memory_is_poisoned_16(unsigned long addr)
- {
--	u32 *shadow_addr = (u32 *)kasan_mem_to_shadow((void *)addr);
--
--	if (unlikely(*shadow_addr)) {
--		u16 shadow_first_bytes = *(u16 *)shadow_addr;
-+	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
- 
--		if (unlikely(shadow_first_bytes))
--			return true;
-+	if (unlikely(*shadow_addr))
-+		return true;
- 
--		/*
--		 * If two shadow bytes covers 16-byte access, we don't
--		 * need to do anything more. Otherwise, test the last
--		 * shadow byte.
--		 */
--		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
--			return false;
-+	/*
-+	 * If two shadow bytes covers 16-byte access, we don't
-+	 * need to do anything more. Otherwise, test the last
-+	 * shadow byte.
-+	 */
-+	if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-+		return false;
- 
--		return memory_is_poisoned_1(addr + 15);
--	}
-+	if (unlikely(memory_is_poisoned_1(addr + 15)))
-+		return true;
- 
- 	return false;
- }
+ static void __init zero_pmd_populate(pud_t *pud, unsigned long addr,
 -- 
 2.7.4
 
