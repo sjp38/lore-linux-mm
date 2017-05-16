@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2039C6B0038
-	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:36 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q6so111852900pgn.12
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:36 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id a9si12428960plt.19.2017.05.15.18.17.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD8D6B02E1
+	for <linux-mm@kvack.org>; Mon, 15 May 2017 21:17:39 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u21so124276284pgn.5
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:39 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id 24si11981670pgy.279.2017.05.15.18.17.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 May 2017 18:17:35 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id w69so17863260pfk.1
-        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:35 -0700 (PDT)
+        Mon, 15 May 2017 18:17:38 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id s62so19214554pgc.0
+        for <linux-mm@kvack.org>; Mon, 15 May 2017 18:17:38 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to reduce memory consumption
-Date: Tue, 16 May 2017 10:16:38 +0900
-Message-Id: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v1 01/11] mm/kasan: rename XXX_is_zero to XXX_is_nonzero
+Date: Tue, 16 May 2017 10:16:39 +0900
+Message-Id: <1494897409-14408-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -22,108 +24,74 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello, all.
+They return positive value, that is, true, if non-zero value
+is found. Rename them to reduce confusion.
 
-This is an attempt to recude memory consumption of KASAN. Please see
-following description to get the more information.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/kasan/kasan.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
-1. What is per-page shadow memory
-
-This patch introduces infrastructure to support per-page shadow memory.
-Per-page shadow memory is the same with original shadow memory except
-the granualarity. It's one byte shows the shadow value for the page.
-The purpose of introducing this new shadow memory is to save memory
-consumption.
-
-2. Problem of current approach
-
-Until now, KASAN needs shadow memory for all the range of the memory
-so the amount of statically allocated memory is so large. It causes
-the problem that KASAN cannot run on the system with hard memory
-constraint. Even if KASAN can run, large memory consumption due to
-KASAN changes behaviour of the workload so we cannot validate
-the moment that we want to check.
-
-3. How does this patch fix the problem
-
-This patch tries to fix the problem by reducing memory consumption for
-the shadow memory. There are two observations.
-
-1) Type of memory usage can be distinguished well.
-2) Shadow memory is manipulated/checked in byte unit only for slab,
-kernel stack and global variable. Shadow memory for other usecases
-just show KASAN_FREE_PAGE or 0 (means valid) in page unit.
-
-With these two observations, I think an optimized way to support
-KASAN feature.
-
-1) Introduces per-page shadow that cover all the memory
-2) Checks validity of the access through per-page shadow except
-that checking object is a slab, kernel stack, global variable
-3) For those byte accessible types of object, allocate/map original
-shadow by on-demand and checks validity of the access through
-original shadow
-
-Instead original shadow statically consumes 1/8 bytes of the amount of
-total memory, per-page shadow statically consumes 1/PAGE_SIZE bytes of it.
-Extra memory is required for a slab, kernel stack and global variable by
-on-demand in runtime, however, it would not be larger than before.
-
-4. Result
-
-Following is the result of the memory consumption on my QEMU system.
-'runtime' shows the maximum memory usage for on-demand shadow allocation
-during the kernel build workload.
-
-base vs patched
-
-MemTotal: 858 MB vs 987 MB
-runtime: 0 MB vs 30MB
-Net Available: 858 MB vs 957 MB
-
-For 4096 MB QEMU system
-
-MemTotal: 3477 MB vs 4000 MB
-runtime: 0 MB vs 50MB
-
-base vs patched (2048 MB QEMU system)
-204 s vs 224 s
-Net Available: 3477 MB vs 3950 MB
-
-Thanks.
-
-Joonsoo Kim (11):
-  mm/kasan: rename XXX_is_zero to XXX_is_nonzero
-  mm/kasan: don't fetch the next shadow value speculartively
-  mm/kasan: handle unaligned end address in zero_pte_populate
-  mm/kasan: extend kasan_populate_zero_shadow()
-  mm/kasan: introduce per-page shadow memory infrastructure
-  mm/kasan: mark/unmark the target range that is for original shadow
-    memory
-  x86/kasan: use per-page shadow memory
-  mm/kasan: support on-demand shadow allocation/mapping
-  x86/kasan: support on-demand shadow mapping
-  mm/kasan: support dynamic shadow memory free
-  mm/kasan: change the order of shadow memory check
-
- arch/arm64/mm/kasan_init.c       |  17 +-
- arch/x86/include/asm/kasan.h     |   8 +
- arch/x86/include/asm/processor.h |   4 +
- arch/x86/kernel/cpu/common.c     |   4 +-
- arch/x86/kernel/setup_percpu.c   |   2 +
- arch/x86/mm/kasan_init_64.c      | 191 ++++++++++++--
- include/linux/kasan.h            |  71 ++++-
- kernel/fork.c                    |   7 +
- mm/kasan/kasan.c                 | 555 +++++++++++++++++++++++++++++++++------
- mm/kasan/kasan.h                 |  22 +-
- mm/kasan/kasan_init.c            | 158 ++++++++---
- mm/kasan/report.c                |  28 ++
- mm/page_alloc.c                  |  10 +
- mm/slab.c                        |   9 +
- mm/slab_common.c                 |  11 +-
- mm/slub.c                        |   8 +
- 16 files changed, 957 insertions(+), 148 deletions(-)
-
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index c81549d..85ee45b0 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -224,7 +224,7 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
+ 	return false;
+ }
+ 
+-static __always_inline unsigned long bytes_is_zero(const u8 *start,
++static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+ 					size_t size)
+ {
+ 	while (size) {
+@@ -237,7 +237,7 @@ static __always_inline unsigned long bytes_is_zero(const u8 *start,
+ 	return 0;
+ }
+ 
+-static __always_inline unsigned long memory_is_zero(const void *start,
++static __always_inline unsigned long memory_is_nonzero(const void *start,
+ 						const void *end)
+ {
+ 	unsigned int words;
+@@ -245,11 +245,11 @@ static __always_inline unsigned long memory_is_zero(const void *start,
+ 	unsigned int prefix = (unsigned long)start % 8;
+ 
+ 	if (end - start <= 16)
+-		return bytes_is_zero(start, end - start);
++		return bytes_is_nonzero(start, end - start);
+ 
+ 	if (prefix) {
+ 		prefix = 8 - prefix;
+-		ret = bytes_is_zero(start, prefix);
++		ret = bytes_is_nonzero(start, prefix);
+ 		if (unlikely(ret))
+ 			return ret;
+ 		start += prefix;
+@@ -258,12 +258,12 @@ static __always_inline unsigned long memory_is_zero(const void *start,
+ 	words = (end - start) / 8;
+ 	while (words) {
+ 		if (unlikely(*(u64 *)start))
+-			return bytes_is_zero(start, 8);
++			return bytes_is_nonzero(start, 8);
+ 		start += 8;
+ 		words--;
+ 	}
+ 
+-	return bytes_is_zero(start, (end - start) % 8);
++	return bytes_is_nonzero(start, (end - start) % 8);
+ }
+ 
+ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
+@@ -271,7 +271,7 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
+ {
+ 	unsigned long ret;
+ 
+-	ret = memory_is_zero(kasan_mem_to_shadow((void *)addr),
++	ret = memory_is_nonzero(kasan_mem_to_shadow((void *)addr),
+ 			kasan_mem_to_shadow((void *)addr + size - 1) + 1);
+ 
+ 	if (unlikely(ret)) {
 -- 
 2.7.4
 
