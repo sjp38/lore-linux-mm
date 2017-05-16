@@ -1,101 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 388CA6B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 10:52:15 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k57so23810867wrk.6
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 07:52:15 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id x62si2133962wrb.294.2017.05.16.07.52.13
-        for <linux-mm@kvack.org>;
-        Tue, 16 May 2017 07:52:13 -0700 (PDT)
-Date: Tue, 16 May 2017 16:52:09 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 23/32] swiotlb: Add warnings for use of bounce buffers
- with SME
-Message-ID: <20170516145209.ltbmaq3a2teqr2uv@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212019.10190.24034.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 389D26B02C4
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 10:54:37 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c6so126585191pfj.5
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 07:54:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h82si13911180pfa.305.2017.05.16.07.54.35
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 May 2017 07:54:35 -0700 (PDT)
+Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
+ <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <90009469-f0af-1b82-868d-ce1adc6540cf@suse.cz>
+Date: Tue, 16 May 2017 16:54:01 +0200
 MIME-Version: 1.0
+In-Reply-To: <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170418212019.10190.24034.stgit@tlendack-t1.amdoffice.net>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>
 
-On Tue, Apr 18, 2017 at 04:20:19PM -0500, Tom Lendacky wrote:
-> Add warnings to let the user know when bounce buffers are being used for
-> DMA when SME is active.  Since the bounce buffers are not in encrypted
-> memory, these notifications are to allow the user to determine some
-> appropriate action - if necessary.
+On 04/12/2017 03:33 PM, Vlastimil Babka wrote:
+> On 03/02/2017 04:10 PM, Kirill A. Shutemov wrote:
+>> In case prot_numa, we are under down_read(mmap_sem). It's critical
+>> to not clear pmd intermittently to avoid race with MADV_DONTNEED
+>> which is also under down_read(mmap_sem):
+>>
+>> 	CPU0:				CPU1:
+>> 				change_huge_pmd(prot_numa=1)
+>> 				 pmdp_huge_get_and_clear_notify()
+>> madvise_dontneed()
+>>  zap_pmd_range()
+>>   pmd_trans_huge(*pmd) == 0 (without ptl)
+>>   // skip the pmd
+>> 				 set_pmd_at();
+>> 				 // pmd is re-established
+>>
+>> The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+>> which may break userspace.
+>>
+>> Found by code analysis, never saw triggered.
+>>
+>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> ---
+>>  mm/huge_memory.c | 34 +++++++++++++++++++++++++++++++++-
+>>  1 file changed, 33 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index e7ce73b2b208..bb2b3646bd78 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -1744,7 +1744,39 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>>  	if (prot_numa && pmd_protnone(*pmd))
+>>  		goto unlock;
+>>  
+>> -	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+>> +	/*
+>> +	 * In case prot_numa, we are under down_read(mmap_sem). It's critical
+>> +	 * to not clear pmd intermittently to avoid race with MADV_DONTNEED
+>> +	 * which is also under down_read(mmap_sem):
+>> +	 *
+>> +	 *	CPU0:				CPU1:
+>> +	 *				change_huge_pmd(prot_numa=1)
+>> +	 *				 pmdp_huge_get_and_clear_notify()
+>> +	 * madvise_dontneed()
+>> +	 *  zap_pmd_range()
+>> +	 *   pmd_trans_huge(*pmd) == 0 (without ptl)
+>> +	 *   // skip the pmd
+>> +	 *				 set_pmd_at();
+>> +	 *				 // pmd is re-established
+>> +	 *
+>> +	 * The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+>> +	 * which may break userspace.
+>> +	 *
+>> +	 * pmdp_invalidate() is required to make sure we don't miss
+>> +	 * dirty/young flags set by hardware.
+>> +	 */
+>> +	entry = *pmd;
+>> +	pmdp_invalidate(vma, addr, pmd);
+>> +
+>> +	/*
+>> +	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
+>> +	 * corrupt them.
+>> +	 */
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/mem_encrypt.h |   11 +++++++++++
->  include/linux/dma-mapping.h        |   11 +++++++++++
->  include/linux/mem_encrypt.h        |    6 ++++++
->  lib/swiotlb.c                      |    3 +++
->  4 files changed, 31 insertions(+)
+> pmdp_invalidate() does:
 > 
-> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-> index 0637b4b..b406df2 100644
-> --- a/arch/x86/include/asm/mem_encrypt.h
-> +++ b/arch/x86/include/asm/mem_encrypt.h
-> @@ -26,6 +26,11 @@ static inline bool sme_active(void)
->  	return !!sme_me_mask;
->  }
->  
-> +static inline u64 sme_dma_mask(void)
-> +{
-> +	return ((u64)sme_me_mask << 1) - 1;
-> +}
-> +
->  void __init sme_early_encrypt(resource_size_t paddr,
->  			      unsigned long size);
->  void __init sme_early_decrypt(resource_size_t paddr,
-> @@ -50,6 +55,12 @@ static inline bool sme_active(void)
->  {
->  	return false;
->  }
-> +
-> +static inline u64 sme_dma_mask(void)
-> +{
-> +	return 0ULL;
-> +}
-> +
->  #endif
->  
->  static inline void __init sme_early_encrypt(resource_size_t paddr,
-> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-> index 0977317..f825870 100644
-> --- a/include/linux/dma-mapping.h
-> +++ b/include/linux/dma-mapping.h
-> @@ -10,6 +10,7 @@
->  #include <linux/scatterlist.h>
->  #include <linux/kmemcheck.h>
->  #include <linux/bug.h>
-> +#include <linux/mem_encrypt.h>
->  
->  /**
->   * List of possible attributes associated with a DMA mapping. The semantics
-> @@ -577,6 +578,11 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
->  
->  	if (!dev->dma_mask || !dma_supported(dev, mask))
->  		return -EIO;
-> +
-> +	if (sme_active() && (mask < sme_dma_mask()))
-> +		dev_warn_ratelimited(dev,
-> +				     "SME is active, device will require DMA bounce buffers\n");
+>         pmd_t entry = *pmdp;
+>         set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+> 
+> so it's not atomic and if CPU sets dirty or accessed in the middle of
+> this, they will be lost?
+> 
+> But I don't see how the other invalidate caller
+> __split_huge_pmd_locked() deals with this either. Andrea, any idea?
 
-Bah, no need to break that line - just let it stick out. Ditto for the
-others.
+Looks like we didn't resolve this and meanwhile the patch is in mainline
+as ced108037c2aa. CC Andy who deals with TLB a lot these days.
 
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+> Vlastimil
+> 
+>> +	if (pmd_dirty(*pmd))
+>> +		entry = pmd_mkdirty(entry);
+>> +	if (pmd_young(*pmd))
+>> +		entry = pmd_mkyoung(entry);
+>> +
+>>  	entry = pmd_modify(entry, newprot);
+>>  	if (preserve_write)
+>>  		entry = pmd_mk_savedwrite(entry);
+>>
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
