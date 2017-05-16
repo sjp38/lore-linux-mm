@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 674336B02F2
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 09:14:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b20so36092420wma.11
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 06:14:27 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id y84si2167160wmg.147.2017.05.16.06.14.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B882E6B02EE
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 09:21:35 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c6so124896007pfj.5
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 06:21:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k29si13678694pfk.327.2017.05.16.06.21.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 May 2017 06:14:26 -0700 (PDT)
-Date: Tue, 16 May 2017 14:13:16 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] mm: per-cgroup memory reclaim stats
-Message-ID: <20170516131316.GA7834@castle>
-References: <1494530183-30808-1-git-send-email-guro@fb.com>
- <20170516092956.GF2481@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 May 2017 06:21:34 -0700 (PDT)
+Date: Tue, 16 May 2017 15:21:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] drm: use kvmalloc_array for drm_malloc*
+Message-ID: <20170516132132.GJ2481@dhcp22.suse.cz>
+References: <20170516090606.5891-1-mhocko@kernel.org>
+ <20170516092230.pzadndxm5gq4i4h6@phenom.ffwll.local>
+ <20170516095254.GG2481@dhcp22.suse.cz>
+ <20170516130856.hvq62uuq6wmnhvpg@phenom.ffwll.local>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170516092956.GF2481@dhcp22.suse.cz>
+In-Reply-To: <20170516130856.hvq62uuq6wmnhvpg@phenom.ffwll.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Vetter <daniel@ffwll.ch>
+Cc: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, Sean Paul <seanpaul@chromium.org>, David Airlie <airlied@linux.ie>
 
-Hi Michal!
-
-On Tue, May 16, 2017 at 11:29:56AM +0200, Michal Hocko wrote:
-> On Thu 11-05-17 20:16:23, Roman Gushchin wrote:
-> > Track the following reclaim counters for every memory cgroup:
-> > PGREFILL, PGSCAN, PGSTEAL, PGACTIVATE, PGDEACTIVATE, PGLAZYFREE and
-> > PGLAZYFREED.
-> 
-> yes, those are definitely useful. I have an old patch to add them as
-> well but never managed to clean it up and post...
-> 
-> > These values are exposed using the memory.stats interface of cgroup v2.
-> 
-> Is there any reason to not add them to v1?
-
-Not really, I'm just not sure, if it worth it to change v1 interface here.
-If you want, I can add them.
-
-> This should be rather trivial after recent changes from Johannes.
-
-If you're about memcg1_events[]/memcg1_event_names[], they can't be reused,
-because the pgscan and pgsteal values are both sums of direct and kswapd values:
-e.g. events[PGSTEAL_KSWAPD] + events[PGSTEAL_DIRECT].
-
-> 
-> > The meaning of each value is the same as for global counters,
-> > available using /proc/vmstat.
+On Tue 16-05-17 15:08:56, Daniel Vetter wrote:
+> On Tue, May 16, 2017 at 11:52:55AM +0200, Michal Hocko wrote:
+> > On Tue 16-05-17 11:22:30, Daniel Vetter wrote:
+> > > On Tue, May 16, 2017 at 11:06:06AM +0200, Michal Hocko wrote:
+> > > > From: Michal Hocko <mhocko@suse.com>
+> > > > 
+> > > > drm_malloc* has grown their own kmalloc with vmalloc fallback
+> > > > implementations. MM has grown kvmalloc* helpers in the meantime. Let's
+> > > > use those because it a) reduces the code and b) MM has a better idea
+> > > > how to implement fallbacks (e.g. do not vmalloc before kmalloc is tried
+> > > > with __GFP_NORETRY).
+> > > > 
+> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > Shouldn't we go one step further and just remove these wrappers, maybe
+> > > with cocci?
 > > 
-> > Also, for consistency, rename mem_cgroup_count_vm_event() to
-> > count_memcg_event_mm().
+> > my cocci sucks...
 > > 
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > Cc: Li Zefan <lizefan@huawei.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: cgroups@vger.kernel.org
-> > Cc: linux-doc@vger.kernel.org
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-mm@kvack.org
+> > > Especially drm_malloc_gfp is surpremely pointless after this
+> > > patch (and drm_malloc_ab probably not that useful either).
+> > 
+> > So what about the following instead? It passes allyesconfig compilation.
 > 
-> the patch itself looks good to me. I will have to double check it after
-> I am done with what I am doing currently and then will add my Acked-by
+> Yeah, looks good, but perhaps rebased onto your first patch. That way we
+> split the functional change from the refactor (not the first time innocent
+> looking changes in i915 gem code resulted in surprises).
 
-Thank you!
+OK, I will split it.
+
+> Your patch also seems to need some stuff from -rc1, and atm drm-misc is
+> still pre-rc1, so I'll pull both patches in once that's sorted (I can do
+> the rebase myself, since it's rather trivial). But pls remind me in case
+> it falls through the cracks and isn't in linux-next by end of this week
+> :-)
+
+I have based it on top of the current linux next (next-20170516). Let me
+know if other tree is more appropriate.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
