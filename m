@@ -1,126 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A86F6B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:10:28 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i63so131408260pgd.15
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:10:28 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h5si13140965pgk.81.2017.05.16.02.10.27
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B72E6B02E1
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:06 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id w131so61361089qka.5
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 02:18:06 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g51si13376868qtf.126.2017.05.16.02.18.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 May 2017 02:10:27 -0700 (PDT)
-Date: Tue, 16 May 2017 11:10:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/4 v2] mm: give __GFP_REPEAT a better semantic
-Message-ID: <20170516091022.GD2481@dhcp22.suse.cz>
-References: <20170307154843.32516-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170307154843.32516-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 02:18:05 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4G9DvGT122443
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:05 -0400
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2afr988gf4-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 05:18:05 -0400
+Received: from localhost
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 16 May 2017 05:18:04 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH v2 2/2] powerpc/mm/hugetlb: Add support for 1G huge pages
+Date: Tue, 16 May 2017 14:47:44 +0530
+In-Reply-To: <1494926264-22463-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1494926264-22463-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Message-Id: <1494926264-22463-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: akpm@linux-foundation.org, mpe@ellerman.id.au, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-So, is there some interest in this? I am not going to push this if there
-is a general consensus that we do not need to do anything about the
-current situation or need a different approach.
+POWER9 supports hugepages of size 2M and 1G in radix MMU mode. This patch
+enables the usage of 1G page size for hugetlbfs. This also update the helper
+such we can do 1G page allocation at runtime.
 
-On Tue 07-03-17 16:48:39, Michal Hocko wrote:
-> Hi,
-> this is a follow up for __GFP_REPEAT clean up merged in 4.7. The previous
-> version of this patch series was posted as an RFC
-> http://lkml.kernel.org/r/1465212736-14637-1-git-send-email-mhocko@kernel.org
-> Since then I have reconsidered the semantic and made it a counterpart
-> to the __GFP_NORETRY and made it the other extreme end of the retry
-> logic. Both are not invoking the OOM killer so they are suitable
-> for allocation paths with a fallback. Also a new potential user has
-> emerged (kvmalloc - see patch 4). I have also renamed the flag from
-> __GFP_RETRY_HARD to __GFP_RETRY_MAY_FAIL as this should be more clear.
-> 
-> I have kept the RFC status because of the semantic change. The patch 1
-> is an exception because it should be merge regardless of the rest.
-> 
-> The main motivation for the change is that the current implementation of
-> __GFP_REPEAT is not very much useful.
-> 
-> The documentation says:
->  * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
->  *   _might_ fail.  This depends upon the particular VM implementation.
-> 
-> It just fails to mention that this is true only for large (costly) high
-> order which has been the case since the flag was introduced. A similar
-> semantic would be really helpful for smal orders as well, though,
-> because we have places where a failure with a specific fallback error
-> handling is preferred to a potential endless loop inside the page
-> allocator.
-> 
-> The earlier cleanup dropped __GFP_REPEAT usage for low (!costly) order
-> users so only those which might use larger orders have stayed. One user
-> which slipped through cracks is addressed in patch 1.
-> 
-> Let's rename the flag to something more verbose and use it for existing
-> users. Semantic for those will not change. Then implement low (!costly)
-> orders failure path which is hit after the page allocator is about to
-> invoke the oom killer. Now we have a good counterpart for __GFP_NORETRY
-> and finally can tell try as hard as possible without the OOM killer.
-> 
-> Xfs code already has an existing annotation for allocations which are
-> allowed to fail and we can trivially map them to the new gfp flag
-> because it will provide the semantic KM_MAYFAIL wants.
-> 
-> kvmalloc will allow also !costly high order allocations to retry hard
-> before falling back to the vmalloc.
-> 
-> The patchset is based on the current linux-next.
-> 
-> Shortlog
-> Michal Hocko (4):
->       s390: get rid of superfluous __GFP_REPEAT
->       mm, tree wide: replace __GFP_REPEAT by __GFP_RETRY_MAYFAIL with more useful semantic
->       xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
->       mm: kvmalloc support __GFP_RETRY_MAYFAIL for all sizes
-> 
-> Diffstat
->  Documentation/DMA-ISA-LPC.txt                |  2 +-
->  arch/powerpc/include/asm/book3s/64/pgalloc.h |  2 +-
->  arch/powerpc/kvm/book3s_64_mmu_hv.c          |  2 +-
->  arch/s390/mm/pgalloc.c                       |  2 +-
->  drivers/mmc/host/wbsd.c                      |  2 +-
->  drivers/s390/char/vmcp.c                     |  2 +-
->  drivers/target/target_core_transport.c       |  2 +-
->  drivers/vhost/net.c                          |  2 +-
->  drivers/vhost/scsi.c                         |  2 +-
->  drivers/vhost/vsock.c                        |  2 +-
->  fs/btrfs/check-integrity.c                   |  2 +-
->  fs/btrfs/raid56.c                            |  2 +-
->  fs/xfs/kmem.h                                | 10 +++++++++
->  include/linux/gfp.h                          | 32 +++++++++++++++++++---------
->  include/linux/slab.h                         |  3 ++-
->  include/trace/events/mmflags.h               |  2 +-
->  mm/hugetlb.c                                 |  4 ++--
->  mm/internal.h                                |  2 +-
->  mm/page_alloc.c                              | 14 +++++++++---
->  mm/sparse-vmemmap.c                          |  4 ++--
->  mm/util.c                                    | 14 ++++--------
->  mm/vmalloc.c                                 |  2 +-
->  mm/vmscan.c                                  |  8 +++----
->  net/core/dev.c                               |  6 +++---
->  net/core/skbuff.c                            |  2 +-
->  net/sched/sch_fq.c                           |  2 +-
->  tools/perf/builtin-kmem.c                    |  2 +-
->  27 files changed, 78 insertions(+), 53 deletions(-)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+We still don't enable 1G page size on DD1 version. This is to avoid doing
+workaround mentioned in commit: 6d3a0379ebdc8 (powerpc/mm: Add
+radix__tlb_flush_pte_p9_dd1()
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/hugetlb.h | 10 ++++++++++
+ arch/powerpc/mm/hugetlbpage.c                |  7 +++++--
+ arch/powerpc/platforms/Kconfig.cputype       |  1 +
+ 3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+index 6666cd366596..5c28bd6f2ae1 100644
+--- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
++++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
+@@ -50,4 +50,14 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+ 	else
+ 		return entry;
+ }
++
++#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
++static inline bool gigantic_page_supported(void)
++{
++	if (radix_enabled())
++		return true;
++	return false;
++}
++#endif
++
+ #endif
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index a4f33de4008e..80f6d2ed551a 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -763,8 +763,11 @@ static int __init add_huge_page_size(unsigned long long size)
+ 	 * Hash: 16M and 16G
+ 	 */
+ 	if (radix_enabled()) {
+-		if (mmu_psize != MMU_PAGE_2M)
+-			return -EINVAL;
++		if (mmu_psize != MMU_PAGE_2M) {
++			if (cpu_has_feature(CPU_FTR_POWER9_DD1) ||
++			    (mmu_psize != MMU_PAGE_1G))
++				return -EINVAL;
++		}
+ 	} else {
+ 		if (mmu_psize != MMU_PAGE_16M && mmu_psize != MMU_PAGE_16G)
+ 			return -EINVAL;
+diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+index 684e886eaae4..80175000042d 100644
+--- a/arch/powerpc/platforms/Kconfig.cputype
++++ b/arch/powerpc/platforms/Kconfig.cputype
+@@ -344,6 +344,7 @@ config PPC_STD_MMU_64
+ config PPC_RADIX_MMU
+ 	bool "Radix MMU Support"
+ 	depends on PPC_BOOK3S_64
++	select ARCH_HAS_GIGANTIC_PAGE if MEMORY_ISOLATION && COMPACTION && CMA
+ 	default y
+ 	help
+ 	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
