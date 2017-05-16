@@ -1,76 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 355106B02C4
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 15:28:57 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id x64so142644425pgd.6
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 12:28:57 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0057.outbound.protection.outlook.com. [104.47.33.57])
-        by mx.google.com with ESMTPS id e23si140268pgn.381.2017.05.16.12.28.55
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 98E816B02C4
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 16:29:24 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id t26so60755890qtg.12
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 13:29:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b29si329663qtb.70.2017.05.16.13.29.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 16 May 2017 12:28:56 -0700 (PDT)
-Subject: Re: [PATCH v5 06/32] x86/mm: Add Secure Memory Encryption (SME)
- support
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211727.10190.18774.stgit@tlendack-t1.amdoffice.net>
- <20170427154631.2tsqgax4kqcvydnx@pd.tnic>
- <d9d9f10a-0ce5-53e8-41f5-f8690dbd7362@amd.com>
- <20170504143622.zy2f66e4mkm6xvsq@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <6d266f5b-c28d-fe19-24b5-5133532f9eea@amd.com>
-Date: Tue, 16 May 2017 14:28:42 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 13:29:23 -0700 (PDT)
+Date: Tue, 16 May 2017 22:29:19 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
+Message-ID: <20170516202919.GA2843@redhat.com>
+References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
+ <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
+ <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170504143622.zy2f66e4mkm6xvsq@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 5/4/2017 9:36 AM, Borislav Petkov wrote:
-> On Thu, May 04, 2017 at 09:24:11AM -0500, Tom Lendacky wrote:
->> I did this so that an the include order wouldn't cause issues (including
->> asm/mem_encrypt.h followed by later by a linux/mem_encrypt.h include).
->> I can make this a bit clearer by having separate #defines for each
->> thing, e.g.:
->>
->> #ifndef sme_me_mask
->> #define sme_me_mask 0UL
->> #endif
->>
->> #ifndef sme_active
->> #define sme_active sme_active
->> static inline ...
->> #endif
->>
->> Is that better/clearer?
->
-> I guess but where do we have to include both the asm/ and the linux/
-> version?
+On Wed, Apr 12, 2017 at 03:33:35PM +0200, Vlastimil Babka wrote:
+> On 03/02/2017 04:10 PM, Kirill A. Shutemov wrote:
+> > In case prot_numa, we are under down_read(mmap_sem). It's critical
+> > to not clear pmd intermittently to avoid race with MADV_DONTNEED
+> > which is also under down_read(mmap_sem):
+> > 
+> > 	CPU0:				CPU1:
+> > 				change_huge_pmd(prot_numa=1)
+> > 				 pmdp_huge_get_and_clear_notify()
+> > madvise_dontneed()
+> >  zap_pmd_range()
+> >   pmd_trans_huge(*pmd) == 0 (without ptl)
+> >   // skip the pmd
+> > 				 set_pmd_at();
+> > 				 // pmd is re-established
+> > 
+> > The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+> > which may break userspace.
+> > 
+> > Found by code analysis, never saw triggered.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  mm/huge_memory.c | 34 +++++++++++++++++++++++++++++++++-
+> >  1 file changed, 33 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index e7ce73b2b208..bb2b3646bd78 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1744,7 +1744,39 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> >  	if (prot_numa && pmd_protnone(*pmd))
+> >  		goto unlock;
+> >  
+> > -	entry = pmdp_huge_get_and_clear_notify(mm, addr, pmd);
+> > +	/*
+> > +	 * In case prot_numa, we are under down_read(mmap_sem). It's critical
+> > +	 * to not clear pmd intermittently to avoid race with MADV_DONTNEED
+> > +	 * which is also under down_read(mmap_sem):
+> > +	 *
+> > +	 *	CPU0:				CPU1:
+> > +	 *				change_huge_pmd(prot_numa=1)
+> > +	 *				 pmdp_huge_get_and_clear_notify()
+> > +	 * madvise_dontneed()
+> > +	 *  zap_pmd_range()
+> > +	 *   pmd_trans_huge(*pmd) == 0 (without ptl)
+> > +	 *   // skip the pmd
+> > +	 *				 set_pmd_at();
+> > +	 *				 // pmd is re-established
+> > +	 *
+> > +	 * The race makes MADV_DONTNEED miss the huge pmd and don't clear it
+> > +	 * which may break userspace.
+> > +	 *
+> > +	 * pmdp_invalidate() is required to make sure we don't miss
+> > +	 * dirty/young flags set by hardware.
+> > +	 */
+> > +	entry = *pmd;
+> > +	pmdp_invalidate(vma, addr, pmd);
+> > +
+> > +	/*
+> > +	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
+> > +	 * corrupt them.
+> > +	 */
+> 
+> pmdp_invalidate() does:
+> 
+>         pmd_t entry = *pmdp;
+>         set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+> 
+> so it's not atomic and if CPU sets dirty or accessed in the middle of
+> this, they will be lost?
 
-It's more of the sequence of various includes.  For example,
-init/do_mounts.c includes <linux/module.h> that eventually gets down
-to <asm/pgtable_types.h> and then <asm/mem_encrypt.h>.  However, a
-bit further down <linux/nfs_fs.h> is included which eventually gets
-down to <linux/dma-mapping.h> and then <linux/mem_encyrpt.h>.
+I agree it looks like the dirty bit can be lost. Furthermore this also
+loses a MMU notifier invalidate that will lead to corruption at the
+secondary MMU level (which will keep using the old protection
+permission, potentially keeping writing to a wrprotected page).
 
->
-> IOW, can we avoid these issues altogether by partitioning symbol
-> declarations differently among the headers?
+> 
+> But I don't see how the other invalidate caller
+> __split_huge_pmd_locked() deals with this either. Andrea, any idea?
 
-It's most problematic when CONFIG_AMD_MEM_ENCRYPT is not defined since
-we never include an asm/ version from the linux/ path.  I could create
-a mem_encrypt.h in include/asm-generic/ that contains the info that
-is in the !CONFIG_AMD_MEM_ENCRYPT path of the linux/ version. Let me
-look into that.
+The original code I wrote did this in __split_huge_page_map to create
+the "entry" to establish in the pte pagetables:
 
-Thanks,
-Tom
+    	       entry = mk_pte(page + i, vma->vm_page_prot);
+	       entry = maybe_mkwrite(pte_mkdirty(entry),
+	       	       		   vma);
 
->
+For anonymous memory the dirty bit is only meaningful for swapping,
+and THP couldn't be swapped so setting it unconditional avoided any
+issue with the pmdp_invalidate; pmdp_establish.
+
+pmdp_invalidate is needed primarily to avoid aliasing of two different
+TLB translation pointing from the same virtual address to the the same
+physical address that triggered machine checks (while needing to keep
+the pmd huge at all times, back then it was also splitting huge,
+splitting is a software bit so userland could still access the data,
+splitting bit only blocked kernel code to manipulate on it similar to
+what migration entry does right now upstream, except those prevent
+userland to access the page during split which is less efficient than
+the splitting bit, but at least it's only used for the physical split,
+back then there was no difference between virtual and physical split
+and physical split is less frequent than the virtual one right now).
+
+It looks like this needs a pmdp_populate that atomically grabs the
+value of the pmd and returns it like pmdp_huge_get_and_clear_notify
+does and a _notify variant to use "freeze" is false (if freeze is true
+the MMU notifier invalidate must have happened when the pmd was set to
+a migration entry). If pmdp_populate_notify (freeze==true)
+/pmd_populate (freeze==false) would return the old pmd value
+atomically with xchg() (just instead of setting it to 0 we should set
+it to the mknotpresent one), then we can set the dirty bit on the ptes
+(__split_huge_pmd_locked) or in the pmd itself in the change_huge_pmd
+accordingly.
+
+If the "dirty" flag information is obtained by the pmd read before
+calling pmdp_invalidate is not ok (losing _notify also not ok).
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
