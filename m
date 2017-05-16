@@ -1,75 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DEA26B0038
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 12:52:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u187so139469939pgb.0
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 09:52:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e19si14394059pgk.199.2017.05.16.09.52.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 May 2017 09:52:19 -0700 (PDT)
-Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
-References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
- <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
- <7ff6fb32-7d16-af4f-d9d5-698ab7e9e14b@intel.com>
- <03127895-3c5a-5182-82de-3baa3116749e@oracle.com>
- <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
- <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
- <48a544c4-61b3-acaf-0386-649f073602b6@intel.com>
- <476ea1b6-36d1-bc86-fa99-b727e3c2650d@oracle.com>
- <20170509085825.GB32555@infradead.org>
- <1031e0d4-cdbb-db8b-dae7-7c733921e20e@oracle.com>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <b189b36e-8cd0-cf59-ba6c-8bd7412b11b7@oracle.com>
-Date: Tue, 16 May 2017 09:51:40 -0700
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB056B0038
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 13:35:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g67so24429211wrd.0
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 10:35:52 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id y16si2567089wry.218.2017.05.16.10.35.51
+        for <linux-mm@kvack.org>;
+        Tue, 16 May 2017 10:35:51 -0700 (PDT)
+Date: Tue, 16 May 2017 19:35:41 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 26/32] x86, drm, fbdev: Do not specify encrypted
+ memory for video mappings
+Message-ID: <20170516173541.q2rbh5dhkluzsjae@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212056.10190.25468.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <1031e0d4-cdbb-db8b-dae7-7c733921e20e@oracle.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170418212056.10190.25468.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
+On Tue, Apr 18, 2017 at 04:20:56PM -0500, Tom Lendacky wrote:
+> Since video memory needs to be accessed decrypted, be sure that the
+> memory encryption mask is not set for the video ranges.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/vga.h       |   13 +++++++++++++
+>  arch/x86/mm/pageattr.c           |    2 ++
+>  drivers/gpu/drm/drm_gem.c        |    2 ++
+>  drivers/gpu/drm/drm_vm.c         |    4 ++++
+>  drivers/gpu/drm/ttm/ttm_bo_vm.c  |    7 +++++--
+>  drivers/gpu/drm/udl/udl_fb.c     |    4 ++++
+>  drivers/video/fbdev/core/fbmem.c |   12 ++++++++++++
+>  7 files changed, 42 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/vga.h b/arch/x86/include/asm/vga.h
+> index c4b9dc2..5c7567a 100644
+> --- a/arch/x86/include/asm/vga.h
+> +++ b/arch/x86/include/asm/vga.h
+> @@ -7,12 +7,25 @@
+>  #ifndef _ASM_X86_VGA_H
+>  #define _ASM_X86_VGA_H
+>  
+> +#include <asm/cacheflush.h>
+> +
+>  /*
+>   *	On the PC, we can just recalculate addresses and then
+>   *	access the videoram directly without any black magic.
+> + *	To support memory encryption however, we need to access
+> + *	the videoram as decrypted memory.
+>   */
+>  
+> +#ifdef CONFIG_AMD_MEM_ENCRYPT
+> +#define VGA_MAP_MEM(x, s)					\
+> +({								\
+> +	unsigned long start = (unsigned long)phys_to_virt(x);	\
+> +	set_memory_decrypted(start, (s) >> PAGE_SHIFT);		\
+> +	start;							\
+> +})
+> +#else
+>  #define VGA_MAP_MEM(x, s) (unsigned long)phys_to_virt(x)
+> +#endif
 
+Can we push the check in and save us the ifdeffery?
 
-On 5/9/17 1:59 PM, Prakash Sangappa wrote:
->
->
-> On 5/9/17 1:58 AM, Christoph Hellwig wrote:
->> On Mon, May 08, 2017 at 03:12:42PM -0700, prakash.sangappa wrote:
->>> Regarding #3 as a general feature, do we want to
->>> consider this and the complexity associated with the
->>> implementation?
->> We have to.  Given that no one has exclusive access to hugetlbfs
->> a mount option is fundamentally the wrong interface.
->
->
-> A hugetlbfs filesystem may need to be mounted for exclusive use by
-> an application. Note, recently the 'min_size' mount option was added
-> to hugetlbfs, which would reserve minimum number of huge pages
-> for that filesystem for use by an application. If the filesystem with
-> min size specified, is not setup for exclusive use by an application,
-> then the purpose of reserving huge pages is defeated.  The
-> min_size option was for use by applications like the database.
->
-> Also, I am investigating enabling hugetlbfs mounts within user
-> namespace's mount namespace. That would allow an application
-> to mount a hugetlbfs filesystem inside a namespace exclusively for
-> its use, running as a non root user. For this it seems like the 
-> 'min_size'
-> should be subject to some user limits. Anyways, mounting inside
-> user namespaces is  a different discussion.
->
-> So, if a filesystem has to be setup for exclusive use by an application,
-> then different mount options can be used for that filesystem.
->
+#define VGA_MAP_MEM(x, s)                                       \
+({                                                              \
+        unsigned long start = (unsigned long)phys_to_virt(x);   \
+                                                                \
+        if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT))                 \
+                set_memory_decrypted(start, (s) >> PAGE_SHIFT); \
+                                                                \
+        start;                                                  \
+})
 
-Any further comments?
+It does build here. :)
 
-Cc'ing Andrea as we had discussed this requirement for the Database.
+-- 
+Regards/Gruss,
+    Boris.
 
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
