@@ -1,76 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0F386B02F3
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 17:47:22 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id 190so14220888ybe.2
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 14:47:22 -0700 (PDT)
-Received: from mail-yb0-x236.google.com (mail-yb0-x236.google.com. [2607:f8b0:4002:c09::236])
-        by mx.google.com with ESMTPS id d200si1049077ybh.286.2017.05.17.14.47.20
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CCF226B02F3
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 17:52:23 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id z142so9320313qkz.8
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 14:52:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y4si3336936qky.120.2017.05.17.14.52.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 14:47:21 -0700 (PDT)
-Received: by mail-yb0-x236.google.com with SMTP id 187so8815ybg.0
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 14:47:20 -0700 (PDT)
-Date: Wed, 17 May 2017 17:47:18 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-Message-ID: <20170517214718.GH942@htj.duckdns.org>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-12-git-send-email-longman@redhat.com>
+        Wed, 17 May 2017 14:52:23 -0700 (PDT)
+Date: Wed, 17 May 2017 23:52:19 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [bug report] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
+Message-ID: <20170517215219.GA27094@redhat.com>
+References: <20170517200255.67kvej2onwv54psi@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1494855256-12558-12-git-send-email-longman@redhat.com>
+In-Reply-To: <20170517200255.67kvej2onwv54psi@mwanda>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 
-Hello, Waiman.
+Hello Dan,
 
-On Mon, May 15, 2017 at 09:34:10AM -0400, Waiman Long wrote:
-> The current thread mode semantics aren't sufficient to fully support
-> threaded controllers like cpu. The main problem is that when thread
-> mode is enabled at root (mainly for performance reason), all the
-> non-threaded controllers cannot be supported at all.
+On Wed, May 17, 2017 at 11:02:55PM +0300, Dan Carpenter wrote:
+> Hello Andrea Arcangeli,
 > 
-> To alleviate this problem, the roles of thread root and threaded
-> cgroups are now further separated. Now thread mode can only be enabled
-> on a non-root leaf cgroup whose parent will then become the thread
-> root. All the descendants of a threaded cgroup will still need to be
-> threaded. All the non-threaded resource will be accounted for in the
-> thread root. Unlike the previous thread mode, however, a thread root
-> can have non-threaded children where system resources like memory
-> can be further split down the hierarchy.
+> The patch 1073fbb7013b: "ksm: introduce ksm_max_page_sharing per page
+> deduplication limit" from May 13, 2017, leads to the following static
+> checker warning:
 > 
-> Now we could have something like
+> 	mm/ksm.c:1442 __stable_node_chain()
+> 	warn: 'stable_node' was already freed.
 > 
-> 	R -- A -- B
-> 	 \
-> 	  T1 -- T2
+> mm/ksm.c
+>   1433  static struct stable_node *__stable_node_chain(struct stable_node **_stable_node,
+>   1434                                                 struct page **tree_page,
+>   1435                                                 struct rb_root *root,
+>   1436                                                 bool prune_stale_stable_nodes)
+>   1437  {
+>   1438          struct stable_node *stable_node = *_stable_node;
+>   1439          if (!is_stable_node_chain(stable_node)) {
+>   1440                  if (is_page_sharing_candidate(stable_node)) {
+>   1441                          *tree_page = get_ksm_page(stable_node, false);
+>   1442                          return stable_node;
 > 
-> where R is the thread root, A and B are non-threaded cgroups, T1 and
-> T2 are threaded cgroups. The cgroups R, T1, T2 form a threaded subtree
-> where all the non-threaded resources are accounted for in R.  The no
-> internal process constraint does not apply in the threaded subtree.
-> Non-threaded controllers need to properly handle the competition
-> between internal processes and child cgroups at the thread root.
+> There is a comment about this somewhere down the call tree but if
+> get_ksm_page() fails then we're returning a freed pointer here which is
+> gnarly.
 > 
-> This model will be flexible enough to support the need of the threaded
-> controllers.
+>   1443                  }
+>   1444                  return NULL;
+>   1445          }
+>   1446          return stable_node_dup(_stable_node, tree_page, root,
+>   1447                                 prune_stale_stable_nodes);
+>   1448  }
 
-I do like the approach and it does address the issue with requiring at
-least one level of nesting for the thread mode to be used with other
-controllers.  I need to think a bit more about it and mull over what
-Peterz was suggesting in the old thread.  I'll get back to you soon
-but I'd really prefer this and the earlier related patches to be in
-its own patchset so that we aren't dealing with different things at
-the same time.
+__stable_node_chain is invoked by chain and chain_prune.
 
-Thanks.
+		stable_node_dup = chain(stable_node, &tree_page, root);
+		if (!stable_node_dup) {
+[..]
+		}
+		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+		if (!tree_page) {
+			goto again;
 
--- 
-tejun
+		stable_node_dup = chain_prune(&stable_node, &tree_page, root);
+		if (!stable_node_dup) {
+[..]
+		}
+		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+		if (!tree_page) {
+			goto again;
+
+If the stable_node was freed tree_page is NULL. So it's a false
+positive.
+
+I agree it's not great to return a stale pointer but if we return
+NULL, stable_node_dup_any would then run on the stale stable_node
+which would then be a kernel crashing bug. There's a reason why this
+isn't returned as NULL and we depend on the following tree_page check
+to bail out.
+
+I noticed in the fix for the real stale stable_node corruption with
+merge_across_node = 0, it may be enough to set *_stable_node to
+"found" (instead of NULL as I implemented in the fix). This way when
+the chain is collapsed to the caller it will look like the chain never
+existed and there's no special !stable_node check to care about later
+(the check can return "stable_node == stable_node_dup"). Considering
+such bug was real I wanted to set it to NULL to be sure the stale
+stable_node was never accessed by mistake following such collapse
+(NULL provided extra safety). However now that such bug seems fixed,
+it may be enough to hide the collapse and it'll remove one branch in
+the code as there will be no need to check !stable_node to detect the
+collapse. It's a bit more risky than my initial fix but it could be
+also considered a cleanup.
+
+I thought above the above in the context of you report, because then
+we could proceed to set *_stable_node = NULL in the case you worried
+about, which would get its own new meaning. In the current code
+setting *_stable_node to NULL under the chain*() calls means the
+collapse happened (which doesn't rebalance the tree and doesn't
+require to restart the look), while it could then mean the regular
+stable_node was freed (which rebalances the tree and the lookup must
+restart). Then we could return NULL in chain*() if the KSM page was
+freed and then bail out immediately if stable_node also become NULL.
+
+Ideally we could go further, and change get_ksm_page to get
+&stable_node a parameter and set it to NULL in the caller if it's
+freed by the callee to wipe out all stale pointers from all callees.
+
+Considering these are purely cleanups, comments are welcome, as I've
+no strong particular preference about this but I can implement if
+agreed.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
