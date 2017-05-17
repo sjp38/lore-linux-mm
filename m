@@ -1,95 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B9A5C6B02C4
-	for <linux-mm@kvack.org>; Tue, 16 May 2017 22:47:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a66so139369788pfl.6
-        for <linux-mm@kvack.org>; Tue, 16 May 2017 19:47:43 -0700 (PDT)
-Received: from tyimss-2.htc.com (tyimss-2.htc.com. [219.87.71.150])
-        by mx.google.com with ESMTPS id w7si722671pls.159.2017.05.16.19.47.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B6E6B02EE
+	for <linux-mm@kvack.org>; Tue, 16 May 2017 23:01:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e131so139487209pfh.7
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 20:01:22 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id 62si739248plc.52.2017.05.16.20.01.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 May 2017 19:47:42 -0700 (PDT)
-From: <zhiyuan_zhu@htc.com>
-Subject: RE: Low memory killer problem
-Date: Wed, 17 May 2017 02:47:34 +0000
-Message-ID: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A562F@CN-MBX03.HTC.COM.TW>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EDD0A004D@CN-MBX05.HTC.COM.TW>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F06@CN-MBX03.HTC.COM.TW>
- <20170515080535.GA22076@kroah.com>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A4F84@CN-MBX03.HTC.COM.TW>
- <20170515090027.GA18167@kroah.com>
- <AF7C0ADF1FEABA4DABABB97411952A2EDD0A52C9@CN-MBX03.HTC.COM.TW>
- <1f0815e5-5cb7-81a4-24c8-b0608ef2684a@redhat.com>
-In-Reply-To: <1f0815e5-5cb7-81a4-24c8-b0608ef2684a@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 May 2017 20:01:21 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id f27so11671575pfe.0
+        for <linux-mm@kvack.org>; Tue, 16 May 2017 20:01:21 -0700 (PDT)
+Date: Tue, 16 May 2017 20:01:17 -0700
+From: Nick Desaulniers <nick.desaulniers@gmail.com>
+Subject: Re: [Patch v2] mm/vmscan: fix unsequenced modification and access
+ warning
+Message-ID: <20170517030115.2xxx7hhgkklmfwic@lostoracle.net>
+References: <20170510071511.GA31466@dhcp22.suse.cz>
+ <20170510082734.2055-1-nick.desaulniers@gmail.com>
+ <20170510083844.GG31466@dhcp22.suse.cz>
+ <20170516082746.GA2481@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170516082746.GA2481@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: labbott@redhat.com, gregkh@linuxfoundation.org
-Cc: vinmenon@codeaurora.org, linux-mm@kvack.org, skhiani@codeaurora.org, torvalds@linux-foundation.org, Jet_Li@htc.com, zzyjsjcom@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-VGhhbmtzIExhdXJhLA0KSW5kZWVkLCBzb21lIHBhcnQgb2YgSU9OIG1lbW9yeSBoYXZlIHJlZ2lz
-dGVyZWQgc2hyaW5rZXIuDQoNCi9wcm9jL21lbWluZm8gaGF2ZSBubyBhY2NvdW50IGZvciB0aGUg
-bWVtb3J5IHdoaWNoIElPTiBjYW4gYmUgc2hyaW5rZWQgcGFydCwgYnV0IGp1c3QgaGF2ZSBJb25U
-b3RhbCBhbmQgSW9uSW5Vc2UuDQpBbmQgYW5vdGhlciBwcm9ibGVtIGlzOiBJT04gbWVtb3J5IGlz
-IHNwZWNpYWwsIG1heWJlIGhhcmQgdG8gcmVjbGFpbS4NClNvLCB3YXRpbmcgZm9yIEdvb2dsZSdz
-IHNvbHV0aW9uIG5vdy4NCg0KQnkgdGhlIHdheSwgd2hpY2ggRS1tYWlsIGNsaWVudCBkbyB5b3Ug
-dXNlPyAgOikNClRoYW5rcw0KWmhpeXVhbiB6aHUNCg0KLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0t
-LS0NCkZyb206IExhdXJhIEFiYm90dCBbbWFpbHRvOmxhYmJvdHRAcmVkaGF0LmNvbV0gDQpTZW50
-OiBXZWRuZXNkYXksIE1heSAxNywgMjAxNyA2OjM3IEFNDQpUbzogWmhpeXVhbiBaaHUo5pyx5b+X
-6YGgKTsgZ3JlZ2toQGxpbnV4Zm91bmRhdGlvbi5vcmcNCkNjOiB2aW5tZW5vbkBjb2RlYXVyb3Jh
-Lm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnOyBza2hpYW5pQGNvZGVhdXJvcmEub3JnOyB0b3J2YWxk
-c0BsaW51eC1mb3VuZGF0aW9uLm9yZzsgSmV0IExpKOadjueZvOWCkSkNClN1YmplY3Q6IFJlOiBM
-b3cgbWVtb3J5IGtpbGxlciBwcm9ibGVtDQoNCk9uIDA1LzE1LzIwMTcgMDg6NDEgUE0sIHpoaXl1
-YW5femh1QGh0Yy5jb20gd3JvdGU6DQo+IFRoYW5rcyBmb3IgeW91ciByZW1pbmQsDQo+IEkgZm91
-bmQgbG93bWVtb3J5a2lsbGVyLmMgaGF2ZSBiZWVuIHJlbW92ZWQsIGFuZCBJT04gbW9kdWxlIHN0
-aWxsIGV4aXN0IHNpbmNlIHY0LjEyLXJjMS4NCj4gSSB3aWxsIHBheSBhdHRlbnRpb24gdG8gSU9O
-IG1vZHVsZS4NCj4gDQo+IEJ1dCBJIHN0aWxsIGhhdmUgMyBxdWVzdGlvbnMsDQo+IElzIHRoZXJl
-IGFueSBzdWJzdGl0dXRlIGZvciBsb3ctbWVtb3J5LWtpbGxlciBhZnRlciBrZXJuZWwgdjQuMTIt
-cmMxID8NCj4gQ2FuIEkgYWNjb3VudGVkIHRoZSBJT04gZnJlZSB0byBmcmVlIG1lbW9yeT8NCj4g
-SXMgdGhlcmUgYW55IGRpZmZlcmVudCBmcm9tIElPTiBmcmVlIGFuZCB0aGUgbm9ybWFsIHN5c3Rl
-bSBtZW1vcnkgZnJlZT8NCj4gDQo+IElPTiBmcmVlIG1lYW5zOiAgIElvblRvdGFsIC0gSW9uSW5V
-c2UgIC0gSU9OIHJlc2VydmVkIG1lbW9yeS4NCj4gVGhhbmtzIGEgbG90Lg0KPiANCg0KSXNzdWVz
-IGxpa2UgdGhpcyBhcmUgZXhhY3RseSB3aHkgdGhlIExNSyB3YXMgZGVsZXRlZC4gVGhlIHByb2Js
-ZW0gaXMgdGhlIExNSyBpcyBob29rZWQgdXAgYXMgYSBzaHJpbmtlciBzbyBpdCBydW5zIGluIHBh
-cmFsbGVsIHRvIGFueSBvdGhlciBzaHJpbmtlci4gVGhlIHNob3J0IGFuc3dlciBpcyB5ZXMgaWYg
-eW91IHdhbnQgdGhlIExNSyB0byBkbyBhbnl0aGluZyByZWFzb25hYmxlIHlvdSBwcm9iYWJseSBu
-ZWVkIHRvIHR3ZWFrIGl0IHRvIGFjY291bnQgZm9yIG90aGVyIG1lbW9yeSB0aGF0IG1heSBiZSBo
-ZWxkIGluIHRoZSBzeXN0ZW0gKElvbiwgenN3YXAgZXRjLikuDQpUaGVyZSBuZXZlciBzZWVtZWQg
-dG8gYmUgb25lIHVuaXZlcnNhbCBoZXVyaXN0aWMgdGhhdCB3b3JrZWQgZm9yIGV2ZXJ5b25lIHdo
-aWNoIHdhcyBwYXJ0IG9mIHRoZSByZWFzb24gd2h5IG1vc3QgY2hhbmdlcyBleGlzdCBkb3duc3Ry
-ZWFtLg0KVXNpbmcgc29tZSBjb21iaW5hdGlvbiBvZiB0aGUgSW9uIHZhcmlhYmxlcyBhYm92ZSB3
-b3VsZCB3b3JrIGlmIHlvdSBleHBlcmltZW50LiBJZiB0aGlzIHNvdW5kcyBsaWtlIGEgbm9uLWFu
-c3dlciwgdGhhdCdzIGJlY2F1c2UgaXQgaXMuDQoNClRoYW5rcywNCkxhdXJhDQoNCj4gLS0tLS1P
-cmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogR3JlZyBLSCBbbWFpbHRvOmdyZWdraEBsaW51
-eGZvdW5kYXRpb24ub3JnXQ0KPiBTZW50OiBNb25kYXksIE1heSAxNSwgMjAxNyA1OjAwIFBNDQo+
-IFRvOiBaaGl5dWFuIFpodSjmnLHlv5fpgaApDQo+IENjOiB2aW5tZW5vbkBjb2RlYXVyb3JhLm9y
-ZzsgbGludXgtbW1Aa3ZhY2sub3JnOyANCj4gc2toaWFuaUBjb2RlYXVyb3JhLm9yZzsgdG9ydmFs
-ZHNAbGludXgtZm91bmRhdGlvbi5vcmc7IEpldCBMaSjmnY7nmbzlgpEpDQo+IFN1YmplY3Q6IFJl
-OiBMb3cgbWVtb3J5IGtpbGxlciBwcm9ibGVtDQo+IA0KPiBPbiBNb24sIE1heSAxNSwgMjAxNyBh
-dCAwODoyMjozOEFNICswMDAwLCB6aGl5dWFuX3podUBodGMuY29tIHdyb3RlOg0KPj4gRGVhciBH
-cmVnLA0KPj4NCj4+IFZlcnkgc29ycnkgbXkgbWFpbCBoaXN0b3J5IGlzIGxvc3QuDQo+Pg0KPj4g
-SSBmb3VuZCBhIHBhcnQgb2YgSU9OIG1lbW9yeSB3aWxsIGJlIHJldHVybiB0byBzeXN0ZW0gaW4g
-YW5kcm9pZCANCj4+IHBsYXRmb3JtLCBCdXQgdGhlc2UgbWVtb3J5cyAgY2Fu4oCZdCBhY2NvdW50
-ZWQgaW4gbG93LW1lbW9yeS1raWxsZXIgc3RyYXRlZ3kuDQo+PiDigKYNCj4+IEFuZCBJIGFsc28g
-Zm91bmQgSU9OIG1lbW9yeSBjb21lcyBmcm9tLCAga21hbGxvYy92bWFsbG9jL2FsbG9jIHBhZ2Vz
-L3Jlc2VydmVkIG1lbW9yeS4NCj4+IEkgdW5kZXJzdGFuZCByZXNlcnZlZCBtZW1vcnkgc2hvdWxk
-bid0IGFjY291bnRlZCB0byBmcmVlIG1lbW9yeS4NCj4+IEJ1dCB0aGUgbWVtb3J5IHdoaWNoIGFs
-bG9jZWQgYnkga21hbGxvYy92bWFsbG9jL2FsbG9jIHBhZ2VzLCBjYW4gYmUgcmVjbGFpbWVkLg0K
-Pj4NCj4+IEJ1dCB0aGUgbG93LW1lbW9yeSBraWxsZXIgY2FuJ3QgYWNjb3VudGVkIHRoaXMgcGFy
-dCwgTWFueSB0aGFua3MuDQo+Pg0KPj4gQ29kZSBsb2NhdGlvbiwgDQo+PiAgICAtLS0+IGRyaXZl
-cnMvc3RhZ2luZy9hbmRyb2lkL2xvd21lbW9yeWtpbGxlci5jICAgLT4gbG93bWVtX3NjYW4NCj4g
-DQo+IFRoYXQgZmlsZSBpcyBnb25lIGZyb20gdGhlIGxhdGVzdCBrZXJuZWwgcmVsZWFzZSwgc29y
-cnkuICBTbyB0aGVyZSdzIG5vdCBtdWNoIHdlIGNhbiBkbyBhYm91dCB0aGlzIGNvZGUgYW55bW9y
-ZS4NCj4gDQo+IFNlZSB0aGUgbWFpbGluZyBsaXN0IGFyY2hpdmVzIGZvciB3aGF0IHNob3VsZCBi
-ZSB1c2VkIGluc3RlYWQgb2YgdGhpcyBjb2RlLCB0aGVyZSBpcyBhIHBsYW4gZm9yIHdoYXQgdG8g
-ZG8uDQo+IA0KPiBBbHNvIG5vdGUgdGhhdCB0aGUgSU9OIGNvZGUgaGFzIGhhZCBhIGxvdCBvZiBy
-ZXdvcmtzIGxhdGVseSBhcyB3ZWxsLg0KPiANCj4gZ29vZCBsdWNrIQ0KPiANCj4gZ3JlZyBrLWgN
-Cj4gDQo+IE4gICAgIHIgIHrHp3UgICDGoHsIICAg7Lm7HCAm3pYpICBpICAgXm4gciAgICAg3aJq
-JCAgJCAgBSAgICAgfiAnLikgICAseSBtICANCj4gICANCiUgeyAgaisgICDXpmopWiAgIAJmICAd
-IHtkICAkICAeICAgICAgICAgL2E9PQ0KPiANCg0KDQo=
+> I guess it is worth reporting this to clang bugzilla. Could you take
+> care of that Nick?
+
+Done: https://bugs.llvm.org//show_bug.cgi?id=33065
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
