@@ -1,92 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7CB6B02FA
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 04:11:58 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id q91so634060wrb.8
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 01:11:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k48si1398099wrk.201.2017.05.17.01.11.56
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 755426B02C4
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 04:28:39 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 70so151170wmq.12
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 01:28:39 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id d33si1794533edd.209.2017.05.17.01.28.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 May 2017 01:11:56 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 5/6] mm, cpuset: always use seqlock when changing task's nodemask
-Date: Wed, 17 May 2017 10:11:39 +0200
-Message-Id: <20170517081140.30654-6-vbabka@suse.cz>
-In-Reply-To: <20170517081140.30654-1-vbabka@suse.cz>
-References: <20170517081140.30654-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 01:28:38 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 8833A1C25E7
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 09:28:37 +0100 (IST)
+Date: Wed, 17 May 2017 09:28:36 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC summary] Enable Coherent Device Memory
+Message-ID: <20170517082836.whe3hggeew23nwvz@techsingularity.net>
+References: <1494569882.21563.8.camel@gmail.com>
+ <20170512102652.ltvzzwejkfat7sdq@techsingularity.net>
+ <CAKTCnz=VkswmWxoniD-TRYWWxr7wrWwCgRcsTXfNkgHZKXDEwA@mail.gmail.com>
+ <20170516084303.ag2lzvdohvh6weov@techsingularity.net>
+ <1494973607.21847.50.camel@kernel.crashing.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1494973607.21847.50.camel@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Balbir Singh <bsingharora@gmail.com>, linux-mm <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Haren Myneni <haren@linux.vnet.ibm.com>, =?iso-8859-15?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-When updating task's mems_allowed and rebinding its mempolicy due to cpuset's
-mems being changed, we currently only take the seqlock for writing when either
-the task has a mempolicy, or the new mems has no intersection with the old
-mems. This should be enough to prevent a parallel allocation seeing no
-available nodes, but the optimization is IMHO unnecessary (cpuset updates
-should not be frequent), and we still potentially risk issues if the
-intersection of new and old nodes has limited amount of free/reclaimable
-memory. Let's just use the seqlock for all tasks.
+On Wed, May 17, 2017 at 08:26:47AM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2017-05-16 at 09:43 +0100, Mel Gorman wrote:
+> > I'm not sure what you're asking here. migration is only partially
+> > transparent but a move_pages call will be necessary to force pages onto
+> > CDM if binding policies are not used so the cost of migration will be
+> > invisible. Even if you made it "transparent", the migration cost would
+> > be incurred at fault time. If anything, using move_pages would be more
+> > predictable as you control when the cost is incurred.
+> 
+> One of the main point of this whole exercise is for applications to not
+> have to bother with any of this and now you are bringing all back into
+> their lap.
+> 
+> The base idea behind the counters we have on the link is for the HW to
+> know when memory is accessed "remotely", so that the device driver can
+> make decision about migrating pages into or away from the device,
+> especially so that applications don't have to concern themselves with
+> memory placement.
+> 
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- kernel/cgroup/cpuset.c | 29 ++++++++---------------------
- 1 file changed, 8 insertions(+), 21 deletions(-)
+There is only so much magic that can be applied and if the manual case
+cannot be handled then the automatic case is problematic. You say that you
+want kswapd disabled, but have nothing to handle overcommit sanely. You
+want to disable automatic NUMA balancing yet also be able to automatically
+detect when data should move from CDM (automatic NUMA balancing by design
+couldn't move data to CDM without driver support tracking GPU accesses).
 
-diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-index dfd5b420452d..26a1c360a481 100644
---- a/kernel/cgroup/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
-@@ -1038,38 +1038,25 @@ static void cpuset_post_attach(void)
-  * @tsk: the task to change
-  * @newmems: new nodes that the task will be set
-  *
-- * In order to avoid seeing no nodes if the old and new nodes are disjoint,
-- * we structure updates as setting all new allowed nodes, then clearing newly
-- * disallowed ones.
-+ * We use the mems_allowed_seq seqlock to safely update both tsk->mems_allowed
-+ * and rebind an eventual tasks' mempolicy. If the task is allocating in
-+ * parallel, it might temporarily see an empty intersection, which results in
-+ * a seqlock check and retry before OOM or allocation failure.
-  */
- static void cpuset_change_task_nodemask(struct task_struct *tsk,
- 					nodemask_t *newmems)
- {
--	bool need_loop;
--
- 	task_lock(tsk);
--	/*
--	 * Determine if a loop is necessary if another thread is doing
--	 * read_mems_allowed_begin().  If at least one node remains unchanged and
--	 * tsk does not have a mempolicy, then an empty nodemask will not be
--	 * possible when mems_allowed is larger than a word.
--	 */
--	need_loop = task_has_mempolicy(tsk) ||
--			!nodes_intersects(*newmems, tsk->mems_allowed);
- 
--	if (need_loop) {
--		local_irq_disable();
--		write_seqcount_begin(&tsk->mems_allowed_seq);
--	}
-+	local_irq_disable();
-+	write_seqcount_begin(&tsk->mems_allowed_seq);
- 
- 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
- 	mpol_rebind_task(tsk, newmems);
- 	tsk->mems_allowed = *newmems;
- 
--	if (need_loop) {
--		write_seqcount_end(&tsk->mems_allowed_seq);
--		local_irq_enable();
--	}
-+	write_seqcount_end(&tsk->mems_allowed_seq);
-+	local_irq_enable();
- 
- 	task_unlock(tsk);
- }
+To handle it transparently, either the driver needs to do the work in which
+case no special core-kernel support is needed beyond what already exists or
+there is a userspace daemon like numad running in userspace that decides
+when to trigger migrations on a separate process that is using CDM which
+would need to gather information from the driver.
+
+In either case, the existing isolation mechanisms are still sufficient as
+long as the driver hot-adds the CDM memory from a userspace trigger that
+it then responsible for setting up the isolation.
+
+All that aside, this series has nothing to do with the type of magic
+you describe and the feedback as given was "at this point, what you are
+looking for does not require special kernel support or heavy wiring into
+the core vm".
+
+> Thus we want to reply on the GPU driver moving the pages around where
+> most appropriate (where they are being accessed, either core memory or
+> GPU memory) based on inputs from the HW counters monitoring the link.
+> 
+
+And if the driver is polling all the accesses, there are still no changes
+required to the core vm as long as the driver does the hotplug and allows
+userspace to isolate if that is what the applications desire.
+
 -- 
-2.12.2
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
