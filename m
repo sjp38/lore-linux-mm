@@ -1,125 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 50B1C6B0038
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 12:24:16 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b28so3558998wrb.2
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 09:24:16 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m14si3489663edm.151.2017.05.17.09.24.14
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC4506B0038
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 13:16:57 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c6so13599498pfj.5
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 10:16:57 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d9si2621669pgn.218.2017.05.17.10.16.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 May 2017 09:24:15 -0700 (PDT)
-Date: Wed, 17 May 2017 18:24:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/6] cpuset/mempolicies related fixes and cleanups
-Message-ID: <20170517162409.GC20660@dhcp22.suse.cz>
-References: <20170517081140.30654-1-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170517081140.30654-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 10:16:56 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH 1/2] mm: avoid spurious 'bad pmd' warning messages
+Date: Wed, 17 May 2017 11:16:38 -0600
+Message-Id: <20170517171639.14501-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Pawel Lebioda <pawel.lebioda@intel.com>, Dave Jiang <dave.jiang@intel.com>, Xiong Zhou <xzhou@redhat.com>, Eryu Guan <eguan@redhat.com>, stable@vger.kernel.org
 
-On Wed 17-05-17 10:11:34, Vlastimil Babka wrote:
-> Changes since RFC v1 [3]:
-> 
-> - Reworked patch 2 after discussion with Christoph Lameter.
-> - Fix bug in patch 5 spotted by Hillf Danton.
-> - Rebased to mmotm-2017-05-12-15-53
-> 
-> I would like to stress that this patchset aims to fix issues and cleanup the
-> code *within the existing documented semantics*, i.e. patch 1 ignores mempolicy
-> restrictions if the set of allowed nodes has no intersection with set of nodes
-> allowed by cpuset. I believe discussing potential changes of the semantics can
-> be better done once we have a baseline with no known bugs of the current
-> semantics.
-> 
-> ===
-> 
-> I've recently summarized the cpuset/mempolicy issues in a LSF/MM proposal [1]
-> and the discussion itself [2]. I've been trying to rewrite the handling as
-> proposed, with the idea that changing semantics to make all mempolicies static
-> wrt cpuset updates (and discarding the relative and default modes) can be tried
-> on top, as there's a high risk of being rejected/reverted because somebody
-> might still care about the removed modes.
-> 
-> However I haven't yet figured out how to properly:
-> 
-> 1) make mempolicies swappable instead of rebinding in place. I thought mbind()
-> already works that way and uses refcounting to avoid use-after-free of the old
-> policy by a parallel allocation, but turns out true refcounting is only done
-> for shared (shmem) mempolicies, and the actual protection for mbind() comes
-> from mmap_sem. Extending the refcounting means more overhead in allocator hot
-> path.
+When the pmd_devmap() checks were added by:
 
-But that overhead would be there only if any policy is in place, right?
-Do you think it would be possible to use per cpu ref counting and thus
-reduce the overhead? We use this trick in the css ref. counting in the
-memcg and the overhead is not measurable. It would be certainly better
-to use the same mechanism for shared and anon mappings whenever
-possible.
+commit 5c7fb56e5e3f ("mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd")
 
-> Also swapping whole mempolicies means that we have to allocate the new
-> ones, which can fail, and reverting of the partially done work also means
-> allocating (note that mbind() doesn't care and will just leave part of the
-> range updated and part not updated when returning -ENOMEM...).
+to add better support for DAX huge pages, they were all added to the end of
+if() statements after existing pmd_trans_huge() checks.  So, things like:
 
-This is nasty but we already have to deal with half-the-way
-initialization already so why cannot we use the same approach? I am
-sorry if I am asking something trivial but I have already flushed all
-details from memory so have to re-read it again.
+-       if (pmd_trans_huge(*pmd))
++       if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 
-> 2) make cpuset's task->mems_allowed also swappable (after converting it from
-> nodemask to zonelist, which is the easy part) for mostly the same reasons.
-> 
-> The good news is that while trying to do the above, I've at least figured out
-> how to hopefully close the remaining premature OOM's, and do a buch of cleanups
-> on top, removing quite some of the code that was also supposed to prevent the
-> cpuset update races, but doesn't work anymore nowadays. This should fix the
-> most pressing concerns with this topic and give us a better baseline before
-> either proceeding with the original proposal, or pushing a change of semantics
-> that removes the problem 1) above. I'd be then fine with trying to change the
-> semantic first and rewrite later.
+When further checks were added after pmd_trans_unstable() checks by:
 
-the diffstat definitely looks promissing. I will have a look tomorrow
-(unless something unexpected jums in again).
+commit 7267ec008b5c ("mm: postpone page table allocation until we have page
+to map")
 
-> Patchset is based on next-20170411 and has been tested with the LTP cpuset01
-> stress test.
-> 
-> [1] https://lkml.kernel.org/r/4c44a589-5fd8-08d0-892c-e893bb525b71@suse.cz
-> [2] https://lwn.net/Articles/717797/
-> [3] https://marc.info/?l=linux-mm&m=149191957922828&w=2
-> 
-> Vlastimil Babka (6):
->   mm, page_alloc: fix more premature OOM due to race with cpuset update
->   mm, mempolicy: stop adjusting current->il_next in
->     mpol_rebind_nodemask()
->   mm, page_alloc: pass preferred nid instead of zonelist to allocator
->   mm, mempolicy: simplify rebinding mempolicies when updating cpusets
->   mm, cpuset: always use seqlock when changing task's nodemask
->   mm, mempolicy: don't check cpuset seqlock where it doesn't matter
-> 
->  include/linux/gfp.h            |  11 ++-
->  include/linux/mempolicy.h      |  12 ++-
->  include/linux/sched.h          |   2 +-
->  include/uapi/linux/mempolicy.h |   8 --
->  kernel/cgroup/cpuset.c         |  33 ++------
->  mm/hugetlb.c                   |  15 ++--
->  mm/memory_hotplug.c            |   6 +-
->  mm/mempolicy.c                 | 181 ++++++++++-------------------------------
->  mm/page_alloc.c                |  61 ++++++++++----
->  9 files changed, 118 insertions(+), 211 deletions(-)
-> 
-> -- 
-> 2.12.2
+they were also added at the end of the conditional:
 
++       if (pmd_trans_unstable(fe->pmd) || pmd_devmap(*fe->pmd))
+
+This ordering is fine for pmd_trans_huge(), but doesn't work for
+pmd_trans_unstable().  This is because DAX huge pages trip the bad_pmd()
+check inside of pmd_none_or_trans_huge_or_clear_bad() (called by
+pmd_trans_unstable()), which prints out a warning and returns 1.  So, we do
+end up doing the right thing, but only after spamming dmesg with suspicious
+looking messages:
+
+mm/pgtable-generic.c:39: bad pmd ffff8808daa49b88(84000001006000a5)
+
+Reorder these checks so that pmd_devmap() is checked first, avoiding the
+error messages.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Fixes: commit 7267ec008b5c ("mm: postpone page table allocation until we have page to map")
+Cc: stable@vger.kernel.org
+---
+ mm/memory.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 6ff5d72..1ee269d 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3061,7 +3061,7 @@ static int pte_alloc_one_map(struct vm_fault *vmf)
+ 	 * through an atomic read in C, which is what pmd_trans_unstable()
+ 	 * provides.
+ 	 */
+-	if (pmd_trans_unstable(vmf->pmd) || pmd_devmap(*vmf->pmd))
++	if (pmd_devmap(*vmf->pmd) || pmd_trans_unstable(vmf->pmd))
+ 		return VM_FAULT_NOPAGE;
+ 
+ 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
+@@ -3690,7 +3690,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
+ 		vmf->pte = NULL;
+ 	} else {
+ 		/* See comment in pte_alloc_one_map() */
+-		if (pmd_trans_unstable(vmf->pmd) || pmd_devmap(*vmf->pmd))
++		if (pmd_devmap(*vmf->pmd) || pmd_trans_unstable(vmf->pmd))
+ 			return 0;
+ 		/*
+ 		 * A regular pmd is established and it can't morph into a huge
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
