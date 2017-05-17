@@ -1,104 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BB816B02C4
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 05:03:55 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l9so886931wre.12
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 02:03:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q1si15540307wmd.38.2017.05.17.02.03.53
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D73D6B02E1
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 05:04:00 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id h16so1547743vkd.5
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 02:04:00 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id z23si761670uaa.92.2017.05.17.02.03.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 May 2017 02:03:53 -0700 (PDT)
-Date: Wed, 17 May 2017 11:03:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] drm: replace drm_[cm]alloc* by kvmalloc alternatives
-Message-ID: <20170517090350.GG18247@dhcp22.suse.cz>
-References: <20170517065509.18659-1-mhocko@kernel.org>
- <20170517073809.GJ26693@nuc-i3427.alporthouse.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170517073809.GJ26693@nuc-i3427.alporthouse.com>
+        Wed, 17 May 2017 02:03:59 -0700 (PDT)
+Message-ID: <1495011826.3092.18.camel@kernel.crashing.org>
+Subject: Re: [RFC summary] Enable Coherent Device Memory
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 17 May 2017 19:03:46 +1000
+In-Reply-To: <20170517082836.whe3hggeew23nwvz@techsingularity.net>
+References: <1494569882.21563.8.camel@gmail.com>
+	 <20170512102652.ltvzzwejkfat7sdq@techsingularity.net>
+	 <CAKTCnz=VkswmWxoniD-TRYWWxr7wrWwCgRcsTXfNkgHZKXDEwA@mail.gmail.com>
+	 <20170516084303.ag2lzvdohvh6weov@techsingularity.net>
+	 <1494973607.21847.50.camel@kernel.crashing.org>
+	 <20170517082836.whe3hggeew23nwvz@techsingularity.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, Sean Paul <seanpaul@chromium.org>, David Airlie <airlied@linux.ie>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Balbir Singh <bsingharora@gmail.com>, linux-mm <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Haren Myneni <haren@linux.vnet.ibm.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Wed 17-05-17 08:38:09, Chris Wilson wrote:
-> On Wed, May 17, 2017 at 08:55:08AM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
+On Wed, 2017-05-17 at 09:28 +0100, Mel Gorman wrote:
+> On Wed, May 17, 2017 at 08:26:47AM +1000, Benjamin Herrenschmidt wrote:
+> > On Tue, 2017-05-16 at 09:43 +0100, Mel Gorman wrote:
+> > > I'm not sure what you're asking here. migration is only partially
+> > > transparent but a move_pages call will be necessary to force pages onto
+> > > CDM if binding policies are not used so the cost of migration will be
+> > > invisible. Even if you made it "transparent", the migration cost would
+> > > be incurred at fault time. If anything, using move_pages would be more
+> > > predictable as you control when the cost is incurred.
 > > 
-> > drm_[cm]alloc* has grown their own kvmalloc with vmalloc fallback
-> > implementations. MM has grown kvmalloc* helpers in the meantime. Let's
-> > use those because it a) reduces the code and b) MM has a better idea
-> > how to implement fallbacks (e.g. do not vmalloc before kmalloc is tried
-> > with __GFP_NORETRY).
+> > One of the main point of this whole exercise is for applications to not
+> > have to bother with any of this and now you are bringing all back into
+> > their lap.
 > > 
-> > drm_calloc_large needs to get __GFP_ZERO explicitly but it is the same
-> > thing as kvmalloc_array in principle.
+> > The base idea behind the counters we have on the link is for the HW to
+> > know when memory is accessed "remotely", so that the device driver can
+> > make decision about migrating pages into or away from the device,
+> > especially so that applications don't have to concern themselves with
+> > memory placement.
 > > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Just a little surprised that calloc_large users still exist.
+> There is only so much magic that can be applied and if the manual case
+> cannot be handled then the automatic case is problematic. You say that you
+> want kswapd disabled, but have nothing to handle overcommit sanely.
+
+I am not certain we want kswapd disabled, that is definitely more of a
+userspace policy, I agree. It could be in this case that it should
+prioritize different pages but still be able to push out. We *do* have
+age counting etc... just less efficient / higher cost. 
+
+>  You
+> want to disable automatic NUMA balancing yet also be able to automatically
+> detect when data should move from CDM (automatic NUMA balancing by design
+> couldn't move data to CDM without driver support tracking GPU accesses).
+
+We can, via a driver specific hook, since we have specific counters on
+the link, so we don't want the autonuma based approach which makes PTEs
+inaccessible.
+
+> To handle it transparently, either the driver needs to do the work in which
+> case no special core-kernel support is needed beyond what already exists or
+> there is a userspace daemon like numad running in userspace that decides
+> when to trigger migrations on a separate process that is using CDM which
+> would need to gather information from the driver.
+
+The driver can handle it, we just need autonuma off the CDM memory (it
+can continue operating normally on system memory).
+
+> In either case, the existing isolation mechanisms are still sufficient as
+> long as the driver hot-adds the CDM memory from a userspace trigger that
+> it then responsible for setting up the isolation.
+
+Yes, I think the NUMA node based approach works fine using a lot of
+existing stuff. There are a couple of gaps, which we need to look at
+fixing one way or another such as the above, but overall I don't see
+the need of some major overhaul, not do I see the need of going down
+the path of ZONE_DEVICE.
+
+> All that aside, this series has nothing to do with the type of magic
+> you describe and the feedback as iven was "at this point, what you are
+> looking for does not require special kernel support or heavy wiring into
+> the core vm".
 > 
-> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+> > Thus we want to reply on the GPU driver moving the pages around where
+> > most appropriate (where they are being accessed, either core memory or
+> > GPU memory) based on inputs from the HW counters monitoring the link.
+> > 
+> 
+> And if the driver is polling all the accesses, there are still no changes
+> required to the core vm as long as the driver does the hotplug and allows
+> userspace to isolate if that is what the applications desire.
 
-Thanks!
+With one main exception ... 
 
-> One more feature request from mm, can we have the 
-> 	if (size != 0 && n > SIZE_MAX / size)
-> check exported by itself.
+We also do want normal allocations to avoid going to the GPU memory.
 
-What do you exactly mean by exporting? Something like the following?
-I haven't compile tested it outside of mm with different config options.
-Sticking alloc_array_check into mm_types.h is kind of gross but I do not
-have a great idea where to put it. A new header doesn't seem nice.
----
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7cb17c6b97de..f908b14ffc4c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -534,7 +534,7 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
- 
- static inline void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
- {
--	if (size != 0 && n > SIZE_MAX / size)
-+	if (!alloc_array_check(n, size))
- 		return NULL;
- 
- 	return kvmalloc(n * size, flags);
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 45cdb27791a3..d7154b43a0d1 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -601,4 +601,10 @@ typedef struct {
- 	unsigned long val;
- } swp_entry_t;
- 
-+static inline bool alloc_array_check(size_t n, size_t size)
-+{
-+	if (size != 0 && n > SIZE_MAX / size)
-+		return false;
-+	return true;
-+}
- #endif /* _LINUX_MM_TYPES_H */
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 3c37a8c51921..e936ca7c55a1 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -602,7 +602,7 @@ int memcg_update_all_caches(int num_memcgs);
-  */
- static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
- {
--	if (size != 0 && n > SIZE_MAX / size)
-+	if (!alloc_array_check(n, size))
- 		return NULL;
- 	if (__builtin_constant_p(n) && __builtin_constant_p(size))
- 		return kmalloc(n * size, flags);
+IE, things should go to the GPU memory if and only if they are either
+explicitly put there by the application/driver (the case where
+applications do care about manual placement), or the migration case.A 
 
--- 
-Michal Hocko
-SUSE Labs
+The latter is triggered by the driver, so it's also a case of the
+driver allocating the GPU pages and doing a migration to them.
+
+This is the key thing. Now creating a CMA or using ZONE_MOVABLE can
+handle at least keeping kernel allocations off the GPU. However we
+would also like to keep random unrelated user memory & page cache off
+as well.
+
+There are various reasons for that, some related to the fact that the
+performance characteristics of that memory (ie latency) could cause
+nasty surprises for normal applications, some related to the fact that
+this memory is rather unreliable compared to system memory...
+
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
