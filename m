@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E68F46B02F2
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:12:38 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u12so10615004pgo.4
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:38 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id b1si2224691pld.97.2017.05.17.07.12.38
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FBE26B02F3
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:12:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u12so10615853pgo.4
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:42 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id t127si2226161pfd.377.2017.05.17.07.12.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 07:12:38 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id u26so1903464pfd.2
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:38 -0700 (PDT)
+        Wed, 17 May 2017 07:12:41 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id u187so1991631pgb.1
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:41 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 1/6] mm/slub: add total_objects_partial sysfs
-Date: Wed, 17 May 2017 22:11:41 +0800
-Message-Id: <20170517141146.11063-2-richard.weiyang@gmail.com>
+Subject: [PATCH 2/6] mm/slub: not include cpu_partial data in cpu_slabs sysfs
+Date: Wed, 17 May 2017 22:11:42 +0800
+Message-Id: <20170517141146.11063-3-richard.weiyang@gmail.com>
 In-Reply-To: <20170517141146.11063-1-richard.weiyang@gmail.com>
 References: <20170517141146.11063-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,40 +22,52 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-For partial slabs, show_slab_objects could display its total objects.
+There are four level slabs:
 
-This patch just adds an entry to display it.
+    CPU
+    CPU_PARTIAL
+    PARTIAL
+    FULL
+
+In current implementation, cpu_slabs sysfs would give statistics including
+the first two levels. While there is another sysfs entry cpu_partial_slabs
+gives details on the second level slab statistics. Since each cpu has one
+slab for the first level, the current cpu_slabs output is easy to be
+calculated from cpu_partial_slabs.
+
+This patch removes the cpu_partial data in cpu_slabs for more specific slab
+statistics and leave room to retrieve objects and total objects on CPU
+level in the future.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/slub.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/slub.c | 13 -------------
+ 1 file changed, 13 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index a7a109247730..1100d2e75870 100644
+index 1100d2e75870..c7dddf22829d 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -4983,6 +4983,12 @@ static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
- }
- SLAB_ATTR_RO(objects_partial);
+@@ -4762,19 +4762,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
  
-+static ssize_t total_objects_partial_show(struct kmem_cache *s, char *buf)
-+{
-+	return show_slab_objects(s, buf, SO_PARTIAL|SO_TOTAL);
-+}
-+SLAB_ATTR_RO(total_objects_partial);
-+
- static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
- {
- 	int objects = 0;
-@@ -5359,6 +5365,7 @@ static struct attribute *slab_attrs[] = {
- 	&cpu_partial_attr.attr,
- 	&objects_attr.attr,
- 	&objects_partial_attr.attr,
-+	&total_objects_partial_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
- 	&ctor_attr.attr,
+ 			total += x;
+ 			nodes[node] += x;
+-
+-			page = slub_percpu_partial_read_once(c);
+-			if (page) {
+-				node = page_to_nid(page);
+-				if (flags & SO_TOTAL)
+-					WARN_ON_ONCE(1);
+-				else if (flags & SO_OBJECTS)
+-					WARN_ON_ONCE(1);
+-				else
+-					x = page->pages;
+-				total += x;
+-				nodes[node] += x;
+-			}
+ 		}
+ 	}
+ 
 -- 
 2.11.0
 
