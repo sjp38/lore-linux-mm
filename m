@@ -1,125 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCF226B02F3
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 17:52:23 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id z142so9320313qkz.8
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 14:52:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y4si3336936qky.120.2017.05.17.14.52.22
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 137906B0038
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 18:03:55 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p74so18710418pfd.11
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 15:03:55 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 203si3172203pfu.4.2017.05.17.15.03.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 14:52:23 -0700 (PDT)
-Date: Wed, 17 May 2017 23:52:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [bug report] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-Message-ID: <20170517215219.GA27094@redhat.com>
-References: <20170517200255.67kvej2onwv54psi@mwanda>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 May 2017 15:03:54 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: fix oom invocation issues
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1495034780-9520-1-git-send-email-guro@fb.com>
+	<20170517161446.GB20660@dhcp22.suse.cz>
+	<20170517194316.GA30517@castle>
+In-Reply-To: <20170517194316.GA30517@castle>
+Message-Id: <201705180703.JGH95344.SOHJtFFMOQFLOV@I-love.SAKURA.ne.jp>
+Date: Thu, 18 May 2017 07:03:36 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170517200255.67kvej2onwv54psi@mwanda>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: guro@fb.com, mhocko@kernel.org
+Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Dan,
-
-On Wed, May 17, 2017 at 11:02:55PM +0300, Dan Carpenter wrote:
-> Hello Andrea Arcangeli,
+Roman Gushchin wrote:
+> On Wed, May 17, 2017 at 06:14:46PM +0200, Michal Hocko wrote:
+> > On Wed 17-05-17 16:26:20, Roman Gushchin wrote:
+> > [...]
+> > > [   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
+> > > [   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
+> > 
+> > Are there any oom_reaper messages? Could you provide the full kernel log
+> > please?
 > 
-> The patch 1073fbb7013b: "ksm: introduce ksm_max_page_sharing per page
-> deduplication limit" from May 13, 2017, leads to the following static
-> checker warning:
-> 
-> 	mm/ksm.c:1442 __stable_node_chain()
-> 	warn: 'stable_node' was already freed.
-> 
-> mm/ksm.c
->   1433  static struct stable_node *__stable_node_chain(struct stable_node **_stable_node,
->   1434                                                 struct page **tree_page,
->   1435                                                 struct rb_root *root,
->   1436                                                 bool prune_stale_stable_nodes)
->   1437  {
->   1438          struct stable_node *stable_node = *_stable_node;
->   1439          if (!is_stable_node_chain(stable_node)) {
->   1440                  if (is_page_sharing_candidate(stable_node)) {
->   1441                          *tree_page = get_ksm_page(stable_node, false);
->   1442                          return stable_node;
-> 
-> There is a comment about this somewhere down the call tree but if
-> get_ksm_page() fails then we're returning a freed pointer here which is
-> gnarly.
-> 
->   1443                  }
->   1444                  return NULL;
->   1445          }
->   1446          return stable_node_dup(_stable_node, tree_page, root,
->   1447                                 prune_stale_stable_nodes);
->   1448  }
+> Sure. Sorry, it was too bulky, so I've cut the line about oom_reaper by mistake.
+> Here it is:
+> --------------------------------------------------------------------------------
+> [   25.721494] allocate invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null),  order=0, oom_score_adj=0
+> [   25.725658] allocate cpuset=/ mems_allowed=0
 
-__stable_node_chain is invoked by chain and chain_prune.
+> [   25.759892] Node 0 DMA32 free:44700kB min:44704kB low:55880kB high:67056kB active_anon:1944216kB inactive_anon:204kB active_file:592kB inactive_file:0kB unevictable:0kB writepending:304kB present:2080640kB managed:2031972kB mlocked:0kB slab_reclaimable:11336kB slab_unreclaimable:9784kB kernel_stack:1776kB pagetables:6932kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
 
-		stable_node_dup = chain(stable_node, &tree_page, root);
-		if (!stable_node_dup) {
-[..]
-		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
-		if (!tree_page) {
-			goto again;
+> [   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
+> [   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
 
-		stable_node_dup = chain_prune(&stable_node, &tree_page, root);
-		if (!stable_node_dup) {
-[..]
-		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
-		if (!tree_page) {
-			goto again;
+> [   25.785680] allocate: page allocation failure: order:0, mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
+> [   25.786797] allocate cpuset=/ mems_allowed=0
 
-If the stable_node was freed tree_page is NULL. So it's a false
-positive.
+This is a side effect of commit 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL
+checks in the allocator slowpath") which I noticed at
+http://lkml.kernel.org/r/e7f932bf-313a-917d-6304-81528aca5994@I-love.SAKURA.ne.jp .
 
-I agree it's not great to return a stale pointer but if we return
-NULL, stable_node_dup_any would then run on the stale stable_node
-which would then be a kernel crashing bug. There's a reason why this
-isn't returned as NULL and we depend on the following tree_page check
-to bail out.
+> [   25.804499] Node 0 DMA32 free:251876kB min:44704kB low:55880kB high:67056kB active_anon:1737368kB inactive_anon:204kB active_file:592kB inactive_file:0kB unevictable:0kB writepending:304kB present:2080640kB managed:2031972kB mlocked:0kB slab_reclaimable:10312kB slab_unreclaimable:9784kB kernel_stack:1776kB pagetables:6932kB bounce:0kB free_pcp:700kB local_pcp:0kB free_cma:0kB
 
-I noticed in the fix for the real stale stable_node corruption with
-merge_across_node = 0, it may be enough to set *_stable_node to
-"found" (instead of NULL as I implemented in the fix). This way when
-the chain is collapsed to the caller it will look like the chain never
-existed and there's no special !stable_node check to care about later
-(the check can return "stable_node == stable_node_dup"). Considering
-such bug was real I wanted to set it to NULL to be sure the stale
-stable_node was never accessed by mistake following such collapse
-(NULL provided extra safety). However now that such bug seems fixed,
-it may be enough to hide the collapse and it'll remove one branch in
-the code as there will be no need to check !stable_node to detect the
-collapse. It's a bit more risky than my initial fix but it could be
-also considered a cleanup.
+> [   25.817589] allocate invoked oom-killer: gfp_mask=0x0(), nodemask=(null),  order=0, oom_score_adj=0
+> [   25.818821] allocate cpuset=/ mems_allowed=0
 
-I thought above the above in the context of you report, because then
-we could proceed to set *_stable_node = NULL in the case you worried
-about, which would get its own new meaning. In the current code
-setting *_stable_node to NULL under the chain*() calls means the
-collapse happened (which doesn't rebalance the tree and doesn't
-require to restart the look), while it could then mean the regular
-stable_node was freed (which rebalances the tree and the lookup must
-restart). Then we could return NULL in chain*() if the KSM page was
-freed and then bail out immediately if stable_node also become NULL.
+Since pagefault_out_of_memory() is unconditionally called if a normal allocation failed,
+that commit made pagefault_out_of_memory() to be called if current thread was selected as
+an OOM victim, despite the system is no longer under memory pressure because the OOM reaper
+has reclaimed memory.
 
-Ideally we could go further, and change get_ksm_page to get
-&stable_node a parameter and set it to NULL in the caller if it's
-freed by the callee to wipe out all stale pointers from all callees.
+> [   25.835784] Node 0 DMA32 free:1934360kB min:44704kB low:55880kB high:67056kB active_anon:57104kB inactive_anon:204kB active_file:416kB inactive_file:2476kB unevictable:0kB writepending:424kB present:2080640kB managed:2031972kB mlocked:0kB slab_reclaimable:10236kB slab_unreclaimable:9584kB kernel_stack:1776kB pagetables:3604kB bounce:0kB free_pcp:144kB local_pcp:0kB free_cma:0kB
 
-Considering these are purely cleanups, comments are welcome, as I've
-no strong particular preference about this but I can implement if
-agreed.
-
-Thanks,
-Andrea
+> [   25.863078] Out of memory: Kill process 233 (firewalld) score 10 or sacrifice child
+> [   25.863634] Killed process 233 (firewalld) total-vm:246076kB, anon-rss:20956kB, file-rss:0kB, shmem-rss:0kB
+> --------------------------------------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
