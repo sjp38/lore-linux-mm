@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBDB6B02C4
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 04:11:57 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y106so630326wrb.14
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 01:11:57 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 31E756B02EE
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 04:11:58 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g12so629173wrg.15
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 01:11:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h80si1881708wmi.167.2017.05.17.01.11.56
+        by mx.google.com with ESMTPS id p89si12293258wma.51.2017.05.17.01.11.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 17 May 2017 01:11:56 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/6] mm, page_alloc: pass preferred nid instead of zonelist to allocator
-Date: Wed, 17 May 2017 10:11:37 +0200
-Message-Id: <20170517081140.30654-4-vbabka@suse.cz>
+Subject: [PATCH v2 4/6] mm, mempolicy: simplify rebinding mempolicies when updating cpusets
+Date: Wed, 17 May 2017 10:11:38 +0200
+Message-Id: <20170517081140.30654-5-vbabka@suse.cz>
 In-Reply-To: <20170517081140.30654-1-vbabka@suse.cz>
 References: <20170517081140.30654-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,314 +20,269 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The main allocator function __alloc_pages_nodemask() takes a zonelist pointer
-as one of its parameters. All of its callers directly or indirectly obtain the
-zonelist via node_zonelist() using a preferred node id and gfp_mask. We can
-make the code a bit simpler by doing the zonelist lookup in
-__alloc_pages_nodemask(), passing it a preferred node id instead (gfp_mask is
-already another parameter).
+Commit c0ff7453bb5c ("cpuset,mm: fix no node to alloc memory when changing
+cpuset's mems") has introduced a two-step protocol when rebinding task's
+mempolicy due to cpuset update, in order to avoid a parallel allocation seeing
+an empty effective nodemask and failing. Later, commit cc9a6c877661 ("cpuset:
+mm: reduce large amounts of memory barrier related damage v3") introduced
+a seqlock protection and removed the synchronization point between the two
+update steps. At that point (or perhaps later), the two-step rebinding became
+unnecessary. Currently it only makes sure that the update first adds new nodes
+in step 1 and then removes nodes in step 2. Without memory barriers the effects
+are questionable, and even then this cannot prevent a parallel zonelist
+iteration checking the nodemask at each step to observe all nodes as unusable
+for allocation. We now fully rely on the seqlock to prevent premature OOMs and
+allocation failures.
 
-There are some code size benefits thanks to removal of inlined node_zonelist():
-
-bloat-o-meter add/remove: 2/2 grow/shrink: 4/36 up/down: 399/-1351 (-952)
-
-This will also make things simpler if we proceed with converting cpusets to
-zonelists.
+We can thus remove the two-step update parts and simplify the code.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/gfp.h       | 11 +++++------
- include/linux/mempolicy.h |  6 +++---
- mm/hugetlb.c              | 15 +++++++++------
- mm/memory_hotplug.c       |  6 ++----
- mm/mempolicy.c            | 41 +++++++++++++++++++----------------------
- mm/page_alloc.c           | 10 +++++-----
- 6 files changed, 43 insertions(+), 46 deletions(-)
+ include/linux/mempolicy.h      |   6 +--
+ include/uapi/linux/mempolicy.h |   8 ----
+ kernel/cgroup/cpuset.c         |   4 +-
+ mm/mempolicy.c                 | 102 ++++++++---------------------------------
+ 4 files changed, 21 insertions(+), 99 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 2b1a44f5bdb6..666af3c39d00 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -432,14 +432,13 @@ static inline void arch_alloc_page(struct page *page, int order) { }
- #endif
- 
- struct page *
--__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
--		       struct zonelist *zonelist, nodemask_t *nodemask);
-+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-+							nodemask_t *nodemask);
- 
- static inline struct page *
--__alloc_pages(gfp_t gfp_mask, unsigned int order,
--		struct zonelist *zonelist)
-+__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
- {
--	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
-+	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
- }
- 
- /*
-@@ -452,7 +451,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
- 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
- 	VM_WARN_ON(!node_online(nid));
- 
--	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-+	return __alloc_pages(gfp_mask, order, nid);
- }
- 
- /*
 diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index 5f4d8281832b..ecb6cbeede5a 100644
+index ecb6cbeede5a..3a58b4be1b0c 100644
 --- a/include/linux/mempolicy.h
 +++ b/include/linux/mempolicy.h
-@@ -146,7 +146,7 @@ extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
- 				enum mpol_rebind_step step);
+@@ -142,8 +142,7 @@ bool vma_policy_mof(struct vm_area_struct *vma);
+ 
+ extern void numa_default_policy(void);
+ extern void numa_policy_init(void);
+-extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+-				enum mpol_rebind_step step);
++extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new);
  extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
  
--extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-+extern int huge_node(struct vm_area_struct *vma,
- 				unsigned long addr, gfp_t gfp_flags,
- 				struct mempolicy **mpol, nodemask_t **nodemask);
- extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-@@ -269,13 +269,13 @@ static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+ extern int huge_node(struct vm_area_struct *vma,
+@@ -260,8 +259,7 @@ static inline void numa_default_policy(void)
+ }
+ 
+ static inline void mpol_rebind_task(struct task_struct *tsk,
+-				const nodemask_t *new,
+-				enum mpol_rebind_step step)
++				const nodemask_t *new)
  {
  }
  
--static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-+static inline int huge_node(struct vm_area_struct *vma,
- 				unsigned long addr, gfp_t gfp_flags,
- 				struct mempolicy **mpol, nodemask_t **nodemask)
- {
- 	*mpol = NULL;
- 	*nodemask = NULL;
--	return node_zonelist(0, gfp_flags);
-+	return 0;
- }
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 9cd8b21dddbe..2a4d89508fec 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -24,13 +24,6 @@ enum {
+ 	MPOL_MAX,	/* always last member of enum */
+ };
  
- static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e5828875f7bb..9f1f399bb913 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -904,6 +904,8 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 	struct page *page = NULL;
- 	struct mempolicy *mpol;
- 	nodemask_t *nodemask;
-+	gfp_t gfp_mask;
-+	int nid;
- 	struct zonelist *zonelist;
- 	struct zone *zone;
- 	struct zoneref *z;
-@@ -924,12 +926,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+-enum mpol_rebind_step {
+-	MPOL_REBIND_ONCE,	/* do rebind work at once(not by two step) */
+-	MPOL_REBIND_STEP1,	/* first step(set all the newly nodes) */
+-	MPOL_REBIND_STEP2,	/* second step(clean all the disallowed nodes)*/
+-	MPOL_REBIND_NSTEP,
+-};
+-
+ /* Flags for set_mempolicy */
+ #define MPOL_F_STATIC_NODES	(1 << 15)
+ #define MPOL_F_RELATIVE_NODES	(1 << 14)
+@@ -65,7 +58,6 @@ enum mpol_rebind_step {
+  */
+ #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+-#define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
+ #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
+ #define MPOL_F_MORON	(1 << 4) /* Migrate On protnone Reference On Node */
  
- retry_cpuset:
- 	cpuset_mems_cookie = read_mems_allowed_begin();
--	zonelist = huge_zonelist(vma, address,
--					htlb_alloc_mask(h), &mpol, &nodemask);
-+	gfp_mask = htlb_alloc_mask(h);
-+	nid = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
-+	zonelist = node_zonelist(nid, gfp_mask);
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 0f41292be0fb..dfd5b420452d 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -1063,9 +1063,7 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+ 	}
  
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 						MAX_NR_ZONES - 1, nodemask) {
--		if (cpuset_zone_allowed(zone, htlb_alloc_mask(h))) {
-+		if (cpuset_zone_allowed(zone, gfp_mask)) {
- 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
- 			if (page) {
- 				if (avoid_reserve)
-@@ -1545,13 +1548,13 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
- 	do {
- 		struct page *page;
- 		struct mempolicy *mpol;
--		struct zonelist *zl;
-+		int nid;
- 		nodemask_t *nodemask;
+ 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+-	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+-
+-	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
++	mpol_rebind_task(tsk, newmems);
+ 	tsk->mems_allowed = *newmems;
  
- 		cpuset_mems_cookie = read_mems_allowed_begin();
--		zl = huge_zonelist(vma, addr, gfp, &mpol, &nodemask);
-+		nid = huge_node(vma, addr, gfp, &mpol, &nodemask);
- 		mpol_cond_put(mpol);
--		page = __alloc_pages_nodemask(gfp, order, zl, nodemask);
-+		page = __alloc_pages_nodemask(gfp, order, nid, nodemask);
- 		if (page)
- 			return page;
- 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 717c5e301aa8..ba9e09817f37 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1596,11 +1596,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		gfp_mask |= __GFP_HIGHMEM;
- 
- 	if (!nodes_empty(nmask))
--		new_page = __alloc_pages_nodemask(gfp_mask, 0,
--					node_zonelist(nid, gfp_mask), &nmask);
-+		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
- 	if (!new_page)
--		new_page = __alloc_pages(gfp_mask, 0,
--					node_zonelist(nid, gfp_mask));
-+		new_page = __alloc_pages(gfp_mask, 0, nid);
- 
- 	return new_page;
- }
+ 	if (need_loop) {
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d77177c7283b..c60807625fd5 100644
+index c60807625fd5..047181452040 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -1669,9 +1669,9 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- 	return NULL;
+@@ -146,22 +146,7 @@ struct mempolicy *get_task_policy(struct task_struct *p)
+ 
+ static const struct mempolicy_operations {
+ 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
+-	/*
+-	 * If read-side task has no lock to protect task->mempolicy, write-side
+-	 * task will rebind the task->mempolicy by two step. The first step is
+-	 * setting all the newly nodes, and the second step is cleaning all the
+-	 * disallowed nodes. In this way, we can avoid finding no node to alloc
+-	 * page.
+-	 * If we have a lock to protect task->mempolicy in read-side, we do
+-	 * rebind directly.
+-	 *
+-	 * step:
+-	 * 	MPOL_REBIND_ONCE - do rebind work at once
+-	 * 	MPOL_REBIND_STEP1 - set all the newly nodes
+-	 * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+-	 */
+-	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes,
+-			enum mpol_rebind_step step);
++	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes);
+ } mpol_ops[MPOL_MAX];
+ 
+ static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
+@@ -304,19 +289,11 @@ void __mpol_put(struct mempolicy *p)
+ 	kmem_cache_free(policy_cache, p);
  }
  
--/* Return a zonelist indicated by gfp for node representing a mempolicy */
--static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
--	int nd)
-+/* Return the node id preferred by the given mempolicy, or the given id */
-+static int policy_node(gfp_t gfp, struct mempolicy *policy,
-+								int nd)
+-static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes,
+-				enum mpol_rebind_step step)
++static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
  {
- 	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
- 		nd = policy->v.preferred_node;
-@@ -1684,7 +1684,7 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
- 		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
+ }
+ 
+-/*
+- * step:
+- * 	MPOL_REBIND_ONCE  - do rebind work at once
+- * 	MPOL_REBIND_STEP1 - set all the newly nodes
+- * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+- */
+-static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+-				 enum mpol_rebind_step step)
++static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+ {
+ 	nodemask_t tmp;
+ 
+@@ -325,35 +302,19 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+ 	else if (pol->flags & MPOL_F_RELATIVE_NODES)
+ 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+ 	else {
+-		/*
+-		 * if step == 1, we use ->w.cpuset_mems_allowed to cache the
+-		 * result
+-		 */
+-		if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP1) {
+-			nodes_remap(tmp, pol->v.nodes,
+-					pol->w.cpuset_mems_allowed, *nodes);
+-			pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
+-		} else if (step == MPOL_REBIND_STEP2) {
+-			tmp = pol->w.cpuset_mems_allowed;
+-			pol->w.cpuset_mems_allowed = *nodes;
+-		} else
+-			BUG();
++		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
++								*nodes);
++		pol->w.cpuset_mems_allowed = tmp;
  	}
  
--	return node_zonelist(nd, gfp);
-+	return nd;
+ 	if (nodes_empty(tmp))
+ 		tmp = *nodes;
+ 
+-	if (step == MPOL_REBIND_STEP1)
+-		nodes_or(pol->v.nodes, pol->v.nodes, tmp);
+-	else if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP2)
+-		pol->v.nodes = tmp;
+-	else
+-		BUG();
++	pol->v.nodes = tmp;
  }
  
- /* Do dynamic interleaving for a process */
-@@ -1791,38 +1791,37 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
+ static void mpol_rebind_preferred(struct mempolicy *pol,
+-				  const nodemask_t *nodes,
+-				  enum mpol_rebind_step step)
++						const nodemask_t *nodes)
+ {
+ 	nodemask_t tmp;
  
- #ifdef CONFIG_HUGETLBFS
+@@ -379,42 +340,19 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
  /*
-- * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
-+ * huge_node(@vma, @addr, @gfp_flags, @mpol)
-  * @vma: virtual memory area whose policy is sought
-  * @addr: address in @vma for shared policy lookup and interleave policy
-  * @gfp_flags: for requested zone
-  * @mpol: pointer to mempolicy pointer for reference counted mempolicy
-  * @nodemask: pointer to nodemask pointer for MPOL_BIND nodemask
+  * mpol_rebind_policy - Migrate a policy to a different set of nodes
   *
-- * Returns a zonelist suitable for a huge page allocation and a pointer
-+ * Returns a nid suitable for a huge page allocation and a pointer
-  * to the struct mempolicy for conditional unref after allocation.
-  * If the effective policy is 'BIND, returns a pointer to the mempolicy's
-  * @nodemask for filtering the zonelist.
-  *
-  * Must be protected by read_mems_allowed_begin()
+- * If read-side task has no lock to protect task->mempolicy, write-side
+- * task will rebind the task->mempolicy by two step. The first step is
+- * setting all the newly nodes, and the second step is cleaning all the
+- * disallowed nodes. In this way, we can avoid finding no node to alloc
+- * page.
+- * If we have a lock to protect task->mempolicy in read-side, we do
+- * rebind directly.
+- *
+- * step:
+- * 	MPOL_REBIND_ONCE  - do rebind work at once
+- * 	MPOL_REBIND_STEP1 - set all the newly nodes
+- * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
++ * Per-vma policies are protected by mmap_sem. Allocations using per-task
++ * policies are protected by task->mems_allowed_seq to prevent a premature
++ * OOM/allocation failure due to parallel nodemask modification.
   */
--struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
--				gfp_t gfp_flags, struct mempolicy **mpol,
--				nodemask_t **nodemask)
-+int huge_node(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
-+				struct mempolicy **mpol, nodemask_t **nodemask)
+-static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
+-				enum mpol_rebind_step step)
++static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
  {
--	struct zonelist *zl;
-+	int nid;
+ 	if (!pol)
+ 		return;
+-	if (!mpol_store_user_nodemask(pol) && step == MPOL_REBIND_ONCE &&
++	if (!mpol_store_user_nodemask(pol) &&
+ 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+ 		return;
  
- 	*mpol = get_vma_policy(vma, addr);
- 	*nodemask = NULL;	/* assume !MPOL_BIND */
- 
- 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
--		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
--				huge_page_shift(hstate_vma(vma))), gfp_flags);
-+		nid = interleave_nid(*mpol, vma, addr,
-+					huge_page_shift(hstate_vma(vma)));
- 	} else {
--		zl = policy_zonelist(gfp_flags, *mpol, numa_node_id());
-+		nid = policy_node(gfp_flags, *mpol, numa_node_id());
- 		if ((*mpol)->mode == MPOL_BIND)
- 			*nodemask = &(*mpol)->v.nodes;
- 	}
--	return zl;
-+	return nid;
+-	if (step == MPOL_REBIND_STEP1 && (pol->flags & MPOL_F_REBINDING))
+-		return;
+-
+-	if (step == MPOL_REBIND_STEP2 && !(pol->flags & MPOL_F_REBINDING))
+-		BUG();
+-
+-	if (step == MPOL_REBIND_STEP1)
+-		pol->flags |= MPOL_F_REBINDING;
+-	else if (step == MPOL_REBIND_STEP2)
+-		pol->flags &= ~MPOL_F_REBINDING;
+-	else if (step >= MPOL_REBIND_NSTEP)
+-		BUG();
+-
+-	mpol_ops[pol->mode].rebind(pol, newmask, step);
++	mpol_ops[pol->mode].rebind(pol, newmask);
  }
  
  /*
-@@ -1924,12 +1923,10 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
- static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
- 					unsigned nid)
- {
--	struct zonelist *zl;
- 	struct page *page;
- 
--	zl = node_zonelist(nid, gfp);
--	page = __alloc_pages(gfp, order, zl);
--	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
-+	page = __alloc_pages(gfp, order, nid);
-+	if (page && page_to_nid(page) == nid)
- 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
- 	return page;
- }
-@@ -1963,8 +1960,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- {
- 	struct mempolicy *pol;
- 	struct page *page;
-+	int preferred_nid;
- 	unsigned int cpuset_mems_cookie;
--	struct zonelist *zl;
- 	nodemask_t *nmask;
- 
- retry_cpuset:
-@@ -2007,8 +2004,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 	}
- 
- 	nmask = policy_nodemask(gfp, pol);
--	zl = policy_zonelist(gfp, pol, node);
--	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
-+	preferred_nid = policy_node(gfp, pol, node);
-+	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
- 	mpol_cond_put(pol);
- out:
- 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-@@ -2055,7 +2052,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
- 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
- 	else
- 		page = __alloc_pages_nodemask(gfp, order,
--				policy_zonelist(gfp, pol, numa_node_id()),
-+				policy_node(gfp, pol, numa_node_id()),
- 				policy_nodemask(gfp, pol));
- 
- 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 43aa767c3188..0aceca1076dc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3962,12 +3962,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- }
- 
- static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
--		struct zonelist *zonelist, nodemask_t *nodemask,
-+		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
- 		unsigned int *alloc_flags)
- {
- 	ac->high_zoneidx = gfp_zone(gfp_mask);
--	ac->zonelist = zonelist;
-+	ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
- 	ac->nodemask = nodemask;
- 	ac->migratetype = gfpflags_to_migratetype(gfp_mask);
- 
-@@ -4012,8 +4012,8 @@ static inline void finalise_ac(gfp_t gfp_mask,
-  * This is the 'heart' of the zoned buddy allocator.
+@@ -424,10 +362,9 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
+  * Called with task's alloc_lock held.
   */
- struct page *
--__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
--			struct zonelist *zonelist, nodemask_t *nodemask)
-+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-+							nodemask_t *nodemask)
+ 
+-void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+-			enum mpol_rebind_step step)
++void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
  {
- 	struct page *page;
- 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
-@@ -4021,7 +4021,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	struct alloc_context ac = { };
+-	mpol_rebind_policy(tsk->mempolicy, new, step);
++	mpol_rebind_policy(tsk->mempolicy, new);
+ }
  
- 	gfp_mask &= gfp_allowed_mask;
--	if (!prepare_alloc_pages(gfp_mask, order, zonelist, nodemask, &ac, &alloc_mask, &alloc_flags))
-+	if (!prepare_alloc_pages(gfp_mask, order, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
- 		return NULL;
+ /*
+@@ -442,7 +379,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
  
- 	finalise_ac(gfp_mask, order, &ac);
+ 	down_write(&mm->mmap_sem);
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next)
+-		mpol_rebind_policy(vma->vm_policy, new, MPOL_REBIND_ONCE);
++		mpol_rebind_policy(vma->vm_policy, new);
+ 	up_write(&mm->mmap_sem);
+ }
+ 
+@@ -2101,10 +2038,7 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
+ 
+ 	if (current_cpuset_is_being_rebound()) {
+ 		nodemask_t mems = cpuset_mems_allowed(current);
+-		if (new->flags & MPOL_F_REBINDING)
+-			mpol_rebind_policy(new, &mems, MPOL_REBIND_STEP2);
+-		else
+-			mpol_rebind_policy(new, &mems, MPOL_REBIND_ONCE);
++		mpol_rebind_policy(new, &mems);
+ 	}
+ 	atomic_set(&new->refcnt, 1);
+ 	return new;
 -- 
 2.12.2
 
