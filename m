@@ -1,40 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4966A6B02EE
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 11:27:57 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l78so10451220iod.4
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 08:27:57 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id z69si2489369iod.184.2017.05.17.08.27.56
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 558C56B02EE
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 11:35:13 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 123so12282488pge.14
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 08:35:13 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id d74si2363047pfk.262.2017.05.17.08.35.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 08:27:56 -0700 (PDT)
-Date: Wed, 17 May 2017 10:27:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
- with cpuset update
-In-Reply-To: <20170517145645.GO18247@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1705171026590.9487@east.gentwo.org>
-References: <a86ae57a-3efc-6ae5-ddf0-fd64c53c20fa@suse.cz> <alpine.DEB.2.20.1704121617040.28335@east.gentwo.org> <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz> <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org> <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz>
- <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org> <20170517092042.GH18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org> <20170517140501.GM18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org>
- <20170517145645.GO18247@dhcp22.suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 17 May 2017 08:35:12 -0700 (PDT)
+Subject: Re: [PATCH] Correct spelling and grammar for notification text
+References: <20170517133842.5733-1-mdeguzis@gmail.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <d55eeeee-76ed-b171-d1df-643b36bb17b9@infradead.org>
+Date: Wed, 17 May 2017 08:35:11 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170517133842.5733-1-mdeguzis@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+To: Michael DeGuzis <mdeguzis@gmail.com>, linux-mm@kvack.org
+Cc: trivial@kernel.org
 
-On Wed, 17 May 2017, Michal Hocko wrote:
+On 05/17/17 06:38, Michael DeGuzis wrote:
+> From: professorkaos64 <mdeguzis@gmail.com>
+> 
+> This patch fixes up some grammar and spelling in the information
+> block for huge_memory.c.
 
-> > The race is where? If you expand the node set during the move of the
-> > application then you are safe in terms of the legacy apps that did not
-> > include static bindings.
->
-> I am pretty sure it is describe in those changelogs and I won't repeat
-> it here.
+Missing Signed-off-by: <real name and email address>
 
-I cannot figure out what you are referring to. There are numerous
-patches and discussions about OOM scenarios in this context.
+> ---
+>  mm/huge_memory.c | 10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index a84909cf20d3..af137fc0ca09 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -38,12 +38,12 @@
+>  #include "internal.h"
+>  
+>  /*
+> - * By default transparent hugepage support is disabled in order that avoid
+> - * to risk increase the memory footprint of applications without a guaranteed
+> - * benefit. When transparent hugepage support is enabled, is for all mappings,
+> - * and khugepaged scans all mappings.
+> + * By default, transparent hugepage support is disabled in order to avoid
+> + * risking an increased memory footprint for applications that are not 
+> + * guaranteed to benefit from it. When transparent hugepage support is 
+> + * enabled, it is for all mappings, and khugepaged scans all mappings.
+>   * Defrag is invoked by khugepaged hugepage allocations and by page faults
+> - * for all hugepage allocations.
+> + * for all hugepage allocations. 
+
+Several of the new (+) patch lines end with a space character. Not good.
+
+>   */
+>  unsigned long transparent_hugepage_flags __read_mostly =
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS
+> 
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
