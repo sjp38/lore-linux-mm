@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DAA66B02E1
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 40FBD6B02F3
 	for <linux-mm@kvack.org>; Wed, 17 May 2017 04:11:58 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u96so635523wrc.7
+Received: by mail-wr0-f197.google.com with SMTP id y22so644779wry.1
         for <linux-mm@kvack.org>; Wed, 17 May 2017 01:11:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 61si1361429wrp.328.2017.05.17.01.11.55
+        by mx.google.com with ESMTPS id 88si1401142wre.266.2017.05.17.01.11.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 17 May 2017 01:11:56 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 2/6] mm, mempolicy: stop adjusting current->il_next in mpol_rebind_nodemask()
-Date: Wed, 17 May 2017 10:11:36 +0200
-Message-Id: <20170517081140.30654-3-vbabka@suse.cz>
+Subject: [PATCH v2 6/6] mm, mempolicy: don't check cpuset seqlock where it doesn't matter
+Date: Wed, 17 May 2017 10:11:40 +0200
+Message-Id: <20170517081140.30654-7-vbabka@suse.cz>
 In-Reply-To: <20170517081140.30654-1-vbabka@suse.cz>
 References: <20170517081140.30654-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,99 +20,79 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The task->il_next variable stores the next allocation node id for task's
-MPOL_INTERLEAVE policy. mpol_rebind_nodemask() updates interleave and
-bind mempolicies due to changing cpuset mems. Currently it also tries to
-make sure that current->il_next is valid within the updated nodemask. This is
-bogus, because 1) we are updating potentially any task's mempolicy, not just
-current, and 2) we might be updating a per-vma mempolicy, not task one.
-
-The interleave_nodes() function that uses il_next can cope fine with the value
-not being within the currently allowed nodes, so this hasn't manifested as an
-actual issue.
-
-We can remove the need for updating il_next completely by changing it to
-il_prev and store the node id of the previous interleave allocation instead of
-the next id. Then interleave_nodes() can calculate the next id using the
-current nodemask and also store it as il_prev, except when querying the next
-node via do_get_mempolicy().
+Two wrappers of __alloc_pages_nodemask() are checking task->mems_allowed_seq
+themselves to retry allocation that has raced with a cpuset update. This has
+been shown to be ineffective in preventing premature OOM's which can happen in
+__alloc_pages_slowpath() long before it returns back to the wrappers to detect
+the race at that level. Previous patches have made __alloc_pages_slowpath()
+more robust, so we can now simply remove the seqlock checking in the wrappers
+to prevent further wrong impression that it can actually help.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/sched.h |  2 +-
- mm/mempolicy.c        | 22 +++++++---------------
- 2 files changed, 8 insertions(+), 16 deletions(-)
+ mm/mempolicy.c | 16 ----------------
+ 1 file changed, 16 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 6a97386c785e..b72bbfec01f9 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -884,7 +884,7 @@ struct task_struct {
- #ifdef CONFIG_NUMA
- 	/* Protected by alloc_lock: */
- 	struct mempolicy		*mempolicy;
--	short				il_next;
-+	short				il_prev;
- 	short				pref_node_fork;
- #endif
- #ifdef CONFIG_NUMA_BALANCING
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 37d0b334bfe9..d77177c7283b 100644
+index 047181452040..7d8e56214ac0 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -349,12 +349,6 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
- 		pol->v.nodes = tmp;
- 	else
- 		BUG();
--
--	if (!node_isset(current->il_next, tmp)) {
--		current->il_next = next_node_in(current->il_next, tmp);
--		if (current->il_next >= MAX_NUMNODES)
--			current->il_next = numa_node_id();
--	}
+@@ -1898,12 +1898,9 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	struct mempolicy *pol;
+ 	struct page *page;
+ 	int preferred_nid;
+-	unsigned int cpuset_mems_cookie;
+ 	nodemask_t *nmask;
+ 
+-retry_cpuset:
+ 	pol = get_vma_policy(vma, addr);
+-	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
+ 	if (pol->mode == MPOL_INTERLEAVE) {
+ 		unsigned nid;
+@@ -1945,8 +1942,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
+ 	mpol_cond_put(pol);
+ out:
+-	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+-		goto retry_cpuset;
+ 	return page;
  }
  
- static void mpol_rebind_preferred(struct mempolicy *pol,
-@@ -812,9 +806,8 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
- 	}
- 	old = current->mempolicy;
- 	current->mempolicy = new;
--	if (new && new->mode == MPOL_INTERLEAVE &&
--	    nodes_weight(new->v.nodes))
--		current->il_next = first_node(new->v.nodes);
-+	if (new && new->mode == MPOL_INTERLEAVE)
-+		current->il_prev = MAX_NUMNODES-1;
- 	task_unlock(current);
- 	mpol_put(old);
- 	ret = 0;
-@@ -916,7 +909,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
- 			*policy = err;
- 		} else if (pol == current->mempolicy &&
- 				pol->mode == MPOL_INTERLEAVE) {
--			*policy = current->il_next;
-+			*policy = next_node_in(current->il_prev, pol->v.nodes);
- 		} else {
- 			err = -EINVAL;
- 			goto out;
-@@ -1697,14 +1690,13 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
- /* Do dynamic interleaving for a process */
- static unsigned interleave_nodes(struct mempolicy *policy)
+@@ -1964,23 +1959,15 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+  *	Allocate a page from the kernel page pool.  When not in
+  *	interrupt context and apply the current process NUMA policy.
+  *	Returns NULL when no page can be allocated.
+- *
+- *	Don't call cpuset_update_task_memory_state() unless
+- *	1) it's ok to take cpuset_sem (can WAIT), and
+- *	2) allocating for current task (not interrupt).
+  */
+ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
  {
--	unsigned nid, next;
-+	unsigned next;
- 	struct task_struct *me = current;
+ 	struct mempolicy *pol = &default_policy;
+ 	struct page *page;
+-	unsigned int cpuset_mems_cookie;
  
--	nid = me->il_next;
--	next = next_node_in(nid, policy->v.nodes);
-+	next = next_node_in(me->il_prev, policy->v.nodes);
- 	if (next < MAX_NUMNODES)
--		me->il_next = next;
--	return nid;
-+		me->il_prev = next;
-+	return next;
+ 	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
+ 		pol = get_task_policy(current);
+ 
+-retry_cpuset:
+-	cpuset_mems_cookie = read_mems_allowed_begin();
+-
+ 	/*
+ 	 * No reference counting needed for current->mempolicy
+ 	 * nor system default_policy
+@@ -1992,9 +1979,6 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 				policy_node(gfp, pol, numa_node_id()),
+ 				policy_nodemask(gfp, pol));
+ 
+-	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+-		goto retry_cpuset;
+-
+ 	return page;
  }
- 
- /*
+ EXPORT_SYMBOL(alloc_pages_current);
 -- 
 2.12.2
 
