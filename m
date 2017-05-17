@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A032B6B0038
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 08:41:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 10so2288725wml.4
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 05:41:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k23si2708713eda.31.2017.05.17.05.41.53
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 298086B0038
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 09:03:00 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id d127so2409171wmf.15
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 06:03:00 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id g188si2375236wme.23.2017.05.17.06.02.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 May 2017 05:41:53 -0700 (PDT)
-Date: Wed, 17 May 2017 14:41:46 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC summary] Enable Coherent Device Memory
-Message-ID: <20170517124145.GA18988@dhcp22.suse.cz>
-References: <1494569882.21563.8.camel@gmail.com>
- <20170512102652.ltvzzwejkfat7sdq@techsingularity.net>
- <CAKTCnz=VkswmWxoniD-TRYWWxr7wrWwCgRcsTXfNkgHZKXDEwA@mail.gmail.com>
- <20170516084303.ag2lzvdohvh6weov@techsingularity.net>
- <1494973607.21847.50.camel@kernel.crashing.org>
- <20170517082836.whe3hggeew23nwvz@techsingularity.net>
- <1495011826.3092.18.camel@kernel.crashing.org>
- <20170517091511.gjxx46d2h6gmcqjf@techsingularity.net>
- <1495014995.3092.20.camel@kernel.crashing.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 06:02:55 -0700 (PDT)
+Date: Wed, 17 May 2017 14:02:43 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] mm: clarify why we want kmalloc before falling backto
+ vmallock
+Message-ID: <20170517130243.GQ26693@nuc-i3427.alporthouse.com>
+References: <20170517080932.21423-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1495014995.3092.20.camel@kernel.crashing.org>
+In-Reply-To: <20170517080932.21423-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Balbir Singh <bsingharora@gmail.com>, linux-mm <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Haren Myneni <haren@linux.vnet.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 17-05-17 19:56:35, Benjamin Herrenschmidt wrote:
-> On Wed, 2017-05-17 at 10:15 +0100, Mel Gorman wrote:
-[...]
-> > Fine -- hot add the memory from the device via a userspace trigger and
-> > have the userspace trigger then setup the policies to isolate CDM from
-> > general usage.
+subject s/vmallock/vmalloc/
+
+On Wed, May 17, 2017 at 10:09:32AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> This is racy though. The memory is hot added, but things can get
-> allocated all over it before it has time to adjust the policies. Same
-> issue we had with creating a CMA I believe.
+> While converting drm_[cm]alloc* helpers to kvmalloc* variants Chris
+> Wilson has wondered why we want to try kmalloc before vmalloc fallback
+> even for larger allocations requests. Let's clarify that one larger
+> physically contiguous block is less likely to fragment memory than many
+> scattered pages which can prevent more large blocks from being created.
+> 
+> Suggested-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-memory hotplug is by definition 2 stage. Physical hotadd which just
-prepares memory blocks and allocates struct pages and the memory online
-phase. You can handle the policy part from the userspace before onlining
-te first memblock from your CDM NUMA node.
+It helped me understand the decisions made by the code, so
+Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+-Chris
+
 -- 
-Michal Hocko
-SUSE Labs
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
