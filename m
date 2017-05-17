@@ -1,71 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 558C56B02EE
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 11:35:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 123so12282488pge.14
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 08:35:13 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id d74si2363047pfk.262.2017.05.17.08.35.12
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 372986B02C4
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 11:51:16 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id k74so5900428qke.4
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 08:51:16 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id e23si2554128qte.304.2017.05.17.08.51.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 08:35:12 -0700 (PDT)
-Subject: Re: [PATCH] Correct spelling and grammar for notification text
-References: <20170517133842.5733-1-mdeguzis@gmail.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <d55eeeee-76ed-b171-d1df-643b36bb17b9@infradead.org>
-Date: Wed, 17 May 2017 08:35:11 -0700
+        Wed, 17 May 2017 08:51:15 -0700 (PDT)
+Subject: Re: [PATCH v3 4/4] mm: Adaptive hash table scaling
+References: <1488432825-92126-1-git-send-email-pasha.tatashin@oracle.com>
+ <1488432825-92126-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <d81f09ec-ec1e-4ac5-3d06-3a18bfa75e32@oracle.com>
+Date: Wed, 17 May 2017 11:51:06 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170517133842.5733-1-mdeguzis@gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20170303153247.f16a31c95404c02a8f3e2c5f@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael DeGuzis <mdeguzis@gmail.com>, linux-mm@kvack.org
-Cc: trivial@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On 05/17/17 06:38, Michael DeGuzis wrote:
-> From: professorkaos64 <mdeguzis@gmail.com>
+
+
+On 03/03/2017 06:32 PM, Andrew Morton wrote:
+> On Thu,  2 Mar 2017 00:33:45 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 > 
-> This patch fixes up some grammar and spelling in the information
-> block for huge_memory.c.
-
-Missing Signed-off-by: <real name and email address>
-
-> ---
->  mm/huge_memory.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
+>> Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
+>> is provided every time memory quadruples the sizes of hash tables will only
+>> double instead of quadrupling as well. This algorithm starts working only
+>> when memory size reaches a certain point, currently set to 64G.
+>>
+>> This is example of dentry hash table size, before and after four various
+>> memory configurations:
+>>
+>> MEMORY	   SCALE	 HASH_SIZE
+>> 	old	new	old	new
+>>      8G	 13	 13      8M      8M
+>>     16G	 13	 13     16M     16M
+>>     32G	 13	 13     32M     32M
+>>     64G	 13	 13     64M     64M
+>>    128G	 13	 14    128M     64M
+>>    256G	 13	 14    256M    128M
+>>    512G	 13	 15    512M    128M
+>>   1024G	 13	 15   1024M    256M
+>>   2048G	 13	 16   2048M    256M
+>>   4096G	 13	 16   4096M    512M
+>>   8192G	 13	 17   8192M    512M
+>> 16384G	 13	 17  16384M   1024M
+>> 32768G	 13	 18  32768M   1024M
+>> 65536G	 13	 18  65536M   2048M
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a84909cf20d3..af137fc0ca09 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -38,12 +38,12 @@
->  #include "internal.h"
->  
->  /*
-> - * By default transparent hugepage support is disabled in order that avoid
-> - * to risk increase the memory footprint of applications without a guaranteed
-> - * benefit. When transparent hugepage support is enabled, is for all mappings,
-> - * and khugepaged scans all mappings.
-> + * By default, transparent hugepage support is disabled in order to avoid
-> + * risking an increased memory footprint for applications that are not 
-> + * guaranteed to benefit from it. When transparent hugepage support is 
-> + * enabled, it is for all mappings, and khugepaged scans all mappings.
->   * Defrag is invoked by khugepaged hugepage allocations and by page faults
-> - * for all hugepage allocations.
-> + * for all hugepage allocations. 
-
-Several of the new (+) patch lines end with a space character. Not good.
-
->   */
->  unsigned long transparent_hugepage_flags __read_mostly =
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS
+> OK, but what are the runtime effects?  Presumably some workloads will
+> slow down a bit.  How much? How do we know that this is a worthwhile
+> tradeoff?
 > 
+> If the effect of this change is "undetectable" then those hash tables
+> are simply too large, and additional tuning is needed, yes?
+> 
+Hi Andrew,
 
+The effect of this change on runtime is undetectable as filesystem 
+growth is not proportional to machine memory size as what is currently 
+assumed. The change effects only large memory machine. Additional tuning 
+might be needed, but that can be done by the clients of the 
+kmem_cache_create interface, not the generic cache allocator itself.
 
--- 
-~Randy
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
