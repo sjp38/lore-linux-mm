@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B3AD56B0311
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:12:52 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e16so9777500pfj.15
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:52 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id k24si2210691pfa.55.2017.05.17.07.12.51
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7536B0315
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:12:55 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u12so10618720pgo.4
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:55 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id g4si1801987pln.281.2017.05.17.07.12.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 May 2017 07:12:51 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id h64so1987132pge.3
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:51 -0700 (PDT)
+        Wed, 17 May 2017 07:12:54 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id i63so1990997pgd.2
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:54 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 5/6] mm/slub: rename partial_slabs sysfs
-Date: Wed, 17 May 2017 22:11:45 +0800
-Message-Id: <20170517141146.11063-6-richard.weiyang@gmail.com>
+Subject: [PATCH 6/6] mm/slub: rename cpu_partial_slab sysfs
+Date: Wed, 17 May 2017 22:11:46 +0800
+Message-Id: <20170517141146.11063-7-richard.weiyang@gmail.com>
 In-Reply-To: <20170517141146.11063-1-richard.weiyang@gmail.com>
 References: <20170517141146.11063-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,68 +24,46 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@
 
 Apply the sysfs pattern
 
-    xxx_slabs[[_total]_objects]
+    xxx_slabs
 
-to PARTIAL slabs.
+to CPU_PARTIAL slabs.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- mm/slub.c | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ mm/slub.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 443dacbf214e..eb0eaa0239fd 100644
+index eb0eaa0239fd..93ff334b725e 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -4946,11 +4946,11 @@ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+@@ -4988,7 +4988,7 @@ static ssize_t partial_slabs_total_objects_show(struct kmem_cache *s, char *buf)
  }
- SLAB_ATTR_RO(aliases);
+ SLAB_ATTR_RO(partial_slabs_total_objects);
  
--static ssize_t partial_show(struct kmem_cache *s, char *buf)
-+static ssize_t partial_slabs_show(struct kmem_cache *s, char *buf)
+-static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
++static ssize_t cpu_partial_slabs_show(struct kmem_cache *s, char *buf)
  {
- 	return show_slab_objects(s, buf, SO_PARTIAL);
+ 	int objects = 0;
+ 	int pages = 0;
+@@ -5019,7 +5019,7 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
+ #endif
+ 	return len + sprintf(buf + len, "\n");
  }
--SLAB_ATTR_RO(partial);
-+SLAB_ATTR_RO(partial_slabs);
+-SLAB_ATTR_RO(slabs_cpu_partial);
++SLAB_ATTR_RO(cpu_partial_slabs);
  
- static ssize_t cpu_slabs_show(struct kmem_cache *s, char *buf)
+ static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
  {
-@@ -4976,17 +4976,17 @@ static ssize_t slabs_objects_show(struct kmem_cache *s, char *buf)
- }
- SLAB_ATTR_RO(slabs_objects);
- 
--static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
-+static ssize_t partial_slabs_objects_show(struct kmem_cache *s, char *buf)
- {
- 	return show_slab_objects(s, buf, SO_PARTIAL|SO_OBJECTS);
- }
--SLAB_ATTR_RO(objects_partial);
-+SLAB_ATTR_RO(partial_slabs_objects);
- 
--static ssize_t total_objects_partial_show(struct kmem_cache *s, char *buf)
-+static ssize_t partial_slabs_total_objects_show(struct kmem_cache *s, char *buf)
- {
- 	return show_slab_objects(s, buf, SO_PARTIAL|SO_TOTAL);
- }
--SLAB_ATTR_RO(total_objects_partial);
-+SLAB_ATTR_RO(partial_slabs_total_objects);
- 
- static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
- {
-@@ -5363,9 +5363,9 @@ static struct attribute *slab_attrs[] = {
- 	&min_partial_attr.attr,
- 	&cpu_partial_attr.attr,
- 	&slabs_objects_attr.attr,
--	&objects_partial_attr.attr,
--	&total_objects_partial_attr.attr,
--	&partial_attr.attr,
-+	&partial_slabs_objects_attr.attr,
-+	&partial_slabs_total_objects_attr.attr,
-+	&partial_slabs_attr.attr,
- 	&cpu_slabs_objects_attr.attr,
- 	&cpu_slabs_total_objects_attr.attr,
- 	&cpu_slabs_attr.attr,
+@@ -5377,7 +5377,7 @@ static struct attribute *slab_attrs[] = {
+ 	&destroy_by_rcu_attr.attr,
+ 	&shrink_attr.attr,
+ 	&reserved_attr.attr,
+-	&slabs_cpu_partial_attr.attr,
++	&cpu_partial_slabs_attr.attr,
+ #ifdef CONFIG_SLUB_DEBUG
+ 	&slabs_total_objects_attr.attr,
+ 	&slabs_attr.attr,
 -- 
 2.11.0
 
