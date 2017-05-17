@@ -1,68 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F67B6B02EE
-	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:05:05 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g12so2697933wrg.15
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:05:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y15si2727678edb.30.2017.05.17.07.05.04
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ABC4F6B02EE
+	for <linux-mm@kvack.org>; Wed, 17 May 2017 10:12:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t126so10572926pgc.9
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:35 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id g15si2186791pgp.346.2017.05.17.07.12.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 May 2017 07:05:04 -0700 (PDT)
-Date: Wed, 17 May 2017 16:05:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
- with cpuset update
-Message-ID: <20170517140501.GM18247@dhcp22.suse.cz>
-References: <20170411140609.3787-2-vbabka@suse.cz>
- <alpine.DEB.2.20.1704111152170.25069@east.gentwo.org>
- <a86ae57a-3efc-6ae5-ddf0-fd64c53c20fa@suse.cz>
- <alpine.DEB.2.20.1704121617040.28335@east.gentwo.org>
- <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz>
- <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org>
- <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz>
- <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org>
- <20170517092042.GH18247@dhcp22.suse.cz>
- <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 07:12:34 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id u187so1991332pgb.1
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 07:12:34 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH 0/6] refine and rename slub sysfs
+Date: Wed, 17 May 2017 22:11:40 +0800
+Message-Id: <20170517141146.11063-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-On Wed 17-05-17 08:56:34, Cristopher Lameter wrote:
-> On Wed, 17 May 2017, Michal Hocko wrote:
-> 
-> > > We certainly can do that. The failure of the page faults are due to the
-> > > admin trying to move an application that is not aware of this and is using
-> > > mempols. That could be an error. Trying to move an application that
-> > > contains both absolute and relative node numbers is definitely something
-> > > that is potentiall so screwed up that the kernel should not muck around
-> > > with such an app.
-> > >
-> > > Also user space can determine if the application is using memory policies
-> > > and can then take appropriate measures (message to the sysadmin to eval
-> > > tge situation f.e.) or mess aroud with the processes memory policies on
-> > > its own.
-> > >
-> > > So this is certainly a way out of this mess.
-> >
-> > So how are you going to distinguish VM_FAULT_OOM from an empty mempolicy
-> > case in a raceless way?
-> 
-> You dont have to do that if you do not create an empty mempolicy in the
-> first place. The current kernel code avoids that by first allowing access
-> to the new set of nodes and removing the old ones from the set when done.
+This patch serial could be divided into two parts.
 
-which is racy and as Vlastimil pointed out. If we simply fail such an
-allocation the failure will go up the call chain until we hit the OOM
-killer due to VM_FAULT_OOM. How would you want to handle that?
+First three patches refine and adds slab sysfs.
+Second three patches rename slab sysfs.
+
+1. Refine slab sysfs
+
+There are four level slabs:
+
+    CPU
+    CPU_PARTIAL
+    PARTIAL
+    FULL
+
+And in sysfs, it use show_slab_objects() and cpu_partial_slabs_show() to
+reflect the statistics.
+
+In patch 2, it splits some function in show_slab_objects() which makes sure
+only cpu_partial_slabs_show() covers statistics for CPU_PARTIAL slabs.
+
+After doing so, it would be more clear that show_slab_objects() has totally 9
+statistic combinations for three level of slabs. Each slab has three cases
+statistic.
+
+    slabs
+    objects
+    total_objects
+
+And when we look at current implementation, some of them are missing. So patch
+2 & 3 add them up.
+
+2. Rename sysfs
+
+The slab statistics in sysfs are
+
+    slabs
+    objects
+    total_objects
+    cpu_slabs
+    partial
+    partial_objects
+    cpu_partial_slabs
+
+which is a little bit hard for users to understand. The second three patches
+rename sysfs file in this pattern.
+
+    xxx_slabs[[_total]_objects]
+
+Finally it looks Like
+
+    slabs
+    slabs_objects
+    slabs_total_objects
+    cpu_slabs
+    cpu_slabs_objects
+    cpu_slabs_total_objects
+    partial_slabs
+    partial_slabs_objects
+    partial_slabs_total_objects
+    cpu_partial_slabs
+
+Wei Yang (6):
+  mm/slub: add total_objects_partial sysfs
+  mm/slub: not include cpu_partial data in cpu_slabs sysfs
+  mm/slub: add cpu_slabs_[total_]objects sysfs
+  mm/slub: rename ALL slabs sysfs
+  mm/slub: rename partial_slabs sysfs
+  mm/slub: rename cpu_partial_slab sysfs
+
+ mm/slub.c | 64 +++++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 36 insertions(+), 28 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
