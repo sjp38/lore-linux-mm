@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B51831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 15:21:47 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id j13so17780470qta.13
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 12:21:47 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id b128si4420510qkf.321.2017.05.18.12.21.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0768D831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 15:22:56 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id q91so543794wrb.8
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 12:22:55 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y4si6903788edc.183.2017.05.18.12.22.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 12:21:46 -0700 (PDT)
-Date: Thu, 18 May 2017 20:20:50 +0100
-From: Roman Gushchin <guro@fb.com>
+        Thu, 18 May 2017 12:22:54 -0700 (PDT)
+Date: Thu, 18 May 2017 15:22:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
-Message-ID: <20170518192050.GA1648@castle>
+Message-ID: <20170518192240.GA29914@cmpxchg.org>
 References: <1495124884-28974-1-git-send-email-guro@fb.com>
  <20170518173002.GC30148@dhcp22.suse.cz>
  <CAKTCnzkBNV9bsQSg4kzhxY=i=-y3x78StbbXfV9mvXLsJhGHig@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <CAKTCnzkBNV9bsQSg4kzhxY=i=-y3x78StbbXfV9mvXLsJhGHig@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Balbir Singh <bsingharora@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
 On Fri, May 19, 2017 at 04:37:27AM +1000, Balbir Singh wrote:
 > On Fri, May 19, 2017 at 3:30 AM, Michal Hocko <mhocko@kernel.org> wrote:
@@ -65,39 +65,41 @@ On Fri, May 19, 2017 at 04:37:27AM +1000, Balbir Singh wrote:
 > else. For example
 > 
 > 1. Did we overcommit a particular container too much?
-
-Imagine, you have a machine with multiple containers,
-each with it's own process tree, and the machine is overcommited,
-i.e. sum of container's memory limits is larger the amount available RAM.
-
-In a case of a system-wide OOM some random container will be affected.
-
-Historically, this problem was solving by some user-space daemon,
-which was monitoring OOM events and cleaning up affected containers.
-But this approach can't solve the main problem: non-optimal selection
-of a victim. 
-
-> 2. Do we need something like https://urldefense.proofpoint.com/v2/url?u=https-3A__lwn.net_Articles_604212_&d=DwIBaQ&c=5VD0RTtNlTh3ycd41b3MUw&r=jJYgtDM7QT-W-Fz_d29HYQ&m=9jV4id5lmsjFJj1kQjJk0auyQ3bzL27-f6Ur6ZNw36c&s=ElsS25CoZSPba6ke7O-EIsR7lN0psP6tDVyLnGqCMfs&e=  to solve
+> 2. Do we need something like https://lwn.net/Articles/604212/ to solve
 > the problem?
 
-I don't think it's related.
+The occasional OOM kill is an unavoidable reality on our systems (and
+I bet on most deployments). If we tried not to overcommit, we'd waste
+a *lot* of memory.
+
+The problem is when OOM happens, we really want the biggest *job* to
+get killed. Before cgroups, we assumed jobs were processes. But with
+cgroups, the user is able to define a group of processes as a job, and
+then an individual process is no longer a first-class memory consumer.
+
+Without a patch like this, the OOM killer will compare the sizes of
+the random subparticles that the jobs in the system are composed of
+and kill the single biggest particle, leaving behind the incoherent
+remains of one of the jobs. That doesn't make a whole lot of sense.
+
+If you want to determine the most expensive car in a parking lot, you
+can't go off and compare the price of one car's muffler with the door
+handle of another, then point to a wind shield and yell "This is it!"
+
+You need to compare the cars as a whole with each other.
 
 > 3. We have oom notifiers now, could those be used (assuming you are interested
 > in non memcg related OOM's affecting a container
 
-They can be used to inform an userspace daemon about an already happened OOM,
-but they do not affect victim selection.
+Right now, we watch for OOM notifications and then have userspace kill
+the rest of a job. That works - somewhat. What remains is the problem
+that I described above, that comparing individual process sizes is not
+meaningful when the terminal memory consumer is a cgroup.
 
 > 4. How do we determine limits for these containers? From a fariness
 > perspective
 
-Limits are usually set from some high-level understanding of the nature
-of tasks which are working inside, but overcommiting the machine is
-a common place, I assume.
-
-Thank you!
-
-Roman
+How do you mean?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
