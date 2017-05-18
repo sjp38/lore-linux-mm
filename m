@@ -1,91 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E5060831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 05:06:40 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c202so7763765wme.10
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 02:06:40 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF946831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 05:08:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id q91so7881532wrb.8
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 02:08:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f13si4731758edf.111.2017.05.18.02.06.39
+        by mx.google.com with ESMTPS id q55si4804035edd.130.2017.05.18.02.08.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 02:06:39 -0700 (PDT)
-Date: Thu, 18 May 2017 11:06:37 +0200
+        Thu, 18 May 2017 02:08:51 -0700 (PDT)
+Date: Thu, 18 May 2017 11:08:47 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6] refine and rename slub sysfs
-Message-ID: <20170518090636.GA25471@dhcp22.suse.cz>
-References: <20170517141146.11063-1-richard.weiyang@gmail.com>
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
+ with cpuset update
+Message-ID: <20170518090846.GD25462@dhcp22.suse.cz>
+References: <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz>
+ <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org>
+ <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz>
+ <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org>
+ <20170517092042.GH18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org>
+ <20170517140501.GM18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org>
+ <20170517145645.GO18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705171021570.9487@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170517141146.11063-1-richard.weiyang@gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1705171021570.9487@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
 
-On Wed 17-05-17 22:11:40, Wei Yang wrote:
-> This patch serial could be divided into two parts.
+On Wed 17-05-17 10:25:09, Cristopher Lameter wrote:
+> On Wed, 17 May 2017, Michal Hocko wrote:
 > 
-> First three patches refine and adds slab sysfs.
-> Second three patches rename slab sysfs.
+> > > If you have screwy things like static mbinds in there then you are
+> > > hopelessly lost anyways. You may have moved the process to another set
+> > > of nodes but the static bindings may refer to a node no longer
+> > > available. Thus the OOM is legitimate.
+> >
+> > The point is that you do _not_ want such a process to trigger the OOM
+> > because it can cause other processes being killed.
 > 
-> 1. Refine slab sysfs
+> Nope. The OOM in a cpuset gets the process doing the alloc killed. Or what
+> that changed?
 > 
-> There are four level slabs:
-> 
->     CPU
->     CPU_PARTIAL
->     PARTIAL
->     FULL
-> 
-> And in sysfs, it use show_slab_objects() and cpu_partial_slabs_show() to
-> reflect the statistics.
-> 
-> In patch 2, it splits some function in show_slab_objects() which makes sure
-> only cpu_partial_slabs_show() covers statistics for CPU_PARTIAL slabs.
-> 
-> After doing so, it would be more clear that show_slab_objects() has totally 9
-> statistic combinations for three level of slabs. Each slab has three cases
-> statistic.
-> 
->     slabs
->     objects
->     total_objects
-> 
-> And when we look at current implementation, some of them are missing. So patch
-> 2 & 3 add them up.
-> 
-> 2. Rename sysfs
-> 
-> The slab statistics in sysfs are
-> 
->     slabs
->     objects
->     total_objects
->     cpu_slabs
->     partial
->     partial_objects
->     cpu_partial_slabs
-> 
-> which is a little bit hard for users to understand. The second three patches
-> rename sysfs file in this pattern.
-> 
->     xxx_slabs[[_total]_objects]
-> 
-> Finally it looks Like
-> 
->     slabs
->     slabs_objects
->     slabs_total_objects
->     cpu_slabs
->     cpu_slabs_objects
->     cpu_slabs_total_objects
->     partial_slabs
->     partial_slabs_objects
->     partial_slabs_total_objects
->     cpu_partial_slabs
+> At this point you have messed up royally and nothing is going to rescue
+> you anyways. OOM or not does not matter anymore. The app will fail.
 
-_Why_ do we need all this?
+Not really. If you can trick the system to _think_ that the intersection
+between mempolicy and the cpuset is empty then the OOM killer might
+trigger an innocent task rather than the one which tricked it into that
+situation.
 -- 
 Michal Hocko
 SUSE Labs
