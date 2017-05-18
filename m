@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A657831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 06:04:25 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j27so8172066wre.3
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:04:25 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j35si5194640eda.11.2017.05.18.03.04.24
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 66492831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 06:19:47 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d127so8066137wmf.15
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:19:47 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id k47si5009034wre.305.2017.05.18.03.19.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 03:04:24 -0700 (PDT)
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race with
- cpuset update
-References: <20170411140609.3787-2-vbabka@suse.cz>
- <alpine.DEB.2.20.1704111152170.25069@east.gentwo.org>
- <a86ae57a-3efc-6ae5-ddf0-fd64c53c20fa@suse.cz>
- <alpine.DEB.2.20.1704121617040.28335@east.gentwo.org>
- <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz>
- <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org>
- <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz>
- <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org>
- <20170517092042.GH18247@dhcp22.suse.cz>
- <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org>
- <20170517140501.GM18247@dhcp22.suse.cz>
- <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8889d67a-adab-91e1-c320-d8bd88d7e1e0@suse.cz>
-Date: Thu, 18 May 2017 12:03:50 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 May 2017 03:19:46 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id v4so10114709wmb.2
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:19:45 -0700 (PDT)
+Date: Thu, 18 May 2017 13:09:37 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] Patch for remapping pages around the fault page
+Message-ID: <20170518100937.uk53l53ulvvqz2q4@node.shutemov.name>
+References: <CAC2c7Jts5uZOLXVi9N7xYXxxycv9xM1TBxcC3nMyn0NL-O+spw@mail.gmail.com>
+ <20170518055333.GC24445@rapoport-lnx>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518055333.GC24445@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Sarunya Pumma <sarunya@vt.edu>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, mhocko@suse.com, aneesh.kumar@linux.vnet.ibm.com, lstoakes@gmail.com, dave.jiang@intel.com, linux-mm@kvack.org
 
-On 05/17/2017 04:48 PM, Christoph Lameter wrote:
-> On Wed, 17 May 2017, Michal Hocko wrote:
+On Thu, May 18, 2017 at 08:53:33AM +0300, Mike Rapoport wrote:
+> Hello,
 > 
->>>> So how are you going to distinguish VM_FAULT_OOM from an empty mempolicy
->>>> case in a raceless way?
->>>
->>> You dont have to do that if you do not create an empty mempolicy in the
->>> first place. The current kernel code avoids that by first allowing access
->>> to the new set of nodes and removing the old ones from the set when done.
->>
->> which is racy and as Vlastimil pointed out. If we simply fail such an
->> allocation the failure will go up the call chain until we hit the OOM
->> killer due to VM_FAULT_OOM. How would you want to handle that?
+> On Tue, May 16, 2017 at 12:16:00PM -0400, Sarunya Pumma wrote:
+> > After the fault handler performs the __do_fault function to read a fault
+> > page when a page fault occurs, it does not map other pages that have been
+> > read together with the fault page. This can cause a number of minor page
+> > faults to be large. Therefore, this patch is developed to remap pages
+> > around the fault page by aiming to map the pages that have been read
+> > with the fault page.
 > 
-> The race is where? If you expand the node set during the move of the
-> application then you are safe in terms of the legacy apps that did not
-> include static bindings.
+> [...] 
+>  
+> > Thank you very much for your time for reviewing the patch.
+> > 
+> > Signed-off-by: Sarunya Pumma <sarunya@vt.edu>
+> > ---
+> >  include/linux/mm.h |  2 ++
+> >  kernel/sysctl.c    |  8 +++++
+> >  mm/memory.c        | 90
+> > ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  3 files changed, 100 insertions(+)
+> 
+> The patch is completely unreadable :(
+> Please use a mail client that does not break whitespace, e.g 'git
+> send-email'
 
-No, that expand/shrink by itself doesn't work against parallel
-get_page_from_freelist going through a zonelist. Moving from node 0 to
-1, with zonelist containing nodes 1 and 0 in that order:
+And I would like to see performance numbers, please.
 
-- mempolicy mask is 0
-- zonelist iteration checks node 1, it's not allowed, skip
-- mempolicy mask is 0,1 (expand)
-- mempolicy mask is 1 (shrink)
-- zonelist iteration checks node 0, it's not allowed, skip
-- OOM
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
