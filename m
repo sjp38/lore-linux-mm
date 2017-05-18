@@ -1,62 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 66492831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 06:19:47 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d127so8066137wmf.15
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:19:47 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id k47si5009034wre.305.2017.05.18.03.19.45
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B54D2831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 06:25:38 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g67so8318029wrd.0
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:25:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b143si6115176wme.100.2017.05.18.03.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 03:19:46 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id v4so10114709wmb.2
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:19:45 -0700 (PDT)
-Date: Thu, 18 May 2017 13:09:37 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] Patch for remapping pages around the fault page
-Message-ID: <20170518100937.uk53l53ulvvqz2q4@node.shutemov.name>
-References: <CAC2c7Jts5uZOLXVi9N7xYXxxycv9xM1TBxcC3nMyn0NL-O+spw@mail.gmail.com>
- <20170518055333.GC24445@rapoport-lnx>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 May 2017 03:25:36 -0700 (PDT)
+Subject: Re: [PATCH v2 3/6] mm, page_alloc: pass preferred nid instead of
+ zonelist to allocator
+References: <20170517081140.30654-1-vbabka@suse.cz>
+ <20170517081140.30654-4-vbabka@suse.cz>
+ <alpine.DEB.2.20.1705171009340.8714@east.gentwo.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c748a22c-9a94-52cb-2247-afc281cc5d78@suse.cz>
+Date: Thu, 18 May 2017 12:25:03 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170518055333.GC24445@rapoport-lnx>
+In-Reply-To: <alpine.DEB.2.20.1705171009340.8714@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Sarunya Pumma <sarunya@vt.edu>, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, mhocko@suse.com, aneesh.kumar@linux.vnet.ibm.com, lstoakes@gmail.com, dave.jiang@intel.com, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dimitri Sivanich <sivanich@sgi.com>
 
-On Thu, May 18, 2017 at 08:53:33AM +0300, Mike Rapoport wrote:
-> Hello,
+On 05/17/2017 05:19 PM, Christoph Lameter wrote:
+> On Wed, 17 May 2017, Vlastimil Babka wrote:
 > 
-> On Tue, May 16, 2017 at 12:16:00PM -0400, Sarunya Pumma wrote:
-> > After the fault handler performs the __do_fault function to read a fault
-> > page when a page fault occurs, it does not map other pages that have been
-> > read together with the fault page. This can cause a number of minor page
-> > faults to be large. Therefore, this patch is developed to remap pages
-> > around the fault page by aiming to map the pages that have been read
-> > with the fault page.
+>>  struct page *
+>> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>> -		       struct zonelist *zonelist, nodemask_t *nodemask);
+>> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+>> +							nodemask_t *nodemask);
+>>
+>>  static inline struct page *
+>> -__alloc_pages(gfp_t gfp_mask, unsigned int order,
+>> -		struct zonelist *zonelist)
+>> +__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
+>>  {
+>> -	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+>> +	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
+>>  }
 > 
-> [...] 
->  
-> > Thank you very much for your time for reviewing the patch.
-> > 
-> > Signed-off-by: Sarunya Pumma <sarunya@vt.edu>
-> > ---
-> >  include/linux/mm.h |  2 ++
-> >  kernel/sysctl.c    |  8 +++++
-> >  mm/memory.c        | 90
-> > ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  3 files changed, 100 insertions(+)
-> 
-> The patch is completely unreadable :(
-> Please use a mail client that does not break whitespace, e.g 'git
-> send-email'
+> Maybe use nid instead of preferred_nid like in __alloc_pages? Otherwise
+> there may be confusion with the MPOL_PREFER policy.
 
-And I would like to see performance numbers, please.
+I'll think about that.
 
--- 
- Kirill A. Shutemov
+>> @@ -1963,8 +1960,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+>>  {
+>>  	struct mempolicy *pol;
+>>  	struct page *page;
+>> +	int preferred_nid;
+>>  	unsigned int cpuset_mems_cookie;
+>> -	struct zonelist *zl;
+>>  	nodemask_t *nmask;
+> 
+> Same here.
+> 
+>> @@ -4012,8 +4012,8 @@ static inline void finalise_ac(gfp_t gfp_mask,
+>>   * This is the 'heart' of the zoned buddy allocator.
+>>   */
+>>  struct page *
+>> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>> -			struct zonelist *zonelist, nodemask_t *nodemask)
+>> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
+>> +							nodemask_t *nodemask)
+>>  {
+> 
+> and here
+> 
+> This looks clean to me. Still feel a bit uneasy about this since I do
+> remember that we had a reason to use zonelists instead of nodes back then
+> but cannot remember what that reason was....
+
+My history digging showed me that mempolicies used to have a custom
+zonelist attached, not nodemask. So I supposed that's why.
+
+> CCing Dimitri at SGI. This may break a lot of legacy SGIapps. If you read
+> this Dimitri then please review this patchset and the discussions around
+> it.
+
+Break how? This shouldn't break any apps AFAICS, just out-of-tree kernel
+patches/modules as usual when APIs change.
+
+> Reviewed-by: Christoph Lameter <cl@linux.com>
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
