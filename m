@@ -1,68 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0DFA831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 04:47:32 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 10so7646499wml.4
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 01:47:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m24si5094714edc.125.2017.05.18.01.47.31
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0578C831F5
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 04:50:35 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id z142so13846495qkz.8
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 01:50:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m31si4925409qta.239.2017.05.18.01.50.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 01:47:31 -0700 (PDT)
-Date: Thu, 18 May 2017 10:47:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: fix oom invocation issues
-Message-ID: <20170518084729.GB25462@dhcp22.suse.cz>
-References: <1495034780-9520-1-git-send-email-guro@fb.com>
- <20170517161446.GB20660@dhcp22.suse.cz>
- <20170517194316.GA30517@castle>
- <201705180703.JGH95344.SOHJtFFMOQFLOV@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 May 2017 01:50:34 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4I8cYRK127740
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 04:50:33 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ah3c5bvpx-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 04:50:33 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 18 May 2017 04:50:32 -0400
+Subject: Re: [PATCH v3 2/2] powerpc/mm/hugetlb: Add support for 1G huge pages
+References: <1494995292-4443-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1494995292-4443-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <87fug2loze.fsf@concordia.ellerman.id.au>
+ <852b601c-a044-0445-e97d-d17d76ec1154@linux.vnet.ibm.com>
+ <877f1elfga.fsf@concordia.ellerman.id.au>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 18 May 2017 14:20:24 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201705180703.JGH95344.SOHJtFFMOQFLOV@I-love.SAKURA.ne.jp>
+In-Reply-To: <877f1elfga.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <cbaa3bca-64a6-d18d-381c-55e137782f5f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu 18-05-17 07:03:36, Tetsuo Handa wrote:
-> Roman Gushchin wrote:
-> > On Wed, May 17, 2017 at 06:14:46PM +0200, Michal Hocko wrote:
-> > > On Wed 17-05-17 16:26:20, Roman Gushchin wrote:
-> > > [...]
-> > > > [   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
-> > > > [   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
-> > > 
-> > > Are there any oom_reaper messages? Could you provide the full kernel log
-> > > please?
-> > 
-> > Sure. Sorry, it was too bulky, so I've cut the line about oom_reaper by mistake.
-> > Here it is:
-> > --------------------------------------------------------------------------------
-> > [   25.721494] allocate invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null),  order=0, oom_score_adj=0
-> > [   25.725658] allocate cpuset=/ mems_allowed=0
-> 
-> > [   25.759892] Node 0 DMA32 free:44700kB min:44704kB low:55880kB high:67056kB active_anon:1944216kB inactive_anon:204kB active_file:592kB inactive_file:0kB unevictable:0kB writepending:304kB present:2080640kB managed:2031972kB mlocked:0kB slab_reclaimable:11336kB slab_unreclaimable:9784kB kernel_stack:1776kB pagetables:6932kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> 
-> > [   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
-> > [   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
-> 
-> > [   25.785680] allocate: page allocation failure: order:0, mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
-> > [   25.786797] allocate cpuset=/ mems_allowed=0
-> 
-> This is a side effect of commit 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL
-> checks in the allocator slowpath") which I noticed at
-> http://lkml.kernel.org/r/e7f932bf-313a-917d-6304-81528aca5994@I-love.SAKURA.ne.jp .
 
-Hmm, I guess you are right. I haven't realized that pagefault_out_of_memory
-can race and pick up another victim. For some reason I thought that the
-page fault would break out on fatal signal pending but we don't do that (we
-used to in the past). Now that I think about that more we should
-probably remove out_of_memory out of pagefault_out_of_memory completely.
-It is racy and it basically doesn't have any allocation context so we
-might kill a task from a different domain. So can we do this instead?
-There is a slight risk that somebody might have returned VM_FAULT_OOM
-without doing an allocation but from my quick look nobody does that
-currently.
----
+
+On Thursday 18 May 2017 02:17 PM, Michael Ellerman wrote:
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+> 
+>> On Thursday 18 May 2017 10:51 AM, Michael Ellerman wrote:
+>>> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+>>>
+>>>> POWER9 supports hugepages of size 2M and 1G in radix MMU mode. This patch
+>>>> enables the usage of 1G page size for hugetlbfs. This also update the helper
+>>>> such we can do 1G page allocation at runtime.
+>>>>
+>>>> We still don't enable 1G page size on DD1 version. This is to avoid doing
+>>>> workaround mentioned in commit: 6d3a0379ebdc8 (powerpc/mm: Add
+>>>> radix__tlb_flush_pte_p9_dd1()
+>>>>
+>>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>>>> ---
+>>>>    arch/powerpc/include/asm/book3s/64/hugetlb.h | 10 ++++++++++
+>>>>    arch/powerpc/mm/hugetlbpage.c                |  7 +++++--
+>>>>    arch/powerpc/platforms/Kconfig.cputype       |  1 +
+>>>>    3 files changed, 16 insertions(+), 2 deletions(-)
+>>>
+>>> I think this patch is OK, but it's very confusing because it doesn't
+>>> mention that it's only talking about *generic* gigantic page support.
+>>
+>> What you mean by generic gigantic page ? what is supported here is the
+>> gigantic page with size 1G alone ?
+> 
+> What about 16G pages on pseries.
+> 
+> And all the other gigantic page sizes that Book3E supports?
+> 
+
+None of that is supported w.r.t runtime allocation of hugepages. ie, we 
+cannot echo nr_hugepages w.r.t them.  For 16GB i am not sure it make 
+sense, because we will rarely get such large contiguous region. W.r.t 
+page size supported for Book3E, may be we can. But I don't have a 
+facility to test those. Hence didn't include that.
+
+-aneesh
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
