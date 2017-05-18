@@ -1,108 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CA2A6B0038
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 01:21:13 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b74so24708178pfd.2
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 22:21:13 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id h1si4136292plh.157.2017.05.17.22.21.11
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 685936B02E1
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 01:33:51 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p29so26671046pgn.3
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 22:33:51 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id w20si4183059pgj.196.2017.05.17.22.33.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 May 2017 22:21:12 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v3 2/2] powerpc/mm/hugetlb: Add support for 1G huge pages
-In-Reply-To: <1494995292-4443-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1494995292-4443-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1494995292-4443-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Date: Thu, 18 May 2017 15:21:09 +1000
-Message-ID: <87fug2loze.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 22:33:50 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v11 1/5] mm, THP, swap: Delay splitting THP during swap out
+References: <20170515112522.32457-1-ying.huang@intel.com>
+	<20170515112522.32457-2-ying.huang@intel.com>
+Date: Thu, 18 May 2017 13:33:47 +0800
+In-Reply-To: <20170515112522.32457-2-ying.huang@intel.com> (Ying Huang's
+	message of "Mon, 15 May 2017 19:25:18 +0800")
+Message-ID: <87k25ed8zo.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, cgroups@vger.kernel.org
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-> POWER9 supports hugepages of size 2M and 1G in radix MMU mode. This patch
-> enables the usage of 1G page size for hugetlbfs. This also update the helper
-> such we can do 1G page allocation at runtime.
+"Huang, Ying" <ying.huang@intel.com> writes:
+
+> From: Huang Ying <ying.huang@intel.com>
 >
-> We still don't enable 1G page size on DD1 version. This is to avoid doing
-> workaround mentioned in commit: 6d3a0379ebdc8 (powerpc/mm: Add
-> radix__tlb_flush_pte_p9_dd1()
+> In this patch, splitting huge page is delayed from almost the first
+> step of swapping out to after allocating the swap space for the
+> THP (Transparent Huge Page) and adding the THP into the swap cache.
+> This will batch the corresponding operation, thus improve THP swap out
+> throughput.
 >
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/include/asm/book3s/64/hugetlb.h | 10 ++++++++++
->  arch/powerpc/mm/hugetlbpage.c                |  7 +++++--
->  arch/powerpc/platforms/Kconfig.cputype       |  1 +
->  3 files changed, 16 insertions(+), 2 deletions(-)
+> This is the first step for the THP swap optimization.  The plan is to
+> delay splitting the THP step by step and avoid splitting the THP
+> finally.
+>
 
-I think this patch is OK, but it's very confusing because it doesn't
-mention that it's only talking about *generic* gigantic page support.
+I found two issues in this patch, could you fold the following fix patch
+into the original patch?
 
-We have existing support for gigantic pages on powerpc, on several
-platforms. This patch appears to break that, but I think doesn't in
-practice?
+Best Regards,
+Huang, Ying
 
-So can you make it a bit clearer in the commit message, and the code,
-that this is only about enabling the generic gigantic page support, and
-is unrelated to the arch-specific gigantic page support.
+------------------------------------------------------------->
+From: Huang Ying <ying.huang@intel.com>
+Subject: [PATCH] mm, THP, swap: Fix two issues in THP optimize patch
 
-cheers
+When changing the logic for cluster allocation for THP in
+get_swap_page(), I made a mistake so that a normal swap slot may be
+allocated for a THP instead of return with failure.  This is fixed in
+the patch.
 
-> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> index 6666cd366596..5c28bd6f2ae1 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> @@ -50,4 +50,14 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
->  	else
->  		return entry;
->  }
-> +
-> +#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-> +static inline bool gigantic_page_supported(void)
-> +{
-> +	if (radix_enabled())
-> +		return true;
-> +	return false;
-> +}
-> +#endif
-> +
->  #endif
-> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-> index a4f33de4008e..80f6d2ed551a 100644
-> --- a/arch/powerpc/mm/hugetlbpage.c
-> +++ b/arch/powerpc/mm/hugetlbpage.c
-> @@ -763,8 +763,11 @@ static int __init add_huge_page_size(unsigned long long size)
->  	 * Hash: 16M and 16G
->  	 */
->  	if (radix_enabled()) {
-> -		if (mmu_psize != MMU_PAGE_2M)
-> -			return -EINVAL;
-> +		if (mmu_psize != MMU_PAGE_2M) {
-> +			if (cpu_has_feature(CPU_FTR_POWER9_DD1) ||
-> +			    (mmu_psize != MMU_PAGE_1G))
-> +				return -EINVAL;
-> +		}
->  	} else {
->  		if (mmu_psize != MMU_PAGE_16M && mmu_psize != MMU_PAGE_16G)
->  			return -EINVAL;
-> diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-> index 684e886eaae4..b76ef6637016 100644
-> --- a/arch/powerpc/platforms/Kconfig.cputype
-> +++ b/arch/powerpc/platforms/Kconfig.cputype
-> @@ -344,6 +344,7 @@ config PPC_STD_MMU_64
->  config PPC_RADIX_MMU
->  	bool "Radix MMU Support"
->  	depends on PPC_BOOK3S_64
-> +	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
->  	default y
->  	help
->  	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
-> -- 
-> 2.7.4
+And I found two likely/unlikely annotation is wrong in
+get_swap_pages(), because that is slow path, I just removed the
+likely/unlikely annotation.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>
+---
+ mm/swap_slots.c | 5 +++--
+ mm/swapfile.c   | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index 78047d1efedd..90c1032a8ac3 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -309,8 +309,9 @@ swp_entry_t get_swap_page(struct page *page)
+ 
+ 	entry.val = 0;
+ 
+-	if (IS_ENABLED(CONFIG_THP_SWAP) && PageTransHuge(page)) {
+-		get_swap_pages(1, true, &entry);
++	if (PageTransHuge(page)) {
++		if (IS_ENABLED(CONFIG_THP_SWAP))
++			get_swap_pages(1, true, &entry);
+ 		return entry;
+ 	}
+ 
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f4c0f2a92bf0..984f0dd94948 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -937,13 +937,13 @@ int get_swap_pages(int n_goal, bool cluster, swp_entry_t swp_entries[])
+ 			spin_unlock(&si->lock);
+ 			goto nextsi;
+ 		}
+-		if (likely(cluster))
++		if (cluster)
+ 			n_ret = swap_alloc_cluster(si, swp_entries);
+ 		else
+ 			n_ret = scan_swap_map_slots(si, SWAP_HAS_CACHE,
+ 						    n_goal, swp_entries);
+ 		spin_unlock(&si->lock);
+-		if (n_ret || unlikely(cluster))
++		if (n_ret || cluster)
+ 			goto check_out;
+ 		pr_debug("scan_swap_map of si %d failed to find offset\n",
+ 			si->type);
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
