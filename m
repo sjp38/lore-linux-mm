@@ -1,58 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC0E831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:29:14 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 25so15701218qtx.11
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:29:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d85si5676143qkb.251.2017.05.18.08.29.13
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E041831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:41:39 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z88so10045973wrc.9
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:41:39 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id w129si21278083wmg.130.2017.05.18.08.41.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 08:29:13 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 08/17] cgroup: Move debug cgroup to its own file
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-9-git-send-email-longman@redhat.com>
- <20170517213603.GE942@htj.duckdns.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <03fe182f-92d5-0996-2d9c-d92c878dce35@redhat.com>
-Date: Thu, 18 May 2017 11:29:10 -0400
+        Thu, 18 May 2017 08:41:37 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id v4so12148045wmb.2
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:41:37 -0700 (PDT)
+Date: Thu, 18 May 2017 18:41:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
+ above 47-bits
+Message-ID: <20170518154135.zekuqls6almevrjt@node.shutemov.name>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+ <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
+ <20170518114359.GB25471@dhcp22.suse.cz>
+ <20170518151952.jzvz6aeelgx7ifmm@node.shutemov.name>
+ <20170518152736.GA18333@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170517213603.GE942@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518152736.GA18333@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On 05/17/2017 05:36 PM, Tejun Heo wrote:
-> Hello, Waiman.
->
-> On Mon, May 15, 2017 at 09:34:07AM -0400, Waiman Long wrote:
->> The debug cgroup currently resides within cgroup-v1.c and is enabled
->> only for v1 cgroup. To enable the debug cgroup also for v2, it
->> makes sense to put the code into its own file as it will no longer
->> be v1 specific. The only change in this patch is the expansion of
->> cgroup_task_count() within the debug_taskcount_read() function.
->>
->> Signed-off-by: Waiman Long <longman@redhat.com>
-> I don't mind enabling the debug controller for v2 but let's please
-> hide it behind an unwieldy boot param / controller name so that it's
-> clear that its interface isn't expected to be stable.
->
-> Thanks.
->
-The controller name is "debug". So it is pretty obvious what it is for.
-However, the config prompt of "Example controller" is indeed a bit
-vague. So I think we can make the prompt more descriptive here. As for
-boot param, are you saying something like "cgroup_debug" has to be
-specified in the command line also to have this controller activated
-even if the CGROUP_DEBUG config parameter is specified? I am fine with
-that if you think it is necessary.
+On Thu, May 18, 2017 at 05:27:36PM +0200, Michal Hocko wrote:
+> On Thu 18-05-17 18:19:52, Kirill A. Shutemov wrote:
+> > On Thu, May 18, 2017 at 01:43:59PM +0200, Michal Hocko wrote:
+> > > On Mon 15-05-17 15:12:18, Kirill A. Shutemov wrote:
+> > > [...]
+> > > > @@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+> > > >  	info.length = len;
+> > > >  	info.low_limit = PAGE_SIZE;
+> > > >  	info.high_limit = get_mmap_base(0);
+> > > > +
+> > > > +	/*
+> > > > +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
+> > > > +	 * in the full address space.
+> > > > +	 *
+> > > > +	 * !in_compat_syscall() check to avoid high addresses for x32.
+> > > > +	 */
+> > > > +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+> > > > +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
+> > > > +
+> > > >  	info.align_mask = 0;
+> > > >  	info.align_offset = pgoff << PAGE_SHIFT;
+> > > >  	if (filp) {
+> > > 
+> > > I have two questions/concerns here. The above assumes that any address above
+> > > 1<<47 will use the _whole_ address space. Is this what we want?
+> > 
+> > Yes, I believe so.
+> > 
+> > > What if somebody does mmap(1<<52, ...) because he wants to (ab)use 53+
+> > > bits for some other purpose? Shouldn't we cap the high_limit by the
+> > > given address?
+> > 
+> > This would screw existing semantics of hint address -- "map here if
+> > free, please".
+> 
+> Well, the given address is just _hint_. We are still allowed to map to a
+> different place. And it is not specified whether the resulting mapping
+> is above or below that address. So I do not think it would screw the
+> existing semantic. Or do I miss something?
 
-Regards,
-Longman
+You are right, that this behaviour is not fixed by any standard or written
+down in documentation, but it's de-facto policy of Linux mmap(2) the
+beginning.
 
+And we need to be very careful when messing with this.
+
+I believe that qemu linux-user to some extend relies on this behaviour to
+do 32-bit allocations on 64-bit machine.
+
+https://github.com/qemu/qemu/blob/master/linux-user/mmap.c#L256
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
