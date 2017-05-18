@@ -1,94 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B54D2831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 06:25:38 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g67so8318029wrd.0
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 03:25:38 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B89831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 07:44:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 204so8118438wmy.1
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 04:44:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b143si6115176wme.100.2017.05.18.03.25.36
+        by mx.google.com with ESMTPS id 63si5910593edi.1.2017.05.18.04.44.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 03:25:36 -0700 (PDT)
-Subject: Re: [PATCH v2 3/6] mm, page_alloc: pass preferred nid instead of
- zonelist to allocator
-References: <20170517081140.30654-1-vbabka@suse.cz>
- <20170517081140.30654-4-vbabka@suse.cz>
- <alpine.DEB.2.20.1705171009340.8714@east.gentwo.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <c748a22c-9a94-52cb-2247-afc281cc5d78@suse.cz>
-Date: Thu, 18 May 2017 12:25:03 +0200
+        Thu, 18 May 2017 04:44:03 -0700 (PDT)
+Date: Thu, 18 May 2017 13:43:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
+ above 47-bits
+Message-ID: <20170518114359.GB25471@dhcp22.suse.cz>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+ <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1705171009340.8714@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dimitri Sivanich <sivanich@sgi.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On 05/17/2017 05:19 PM, Christoph Lameter wrote:
-> On Wed, 17 May 2017, Vlastimil Babka wrote:
-> 
->>  struct page *
->> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->> -		       struct zonelist *zonelist, nodemask_t *nodemask);
->> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
->> +							nodemask_t *nodemask);
->>
->>  static inline struct page *
->> -__alloc_pages(gfp_t gfp_mask, unsigned int order,
->> -		struct zonelist *zonelist)
->> +__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
->>  {
->> -	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
->> +	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
->>  }
-> 
-> Maybe use nid instead of preferred_nid like in __alloc_pages? Otherwise
-> there may be confusion with the MPOL_PREFER policy.
+On Mon 15-05-17 15:12:18, Kirill A. Shutemov wrote:
+[...]
+> @@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+>  	info.length = len;
+>  	info.low_limit = PAGE_SIZE;
+>  	info.high_limit = get_mmap_base(0);
+> +
+> +	/*
+> +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
+> +	 * in the full address space.
+> +	 *
+> +	 * !in_compat_syscall() check to avoid high addresses for x32.
+> +	 */
+> +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+> +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
+> +
+>  	info.align_mask = 0;
+>  	info.align_offset = pgoff << PAGE_SHIFT;
+>  	if (filp) {
 
-I'll think about that.
+I have two questions/concerns here. The above assumes that any address above
+1<<47 will use the _whole_ address space. Is this what we want? What
+if somebody does mmap(1<<52, ...) because he wants to (ab)use 53+ bits
+for some other purpose? Shouldn't we cap the high_limit by the given
+address?
 
->> @@ -1963,8 +1960,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->>  {
->>  	struct mempolicy *pol;
->>  	struct page *page;
->> +	int preferred_nid;
->>  	unsigned int cpuset_mems_cookie;
->> -	struct zonelist *zl;
->>  	nodemask_t *nmask;
-> 
-> Same here.
-> 
->> @@ -4012,8 +4012,8 @@ static inline void finalise_ac(gfp_t gfp_mask,
->>   * This is the 'heart' of the zoned buddy allocator.
->>   */
->>  struct page *
->> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->> -			struct zonelist *zonelist, nodemask_t *nodemask)
->> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
->> +							nodemask_t *nodemask)
->>  {
-> 
-> and here
-> 
-> This looks clean to me. Still feel a bit uneasy about this since I do
-> remember that we had a reason to use zonelists instead of nodes back then
-> but cannot remember what that reason was....
+Another thing would be that 
+	/* requesting a specific address */
+	if (addr) {
+		addr = PAGE_ALIGN(addr);
+		vma = find_vma(mm, addr);
+		if (TASK_SIZE - len >= addr &&
+				(!vma || addr + len <= vma->vm_start))
+			return addr;
+	}
 
-My history digging showed me that mempolicies used to have a custom
-zonelist attached, not nodemask. So I supposed that's why.
+would fail for mmap(-1UL, ...) which is good because we do want to
+fallback to vm_unmapped_area and have randomized address which is
+ensured by your info.high_limit += ... but that wouldn't work for
+mmap(1<<N, ...) where N>47. So the first such mapping won't be
+randomized while others will be. This is quite unexpected I would say.
+So it should be documented at least or maybe we want to skip the above
+shortcut for addr > DEFAULT_MAP_WINDOW altogether.
 
-> CCing Dimitri at SGI. This may break a lot of legacy SGIapps. If you read
-> this Dimitri then please review this patchset and the discussions around
-> it.
-
-Break how? This shouldn't break any apps AFAICS, just out-of-tree kernel
-patches/modules as usual when APIs change.
-
-> Reviewed-by: Christoph Lameter <cl@linux.com>
-
-Thanks!
+The patch looks sensible other than that.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
