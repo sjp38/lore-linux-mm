@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E24BE831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 12:57:59 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id s131so30605641itd.6
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 09:57:59 -0700 (PDT)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id a1si20201292ita.86.2017.05.18.09.57.58
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 09:57:59 -0700 (PDT)
-Date: Thu, 18 May 2017 11:57:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
- with cpuset update
-In-Reply-To: <20170518090846.GD25462@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1705181154450.27641@east.gentwo.org>
-References: <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz> <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org> <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz> <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org> <20170517092042.GH18247@dhcp22.suse.cz>
- <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org> <20170517140501.GM18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org> <20170517145645.GO18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705171021570.9487@east.gentwo.org>
- <20170518090846.GD25462@dhcp22.suse.cz>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C44B831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 13:02:02 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d127so10115129wmf.15
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 10:02:02 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id q4si6630326wrb.303.2017.05.18.10.02.00
+        for <linux-mm@kvack.org>;
+        Thu, 18 May 2017 10:02:01 -0700 (PDT)
+Date: Thu, 18 May 2017 19:01:53 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
+ Encryption
+Message-ID: <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, 18 May 2017, Michal Hocko wrote:
+On Tue, Apr 18, 2017 at 04:22:12PM -0500, Tom Lendacky wrote:
+> Add sysfs support for SME so that user-space utilities (kdump, etc.) can
+> determine if SME is active.
 
-> > Nope. The OOM in a cpuset gets the process doing the alloc killed. Or what
-> > that changed?
+But why do user-space tools need to know that?
 
-!!!!!
+I mean, when we load the kdump kernel, we do it with the first kernel,
+with the kexec_load() syscall, AFAICT. And that code does a lot of
+things during that init, like machine_kexec_prepare()->init_pgtable() to
+prepare the ident mapping of the second kernel, for example.
 
-> >
-> > At this point you have messed up royally and nothing is going to rescue
-> > you anyways. OOM or not does not matter anymore. The app will fail.
->
-> Not really. If you can trick the system to _think_ that the intersection
-> between mempolicy and the cpuset is empty then the OOM killer might
-> trigger an innocent task rather than the one which tricked it into that
-> situation.
+What I'm aiming at is that the first kernel knows *exactly* whether SME
+is enabled or not and doesn't need to tell the second one through some
+sysfs entries - it can do that during loading.
 
-See above. OOM Kill in a cpuset does not kill an innocent task but a task
-that does an allocation in that specific context meaning a task in that
-cpuset that also has a memory policty.
+So I don't think we need any userspace things at all...
 
-Regardless of that the point earlier was that the moving logic can avoid
-creating temporary situations of empty sets of nodes by analysing the
-memory policies etc and only performing moves when doing so is safe.
+Or?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
