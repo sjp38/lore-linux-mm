@@ -1,66 +1,323 @@
-From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
-Subject: Re: [PATCH v5 15/32] efi: Update efi_mem_type() to return an error
-	rather than 0
-Date: Sun, 7 May 2017 19:18:22 +0200
-Message-ID: <20170507171822.x7grrqg2tcvbv6j5@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
-	<20170418211900.10190.98158.stgit@tlendack-t1.amdoffice.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-Content-Disposition: inline
-In-Reply-To: <20170418211900.10190.98158.stgit-qCXWGYdRb2BnqfbPTmsdiZQ+2ll4COg0XqFh9Ls21Oc@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-Cc: linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Brijesh Singh <brijesh.singh-5C7GfCeVMHo@public.gmane.org>, Toshimitsu Kani <toshi.kani-ZPxbGqLxI0U@public.gmane.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, Larry Woodman <lwoodman-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Dave Young <dyoung-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Rik van Riel <riel-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, kexec-IAPFreCvJWM7uuMidbF8XUB+6BGkLq7r@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, "Michael S. Tsirkin" <mst@r>
+From: Roman Gushchin <guro@fb.com>
+Subject: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
+Date: Thu, 18 May 2017 17:28:04 +0100
+Message-ID: <1495124884-28974-1-git-send-email-guro@fb.com>
+Return-path: <linux-doc-owner@vger.kernel.org>
+Sender: linux-doc-owner@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Tue, Apr 18, 2017 at 04:19:00PM -0500, Tom Lendacky wrote:
-> The efi_mem_type() function currently returns a 0, which maps to
-> EFI_RESERVED_TYPE, if the function is unable to find a memmap entry for
-> the supplied physical address. Returning EFI_RESERVED_TYPE implies that
-> a memmap entry exists, when it doesn't.  Instead of returning 0, change
-> the function to return a negative error value when no memmap entry is
-> found.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-> ---
+Traditionally, the OOM killer is operating on a process level.
+Under oom conditions, it finds a process with the highest oom score
+and kills it.
 
-...
+This behavior doesn't suit well the system with many running
+containers. There are two main issues:
 
-> diff --git a/include/linux/efi.h b/include/linux/efi.h
-> index cd768a1..a27bb3f 100644
-> --- a/include/linux/efi.h
-> +++ b/include/linux/efi.h
-> @@ -973,7 +973,7 @@ static inline void efi_esrt_init(void) { }
->  extern int efi_config_parse_tables(void *config_tables, int count, int sz,
->  				   efi_config_table_type_t *arch_tables);
->  extern u64 efi_get_iobase (void);
-> -extern u32 efi_mem_type (unsigned long phys_addr);
-> +extern int efi_mem_type (unsigned long phys_addr);
+1) There is no fairness between containers. A small container with
+a few large processes will be chosen over a large one with huge
+number of small processes.
 
-WARNING: space prohibited between function name and open parenthesis '('
-#101: FILE: include/linux/efi.h:976:
-+extern int efi_mem_type (unsigned long phys_addr);
+2) Containers often do not expect that some random process inside
+will be killed. So, in general, a much safer behavior is
+to kill the whole cgroup. Traditionally, this was implemented
+in userspace, but doing it in the kernel has some advantages,
+especially in a case of a system-wide OOM.
 
-Please integrate scripts/checkpatch.pl in your patch creation workflow.
-Some of the warnings/errors *actually* make sense.
+To address these issues, cgroup-aware OOM killer is introduced.
+Under OOM conditions, it looks for a memcg with highest oom score,
+and kills all processes inside.
 
-I know, the other function prototypes have a space too but that's not
-our coding style. Looks like this trickled in from ia64, from looking at
-arch/ia64/kernel/efi.c.
+Memcg oom score is calculated as a size of active and inactive
+anon LRU lists, unevictable LRU list and swap size.
 
+For a cgroup-wide OOM, only cgroups belonging to the subtree of
+the OOMing cgroup are considered.
+
+If there is no elegible memcg found, OOM killer falls back to
+a traditional per-process behavior.
+
+This change affects only cgroup v2.
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Li Zefan <lizefan@huawei.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: kernel-team@fb.com
+Cc: cgroups@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ Documentation/cgroup-v2.txt | 24 ++++++++++++++--
+ include/linux/memcontrol.h  |  3 ++
+ include/linux/oom.h         |  1 +
+ mm/memcontrol.c             | 69 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/oom_kill.c               | 49 ++++++++++++++++++++++++++++----
+ 5 files changed, 139 insertions(+), 7 deletions(-)
+
+diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+index dc5e2dc..6583041 100644
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -44,6 +44,7 @@ CONTENTS
+     5-2-1. Memory Interface Files
+     5-2-2. Usage Guidelines
+     5-2-3. Memory Ownership
++    5-2-4. Cgroup-aware OOM Killer
+   5-3. IO
+     5-3-1. IO Interface Files
+     5-3-2. Writeback
+@@ -831,8 +832,7 @@ PAGE_SIZE multiple when read back.
+ 	  oom
+ 
+ 		The number of times the OOM killer has been invoked in
+-		the cgroup.  This may not exactly match the number of
+-		processes killed but should generally be close.
++		the cgroup.
+ 
+   memory.stat
+ 
+@@ -988,6 +988,26 @@ POSIX_FADV_DONTNEED to relinquish the ownership of memory areas
+ belonging to the affected files to ensure correct memory ownership.
+ 
+ 
++5-2-4. Cgroup-aware OOM Killer
++
++Cgroup v2 memory controller implements a cgroup-aware OOM killer.
++It means that it treats memory cgroups as memory consumers
++rather then individual processes. Under the OOM conditions it tries
++to find an elegible leaf memory cgroup, and kill all processes
++in this cgroup. If it's not possible (e.g. all processes belong
++to the root cgroup), it falls back to the traditional per-process
++behaviour.
++
++The memory controller tries to make the best choise of a victim cgroup.
++In general, it tries to select the largest cgroup, matching given
++node/zone requirements, but the concrete algorithm is not defined,
++and may be changed later.
++
++This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
++the memory controller considers only cgroups belonging to a sub-tree
++of the OOM-ing cgroup, including itself.
++
++
+ 5-3. IO
+ 
+ The "io" controller regulates the distribution of IO resources.  This
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 899949b..fb0ff64 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -34,6 +34,7 @@ struct mem_cgroup;
+ struct page;
+ struct mm_struct;
+ struct kmem_cache;
++struct oom_control;
+ 
+ /* Cgroup-specific page state, on top of universal node page state */
+ enum memcg_stat_item {
+@@ -465,6 +466,8 @@ static inline bool task_in_memcg_oom(struct task_struct *p)
+ 
+ bool mem_cgroup_oom_synchronize(bool wait);
+ 
++bool mem_cgroup_select_oom_victim(struct oom_control *oc);
++
+ #ifdef CONFIG_MEMCG_SWAP
+ extern int do_swap_account;
+ #endif
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 8a266e2..51e71f2 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -39,6 +39,7 @@ struct oom_control {
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+ 	unsigned long chosen_points;
++	struct mem_cgroup *chosen_memcg;
+ };
+ 
+ extern struct mutex oom_lock;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c131f7e..8d07481 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2625,6 +2625,75 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+ 	return ret;
+ }
+ 
++bool mem_cgroup_select_oom_victim(struct oom_control *oc)
++{
++	struct mem_cgroup *iter;
++	unsigned long chosen_memcg_points;
++
++	oc->chosen_memcg = NULL;
++
++	if (mem_cgroup_disabled())
++		return false;
++
++	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
++		return false;
++
++	pr_info("Choosing a victim memcg because of %s",
++		oc->memcg ?
++		"memory limit reached of cgroup " :
++		"out of memory\n");
++	if (oc->memcg) {
++		pr_cont_cgroup_path(oc->memcg->css.cgroup);
++		pr_cont("\n");
++	}
++
++	chosen_memcg_points = 0;
++
++	for_each_mem_cgroup_tree(iter, oc->memcg) {
++		unsigned long points;
++		int nid;
++
++		if (mem_cgroup_is_root(iter))
++			continue;
++
++		if (memcg_has_children(iter))
++			continue;
++
++		points = 0;
++		for_each_node_state(nid, N_MEMORY) {
++			if (oc->nodemask && !node_isset(nid, *oc->nodemask))
++				continue;
++			points += mem_cgroup_node_nr_lru_pages(iter, nid,
++					LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
++		}
++		points += mem_cgroup_get_nr_swap_pages(iter);
++
++		pr_info("Memcg ");
++		pr_cont_cgroup_path(iter->css.cgroup);
++		pr_cont(": %lu\n", points);
++
++		if (points > chosen_memcg_points) {
++			if (oc->chosen_memcg)
++				css_put(&oc->chosen_memcg->css);
++
++			oc->chosen_memcg = iter;
++			css_get(&iter->css);
++
++			chosen_memcg_points = points;
++		}
++	}
++
++	if (oc->chosen_memcg) {
++		pr_info("Kill memcg ");
++		pr_cont_cgroup_path(oc->chosen_memcg->css.cgroup);
++		pr_cont(" (%lu)\n", chosen_memcg_points);
++	} else {
++		pr_info("No elegible memory cgroup found\n");
++	}
++
++	return !!oc->chosen_memcg;
++}
++
+ /*
+  * Reclaims as many pages from the given memcg as possible.
+  *
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 04c9143..c000495 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -802,6 +802,8 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	return ret;
+ }
+ 
++static void __oom_kill_process(struct task_struct *victim);
++
+ static void oom_kill_process(struct oom_control *oc, const char *message)
+ {
+ 	struct task_struct *p = oc->chosen;
+@@ -809,11 +811,9 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	struct task_struct *victim = p;
+ 	struct task_struct *child;
+ 	struct task_struct *t;
+-	struct mm_struct *mm;
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+-	bool can_oom_reap = true;
+ 
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -863,6 +863,15 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	}
+ 	read_unlock(&tasklist_lock);
+ 
++	__oom_kill_process(victim);
++}
++
++static void __oom_kill_process(struct task_struct *victim)
++{
++	struct task_struct *p;
++	struct mm_struct *mm;
++	bool can_oom_reap = true;
++
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+ 		put_task_struct(victim);
+@@ -970,6 +979,20 @@ int unregister_oom_notifier(struct notifier_block *nb)
+ }
+ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+ 
++static int oom_kill_task_fn(struct task_struct *p, void *arg)
++{
++	if (is_global_init(p))
++		return 0;
++
++	if (p->flags & PF_KTHREAD)
++		return 0;
++
++	get_task_struct(p);
++	__oom_kill_process(p);
++
++	return 0;
++}
++
+ /**
+  * out_of_memory - kill the "best" process when we run out of memory
+  * @oc: pointer to struct oom_control
+@@ -1032,13 +1055,29 @@ bool out_of_memory(struct oom_control *oc)
+ 		return true;
+ 	}
+ 
+-	select_bad_process(oc);
++	/*
++	 * Try to find an elegible memory cgroup. If nothing found,
++	 * fallback to a per-process OOM.
++	 */
++	if (!mem_cgroup_select_oom_victim(oc))
++		select_bad_process(oc);
++
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+-	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
++	if (!oc->chosen_memcg && !oc->chosen && !is_sysrq_oom(oc) &&
++	    !is_memcg_oom(oc)) {
+ 		dump_header(oc, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (oc->chosen && oc->chosen != (void *)-1UL) {
++
++	if (oc->chosen_memcg) {
++		/* Try to kill the whole memory cgroup. */
++		if (!is_memcg_oom(oc))
++			mem_cgroup_event(oc->chosen_memcg, MEMCG_OOM);
++		mem_cgroup_scan_tasks(oc->chosen_memcg, oom_kill_task_fn, NULL);
++
++		css_put(&oc->chosen_memcg->css);
++		schedule_timeout_killable(1);
++	} else if (oc->chosen && oc->chosen != (void *)-1UL) {
+ 		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+ 				 "Memory cgroup out of memory");
+ 		/*
 -- 
-Regards/Gruss,
-    Boris.
+2.7.4
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
