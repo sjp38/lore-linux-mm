@@ -1,76 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A94B8831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 14:11:40 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c202so10563298wme.10
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 11:11:40 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r7si6478764edb.63.2017.05.18.11.11.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE94831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 14:20:42 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t126so39899075pgc.9
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 11:20:42 -0700 (PDT)
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com. [209.85.192.177])
+        by mx.google.com with ESMTPS id m11si4057831pgc.389.2017.05.18.11.20.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 11:11:39 -0700 (PDT)
-Date: Thu, 18 May 2017 14:11:17 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
-Message-ID: <20170518181117.GA27689@cmpxchg.org>
-References: <1495124884-28974-1-git-send-email-guro@fb.com>
- <20170518173002.GC30148@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170518173002.GC30148@dhcp22.suse.cz>
+        Thu, 18 May 2017 11:20:41 -0700 (PDT)
+Received: by mail-pf0-f177.google.com with SMTP id m17so27629535pfg.3
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 11:20:41 -0700 (PDT)
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: [PATCH] mm, page_alloc: Mark bad_range() and meminit_pfn_in_nid() as __maybe_unused
+Date: Thu, 18 May 2017 11:20:30 -0700
+Message-Id: <20170518182030.165633-1-mka@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>
 
-On Thu, May 18, 2017 at 07:30:04PM +0200, Michal Hocko wrote:
-> On Thu 18-05-17 17:28:04, Roman Gushchin wrote:
-> > Traditionally, the OOM killer is operating on a process level.
-> > Under oom conditions, it finds a process with the highest oom score
-> > and kills it.
-> > 
-> > This behavior doesn't suit well the system with many running
-> > containers. There are two main issues:
-> > 
-> > 1) There is no fairness between containers. A small container with
-> > a few large processes will be chosen over a large one with huge
-> > number of small processes.
-> > 
-> > 2) Containers often do not expect that some random process inside
-> > will be killed. So, in general, a much safer behavior is
-> > to kill the whole cgroup. Traditionally, this was implemented
-> > in userspace, but doing it in the kernel has some advantages,
-> > especially in a case of a system-wide OOM.
-> > 
-> > To address these issues, cgroup-aware OOM killer is introduced.
-> > Under OOM conditions, it looks for a memcg with highest oom score,
-> > and kills all processes inside.
-> > 
-> > Memcg oom score is calculated as a size of active and inactive
-> > anon LRU lists, unevictable LRU list and swap size.
-> > 
-> > For a cgroup-wide OOM, only cgroups belonging to the subtree of
-> > the OOMing cgroup are considered.
-> 
-> While this might make sense for some workloads/setups it is not a
-> generally acceptable policy IMHO. We have discussed that different OOM
-> policies might be interesting few years back at LSFMM but there was no
-> real consensus on how to do that. One possibility was to allow bpf like
-> mechanisms. Could you explore that path?
+The functions are not used in some configurations. Adding the attribute
+fixes the following warnings when building with clang:
 
-OOM policy is an orthogonal discussion, though.
+mm/page_alloc.c:409:19: error: function 'bad_range' is not needed and
+    will not be emitted [-Werror,-Wunneeded-internal-declaration]
 
-The OOM killer's job is to pick a memory consumer to kill. Per default
-the unit of the memory consumer is a process, but cgroups allow
-grouping processes into compound consumers. Extending the OOM killer
-to respect the new definition of "consumer" is not a new policy.
+mm/page_alloc.c:1106:30: error: unused function 'meminit_pfn_in_nid'
+    [-Werror,-Wunused-function]
 
-I don't think it's reasonable to ask the person who's trying to make
-the OOM killer support group-consumers to design a dynamic OOM policy
-framework instead.
+Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
+---
+ mm/page_alloc.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-All we want is the OOM policy, whatever it is, applied to cgroups.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f9e450c6b6e4..30d0dede3cf4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -500,7 +500,7 @@ static int page_is_consistent(struct zone *zone, struct page *page)
+ /*
+  * Temporary debugging check for pages not lying within a given zone.
+  */
+-static int bad_range(struct zone *zone, struct page *page)
++static int __maybe_unused bad_range(struct zone *zone, struct page *page)
+ {
+ 	if (page_outside_zone_boundaries(zone, page))
+ 		return 1;
+@@ -510,7 +510,7 @@ static int bad_range(struct zone *zone, struct page *page)
+ 	return 0;
+ }
+ #else
+-static inline int bad_range(struct zone *zone, struct page *page)
++static inline int __maybe_unused bad_range(struct zone *zone, struct page *page)
+ {
+ 	return 0;
+ }
+@@ -1286,8 +1286,9 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
+ #endif
+ 
+ #ifdef CONFIG_NODES_SPAN_OTHER_NODES
+-static inline bool __meminit meminit_pfn_in_nid(unsigned long pfn, int node,
+-					struct mminit_pfnnid_cache *state)
++static inline bool __meminit __maybe_unused
++meminit_pfn_in_nid(unsigned long pfn, int node,
++		   struct mminit_pfnnid_cache *state)
+ {
+ 	int nid;
+ 
+@@ -1309,8 +1310,9 @@ static inline bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+ {
+ 	return true;
+ }
+-static inline bool __meminit meminit_pfn_in_nid(unsigned long pfn, int node,
+-					struct mminit_pfnnid_cache *state)
++static inline bool __meminit  __maybe_unused
++meminit_pfn_in_nid(unsigned long pfn, int node,
++		   struct mminit_pfnnid_cache *state)
+ {
+ 	return true;
+ }
+-- 
+2.13.0.303.g4ebf302169-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
