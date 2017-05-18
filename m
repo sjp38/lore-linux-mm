@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EF236B0038
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 02:22:17 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l73so25508787pfj.8
-        for <linux-mm@kvack.org>; Wed, 17 May 2017 23:22:17 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id h10si4309403pgc.45.2017.05.17.23.22.15
-        for <linux-mm@kvack.org>;
-        Wed, 17 May 2017 23:22:16 -0700 (PDT)
-Date: Thu, 18 May 2017 15:22:05 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170518062205.GF28017@X58A-UD3R>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170419142503.rqsrgjlc7ump7ijb@hirez.programming.kicks-ass.net>
- <20170424051102.GJ21430@X58A-UD3R>
- <20170424101747.iirvjjoq66x25w7n@hirez.programming.kicks-ass.net>
- <20170425054044.GK21430@X58A-UD3R>
- <20170516141846.GM4626@worktop.programming.kicks-ass.net>
-MIME-Version: 1.0
-In-Reply-To: <20170516141846.GM4626@worktop.programming.kicks-ass.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 801716B0038
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 02:42:24 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n75so25820657pfh.0
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 23:42:24 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id o89si4326277pfa.348.2017.05.17.23.42.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 May 2017 23:42:23 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id u187so4781147pgb.1
+        for <linux-mm@kvack.org>; Wed, 17 May 2017 23:42:23 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1] mm: drop NULL return check of pte_offset_map_lock()
+Date: Thu, 18 May 2017 15:42:17 +0900
+Message-Id: <1495089737-1292-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: linux-mm@kvack.org
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue, May 16, 2017 at 04:18:46PM +0200, Peter Zijlstra wrote:
-> On Tue, Apr 25, 2017 at 02:40:44PM +0900, Byungchul Park wrote:
-> > On Mon, Apr 24, 2017 at 12:17:47PM +0200, Peter Zijlstra wrote:
-> 
-> > > My complaint is mostly about naming.. and "hist_gen_id" might be a
-> > > better name.
-> > 
-> > Ah, I also think the name, 'work_id', is not good... and frankly I am
-> > not sure if 'hist_gen_id' is good, either. What about to apply 'rollback',
-> > which I did for locks in irq, into works of workqueues? If you say yes,
-> > I will try to do it.
-> 
-> If the rollback thing works, that's fine too. If it gets ugly, stick
-> with something like 'hist_id'.
+pte_offset_map_lock() finds and takes ptl, and returns pte.
+But some callers return without unlocking the ptl when pte == NULL,
+which seems weird.
 
-I really want to implement it with rollback.. But it also needs to
-introduce new fields to distinguish between works which are all normal
-process contexts.
+Git history said that !pte check in change_pte_range() was introduced in
+commit 1ad9f620c3a2 ("mm: numa: recheck for transhuge pages under lock
+during protection changes") and still remains after commit 175ad4f1e7a2
+("mm: mprotect: use pmd_trans_unstable instead of taking the pmd_lock")
+which partially reverts 1ad9f620c3a2. So I think that it's just dead code.
 
-I will do this with renaming instead of applying rollback.
+Many other caller of pte_offset_map_lock() never check NULL return, so
+let's do likewise.
 
-Thank you.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory.c   | 2 --
+ mm/mprotect.c | 2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git v4.11-rc6-mmotm-2017-04-13-14-50/mm/memory.c v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/memory.c
+index 8ae6700..c17fad1d 100644
+--- v4.11-rc6-mmotm-2017-04-13-14-50/mm/memory.c
++++ v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/memory.c
+@@ -4040,8 +4040,6 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+ 		goto out;
+ 
+ 	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);
+-	if (!ptep)
+-		goto out;
+ 	if (!pte_present(*ptep))
+ 		goto unlock;
+ 	*ptepp = ptep;
+diff --git v4.11-rc6-mmotm-2017-04-13-14-50/mm/mprotect.c v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/mprotect.c
+index 8fd010f..d60a1ee 100644
+--- v4.11-rc6-mmotm-2017-04-13-14-50/mm/mprotect.c
++++ v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/mprotect.c
+@@ -58,8 +58,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	 * reading.
+ 	 */
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	if (!pte)
+-		return 0;
+ 
+ 	/* Get target node for single threaded private VMAs */
+ 	if (prot_numa && !(vma->vm_flags & VM_SHARED) &&
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
