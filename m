@@ -1,88 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 23990831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 13:21:07 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v195so18110669qka.1
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 10:21:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 135si75723qkf.324.2017.05.18.10.21.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E72831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 13:24:34 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y22so10624797wry.1
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 10:24:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k27si5702153edb.51.2017.05.18.10.24.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 10:21:06 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-12-git-send-email-longman@redhat.com>
- <20170517214718.GH942@htj.duckdns.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <5fd96236-532a-964f-f130-c93272edbc8e@redhat.com>
-Date: Thu, 18 May 2017 13:21:02 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 May 2017 10:24:33 -0700 (PDT)
+Date: Thu, 18 May 2017 19:24:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
+ with cpuset update
+Message-ID: <20170518172424.GB30148@dhcp22.suse.cz>
+References: <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz>
+ <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org>
+ <20170517092042.GH18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org>
+ <20170517140501.GM18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org>
+ <20170517145645.GO18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705171021570.9487@east.gentwo.org>
+ <20170518090846.GD25462@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705181154450.27641@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20170517214718.GH942@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1705181154450.27641@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Christoph Lameter <cl@linux.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
 
-On 05/17/2017 05:47 PM, Tejun Heo wrote:
-> Hello, Waiman.
->
-> On Mon, May 15, 2017 at 09:34:10AM -0400, Waiman Long wrote:
->> The current thread mode semantics aren't sufficient to fully support
->> threaded controllers like cpu. The main problem is that when thread
->> mode is enabled at root (mainly for performance reason), all the
->> non-threaded controllers cannot be supported at all.
->>
->> To alleviate this problem, the roles of thread root and threaded
->> cgroups are now further separated. Now thread mode can only be enabled=
+On Thu 18-05-17 11:57:55, Cristopher Lameter wrote:
+> On Thu, 18 May 2017, Michal Hocko wrote:
+> 
+> > > Nope. The OOM in a cpuset gets the process doing the alloc killed. Or what
+> > > that changed?
+> 
+> !!!!!
+> 
+> > >
+> > > At this point you have messed up royally and nothing is going to rescue
+> > > you anyways. OOM or not does not matter anymore. The app will fail.
+> >
+> > Not really. If you can trick the system to _think_ that the intersection
+> > between mempolicy and the cpuset is empty then the OOM killer might
+> > trigger an innocent task rather than the one which tricked it into that
+> > situation.
+> 
+> See above. OOM Kill in a cpuset does not kill an innocent task but a task
+> that does an allocation in that specific context meaning a task in that
+> cpuset that also has a memory policty.
 
->> on a non-root leaf cgroup whose parent will then become the thread
->> root. All the descendants of a threaded cgroup will still need to be
->> threaded. All the non-threaded resource will be accounted for in the
->> thread root. Unlike the previous thread mode, however, a thread root
->> can have non-threaded children where system resources like memory
->> can be further split down the hierarchy.
->>
->> Now we could have something like
->>
->> 	R -- A -- B
->> 	 \
->> 	  T1 -- T2
->>
->> where R is the thread root, A and B are non-threaded cgroups, T1 and
->> T2 are threaded cgroups. The cgroups R, T1, T2 form a threaded subtree=
+No, the oom killer will chose the largest task in the specific NUMA
+domain. If you just fail such an allocation then a page fault would get
+VM_FAULT_OOM and pagefault_out_of_memory would kill a task regardless of
+the cpusets.
+ 
+> Regardless of that the point earlier was that the moving logic can avoid
+> creating temporary situations of empty sets of nodes by analysing the
+> memory policies etc and only performing moves when doing so is safe.
 
->> where all the non-threaded resources are accounted for in R.  The no
->> internal process constraint does not apply in the threaded subtree.
->> Non-threaded controllers need to properly handle the competition
->> between internal processes and child cgroups at the thread root.
->>
->> This model will be flexible enough to support the need of the threaded=
+How are you going to do that in a raceless way? Moreover the whole
+discussion is about _failing_ allocations on an empty cpuset and
+mempolicy intersection.
 
->> controllers.
-> I do like the approach and it does address the issue with requiring at
-> least one level of nesting for the thread mode to be used with other
-> controllers.  I need to think a bit more about it and mull over what
-> Peterz was suggesting in the old thread.  I'll get back to you soon
-> but I'd really prefer this and the earlier related patches to be in
-> its own patchset so that we aren't dealing with different things at
-> the same time.
->
-> Thanks.
->
-I have studied the email exchanges with your original thread mode
-patchset. This patchset is aimed to hopefully address all the concerns
-that Peterz has. This enhanced thread mode should address a big part of
-the concern. However, I am not sure if this patch, by itself, is enough
-to address all his concerns. That is why I also include 2 other major
-changes in the next 2 patches. My goal is to move forward to allow all
-controllers to be enabled for v2 eventually. We are not there yet, but I
-hope this patchset can move thing forward meaningfully.
-
-Regards,
-Longman
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
