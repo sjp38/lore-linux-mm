@@ -1,125 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 418FF831F8
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 13:37:27 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id z142so18225065qkz.8
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 10:37:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k66si6007846qke.89.2017.05.18.10.37.25
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E42D0831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 13:52:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w79so10425303wme.7
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 10:52:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l15si6882379edc.112.2017.05.18.10.52.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 10:37:26 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/3] ksm: cleanup stable_node chain collapse case
-Date: Thu, 18 May 2017 19:37:19 +0200
-Message-Id: <20170518173721.22316-2-aarcange@redhat.com>
-In-Reply-To: <20170518173721.22316-1-aarcange@redhat.com>
-References: <20170518173721.22316-1-aarcange@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 May 2017 10:52:12 -0700 (PDT)
+Date: Thu, 18 May 2017 19:51:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
+ above 47-bits
+Message-ID: <20170518175158.GF30148@dhcp22.suse.cz>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+ <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
+ <20170518114359.GB25471@dhcp22.suse.cz>
+ <20170518151952.jzvz6aeelgx7ifmm@node.shutemov.name>
+ <20170518152736.GA18333@dhcp22.suse.cz>
+ <20170518154135.zekuqls6almevrjt@node.shutemov.name>
+ <20170518155003.GB18333@dhcp22.suse.cz>
+ <20170518155914.GC18333@dhcp22.suse.cz>
+ <20170518162255.l55tm5qbmnvvsgba@node.shutemov.name>
+ <20170518171330.GA30148@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518171330.GA30148@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: Evgheni Dereveanchin <ederevea@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Petr Holasek <pholasek@redhat.com>, Hugh Dickins <hughd@google.com>, Arjan van de Ven <arjan@linux.intel.com>, Davidlohr Bueso <dave@stgolabs.net>, Gavin Guo <gavin.guo@canonical.com>, Jay Vosburgh <jay.vosburgh@canonical.com>, Mel Gorman <mgorman@techsingularity.net>, Dan Carpenter <dan.carpenter@oracle.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-When the stable_node chain is collapsed we can as well set the caller
-stable_node to match the returned stable_node_dup in chain_prune().
+On Thu 18-05-17 19:13:30, Michal Hocko wrote:
+> On Thu 18-05-17 19:22:55, Kirill A. Shutemov wrote:
+> > On Thu, May 18, 2017 at 05:59:14PM +0200, Michal Hocko wrote:
+> [...]
+> > > I basically mean something like the following
+> > > ---
+> > > diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+> > > index 74d1587b181d..d6f66ff02d0a 100644
+> > > --- a/arch/x86/kernel/sys_x86_64.c
+> > > +++ b/arch/x86/kernel/sys_x86_64.c
+> > > @@ -195,7 +195,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+> > >  		goto bottomup;
+> > >  
+> > >  	/* requesting a specific address */
+> > > -	if (addr) {
+> > > +	if (addr && addr <= DEFAULT_MAP_WINDOW) {
+> > >  		addr = PAGE_ALIGN(addr);
+> > >  		vma = find_vma(mm, addr);
+> > >  		if (TASK_SIZE - len >= addr &&
+> > > @@ -215,7 +215,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+> > >  	 * !in_compat_syscall() check to avoid high addresses for x32.
+> > >  	 */
+> > >  	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+> > > -		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
+> > > +		info.high_limit += min(TASK_SIZE_MAX, address) - DEFAULT_MAP_WINDOW;
+> > >  
+> > >  	info.align_mask = 0;
+> > >  	info.align_offset = pgoff << PAGE_SHIFT;
+> > 
+> > You try to stretch the interface too far. With the patch you propose we
+> > have totally different behaviour wrt hint address if it below and above
+> > 47-bits:
+> > 
+> >  * <= 47-bits: allocate VM [addr; addr + len - 1], if free;
+> 
+> unless I am missing something fundamental here this is not how it works.
+> We just map a different range if the requested one is not free (in
+> absence of MAP_FIXED). And we do that in top->down direction so this is
+> already how it works. And you _do_ rely on the same thing when allowing
+> larger than 47b except you start from the top of the supported address
+> space. So how exactly is your new behavior any different and more clear?
 
-This way the collapse case becomes indistinguishable from the regular
-stable_node case and we can remove two branches from the KSM page
-migration handling slow paths.
+OK, I take that back because I am clearly wrong. We simply always start
+from top. Sorry about my confusion.
 
-While it was all correct this looks cleaner (and faster) as the caller
-has to deal with fewer special cases.
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/ksm.c | 50 ++++++++++++++++++++++++++++----------------------
- 1 file changed, 28 insertions(+), 22 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index fc0c73bd6cb3..959036064bb7 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1394,14 +1394,18 @@ static struct stable_node *stable_node_dup(struct stable_node **_stable_node,
- 			ksm_stable_node_chains--;
- 			ksm_stable_node_dups--;
- 			/*
--			 * NOTE: the caller depends on the
--			 * *_stable_node to become NULL if the chain
--			 * was collapsed. Enforce that if anything
--			 * uses a stale (freed) stable_node chain a
--			 * visible crash will materialize (instead of
--			 * an use after free).
-+			 * NOTE: the caller depends on the stable_node
-+			 * to be equal to stable_node_dup if the chain
-+			 * was collapsed.
- 			 */
--			*_stable_node = stable_node = NULL;
-+			*_stable_node = found;
-+			/*
-+			 * Just for robustneess as stable_node is
-+			 * otherwise left as a stable pointer, the
-+			 * compiler shall optimize it away at build
-+			 * time.
-+			 */
-+			stable_node = NULL;
- 		} else if (__is_page_sharing_candidate(found, 1)) {
- 			/*
- 			 * Refile our candidate at the head
-@@ -1507,7 +1511,11 @@ static struct page *stable_tree_search(struct page *page)
- 		 * not NULL. stable_node_dup may have been inserted in
- 		 * the rbtree instead as a regular stable_node (in
- 		 * order to collapse the stable_node chain if a single
--		 * stable_node dup was found in it).
-+		 * stable_node dup was found in it). In such case the
-+		 * stable_node is overwritten by the calleee to point
-+		 * to the stable_node_dup that was collapsed in the
-+		 * stable rbtree and stable_node will be equal to
-+		 * stable_node_dup like if the chain never existed.
- 		 */
- 		if (!stable_node_dup) {
- 			/*
-@@ -1625,15 +1633,13 @@ static struct page *stable_tree_search(struct page *page)
- replace:
- 	/*
- 	 * If stable_node was a chain and chain_prune collapsed it,
--	 * stable_node will be NULL here. In that case the
--	 * stable_node_dup is the regular stable_node that has
--	 * replaced the chain. If stable_node is not NULL and equal to
--	 * stable_node_dup there was no chain and stable_node_dup is
--	 * the regular stable_node in the stable rbtree. Otherwise
--	 * stable_node is the chain and stable_node_dup is the dup to
--	 * replace.
-+	 * stable_node has been updated to be the new regular
-+	 * stable_node. A collapse of the chain is indistinguishable
-+	 * from the case there was no chain in the stable
-+	 * rbtree. Otherwise stable_node is the chain and
-+	 * stable_node_dup is the dup to replace.
- 	 */
--	if (!stable_node || stable_node_dup == stable_node) {
-+	if (stable_node_dup == stable_node) {
- 		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
- 		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
- 		/* there is no chain */
-@@ -1678,13 +1684,13 @@ static struct page *stable_tree_search(struct page *page)
- 		stable_node_dup = stable_node_any;
- 	/*
- 	 * If stable_node was a chain and chain_prune collapsed it,
--	 * stable_node will be NULL here. In that case the
--	 * stable_node_dup is the regular stable_node that has
--	 * replaced the chain. If stable_node is not NULL and equal to
--	 * stable_node_dup there was no chain and stable_node_dup is
--	 * the regular stable_node in the stable rbtree.
-+	 * stable_node has been updated to be the new regular
-+	 * stable_node. A collapse of the chain is indistinguishable
-+	 * from the case there was no chain in the stable
-+	 * rbtree. Otherwise stable_node is the chain and
-+	 * stable_node_dup is the dup to replace.
- 	 */
--	if (!stable_node || stable_node_dup == stable_node) {
-+	if (stable_node_dup == stable_node) {
- 		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
- 		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
- 		/* chain is missing so create it */
+Feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
