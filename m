@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 65D25831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 09:35:10 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 196so9074016wmk.9
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 06:35:10 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c31si5790467eda.24.2017.05.18.06.35.08
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B4CF831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 09:57:30 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 123so34771783pge.14
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 06:57:30 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s191si5071468pgc.237.2017.05.18.06.57.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 06:35:08 -0700 (PDT)
-Date: Thu, 18 May 2017 15:28:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Strange condition in invalidate_mapping_pages()
-Message-ID: <20170518132818.GA16430@quack2.suse.cz>
-MIME-Version: 1.0
+        Thu, 18 May 2017 06:57:29 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: fix oom invocation issues
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170517161446.GB20660@dhcp22.suse.cz>
+	<20170517194316.GA30517@castle>
+	<201705180703.JGH95344.SOHJtFFMOQFLOV@I-love.SAKURA.ne.jp>
+	<20170518084729.GB25462@dhcp22.suse.cz>
+	<20170518090039.GC25462@dhcp22.suse.cz>
+In-Reply-To: <20170518090039.GC25462@dhcp22.suse.cz>
+Message-Id: <201705182257.HJJ52185.OQStFLFMHVOJOF@I-love.SAKURA.ne.jp>
+Date: Thu, 18 May 2017 22:57:10 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Kirill,
+Michal Hocko wrote:
+> It is racy and it basically doesn't have any allocation context so we
+> might kill a task from a different domain. So can we do this instead?
+> There is a slight risk that somebody might have returned VM_FAULT_OOM
+> without doing an allocation but from my quick look nobody does that
+> currently.
 
-in commit fc127da085c26 "truncate: handle file thp" you've added the
-following to invalidate_mapping_pages():
+I can't tell whether it is safe to remove out_of_memory() from pagefault_out_of_memory().
+There are VM_FAULT_OOM users in fs/ directory. What happens if pagefault_out_of_memory()
+was called as a result of e.g. GFP_NOFS allocation failure? Is it guaranteed that all
+memory allocations that might occur from page fault event (or any action that might return
+VM_FAULT_OOM) are allowed to call oom_kill_process() from out_of_memory() before
+reaching pagefault_out_of_memory() ?
 
-          /* Middle of THP: skip */
-          if (PageTransTail(page)) {
-                  unlock_page(page);
-                  continue;
-          } else if (PageTransHuge(page)) {
-                  index += HPAGE_PMD_NR - 1;
-                  i += HPAGE_PMD_NR - 1;
-                  /* 'end' is in the middle of THP */
-                  if (index ==  round_down(end, HPAGE_PMD_NR))
-                          continue;
-          }
+Anyway, I want
 
-Now how can ever condition "if (index ==  round_down(end,
-HPAGE_PMD_NR))" be true? We have just added HPAGE_PMD_NR - 1 to 'index'
-so it will not be a multiple of HPAGE_PMD_NR. Presumably you wanted to
-check whether the current THP is the one containing 'end' here which would
-be something like 'round_down(index, HPAGE_PMD_NR) == round_down(end,
-HPAGE_PMD_NR)' but then I still miss why you'd like to avoid invalidating
-the partial THP at the end of file... Can you please enlighten me? Thanks!
+	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE))
++	if (alloc_flags == ALLOC_NO_WATERMARKS && test_thread_flag(TIF_MEMDIE))
+		goto nopage;
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+so that we won't see similar backtraces and memory information from both
+out_of_memory() and warn_alloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
