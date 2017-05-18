@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C98831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 12:42:15 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u96so10369024wrc.7
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 09:42:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si5982968edp.312.2017.05.18.09.42.13
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E24BE831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 12:57:59 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id s131so30605641itd.6
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 09:57:59 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id a1si20201292ita.86.2017.05.18.09.57.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 09:42:14 -0700 (PDT)
-Date: Thu, 18 May 2017 18:42:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 07/14] mm: consider zone which is not fully populated to
- have holes
-Message-ID: <20170518164210.GD18333@dhcp22.suse.cz>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <20170515085827.16474-8-mhocko@kernel.org>
- <ae859e14-bf82-ae37-9c85-d4b31ce89b0a@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ae859e14-bf82-ae37-9c85-d4b31ce89b0a@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 May 2017 09:57:59 -0700 (PDT)
+Date: Thu, 18 May 2017 11:57:55 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 1/6] mm, page_alloc: fix more premature OOM due to race
+ with cpuset update
+In-Reply-To: <20170518090846.GD25462@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1705181154450.27641@east.gentwo.org>
+References: <cf9628e9-20ed-68b0-6cbd-48af5133138c@suse.cz> <alpine.DEB.2.20.1704141526260.17435@east.gentwo.org> <fda99ddc-94f5-456e-6560-d4991da452a6@suse.cz> <alpine.DEB.2.20.1704301628460.21533@east.gentwo.org> <20170517092042.GH18247@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1705170855430.7925@east.gentwo.org> <20170517140501.GM18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705170943090.8714@east.gentwo.org> <20170517145645.GO18247@dhcp22.suse.cz> <alpine.DEB.2.20.1705171021570.9487@east.gentwo.org>
+ <20170518090846.GD25462@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
 
-On Thu 18-05-17 18:14:39, Vlastimil Babka wrote:
-> On 05/15/2017 10:58 AM, Michal Hocko wrote:
-[...]
-> >  #ifdef CONFIG_MEMORY_HOTPLUG
-> > +/*
-> > + * Return page for the valid pfn only if the page is online. All pfn
-> > + * walkers which rely on the fully initialized page->flags and others
-> > + * should use this rather than pfn_valid && pfn_to_page
-> > + */
-> > +#define pfn_to_online_page(pfn)				\
-> > +({							\
-> > +	struct page *___page = NULL;			\
-> > +							\
-> > +	if (online_section_nr(pfn_to_section_nr(pfn)))	\
-> > +		___page = pfn_to_page(pfn);		\
-> > +	___page;					\
-> > +})
-> 
-> This seems to be already assuming pfn_valid() to be true. There's no
-> "pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS" check and the comment
-> suggests as such, but...
+On Thu, 18 May 2017, Michal Hocko wrote:
 
-Yes, we should check the validity of the section number. We do not have
-to check whether the section is valid because online sections are a
-subset of those that are valid.
+> > Nope. The OOM in a cpuset gets the process doing the alloc killed. Or what
+> > that changed?
 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 05796ee974f7..c3a146028ba6 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -929,6 +929,9 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
-> >  	unsigned long i;
-> >  	unsigned long onlined_pages = *(unsigned long *)arg;
-> >  	struct page *page;
-> > +
-> > +	online_mem_sections(start_pfn, start_pfn + nr_pages);
-> 
-> Shouldn't this be moved *below* the loop that initializes struct pages?
-> In the offline case you do mark sections offline before "tearing" struct
-> pages, so that should be symmetric.
+!!!!!
 
-You are right! Andrew, could you fold the following intot the patch?
----
+> >
+> > At this point you have messed up royally and nothing is going to rescue
+> > you anyways. OOM or not does not matter anymore. The app will fail.
+>
+> Not really. If you can trick the system to _think_ that the intersection
+> between mempolicy and the cpuset is empty then the OOM killer might
+> trigger an innocent task rather than the one which tricked it into that
+> situation.
+
+See above. OOM Kill in a cpuset does not kill an innocent task but a task
+that does an allocation in that specific context meaning a task in that
+cpuset that also has a memory policty.
+
+Regardless of that the point earlier was that the moving logic can avoid
+creating temporary situations of empty sets of nodes by analysing the
+memory policies etc and only performing moves when doing so is safe.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
