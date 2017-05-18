@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4CF831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 09:57:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 123so34771783pge.14
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 06:57:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id s191si5071468pgc.237.2017.05.18.06.57.28
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 02958831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 10:09:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g12so9523489wrg.15
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 07:09:32 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e36si5109871eda.29.2017.05.18.07.09.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 06:57:29 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: fix oom invocation issues
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170517161446.GB20660@dhcp22.suse.cz>
-	<20170517194316.GA30517@castle>
-	<201705180703.JGH95344.SOHJtFFMOQFLOV@I-love.SAKURA.ne.jp>
-	<20170518084729.GB25462@dhcp22.suse.cz>
-	<20170518090039.GC25462@dhcp22.suse.cz>
-In-Reply-To: <20170518090039.GC25462@dhcp22.suse.cz>
-Message-Id: <201705182257.HJJ52185.OQStFLFMHVOJOF@I-love.SAKURA.ne.jp>
-Date: Thu, 18 May 2017 22:57:10 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 18 May 2017 07:09:31 -0700 (PDT)
+Subject: Re: [PATCH] mm: clarify why we want kmalloc before falling backto
+ vmallock
+References: <20170517080932.21423-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9e50d756-4fed-3617-ab93-8298d7e0231b@suse.cz>
+Date: Thu, 18 May 2017 16:08:58 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170517080932.21423-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: guro@fb.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Michal Hocko wrote:
-> It is racy and it basically doesn't have any allocation context so we
-> might kill a task from a different domain. So can we do this instead?
-> There is a slight risk that somebody might have returned VM_FAULT_OOM
-> without doing an allocation but from my quick look nobody does that
-> currently.
+On 05/17/2017 10:09 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> While converting drm_[cm]alloc* helpers to kvmalloc* variants Chris
+> Wilson has wondered why we want to try kmalloc before vmalloc fallback
+> even for larger allocations requests. Let's clarify that one larger
+> physically contiguous block is less likely to fragment memory than many
+> scattered pages which can prevent more large blocks from being created.
+> 
+> Suggested-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-I can't tell whether it is safe to remove out_of_memory() from pagefault_out_of_memory().
-There are VM_FAULT_OOM users in fs/ directory. What happens if pagefault_out_of_memory()
-was called as a result of e.g. GFP_NOFS allocation failure? Is it guaranteed that all
-memory allocations that might occur from page fault event (or any action that might return
-VM_FAULT_OOM) are allowed to call oom_kill_process() from out_of_memory() before
-reaching pagefault_out_of_memory() ?
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Anyway, I want
-
-	/* Avoid allocations with no watermarks from looping endlessly */
--	if (test_thread_flag(TIF_MEMDIE))
-+	if (alloc_flags == ALLOC_NO_WATERMARKS && test_thread_flag(TIF_MEMDIE))
-		goto nopage;
-
-so that we won't see similar backtraces and memory information from both
-out_of_memory() and warn_alloc().
+> ---
+>  mm/util.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/util.c b/mm/util.c
+> index 464df3489903..87499f8119f2 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -357,7 +357,10 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+>  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+>  
+>  	/*
+> -	 * Make sure that larger requests are not too disruptive - no OOM
+> +	 * We want to attempt a large physically contiguous block first because
+> +	 * it is less likely to fragment multiple larger blocks and therefore
+> +	 * contribute to a long term fragmentation less than vmalloc fallback.
+> +	 * However make sure that larger requests are not too disruptive - no OOM
+>  	 * killer and no allocation failure warnings as we have a fallback
+>  	 */
+>  	if (size > PAGE_SIZE) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
