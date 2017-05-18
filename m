@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 28668831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:27:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 70so8887325wmq.12
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:27:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l15si6524925edc.112.2017.05.18.08.27.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD0D831F5
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:28:25 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 139so9691442wmf.5
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:28:25 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id w7si5665247wra.281.2017.05.18.08.28.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 May 2017 08:27:42 -0700 (PDT)
-Date: Thu, 18 May 2017 17:27:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
- above 47-bits
-Message-ID: <20170518152736.GA18333@dhcp22.suse.cz>
-References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
- <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
- <20170518114359.GB25471@dhcp22.suse.cz>
- <20170518151952.jzvz6aeelgx7ifmm@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 May 2017 08:28:23 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id 70so50783446wmq.1
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:28:23 -0700 (PDT)
+Date: Thu, 18 May 2017 18:28:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Strange condition in invalidate_mapping_pages()
+Message-ID: <20170518152820.4afcctrzzngcdxdz@node.shutemov.name>
+References: <20170518132818.GA16430@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170518151952.jzvz6aeelgx7ifmm@node.shutemov.name>
+In-Reply-To: <20170518132818.GA16430@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
-On Thu 18-05-17 18:19:52, Kirill A. Shutemov wrote:
-> On Thu, May 18, 2017 at 01:43:59PM +0200, Michal Hocko wrote:
-> > On Mon 15-05-17 15:12:18, Kirill A. Shutemov wrote:
-> > [...]
-> > > @@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-> > >  	info.length = len;
-> > >  	info.low_limit = PAGE_SIZE;
-> > >  	info.high_limit = get_mmap_base(0);
-> > > +
-> > > +	/*
-> > > +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-> > > +	 * in the full address space.
-> > > +	 *
-> > > +	 * !in_compat_syscall() check to avoid high addresses for x32.
-> > > +	 */
-> > > +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-> > > +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
-> > > +
-> > >  	info.align_mask = 0;
-> > >  	info.align_offset = pgoff << PAGE_SHIFT;
-> > >  	if (filp) {
-> > 
-> > I have two questions/concerns here. The above assumes that any address above
-> > 1<<47 will use the _whole_ address space. Is this what we want?
+On Thu, May 18, 2017 at 03:28:18PM +0200, Jan Kara wrote:
+> Hi Kirill,
 > 
-> Yes, I believe so.
+> in commit fc127da085c26 "truncate: handle file thp" you've added the
+> following to invalidate_mapping_pages():
 > 
-> > What if somebody does mmap(1<<52, ...) because he wants to (ab)use 53+
-> > bits for some other purpose? Shouldn't we cap the high_limit by the
-> > given address?
+>           /* Middle of THP: skip */
+>           if (PageTransTail(page)) {
+>                   unlock_page(page);
+>                   continue;
+>           } else if (PageTransHuge(page)) {
+>                   index += HPAGE_PMD_NR - 1;
+>                   i += HPAGE_PMD_NR - 1;
+>                   /* 'end' is in the middle of THP */
+>                   if (index ==  round_down(end, HPAGE_PMD_NR))
+>                           continue;
+>           }
 > 
-> This would screw existing semantics of hint address -- "map here if
-> free, please".
+> Now how can ever condition "if (index ==  round_down(end,
+> HPAGE_PMD_NR))" be true? We have just added HPAGE_PMD_NR - 1 to 'index'
+> so it will not be a multiple of HPAGE_PMD_NR. Presumably you wanted to
+> check whether the current THP is the one containing 'end' here which would
+> be something like 'round_down(index, HPAGE_PMD_NR) == round_down(end,
+> HPAGE_PMD_NR)'.
 
-Well, the given address is just _hint_. We are still allowed to map to a
-different place. And it is not specified whether the resulting mapping
-is above or below that address. So I do not think it would screw the
-existing semantic. Or do I miss something?
+You're right, it's a bug. 'page->index' instead of 'index' should do the
+trick.
+
+Would you like to prepare the patch? (I'm deep in 5-level paging at the
+moment.)
+
+> but then I still miss why you'd like to avoid invalidating the partial
+> THP at the end of file... Can you please enlighten me? Thanks!
+
+My logic was that the data in the non-invalidated part of the page can be
+still useful and it's better to leave it in page cache.
+
+I don't have performance numbers to validate my intuition.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
