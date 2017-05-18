@@ -1,65 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 21233831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:58:45 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j13so15928551qta.13
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:58:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e30si5966612qtf.272.2017.05.18.08.58.44
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B802831F4
+	for <linux-mm@kvack.org>; Thu, 18 May 2017 11:59:19 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l9so10120630wre.12
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 08:59:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 21si6202439eds.84.2017.05.18.08.59.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 08:58:44 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 10/17] cgroup: Make debug cgroup support v2 and
- thread mode
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-11-git-send-email-longman@redhat.com>
- <20170517214338.GG942@htj.duckdns.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <3cb18ea6-fcc1-af92-3926-d65ae0a30b97@redhat.com>
-Date: Thu, 18 May 2017 11:58:41 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 18 May 2017 08:59:17 -0700 (PDT)
+Date: Thu, 18 May 2017 17:59:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv5, REBASED 9/9] x86/mm: Allow to have userspace mappings
+ above 47-bits
+Message-ID: <20170518155914.GC18333@dhcp22.suse.cz>
+References: <20170515121218.27610-1-kirill.shutemov@linux.intel.com>
+ <20170515121218.27610-10-kirill.shutemov@linux.intel.com>
+ <20170518114359.GB25471@dhcp22.suse.cz>
+ <20170518151952.jzvz6aeelgx7ifmm@node.shutemov.name>
+ <20170518152736.GA18333@dhcp22.suse.cz>
+ <20170518154135.zekuqls6almevrjt@node.shutemov.name>
+ <20170518155003.GB18333@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170517214338.GG942@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518155003.GB18333@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On 05/17/2017 05:43 PM, Tejun Heo wrote:
-> Hello,
->
-> On Mon, May 15, 2017 at 09:34:09AM -0400, Waiman Long wrote:
->> Besides supporting cgroup v2 and thread mode, the following changes
->> are also made:
->>  1) current_* cgroup files now resides only at the root as we don't
->>     need duplicated files of the same function all over the cgroup
->>     hierarchy.
->>  2) The cgroup_css_links_read() function is modified to report
->>     the number of tasks that are skipped because of overflow.
->>  3) The relationship between proc_cset and threaded_csets are displayed.
->>  4) The number of extra unaccounted references are displayed.
->>  5) The status of being a thread root or threaded cgroup is displayed.
->>  6) The current_css_set_read() function now prints out the addresses of
->>     the css'es associated with the current css_set.
->>  7) A new cgroup_subsys_states file is added to display the css objects
->>     associated with a cgroup.
->>  8) A new cgroup_masks file is added to display the various controller
->>     bit masks in the cgroup.
->>
->> Signed-off-by: Waiman Long <longman@redhat.com>
-> As noted before, please make it clear that this is a debug feature and
-> not expected to be stable.  Also, I don't see why this and the
-> previous two patches are in this series.  Can you please split these
-> out to a separate patchset?
->
-> Thanks.
->
-Sure. I can separate out the debug code into a separate patchset. It is
-just easier to manage as a single patchset than 2 separate ones.
+On Thu 18-05-17 17:50:03, Michal Hocko wrote:
+> On Thu 18-05-17 18:41:35, Kirill A. Shutemov wrote:
+> > On Thu, May 18, 2017 at 05:27:36PM +0200, Michal Hocko wrote:
+> > > On Thu 18-05-17 18:19:52, Kirill A. Shutemov wrote:
+> > > > On Thu, May 18, 2017 at 01:43:59PM +0200, Michal Hocko wrote:
+> > > > > On Mon 15-05-17 15:12:18, Kirill A. Shutemov wrote:
+> > > > > [...]
+> > > > > > @@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+> > > > > >  	info.length = len;
+> > > > > >  	info.low_limit = PAGE_SIZE;
+> > > > > >  	info.high_limit = get_mmap_base(0);
+> > > > > > +
+> > > > > > +	/*
+> > > > > > +	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
+> > > > > > +	 * in the full address space.
+> > > > > > +	 *
+> > > > > > +	 * !in_compat_syscall() check to avoid high addresses for x32.
+> > > > > > +	 */
+> > > > > > +	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+> > > > > > +		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
+> > > > > > +
+> > > > > >  	info.align_mask = 0;
+> > > > > >  	info.align_offset = pgoff << PAGE_SHIFT;
+> > > > > >  	if (filp) {
+> > > > > 
+> > > > > I have two questions/concerns here. The above assumes that any address above
+> > > > > 1<<47 will use the _whole_ address space. Is this what we want?
+> > > > 
+> > > > Yes, I believe so.
+> > > > 
+> > > > > What if somebody does mmap(1<<52, ...) because he wants to (ab)use 53+
+> > > > > bits for some other purpose? Shouldn't we cap the high_limit by the
+> > > > > given address?
+> > > > 
+> > > > This would screw existing semantics of hint address -- "map here if
+> > > > free, please".
+> > > 
+> > > Well, the given address is just _hint_. We are still allowed to map to a
+> > > different place. And it is not specified whether the resulting mapping
+> > > is above or below that address. So I do not think it would screw the
+> > > existing semantic. Or do I miss something?
+> > 
+> > You are right, that this behaviour is not fixed by any standard or written
+> > down in documentation, but it's de-facto policy of Linux mmap(2) the
+> > beginning.
+> > 
+> > And we need to be very careful when messing with this.
+> 
+> I am sorry but I still do not understand. You already touch this
+> semantic. mmap(-1UL,...) will already returns basically arbitrary
+> address. All I am asking for is that mmap doesn't return higher address
+> than the given one whent address > 1<<47. We do not have any such users
+> currently so it won't be a change in behavior while it would allow
+> different sized address spaces naturally.
 
-Regards,
-Longman
+I basically mean something like the following
+---
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index 74d1587b181d..d6f66ff02d0a 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -195,7 +195,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 		goto bottomup;
+ 
+ 	/* requesting a specific address */
+-	if (addr) {
++	if (addr && addr <= DEFAULT_MAP_WINDOW) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+ 		if (TASK_SIZE - len >= addr &&
+@@ -215,7 +215,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	 * !in_compat_syscall() check to avoid high addresses for x32.
+ 	 */
+ 	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+-		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
++		info.high_limit += min(TASK_SIZE_MAX, address) - DEFAULT_MAP_WINDOW;
+ 
+ 	info.align_mask = 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
