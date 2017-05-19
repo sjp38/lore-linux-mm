@@ -1,70 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 14303831F4
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 02:59:52 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y43so3165087wrc.11
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 23:59:52 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C406831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 03:09:59 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x184so13303183wmf.14
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 00:09:59 -0700 (PDT)
 Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::180])
-        by mx.google.com with ESMTPS id i1si3880294ljd.166.2017.05.18.23.59.50
+        by mx.google.com with ESMTPS id g90si2407250lfi.43.2017.05.19.00.09.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 23:59:50 -0700 (PDT)
-Subject: [PATCH] mm/vmstat: add oom_kill counter
+        Fri, 19 May 2017 00:09:57 -0700 (PDT)
+Subject: [PATCH] ext4: handle the rest of ext4_mb_load_buddy() ENOMEM errors
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Fri, 19 May 2017 09:59:45 +0300
-Message-ID: <149517718482.32770.939520643229572472.stgit@buzz>
+Date: Fri, 19 May 2017 10:09:54 +0300
+Message-ID: <149517779388.33359.16474190951431954772.stgit@buzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-Show count of global oom killer invocations in /proc/vmstat
+I've got another report about breaking ext4 by ENOMEM error returned from
+ext4_mb_load_buddy() caused by memory shortage in memory cgroup.
+This time inside ext4_discard_preallocations().
 
+This patch replaces ext4_error() with ext4_warning() where errors returned
+from ext4_mb_load_buddy() are not fatal and handled by caller:
+* ext4_mb_discard_group_preallocations() - called before generating ENOSPC,
+  we'll try to discard other group or return ENOSPC into user-space.
+* ext4_trim_all_free() - just stop trimming and return ENOMEM from ioctl.
+
+Some callers cannot handle errors, thus __GFP_NOFAIL is used for them:
+* ext4_discard_preallocations()
+* ext4_mb_discard_lg_preallocations()
+
+The only unclear case is ext4_group_add_blocks(), probably ext4_std_error()
+should handle ENOMEM as warning and don't break filesystem.
+
+Fixes: adb7ef600cc9 ("ext4: use __GFP_NOFAIL in ext4_free_blocks()")
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- include/linux/vm_event_item.h |    1 +
- mm/oom_kill.c                 |    1 +
- mm/vmstat.c                   |    1 +
- 3 files changed, 3 insertions(+)
+ fs/ext4/mballoc.c |   23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index d84ae90ccd5c..1707e0a7d943 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
-+		OOM_KILL,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
- 		NUMA_HUGE_PTE_UPDATES,
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 04c9143a8625..c734c42826cf 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -883,6 +883,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	 */
- 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mark_oom_victim(victim);
-+	count_vm_event(OOM_KILL);
- 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
- 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
- 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 76f73670200a..fe80b81a86e0 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
+diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
+index 5083bce20ac4..b7928cddd539 100644
+--- a/fs/ext4/mballoc.c
++++ b/fs/ext4/mballoc.c
+@@ -3887,7 +3887,8 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
  
- 	"drop_pagecache",
- 	"drop_slab",
-+	"oom_kill",
+ 	err = ext4_mb_load_buddy(sb, group, &e4b);
+ 	if (err) {
+-		ext4_error(sb, "Error loading buddy information for %u", group);
++		ext4_warning(sb, "Error %d loading buddy information for %u",
++			     err, group);
+ 		put_bh(bitmap_bh);
+ 		return 0;
+ 	}
+@@ -4044,10 +4045,11 @@ void ext4_discard_preallocations(struct inode *inode)
+ 		BUG_ON(pa->pa_type != MB_INODE_PA);
+ 		group = ext4_get_group_number(sb, pa->pa_pstart);
  
- #ifdef CONFIG_NUMA_BALANCING
- 	"numa_pte_updates",
+-		err = ext4_mb_load_buddy(sb, group, &e4b);
++		err = ext4_mb_load_buddy_gfp(sb, group, &e4b,
++					     GFP_NOFS|__GFP_NOFAIL);
+ 		if (err) {
+-			ext4_error(sb, "Error loading buddy information for %u",
+-					group);
++			ext4_error(sb, "Error %d loading buddy information for %u",
++				   err, group);
+ 			continue;
+ 		}
+ 
+@@ -4303,11 +4305,14 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
+ 	spin_unlock(&lg->lg_prealloc_lock);
+ 
+ 	list_for_each_entry_safe(pa, tmp, &discard_list, u.pa_tmp_list) {
++		int err;
+ 
+ 		group = ext4_get_group_number(sb, pa->pa_pstart);
+-		if (ext4_mb_load_buddy(sb, group, &e4b)) {
+-			ext4_error(sb, "Error loading buddy information for %u",
+-					group);
++		err = ext4_mb_load_buddy_gfp(sb, group, &e4b,
++					     GFP_NOFS|__GFP_NOFAIL);
++		if (err) {
++			ext4_error(sb, "Error %d loading buddy information for %u",
++				   err, group);
+ 			continue;
+ 		}
+ 		ext4_lock_group(sb, group);
+@@ -5127,8 +5132,8 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
+ 
+ 	ret = ext4_mb_load_buddy(sb, group, &e4b);
+ 	if (ret) {
+-		ext4_error(sb, "Error in loading buddy "
+-				"information for %u", group);
++		ext4_warning(sb, "Error %d loading buddy information for %u",
++			     ret, group);
+ 		return ret;
+ 	}
+ 	bitmap = e4b.bd_bitmap;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
