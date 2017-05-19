@@ -1,58 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F40E28071E
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:28:12 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k11so29270223qtk.4
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:28:12 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id w13si9790768qtc.139.2017.05.19.13.28.11
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2CC28071E
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:28:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w79so16117243wme.7
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:28:45 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id j187si25983258wmd.5.2017.05.19.13.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 13:28:11 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id u75so11629176qka.1
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:28:11 -0700 (PDT)
-Date: Fri, 19 May 2017 16:28:09 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 08/17] cgroup: Move debug cgroup to its own file
-Message-ID: <20170519202809.GB15279@wtj.duckdns.org>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-9-git-send-email-longman@redhat.com>
- <20170517213603.GE942@htj.duckdns.org>
- <ee36d4f8-9e9d-a5c7-2174-56c21aaf75af@redhat.com>
- <20170519192146.GA9741@wtj.duckdns.org>
- <8d942ee6-ebf4-5ba5-5484-60762808f544@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 May 2017 13:28:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 09CAD989FA
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 20:28:44 +0000 (UTC)
+Date: Fri, 19 May 2017 21:28:43 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v5 02/11] mm: mempolicy: add queue_pages_node_check()
+Message-ID: <20170519202843.lco2rkkivh2a433k@techsingularity.net>
+References: <20170420204752.79703-1-zi.yan@sent.com>
+ <20170420204752.79703-3-zi.yan@sent.com>
+ <f7a78cb0-0d91-bdbd-4a38-27f94fcefa8a@linux.vnet.ibm.com>
+ <16799a52-8a03-7099-5f95-3016808ae65f@linux.vnet.ibm.com>
+ <20170519160205.hkte6tlw26lfn74h@techsingularity.net>
+ <35E3E5BA-2745-4710-A348-B6E5D892DA27@cs.rutgers.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <8d942ee6-ebf4-5ba5-5484-60762808f544@redhat.com>
+In-Reply-To: <35E3E5BA-2745-4710-A348-B6E5D892DA27@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mhocko@kernel.org, dnellans@nvidia.com
 
-Hello,
-
-On Fri, May 19, 2017 at 03:33:14PM -0400, Waiman Long wrote:
-> On 05/19/2017 03:21 PM, Tejun Heo wrote:
-> > Yeah but it also shows up as an integral part of stable interface
-> > rather than e.g. /sys/kernel/debug.  This isn't of any interest to
-> > people who aren't developing cgroup core code.  There is no reason to
-> > risk growing dependencies on it.
+On Fri, May 19, 2017 at 12:37:38PM -0400, Zi Yan wrote:
+> > As you say, there is no functional change but the helper name is vague
+> > and gives no hint to what's it's checking for. It's somewhat tolerable as
+> > it is as it's obvious what is being checked but the same is not true with
+> > the helper name.
+> >
 > 
-> The debug controller is used to show information relevant to the cgroup
-> its css'es are attached to. So it will be very hard to use if we
-> relocate to /sys/kernel/debug, for example. Currently, nothing in the
-> debug controller other than debug_cgrp_subsys are exported. I don't see
-> any risk of having dependency on that controller from other parts of the
-> kernel.
+> Does queue_pages_invert_nodemask_check() work? I can change the helper name
+> in the next version.
+> 
 
-Oh, sure, I wasn't suggesting moving it under /sys/kernel/debug but
-that we'd want to take extra precautions as we can't.
-
-Thanks.
+Not particularly, maybe queue_pages_required and invert the check with a
+comment above it explaining what it's checking for would be ok.
 
 -- 
-tejun
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
