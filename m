@@ -1,103 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7212803C1
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 07:26:19 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id i63so56643493pgd.15
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:19 -0700 (PDT)
-Received: from mail-pg0-f66.google.com (mail-pg0-f66.google.com. [74.125.83.66])
-        by mx.google.com with ESMTPS id w125si7959205pfb.368.2017.05.19.04.26.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 04:26:18 -0700 (PDT)
-Received: by mail-pg0-f66.google.com with SMTP id h64so9480333pge.3
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:18 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the #PF
-Date: Fri, 19 May 2017 13:26:04 +0200
-Message-Id: <20170519112604.29090-3-mhocko@kernel.org>
-In-Reply-To: <20170519112604.29090-1-mhocko@kernel.org>
-References: <20170519112604.29090-1-mhocko@kernel.org>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D6A028041F
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 07:27:06 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id y106so4580994wrb.14
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:27:06 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id j90si7518450edd.275.2017.05.19.04.27.04
+        for <linux-mm@kvack.org>;
+        Fri, 19 May 2017 04:27:05 -0700 (PDT)
+Date: Fri, 19 May 2017 13:27:03 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure
+ Memory Encryption
+Message-ID: <20170519112703.voajtn4t7uy6nwa3@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Apr 18, 2017 at 04:22:23PM -0500, Tom Lendacky wrote:
+> Add support to check if SME has been enabled and if memory encryption
+> should be activated (checking of command line option based on the
+> configuration of the default state).  If memory encryption is to be
+> activated, then the encryption mask is set and the kernel is encrypted
+> "in place."
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/kernel/head_64.S |    1 +
+>  arch/x86/mm/mem_encrypt.c |   83 +++++++++++++++++++++++++++++++++++++++++++--
+>  2 files changed, 80 insertions(+), 4 deletions(-)
 
-Any allocation failure during the #PF path will return with VM_FAULT_OOM
-which in turn results in pagefault_out_of_memory. This can happen for
-2 different reasons. a) Memcg is out of memory and we rely on
-mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
-normal allocation fails.
+...
 
-The later is quite problematic because allocation paths already trigger
-out_of_memory and the page allocator tries really hard to not fail
-allocations. Anyway, if the OOM killer has been already invoked there
-is no reason to invoke it again from the #PF path. Especially when the
-OOM condition might be gone by that time and we have no way to find out
-other than allocate.
+> +unsigned long __init sme_enable(struct boot_params *bp)
+>  {
+> +	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
+> +	unsigned int eax, ebx, ecx, edx;
+> +	unsigned long me_mask;
+> +	bool active_by_default;
+> +	char buffer[16];
+> +	u64 msr;
+> +
+> +	/* Check for the SME support leaf */
+> +	eax = 0x80000000;
+> +	ecx = 0;
+> +	native_cpuid(&eax, &ebx, &ecx, &edx);
+> +	if (eax < 0x8000001f)
+> +		goto out;
+> +
+> +	/*
+> +	 * Check for the SME feature:
+> +	 *   CPUID Fn8000_001F[EAX] - Bit 0
+> +	 *     Secure Memory Encryption support
+> +	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
+> +	 *     Pagetable bit position used to indicate encryption
+> +	 */
+> +	eax = 0x8000001f;
+> +	ecx = 0;
+> +	native_cpuid(&eax, &ebx, &ecx, &edx);
+> +	if (!(eax & 1))
+> +		goto out;
 
-Moreover if the allocation failed and the OOM killer hasn't been
-invoked then we are unlikely to do the right thing from the #PF context
-because we have already lost the allocation context and restictions and
-therefore might oom kill a task from a different NUMA domain.
+<---- newline here.
 
-An allocation might fail also when the current task is the oom victim
-and there are no memory reserves left and we should simply bail out
-from the #PF rather than invoking out_of_memory.
+> +	me_mask = 1UL << (ebx & 0x3f);
+> +
+> +	/* Check if SME is enabled */
+> +	msr = __rdmsr(MSR_K8_SYSCFG);
+> +	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+> +		goto out;
+> +
+> +	/*
+> +	 * Fixups have not been applied to phys_base yet, so we must obtain
+> +	 * the address to the SME command line option data in the following
+> +	 * way.
+> +	 */
+> +	asm ("lea sme_cmdline_arg(%%rip), %0"
+> +	     : "=r" (cmdline_arg)
+> +	     : "p" (sme_cmdline_arg));
+> +	asm ("lea sme_cmdline_on(%%rip), %0"
+> +	     : "=r" (cmdline_on)
+> +	     : "p" (sme_cmdline_on));
+> +	asm ("lea sme_cmdline_off(%%rip), %0"
+> +	     : "=r" (cmdline_off)
+> +	     : "p" (sme_cmdline_off));
+> +
+> +	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT))
+> +		active_by_default = true;
+> +	else
+> +		active_by_default = false;
+> +
+> +	cmdline_ptr = (const char *)((u64)bp->hdr.cmd_line_ptr |
+> +				     ((u64)bp->ext_cmd_line_ptr << 32));
+> +
+> +	cmdline_find_option(cmdline_ptr, cmdline_arg, buffer, sizeof(buffer));
+> +
+> +	if (strncmp(buffer, cmdline_on, sizeof(buffer)) == 0)
+> +		sme_me_mask = me_mask;
 
-This all suggests that there is no legitimate reason to trigger
-out_of_memory from pagefault_out_of_memory so drop it. Just to be sure
-that no #PF path returns with VM_FAULT_OOM without allocation print a
-warning that this is happening before we restart the #PF.
+Why doesn't simply
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+	if (!strncmp(buffer, "on", 2))
+		...
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 04c9143a8625..0f24bdfaadfd 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1051,25 +1051,22 @@ bool out_of_memory(struct oom_control *oc)
- }
- 
- /*
-- * The pagefault handler calls here because it is out of memory, so kill a
-- * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
-- * killing is already in progress so do nothing.
-+ * The pagefault handler calls here because some allocation has failed. We have
-+ * to take care of the memcg OOM here because this is the only safe context without
-+ * any locks held but let the oom killer triggered from the allocation context care
-+ * about the global OOM.
-  */
- void pagefault_out_of_memory(void)
- {
--	struct oom_control oc = {
--		.zonelist = NULL,
--		.nodemask = NULL,
--		.memcg = NULL,
--		.gfp_mask = 0,
--		.order = 0,
--	};
-+	static DEFINE_RATELIMIT_STATE(pfoom_rs, DEFAULT_RATELIMIT_INTERVAL,
-+				      DEFAULT_RATELIMIT_BURST);
- 
- 	if (mem_cgroup_oom_synchronize(true))
- 		return;
- 
--	if (!mutex_trylock(&oom_lock))
-+	if (fatal_signal_pending)
- 		return;
--	out_of_memory(&oc);
--	mutex_unlock(&oom_lock);
-+
-+	if (__ratelimit(&pfoom_rs))
-+		pr_warn("Huh VM_FAULT_OOM leaked out to the #PF handler. Retrying PF\n");
- }
+work?
+
 -- 
-2.11.0
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
