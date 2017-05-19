@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 66D9D28041F
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 09:03:02 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id h4so78939216oib.5
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 06:03:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v64si3804237oif.138.2017.05.19.06.03.00
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B27CC2806DC
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 09:05:45 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h76so13314974pfh.15
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 06:05:45 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id o82si8318559pfi.82.2017.05.19.06.05.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 06:03:01 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the #PF
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170519112604.29090-1-mhocko@kernel.org>
-	<20170519112604.29090-3-mhocko@kernel.org>
-In-Reply-To: <20170519112604.29090-3-mhocko@kernel.org>
-Message-Id: <201705192202.EDD30719.OSLJHFMOFtFVOQ@I-love.SAKURA.ne.jp>
-Date: Fri, 19 May 2017 22:02:44 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 May 2017 06:05:44 -0700 (PDT)
+Date: Fri, 19 May 2017 06:05:41 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] ib/core: not to set page dirty bit if it's already set.
+Message-ID: <20170519130541.GA8017@infradead.org>
+References: <20170518233353.14370-1-qing.huang@oracle.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518233353.14370-1-qing.huang@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Qing Huang <qing.huang@oracle.com>
+Cc: linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, dledford@redhat.com, sean.hefty@intel.com, artemyko@mellanox.com, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> Any allocation failure during the #PF path will return with VM_FAULT_OOM
-> which in turn results in pagefault_out_of_memory. This can happen for
-> 2 different reasons. a) Memcg is out of memory and we rely on
-> mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
-> normal allocation fails.
+On Thu, May 18, 2017 at 04:33:53PM -0700, Qing Huang wrote:
+> This change will optimize kernel memory deregistration operations.
+> __ib_umem_release() used to call set_page_dirty_lock() against every
+> writable page in its memory region. Its purpose is to keep data
+> synced between CPU and DMA device when swapping happens after mem
+> deregistration ops. Now we choose not to set page dirty bit if it's
+> already set by kernel prior to calling __ib_umem_release(). This
+> reduces memory deregistration time by half or even more when we ran
+> application simulation test program.
+
+As far as I can tell this code doesn't even need set_page_dirty_lock
+and could just use set_page_dirty
+
 > 
-> The later is quite problematic because allocation paths already trigger
-> out_of_memory and the page allocator tries really hard to not fail
-
-We made many memory allocation requests from page fault path (e.g. XFS)
-__GFP_FS some time ago, didn't we? But if I recall correctly (I couldn't
-find the message), there are some allocation requests from page fault path
-which cannot use __GFP_FS. Then, not all allocation requests can call
-oom_kill_process() and reaching pagefault_out_of_memory() will be
-inevitable.
-
-> allocations. Anyway, if the OOM killer has been already invoked there
-> is no reason to invoke it again from the #PF path. Especially when the
-> OOM condition might be gone by that time and we have no way to find out
-> other than allocate.
+> Signed-off-by: Qing Huang <qing.huang@oracle.com>
+> ---
+>  drivers/infiniband/core/umem.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> Moreover if the allocation failed and the OOM killer hasn't been
-> invoked then we are unlikely to do the right thing from the #PF context
-> because we have already lost the allocation context and restictions and
-> therefore might oom kill a task from a different NUMA domain.
-
-If we carry a flag via task_struct that indicates whether it is an memory
-allocation request from page fault and allocation failure is not acceptable,
-we can call out_of_memory() from page allocator path.
-
-> -	if (!mutex_trylock(&oom_lock))
-> +	if (fatal_signal_pending)
-
-fatal_signal_pending(current)
-
-By the way, can page fault occur after reaching do_exit()? When a thread
-reached do_exit(), fatal_signal_pending(current) becomes false, doesn't it?
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index 3dbf811..21e60b1 100644
+> --- a/drivers/infiniband/core/umem.c
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -58,7 +58,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+>  	for_each_sg(umem->sg_head.sgl, sg, umem->npages, i) {
+>  
+>  		page = sg_page(sg);
+> -		if (umem->writable && dirty)
+> +		if (!PageDirty(page) && umem->writable && dirty)
+>  			set_page_dirty_lock(page);
+>  		put_page(page);
+>  	}
+> -- 
+> 2.9.3
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-rdma" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+---end quoted text---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
