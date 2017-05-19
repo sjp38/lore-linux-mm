@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 015D4831F4
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 00:21:39 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f124so67021294oia.14
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 21:21:38 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v6si3267443oia.229.2017.05.18.21.21.35
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 14303831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 02:59:52 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y43so3165087wrc.11
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 23:59:52 -0700 (PDT)
+Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::180])
+        by mx.google.com with ESMTPS id i1si3880294ljd.166.2017.05.18.23.59.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 21:21:38 -0700 (PDT)
-Date: Thu, 18 May 2017 21:07:31 -0700
-From: Liu Bo <bo.li.liu@oracle.com>
-Subject: Re: [PATCH v4 05/27] btrfs: btrfs_wait_tree_block_writeback can be
- void return
-Message-ID: <20170519040731.GA30704@lim.localdomain>
-Reply-To: bo.li.liu@oracle.com
-References: <20170509154930.29524-1-jlayton@redhat.com>
- <20170509154930.29524-6-jlayton@redhat.com>
+        Thu, 18 May 2017 23:59:50 -0700 (PDT)
+Subject: [PATCH] mm/vmstat: add oom_kill counter
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Fri, 19 May 2017 09:59:45 +0300
+Message-ID: <149517718482.32770.939520643229572472.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170509154930.29524-6-jlayton@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, May 09, 2017 at 11:49:08AM -0400, Jeff Layton wrote:
-> Nothing checks its return value.
+Show count of global oom killer invocations in /proc/vmstat
 
-Reviewed-by: Liu Bo <bo.li.liu@oracle.com>
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ include/linux/vm_event_item.h |    1 +
+ mm/oom_kill.c                 |    1 +
+ mm/vmstat.c                   |    1 +
+ 3 files changed, 3 insertions(+)
 
--liubo
-> 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> ---
->  fs/btrfs/disk-io.c | 6 +++---
->  fs/btrfs/disk-io.h | 2 +-
->  2 files changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-> index eb1ee7b6f532..8c479bd5534a 100644
-> --- a/fs/btrfs/disk-io.c
-> +++ b/fs/btrfs/disk-io.c
-> @@ -1222,10 +1222,10 @@ int btrfs_write_tree_block(struct extent_buffer *buf)
->  					buf->start + buf->len - 1);
->  }
->  
-> -int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
-> +void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
->  {
-> -	return filemap_fdatawait_range(buf->pages[0]->mapping,
-> -				       buf->start, buf->start + buf->len - 1);
-> +	filemap_fdatawait_range(buf->pages[0]->mapping,
-> +			        buf->start, buf->start + buf->len - 1);
->  }
->  
->  struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
-> diff --git a/fs/btrfs/disk-io.h b/fs/btrfs/disk-io.h
-> index 2e0ec29bfd69..9cc87835abb5 100644
-> --- a/fs/btrfs/disk-io.h
-> +++ b/fs/btrfs/disk-io.h
-> @@ -127,7 +127,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
->  			extent_submit_bio_hook_t *submit_bio_done);
->  unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
->  int btrfs_write_tree_block(struct extent_buffer *buf);
-> -int btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
-> +void btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
->  int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
->  			     struct btrfs_fs_info *fs_info);
->  int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
-> -- 
-> 2.9.3
-> 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index d84ae90ccd5c..1707e0a7d943 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		PAGEOUTRUN, PGROTATED,
+ 		DROP_PAGECACHE, DROP_SLAB,
++		OOM_KILL,
+ #ifdef CONFIG_NUMA_BALANCING
+ 		NUMA_PTE_UPDATES,
+ 		NUMA_HUGE_PTE_UPDATES,
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 04c9143a8625..c734c42826cf 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -883,6 +883,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+ 	mark_oom_victim(victim);
++	count_vm_event(OOM_KILL);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 76f73670200a..fe80b81a86e0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
+ 
+ 	"drop_pagecache",
+ 	"drop_slab",
++	"oom_kill",
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+ 	"numa_pte_updates",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
