@@ -1,80 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5173D831F4
-	for <linux-mm@kvack.org>; Thu, 18 May 2017 22:50:49 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d127so48821352pga.11
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 19:50:49 -0700 (PDT)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id h88si6915341pfa.303.2017.05.18.19.50.48
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 015D4831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 00:21:39 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f124so67021294oia.14
+        for <linux-mm@kvack.org>; Thu, 18 May 2017 21:21:38 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id v6si3267443oia.229.2017.05.18.21.21.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 May 2017 19:50:48 -0700 (PDT)
-Received: by mail-pg0-x22c.google.com with SMTP id u187so31403414pgb.0
-        for <linux-mm@kvack.org>; Thu, 18 May 2017 19:50:48 -0700 (PDT)
-From: Junaid Shahid <junaids@google.com>
-Subject: Re: [PATCH] dm ioctl: Restore __GFP_HIGH in copy_params()
-Date: Thu, 18 May 2017 19:50:46 -0700
-Message-ID: <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com>
-References: <20170518185040.108293-1-junaids@google.com> <20170518190406.GB2330@dhcp22.suse.cz> <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com>
+        Thu, 18 May 2017 21:21:38 -0700 (PDT)
+Date: Thu, 18 May 2017 21:07:31 -0700
+From: Liu Bo <bo.li.liu@oracle.com>
+Subject: Re: [PATCH v4 05/27] btrfs: btrfs_wait_tree_block_writeback can be
+ void return
+Message-ID: <20170519040731.GA30704@lim.localdomain>
+Reply-To: bo.li.liu@oracle.com
+References: <20170509154930.29524-1-jlayton@redhat.com>
+ <20170509154930.29524-6-jlayton@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170509154930.29524-6-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, mpatocka@redhat.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Jeff Layton <jlayton@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-cifs@vger.kernel.org, linux-nfs@vger.kernel.org, linux-mm@kvack.org, jfs-discussion@lists.sourceforge.net, linux-xfs@vger.kernel.org, cluster-devel@redhat.com, linux-f2fs-devel@lists.sourceforge.net, v9fs-developer@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-block@vger.kernel.org, dhowells@redhat.com, akpm@linux-foundation.org, hch@infradead.org, ross.zwisler@linux.intel.com, mawilcox@microsoft.com, jack@suse.com, viro@zeniv.linux.org.uk, corbet@lwn.net, neilb@suse.de, clm@fb.com, tytso@mit.edu, axboe@kernel.dk, josef@toxicpanda.com, hubcap@omnibond.com, rpeterso@redhat.com
 
-(Adding back the correct linux-mm email address and also adding linux-kernel.)
+On Tue, May 09, 2017 at 11:49:08AM -0400, Jeff Layton wrote:
+> Nothing checks its return value.
 
-On Thursday, May 18, 2017 01:41:33 PM David Rientjes wrote:
-> On Thu, 18 May 2017, Michal Hocko wrote:
+Reviewed-by: Liu Bo <bo.li.liu@oracle.com>
+
+-liubo
 > 
-> > On Thu 18-05-17 11:50:40, Junaid Shahid wrote:
-> > > d224e9381897 (drivers/md/dm-ioctl.c: use kvmalloc rather than opencoded
-> > > variant) left out the __GFP_HIGH flag when converting from __vmalloc to
-> > > kvmalloc. This can cause the IOCTL to fail in some low memory situations
-> > > where it wouldn't have failed earlier. This patch adds it back to avoid
-> > > any potential regression.
-> > 
-> > The code previously used __GFP_HIGH only for the vmalloc fallback and
-> > that doesn't make that much sense with the current implementation
-> > because vmalloc does order-0 pages and those do not really fail and the
-> > oom killer is invoked to free memory.
-> > 
+> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> ---
+>  fs/btrfs/disk-io.c | 6 +++---
+>  fs/btrfs/disk-io.h | 2 +-
+>  2 files changed, 4 insertions(+), 4 deletions(-)
 > 
-> Order-0 pages certainly do fail, there is not an infinite amount of memory 
-> nor is there a specific exemption to allow order-0 memory to be alloctable 
-> below watermarks without this gfp flag.  OOM kill is the last thing we 
-> want for these allocations since they are very temporary.
+> diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+> index eb1ee7b6f532..8c479bd5534a 100644
+> --- a/fs/btrfs/disk-io.c
+> +++ b/fs/btrfs/disk-io.c
+> @@ -1222,10 +1222,10 @@ int btrfs_write_tree_block(struct extent_buffer *buf)
+>  					buf->start + buf->len - 1);
+>  }
+>  
+> -int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
+> +void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
+>  {
+> -	return filemap_fdatawait_range(buf->pages[0]->mapping,
+> -				       buf->start, buf->start + buf->len - 1);
+> +	filemap_fdatawait_range(buf->pages[0]->mapping,
+> +			        buf->start, buf->start + buf->len - 1);
+>  }
+>  
+>  struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
+> diff --git a/fs/btrfs/disk-io.h b/fs/btrfs/disk-io.h
+> index 2e0ec29bfd69..9cc87835abb5 100644
+> --- a/fs/btrfs/disk-io.h
+> +++ b/fs/btrfs/disk-io.h
+> @@ -127,7 +127,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+>  			extent_submit_bio_hook_t *submit_bio_done);
+>  unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
+>  int btrfs_write_tree_block(struct extent_buffer *buf);
+> -int btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
+> +void btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
+>  int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
+>  			     struct btrfs_fs_info *fs_info);
+>  int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
+> -- 
+> 2.9.3
 > 
-> > There is no reason to access memory reserves from this context.
-> > 
-> 
-> Let's ask Mikulas, who changed this from PF_MEMALLOC to __GFP_HIGH, 
-> assuming there was a reason to do it in the first place in two different 
-> ways.
-> 
-> This decision is up to the device mapper maintainers.
-> 
-> > > Signed-off-by: Junaid Shahid <junaids@google.com>
-> > > ---
-> > >  drivers/md/dm-ioctl.c | 2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > 
-> > > diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
-> > > index 0555b4410e05..bacad7637a56 100644
-> > > --- a/drivers/md/dm-ioctl.c
-> > > +++ b/drivers/md/dm-ioctl.c
-> > > @@ -1715,7 +1715,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
-> > >  	 */
-> > >  	dmi = NULL;
-> > >  	noio_flag = memalloc_noio_save();
-> > > -	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL);
-> > > +	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
-> > >  	memalloc_noio_restore(noio_flag);
-> > >  
-> > >  	if (!dmi) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
