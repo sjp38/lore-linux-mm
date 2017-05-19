@@ -1,123 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DA12806EA
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 11:51:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 204so15044715wmy.1
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 08:51:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t45si9014697edb.28.2017.05.19.08.50.59
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 84BFD2806EA
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 11:55:13 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id q125so61945325pgq.8
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 08:55:13 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f1si8420487pgc.109.2017.05.19.08.55.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 08:51:00 -0700 (PDT)
-Date: Fri, 19 May 2017 17:50:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
- #PF
-Message-ID: <20170519155057.GM29839@dhcp22.suse.cz>
-References: <20170519112604.29090-1-mhocko@kernel.org>
- <20170519112604.29090-3-mhocko@kernel.org>
- <201705192202.EDD30719.OSLJHFMOFtFVOQ@I-love.SAKURA.ne.jp>
- <20170519132209.GG29839@dhcp22.suse.cz>
- <201705200022.BFJ12428.JFOSMLFOtFHOVQ@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 May 2017 08:55:12 -0700 (PDT)
+Subject: Re: [PATCH v5 01/11] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to
+ bit 1
+References: <20170420204752.79703-1-zi.yan@sent.com>
+ <20170420204752.79703-2-zi.yan@sent.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <76a36bee-0f1c-a2f4-6f5c-78394ac46ee4@intel.com>
+Date: Fri, 19 May 2017 08:55:11 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201705200022.BFJ12428.JFOSMLFOtFHOVQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170420204752.79703-2-zi.yan@sent.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zi Yan <zi.yan@sent.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
 
-On Sat 20-05-17 00:22:30, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 19-05-17 22:02:44, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > Any allocation failure during the #PF path will return with VM_FAULT_OOM
-> > > > which in turn results in pagefault_out_of_memory. This can happen for
-> > > > 2 different reasons. a) Memcg is out of memory and we rely on
-> > > > mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
-> > > > normal allocation fails.
-> > > > 
-> > > > The later is quite problematic because allocation paths already trigger
-> > > > out_of_memory and the page allocator tries really hard to not fail
-> > > 
-> > > We made many memory allocation requests from page fault path (e.g. XFS)
-> > > __GFP_FS some time ago, didn't we? But if I recall correctly (I couldn't
-> > > find the message), there are some allocation requests from page fault path
-> > > which cannot use __GFP_FS. Then, not all allocation requests can call
-> > > oom_kill_process() and reaching pagefault_out_of_memory() will be
-> > > inevitable.
-> > 
-> > Even if such an allocation fail without the OOM killer then we simply
-> > retry the PF and will do that the same way how we keep retrying the
-> > allocation inside the page allocator. So how is this any different?
+On 04/20/2017 01:47 PM, Zi Yan wrote:
+> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid
+> false negative return when it races with thp spilt
+> (during which _PAGE_PRESENT is temporary cleared.) I don't think that
+> dropping _PAGE_PSE check in pmd_present() works well because it can
+> hurt optimization of tlb handling in thp split.
+> In the current kernel, bits 1-4 are not used in non-present format
+> since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to
+> work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
+> Bit 7 is used as reserved (always clear), so please don't use it for
+> other purpose.
+
+This description lacks a problem statement.  What's the problem?
+
+	_PAGE_PSE is used to distinguish between a truly non-present
+	(_PAGE_PRESENT=0) PMD, and a PMD which is undergoing a THP
+	split and should be treated as present.
+
+	But _PAGE_SWP_SOFT_DIRTY currently uses the _PAGE_PSE bit,
+	which would cause confusion between one of those PMDs
+	undergoing a THP split, and a soft-dirty PMD.
+
+	Thus, we need to move the bit.
+
+Does that capture it?
+
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> ---
+>  arch/x86/include/asm/pgtable_64.h    | 12 +++++++++---
+>  arch/x86/include/asm/pgtable_types.h | 10 +++++-----
+>  2 files changed, 14 insertions(+), 8 deletions(-)
 > 
-> You are trying to remove out_of_memory() from pagefault_out_of_memory()
-> by this patch. But you also want to make !__GFP_FS allocations not to
-> keep retrying inside the page allocator in future kernels, don't you?
+> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+> index 73c7ccc38912..770b5ae271ed 100644
+> --- a/arch/x86/include/asm/pgtable_64.h
+> +++ b/arch/x86/include/asm/pgtable_64.h
+> @@ -157,15 +157,21 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+>  /*
+>   * Encode and de-code a swap entry
+>   *
+> - * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
+> - * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
+> - * | OFFSET (14->63) | TYPE (9-13)  |0|X|X|X| X| X|X|X|0| <- swp entry
+> + * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
+> + * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
+> + * | OFFSET (14->63) | TYPE (9-13)  |0|0|X|X| X| X|X|SD|0| <- swp entry
 
-I would _love_ to but I am much less optimistic this is achiveable
+So, this diagram was incomplete before?  It should have had "SD" under
+bit 7 for swap entries?
 
-> Then, a thread which need to allocate memory from page fault path but
-> cannot call oom_kill_process() will spin forever (unless somebody else
-> calls oom_kill_process() via a __GFP_FS allocation request). I consider
-> that introducing such possibility is a problem.
-
-What I am trying to say is that this is already happening. The
-difference with the VM_FAULT_OOM would only be that the whole PF path
-would be unwinded back to the PF, all locks dropped and then the PF
-retries so in principle this would be safer.
-
-> > > > allocations. Anyway, if the OOM killer has been already invoked there
-> > > > is no reason to invoke it again from the #PF path. Especially when the
-> > > > OOM condition might be gone by that time and we have no way to find out
-> > > > other than allocate.
-> > > > 
-> > > > Moreover if the allocation failed and the OOM killer hasn't been
-> > > > invoked then we are unlikely to do the right thing from the #PF context
-> > > > because we have already lost the allocation context and restictions and
-> > > > therefore might oom kill a task from a different NUMA domain.
-> > > 
-> > > If we carry a flag via task_struct that indicates whether it is an memory
-> > > allocation request from page fault and allocation failure is not acceptable,
-> > > we can call out_of_memory() from page allocator path.
-> > 
-> > I do not understand
+>   * G (8) is aliased and used as a PROT_NONE indicator for
+>   * !present ptes.  We need to start storing swap entries above
+>   * there.  We also need to avoid using A and D because of an
+>   * erratum where they can be incorrectly set by hardware on
+>   * non-present PTEs.
+> + *
+> + * SD (1) in swp entry is used to store soft dirty bit, which helps us
+> + * remember soft dirty over page migration
+> + *
+> + * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
+> + * but also L and G.
+>   */
+>  #define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
+>  #define SWP_TYPE_BITS 5
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index df08535f774a..9a4ac934659e 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -97,15 +97,15 @@
+>  /*
+>   * Tracking soft dirty bit when a page goes to a swap is tricky.
+>   * We need a bit which can be stored in pte _and_ not conflict
+> - * with swap entry format. On x86 bits 6 and 7 are *not* involved
+> - * into swap entry computation, but bit 6 is used for nonlinear
+> - * file mapping, so we borrow bit 7 for soft dirty tracking.
+> + * with swap entry format. On x86 bits 1-4 are *not* involved
+> + * into swap entry computation, but bit 7 is used for thp migration,
+> + * so we borrow bit 1 for soft dirty tracking.
+>   *
+>   * Please note that this bit must be treated as swap dirty page
+> - * mark if and only if the PTE has present bit clear!
+> + * mark if and only if the PTE/PMD has present bit clear!
+>   */
+>  #ifdef CONFIG_MEM_SOFT_DIRTY
+> -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
+> +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
+>  #else
+>  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
+>  #endif
 > 
-> We need to allocate memory from page fault path in order to avoid spinning forever
-> (unless somebody else calls oom_kill_process() via a __GFP_FS allocation request),
-> doesn't it? Then, memory allocation requests from page fault path can pass flags
-> like __GFP_NOFAIL | __GFP_KILLABLE because retrying the page fault without
-> allocating memory is pointless. I called such flags as carry a flag via task_struct.
-> 
-> > > By the way, can page fault occur after reaching do_exit()? When a thread
-> > > reached do_exit(), fatal_signal_pending(current) becomes false, doesn't it?
-> > 
-> > yes fatal_signal_pending will be false at the time and I believe we can
-> > perform a page fault past that moment  and go via allocation path which would
-> > trigger the OOM or give this task access to reserves but it is more
-> > likely that the oom reaper will push to kill another task by that time
-> > if the situation didn't get resolved. Or did I miss your concern?
-> 
-> How checking fatal_signal_pending() here helps?
-
-It just skips the warning because we know that we would handle the
-signal before retrying the page fault and go to exit path. Those that do
-not have such a signal should warn just that we know that such a
-situation happens. With the current allocator semantic it shouldn't
-
-> It only suppresses printk().
-> If current thread needs to allocate memory because not all allocation requests
-> can call oom_kill_process(), doing printk() is not the right thing to do.
-> Allocate memory by some means (e.g. __GFP_NOFAIL | __GFP_KILLABLE) will be
-> the right thing to do.
-
-Why would looping inside an allocator with a restricted context be any
-better than retrying the whole thing?
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
