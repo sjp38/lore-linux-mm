@@ -1,349 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AFB928041F
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 07:59:22 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b28so4758636wrb.2
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:59:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m17si7182873eda.177.2017.05.19.04.59.20
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F84D28041F
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 08:12:52 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a134so43471702oih.8
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 05:12:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y7si3540490oig.115.2017.05.19.05.12.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 04:59:20 -0700 (PDT)
-Date: Fri, 19 May 2017 13:59:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/6] mm, page_alloc: pass preferred nid instead of
- zonelist to allocator
-Message-ID: <20170519115919.GC29839@dhcp22.suse.cz>
-References: <20170517081140.30654-1-vbabka@suse.cz>
- <20170517081140.30654-4-vbabka@suse.cz>
-MIME-Version: 1.0
+        Fri, 19 May 2017 05:12:51 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm, oom: make sure that the oom victim uses memory reserves
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170519112604.29090-1-mhocko@kernel.org>
+	<20170519112604.29090-2-mhocko@kernel.org>
+In-Reply-To: <20170519112604.29090-2-mhocko@kernel.org>
+Message-Id: <201705192112.IAF69238.OQOHSJLFOFFMtV@I-love.SAKURA.ne.jp>
+Date: Fri, 19 May 2017 21:12:36 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170517081140.30654-4-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Wed 17-05-17 10:11:37, Vlastimil Babka wrote:
-> The main allocator function __alloc_pages_nodemask() takes a zonelist pointer
-> as one of its parameters. All of its callers directly or indirectly obtain the
-> zonelist via node_zonelist() using a preferred node id and gfp_mask. We can
-> make the code a bit simpler by doing the zonelist lookup in
-> __alloc_pages_nodemask(), passing it a preferred node id instead (gfp_mask is
-> already another parameter).
-> 
-> There are some code size benefits thanks to removal of inlined node_zonelist():
-> 
-> bloat-o-meter add/remove: 2/2 grow/shrink: 4/36 up/down: 399/-1351 (-952)
-> 
-> This will also make things simpler if we proceed with converting cpusets to
-> zonelists.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>From 41b663d0324bbaa29c01d7fee01e897b8b3b7397 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Fri, 19 May 2017 21:06:49 +0900
+Subject: [PATCH] mm,page_alloc: Make sure OOM victim can try allocations with
+ no watermarks once
 
-Makes sense to me
-Acked-by: Michal Hocko <mhocko@suse.com>
+Roman Gushchin has reported that the OOM killer can trivially selects next
+OOM victim when a thread doing memory allocation from page fault path was
+selected as first OOM victim.
 
-> ---
->  include/linux/gfp.h       | 11 +++++------
->  include/linux/mempolicy.h |  6 +++---
->  mm/hugetlb.c              | 15 +++++++++------
->  mm/memory_hotplug.c       |  6 ++----
->  mm/mempolicy.c            | 41 +++++++++++++++++++----------------------
->  mm/page_alloc.c           | 10 +++++-----
->  6 files changed, 43 insertions(+), 46 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 2b1a44f5bdb6..666af3c39d00 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -432,14 +432,13 @@ static inline void arch_alloc_page(struct page *page, int order) { }
->  #endif
->  
->  struct page *
-> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-> -		       struct zonelist *zonelist, nodemask_t *nodemask);
-> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-> +							nodemask_t *nodemask);
->  
->  static inline struct page *
-> -__alloc_pages(gfp_t gfp_mask, unsigned int order,
-> -		struct zonelist *zonelist)
-> +__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
->  {
-> -	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
-> +	return __alloc_pages_nodemask(gfp_mask, order, preferred_nid, NULL);
->  }
->  
->  /*
-> @@ -452,7 +451,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
->  	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
->  	VM_WARN_ON(!node_online(nid));
->  
-> -	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
-> +	return __alloc_pages(gfp_mask, order, nid);
->  }
->  
->  /*
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> index 5f4d8281832b..ecb6cbeede5a 100644
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -146,7 +146,7 @@ extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
->  				enum mpol_rebind_step step);
->  extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
->  
-> -extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-> +extern int huge_node(struct vm_area_struct *vma,
->  				unsigned long addr, gfp_t gfp_flags,
->  				struct mempolicy **mpol, nodemask_t **nodemask);
->  extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-> @@ -269,13 +269,13 @@ static inline void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
->  {
->  }
->  
-> -static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-> +static inline int huge_node(struct vm_area_struct *vma,
->  				unsigned long addr, gfp_t gfp_flags,
->  				struct mempolicy **mpol, nodemask_t **nodemask)
->  {
->  	*mpol = NULL;
->  	*nodemask = NULL;
-> -	return node_zonelist(0, gfp_flags);
-> +	return 0;
->  }
->  
->  static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e5828875f7bb..9f1f399bb913 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -904,6 +904,8 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  	struct page *page = NULL;
->  	struct mempolicy *mpol;
->  	nodemask_t *nodemask;
-> +	gfp_t gfp_mask;
-> +	int nid;
->  	struct zonelist *zonelist;
->  	struct zone *zone;
->  	struct zoneref *z;
-> @@ -924,12 +926,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  
->  retry_cpuset:
->  	cpuset_mems_cookie = read_mems_allowed_begin();
-> -	zonelist = huge_zonelist(vma, address,
-> -					htlb_alloc_mask(h), &mpol, &nodemask);
-> +	gfp_mask = htlb_alloc_mask(h);
-> +	nid = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
-> +	zonelist = node_zonelist(nid, gfp_mask);
->  
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->  						MAX_NR_ZONES - 1, nodemask) {
-> -		if (cpuset_zone_allowed(zone, htlb_alloc_mask(h))) {
-> +		if (cpuset_zone_allowed(zone, gfp_mask)) {
->  			page = dequeue_huge_page_node(h, zone_to_nid(zone));
->  			if (page) {
->  				if (avoid_reserve)
-> @@ -1545,13 +1548,13 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
->  	do {
->  		struct page *page;
->  		struct mempolicy *mpol;
-> -		struct zonelist *zl;
-> +		int nid;
->  		nodemask_t *nodemask;
->  
->  		cpuset_mems_cookie = read_mems_allowed_begin();
-> -		zl = huge_zonelist(vma, addr, gfp, &mpol, &nodemask);
-> +		nid = huge_node(vma, addr, gfp, &mpol, &nodemask);
->  		mpol_cond_put(mpol);
-> -		page = __alloc_pages_nodemask(gfp, order, zl, nodemask);
-> +		page = __alloc_pages_nodemask(gfp, order, nid, nodemask);
->  		if (page)
->  			return page;
->  	} while (read_mems_allowed_retry(cpuset_mems_cookie));
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 717c5e301aa8..ba9e09817f37 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1596,11 +1596,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
->  		gfp_mask |= __GFP_HIGHMEM;
->  
->  	if (!nodes_empty(nmask))
-> -		new_page = __alloc_pages_nodemask(gfp_mask, 0,
-> -					node_zonelist(nid, gfp_mask), &nmask);
-> +		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
->  	if (!new_page)
-> -		new_page = __alloc_pages(gfp_mask, 0,
-> -					node_zonelist(nid, gfp_mask));
-> +		new_page = __alloc_pages(gfp_mask, 0, nid);
->  
->  	return new_page;
->  }
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index d77177c7283b..c60807625fd5 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1669,9 +1669,9 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
->  	return NULL;
->  }
->  
-> -/* Return a zonelist indicated by gfp for node representing a mempolicy */
-> -static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
-> -	int nd)
-> +/* Return the node id preferred by the given mempolicy, or the given id */
-> +static int policy_node(gfp_t gfp, struct mempolicy *policy,
-> +								int nd)
->  {
->  	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
->  		nd = policy->v.preferred_node;
-> @@ -1684,7 +1684,7 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
->  		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
->  	}
->  
-> -	return node_zonelist(nd, gfp);
-> +	return nd;
->  }
->  
->  /* Do dynamic interleaving for a process */
-> @@ -1791,38 +1791,37 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
->  
->  #ifdef CONFIG_HUGETLBFS
->  /*
-> - * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
-> + * huge_node(@vma, @addr, @gfp_flags, @mpol)
->   * @vma: virtual memory area whose policy is sought
->   * @addr: address in @vma for shared policy lookup and interleave policy
->   * @gfp_flags: for requested zone
->   * @mpol: pointer to mempolicy pointer for reference counted mempolicy
->   * @nodemask: pointer to nodemask pointer for MPOL_BIND nodemask
->   *
-> - * Returns a zonelist suitable for a huge page allocation and a pointer
-> + * Returns a nid suitable for a huge page allocation and a pointer
->   * to the struct mempolicy for conditional unref after allocation.
->   * If the effective policy is 'BIND, returns a pointer to the mempolicy's
->   * @nodemask for filtering the zonelist.
->   *
->   * Must be protected by read_mems_allowed_begin()
->   */
-> -struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
-> -				gfp_t gfp_flags, struct mempolicy **mpol,
-> -				nodemask_t **nodemask)
-> +int huge_node(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
-> +				struct mempolicy **mpol, nodemask_t **nodemask)
->  {
-> -	struct zonelist *zl;
-> +	int nid;
->  
->  	*mpol = get_vma_policy(vma, addr);
->  	*nodemask = NULL;	/* assume !MPOL_BIND */
->  
->  	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
-> -		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
-> -				huge_page_shift(hstate_vma(vma))), gfp_flags);
-> +		nid = interleave_nid(*mpol, vma, addr,
-> +					huge_page_shift(hstate_vma(vma)));
->  	} else {
-> -		zl = policy_zonelist(gfp_flags, *mpol, numa_node_id());
-> +		nid = policy_node(gfp_flags, *mpol, numa_node_id());
->  		if ((*mpol)->mode == MPOL_BIND)
->  			*nodemask = &(*mpol)->v.nodes;
->  	}
-> -	return zl;
-> +	return nid;
->  }
->  
->  /*
-> @@ -1924,12 +1923,10 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
->  static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
->  					unsigned nid)
->  {
-> -	struct zonelist *zl;
->  	struct page *page;
->  
-> -	zl = node_zonelist(nid, gfp);
-> -	page = __alloc_pages(gfp, order, zl);
-> -	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
-> +	page = __alloc_pages(gfp, order, nid);
-> +	if (page && page_to_nid(page) == nid)
->  		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
->  	return page;
->  }
-> @@ -1963,8 +1960,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->  {
->  	struct mempolicy *pol;
->  	struct page *page;
-> +	int preferred_nid;
->  	unsigned int cpuset_mems_cookie;
-> -	struct zonelist *zl;
->  	nodemask_t *nmask;
->  
->  retry_cpuset:
-> @@ -2007,8 +2004,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->  	}
->  
->  	nmask = policy_nodemask(gfp, pol);
-> -	zl = policy_zonelist(gfp, pol, node);
-> -	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
-> +	preferred_nid = policy_node(gfp, pol, node);
-> +	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
->  	mpol_cond_put(pol);
->  out:
->  	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-> @@ -2055,7 +2052,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
->  		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
->  	else
->  		page = __alloc_pages_nodemask(gfp, order,
-> -				policy_zonelist(gfp, pol, numa_node_id()),
-> +				policy_node(gfp, pol, numa_node_id()),
->  				policy_nodemask(gfp, pol));
->  
->  	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 43aa767c3188..0aceca1076dc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3962,12 +3962,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  }
->  
->  static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
-> -		struct zonelist *zonelist, nodemask_t *nodemask,
-> +		int preferred_nid, nodemask_t *nodemask,
->  		struct alloc_context *ac, gfp_t *alloc_mask,
->  		unsigned int *alloc_flags)
->  {
->  	ac->high_zoneidx = gfp_zone(gfp_mask);
-> -	ac->zonelist = zonelist;
-> +	ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
->  	ac->nodemask = nodemask;
->  	ac->migratetype = gfpflags_to_migratetype(gfp_mask);
->  
-> @@ -4012,8 +4012,8 @@ static inline void finalise_ac(gfp_t gfp_mask,
->   * This is the 'heart' of the zoned buddy allocator.
->   */
->  struct page *
-> -__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-> -			struct zonelist *zonelist, nodemask_t *nodemask)
-> +__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-> +							nodemask_t *nodemask)
->  {
->  	struct page *page;
->  	unsigned int alloc_flags = ALLOC_WMARK_LOW;
-> @@ -4021,7 +4021,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  	struct alloc_context ac = { };
->  
->  	gfp_mask &= gfp_allowed_mask;
-> -	if (!prepare_alloc_pages(gfp_mask, order, zonelist, nodemask, &ac, &alloc_mask, &alloc_flags))
-> +	if (!prepare_alloc_pages(gfp_mask, order, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
->  		return NULL;
->  
->  	finalise_ac(gfp_mask, order, &ac);
-> -- 
-> 2.12.2
+----------
+[   25.721494] allocate invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null),  order=0, oom_score_adj=0
+[   25.725658] allocate cpuset=/ mems_allowed=0
+[   25.727033] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
+[   25.729215] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+[   25.729598] Call Trace:
+[   25.729598]  dump_stack+0x63/0x82
+[   25.729598]  dump_header+0x97/0x21a
+[   25.729598]  ? do_try_to_free_pages+0x2d7/0x360
+[   25.729598]  ? security_capable_noaudit+0x45/0x60
+[   25.729598]  oom_kill_process+0x219/0x3e0
+[   25.729598]  out_of_memory+0x11d/0x480
+[   25.729598]  __alloc_pages_slowpath+0xc84/0xd40
+[   25.729598]  __alloc_pages_nodemask+0x245/0x260
+[   25.729598]  alloc_pages_vma+0xa2/0x270
+[   25.729598]  __handle_mm_fault+0xca9/0x10c0
+[   25.729598]  handle_mm_fault+0xf3/0x210
+[   25.729598]  __do_page_fault+0x240/0x4e0
+[   25.729598]  trace_do_page_fault+0x37/0xe0
+[   25.729598]  do_async_page_fault+0x19/0x70
+[   25.729598]  async_page_fault+0x28/0x30
+(...snipped...)
+[   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
+[   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
+[   25.785680] allocate: page allocation failure: order:0, mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
+[   25.786797] allocate cpuset=/ mems_allowed=0
+[   25.787246] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
+[   25.787935] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+[   25.788867] Call Trace:
+[   25.789119]  dump_stack+0x63/0x82
+[   25.789451]  warn_alloc+0x114/0x1b0
+[   25.789451]  __alloc_pages_slowpath+0xd32/0xd40
+[   25.789451]  __alloc_pages_nodemask+0x245/0x260
+[   25.789451]  alloc_pages_vma+0xa2/0x270
+[   25.789451]  __handle_mm_fault+0xca9/0x10c0
+[   25.789451]  handle_mm_fault+0xf3/0x210
+[   25.789451]  __do_page_fault+0x240/0x4e0
+[   25.789451]  trace_do_page_fault+0x37/0xe0
+[   25.789451]  do_async_page_fault+0x19/0x70
+[   25.789451]  async_page_fault+0x28/0x30
+(...snipped...)
+[   25.810868] oom_reaper: reaped process 492 (allocate), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+(...snipped...)
+[   25.817589] allocate invoked oom-killer: gfp_mask=0x0(), nodemask=(null),  order=0, oom_score_adj=0
+[   25.818821] allocate cpuset=/ mems_allowed=0
+[   25.819259] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
+[   25.819847] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+[   25.820549] Call Trace:
+[   25.820733]  dump_stack+0x63/0x82
+[   25.820961]  dump_header+0x97/0x21a
+[   25.820961]  ? security_capable_noaudit+0x45/0x60
+[   25.820961]  oom_kill_process+0x219/0x3e0
+[   25.820961]  out_of_memory+0x11d/0x480
+[   25.820961]  pagefault_out_of_memory+0x68/0x80
+[   25.820961]  mm_fault_error+0x8f/0x190
+[   25.820961]  ? handle_mm_fault+0xf3/0x210
+[   25.820961]  __do_page_fault+0x4b2/0x4e0
+[   25.820961]  trace_do_page_fault+0x37/0xe0
+[   25.820961]  do_async_page_fault+0x19/0x70
+[   25.820961]  async_page_fault+0x28/0x30
+(...snipped...)
+[   25.863078] Out of memory: Kill process 233 (firewalld) score 10 or sacrifice child
+[   25.863634] Killed process 233 (firewalld) total-vm:246076kB, anon-rss:20956kB, file-rss:0kB, shmem-rss:0kB
+----------
 
+There is a race window that the OOM reaper completes reclaiming the first
+victim's memory while nothing but mutex_trylock() prevents the first victim
+ from calling out_of_memory() from pagefault_out_of_memory() after memory
+allocation for page fault path failed due to being selected as an OOM
+victim.
+
+This is a side effect of commit 9a67f6488eca926f ("mm: consolidate
+GFP_NOFAIL checks in the allocator slowpath") because that commit
+silently changed the behavior from
+
+    /* Avoid allocations with no watermarks from looping endlessly */
+
+to
+
+    /*
+     * Give up allocations without trying memory reserves if selected
+     * as an OOM victim
+     */
+
+in __alloc_pages_slowpath() by moving the location to check TIF_MEMDIE
+flag. I have noticed this change but I didn't post a patch because
+I thought it is an acceptable change other than noise by warn_alloc()
+because !__GFP_NOFAIL allocations are allowed to fail.
+But we overlooked that failing memory allocation from page fault path
+makes difference due to the race window explained above.
+
+While it might be possible to add a check to pagefault_out_of_memory()
+that prevents the first victim from calling out_of_memory() or remove
+out_of_memory() from pagefault_out_of_memory(), changing
+pagefault_out_of_memory() does not suppress noise by warn_alloc() when
+allocating thread was selected as an OOM victim. There is little point
+with printing similar backtraces and memory information from both
+out_of_memory() and warn_alloc().
+
+Instead, if we guarantee that current thread can try allocations with
+no watermarks once when current thread looping inside
+__alloc_pages_slowpath() was selected as an OOM victim, we can follow
+"who can use memory reserves" rules and suppress noise by warn_alloc()
+and prevent memory allocations from page fault path from calling
+pagefault_out_of_memory().
+
+If we take the comment literally, this patch would do
+
+-    if (test_thread_flag(TIF_MEMDIE))
+-        goto nopage;
++    if (alloc_flags == ALLOC_NO_WATERMARKS || (gfp_mask & __GFP_NOMEMALLOC))
++        goto nopage;
+
+because gfp_pfmemalloc_allowed() returns false if __GFP_NOMEMALLOC is
+given. But if I recall correctly (I couldn't find the message), the
+condition is meant to apply to only OOM victims despite the comment.
+Therefore, this patch preserves TIF_MEMDIE check.
+
+Reported-by: Roman Gushchin <guro@fb.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Fixes: 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL checks in the allocator slowpath")
+Cc: stable # v4.11
+---
+ mm/page_alloc.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f9e450c..b7a6f58 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3870,7 +3870,9 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 		goto got_pg;
+ 
+ 	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE))
++	if (test_thread_flag(TIF_MEMDIE) &&
++	    (alloc_flags == ALLOC_NO_WATERMARKS ||
++	     (gfp_mask & __GFP_NOMEMALLOC)))
+ 		goto nopage;
+ 
+ 	/* Retry as long as the OOM killer is making progress */
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
