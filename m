@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 11B07831F8
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:58:46 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id b28so6653668wrb.2
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:58:46 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id 31si4199685wrg.139.2017.05.19.13.58.44
-        for <linux-mm@kvack.org>;
-        Fri, 19 May 2017 13:58:44 -0700 (PDT)
-Date: Fri, 19 May 2017 22:58:36 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 28/32] x86/mm, kexec: Allow kexec to be used with SME
-Message-ID: <20170519205836.3wvl3nztqyyouje3@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212121.10190.94885.stgit@tlendack-t1.amdoffice.net>
- <20170517191755.h2xluopk2p6suw32@pd.tnic>
- <1b74e0e6-3dda-f638-461b-f73af9904360@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1b74e0e6-3dda-f638-461b-f73af9904360@amd.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 08991831F8
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 17:01:18 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q125so68021659pgq.8
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 14:01:18 -0700 (PDT)
+Received: from mail-pg0-f54.google.com (mail-pg0-f54.google.com. [74.125.83.54])
+        by mx.google.com with ESMTPS id s1si9457442plk.256.2017.05.19.14.01.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 May 2017 14:01:17 -0700 (PDT)
+Received: by mail-pg0-f54.google.com with SMTP id u187so43144982pgb.0
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 14:01:17 -0700 (PDT)
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: [PATCH 0/3] mm/slub: Fix unused function warnings
+Date: Fri, 19 May 2017 14:00:33 -0700
+Message-Id: <20170519210036.146880-1-mka@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>
 
-On Fri, May 19, 2017 at 03:45:28PM -0500, Tom Lendacky wrote:
-> Actually there is.  The above will result in data in the cache because
-> halt() turns into a function call if CONFIG_PARAVIRT is defined (refer
-> to the comment above where do_wbinvd_halt is set to true). I could make
-> this a native_wbinvd() and native_halt()
+This series fixes a bunch of warnings about unused functions in SLUB
 
-That's why we have the native_* versions - to bypass paravirt crap.
+Matthias Kaehlcke (3):
+  mm/slub: Only define kmalloc_large_node_hook() for NUMA systems
+  mm/slub: Mark slab_free_hook() as __maybe_unused
+  mm/slub: Put tid_to_cpu() and tid_to_event() inside #ifdef block
+
+ mm/slub.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.13.0.303.g4ebf302169-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
