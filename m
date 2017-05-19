@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6FA2806EE
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 13:49:40 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id i6so27910127qti.5
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 10:49:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e4si9493210qta.328.2017.05.19.10.49.39
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A0DE22806EE
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 15:21:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p74so62609922pfd.11
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 12:21:50 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id h89si9019839pld.136.2017.05.19.12.21.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 10:49:39 -0700 (PDT)
-Date: Fri, 19 May 2017 13:49:34 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and
- vmstat_worker configuration
-Message-ID: <20170519134934.0c298882@redhat.com>
-In-Reply-To: <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
-References: <20170502131527.7532fc2e@redhat.com>
-	<alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
-	<20170512122704.GA30528@amt.cnet>
-	<alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
-	<20170512154026.GA3556@amt.cnet>
-	<alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
-	<20170512161915.GA4185@amt.cnet>
-	<alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
-	<20170515191531.GA31483@amt.cnet>
-	<alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
-	<20170519143407.GA19282@amt.cnet>
-	<alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
+        Fri, 19 May 2017 12:21:49 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id u26so10430385pfd.2
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 12:21:49 -0700 (PDT)
+Date: Fri, 19 May 2017 15:21:46 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 08/17] cgroup: Move debug cgroup to its own file
+Message-ID: <20170519192146.GA9741@wtj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-9-git-send-email-longman@redhat.com>
+ <20170517213603.GE942@htj.duckdns.org>
+ <ee36d4f8-9e9d-a5c7-2174-56c21aaf75af@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ee36d4f8-9e9d-a5c7-2174-56c21aaf75af@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Fri, 19 May 2017 12:13:26 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
+Hello, Waiman.
 
-> > So why are you against integrating this simple, isolated patch which
-> > does not affect how current logic works?  
-> 
-> Frankly the argument does not make sense. Vmstat updates occur very
-> infrequently (probably even less than you IPIs and the other OS stuff that
-> also causes additional latencies that you seem to be willing to tolerate).
+On Thu, May 18, 2017 at 11:52:18AM -0400, Waiman Long wrote:
+> The controller name is "debug" and so it is obvious what this controller
+> is for. However, the config prompt "Example controller" is indeed vague
 
-Infrequently is not good enough. It only has to happen once to
-cause a problem.
+Yeah but it also shows up as an integral part of stable interface
+rather than e.g. /sys/kernel/debug.  This isn't of any interest to
+people who aren't developing cgroup core code.  There is no reason to
+risk growing dependencies on it.
 
-Also, IPIs take a few us, usually less. That's not a problem. In our
-testing we see the preemption caused by the kworker take 10us or
-even more. I've never seeing it take 3us. I'm not saying this is not
-true, I'm saying if this is causing a problem to us it will cause
-a problem to other people too.
+> in meaning. So we can make the prompt more descriptive here. As for the
+> boot param, are you saying something like "cgroup_debug" has to be
+> specified in the command line even if CGROUP_DEBUG config is there for
+> the debug controller to be enabled? I am fine with that if you think it
+> is necessary.
 
-> And you can configure the interval of vmstat updates freely.... Set
-> the vmstat_interval to 60 seconds instead of 2 for a try? Is that rare
-> enough?
+Yeah, I think that'd be a good idea.  cgroup_debug should do.  While
+at it, can you also please make CGROUP_DEBUG depend on DEBUG_KERNEL?
 
-No, we'd have to set it high enough to disable it and this will
-affect all CPUs.
+Thanks.
 
-Something that crossed my mind was to add a new tunable to set
-the vmstat_interval for each CPU, this way we could essentially
-disable it to the CPUs where DPDK is running. What's the implications
-of doing this besides not getting up to date stats in /proc/vmstat
-(which I still have to confirm would be OK)? Can this break anything
-in the kernel for example?
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
