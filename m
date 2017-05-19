@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2CC28071E
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:28:45 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w79so16117243wme.7
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:28:45 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id j187si25983258wmd.5.2017.05.19.13.28.44
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 13:28:44 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 09CAD989FA
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 20:28:44 +0000 (UTC)
-Date: Fri, 19 May 2017 21:28:43 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v5 02/11] mm: mempolicy: add queue_pages_node_check()
-Message-ID: <20170519202843.lco2rkkivh2a433k@techsingularity.net>
-References: <20170420204752.79703-1-zi.yan@sent.com>
- <20170420204752.79703-3-zi.yan@sent.com>
- <f7a78cb0-0d91-bdbd-4a38-27f94fcefa8a@linux.vnet.ibm.com>
- <16799a52-8a03-7099-5f95-3016808ae65f@linux.vnet.ibm.com>
- <20170519160205.hkte6tlw26lfn74h@techsingularity.net>
- <35E3E5BA-2745-4710-A348-B6E5D892DA27@cs.rutgers.edu>
+	by kanga.kvack.org (Postfix) with ESMTP id 244CD28071E
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:30:01 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id a203so1356870wma.12
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:30:01 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id i2si3852084wrc.245.2017.05.19.13.29.59
+        for <linux-mm@kvack.org>;
+        Fri, 19 May 2017 13:30:00 -0700 (PDT)
+Date: Fri, 19 May 2017 22:29:57 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure
+ Memory Encryption
+Message-ID: <20170519202957.p67sm44v6mzrjb6y@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+ <c29edaff-24f2-ee9b-4142-bdbf8c42083f@amd.com>
+ <20170519113005.3f5kwzg4pgh7j6a5@pd.tnic>
+ <20170519201651.dhayf2pwjlsnouz4@treble>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <35E3E5BA-2745-4710-A348-B6E5D892DA27@cs.rutgers.edu>
+In-Reply-To: <20170519201651.dhayf2pwjlsnouz4@treble>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mhocko@kernel.org, dnellans@nvidia.com
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Fri, May 19, 2017 at 12:37:38PM -0400, Zi Yan wrote:
-> > As you say, there is no functional change but the helper name is vague
-> > and gives no hint to what's it's checking for. It's somewhat tolerable as
-> > it is as it's obvious what is being checked but the same is not true with
-> > the helper name.
-> >
-> 
-> Does queue_pages_invert_nodemask_check() work? I can change the helper name
-> in the next version.
-> 
+On Fri, May 19, 2017 at 03:16:51PM -0500, Josh Poimboeuf wrote:
+> I'm the stack validation guy, not the stack protection guy :-)
 
-Not particularly, maybe queue_pages_required and invert the check with a
-comment above it explaining what it's checking for would be ok.
+LOL. I thought you were *the* stacks guy. :-)))
+
+But once you've validated it, you could protect it then too. :-)
 
 -- 
-Mel Gorman
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
