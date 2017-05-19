@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A8742806DC
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 09:16:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u96so5122976wrc.7
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 06:16:02 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B5552806DC
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 09:22:13 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g67so5156162wrd.0
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 06:22:13 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s35si10249430eda.251.2017.05.19.06.16.01
+        by mx.google.com with ESMTPS id d34si8104704ede.101.2017.05.19.06.22.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 06:16:01 -0700 (PDT)
-Subject: Re: [PATCH v1] mm: drop NULL return check of pte_offset_map_lock()
-References: <1495089737-1292-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <edb3ffa0-3694-fbbb-a422-79f1ed3bd824@suse.cz>
-Date: Fri, 19 May 2017 15:15:59 +0200
+        Fri, 19 May 2017 06:22:12 -0700 (PDT)
+Date: Fri, 19 May 2017 15:22:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
+ #PF
+Message-ID: <20170519132209.GG29839@dhcp22.suse.cz>
+References: <20170519112604.29090-1-mhocko@kernel.org>
+ <20170519112604.29090-3-mhocko@kernel.org>
+ <201705192202.EDD30719.OSLJHFMOFtFVOQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1495089737-1292-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201705192202.EDD30719.OSLJHFMOFtFVOQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/18/2017 08:42 AM, Naoya Horiguchi wrote:
-> pte_offset_map_lock() finds and takes ptl, and returns pte.
-> But some callers return without unlocking the ptl when pte == NULL,
-> which seems weird.
+On Fri 19-05-17 22:02:44, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > Any allocation failure during the #PF path will return with VM_FAULT_OOM
+> > which in turn results in pagefault_out_of_memory. This can happen for
+> > 2 different reasons. a) Memcg is out of memory and we rely on
+> > mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
+> > normal allocation fails.
+> > 
+> > The later is quite problematic because allocation paths already trigger
+> > out_of_memory and the page allocator tries really hard to not fail
 > 
-> Git history said that !pte check in change_pte_range() was introduced in
-> commit 1ad9f620c3a2 ("mm: numa: recheck for transhuge pages under lock
-> during protection changes") and still remains after commit 175ad4f1e7a2
-> ("mm: mprotect: use pmd_trans_unstable instead of taking the pmd_lock")
-> which partially reverts 1ad9f620c3a2. So I think that it's just dead code.
-> 
-> Many other caller of pte_offset_map_lock() never check NULL return, so
-> let's do likewise.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> We made many memory allocation requests from page fault path (e.g. XFS)
+> __GFP_FS some time ago, didn't we? But if I recall correctly (I couldn't
+> find the message), there are some allocation requests from page fault path
+> which cannot use __GFP_FS. Then, not all allocation requests can call
+> oom_kill_process() and reaching pagefault_out_of_memory() will be
+> inevitable.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Even if such an allocation fail without the OOM killer then we simply
+retry the PF and will do that the same way how we keep retrying the
+allocation inside the page allocator. So how is this any different?
 
-> ---
->  mm/memory.c   | 2 --
->  mm/mprotect.c | 2 --
->  2 files changed, 4 deletions(-)
+> > allocations. Anyway, if the OOM killer has been already invoked there
+> > is no reason to invoke it again from the #PF path. Especially when the
+> > OOM condition might be gone by that time and we have no way to find out
+> > other than allocate.
+> > 
+> > Moreover if the allocation failed and the OOM killer hasn't been
+> > invoked then we are unlikely to do the right thing from the #PF context
+> > because we have already lost the allocation context and restictions and
+> > therefore might oom kill a task from a different NUMA domain.
 > 
-> diff --git v4.11-rc6-mmotm-2017-04-13-14-50/mm/memory.c v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/memory.c
-> index 8ae6700..c17fad1d 100644
-> --- v4.11-rc6-mmotm-2017-04-13-14-50/mm/memory.c
-> +++ v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/memory.c
-> @@ -4040,8 +4040,6 @@ static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
->  		goto out;
->  
->  	ptep = pte_offset_map_lock(mm, pmd, address, ptlp);
-> -	if (!ptep)
-> -		goto out;
->  	if (!pte_present(*ptep))
->  		goto unlock;
->  	*ptepp = ptep;
-> diff --git v4.11-rc6-mmotm-2017-04-13-14-50/mm/mprotect.c v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/mprotect.c
-> index 8fd010f..d60a1ee 100644
-> --- v4.11-rc6-mmotm-2017-04-13-14-50/mm/mprotect.c
-> +++ v4.11-rc6-mmotm-2017-04-13-14-50_patched/mm/mprotect.c
-> @@ -58,8 +58,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  	 * reading.
->  	 */
->  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> -	if (!pte)
-> -		return 0;
->  
->  	/* Get target node for single threaded private VMAs */
->  	if (prot_numa && !(vma->vm_flags & VM_SHARED) &&
+> If we carry a flag via task_struct that indicates whether it is an memory
+> allocation request from page fault and allocation failure is not acceptable,
+> we can call out_of_memory() from page allocator path.
+
+I do not understand
+
+> > -	if (!mutex_trylock(&oom_lock))
+> > +	if (fatal_signal_pending)
 > 
+> fatal_signal_pending(current)
+
+right, fixed
+
+> By the way, can page fault occur after reaching do_exit()? When a thread
+> reached do_exit(), fatal_signal_pending(current) becomes false, doesn't it?
+
+yes fatal_signal_pending will be false at the time and I believe we can
+perform a page fault past that moment  and go via allocation path which would
+trigger the OOM or give this task access to reserves but it is more
+likely that the oom reaper will push to kill another task by that time
+if the situation didn't get resolved. Or did I miss your concern?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
