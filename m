@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D02AD280753
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 18:00:20 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l125so44456299pga.4
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 15:00:20 -0700 (PDT)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id i67si9368545pfj.149.2017.05.19.15.00.19
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3FBB280753
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 19:43:34 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j58so30860797qtc.2
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 16:43:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 31si10273371qtn.87.2017.05.19.16.43.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 15:00:19 -0700 (PDT)
-Received: by mail-pg0-x229.google.com with SMTP id u187so43630427pgb.0
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 15:00:19 -0700 (PDT)
-Date: Fri, 19 May 2017 15:00:10 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm, something wring in page_lock_anon_vma_read()?
-In-Reply-To: <591EBE71.7080402@huawei.com>
-Message-ID: <alpine.LSU.2.11.1705191453040.3819@eggly.anvils>
-References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com>
+        Fri, 19 May 2017 16:43:33 -0700 (PDT)
+Date: Fri, 19 May 2017 19:43:23 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] dm ioctl: Restore __GFP_HIGH in copy_params()
+In-Reply-To: <20170519074647.GC13041@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20170518185040.108293-1-junaids@google.com> <20170518190406.GB2330@dhcp22.suse.cz> <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com> <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com> <20170519074647.GC13041@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Junaid Shahid <junaids@google.com>, David Rientjes <rientjes@google.com>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
 
-On Fri, 19 May 2017, Xishi Qiu wrote:
-> On 2017/5/19 16:52, Xishi Qiu wrote:
-> > On 2017/5/18 17:46, Xishi Qiu wrote:
+
+
+On Fri, 19 May 2017, Michal Hocko wrote:
+
+> On Thu 18-05-17 19:50:46, Junaid Shahid wrote:
+> > (Adding back the correct linux-mm email address and also adding linux-kernel.)
 > > 
-> >> Hi, my system triggers this bug, and the vmcore shows the anon_vma seems be freed.
-> >> The kernel is RHEL 7.2, and the bug is hard to reproduce, so I don't know if it
-> >> exists in mainline, any reply is welcome!
-> >>
-> > 
-> > When we alloc anon_vma, we will init the value of anon_vma->root,
-> > so can we set anon_vma->root to NULL when calling
-> > anon_vma_free -> kmem_cache_free(anon_vma_cachep, anon_vma);
-> > 
-> > anon_vma_free()
-> > 	...
-> > 	anon_vma->root = NULL;
-> > 	kmem_cache_free(anon_vma_cachep, anon_vma);
-> > 
-> > I find if we do this above, system boot failed, why?
-> > 
+> > On Thursday, May 18, 2017 01:41:33 PM David Rientjes wrote:
+> [...]
+> > > Let's ask Mikulas, who changed this from PF_MEMALLOC to __GFP_HIGH, 
+> > > assuming there was a reason to do it in the first place in two different 
+> > > ways.
 > 
-> If anon_vma was freed, we should not to access the root_anon_vma, because it maybe also
-> freed(e.g. anon_vma == root_anon_vma), right?
+> Hmm, the old PF_MEMALLOC used to have the following comment
+>         /*
+>          * Trying to avoid low memory issues when a device is
+>          * suspended. 
+>          */
 > 
-> page_lock_anon_vma_read()
-> 	...
-> 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> 	root_anon_vma = ACCESS_ONCE(anon_vma->root);
-> 	if (down_read_trylock(&root_anon_vma->rwsem)) {  // it's not safe
-> 	...
-> 	if (!atomic_inc_not_zero(&anon_vma->refcount)) {  // check anon_vma was not freed
-> 	...
-> 	anon_vma_lock_read(anon_vma);  // it's safe
-> 	...
+> I am not really sure what that means but __GFP_HIGH certainly have a
+> different semantic than PF_MEMALLOC. The later grants the full access to
+> the memory reserves while the prior on partial access. If this is _really_
+> needed then it deserves a comment explaining why.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-You're ignoring the rcu_read_lock() on entry to page_lock_anon_vma_read(),
-and the SLAB_DESTROY_BY_RCU (recently renamed SLAB_TYPESAFE_BY_RCU) nature
-of the anon_vma_cachep kmem cache.  It is not safe to muck with anon_vma->
-root in anon_vma_free(), others could still be looking at it.
+Sometimes, I/O to a device mapper device is blocked until the userspace 
+daemon dmeventd does some action (for example, when dm-mirror leg fails, 
+dmeventd needs to mark the leg as failed in the lvm metadata and then 
+reload the device).
 
-Hugh
+The dmeventd daemon mlocks itself in memory so that it doesn't generate 
+any I/O. But it must be able to call ioctls. __GFP_HIGH is there so that 
+the ioctls issued by dmeventd have higher chance of succeeding if some I/O 
+is blocked, waiting for dmeventd action. It reduces the possibility of 
+low-memory-deadlock, though it doesn't eliminate it entirely.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
