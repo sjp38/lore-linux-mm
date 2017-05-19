@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D69E12803C1
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 07:26:16 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j28so53249587pfk.14
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:16 -0700 (PDT)
-Received: from mail-pf0-f193.google.com (mail-pf0-f193.google.com. [209.85.192.193])
-        by mx.google.com with ESMTPS id s18si7906523pfs.171.2017.05.19.04.26.15
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D7212803C1
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 07:26:19 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i63so56643493pgd.15
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:19 -0700 (PDT)
+Received: from mail-pg0-f66.google.com (mail-pg0-f66.google.com. [74.125.83.66])
+        by mx.google.com with ESMTPS id w125si7959205pfb.368.2017.05.19.04.26.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 04:26:15 -0700 (PDT)
-Received: by mail-pf0-f193.google.com with SMTP id u26so9282844pfd.2
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:15 -0700 (PDT)
+        Fri, 19 May 2017 04:26:18 -0700 (PDT)
+Received: by mail-pg0-f66.google.com with SMTP id h64so9480333pge.3
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 04:26:18 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] mm, oom: make sure that the oom victim uses memory reserves
-Date: Fri, 19 May 2017 13:26:03 +0200
-Message-Id: <20170519112604.29090-2-mhocko@kernel.org>
+Subject: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the #PF
+Date: Fri, 19 May 2017 13:26:04 +0200
+Message-Id: <20170519112604.29090-3-mhocko@kernel.org>
 In-Reply-To: <20170519112604.29090-1-mhocko@kernel.org>
 References: <20170519112604.29090-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,82 +24,78 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo H
 
 From: Michal Hocko <mhocko@suse.com>
 
-Roman Gushchin has noticed that we kill two tasks when the memory hog
-killed from page fault path:
-[   25.721494] allocate invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null),  order=0, oom_score_adj=0
-[   25.725658] allocate cpuset=/ mems_allowed=0
-[   25.727033] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
-[   25.729215] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
-[   25.729598] Call Trace:
-[   25.729598]  dump_stack+0x63/0x82
-[   25.729598]  dump_header+0x97/0x21a
-[   25.729598]  ? do_try_to_free_pages+0x2d7/0x360
-[   25.729598]  ? security_capable_noaudit+0x45/0x60
-[   25.729598]  oom_kill_process+0x219/0x3e0
-[   25.729598]  out_of_memory+0x11d/0x480
-[   25.729598]  __alloc_pages_slowpath+0xc84/0xd40
-[   25.729598]  __alloc_pages_nodemask+0x245/0x260
-[   25.729598]  alloc_pages_vma+0xa2/0x270
-[   25.729598]  __handle_mm_fault+0xca9/0x10c0
-[   25.729598]  handle_mm_fault+0xf3/0x210
-[   25.729598]  __do_page_fault+0x240/0x4e0
-[   25.729598]  trace_do_page_fault+0x37/0xe0
-[   25.729598]  do_async_page_fault+0x19/0x70
-[   25.729598]  async_page_fault+0x28/0x30
+Any allocation failure during the #PF path will return with VM_FAULT_OOM
+which in turn results in pagefault_out_of_memory. This can happen for
+2 different reasons. a) Memcg is out of memory and we rely on
+mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
+normal allocation fails.
 
-which leads to VM_FAULT_OOM and so to another out_of_memory when bailing
-out from the #PF
-[   25.817589] allocate invoked oom-killer: gfp_mask=0x0(), nodemask=(null),  order=0, oom_score_adj=0
-[   25.818821] allocate cpuset=/ mems_allowed=0
-[   25.819259] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
-[   25.819847] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
-[   25.820549] Call Trace:
-[   25.820733]  dump_stack+0x63/0x82
-[   25.820961]  dump_header+0x97/0x21a
-[   25.820961]  ? security_capable_noaudit+0x45/0x60
-[   25.820961]  oom_kill_process+0x219/0x3e0
-[   25.820961]  out_of_memory+0x11d/0x480
-[   25.820961]  pagefault_out_of_memory+0x68/0x80
-[   25.820961]  mm_fault_error+0x8f/0x190
-[   25.820961]  ? handle_mm_fault+0xf3/0x210
-[   25.820961]  __do_page_fault+0x4b2/0x4e0
-[   25.820961]  trace_do_page_fault+0x37/0xe0
-[   25.820961]  do_async_page_fault+0x19/0x70
-[   25.820961]  async_page_fault+0x28/0x30
+The later is quite problematic because allocation paths already trigger
+out_of_memory and the page allocator tries really hard to not fail
+allocations. Anyway, if the OOM killer has been already invoked there
+is no reason to invoke it again from the #PF path. Especially when the
+OOM condition might be gone by that time and we have no way to find out
+other than allocate.
 
-We wouldn't choose another task normally because oom_evaluate_task will
-skip selecting another task while there is an existing oom victim but we
-can race with the oom_reaper which can set MMF_OOM_SKIP and so select
-another task.  Tetsuo Handa has pointed out that 9a67f6488eca926f ("mm:
-consolidate GFP_NOFAIL checks in the allocator slowpath") made this more
-probable because prior to this patch we have retried the allocation with
-access to memory reserves which is likely to succeed.
+Moreover if the allocation failed and the OOM killer hasn't been
+invoked then we are unlikely to do the right thing from the #PF context
+because we have already lost the allocation context and restictions and
+therefore might oom kill a task from a different NUMA domain.
 
-Make sure we at least attempted to allocate with no watermarks before
-bailing out and failing the allocation.
+An allocation might fail also when the current task is the oom victim
+and there are no memory reserves left and we should simply bail out
+from the #PF rather than invoking out_of_memory.
 
-Reported-by: Roman Gushchin <guro@fb.com>
-Suggested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Fixes: 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL checks in the allocator slowpath")
-Cc: stable # 4.11+
+This all suggests that there is no legitimate reason to trigger
+out_of_memory from pagefault_out_of_memory so drop it. Just to be sure
+that no #PF path returns with VM_FAULT_OOM without allocation print a
+warning that this is happening before we restart the #PF.
+
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/oom_kill.c | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a26e19c3e1ff..db8017cd13bb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3873,7 +3873,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto got_pg;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 04c9143a8625..0f24bdfaadfd 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1051,25 +1051,22 @@ bool out_of_memory(struct oom_control *oc)
+ }
  
- 	/* Avoid allocations with no watermarks from looping endlessly */
--	if (test_thread_flag(TIF_MEMDIE))
-+	if (alloc_flags == ALLOC_NO_WATERMARKS && test_thread_flag(TIF_MEMDIE))
- 		goto nopage;
+ /*
+- * The pagefault handler calls here because it is out of memory, so kill a
+- * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
+- * killing is already in progress so do nothing.
++ * The pagefault handler calls here because some allocation has failed. We have
++ * to take care of the memcg OOM here because this is the only safe context without
++ * any locks held but let the oom killer triggered from the allocation context care
++ * about the global OOM.
+  */
+ void pagefault_out_of_memory(void)
+ {
+-	struct oom_control oc = {
+-		.zonelist = NULL,
+-		.nodemask = NULL,
+-		.memcg = NULL,
+-		.gfp_mask = 0,
+-		.order = 0,
+-	};
++	static DEFINE_RATELIMIT_STATE(pfoom_rs, DEFAULT_RATELIMIT_INTERVAL,
++				      DEFAULT_RATELIMIT_BURST);
  
- 	/* Retry as long as the OOM killer is making progress */
+ 	if (mem_cgroup_oom_synchronize(true))
+ 		return;
+ 
+-	if (!mutex_trylock(&oom_lock))
++	if (fatal_signal_pending)
+ 		return;
+-	out_of_memory(&oc);
+-	mutex_unlock(&oom_lock);
++
++	if (__ratelimit(&pfoom_rs))
++		pr_warn("Huh VM_FAULT_OOM leaked out to the #PF handler. Retrying PF\n");
+ }
 -- 
 2.11.0
 
