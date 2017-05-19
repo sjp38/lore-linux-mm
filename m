@@ -1,68 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 32BE0831F4
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:30:36 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k91so41374210ioi.3
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:30:36 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id b94si22339128itd.99.2017.05.19.03.30.34
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DA94A831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:40:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v4so14274193wmb.8
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:40:09 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id u104si2499246wrb.59.2017.05.19.03.40.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 03:30:35 -0700 (PDT)
-Date: Fri, 19 May 2017 12:30:25 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
-Message-ID: <20170519103025.zb5impbsek77ahwa@hirez.programming.kicks-ass.net>
-References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com>
- <1489479542-27030-6-git-send-email-byungchul.park@lge.com>
- <20170519080708.GG28017@X58A-UD3R>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 May 2017 03:40:08 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [RFC v3]mm: ro protection for data allocated dynamically 
+Date: Fri, 19 May 2017 13:38:10 +0300
+Message-ID: <20170519103811.2183-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170519080708.GG28017@X58A-UD3R>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: mhocko@kernel.org, dave.hansen@intel.com, labbott@redhat.com
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, Igor Stoppa <igor.stoppa@huawei.com>
 
-On Fri, May 19, 2017 at 05:07:08PM +0900, Byungchul Park wrote:
-> On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
-> > Lockdep is a runtime locking correctness validator that detects and
-> > reports a deadlock or its possibility by checking dependencies between
-> > locks. It's useful since it does not report just an actual deadlock but
-> > also the possibility of a deadlock that has not actually happened yet.
-> > That enables problems to be fixed before they affect real systems.
-> > 
-> > However, this facility is only applicable to typical locks, such as
-> > spinlocks and mutexes, which are normally released within the context in
-> > which they were acquired. However, synchronization primitives like page
-> > locks or completions, which are allowed to be released in any context,
-> > also create dependencies and can cause a deadlock. So lockdep should
-> > track these locks to do a better job. The 'crossrelease' implementation
-> > makes these primitives also be tracked.
-> 
-> Excuse me but I have a question...
-> 
-> Only for maskable irq, can I assume that hardirq are prevented within
-> hardirq context? I remember that nested interrupts were allowed in the
-> past but not recommanded. But what about now? I'm curious about the
-> overall direction of kernel and current status. It would be very
-> appriciated if you answer it.
+Not all the data allocated dynamically needs to be altered frequently.
+In some cases, it might be written just once, at initialization.
 
-So you're right. In general enabling IRQs from hardirq context is
-discouraged but allowed. However, if you were to do that with a lock
-held that would instantly make lockdep report a deadlock, as the lock is
-then both used from IRQ context and has IRQs enabled.
+This RFC has the goal of improving memory integrity, by explicitly
+making said data write-protected.
 
-So from a locking perspective you can assume no nesting, but from a
-state tracking pov we have to deal with the nesting I think (although it
-is very rare).
+A reference implementation is provided.
 
-You're asking this in relation to the rollback thing, right? I think we
-should only save the state when hardirq_context goes from 0->1 and
-restore on 1->0.
+During the previous 2 rounds, some concerns/questions were risen.
+This iteration should address msot of them, if not all.
 
-If you're asking this for another reason, please clarify.
+Basic idea behind the implementation: on systems with MMU, the MMU
+supports associating various types of attribute to memory pages.
+
+One of them is being read-only.
+The MMU will cause an exception upon attempts to alter a read-only page.
+This mechanism is already in use for protecting: kernel text and
+constant data.
+Relatively recently, it has become possible to have also statically
+allocated data to become read-only, with the __ro_after_init annotation.
+
+However nothing is done for variables allocated dynamically.
+
+The catch for re-using the same mechanism, is that soon-to-be read only
+variables must be grouped in dedicated memory pages, without any rw data
+falling in the same range.
+
+This can be achieved with a dedicated allocator.
+
+The implementation proposed allows to create memory pools.
+Each pool can be treated independently from the others, allowing fine
+grained control about what data can be overwritten.
+
+A pool is a kernel linked list, where the head contains a mutex used for
+accessing the list, and the elements are nodes, providing the memory
+actually used.
+
+When a pool receives an allocation request for which it doesn't have
+enough memory already available, it obtains a set of contiguous virtual
+pages (node) that is large enough to cover the request being processed.
+Such memory is likely to be significantly larger than what was required.
+The slack is used for fulfilling further allocation requests, provided
+that they fit the space available.
+
+The pool ends up being a list of nodes, where each node contains a
+request that, at the time it was received, could not be satisfied by
+using the exisitng nodes, plus other requests that happened to fit in the
+slack. Such requests handle each node as an individual linear pool.
+
+When it's time to seal/unseal a pool, each element (node) of the list is
+visited and the range of pages it comprises is passed ot set_memory_ro/rw.
+
+Freeing memory is supported at pool level: if for some reason one or more
+memory requests must be discarded, at some point, they are simply ignored.
+Upon the pool tear down, then nodes are removed one by one and the
+corresponding memory range freed for good with vfree.
+
+This approach avoids the extra coplexity of tracking individual
+allocations, yet it allows to control claim back pages when not needed
+anymore (i.e. module unloading.)
+
+The same design also supports isolation between different kernel modules:
+each module can allocae one or more pools, to obtain the desired level of
+granularity when managing portions of its data that need different handling.
+
+The price for this flexibility is that some more slack is produced.
+The exact amount depends on the sizes of allocations performed and in
+which order they arrive.
+
+Modules that do not want/need all of this flexibility can use the default
+global pool provided by the allocator.
+
+This pool is intended to provide consistency with __ro_after_init and
+therefore would be sealed at the same time.
+
+Some observations/questions:
+
+* the backend of the memory allocation is done by using vmalloc.
+  Is here any better way? the bpf uses module_alloc but that seems not
+  exactly its purpose.
+
+* because of the vmalloc backend, this is not suitable for cases where
+  it is really needed to have physically contiguous memory regions,
+  however the type of data that would use this interface is likely to
+  not require interaction with HW devices that could rise such need.
+
+* the allocator supports defining a preferred alignment (currently set
+  to 8 bytes, using uint64_t) - is it useful/desirable?
+  If yes, is it the correct granularity (global)?
+
+* to get the size of the padded header of a node, the current code uses
+  __align(align_t) and it seems to work, but is it correct?
+
+* examples of uses for this new allcoator:
+  - LSM Hooks
+  - policy database of SE Linux (several different structure types)
+
+Igor Stoppa (1):
+  Sealable memory support
+
+ mm/Makefile  |   2 +-
+ mm/smalloc.c | 200 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/smalloc.h |  61 ++++++++++++++++++
+ 3 files changed, 262 insertions(+), 1 deletion(-)
+ create mode 100644 mm/smalloc.c
+ create mode 100644 mm/smalloc.h
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
