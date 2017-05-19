@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DADF28073B
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 17:07:37 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id j66so92369369oib.2
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 14:07:37 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0074.outbound.protection.outlook.com. [104.47.37.74])
-        by mx.google.com with ESMTPS id o68si2944000oik.227.2017.05.19.14.07.36
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 90D2F28073B
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 17:20:08 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id v195so31952937qka.1
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 14:20:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b57si9936031qte.154.2017.05.19.14.20.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 19 May 2017 14:07:36 -0700 (PDT)
-Subject: Re: [PATCH v5 28/32] x86/mm, kexec: Allow kexec to be used with SME
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212121.10190.94885.stgit@tlendack-t1.amdoffice.net>
- <20170517191755.h2xluopk2p6suw32@pd.tnic>
- <1b74e0e6-3dda-f638-461b-f73af9904360@amd.com>
- <20170519205836.3wvl3nztqyyouje3@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <5ef96f3a-6ebd-1d4d-7ac9-05dbed45d998@amd.com>
-Date: Fri, 19 May 2017 16:07:24 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 May 2017 14:20:07 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 13/17] cgroup: Allow fine-grained controllers
+ control in cgroup v2
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-14-git-send-email-longman@redhat.com>
+ <20170519205550.GD15279@wtj.duckdns.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <6fe07727-e611-bfcd-8382-593a51bb4888@redhat.com>
+Date: Fri, 19 May 2017 17:20:01 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170519205836.3wvl3nztqyyouje3@pd.tnic>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170519205550.GD15279@wtj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
- Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On 5/19/2017 3:58 PM, Borislav Petkov wrote:
-> On Fri, May 19, 2017 at 03:45:28PM -0500, Tom Lendacky wrote:
->> Actually there is.  The above will result in data in the cache because
->> halt() turns into a function call if CONFIG_PARAVIRT is defined (refer
->> to the comment above where do_wbinvd_halt is set to true). I could make
->> this a native_wbinvd() and native_halt()
+On 05/19/2017 04:55 PM, Tejun Heo wrote:
+> Hello, Waiman.
 >
-> That's why we have the native_* versions - to bypass paravirt crap.
+> On Mon, May 15, 2017 at 09:34:12AM -0400, Waiman Long wrote:
+>> For cgroup v1, different controllers can be binded to different cgroup=
 
-As long as those never change from static inline everything will be
-fine. I can change it, but I really like how it explicitly indicates
-what is needed in this case. Even if the function gets changed from
-static inline the fact that the instructions are sequential in the
-function covers that case.
-
-Thanks,
-Tom
-
+>> hierarchies optimized for their own use cases. That is not currently
+>> the case for cgroup v2 where combining all these controllers into
+>> the same hierarchy will probably require more levels than is needed
+>> by each individual controller.
+>>
+>> By not enabling a controller in a cgroup and its descendants, we can
+>> effectively trim the hierarchy as seen by a controller from the leafs
+>> up. However, there is currently no way to compress the hierarchy in
+>> the intermediate levels.
+>>
+>> This patch implements a fine-grained mechanism to allow a controller t=
+o
+>> skip some intermediate levels in a hierarchy and effectively flatten
+>> the hierarchy as seen by that controller.
+>>
+>> Controllers can now be directly enabled or disabled in a cgroup
+>> by writing to the "cgroup.controllers" file.  The special prefix
+>> '#' with the controller name is used to set that controller in
+>> pass-through mode.  In that mode, the controller is disabled for that
+>> cgroup but it allows its children to have that controller enabled or
+>> in pass-through mode again.
+>>
+>> With this change, each controller can now have a unique view of their
+>> virtual process hierarchy that can be quite different from other
+>> controllers.  We now have the freedom and flexibility to create the
+>> right hierarchy for each controller to suit their own needs without
+>> performance loss when compared with cgroup v1.
+> I can see the appeal but this needs at least more refinements.
 >
+> This breaks the invariant that in a cgroup its resource control knobs
+> control distribution of resources from its parent.  IOW, the resource
+> control knobs of a cgroup always belong to the parent.  This is also
+> reflected in how delegation is done.  The delegatee assumes ownership
+> of the cgroup itself and the ability to manage sub-cgroups but doesn't
+> get the ownership of the resource control knobs as otherwise the
+> parent would lose control over how it distributes its resources.
+
+One twist that I am thinking is to have a controller enabled by the
+parent in subtree_control, but then allow the child to either disable it
+or set it in pass-through mode by writing to controllers file. IOW, a
+child cannot enable a controller without parent's permission. Once a
+child has permission, it can do whatever it wants. A parent cannot force
+a child to have a controller enabled.
+
+> Another aspect is that most controllers aren't that sensitive to
+> nesting several levels.  Expensive operations can be and already are
+> aggregated and the performance overhead of several levels of nesting
+> barely shows up.  Skipping levels can be an interesting optimization
+> approach and we can definitely support from the core side; however,
+> it'd be a lot nicer if we could do that optimization transparently
+> (e.g. CPU can skip multi level queueing if there usually is only one
+> item at some levels).
+
+The trend that I am seeing is that the total number of controllers is
+going to grow over time. New controllers may be sensitive to the level
+of nesting like the cpu controller. I am also thinking about how systemd
+is using the cgroup filesystem for task classification purpose without
+any controller attached to it. With this scheme, we can accommodate all
+the different needs without using different cgroup filesystems.
+
+> Hmm... that said, if we can fix the delegation issue in a not-too-ugly
+> way, why not?  I wonder whether we can still keep the resource control
+> knobs attached to the parent and skip in the middle.  Topology-wise,
+> that'd make more sense too.
+
+Let me know how you think about my proposal above.
+
+Cheers,
+Longma
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
