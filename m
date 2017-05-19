@@ -1,53 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A8628071E
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:17:19 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id y31so29253433qty.7
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:17:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c187si9430922qkg.107.2017.05.19.13.17.17
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FDC528071E
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:26:32 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l39so29271643qtb.9
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:26:32 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id i26si9770108qti.269.2017.05.19.13.26.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 13:17:18 -0700 (PDT)
-Date: Fri, 19 May 2017 15:16:51 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20170519201651.dhayf2pwjlsnouz4@treble>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
- <c29edaff-24f2-ee9b-4142-bdbf8c42083f@amd.com>
- <20170519113005.3f5kwzg4pgh7j6a5@pd.tnic>
+        Fri, 19 May 2017 13:26:31 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id k74so11649433qke.2
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:26:31 -0700 (PDT)
+Date: Fri, 19 May 2017 16:26:24 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
+Message-ID: <20170519202624.GA15279@wtj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-12-git-send-email-longman@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170519113005.3f5kwzg4pgh7j6a5@pd.tnic>
+In-Reply-To: <1494855256-12558-12-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Fri, May 19, 2017 at 01:30:05PM +0200, Borislav Petkov wrote:
-> > it is called so early. I can get past it by adding:
-> > 
-> > CFLAGS_mem_encrypt.o := $(nostackp)
-> > 
-> > in the arch/x86/mm/Makefile, but that obviously eliminates the support
-> > for the whole file.  Would it be better to split out the sme_enable()
-> > and other boot routines into a separate file or just apply the
-> > $(nostackp) to the whole file?
+Hello, Waiman.
+
+On Mon, May 15, 2017 at 09:34:10AM -0400, Waiman Long wrote:
+> Now we could have something like
 > 
-> Josh might have a better idea here... CCed.
+> 	R -- A -- B
+> 	 \
+> 	  T1 -- T2
+> 
+> where R is the thread root, A and B are non-threaded cgroups, T1 and
+> T2 are threaded cgroups. The cgroups R, T1, T2 form a threaded subtree
+> where all the non-threaded resources are accounted for in R.  The no
+> internal process constraint does not apply in the threaded subtree.
+> Non-threaded controllers need to properly handle the competition
+> between internal processes and child cgroups at the thread root.
+> 
+> This model will be flexible enough to support the need of the threaded
+> controllers.
 
-I'm the stack validation guy, not the stack protection guy :-)
+Maybe I'm misunderstanding the design, but this seems to push the
+processes which belong to the threaded subtree to the parent which is
+part of the usual resource domain hierarchy thus breaking the no
+internal competition constraint.  I'm not sure this is something we'd
+want.  Given that the limitation of the original threaded mode was the
+required nesting below root and that we treat root special anyway
+(exactly in the way necessary), I wonder whether it'd be better to
+simply allow root to be both domain and thread root.
 
-But there is a way to disable compiler options on a per-function basis
-with the gcc __optimize__ function attribute.  For example:
+Specific review points below but we'd probably want to discuss the
+overall design first.
 
-  __attribute__((__optimize__("no-stack-protector")))
+> +static inline bool cgroup_is_threaded(const struct cgroup *cgrp)
+> +{
+> +	return cgrp->proc_cgrp && (cgrp->proc_cgrp != cgrp);
+> +}
+> +
+> +static inline bool cgroup_is_thread_root(const struct cgroup *cgrp)
+> +{
+> +	return cgrp->proc_cgrp == cgrp;
+> +}
+
+Maybe add a bit of comments explaining what's going on with
+->proc_cgrp?
+
+>  /**
+> + * threaded_children_count - returns # of threaded children
+> + * @cgrp: cgroup to be tested
+> + *
+> + * cgroup_mutex must be held by the caller.
+> + */
+> +static int threaded_children_count(struct cgroup *cgrp)
+> +{
+> +	struct cgroup *child;
+> +	int count = 0;
+> +
+> +	lockdep_assert_held(&cgroup_mutex);
+> +	cgroup_for_each_live_child(child, cgrp)
+> +		if (cgroup_is_threaded(child))
+> +			count++;
+> +	return count;
+> +}
+
+It probably would be a good idea to keep track of the count so that we
+don't have to count them each time.  There are cases where people end
+up creating a very high number of cgroups and we've already been
+bitten a couple times with silly complexity issues.
+
+> @@ -2982,22 +3010,48 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
+>  	LIST_HEAD(csets);
+>  	struct cgrp_cset_link *link;
+>  	struct css_set *cset, *cset_next;
+> +	struct cgroup *child;
+>  	int ret;
+> +	u16 ss_mask;
+>  
+>  	lockdep_assert_held(&cgroup_mutex);
+>  
+>  	/* noop if already threaded */
+> -	if (cgrp->proc_cgrp)
+> +	if (cgroup_is_threaded(cgrp))
+>  		return 0;
+>  
+> -	/* allow only if there are neither children or enabled controllers */
+> -	if (css_has_online_children(&cgrp->self) || cgrp->subtree_control)
+> +	/*
+> +	 * Allow only if it is not the root and there are:
+> +	 * 1) no children,
+> +	 * 2) no non-threaded controllers are enabled, and
+> +	 * 3) no attached tasks.
+> +	 *
+> +	 * With no attached tasks, it is assumed that no css_sets will be
+> +	 * linked to the current cgroup. This may not be true if some dead
+> +	 * css_sets linger around due to task_struct leakage, for example.
+> +	 */
+
+It doesn't look like the code is actually making this (incorrect)
+assumption.  I suppose the comment is from before
+cgroup_is_populated() was added?
+
+>  	spin_lock_irq(&css_set_lock);
+>  	list_for_each_entry(link, &cgrp->cset_links, cset_link) {
+>  		cset = link->cset;
+> +		if (cset->dead)
+> +			continue;
+
+Hmm... is this a bug fix which is necessary regardless of whether we
+change the threadroot semantics or not?
+
+Thanks.
 
 -- 
-Josh
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
