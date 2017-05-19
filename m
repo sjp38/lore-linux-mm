@@ -1,121 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84BFD2806EA
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 11:55:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q125so61945325pgq.8
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 08:55:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id f1si8420487pgc.109.2017.05.19.08.55.12
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4E62806EA
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 12:02:08 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y43so5714283wrc.11
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 09:02:08 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id b17si9852482edh.295.2017.05.19.09.02.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 08:55:12 -0700 (PDT)
-Subject: Re: [PATCH v5 01/11] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to
- bit 1
+        Fri, 19 May 2017 09:02:06 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 5CF0B1C2397
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 17:02:06 +0100 (IST)
+Date: Fri, 19 May 2017 17:02:05 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v5 02/11] mm: mempolicy: add queue_pages_node_check()
+Message-ID: <20170519160205.hkte6tlw26lfn74h@techsingularity.net>
 References: <20170420204752.79703-1-zi.yan@sent.com>
- <20170420204752.79703-2-zi.yan@sent.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <76a36bee-0f1c-a2f4-6f5c-78394ac46ee4@intel.com>
-Date: Fri, 19 May 2017 08:55:11 -0700
+ <20170420204752.79703-3-zi.yan@sent.com>
+ <f7a78cb0-0d91-bdbd-4a38-27f94fcefa8a@linux.vnet.ibm.com>
+ <16799a52-8a03-7099-5f95-3016808ae65f@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170420204752.79703-2-zi.yan@sent.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <16799a52-8a03-7099-5f95-3016808ae65f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Zi Yan <zi.yan@sent.com>, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mhocko@kernel.org, zi.yan@cs.rutgers.edu, dnellans@nvidia.com
 
-On 04/20/2017 01:47 PM, Zi Yan wrote:
-> pmd_present() checks _PAGE_PSE along with _PAGE_PRESENT to avoid
-> false negative return when it races with thp spilt
-> (during which _PAGE_PRESENT is temporary cleared.) I don't think that
-> dropping _PAGE_PSE check in pmd_present() works well because it can
-> hurt optimization of tlb handling in thp split.
-> In the current kernel, bits 1-4 are not used in non-present format
-> since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to
-> work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
-> Bit 7 is used as reserved (always clear), so please don't use it for
-> other purpose.
-
-This description lacks a problem statement.  What's the problem?
-
-	_PAGE_PSE is used to distinguish between a truly non-present
-	(_PAGE_PRESENT=0) PMD, and a PMD which is undergoing a THP
-	split and should be treated as present.
-
-	But _PAGE_SWP_SOFT_DIRTY currently uses the _PAGE_PSE bit,
-	which would cause confusion between one of those PMDs
-	undergoing a THP split, and a soft-dirty PMD.
-
-	Thus, we need to move the bit.
-
-Does that capture it?
-
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> ---
->  arch/x86/include/asm/pgtable_64.h    | 12 +++++++++---
->  arch/x86/include/asm/pgtable_types.h | 10 +++++-----
->  2 files changed, 14 insertions(+), 8 deletions(-)
+On Fri, May 19, 2017 at 06:43:37PM +0530, Anshuman Khandual wrote:
+> On 04/21/2017 09:34 AM, Anshuman Khandual wrote:
+> > On 04/21/2017 02:17 AM, Zi Yan wrote:
+> >> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> >>
+> >> Introduce a separate check routine related to MPOL_MF_INVERT flag.
+> >> This patch just does cleanup, no behavioral change.
+> > 
+> > Can you please send it separately first, this should be debated
+> > and merged quickly and not hang on to the series if we have to
+> > respin again.
+> > 
+> > Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 > 
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 73c7ccc38912..770b5ae271ed 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -157,15 +157,21 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
->  /*
->   * Encode and de-code a swap entry
->   *
-> - * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
-> - * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
-> - * | OFFSET (14->63) | TYPE (9-13)  |0|X|X|X| X| X|X|X|0| <- swp entry
-> + * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
-> + * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
-> + * | OFFSET (14->63) | TYPE (9-13)  |0|0|X|X| X| X|X|SD|0| <- swp entry
-
-So, this diagram was incomplete before?  It should have had "SD" under
-bit 7 for swap entries?
-
->   * G (8) is aliased and used as a PROT_NONE indicator for
->   * !present ptes.  We need to start storing swap entries above
->   * there.  We also need to avoid using A and D because of an
->   * erratum where they can be incorrectly set by hardware on
->   * non-present PTEs.
-> + *
-> + * SD (1) in swp entry is used to store soft dirty bit, which helps us
-> + * remember soft dirty over page migration
-> + *
-> + * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
-> + * but also L and G.
->   */
->  #define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
->  #define SWP_TYPE_BITS 5
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index df08535f774a..9a4ac934659e 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -97,15 +97,15 @@
->  /*
->   * Tracking soft dirty bit when a page goes to a swap is tricky.
->   * We need a bit which can be stored in pte _and_ not conflict
-> - * with swap entry format. On x86 bits 6 and 7 are *not* involved
-> - * into swap entry computation, but bit 6 is used for nonlinear
-> - * file mapping, so we borrow bit 7 for soft dirty tracking.
-> + * with swap entry format. On x86 bits 1-4 are *not* involved
-> + * into swap entry computation, but bit 7 is used for thp migration,
-> + * so we borrow bit 1 for soft dirty tracking.
->   *
->   * Please note that this bit must be treated as swap dirty page
-> - * mark if and only if the PTE has present bit clear!
-> + * mark if and only if the PTE/PMD has present bit clear!
->   */
->  #ifdef CONFIG_MEM_SOFT_DIRTY
-> -#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
-> +#define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
->  #else
->  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->  #endif
+> Mel/Andrew,
 > 
+> This does not have any functional changes and very much independent.
+> Can this clean up be accepted as is ? In that case we will have to
+> carry one less patch in the series which can make the review process
+> simpler.
+> 
+
+As you say, there is no functional change but the helper name is vague
+and gives no hint to what's it's checking for. It's somewhat tolerable as
+it is as it's obvious what is being checked but the same is not true with
+the helper name.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
