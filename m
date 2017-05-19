@@ -1,89 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE202806EE
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 12:34:20 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j13so27268930qta.13
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 09:34:20 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id e58si9267591qta.179.2017.05.19.09.34.19
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DBF92806EE
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 12:36:25 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id k91so47127115ioi.3
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 09:36:25 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id k8si7678721itb.73.2017.05.19.09.36.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 09:34:19 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id k74so10852127qke.2
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 09:34:19 -0700 (PDT)
+        Fri, 19 May 2017 09:36:24 -0700 (PDT)
+Subject: Re: [PATCH v5 01/11] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to
+ bit 1
+References: <20170420204752.79703-1-zi.yan@sent.com>
+ <20170420204752.79703-2-zi.yan@sent.com>
+ <76a36bee-0f1c-a2f4-6f5c-78394ac46ee4@intel.com>
+ <07441274-3C64-4376-8225-39CD052399B4@cs.rutgers.edu>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <ea4597a9-d5a3-4f66-af44-b99f396acf66@intel.com>
+Date: Fri, 19 May 2017 09:36:22 -0700
 MIME-Version: 1.0
-In-Reply-To: <149520375057.74196.2843113275800730971.stgit@buzz>
-References: <149520375057.74196.2843113275800730971.stgit@buzz>
-From: Roman Guschin <guroan@gmail.com>
-Date: Fri, 19 May 2017 17:34:18 +0100
-Message-ID: <CALo0P1123MROxgveCdX6YFpWDwG4qrAyHu3Xd1F+ckaFBnF4dQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <07441274-3C64-4376-8225-39CD052399B4@cs.rutgers.edu>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com
 
-2017-05-19 15:22 GMT+01:00 Konstantin Khlebnikov <khlebnikov@yandex-team.ru>:
-> Show count of global oom killer invocations in /proc/vmstat and
-> count of oom kills inside memory cgroup in knob "memory.events"
-> (in memory.oom_control for v1 cgroup).
->
-> Also describe difference between "oom" and "oom_kill" in memory
-> cgroup documentation. Currently oom in memory cgroup kills tasks
-> iff shortage has happened inside page fault.
->
-> These counters helps in monitoring oom kills - for now
-> the only way is grepping for magic words in kernel log.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> ---
->  Documentation/cgroup-v2.txt   |   12 +++++++++++-
->  include/linux/memcontrol.h    |    1 +
->  include/linux/vm_event_item.h |    1 +
->  mm/memcontrol.c               |    2 ++
->  mm/oom_kill.c                 |    6 ++++++
->  mm/vmstat.c                   |    1 +
->  6 files changed, 22 insertions(+), 1 deletion(-)
->
-> diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-> index dc5e2dcdbef4..a742008d76aa 100644
-> --- a/Documentation/cgroup-v2.txt
-> +++ b/Documentation/cgroup-v2.txt
-> @@ -830,9 +830,19 @@ PAGE_SIZE multiple when read back.
->
->           oom
->
-> +               The number of time the cgroup's memory usage was
-> +               reached the limit and allocation was about to fail.
-> +               Result could be oom kill, -ENOMEM from any syscall or
-> +               completely ignored in cases like disk readahead.
-> +               For now oom in memory cgroup kills tasks iff shortage
-> +               has happened inside page fault.
+On 05/19/2017 09:31 AM, Zi Yan wrote:
+>> This description lacks a problem statement.  What's the problem?
+>>
+>> 	_PAGE_PSE is used to distinguish between a truly non-present
+>> 	(_PAGE_PRESENT=0) PMD, and a PMD which is undergoing a THP
+>> 	split and should be treated as present.
+>>
+>> 	But _PAGE_SWP_SOFT_DIRTY currently uses the _PAGE_PSE bit,
+>> 	which would cause confusion between one of those PMDs
+>> 	undergoing a THP split, and a soft-dirty PMD.
+>>
+>> 	Thus, we need to move the bit.
+>>
+>> Does that capture it?
+> Yes. I will add this in the next version.
 
->From a user's point of view the difference between "oom" and "max"
-becomes really vague here,
-assuming that "max" is described almost in the same words:
+OK, thanks for clarifying.  You can add my acked-by on this.
 
-"The number of times the cgroup's memory usage was
-about to go over the max boundary.  If direct reclaim
-fails to bring it down, the OOM killer is invoked."
+But, generally, these bits really scare me.  We don't have any nice
+programmatic way to find conflicts.  I really wish we had some
+BUILD_BUG_ON()s or something to express these dependencies.
 
-I wonder, if it's better to fix the existing "oom" value  to show what
-it has to show, according to docs,
-rather than to introduce a new one?
 
-> +
-> +         oom_kill
-> +
->                 The number of times the OOM killer has been invoked in
->                 the cgroup.  This may not exactly match the number of
-> -               processes killed but should generally be close.
-> +               processes killed but should generally be close: each
-> +               invocation could kill several processes at once.
->
->    memory.stat
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
