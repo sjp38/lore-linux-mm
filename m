@@ -1,163 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 464492806DC
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 10:32:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y22so5420029wry.1
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 07:32:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a90si7288042ede.336.2017.05.19.07.32.47
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 62C5C2806DC
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 10:34:43 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id k74so28202867qke.4
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 07:34:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d12si8536649qkb.95.2017.05.19.07.34.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 07:32:48 -0700 (PDT)
-Date: Fri, 19 May 2017 16:32:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
-Message-ID: <20170519143246.GJ29839@dhcp22.suse.cz>
-References: <149520375057.74196.2843113275800730971.stgit@buzz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 May 2017 07:34:41 -0700 (PDT)
+Date: Fri, 19 May 2017 11:34:08 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170519143407.GA19282@amt.cnet>
+References: <20170502131527.7532fc2e@redhat.com>
+ <alpine.DEB.2.20.1705111035560.2894@east.gentwo.org>
+ <20170512122704.GA30528@amt.cnet>
+ <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
+ <20170512154026.GA3556@amt.cnet>
+ <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
+ <20170512161915.GA4185@amt.cnet>
+ <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+ <20170515191531.GA31483@amt.cnet>
+ <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <149520375057.74196.2843113275800730971.stgit@buzz>
+In-Reply-To: <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-[CC Vladimir and Johannes as this involves memcg]
+Hi Christoph,
 
-i will get to this early next week but from a quick look it seems
-acceptable.
+On Tue, May 16, 2017 at 08:37:11AM -0500, Christoph Lameter wrote:
+> On Mon, 15 May 2017, Marcelo Tosatti wrote:
+> 
+> > > NOHZ already does that. I wanted to know what your problem is that you
+> > > see. The latency issue has already been solved as far as I can tell .
+> > > Please tell me why the existing solutions are not sufficient for you.
+> >
+> > We don't want vmstat_worker to execute on a given CPU, even if the local
+> > CPU updates vm-statistics.
+> 
+> Instead of responding you repeat describing what you want.
+> 
+> > Because:
+> >
+> >     vmstat_worker increases latency of the application
+> >        (i can measure it if you want on a given CPU,
+> >         how many ns's the following takes:
+> 
+> That still is no use case. 
 
-On Fri 19-05-17 17:22:30, Konstantin Khlebnikov wrote:
-> Show count of global oom killer invocations in /proc/vmstat and
-> count of oom kills inside memory cgroup in knob "memory.events"
-> (in memory.oom_control for v1 cgroup).
-> 
-> Also describe difference between "oom" and "oom_kill" in memory
-> cgroup documentation. Currently oom in memory cgroup kills tasks
-> iff shortage has happened inside page fault.
-> 
-> These counters helps in monitoring oom kills - for now
-> the only way is grepping for magic words in kernel log.
-> 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> ---
->  Documentation/cgroup-v2.txt   |   12 +++++++++++-
->  include/linux/memcontrol.h    |    1 +
->  include/linux/vm_event_item.h |    1 +
->  mm/memcontrol.c               |    2 ++
->  mm/oom_kill.c                 |    6 ++++++
->  mm/vmstat.c                   |    1 +
->  6 files changed, 22 insertions(+), 1 deletion(-)
-> 
-> diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-> index dc5e2dcdbef4..a742008d76aa 100644
-> --- a/Documentation/cgroup-v2.txt
-> +++ b/Documentation/cgroup-v2.txt
-> @@ -830,9 +830,19 @@ PAGE_SIZE multiple when read back.
->  
->  	  oom
->  
-> +		The number of time the cgroup's memory usage was
-> +		reached the limit and allocation was about to fail.
-> +		Result could be oom kill, -ENOMEM from any syscall or
-> +		completely ignored in cases like disk readahead.
-> +		For now oom in memory cgroup kills tasks iff shortage
-> +		has happened inside page fault.
-> +
-> +	  oom_kill
-> +
->  		The number of times the OOM killer has been invoked in
->  		the cgroup.  This may not exactly match the number of
-> -		processes killed but should generally be close.
-> +		processes killed but should generally be close:	each
-> +		invocation could kill several processes at once.
->  
->    memory.stat
->  
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 899949bbb2f9..2cdcebb78b58 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -55,6 +55,7 @@ enum memcg_event_item {
->  	MEMCG_HIGH,
->  	MEMCG_MAX,
->  	MEMCG_OOM,
-> +	MEMCG_OOM_KILL,
->  	MEMCG_NR_EVENTS,
->  };
->  
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index d84ae90ccd5c..1707e0a7d943 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
->  		PAGEOUTRUN, PGROTATED,
->  		DROP_PAGECACHE, DROP_SLAB,
-> +		OOM_KILL,
->  #ifdef CONFIG_NUMA_BALANCING
->  		NUMA_PTE_UPDATES,
->  		NUMA_HUGE_PTE_UPDATES,
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 94172089f52f..416024837b81 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3574,6 +3574,7 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
->  
->  	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
->  	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
-> +	seq_printf(sf, "oom_kill %lu\n", memcg_sum_events(memcg, MEMCG_OOM_KILL));
->  	return 0;
->  }
->  
-> @@ -5165,6 +5166,7 @@ static int memory_events_show(struct seq_file *m, void *v)
->  	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
->  	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
->  	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
-> +	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, MEMCG_OOM_KILL));
->  
->  	return 0;
->  }
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 04c9143a8625..c50bff3c3409 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -873,6 +873,12 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  		victim = p;
->  	}
->  
-> +	/* Raise event before sending signal: reaper must see this */
-> +	if (!is_memcg_oom(oc))
-> +		count_vm_event(OOM_KILL);
-> +	else
-> +		mem_cgroup_event(oc->memcg, MEMCG_OOM_KILL);
-> +
->  	/* Get a reference to safely compare mm after task_unlock(victim) */
->  	mm = victim->mm;
->  	mmgrab(mm);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 76f73670200a..fe80b81a86e0 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
->  
->  	"drop_pagecache",
->  	"drop_slab",
-> +	"oom_kill",
->  
->  #ifdef CONFIG_NUMA_BALANCING
->  	"numa_pte_updates",
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Use-case: realtime application on an isolated core which for some reason
+updates vmstatistics.
 
--- 
-Michal Hocko
-SUSE Labs
+> Just a measurement of vmstat_worker. Pointless.
+
+Shouldnt the focus be on general scenarios rather than particular
+usecases, so that the solution covers a wider range of usecases?
+
+The situation as i see is as follows:
+
+Your point of view is: an "isolated CPU" with a set of applications
+cannot update vm statistics, otherwise they pay the vmstat_update cost:
+
+     kworker/5:1-245   [005] ....1..   673.454295: workqueue_execute_start: work struct ffffa0cf6e493e20: function vmstat_update
+     kworker/5:1-245   [005] ....1..   673.454305: workqueue_execute_end: work struct ffffa0cf6e493e20
+
+Thats 10us for example.
+
+So if want to customize a realtime setup whose code updates vmstatistic, 
+you are dead. You have to avoid any systemcall which possibly updates
+vmstatistics (now and in the future kernel versions).
+
+> If you move the latency from the vmstat worker into the code thats
+> updating the counters then you will require increased use of atomics
+> which will increase contention which in turn will significantly
+> increase the overall latency.
+
+The point is that these vmstat updates are rare. From 
+http://www.7-cpu.com/cpu/Haswell.html:
+
+RAM Latency = 36 cycles + 57 ns (3.4 GHz i7-4770)
+RAM Latency = 62 cycles + 100 ns (3.6 GHz E5-2699 dual)
+
+Lets round to 100ns = 0.1us.
+
+You need 100 vmstat updates (all misses to RAM, the worst possible case)
+to have equivalent amount of time of the batching version.
+
+With more than 100 vmstat updates, then the batching is more efficient
+(as in total amount of time to transfer to global counters).
+
+But thats not the point. The point is the 10us interruption 
+to execution of the realtime app (which can either mean 
+your current deadline requirements are not met, or that 
+another application with lowest latency requirement can't 
+be used).
+
+So i'd rather spend more time updating the aggregate of vmstatistics
+(with the local->global transfer taking a small amount of time,
+therefore not interrupting the realtime application for a long period),
+than to batch the updates (which increases overall performance beyond 
+a certain number of updates, but which is _ONE_ large interruption).
+
+So lets assume i go and count the vmstat updates on the DPDK case 
+(or any other realtime app), batching is more efficient 
+for that case.
+
+Still, the one-time interruption of batching is worse than less
+efficient one bean at a time vmstatistics accounting.
+
+No?
+
+Also, you could reply that: "oh, there are no vmstat updates 
+in fact in this setup, but the logic of disabling vmstat_update 
+is broken". Lets assume thats the case.
+
+Even if its fixed (vmstat_update properly shut down) the proposed patch
+deals with both cases: no vmstat updates on isolated cpus, and vmstat
+updates on isolated cpus.
+
+So why are you against integrating this simple, isolated patch which 
+does not affect how current logic works?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
