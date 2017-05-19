@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BB572831F8
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:58:23 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id w131so31675428qka.5
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:58:23 -0700 (PDT)
-Received: from mail-qk0-x236.google.com (mail-qk0-x236.google.com. [2607:f8b0:400d:c09::236])
-        by mx.google.com with ESMTPS id x37si9964607qth.131.2017.05.19.13.58.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 13:58:23 -0700 (PDT)
-Received: by mail-qk0-x236.google.com with SMTP id u75so70760447qka.3
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:58:22 -0700 (PDT)
-Date: Fri, 19 May 2017 16:58:20 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-Message-ID: <20170519205820.GE15279@wtj.duckdns.org>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-12-git-send-email-longman@redhat.com>
- <20170519202624.GA15279@wtj.duckdns.org>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 11B07831F8
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 16:58:46 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b28so6653668wrb.2
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 13:58:46 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id 31si4199685wrg.139.2017.05.19.13.58.44
+        for <linux-mm@kvack.org>;
+        Fri, 19 May 2017 13:58:44 -0700 (PDT)
+Date: Fri, 19 May 2017 22:58:36 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 28/32] x86/mm, kexec: Allow kexec to be used with SME
+Message-ID: <20170519205836.3wvl3nztqyyouje3@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212121.10190.94885.stgit@tlendack-t1.amdoffice.net>
+ <20170517191755.h2xluopk2p6suw32@pd.tnic>
+ <1b74e0e6-3dda-f638-461b-f73af9904360@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170519202624.GA15279@wtj.duckdns.org>
+In-Reply-To: <1b74e0e6-3dda-f638-461b-f73af9904360@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Hello,
+On Fri, May 19, 2017 at 03:45:28PM -0500, Tom Lendacky wrote:
+> Actually there is.  The above will result in data in the cache because
+> halt() turns into a function call if CONFIG_PARAVIRT is defined (refer
+> to the comment above where do_wbinvd_halt is set to true). I could make
+> this a native_wbinvd() and native_halt()
 
-On Fri, May 19, 2017 at 04:26:24PM -0400, Tejun Heo wrote:
-> (exactly in the way necessary), I wonder whether it'd be better to
-> simply allow root to be both domain and thread root.
-
-I'll give this approach a shot early next week.
-
-Thanks.
+That's why we have the native_* versions - to bypass paravirt crap.
 
 -- 
-tejun
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
