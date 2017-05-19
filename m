@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 251552803C1
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:53:13 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 139so14364486wmf.5
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:53:13 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id b30si2559744wrd.184.2017.05.19.03.53.11
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 03:53:11 -0700 (PDT)
-Subject: Re: RFC v2: post-init-read-only protection for data allocated
- dynamically
-References: <9200d87d-33b6-2c70-0095-e974a30639fd@huawei.com>
- <a445774f-a307-25aa-d44e-c523a7a42da6@redhat.com>
- <0b55343e-4305-a9f1-2b17-51c3c734aea6@huawei.com>
- <20170510080542.GF31466@dhcp22.suse.cz>
- <885311a2-5b9f-4402-0a71-5a3be7870aa0@huawei.com>
- <20170510114319.GK31466@dhcp22.suse.cz>
- <1a8cc1f4-0b72-34ea-43ad-5ece22a8d5cf@huawei.com>
- <b780ac13-4fc3-ac07-f0c0-7a6cc8dae694@intel.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <c04713b0-5e87-41f2-a3df-1b8f75e44bdc@huawei.com>
-Date: Fri, 19 May 2017 13:51:33 +0300
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E392803C1
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:56:56 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i63so56022847pgd.15
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:56:56 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id m80si8238890pfa.28.2017.05.19.03.56.54
+        for <linux-mm@kvack.org>;
+        Fri, 19 May 2017 03:56:55 -0700 (PDT)
+From: "Byungchul Park" <byungchul.park@lge.com>
+References: <1489479542-27030-1-git-send-email-byungchul.park@lge.com> <1489479542-27030-6-git-send-email-byungchul.park@lge.com> <20170519080708.GG28017@X58A-UD3R> <20170519103025.zb5impbsek77ahwa@hirez.programming.kicks-ass.net>
+In-Reply-To: <20170519103025.zb5impbsek77ahwa@hirez.programming.kicks-ass.net>
+Subject: RE: [PATCH v6 05/15] lockdep: Implement crossrelease feature
+Date: Fri, 19 May 2017 19:56:53 +0900
+Message-ID: <005a01d2d08e$9fe62800$dfb27800$@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <b780ac13-4fc3-ac07-f0c0-7a6cc8dae694@intel.com>
-Content-Type: text/plain; charset="windows-1252"
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, Laura Abbott <labbott@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: 'Peter Zijlstra' <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Hello,
-
-On 10/05/17 18:45, Dave Hansen wrote:
-> On 05/10/2017 08:19 AM, Igor Stoppa wrote:
->> So I'd like to play a little what-if scenario:
->> what if I was to support exclusively virtual memory and convert to it
->> everything that might need sealing?
+> -----Original Message-----
+> From: Peter Zijlstra [mailto:peterz@infradead.org]
+> Sent: Friday, May 19, 2017 7:30 PM
+> To: Byungchul Park
+> Cc: mingo@kernel.org; tglx@linutronix.de; walken@google.com;
+> boqun.feng@gmail.com; kirill@shutemov.name; linux-kernel@vger.kernel.org;
+> linux-mm@kvack.org; iamjoonsoo.kim@lge.com; akpm@linux-foundation.org;
+> willy@infradead.org; npiggin@gmail.com; kernel-team@lge.com
+> Subject: Re: [PATCH v6 05/15] lockdep: Implement crossrelease feature
 > 
-> Because of the issues related to fracturing large pages, you might have
-> had to go this route eventually anyway.  Changing the kernel linear map
-> isn't nice.
+> On Fri, May 19, 2017 at 05:07:08PM +0900, Byungchul Park wrote:
+> > On Tue, Mar 14, 2017 at 05:18:52PM +0900, Byungchul Park wrote:
+> > > Lockdep is a runtime locking correctness validator that detects and
+> > > reports a deadlock or its possibility by checking dependencies between
+> > > locks. It's useful since it does not report just an actual deadlock
+> but
+> > > also the possibility of a deadlock that has not actually happened yet.
+> > > That enables problems to be fixed before they affect real systems.
+> > >
+> > > However, this facility is only applicable to typical locks, such as
+> > > spinlocks and mutexes, which are normally released within the context
+> in
+> > > which they were acquired. However, synchronization primitives like
+> page
+> > > locks or completions, which are allowed to be released in any context,
+> > > also create dependencies and can cause a deadlock. So lockdep should
+> > > track these locks to do a better job. The 'crossrelease'
+> implementation
+> > > makes these primitives also be tracked.
+> >
+> > Excuse me but I have a question...
+> >
+> > Only for maskable irq, can I assume that hardirq are prevented within
+> > hardirq context? I remember that nested interrupts were allowed in the
+> > past but not recommanded. But what about now? I'm curious about the
+> > overall direction of kernel and current status. It would be very
+> > appriciated if you answer it.
 > 
-> FWIW, you could test this scheme by just converting all the users to
-> vmalloc() and seeing what breaks.  They'd all end up rounding up all
-> their allocations to PAGE_SIZE, but that'd be fine for testing.
+> So you're right. In general enabling IRQs from hardirq context is
+> discouraged but allowed. However, if you were to do that with a lock
+> held that would instantly make lockdep report a deadlock, as the lock is
+> then both used from IRQ context and has IRQs enabled.
+> 
+> So from a locking perspective you can assume no nesting, but from a
+> state tracking pov we have to deal with the nesting I think (although it
+> is very rare).
 
-Apologies for the long hiatus, it took me some time to figure out
-a solution that could somehow address all the comments I got till this
-point.
+Got it. Thank you.
 
-It's here [1], I preferred to start one new thread, since the proposal
-has in practice changed significantly, even if in spirit it's still the
-same.
+> You're asking this in relation to the rollback thing, right? I think we
 
-It should also take care of the potential waste of space you mentioned
-wrt the round up to PAGE_SIZE.
+Exactly. I wanted to make it clear when implementing the rollback for
+irqs and works of workqueue.
 
-> Could you point out 5 or 10 places in the kernel that you want to convert?
+> should only save the state when hardirq_context goes from 0->1 and
+> restore on 1->0.
 
-Right now I can only repeat what I said initially:
-- the linked list used to implement LSM hooks
-- SE linux structures used to implement the policy DB, it should be
-  about 5 data types
+Yes, it's already done in v6, as you are saying.
 
-Next week, I'll address the 2 cases I listed, then I'll look for more,
-but I think it should not be difficult to find customers for this.
-
-BTW, I forgot to mention that I tested the code against both SLAB and
-SLUB and it seems to work fine.
-
-So far I've used QEMU x86-64 as test environment.
-
---
-igor
-
-
-[1] https://marc.info/?l=linux-mm&m=149519044015956&w=2
+Thank you very much.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
