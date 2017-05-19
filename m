@@ -1,107 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C406831F4
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 03:09:59 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x184so13303183wmf.14
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 00:09:59 -0700 (PDT)
-Received: from forwardcorp1j.cmail.yandex.net (forwardcorp1j.cmail.yandex.net. [2a02:6b8:0:1630::180])
-        by mx.google.com with ESMTPS id g90si2407250lfi.43.2017.05.19.00.09.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B1276831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 03:21:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 139so13333866wmf.5
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 00:21:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h19si13922209wme.113.2017.05.19.00.21.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 00:09:57 -0700 (PDT)
-Subject: [PATCH] ext4: handle the rest of ext4_mb_load_buddy() ENOMEM errors
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Fri, 19 May 2017 10:09:54 +0300
-Message-ID: <149517779388.33359.16474190951431954772.stgit@buzz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 May 2017 00:21:22 -0700 (PDT)
+Subject: Re: [PATCH 07/14] mm: consider zone which is not fully populated to
+ have holes
+References: <20170515085827.16474-1-mhocko@kernel.org>
+ <20170515085827.16474-8-mhocko@kernel.org>
+ <ae859e14-bf82-ae37-9c85-d4b31ce89b0a@suse.cz>
+ <20170518164210.GD18333@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <3d5d4d0b-bc5e-dbb5-de68-f4ea31abb38c@suse.cz>
+Date: Fri, 19 May 2017 09:21:20 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20170518164210.GD18333@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-I've got another report about breaking ext4 by ENOMEM error returned from
-ext4_mb_load_buddy() caused by memory shortage in memory cgroup.
-This time inside ext4_discard_preallocations().
+On 05/18/2017 06:42 PM, Michal Hocko wrote:
+> On Thu 18-05-17 18:14:39, Vlastimil Babka wrote:
+>> On 05/15/2017 10:58 AM, Michal Hocko wrote:
+> [...]
+>>>  #ifdef CONFIG_MEMORY_HOTPLUG
+>>> +/*
+>>> + * Return page for the valid pfn only if the page is online. All pfn
+>>> + * walkers which rely on the fully initialized page->flags and others
+>>> + * should use this rather than pfn_valid && pfn_to_page
+>>> + */
+>>> +#define pfn_to_online_page(pfn)				\
+>>> +({							\
+>>> +	struct page *___page = NULL;			\
+>>> +							\
+>>> +	if (online_section_nr(pfn_to_section_nr(pfn)))	\
+>>> +		___page = pfn_to_page(pfn);		\
+>>> +	___page;					\
+>>> +})
+>>
+>> This seems to be already assuming pfn_valid() to be true. There's no
+>> "pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS" check and the comment
+>> suggests as such, but...
+> 
+> Yes, we should check the validity of the section number. We do not have
+> to check whether the section is valid because online sections are a
+> subset of those that are valid.
+> 
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 05796ee974f7..c3a146028ba6 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -929,6 +929,9 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>>>  	unsigned long i;
+>>>  	unsigned long onlined_pages = *(unsigned long *)arg;
+>>>  	struct page *page;
+>>> +
+>>> +	online_mem_sections(start_pfn, start_pfn + nr_pages);
+>>
+>> Shouldn't this be moved *below* the loop that initializes struct pages?
+>> In the offline case you do mark sections offline before "tearing" struct
+>> pages, so that should be symmetric.
+> 
+> You are right! Andrew, could you fold the following intot the patch?
+> ---
+> From 0550b61203d6970b47fd79f5e6372dccd143cbec Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Thu, 18 May 2017 18:38:24 +0200
+> Subject: [PATCH] fold me "mm: consider zone which is not fully populated to
+>  have holes"
+> 
+> - check valid section number in pfn_to_online_page - Vlastimil
+> - mark sections online after all struct pages are initialized in
+>   online_pages_range - Vlastimil
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-This patch replaces ext4_error() with ext4_warning() where errors returned
-from ext4_mb_load_buddy() are not fatal and handled by caller:
-* ext4_mb_discard_group_preallocations() - called before generating ENOSPC,
-  we'll try to discard other group or return ENOSPC into user-space.
-* ext4_trim_all_free() - just stop trimming and return ENOMEM from ioctl.
+Both the patch and fix:
 
-Some callers cannot handle errors, thus __GFP_NOFAIL is used for them:
-* ext4_discard_preallocations()
-* ext4_mb_discard_lg_preallocations()
-
-The only unclear case is ext4_group_add_blocks(), probably ext4_std_error()
-should handle ENOMEM as warning and don't break filesystem.
-
-Fixes: adb7ef600cc9 ("ext4: use __GFP_NOFAIL in ext4_free_blocks()")
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- fs/ext4/mballoc.c |   23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
-
-diff --git a/fs/ext4/mballoc.c b/fs/ext4/mballoc.c
-index 5083bce20ac4..b7928cddd539 100644
---- a/fs/ext4/mballoc.c
-+++ b/fs/ext4/mballoc.c
-@@ -3887,7 +3887,8 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
- 
- 	err = ext4_mb_load_buddy(sb, group, &e4b);
- 	if (err) {
--		ext4_error(sb, "Error loading buddy information for %u", group);
-+		ext4_warning(sb, "Error %d loading buddy information for %u",
-+			     err, group);
- 		put_bh(bitmap_bh);
- 		return 0;
- 	}
-@@ -4044,10 +4045,11 @@ void ext4_discard_preallocations(struct inode *inode)
- 		BUG_ON(pa->pa_type != MB_INODE_PA);
- 		group = ext4_get_group_number(sb, pa->pa_pstart);
- 
--		err = ext4_mb_load_buddy(sb, group, &e4b);
-+		err = ext4_mb_load_buddy_gfp(sb, group, &e4b,
-+					     GFP_NOFS|__GFP_NOFAIL);
- 		if (err) {
--			ext4_error(sb, "Error loading buddy information for %u",
--					group);
-+			ext4_error(sb, "Error %d loading buddy information for %u",
-+				   err, group);
- 			continue;
- 		}
- 
-@@ -4303,11 +4305,14 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
- 	spin_unlock(&lg->lg_prealloc_lock);
- 
- 	list_for_each_entry_safe(pa, tmp, &discard_list, u.pa_tmp_list) {
-+		int err;
- 
- 		group = ext4_get_group_number(sb, pa->pa_pstart);
--		if (ext4_mb_load_buddy(sb, group, &e4b)) {
--			ext4_error(sb, "Error loading buddy information for %u",
--					group);
-+		err = ext4_mb_load_buddy_gfp(sb, group, &e4b,
-+					     GFP_NOFS|__GFP_NOFAIL);
-+		if (err) {
-+			ext4_error(sb, "Error %d loading buddy information for %u",
-+				   err, group);
- 			continue;
- 		}
- 		ext4_lock_group(sb, group);
-@@ -5127,8 +5132,8 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
- 
- 	ret = ext4_mb_load_buddy(sb, group, &e4b);
- 	if (ret) {
--		ext4_error(sb, "Error in loading buddy "
--				"information for %u", group);
-+		ext4_warning(sb, "Error %d loading buddy information for %u",
-+			     ret, group);
- 		return ret;
- 	}
- 	bitmap = e4b.bd_bitmap;
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
