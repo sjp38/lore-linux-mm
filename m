@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DA94A831F4
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:40:09 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v4so14274193wmb.8
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:40:09 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3A1831F4
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 06:40:39 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id o52so4339177wrb.10
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 03:40:39 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id u104si2499246wrb.59.2017.05.19.03.40.08
+        by mx.google.com with ESMTPS id j24si2223220wrd.9.2017.05.19.03.40.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 03:40:08 -0700 (PDT)
+        Fri, 19 May 2017 03:40:38 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [RFC v3]mm: ro protection for data allocated dynamically 
-Date: Fri, 19 May 2017 13:38:10 +0300
-Message-ID: <20170519103811.2183-1-igor.stoppa@huawei.com>
+Subject: [PATCH 1/1] Sealable memory support
+Date: Fri, 19 May 2017 13:38:11 +0300
+Message-ID: <20170519103811.2183-2-igor.stoppa@huawei.com>
+In-Reply-To: <20170519103811.2183-1-igor.stoppa@huawei.com>
+References: <20170519103811.2183-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,106 +22,18 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org, dave.hansen@intel.com, labbott@redhat.com
 Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, Igor Stoppa <igor.stoppa@huawei.com>
 
-Not all the data allocated dynamically needs to be altered frequently.
-In some cases, it might be written just once, at initialization.
+Dynamically allocated variables can be made read only,
+after they have been initialized, provided that they reside in memory
+pages devoid of any RW data.
 
-This RFC has the goal of improving memory integrity, by explicitly
-making said data write-protected.
+The implementation supplies means to create independent pools of memory,
+which can be individually created, sealed/unsealed and destroyed.
 
-A reference implementation is provided.
+A global pool is made available for those kernel modules that do not
+need to manage an independent pool.
 
-During the previous 2 rounds, some concerns/questions were risen.
-This iteration should address msot of them, if not all.
-
-Basic idea behind the implementation: on systems with MMU, the MMU
-supports associating various types of attribute to memory pages.
-
-One of them is being read-only.
-The MMU will cause an exception upon attempts to alter a read-only page.
-This mechanism is already in use for protecting: kernel text and
-constant data.
-Relatively recently, it has become possible to have also statically
-allocated data to become read-only, with the __ro_after_init annotation.
-
-However nothing is done for variables allocated dynamically.
-
-The catch for re-using the same mechanism, is that soon-to-be read only
-variables must be grouped in dedicated memory pages, without any rw data
-falling in the same range.
-
-This can be achieved with a dedicated allocator.
-
-The implementation proposed allows to create memory pools.
-Each pool can be treated independently from the others, allowing fine
-grained control about what data can be overwritten.
-
-A pool is a kernel linked list, where the head contains a mutex used for
-accessing the list, and the elements are nodes, providing the memory
-actually used.
-
-When a pool receives an allocation request for which it doesn't have
-enough memory already available, it obtains a set of contiguous virtual
-pages (node) that is large enough to cover the request being processed.
-Such memory is likely to be significantly larger than what was required.
-The slack is used for fulfilling further allocation requests, provided
-that they fit the space available.
-
-The pool ends up being a list of nodes, where each node contains a
-request that, at the time it was received, could not be satisfied by
-using the exisitng nodes, plus other requests that happened to fit in the
-slack. Such requests handle each node as an individual linear pool.
-
-When it's time to seal/unseal a pool, each element (node) of the list is
-visited and the range of pages it comprises is passed ot set_memory_ro/rw.
-
-Freeing memory is supported at pool level: if for some reason one or more
-memory requests must be discarded, at some point, they are simply ignored.
-Upon the pool tear down, then nodes are removed one by one and the
-corresponding memory range freed for good with vfree.
-
-This approach avoids the extra coplexity of tracking individual
-allocations, yet it allows to control claim back pages when not needed
-anymore (i.e. module unloading.)
-
-The same design also supports isolation between different kernel modules:
-each module can allocae one or more pools, to obtain the desired level of
-granularity when managing portions of its data that need different handling.
-
-The price for this flexibility is that some more slack is produced.
-The exact amount depends on the sizes of allocations performed and in
-which order they arrive.
-
-Modules that do not want/need all of this flexibility can use the default
-global pool provided by the allocator.
-
-This pool is intended to provide consistency with __ro_after_init and
-therefore would be sealed at the same time.
-
-Some observations/questions:
-
-* the backend of the memory allocation is done by using vmalloc.
-  Is here any better way? the bpf uses module_alloc but that seems not
-  exactly its purpose.
-
-* because of the vmalloc backend, this is not suitable for cases where
-  it is really needed to have physically contiguous memory regions,
-  however the type of data that would use this interface is likely to
-  not require interaction with HW devices that could rise such need.
-
-* the allocator supports defining a preferred alignment (currently set
-  to 8 bytes, using uint64_t) - is it useful/desirable?
-  If yes, is it the correct granularity (global)?
-
-* to get the size of the padded header of a node, the current code uses
-  __align(align_t) and it seems to work, but is it correct?
-
-* examples of uses for this new allcoator:
-  - LSM Hooks
-  - policy database of SE Linux (several different structure types)
-
-Igor Stoppa (1):
-  Sealable memory support
-
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+---
  mm/Makefile  |   2 +-
  mm/smalloc.c | 200 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  mm/smalloc.h |  61 ++++++++++++++++++
@@ -127,6 +41,292 @@ Igor Stoppa (1):
  create mode 100644 mm/smalloc.c
  create mode 100644 mm/smalloc.h
 
+diff --git a/mm/Makefile b/mm/Makefile
+index 026f6a8..737c42a 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -39,7 +39,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+ 			   compaction.o vmacache.o swap_slots.o \
+ 			   interval_tree.o list_lru.o workingset.o \
+-			   debug.o $(mmu-y)
++			   debug.o smalloc.o $(mmu-y)
+ 
+ obj-y += init-mm.o
+ 
+diff --git a/mm/smalloc.c b/mm/smalloc.c
+new file mode 100644
+index 0000000..fa04cc5
+--- /dev/null
++++ b/mm/smalloc.c
+@@ -0,0 +1,200 @@
++/*
++ * smalloc.c: Sealable Memory Allocator
++ *
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++
++#include <linux/module.h>
++#include <linux/printk.h>
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++#include <linux/init.h>
++#include <linux/fs.h>
++#include <linux/string.h>
++
++
++#include <linux/vmalloc.h>
++#include <asm/cacheflush.h>
++#include "smalloc.h"
++
++#define page_roundup(size) (((size) + !(size) - 1 + PAGE_SIZE) & PAGE_MASK)
++
++#define pages_nr(size) (page_roundup(size) / PAGE_SIZE)
++
++static struct smalloc_pool *global_pool;
++
++struct smalloc_node *__smalloc_create_node(unsigned long words)
++{
++	struct smalloc_node *node;
++	unsigned long size;
++
++	/* Calculate the size to ask from vmalloc, page aligned. */
++	size = page_roundup(NODE_HEADER_SIZE + words * sizeof(align_t));
++	node = vmalloc(size);
++	if (!node) {
++		pr_err("No memory for allocating smalloc node.");
++		return NULL;
++	}
++	/* Initialize the node.*/
++	INIT_LIST_HEAD(&node->list);
++	node->free = node->data;
++	node->available_words = (size - NODE_HEADER_SIZE) / sizeof(align_t);
++	return node;
++}
++
++static __always_inline
++void *node_alloc(struct smalloc_node *node, unsigned long words)
++{
++	register align_t *old_free = node->free;
++
++	node->available_words -= words;
++	node->free += words;
++	return old_free;
++}
++
++void *smalloc(unsigned long size, struct smalloc_pool *pool)
++{
++	struct list_head *pos;
++	struct smalloc_node *node;
++	void *ptr;
++	unsigned long words;
++
++	/* If no pool specified, use the global one. */
++	if (!pool)
++		pool = global_pool;
++
++	mutex_lock(&pool->lock);
++
++	/* If the pool is sealed, then return NULL. */
++	if (pool->seal == SMALLOC_SEALED) {
++		mutex_unlock(&pool->lock);
++		return NULL;
++	}
++
++	/* Calculate minimum number of words required. */
++	words = (size + sizeof(align_t) - 1) / sizeof(align_t);
++
++	/* Look for slot that is large enough, in the existing pool.*/
++	list_for_each(pos, &pool->list) {
++		node = list_entry(pos, struct smalloc_node, list);
++		if (node->available_words >= words) {
++			ptr = node_alloc(node, words);
++			mutex_unlock(&pool->lock);
++			return ptr;
++		}
++	}
++
++	/* No slot found, get a new chunk of virtual memory. */
++	node = __smalloc_create_node(words);
++	if (!node) {
++		mutex_unlock(&pool->lock);
++		return NULL;
++	}
++
++	list_add(&node->list, &pool->list);
++	ptr = node_alloc(node, words);
++	mutex_unlock(&pool->lock);
++	return ptr;
++}
++
++static __always_inline
++unsigned long get_node_size(struct smalloc_node *node)
++{
++	if (!node)
++		return 0;
++	return page_roundup((((void *)node->free) - (void *)node) +
++			    node->available_words * sizeof(align_t));
++}
++
++static __always_inline
++unsigned long get_node_pages_nr(struct smalloc_node *node)
++{
++	return pages_nr(get_node_size(node));
++}
++void smalloc_seal_set(enum seal_t seal, struct smalloc_pool *pool)
++{
++	struct list_head *pos;
++	struct smalloc_node *node;
++
++	if (!pool)
++		pool = global_pool;
++	mutex_lock(&pool->lock);
++	if (pool->seal == seal) {
++		mutex_unlock(&pool->lock);
++		return;
++	}
++	list_for_each(pos, &pool->list) {
++		node = list_entry(pos, struct smalloc_node, list);
++		if (seal == SMALLOC_SEALED)
++			set_memory_ro((unsigned long)node,
++				      get_node_pages_nr(node));
++		else if (seal == SMALLOC_UNSEALED)
++			set_memory_rw((unsigned long)node,
++				      get_node_pages_nr(node));
++	}
++	pool->seal = seal;
++	mutex_unlock(&pool->lock);
++}
++
++int smalloc_initialize(struct smalloc_pool *pool)
++{
++	if (!pool)
++		return -EINVAL;
++	INIT_LIST_HEAD(&pool->list);
++	pool->seal = SMALLOC_UNSEALED;
++	mutex_init(&pool->lock);
++	return 0;
++}
++
++struct smalloc_pool *smalloc_create(void)
++{
++	struct smalloc_pool *pool = vmalloc(sizeof(struct smalloc_pool));
++
++	if (!pool) {
++		pr_err("No memory for allocating pool.");
++		return NULL;
++	}
++	smalloc_initialize(pool);
++	return pool;
++}
++
++int smalloc_destroy(struct smalloc_pool *pool)
++{
++	struct list_head *pos, *q;
++	struct smalloc_node *node;
++
++	if (!pool)
++		return -EINVAL;
++	list_for_each_safe(pos, q, &pool->list) {
++		node = list_entry(pos, struct smalloc_node, list);
++		list_del(pos);
++		vfree(node);
++	}
++	return 0;
++}
++
++static int __init smalloc_init(void)
++{
++	global_pool = smalloc_create();
++	if (!global_pool) {
++		pr_err("Module smalloc initialization failed: no memory.\n");
++		return -ENOMEM;
++	}
++	pr_info("Module smalloc initialized successfully.\n");
++	return 0;
++}
++
++static void __exit smalloc_exit(void)
++{
++	pr_info("Module smalloc un initialized successfully.\n");
++}
++
++module_init(smalloc_init);
++module_exit(smalloc_exit);
++MODULE_LICENSE("GPL");
+diff --git a/mm/smalloc.h b/mm/smalloc.h
+new file mode 100644
+index 0000000..344d962
+--- /dev/null
++++ b/mm/smalloc.h
+@@ -0,0 +1,61 @@
++/*
++ * smalloc.h: Header for Sealable Memory Allocator
++ *
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++
++#ifndef _SMALLOC_H
++#define _SMALLOC_H
++
++#include <linux/list.h>
++#include <linux/mutex.h>
++
++typedef uint64_t align_t;
++
++enum seal_t {
++	SMALLOC_UNSEALED,
++	SMALLOC_SEALED,
++};
++
++#define __SMALLOC_ALIGNED__ __aligned(sizeof(align_t))
++
++#define NODE_HEADER					\
++	struct {					\
++		__SMALLOC_ALIGNED__ struct {		\
++			struct list_head list;		\
++			align_t *free;			\
++			unsigned long available_words;	\
++		};					\
++	}
++
++#define NODE_HEADER_SIZE sizeof(NODE_HEADER)
++
++struct smalloc_pool {
++	struct list_head list;
++	struct mutex lock;
++	enum seal_t seal;
++};
++
++struct smalloc_node {
++	NODE_HEADER;
++	__SMALLOC_ALIGNED__ align_t data[];
++};
++
++#define smalloc_seal(pool) \
++	smalloc_seal_set(SMALLOC_SEALED, pool)
++
++#define smalloc_unseal(pool) \
++	smalloc_seal_set(SMALLOC_UNSEALED, pool)
++
++struct smalloc_pool *smalloc_create(void);
++int smalloc_destroy(struct smalloc_pool *pool);
++int smalloc_initialize(struct smalloc_pool *pool);
++void *smalloc(unsigned long size, struct smalloc_pool *pool);
++void smalloc_seal_set(enum seal_t seal, struct smalloc_pool *pool);
++#endif
 -- 
 2.9.3
 
