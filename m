@@ -1,93 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7CE280753
-	for <linux-mm@kvack.org>; Sat, 20 May 2017 13:07:06 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c75so39021352qka.7
-        for <linux-mm@kvack.org>; Sat, 20 May 2017 10:07:06 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id b52si12806196qta.156.2017.05.20.10.07.05
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 407B1280753
+	for <linux-mm@kvack.org>; Sat, 20 May 2017 14:37:41 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m96so5849996lfi.6
+        for <linux-mm@kvack.org>; Sat, 20 May 2017 11:37:41 -0700 (PDT)
+Received: from smtp44.i.mail.ru (smtp44.i.mail.ru. [94.100.177.104])
+        by mx.google.com with ESMTPS id s74si4774255lfi.312.2017.05.20.11.37.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 May 2017 10:07:05 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 1/1] mm: Adaptive hash table scaling
-Date: Sat, 20 May 2017 13:06:53 -0400
-Message-Id: <1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
+        Sat, 20 May 2017 11:37:39 -0700 (PDT)
+Date: Sat, 20 May 2017 21:37:29 +0300
+From: Vladimir Davydov <vdavydov@tarantool.org>
+Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
+Message-ID: <20170520183729.GA3195@esperanza>
+References: <1495124884-28974-1-git-send-email-guro@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1495124884-28974-1-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
-is provided every time memory quadruples the sizes of hash tables will only
-double instead of quadrupling as well. This algorithm starts working only
-when memory size reaches a certain point, currently set to 64G.
+Hello Roman,
 
-This is example of dentry hash table size, before and after four various
-memory configurations:
+On Thu, May 18, 2017 at 05:28:04PM +0100, Roman Gushchin wrote:
+...
+> +5-2-4. Cgroup-aware OOM Killer
+> +
+> +Cgroup v2 memory controller implements a cgroup-aware OOM killer.
+> +It means that it treats memory cgroups as memory consumers
+> +rather then individual processes. Under the OOM conditions it tries
+> +to find an elegible leaf memory cgroup, and kill all processes
+> +in this cgroup. If it's not possible (e.g. all processes belong
+> +to the root cgroup), it falls back to the traditional per-process
+> +behaviour.
 
-MEMORY    SCALE        HASH_SIZE
-        old    new    old     new
-    8G  13     13      8M      8M
-   16G  13     13     16M     16M
-   32G  13     13     32M     32M
-   64G  13     13     64M     64M
-  128G  13     14    128M     64M
-  256G  13     14    256M    128M
-  512G  13     15    512M    128M
- 1024G  13     15   1024M    256M
- 2048G  13     16   2048M    256M
- 4096G  13     16   4096M    512M
- 8192G  13     17   8192M    512M
-16384G  13     17  16384M   1024M
-32768G  13     18  32768M   1024M
-65536G  13     18  65536M   2048M
+I agree that the current OOM victim selection algorithm is totally
+unfair in a system using containers and it has been crying for rework
+for the last few years now, so it's great to see this finally coming.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- mm/page_alloc.c | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+However, I don't reckon that killing a whole leaf cgroup is always the
+best practice. It does make sense when cgroups are used for
+containerizing services or applications, because a service is unlikely
+to remain operational after one of its processes is gone, but one can
+also use cgroups to containerize processes started by a user. Kicking a
+user out for one of her process has gone mad doesn't sound right to me.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8afa63e81e73..15bba5c325a5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7169,6 +7169,17 @@ static unsigned long __init arch_reserved_kernel_pages(void)
- #endif
- 
- /*
-+ * Adaptive scale is meant to reduce sizes of hash tables on large memory
-+ * machines. As memory size is increased the scale is also increased but at
-+ * slower pace.  Starting from ADAPT_SCALE_BASE (64G), every time memory
-+ * quadruples the scale is increased by one, which means the size of hash table
-+ * only doubles, instead of quadrupling as well.
-+ */
-+#define ADAPT_SCALE_BASE	(64ull << 30)
-+#define ADAPT_SCALE_SHIFT	2
-+#define ADAPT_SCALE_NPAGES	(ADAPT_SCALE_BASE >> PAGE_SHIFT)
-+
-+/*
-  * allocate a large system hash table from bootmem
-  * - it is assumed that the hash table must contain an exact power-of-2
-  *   quantity of entries
-@@ -7199,6 +7210,14 @@ void *__init alloc_large_system_hash(const char *tablename,
- 		if (PAGE_SHIFT < 20)
- 			numentries = round_up(numentries, (1<<20)/PAGE_SIZE);
- 
-+		if (!high_limit) {
-+			unsigned long long adapt;
-+
-+			for (adapt = ADAPT_SCALE_NPAGES; adapt < numentries;
-+			     adapt <<= ADAPT_SCALE_SHIFT)
-+				scale++;
-+		}
-+
- 		/* limit to 1 bucket per 2^scale bytes of low memory */
- 		if (scale > PAGE_SHIFT)
- 			numentries >>= (scale - PAGE_SHIFT);
--- 
-2.13.0
+Another example when the policy you're suggesting fails in my opinion is
+in case a service (cgroup) consists of sub-services (sub-cgroups) that
+run processes. The main service may stop working normally if one of its
+sub-services is killed. So it might make sense to kill not just an
+individual process or a leaf cgroup, but the whole main service with all
+its sub-services.
+
+And both kinds of workloads (services/applications and individual
+processes run by users) can co-exist on the same host - consider the
+default systemd setup, for instance.
+
+IMHO it would be better to give users a choice regarding what they
+really want for a particular cgroup in case of OOM - killing the whole
+cgroup or one of its descendants. For example, we could introduce a
+per-cgroup flag that would tell the kernel whether the cgroup can
+tolerate killing a descendant or not. If it can, the kernel will pick
+the fattest sub-cgroup or process and check it. If it cannot, it will
+kill the whole cgroup and all its processes and sub-cgroups.
+
+> +
+> +The memory controller tries to make the best choise of a victim cgroup.
+> +In general, it tries to select the largest cgroup, matching given
+> +node/zone requirements, but the concrete algorithm is not defined,
+> +and may be changed later.
+> +
+> +This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
+> +the memory controller considers only cgroups belonging to a sub-tree
+> +of the OOM-ing cgroup, including itself.
+...
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c131f7e..8d07481 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2625,6 +2625,75 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+>  	return ret;
+>  }
+>  
+> +bool mem_cgroup_select_oom_victim(struct oom_control *oc)
+> +{
+> +	struct mem_cgroup *iter;
+> +	unsigned long chosen_memcg_points;
+> +
+> +	oc->chosen_memcg = NULL;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return false;
+> +
+> +	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> +		return false;
+> +
+> +	pr_info("Choosing a victim memcg because of %s",
+> +		oc->memcg ?
+> +		"memory limit reached of cgroup " :
+> +		"out of memory\n");
+> +	if (oc->memcg) {
+> +		pr_cont_cgroup_path(oc->memcg->css.cgroup);
+> +		pr_cont("\n");
+> +	}
+> +
+> +	chosen_memcg_points = 0;
+> +
+> +	for_each_mem_cgroup_tree(iter, oc->memcg) {
+> +		unsigned long points;
+> +		int nid;
+> +
+> +		if (mem_cgroup_is_root(iter))
+> +			continue;
+> +
+> +		if (memcg_has_children(iter))
+> +			continue;
+> +
+> +		points = 0;
+> +		for_each_node_state(nid, N_MEMORY) {
+> +			if (oc->nodemask && !node_isset(nid, *oc->nodemask))
+> +				continue;
+> +			points += mem_cgroup_node_nr_lru_pages(iter, nid,
+> +					LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
+> +		}
+> +		points += mem_cgroup_get_nr_swap_pages(iter);
+
+I guess we should also take into account kmem as well (unreclaimable
+slabs, kernel stacks, socket buffers).
+
+> +
+> +		pr_info("Memcg ");
+> +		pr_cont_cgroup_path(iter->css.cgroup);
+> +		pr_cont(": %lu\n", points);
+> +
+> +		if (points > chosen_memcg_points) {
+> +			if (oc->chosen_memcg)
+> +				css_put(&oc->chosen_memcg->css);
+> +
+> +			oc->chosen_memcg = iter;
+> +			css_get(&iter->css);
+> +
+> +			chosen_memcg_points = points;
+> +		}
+> +	}
+> +
+> +	if (oc->chosen_memcg) {
+> +		pr_info("Kill memcg ");
+> +		pr_cont_cgroup_path(oc->chosen_memcg->css.cgroup);
+> +		pr_cont(" (%lu)\n", chosen_memcg_points);
+> +	} else {
+> +		pr_info("No elegible memory cgroup found\n");
+> +	}
+> +
+> +	return !!oc->chosen_memcg;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
