@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EC984280753
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 22:02:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n75so68344182pfh.0
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 19:02:27 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id z62si9134899pgd.93.2017.05.19.19.02.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C3C8A280753
+	for <linux-mm@kvack.org>; Fri, 19 May 2017 22:10:17 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k57so7350314wrk.6
+        for <linux-mm@kvack.org>; Fri, 19 May 2017 19:10:17 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.15])
+        by mx.google.com with ESMTPS id h80si12142224wmi.167.2017.05.19.19.10.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 May 2017 19:02:26 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id m17so47160128pfg.3
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 19:02:26 -0700 (PDT)
-Date: Fri, 19 May 2017 19:02:17 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm, something wring in page_lock_anon_vma_read()?
-In-Reply-To: <591F9A09.6010707@huawei.com>
-Message-ID: <alpine.LSU.2.11.1705191852360.11060@eggly.anvils>
-References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 19 May 2017 19:10:16 -0700 (PDT)
+Message-ID: <1495246207.7442.2.camel@gmx.de>
+Subject: Re: [RFC PATCH v2 12/17] cgroup: Remove cgroup v2 no internal
+ process constraint
+From: Mike Galbraith <efault@gmx.de>
+Date: Sat, 20 May 2017 04:10:07 +0200
+In-Reply-To: <20170519203824.GC15279@wtj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+	 <1494855256-12558-13-git-send-email-longman@redhat.com>
+	 <20170519203824.GC15279@wtj.duckdns.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
+To: Tejun Heo <tj@kernel.org>, Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net
 
-On Sat, 20 May 2017, Xishi Qiu wrote:
-> On 2017/5/20 6:00, Hugh Dickins wrote:
-> > 
-> > You're ignoring the rcu_read_lock() on entry to page_lock_anon_vma_read(),
-> > and the SLAB_DESTROY_BY_RCU (recently renamed SLAB_TYPESAFE_BY_RCU) nature
-> > of the anon_vma_cachep kmem cache.  It is not safe to muck with anon_vma->
-> > root in anon_vma_free(), others could still be looking at it.
-> > 
-> > Hugh
-> > 
+On Fri, 2017-05-19 at 16:38 -0400, Tejun Heo wrote:
+> Hello, Waiman.
 > 
-> Hi Hugh,
+> On Mon, May 15, 2017 at 09:34:11AM -0400, Waiman Long wrote:
+> > The rationale behind the cgroup v2 no internal process constraint is
+> > to avoid resouorce competition between internal processes and child
+> > cgroups. However, not all controllers have problem with internal
+> > process competiton. Enforcing this rule may lead to unnatural process
+> > hierarchy and unneeded levels for those controllers.
 > 
-> Thanks for your reply.
-> 
-> SLAB_DESTROY_BY_RCU will let it call call_rcu() in free_slab(), but if the
-> anon_vma *reuse* by someone again, access root_anon_vma is not safe, right?
+> This isn't necessarily something we can determine by looking at the
+> current state of controllers.  It's true that some controllers - pid
+> and perf - inherently only care about membership of each task but at
+> the same time neither really suffers from the constraint either.  CPU
+> which is the problematic one here...
 
-That is safe, on reuse it is still a struct anon_vma; then the test for
-!page_mapped(page) will show that it's no longer a reliable anon_vma for
-this page, so page_lock_anon_vma_read() returns NULL.
-
-But of course, if page->_mapcount has been corrupted or misaccounted,
-it may think page_mapped(page) when actually page is not mapped,
-and the anon_vma is not good for it.
-
-> 
-> e.g. if I clean the root pointer before free it, then access root_anon_vma
-> in page_lock_anon_vma_read() is NULL pointer access, right?
-
-Yes, cleaning root pointer before free may result in NULL pointer access.
-
-Hugh
-
-> 
-> anon_vma_free()
-> 	...
-> 	anon_vma->root = NULL;
-> 	kmem_cache_free(anon_vma_cachep, anon_vma);
-> 	...
-> 
-> Thanks,
-> Xishi Qiu
+(+ cpuacct + cpuset)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
