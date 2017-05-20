@@ -1,78 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E779D280753
-	for <linux-mm@kvack.org>; Sat, 20 May 2017 03:27:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g12so7849942wrg.15
-        for <linux-mm@kvack.org>; Sat, 20 May 2017 00:27:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k2si1694667edc.224.2017.05.20.00.27.39
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F74A280753
+	for <linux-mm@kvack.org>; Sat, 20 May 2017 04:27:35 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id o85so35625603qkh.15
+        for <linux-mm@kvack.org>; Sat, 20 May 2017 01:27:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d27si11610281qtb.47.2017.05.20.01.27.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 20 May 2017 00:27:40 -0700 (PDT)
-Date: Sat, 20 May 2017 09:27:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: clarify why we want kmalloc before falling backto
- vmallock
-Message-ID: <20170520072737.GB11925@dhcp22.suse.cz>
-References: <20170517080932.21423-1-mhocko@kernel.org>
- <d6121d8b-8d0f-88da-cd67-e9123bb96454@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 20 May 2017 01:27:34 -0700 (PDT)
+Date: Sat, 20 May 2017 05:26:46 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170520082646.GA16139@amt.cnet>
+References: <20170512122704.GA30528@amt.cnet>
+ <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
+ <20170512154026.GA3556@amt.cnet>
+ <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
+ <20170512161915.GA4185@amt.cnet>
+ <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+ <20170515191531.GA31483@amt.cnet>
+ <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
+ <20170519143407.GA19282@amt.cnet>
+ <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d6121d8b-8d0f-88da-cd67-e9123bb96454@nvidia.com>
+In-Reply-To: <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-On Fri 19-05-17 17:46:58, John Hubbard wrote:
-> On 05/17/2017 01:09 AM, Michal Hocko wrote:
-> >From: Michal Hocko <mhocko@suse.com>
-> >
-> >While converting drm_[cm]alloc* helpers to kvmalloc* variants Chris
-> >Wilson has wondered why we want to try kmalloc before vmalloc fallback
-> >even for larger allocations requests. Let's clarify that one larger
-> >physically contiguous block is less likely to fragment memory than many
-> >scattered pages which can prevent more large blocks from being created.
-> >
-> >Suggested-by: Chris Wilson <chris@chris-wilson.co.uk>
-> >Signed-off-by: Michal Hocko <mhocko@suse.com>
-> >---
-> >  mm/util.c | 5 ++++-
-> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> >
-> >diff --git a/mm/util.c b/mm/util.c
-> >index 464df3489903..87499f8119f2 100644
-> >--- a/mm/util.c
-> >+++ b/mm/util.c
-> >@@ -357,7 +357,10 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> >  	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-> >  	/*
-> >-	 * Make sure that larger requests are not too disruptive - no OOM
-> >+	 * We want to attempt a large physically contiguous block first because
-> >+	 * it is less likely to fragment multiple larger blocks and therefore
-> >+	 * contribute to a long term fragmentation less than vmalloc fallback.
-> >+	 * However make sure that larger requests are not too disruptive - no OOM
-> >  	 * killer and no allocation failure warnings as we have a fallback
-> >  	 */
+On Fri, May 19, 2017 at 12:13:26PM -0500, Christoph Lameter wrote:
+> On Fri, 19 May 2017, Marcelo Tosatti wrote:
 > 
-> Thanks for adding this, it's great to have. Here's a slightly polished
-> version of your words, if you like:
+> > Use-case: realtime application on an isolated core which for some reason
+> > updates vmstatistics.
 > 
-> 	/*
-> 	 * We want to attempt a large physically contiguous block first because
-> 	 * it is less likely to fragment multiple larger blocks. This approach
-> 	 * therefore contributes less to long term fragmentation than a vmalloc
-> 	 * fallback would. However, make sure that larger requests are not too
-> 	 * disruptive: no OOM killer and no allocation failure warnings, as we
-> 	 * have a fallback.
-> 	 */
+> Ok that is already only happening every 2 seconds by default and that
+> interval is configurable via the vmstat_interval proc setting.
+> 
+> > > Just a measurement of vmstat_worker. Pointless.
+> >
+> > Shouldnt the focus be on general scenarios rather than particular
+> > usecases, so that the solution covers a wider range of usecases?
+> 
+> Yes indeed and as far as I can tell the wider usecases are covered. Not
+> sure that there is anything required here.
+> 
+> > The situation as i see is as follows:
+> >
+> > Your point of view is: an "isolated CPU" with a set of applications
+> > cannot update vm statistics, otherwise they pay the vmstat_update cost:
+> >
+> >      kworker/5:1-245   [005] ....1..   673.454295: workqueue_execute_start: work struct ffffa0cf6e493e20: function vmstat_update
+> >      kworker/5:1-245   [005] ....1..   673.454305: workqueue_execute_end: work struct ffffa0cf6e493e20
+> >
+> > Thats 10us for example.
+> 
+> Well with a decent cpu that is 3 usec and it occurs infrequently on the
+> order of once per multiple seconds.
+> 
+> > So if want to customize a realtime setup whose code updates vmstatistic,
+> > you are dead. You have to avoid any systemcall which possibly updates
+> > vmstatistics (now and in the future kernel versions).
+> 
+> You are already dead because you allow IPIs and other kernel processing
+> which creates far more overhead. Still fail to see the point.
+> 
+> > The point is that these vmstat updates are rare. From
+> > http://www.7-cpu.com/cpu/Haswell.html:
+> >
+> > RAM Latency = 36 cycles + 57 ns (3.4 GHz i7-4770)
+> > RAM Latency = 62 cycles + 100 ns (3.6 GHz E5-2699 dual)
+> >
+> > Lets round to 100ns = 0.1us.
+> 
+> That depends on the kernel functionality used.
+> 
+> > You need 100 vmstat updates (all misses to RAM, the worst possible case)
+> > to have equivalent amount of time of the batching version.
+> 
+> The batching version occurs every couple of seconds if at all.
+> 
+> > But thats not the point. The point is the 10us interruption
+> > to execution of the realtime app (which can either mean
+> > your current deadline requirements are not met, or that
+> > another application with lowest latency requirement can't
+> > be used).
+> 
+> Ok then you need to get rid of the IPIs and the other stuff that you have
+> going on with the OS first I think.
 
-Looks ok to me.
+I'll measure the cost of all IPIs in the system to confirm
+vmstat_update's costs is larger than the cost of any IPI.
 
--- 
-Michal Hocko
-SUSE Labs
+> > So why are you against integrating this simple, isolated patch which
+> > does not affect how current logic works?
+> 
+> Frankly the argument does not make sense. Vmstat updates occur very
+> infrequently (probably even less than you IPIs and the other OS stuff that
+> also causes additional latencies that you seem to be willing to tolerate).
+> 
+> And you can configure the interval of vmstat updates freely.... Set
+> the vmstat_interval to 60 seconds instead of 2 for a try? Is that rare
+> enough?
+
+Not rare enough. Never is rare enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
