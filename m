@@ -1,59 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C4A280753
-	for <linux-mm@kvack.org>; Fri, 19 May 2017 23:03:16 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x64so72837785pgd.6
-        for <linux-mm@kvack.org>; Fri, 19 May 2017 20:03:16 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 639F9280753
+	for <linux-mm@kvack.org>; Sat, 20 May 2017 03:00:23 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id j27so7826024wre.3
+        for <linux-mm@kvack.org>; Sat, 20 May 2017 00:00:23 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id 22si1381624pgg.71.2017.05.19.20.03.14
+        by mx.google.com with ESMTPS id b187si26761963wmg.136.2017.05.20.00.00.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 May 2017 20:03:15 -0700 (PDT)
-Message-ID: <591FB173.4020409@huawei.com>
-Date: Sat, 20 May 2017 11:01:07 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Sat, 20 May 2017 00:00:22 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [RFC PATCH] vmalloc: show more detail info in vmallocinfo for clarify
+Date: Sat, 20 May 2017 14:47:41 +0800
+Message-ID: <1495262861-37649-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Subject: Re: mm, something wring in page_lock_anon_vma_read()?
-References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil
- Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
 
-On 2017/5/20 10:40, Hugh Dickins wrote:
-> On Sat, 20 May 2017, Xishi Qiu wrote:
->> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
->> And I meet the bug too. However it is hard to reproduce, and 
->> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
->>
->> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
->> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
->> but anon_vma has been corrupted.
->>
->> Any ideas?
-> Sorry, no.  I assume that _mapcount has been misaccounted, for example
-> a pte mapped in on top of another pte; but cannot begin tell you where
-> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
->
-> Hugh
->
-> .
->
-Hi, Hugh
+When ioremap a 67112960 bytes vm_area with the vmallocinfo:
+ [..]
+ 0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+ 0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
 
-I find the following message from the dmesg.
+we get result:
+ 0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
 
-[26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
+For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
+	if (flags & VM_IOREMAP)
+		align = 1ul << clamp_t(int, get_count_order_long(size),
+			PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
-I can prove that the __mapcount is misaccount.  when task is exited. the rmap
-still exist.
+So it makes idiot like me a litter puzzle why jump the vm_area from
+0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
+0xed000000-0xf1000000 as a big hole.
 
-Thanks
-zhongjiang
+This is to show all of vm_area, including which is freeing but still in
+vmap_area_list, to make it more clear about why we will get
+0xf1000000-0xf5001000 int the above case. And we will get the
+vmallocinfo like:
+ [..]
+ 0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+ 0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+ [..]
+ 0xece7c000-0xece7e000    8192 freeing vm_area
+ 0xece7e000-0xece83000   20480 vm_map_ram
+ 0xf0099000-0xf00aa000   69632 vm_map_ram
+ 0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
+after apply this patch.
+
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ mm/vmalloc.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index b52aeed..dbb24fc 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -314,6 +314,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+ 
+ /*** Global kva allocator ***/
+ 
++#define VM_LAZY_FREE	0x02
+ #define VM_VM_AREA	0x04
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+@@ -1486,6 +1487,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 		spin_lock(&vmap_area_lock);
+ 		va->vm = NULL;
+ 		va->flags &= ~VM_VM_AREA;
++		va->flags |= VM_LAZY_FREE;
+ 		spin_unlock(&vmap_area_lock);
+ 
+ 		vmap_debug_free_range(va->va_start, va->va_end);
+@@ -2684,8 +2686,14 @@ static int s_show(struct seq_file *m, void *p)
+ 	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+ 	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+ 	 */
+-	if (!(va->flags & VM_VM_AREA))
++	if (!(va->flags & VM_VM_AREA)) {
++		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
++			(void *)va->va_start, (void *)va->va_end,
++			va->va_end - va->va_start,
++			va->flags & VM_LAZY_FREE ? "freeing vm_area" : "vm_map_ram");
++
+ 		return 0;
++	}
+ 
+ 	v = va->vm;
+ 
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
