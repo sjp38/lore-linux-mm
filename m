@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C3C02280850
-	for <linux-mm@kvack.org>; Sun, 21 May 2017 12:35:09 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w79so20587636wme.7
-        for <linux-mm@kvack.org>; Sun, 21 May 2017 09:35:09 -0700 (PDT)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id n21si9714103wrn.252.2017.05.21.09.35.07
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0B3280850
+	for <linux-mm@kvack.org>; Sun, 21 May 2017 16:01:12 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 139so21324860wmf.5
+        for <linux-mm@kvack.org>; Sun, 21 May 2017 13:01:12 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id l193si7230934wmg.30.2017.05.21.13.01.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 May 2017 09:35:07 -0700 (PDT)
-Date: Sun, 21 May 2017 09:35:06 -0700
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [v4 1/1] mm: Adaptive hash table scaling
-Message-ID: <20170521163506.GA8096@two.firstfloor.org>
-References: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
- <1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
- <87h90faroe.fsf@firstfloor.org>
- <a09bba26-8461-653d-6b43-2df897a238f0@oracle.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 21 May 2017 13:01:10 -0700 (PDT)
+Date: Sun, 21 May 2017 22:01:07 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] slub/memcg: Cure the brainless abuse of sysfs
+ attributes
+In-Reply-To: <20170520131645.GA5058@infradead.org>
+Message-ID: <alpine.DEB.2.20.1705212200070.3023@nanos>
+References: <alpine.DEB.2.20.1705201244540.2255@nanos> <20170520131645.GA5058@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a09bba26-8461-653d-6b43-2df897a238f0@oracle.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
 
-On Sun, May 21, 2017 at 08:58:25AM -0400, Pasha Tatashin wrote:
-> Hi Andi,
+On Sat, 20 May 2017, Christoph Hellwig wrote:
+
+> On Sat, May 20, 2017 at 12:52:03PM +0200, Thomas Gleixner wrote:
+> > This should be rewritten proper by adding a propagate() callback to those
+> > slub_attributes which must be propagated and avoid that insane conversion
+> > to and from ASCII
 > 
-> Thank you for looking at this. I mentioned earlier, I would not want to
-> impose a cap. However, if you think that for example dcache needs a cap,
-> there is already a mechanism for that via high_limit argument, so the client
+> Exactly..
+> 
+> >, but that's too large for a hot fix.
+> 
+> What made this such a hot fix?  Looks like this crap has been in
+> for quite a while.
+ 
+Well, having something in tree which uses stale or uninitialized buffers
+does justify a hot fix which can be easily backported to stable.
 
-Lots of arguments are not the solution. Today this only affects a few
-highend systems, but we'll see much more large memory systems in the
-future. We don't want to have all these users either waste their memory,
-or apply magic arguments.
+Thanks,
 
-> can be changed to provide that cap. However, this particular patch addresses
-> scaling problem for everyone by making it scale with memory at a slower
-> pace.
-
-Yes your patch goes in the right direction and should be applied.
-
-Just could be even more aggressive.
-
-Long term probably all these hash tables need to be converted to rhash
-to dynamically resize.
-
--Andi
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
