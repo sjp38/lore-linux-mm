@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CEA2280753
-	for <linux-mm@kvack.org>; Sat, 20 May 2017 22:07:31 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t126so91357563pgc.9
-        for <linux-mm@kvack.org>; Sat, 20 May 2017 19:07:31 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id m63si13021513pfa.331.2017.05.20.19.07.30
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E4E63280850
+	for <linux-mm@kvack.org>; Sat, 20 May 2017 22:45:47 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id u206so70026900ywe.9
+        for <linux-mm@kvack.org>; Sat, 20 May 2017 19:45:47 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w6si4546281ywj.277.2017.05.20.19.45.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 May 2017 19:07:30 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [v4 1/1] mm: Adaptive hash table scaling
-References: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
-	<1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
-Date: Sat, 20 May 2017 19:07:29 -0700
-In-Reply-To: <1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
-	(Pavel Tatashin's message of "Sat, 20 May 2017 13:06:53 -0400")
-Message-ID: <87h90faroe.fsf@firstfloor.org>
+        Sat, 20 May 2017 19:45:46 -0700 (PDT)
+Date: Sat, 20 May 2017 22:45:44 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH] ext4: handle the rest of ext4_mb_load_buddy() ENOMEM
+ errors
+Message-ID: <20170521024544.udju6nbsfdanf5pl@thunk.org>
+References: <149517779388.33359.16474190951431954772.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <149517779388.33359.16474190951431954772.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Pavel Tatashin <pasha.tatashin@oracle.com> writes:
+On Fri, May 19, 2017 at 10:09:54AM +0300, Konstantin Khlebnikov wrote:
+> I've got another report about breaking ext4 by ENOMEM error returned from
+> ext4_mb_load_buddy() caused by memory shortage in memory cgroup.
+> This time inside ext4_discard_preallocations().
+> 
+> This patch replaces ext4_error() with ext4_warning() where errors returned
+> from ext4_mb_load_buddy() are not fatal and handled by caller:
+> * ext4_mb_discard_group_preallocations() - called before generating ENOSPC,
+>   we'll try to discard other group or return ENOSPC into user-space.
+> * ext4_trim_all_free() - just stop trimming and return ENOMEM from ioctl.
+> 
+> Some callers cannot handle errors, thus __GFP_NOFAIL is used for them:
+> * ext4_discard_preallocations()
+> * ext4_mb_discard_lg_preallocations()
+> 
+> The only unclear case is ext4_group_add_blocks(), probably ext4_std_error()
+> should handle ENOMEM as warning and don't break filesystem.
+> 
+> Fixes: adb7ef600cc9 ("ext4: use __GFP_NOFAIL in ext4_free_blocks()")
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-> Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
-> is provided every time memory quadruples the sizes of hash tables will only
-> double instead of quadrupling as well. This algorithm starts working only
-> when memory size reaches a certain point, currently set to 64G.
->
-> This is example of dentry hash table size, before and after four various
-> memory configurations:
+Thanks, applied.
 
-IMHO the scale is still too aggressive. I find it very unlikely
-that a 1TB machine really needs 256MB of hash table because
-number of used files are unlikely to directly scale with memory.
-
-Perhaps should just cap it at some large size, e.g. 32M
-
--Andi
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
