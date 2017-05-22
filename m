@@ -1,137 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2BA831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:58:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c10so129453254pfg.10
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:58:50 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0125.outbound.protection.outlook.com. [104.47.0.125])
-        by mx.google.com with ESMTPS id w7si17618633pls.159.2017.05.22.06.58.48
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE3E831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:59:44 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id h4so165018191oib.5
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:59:44 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id j28si3266028oth.264.2017.05.22.06.59.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 May 2017 06:58:49 -0700 (PDT)
-Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
- reduce memory consumption
-References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
- <ebcc02d9-fa2b-30b1-2260-99cdf7434487@virtuozzo.com>
- <20170519015348.GA1763@js1304-desktop>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <0c14ea7f-1ae9-5923-8c4c-4f1b2f7dad62@virtuozzo.com>
-Date: Mon, 22 May 2017 17:00:29 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 May 2017 06:59:44 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id w10so22831949oif.1
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:59:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170519015348.GA1763@js1304-desktop>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170522133604.11392-5-punit.agrawal@arm.com>
+References: <20170522133604.11392-1-punit.agrawal@arm.com> <20170522133604.11392-5-punit.agrawal@arm.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Mon, 22 May 2017 15:59:43 +0200
+Message-ID: <CAK8P3a3d=Yx3_stYiz25Qeh8wfFr5EGuGYGfCoXqrQPxz6oUAQ@mail.gmail.com>
+Subject: Re: [PATCH v3 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, n-horiguchi@ah.jp.nec.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, mike.kravetz@oracle.com, steve.capper@arm.com, Mark Rutland <mark.rutland@arm.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-arch <linux-arch@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
+On Mon, May 22, 2017 at 3:36 PM, Punit Agrawal <punit.agrawal@arm.com> wrote:
+> diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
+> index 99b490b4d05a..3138e126f43b 100644
+> --- a/include/asm-generic/hugetlb.h
+> +++ b/include/asm-generic/hugetlb.h
+> @@ -31,10 +31,7 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
+>         return pte_modify(pte, newprot);
+>  }
+>
+> -static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+> -                                 pte_t *ptep)
+> -{
+> -       pte_clear(mm, addr, ptep);
+> -}
+> +void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+> +                   pte_t *ptep, unsigned long sz);
+>
+>  #endif /* _ASM_GENERIC_HUGETLB_H */
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 0e4d1fb3122f..2b0f6f96f2c1 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3289,6 +3289,12 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+>         return ret;
+>  }
+>
+> +void __weak huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+> +                          pte_t *ptep, unsigned long sz)
+> +{
+> +       pte_clear(mm, addr, ptep);
+> +}
+> +
+>  void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>                             unsigned long start, unsigned long end,
+>                             struct page *ref_page)
 
+I don't really like how this moves the inline version from asm-generic into
+a __weak function here. I think it would be better to either stop
+using asm-generic/hugetlb.h
+on s390, or enclose the generic definition in
 
-On 05/19/2017 04:53 AM, Joonsoo Kim wrote:
-> On Wed, May 17, 2017 at 03:17:13PM +0300, Andrey Ryabinin wrote:
->> On 05/16/2017 04:16 AM, js1304@gmail.com wrote:
->>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>>
->>> Hello, all.
->>>
->>> This is an attempt to recude memory consumption of KASAN. Please see
->>> following description to get the more information.
->>>
->>> 1. What is per-page shadow memory
->>>
->>> This patch introduces infrastructure to support per-page shadow memory.
->>> Per-page shadow memory is the same with original shadow memory except
->>> the granualarity. It's one byte shows the shadow value for the page.
->>> The purpose of introducing this new shadow memory is to save memory
->>> consumption.
->>>
->>> 2. Problem of current approach
->>>
->>> Until now, KASAN needs shadow memory for all the range of the memory
->>> so the amount of statically allocated memory is so large. It causes
->>> the problem that KASAN cannot run on the system with hard memory
->>> constraint. Even if KASAN can run, large memory consumption due to
->>> KASAN changes behaviour of the workload so we cannot validate
->>> the moment that we want to check.
->>>
->>> 3. How does this patch fix the problem
->>>
->>> This patch tries to fix the problem by reducing memory consumption for
->>> the shadow memory. There are two observations.
->>>
->>
->>
->> I think that the best way to deal with your problem is to increase shadow scale size.
->>
->> You'll need to add tunable to gcc to control shadow size. I expect that gcc has some
->> places where 8-shadow scale size is hardcoded, but it should be fixable.
->>
->> The kernel also have some small amount of code written with KASAN_SHADOW_SCALE_SIZE == 8 in mind,
->> which should be easy to fix.
->>
->> Note that bigger shadow scale size requires bigger alignment of allocated memory and variables.
->> However, according to comments in gcc/asan.c gcc already aligns stack and global variables and at
->> 32-bytes boundary.
->> So we could bump shadow scale up to 32 without increasing current stack consumption.
->>
->> On a small machine (1Gb) 1/32 of shadow is just 32Mb which is comparable to yours 30Mb, but I expect it to be
->> much faster. More importantly, this will require only small amount of simple changes in code, which will be
->> a *lot* more easier to maintain.
-> 
-> I agree that it is also a good option to reduce memory consumption.
-> Nevertheless, there are two reasons that justifies this patchset.
-> 
-> 1) With this patchset, memory consumption isn't increased in
-> proportional to total memory size. Please consider my 4Gb system
-> example on the below. With increasing shadow scale size to 32, memory
-> would be consumed by 128M. However, this patchset consumed 50MB. This
-> difference can be larger if we run KASAN with bigger machine.
-> 
+#ifndef huge_pte_clear
 
-Well, yes, but I assume that bigger machine implies that we can use more memory without
-causing a significant change in system's behavior.
+and then override by defining a macro in s390 as we do in other files
+in asm-generic.
 
-> 2) These two optimization can be applied simulatenously. It is just an
-> orthogonal feature. If shadow scale size is increased to 32, memory
-> consumption will be decreased in case of my patchset, too.
-> 
-> Therefore, I think that this patchset is useful in any case.
- 
-These are valid points, but IMO it's not enough to justify this patchset.
-Too much of hacky and fragile code.
-
-If our goal is to make KASAN to eat less memory, the first step definitely would be a 1/32 shadow.
-Simply because it's the best way to achieve that goal.
-And only if it's not enough we could think about something else, like decreasing/turning off quarantine
-and/or smaller redzones.
-
-
-> Note that increasing shadow scale has it's own trade-off. It requires
-> that the size of slab object is aligned to shadow scale. It will
-> increase memory consumption due to slab.
-> 
-
-Yes, but I don't think that it will be significant, many objects are aligned already.
-I've tried the kernel with 32 ARCH_SLAB_MINALIGN and ARCH_KMALLOC_MINALIGN and 
-the difference in Slab consumption after booting 1G VM was not significant:
-
-8-byte align:
-Slab:             126516 kB
-SReclaimable:      31140 kB
-SUnreclaim:        95376 kB
-
-32-byte align:
-Slab:             126712 kB
-SReclaimable:      30912 kB
-SUnreclaim:        95800 kB
-
-
-Numbers slightly vary from boot to boot.
-
-
-> Thanks.
-> 
+       Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
