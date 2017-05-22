@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D05831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 15:46:50 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id h4so172235670oib.5
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 12:46:50 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C3E831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 15:53:24 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w138so172386578oiw.0
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 12:53:24 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id t28si7657874ote.328.2017.05.22.12.46.49
+        by mx.google.com with ESMTPS id l85si7597003oig.256.2017.05.22.12.53.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 May 2017 12:46:50 -0700 (PDT)
-Subject: Re: [kernel-hardening] [PATCH 1/1] Sealable memory support
-References: <20170519103811.2183-1-igor.stoppa@huawei.com>
- <20170519103811.2183-2-igor.stoppa@huawei.com>
- <20170520085147.GA4619@kroah.com>
+        Mon, 22 May 2017 12:53:23 -0700 (PDT)
+Subject: Re: [PATCH] LSM: Make security_hook_heads a local variable.
+References: <20170520085147.GA4619@kroah.com>
+ <1495365245-3185-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170522140306.GA3907@infradead.org>
+ <d98f4cd5-3f21-3f7b-2842-12b9a009e453@schaufler-ca.com>
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <b3b4a71a-01a4-dad2-8df4-8b945c25be2f@huawei.com>
-Date: Mon, 22 May 2017 22:45:26 +0300
+Message-ID: <d25e2fd3-da11-4ec0-8edc-f1327c04fa6e@huawei.com>
+Date: Mon, 22 May 2017 22:50:09 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170520085147.GA4619@kroah.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <d98f4cd5-3f21-3f7b-2842-12b9a009e453@schaufler-ca.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: mhocko@kernel.org, dave.hansen@intel.com, labbott@redhat.com, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org
+To: Casey Schaufler <casey@schaufler-ca.com>, Christoph Hellwig <hch@infradead.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, Greg
+ KH <gregkh@linuxfoundation.org>, James Morris <james.l.morris@oracle.com>, Kees Cook <keescook@chromium.org>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>
 
-On 20/05/17 11:51, Greg KH wrote:
-> On Fri, May 19, 2017 at 01:38:11PM +0300, Igor Stoppa wrote:
->> Dynamically allocated variables can be made read only,
+On 22/05/17 18:09, Casey Schaufler wrote:
+> On 5/22/2017 7:03 AM, Christoph Hellwig wrote:
 
 [...]
 
-> This is really nice, do you have a follow-on patch showing how any of
-> the kernel can be changed to use this new subsystem?
+>> But even with those we can still chain
+>> them together with a list with external linkage.
+> 
+> I gave up that approach in 2012. Too many unnecessary calls to
+> null functions, and massive function vectors with a tiny number
+> of non-null entries. From a data structure standpoint, it was
+> just wrong. The list scheme is exactly right for the task at
+> hand.
 
-Yes, actually I started from the need of turning into R/O some data
-structures in both LSM Hooks and SE Linux.
+I understand this as a green light, for me to continue with the plan of
+using LSM Hooks as example for making dynamically allocated data become
+read-only, using also Tetsuo's patch (thanks, btw).
 
-> Without that, it
-> might be hard to get this approved (we don't like adding new apis
-> without users.)
-
-Yes, I just wanted to give an early preview of the current
-implementation, since it is significantly different from what I
-initially proposed. So I was looking for early feedback.
-
-Right now, I'm fixing it up and adding some more structured debugging.
-
-Then I'll re-submit it together with the LSM Hooks example.
+Is that correct?
 
 ---
 thanks, igor
