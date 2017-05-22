@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 10791831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 05:31:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 10so24559157wml.4
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 02:31:17 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7476B831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 05:37:29 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g143so24647128wme.13
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 02:37:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w19si11595268wra.150.2017.05.22.02.31.15
+        by mx.google.com with ESMTPS id k12si32456493wmi.110.2017.05.22.02.37.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 May 2017 02:31:15 -0700 (PDT)
-Date: Mon, 22 May 2017 11:31:11 +0200
+        Mon, 22 May 2017 02:37:27 -0700 (PDT)
+Date: Mon, 22 May 2017 11:37:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
- #PF
-Message-ID: <20170522093111.GE8509@dhcp22.suse.cz>
-References: <20170519112604.29090-3-mhocko@kernel.org>
- <201705192202.EDD30719.OSLJHFMOFtFVOQ@I-love.SAKURA.ne.jp>
- <20170519132209.GG29839@dhcp22.suse.cz>
- <201705200022.BFJ12428.JFOSMLFOtFHOVQ@I-love.SAKURA.ne.jp>
- <20170519155057.GM29839@dhcp22.suse.cz>
- <201705200843.HAI95393.FQSFLOHVMJtOFO@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] dm ioctl: Restore __GFP_HIGH in copy_params()
+Message-ID: <20170522093725.GF8509@dhcp22.suse.cz>
+References: <20170518185040.108293-1-junaids@google.com>
+ <20170518190406.GB2330@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com>
+ <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com>
+ <20170519074647.GC13041@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201705200843.HAI95393.FQSFLOHVMJtOFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Junaid Shahid <junaids@google.com>, David Rientjes <rientjes@google.com>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
 
-On Sat 20-05-17 08:43:29, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > Why would looping inside an allocator with a restricted context be any
-> > better than retrying the whole thing?
+On Fri 19-05-17 19:43:23, Mikulas Patocka wrote:
 > 
-> I'm not suggesting you to loop inside an allocator nor retry the whole thing.
-> I'm suggesting you to avoid returning VM_FAULT_OOM by making allocations succeed
-> (by e.g. calling oom_kill_process()) regardless of restricted context if you
-> want to remove out_of_memory() from pagefault_out_of_memory(), for situation
-> will not improve until memory is allocated (e.g. somebody else calls
-> oom_kill_process() via a __GFP_FS allocation request).
+> 
+> On Fri, 19 May 2017, Michal Hocko wrote:
+> 
+> > On Thu 18-05-17 19:50:46, Junaid Shahid wrote:
+> > > (Adding back the correct linux-mm email address and also adding linux-kernel.)
+> > > 
+> > > On Thursday, May 18, 2017 01:41:33 PM David Rientjes wrote:
+> > [...]
+> > > > Let's ask Mikulas, who changed this from PF_MEMALLOC to __GFP_HIGH, 
+> > > > assuming there was a reason to do it in the first place in two different 
+> > > > ways.
+> > 
+> > Hmm, the old PF_MEMALLOC used to have the following comment
+> >         /*
+> >          * Trying to avoid low memory issues when a device is
+> >          * suspended. 
+> >          */
+> > 
+> > I am not really sure what that means but __GFP_HIGH certainly have a
+> > different semantic than PF_MEMALLOC. The later grants the full access to
+> > the memory reserves while the prior on partial access. If this is _really_
+> > needed then it deserves a comment explaining why.
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> 
+> Sometimes, I/O to a device mapper device is blocked until the userspace 
+> daemon dmeventd does some action (for example, when dm-mirror leg fails, 
+> dmeventd needs to mark the leg as failed in the lvm metadata and then 
+> reload the device).
+> 
+> The dmeventd daemon mlocks itself in memory so that it doesn't generate 
+> any I/O. But it must be able to call ioctls. __GFP_HIGH is there so that 
+> the ioctls issued by dmeventd have higher chance of succeeding if some I/O 
+> is blocked, waiting for dmeventd action. It reduces the possibility of 
+> low-memory-deadlock, though it doesn't eliminate it entirely.
 
-And again for the hundred and so many times I will only repeat that
-triggering OOM from those restricted contexts is just too dangerous
-without other changes.
-
+So what happens if the memory reserves are depleted. Do we deadlock? Why
+is OOM killer insufficient to allow the further progress?
 -- 
 Michal Hocko
 SUSE Labs
