@@ -1,86 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F326B0292
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 19:36:00 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id z142so58958642qkz.8
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 16:36:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t4si19693285qta.25.2017.05.22.16.35.59
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 389C76B0292
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 19:42:13 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id o65so175626977oif.15
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 16:42:13 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id o186si2357418oib.257.2017.05.22.16.42.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 16:35:59 -0700 (PDT)
-Date: Mon, 22 May 2017 19:35:57 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-Subject: Re: dm ioctl: Restore __GFP_HIGH in copy_params()
-Message-ID: <20170522233557.GA26990@redhat.com>
-References: <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com>
- <20170519074647.GC13041@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522093725.GF8509@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522120937.GI8509@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705221026430.20076@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522150321.GM8509@dhcp22.suse.cz>
- <20170522180415.GA25340@redhat.com>
- <alpine.DEB.2.10.1705221325200.30407@chino.kir.corp.google.com>
+        Mon, 22 May 2017 16:42:12 -0700 (PDT)
+Received: from mail-ua0-f180.google.com (mail-ua0-f180.google.com [209.85.217.180])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CA1B4239F1
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 23:42:11 +0000 (UTC)
+Received: by mail-ua0-f180.google.com with SMTP id j17so68612072uag.3
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 16:42:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1705221325200.30407@chino.kir.corp.google.com>
+In-Reply-To: <519997CE-E94C-40E3-96A7-48CA682B553E@gmail.com>
+References: <cover.1495492063.git.luto@kernel.org> <29e74164b213b349fd9c4bc1bec5e154af38ac87.1495492063.git.luto@kernel.org>
+ <519997CE-E94C-40E3-96A7-48CA682B553E@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 22 May 2017 16:41:50 -0700
+Message-ID: <CALCETrV7_U-Noxho8WjwogBtHDs49pOujVKQze+4JtTQbiCRKQ@mail.gmail.com>
+Subject: Re: [PATCH v2 10/11] x86/mm: Be more consistent wrt PAGE_SHIFT vs
+ PAGE_SIZE in tlb flush code
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>, Junaid Shahid <junaids@google.com>, Alasdair Kergon <agk@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Mon, May 22 2017 at  4:35pm -0400,
-David Rientjes <rientjes@google.com> wrote:
+On Mon, May 22, 2017 at 4:24 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
+>>
+>>       /* Balance as user space task's flush, a bit conservative */
+>>       if (end =3D=3D TLB_FLUSH_ALL ||
+>> -         (end - start) > tlb_single_page_flush_ceiling * PAGE_SIZE) {
+>> +         (end - start) > tlb_single_page_flush_ceiling >> PAGE_SHIFT) {
+>
+> Shouldn=E2=80=99t it be << ?
 
-> On Mon, 22 May 2017, Mike Snitzer wrote:
-> 
-> > > > The lvm2 was designed this way - it is broken, but there is not much that 
-> > > > can be done about it - fixing this would mean major rewrite. The only 
-> > > > thing we can do about it is to lower the deadlock probability with 
-> > > > __GFP_HIGH (or PF_MEMALLOC that was used some times ago).
-> > 
-> > Yes, lvm2 was originally designed to to have access to memory reserves
-> > to ensure forward progress.  But if the mm subsystem has improved to
-> > allow for the required progress without lvm2 trying to stake a claim on
-> > those reserves then we'll gladly avoid (ab)using them.
-> > 
-> 
-> There is no such improvement to the page allocator when allocating at 
-> runtime.  A persistent amount of memory in a mempool could be set aside as 
-> a preallocation and unavailable from the rest of the system forever as an 
-> alternative to dynamically allocating with memory reserves, but that has 
-> obvious downsides.  This patch is the exact right thing to do.
-> 
-> > > But let me repeat. GFP_KERNEL allocation for order-0 page will not fail.
-> > 
-> > OK, but will it be serviced immediately?  Not failing isn't useful if it
-> > never completes.
-> > 
-> 
-> No, and you can use __GFP_HIGH, which this patch does, to have a 
-> reasonable expectation of forward progress in the very near term.
-> 
-> > While adding the __GFP_NOFAIL flag would serve to document expectations
-> > I'm left unconvinced that the memory allocator will _not fail_ for an
-> > order-0 page -- as Mikulas said most ioctls don't need more than 4K.
-> 
-> __GFP_NOFAIL would make no sense in kvmalloc() calls, ever, it would never 
-> fallback to vmalloc :)
-> 
-> I'm hoping this can get merged during the 4.12 window to fix the broken 
-> commit d224e9381897.
-
-I've added your Acked-by and staged it for 4.12, please see:
-https://git.kernel.org/pub/scm/linux/kernel/git/device-mapper/linux-dm.git/commit/?h=for-4.12/dm&id=8c1e2162f27b319da913683143c0c6c09b083ebb
-
-Not sure when I'll send it to Linus but certainly no later than for rc4
-inclusion.
-
-Thanks,
-Mike
+Gah, that's embarrassing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
