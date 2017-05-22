@@ -1,126 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D70F6B0279
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 16:22:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c6so140754614pfj.5
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 13:22:32 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d67sor365854pgc.115.2017.05.22.13.22.31
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F243A6B0292
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 16:34:46 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t133so173437044oif.9
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 13:34:46 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id o4si8042001otb.154.2017.05.22.13.34.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 May 2017 13:22:31 -0700 (PDT)
-Date: Mon, 22 May 2017 13:22:22 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [HMM 08/15] mm/ZONE_DEVICE: special case put_page() for device
- private pages
-In-Reply-To: <20170522201416.GA8168@redhat.com>
-Message-ID: <alpine.LSU.2.11.1705221317280.4687@eggly.anvils>
-References: <20170522165206.6284-1-jglisse@redhat.com> <20170522165206.6284-9-jglisse@redhat.com> <CAPcyv4hodnCFEy8iyb3jQPJ=TNj-L2uZQKJqb7JTqSv=YE0BDg@mail.gmail.com> <20170522201416.GA8168@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 May 2017 13:34:46 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id w138so24678747oiw.3
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 13:34:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170522162555.4313-1-punit.agrawal@arm.com>
+References: <20170522133604.11392-5-punit.agrawal@arm.com> <20170522162555.4313-1-punit.agrawal@arm.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Mon, 22 May 2017 22:34:45 +0200
+Message-ID: <CAK8P3a0WppXFJ5==nymNHeqrKvixpLQ1AetFRGVv9Y3q8kT9Ew@mail.gmail.com>
+Subject: Re: [PATCH v3.1 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, n-horiguchi@ah.jp.nec.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, mike.kravetz@oracle.com, steve.capper@arm.com, Mark Rutland <mark.rutland@arm.com>, linux-arch <linux-arch@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Mon, 22 May 2017, Jerome Glisse wrote:
-> On Mon, May 22, 2017 at 12:29:53PM -0700, Dan Williams wrote:
-> > On Mon, May 22, 2017 at 9:51 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > > A ZONE_DEVICE page that reach a refcount of 1 is free ie no longer
-> > > have any user. For device private pages this is important to catch
-> > > and thus we need to special case put_page() for this.
-> > >
-> > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Cc: Dan Williams <dan.j.williams@intel.com>
-> > > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > ---
-> > >  include/linux/mm.h | 30 ++++++++++++++++++++++++++++++
-> > >  kernel/memremap.c  |  1 -
-> > >  2 files changed, 30 insertions(+), 1 deletion(-)
-> > >
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index a825dab..11f7bac 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -23,6 +23,7 @@
-> > >  #include <linux/page_ext.h>
-> > >  #include <linux/err.h>
-> > >  #include <linux/page_ref.h>
-> > > +#include <linux/memremap.h>
-> > >
-> > >  struct mempolicy;
-> > >  struct anon_vma;
-> > > @@ -795,6 +796,20 @@ static inline bool is_device_private_page(const struct page *page)
-> > >         return ((page_zonenum(page) == ZONE_DEVICE) &&
-> > >                 (page->pgmap->type == MEMORY_DEVICE_PRIVATE));
-> > >  }
-> > > +
-> > > +static inline void put_zone_device_private_page(struct page *page)
-> > > +{
-> > > +       int count = page_ref_dec_return(page);
-> > > +
-> > > +       /*
-> > > +        * If refcount is 1 then page is freed and refcount is stable as nobody
-> > > +        * holds a reference on the page.
-> > > +        */
-> > > +       if (count == 1)
-> > > +               page->pgmap->page_free(page, page->pgmap->data);
-> > > +       else if (!count)
-> > > +               __put_page(page);
-> > > +}
+On Mon, May 22, 2017 at 6:25 PM, Punit Agrawal <punit.agrawal@arm.com> wrote:
+> When unmapping a hugepage range, huge_pte_clear() is used to clear the
+> page table entries that are marked as not present. huge_pte_clear()
+> internally just ends up calling pte_clear() which does not correctly
+> deal with hugepages consisting of contiguous page table entries.
+>
+> Add a size argument to address this issue and allow architectures to
+> override huge_pte_clear() by wrapping it in a #ifndef block.
+>
+> Update s390 implementation with the size parameter as well.
+>
+> Note that the change only affects huge_pte_clear() - the other generic
+> hugetlb functions don't need any change.
+>
+> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
 
-Is there something else in this patchset that guarantees
-that get_page_unless_zero() is never used on thse pages?
-We have plenty of code that knows that refcount 0 is special:
-having to know that refcount 1 may be special is worrying.
-
-Hugh
-
-> > >  #else
-> > >  static inline bool is_zone_device_page(const struct page *page)
-> > >  {
-> > > @@ -805,6 +820,10 @@ static inline bool is_device_private_page(const struct page *page)
-> > >  {
-> > >         return false;
-> > >  }
-> > > +
-> > > +static inline void put_zone_device_private_page(struct page *page)
-> > > +{
-> > > +}
-> > >  #endif
-> > >
-> > >  static inline void get_page(struct page *page)
-> > > @@ -822,6 +841,17 @@ static inline void put_page(struct page *page)
-> > >  {
-> > >         page = compound_head(page);
-> > >
-> > > +       /*
-> > > +        * For private device pages we need to catch refcount transition from
-> > > +        * 2 to 1, when refcount reach one it means the private device page is
-> > > +        * free and we need to inform the device driver through callback. See
-> > > +        * include/linux/memremap.h and HMM for details.
-> > > +        */
-> > > +       if (unlikely(is_device_private_page(page))) {
-> > 
-> > Since I presume HMM is a niche use case can we make this a
-> > "static_branch_unlikely(&hmm_key) && is_device_private_page(page))"?
-> > That way non-hmm platforms see minimal overhead.
-> 
-> Like i said in the cover letter i am bit anxious about doing for
-> an inline function. I don't see any existing case for inline
-> function and static key. Is that suppose to work ?
-> 
-> How widespread HMM use will be is hard to guess. Usual chicken
-> and egg plus adoption thing. If GPGPU compte keeps growing and
-> it seems it does then HMM likely gonna be enable and actively
-> use for large chunk of those computer that have GPGPU workload.
-> 
-> I will test a static key of that branch and see if it explodes
-> because put_page() is an inline function.
-> 
-> Cheers,
-> Jerome
+Acked-by: Arnd Bergmann <arnd@arndb.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
