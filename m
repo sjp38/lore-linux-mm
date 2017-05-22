@@ -1,77 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7476B831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 05:37:29 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g143so24647128wme.13
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 02:37:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k12si32456493wmi.110.2017.05.22.02.37.27
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CDC61831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 05:57:02 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id m2so96853599oik.4
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 02:57:02 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id x83si2621339oig.30.2017.05.22.02.56.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 May 2017 02:37:27 -0700 (PDT)
-Date: Mon, 22 May 2017 11:37:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] dm ioctl: Restore __GFP_HIGH in copy_params()
-Message-ID: <20170522093725.GF8509@dhcp22.suse.cz>
-References: <20170518185040.108293-1-junaids@google.com>
- <20170518190406.GB2330@dhcp22.suse.cz>
- <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com>
- <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com>
- <20170519074647.GC13041@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
+        Mon, 22 May 2017 02:57:02 -0700 (PDT)
+Message-ID: <5922B3D4.1030700@huawei.com>
+Date: Mon, 22 May 2017 17:48:04 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: mm, something wring in page_lock_anon_vma_read()?
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Junaid Shahid <junaids@google.com>, David Rientjes <rientjes@google.com>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel
+ Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, David
+ Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
 
-On Fri 19-05-17 19:43:23, Mikulas Patocka wrote:
-> 
-> 
-> On Fri, 19 May 2017, Michal Hocko wrote:
-> 
-> > On Thu 18-05-17 19:50:46, Junaid Shahid wrote:
-> > > (Adding back the correct linux-mm email address and also adding linux-kernel.)
-> > > 
-> > > On Thursday, May 18, 2017 01:41:33 PM David Rientjes wrote:
-> > [...]
-> > > > Let's ask Mikulas, who changed this from PF_MEMALLOC to __GFP_HIGH, 
-> > > > assuming there was a reason to do it in the first place in two different 
-> > > > ways.
-> > 
-> > Hmm, the old PF_MEMALLOC used to have the following comment
-> >         /*
-> >          * Trying to avoid low memory issues when a device is
-> >          * suspended. 
-> >          */
-> > 
-> > I am not really sure what that means but __GFP_HIGH certainly have a
-> > different semantic than PF_MEMALLOC. The later grants the full access to
-> > the memory reserves while the prior on partial access. If this is _really_
-> > needed then it deserves a comment explaining why.
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
-> 
-> Sometimes, I/O to a device mapper device is blocked until the userspace 
-> daemon dmeventd does some action (for example, when dm-mirror leg fails, 
-> dmeventd needs to mark the leg as failed in the lvm metadata and then 
-> reload the device).
-> 
-> The dmeventd daemon mlocks itself in memory so that it doesn't generate 
-> any I/O. But it must be able to call ioctls. __GFP_HIGH is there so that 
-> the ioctls issued by dmeventd have higher chance of succeeding if some I/O 
-> is blocked, waiting for dmeventd action. It reduces the possibility of 
-> low-memory-deadlock, though it doesn't eliminate it entirely.
+On 2017/5/20 10:40, Hugh Dickins wrote:
 
-So what happens if the memory reserves are depleted. Do we deadlock? Why
-is OOM killer insufficient to allow the further progress?
--- 
-Michal Hocko
-SUSE Labs
+> On Sat, 20 May 2017, Xishi Qiu wrote:
+>>
+>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+>> And I meet the bug too. However it is hard to reproduce, and 
+>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+>>
+>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+>> but anon_vma has been corrupted.
+>>
+>> Any ideas?
+> 
+> Sorry, no.  I assume that _mapcount has been misaccounted, for example
+> a pte mapped in on top of another pte; but cannot begin tell you where
+
+Hi Hugh,
+
+What does "a pte mapped in on top of another pte" mean? Could you give more info?
+
+Thanks,
+Xishi Qiu
+
+> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+> 
+> Hugh
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
