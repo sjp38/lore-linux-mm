@@ -1,178 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DE6831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 11:06:35 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id b68so91959254ywe.0
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 08:06:35 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id r29si6033302ywa.221.2017.05.22.08.06.34
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 303BF831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 11:09:17 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id s131so92318278itd.6
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 08:09:17 -0700 (PDT)
+Received: from nm17-vm0.bullet.mail.ne1.yahoo.com (nm17-vm0.bullet.mail.ne1.yahoo.com. [98.138.91.58])
+        by mx.google.com with ESMTPS id h20si17136915ita.57.2017.05.22.08.09.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 08:06:34 -0700 (PDT)
-Date: Mon, 22 May 2017 16:06:06 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 1/2] mm, oom: make sure that the oom victim uses memory
- reserves
-Message-ID: <20170522150606.GA22625@castle>
-References: <20170519112604.29090-1-mhocko@kernel.org>
- <20170519112604.29090-2-mhocko@kernel.org>
- <201705192112.IAF69238.OQOHSJLFOFFMtV@I-love.SAKURA.ne.jp>
- <20170519124632.GD29839@dhcp22.suse.cz>
+        Mon, 22 May 2017 08:09:16 -0700 (PDT)
+Subject: Re: [PATCH] LSM: Make security_hook_heads a local variable.
+References: <20170520085147.GA4619@kroah.com>
+ <1495365245-3185-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170522140306.GA3907@infradead.org>
+From: Casey Schaufler <casey@schaufler-ca.com>
+Message-ID: <d98f4cd5-3f21-3f7b-2842-12b9a009e453@schaufler-ca.com>
+Date: Mon, 22 May 2017 08:09:12 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170519124632.GD29839@dhcp22.suse.cz>
+In-Reply-To: <20170522140306.GA3907@infradead.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, Greg KH <gregkh@linuxfoundation.org>, Igor Stoppa <igor.stoppa@huawei.com>, James Morris <james.l.morris@oracle.com>, Kees Cook <keescook@chromium.org>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>
 
-On Fri, May 19, 2017 at 02:46:32PM +0200, Michal Hocko wrote:
-> On Fri 19-05-17 21:12:36, Tetsuo Handa wrote:
-> > >From 41b663d0324bbaa29c01d7fee01e897b8b3b7397 Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Fri, 19 May 2017 21:06:49 +0900
-> > Subject: [PATCH] mm,page_alloc: Make sure OOM victim can try allocations with
-> >  no watermarks once
-> > 
-> > Roman Gushchin has reported that the OOM killer can trivially selects next
-> > OOM victim when a thread doing memory allocation from page fault path was
-> > selected as first OOM victim.
-> > 
-> > ----------
-> > [   25.721494] allocate invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null),  order=0, oom_score_adj=0
-> > [   25.725658] allocate cpuset=/ mems_allowed=0
-> > [   25.727033] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
-> > [   25.729215] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
-> > [   25.729598] Call Trace:
-> > [   25.729598]  dump_stack+0x63/0x82
-> > [   25.729598]  dump_header+0x97/0x21a
-> > [   25.729598]  ? do_try_to_free_pages+0x2d7/0x360
-> > [   25.729598]  ? security_capable_noaudit+0x45/0x60
-> > [   25.729598]  oom_kill_process+0x219/0x3e0
-> > [   25.729598]  out_of_memory+0x11d/0x480
-> > [   25.729598]  __alloc_pages_slowpath+0xc84/0xd40
-> > [   25.729598]  __alloc_pages_nodemask+0x245/0x260
-> > [   25.729598]  alloc_pages_vma+0xa2/0x270
-> > [   25.729598]  __handle_mm_fault+0xca9/0x10c0
-> > [   25.729598]  handle_mm_fault+0xf3/0x210
-> > [   25.729598]  __do_page_fault+0x240/0x4e0
-> > [   25.729598]  trace_do_page_fault+0x37/0xe0
-> > [   25.729598]  do_async_page_fault+0x19/0x70
-> > [   25.729598]  async_page_fault+0x28/0x30
-> > (...snipped...)
-> > [   25.781882] Out of memory: Kill process 492 (allocate) score 899 or sacrifice child
-> > [   25.783874] Killed process 492 (allocate) total-vm:2052368kB, anon-rss:1894576kB, file-rss:4kB, shmem-rss:0kB
-> > [   25.785680] allocate: page allocation failure: order:0, mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
-> > [   25.786797] allocate cpuset=/ mems_allowed=0
-> > [   25.787246] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
-> > [   25.787935] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
-> > [   25.788867] Call Trace:
-> > [   25.789119]  dump_stack+0x63/0x82
-> > [   25.789451]  warn_alloc+0x114/0x1b0
-> > [   25.789451]  __alloc_pages_slowpath+0xd32/0xd40
-> > [   25.789451]  __alloc_pages_nodemask+0x245/0x260
-> > [   25.789451]  alloc_pages_vma+0xa2/0x270
-> > [   25.789451]  __handle_mm_fault+0xca9/0x10c0
-> > [   25.789451]  handle_mm_fault+0xf3/0x210
-> > [   25.789451]  __do_page_fault+0x240/0x4e0
-> > [   25.789451]  trace_do_page_fault+0x37/0xe0
-> > [   25.789451]  do_async_page_fault+0x19/0x70
-> > [   25.789451]  async_page_fault+0x28/0x30
-> > (...snipped...)
-> > [   25.810868] oom_reaper: reaped process 492 (allocate), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> > (...snipped...)
-> > [   25.817589] allocate invoked oom-killer: gfp_mask=0x0(), nodemask=(null),  order=0, oom_score_adj=0
-> > [   25.818821] allocate cpuset=/ mems_allowed=0
-> > [   25.819259] CPU: 1 PID: 492 Comm: allocate Not tainted 4.12.0-rc1-mm1+ #181
-> > [   25.819847] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
-> > [   25.820549] Call Trace:
-> > [   25.820733]  dump_stack+0x63/0x82
-> > [   25.820961]  dump_header+0x97/0x21a
-> > [   25.820961]  ? security_capable_noaudit+0x45/0x60
-> > [   25.820961]  oom_kill_process+0x219/0x3e0
-> > [   25.820961]  out_of_memory+0x11d/0x480
-> > [   25.820961]  pagefault_out_of_memory+0x68/0x80
-> > [   25.820961]  mm_fault_error+0x8f/0x190
-> > [   25.820961]  ? handle_mm_fault+0xf3/0x210
-> > [   25.820961]  __do_page_fault+0x4b2/0x4e0
-> > [   25.820961]  trace_do_page_fault+0x37/0xe0
-> > [   25.820961]  do_async_page_fault+0x19/0x70
-> > [   25.820961]  async_page_fault+0x28/0x30
-> > (...snipped...)
-> > [   25.863078] Out of memory: Kill process 233 (firewalld) score 10 or sacrifice child
-> > [   25.863634] Killed process 233 (firewalld) total-vm:246076kB, anon-rss:20956kB, file-rss:0kB, shmem-rss:0kB
-> > ----------
-> > 
-> > There is a race window that the OOM reaper completes reclaiming the first
-> > victim's memory while nothing but mutex_trylock() prevents the first victim
-> >  from calling out_of_memory() from pagefault_out_of_memory() after memory
-> > allocation for page fault path failed due to being selected as an OOM
-> > victim.
-> > 
-> > This is a side effect of commit 9a67f6488eca926f ("mm: consolidate
-> > GFP_NOFAIL checks in the allocator slowpath") because that commit
-> > silently changed the behavior from
-> > 
-> >     /* Avoid allocations with no watermarks from looping endlessly */
-> > 
-> > to
-> > 
-> >     /*
-> >      * Give up allocations without trying memory reserves if selected
-> >      * as an OOM victim
-> >      */
-> > 
-> > in __alloc_pages_slowpath() by moving the location to check TIF_MEMDIE
-> > flag. I have noticed this change but I didn't post a patch because
-> > I thought it is an acceptable change other than noise by warn_alloc()
-> > because !__GFP_NOFAIL allocations are allowed to fail.
-> > But we overlooked that failing memory allocation from page fault path
-> > makes difference due to the race window explained above.
-> > 
-> > While it might be possible to add a check to pagefault_out_of_memory()
-> > that prevents the first victim from calling out_of_memory() or remove
-> > out_of_memory() from pagefault_out_of_memory(), changing
-> > pagefault_out_of_memory() does not suppress noise by warn_alloc() when
-> > allocating thread was selected as an OOM victim. There is little point
-> > with printing similar backtraces and memory information from both
-> > out_of_memory() and warn_alloc().
-> > 
-> > Instead, if we guarantee that current thread can try allocations with
-> > no watermarks once when current thread looping inside
-> > __alloc_pages_slowpath() was selected as an OOM victim, we can follow
-> > "who can use memory reserves" rules and suppress noise by warn_alloc()
-> > and prevent memory allocations from page fault path from calling
-> > pagefault_out_of_memory().
-> > 
-> > If we take the comment literally, this patch would do
-> > 
-> > -    if (test_thread_flag(TIF_MEMDIE))
-> > -        goto nopage;
-> > +    if (alloc_flags == ALLOC_NO_WATERMARKS || (gfp_mask & __GFP_NOMEMALLOC))
-> > +        goto nopage;
-> > 
-> > because gfp_pfmemalloc_allowed() returns false if __GFP_NOMEMALLOC is
-> > given. But if I recall correctly (I couldn't find the message), the
-> > condition is meant to apply to only OOM victims despite the comment.
-> > Therefore, this patch preserves TIF_MEMDIE check.
-> > 
-> > Reported-by: Roman Gushchin <guro@fb.com>
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Fixes: 9a67f6488eca926f ("mm: consolidate GFP_NOFAIL checks in the allocator slowpath")
-> > Cc: stable # v4.11
-> 
-> I cannot say I would love how this gets convoluted but let's go with
-> what you have here and think about a cleaner version later.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks!
+On 5/22/2017 7:03 AM, Christoph Hellwig wrote:
+> On Sun, May 21, 2017 at 08:14:05PM +0900, Tetsuo Handa wrote:
+>> A sealable memory allocator patch was proposed at
+>> http://lkml.kernel.org/r/20170519103811.2183-1-igor.stoppa@huawei.com ,
+>> and is waiting for a follow-on patch showing how any of the kernel
+>> can be changed to use this new subsystem. So, here it is for LSM hooks.
+>>
+>> The LSM hooks ("struct security_hook_heads security_hook_heads" and
+>> "struct security_hook_list ...[]") will benefit from this allocator via
+>> protection using set_memory_ro()/set_memory_rw(), and it will remove
+>> CONFIG_SECURITY_WRITABLE_HOOKS config option.
+>>
+>> This means that these structures will be allocated at run time using
+>> smalloc(), and therefore the address of these structures will be
+>> determined at run time rather than compile time.
+>>
+>> But currently, LSM_HOOK_INIT() macro depends on the address of
+>> security_hook_heads being known at compile time. But we already
+>> initialize security_hook_heads as an array of "struct list_head".
+>>
+>> Therefore, let's use index number (or relative offset from the head
+>> of security_hook_heads) instead of absolute address of
+>> security_hook_heads so that LSM_HOOK_INIT() macro does not need to
+>> know absolute address of security_hook_heads. Then, security_add_hooks()
+>> will be able to allocate and copy "struct security_hook_list ...[]" using
+>> smalloc().
+>>
+>> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+>> Cc: Kees Cook <keescook@chromium.org>
+>> Cc: Paul Moore <paul@paul-moore.com>
+>> Cc: Stephen Smalley <sds@tycho.nsa.gov>
+>> Cc: Casey Schaufler <casey@schaufler-ca.com>
+>> Cc: James Morris <james.l.morris@oracle.com>
+>> Cc: Igor Stoppa <igor.stoppa@huawei.com>
+>> Cc: Greg KH <gregkh@linuxfoundation.org>
+>> ---
+>>  include/linux/lsm_hooks.h |  6 +++---
+>>  security/security.c       | 10 ++++++++--
+>>  2 files changed, 11 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/include/linux/lsm_hooks.h b/include/linux/lsm_hooks.h
+>> index 080f34e..865c11d 100644
+>> --- a/include/linux/lsm_hooks.h
+>> +++ b/include/linux/lsm_hooks.h
+>> @@ -1884,8 +1884,8 @@ struct security_hook_heads {
+>>   */
+>>  struct security_hook_list {
+>>  	struct list_head		list;
+>> -	struct list_head		*head;
+>>  	union security_list_options	hook;
+>> +	const unsigned int		idx;
+>>  	char				*lsm;
+>>  };
+>>  
+>> @@ -1896,9 +1896,9 @@ struct security_hook_list {
+>>   * text involved.
+>>   */
+>>  #define LSM_HOOK_INIT(HEAD, HOOK) \
+>> -	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
+>> +	{ .idx = offsetof(struct security_hook_heads, HEAD) / \
+>> +		sizeof(struct list_head), .hook = { .HEAD = HOOK } }
+>>  
+>> -extern struct security_hook_heads security_hook_heads;
+>>  extern char *lsm_names;
+>>  
+>>  extern void security_add_hooks(struct security_hook_list *hooks, int count,
+>> diff --git a/security/security.c b/security/security.c
+>> index 54b1e39..d6883ce 100644
+>> --- a/security/security.c
+>> +++ b/security/security.c
+>> @@ -33,7 +33,7 @@
+>>  /* Maximum number of letters for an LSM name string */
+>>  #define SECURITY_NAME_MAX	10
+>>  
+>> -struct security_hook_heads security_hook_heads __lsm_ro_after_init;
+>> +static struct security_hook_heads security_hook_heads __lsm_ro_after_init;
+>>  char *lsm_names;
+>>  /* Boot-time LSM user choice */
+>>  static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
+>> @@ -152,10 +152,16 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
+>>  				char *lsm)
+>>  {
+>>  	int i;
+>> +	struct list_head *list = (struct list_head *) &security_hook_heads;
+> Eww, struct casts.  This whole security_hook_heads scheme stink,
+> even with the slight improvements from Tetsuo.  It has everything we
+> shouldn't do - function pointers in structures that are not hard
+> read-only, structure casts, etc.
+>
+> What's the reason why can't just have good old const function tables?
 
-Tested-by: Roman Gushchin <guro@fb.com>
+The set of hooks used by most security modules are sparse.
 
-Thank you!
+> Yeah, stackable LSM make that a little harder, but they should not be
+> enable by default anyway.
+
+With the number of security modules queued up behind full stacking
+I can't say that I agree with your assertion.
+
+> But even with those we can still chain
+> them together with a list with external linkage.
+
+I gave up that approach in 2012. Too many unnecessary calls to
+null functions, and massive function vectors with a tiny number
+of non-null entries. From a data structure standpoint, it was
+just wrong. The list scheme is exactly right for the task at
+hand.
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-security-module" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
