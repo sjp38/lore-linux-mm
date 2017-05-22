@@ -1,99 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A543831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:09:06 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id m80so4084440vka.11
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:09:06 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k63si6248926vki.210.2017.05.22.09.09.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 09:09:05 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 1/1] mm: Adaptive hash table scaling
-Date: Mon, 22 May 2017 12:08:49 -0400
-Message-Id: <1495469329-755807-2-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1495469329-755807-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1495469329-755807-1-git-send-email-pasha.tatashin@oracle.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 575D5831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:26:09 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c6so134110608pfj.5
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:26:09 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g4si17447538pgc.179.2017.05.22.09.26.08
+        for <linux-mm@kvack.org>;
+        Mon, 22 May 2017 09:26:08 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: [PATCH v3.1 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
+Date: Mon, 22 May 2017 17:25:55 +0100
+Message-Id: <20170522162555.4313-1-punit.agrawal@arm.com>
+In-Reply-To: <20170522133604.11392-5-punit.agrawal@arm.com>
+References: <20170522133604.11392-5-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, mpe@ellerman.id.au
+To: akpm@linux-foundation.org
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 
-Allow hash tables to scale with memory but at slower pace, when HASH_ADAPT
-is provided every time memory quadruples the sizes of hash tables will only
-double instead of quadrupling as well. This algorithm starts working only
-when memory size reaches a certain point, currently set to 64G.
+When unmapping a hugepage range, huge_pte_clear() is used to clear the
+page table entries that are marked as not present. huge_pte_clear()
+internally just ends up calling pte_clear() which does not correctly
+deal with hugepages consisting of contiguous page table entries.
 
-This is example of dentry hash table size, before and after four various
-memory configurations:
+Add a size argument to address this issue and allow architectures to
+override huge_pte_clear() by wrapping it in a #ifndef block.
 
-MEMORY    SCALE        HASH_SIZE
-        old    new    old     new
-    8G  13     13      8M      8M
-   16G  13     13     16M     16M
-   32G  13     13     32M     32M
-   64G  13     13     64M     64M
-  128G  13     14    128M     64M
-  256G  13     14    256M    128M
-  512G  13     15    512M    128M
- 1024G  13     15   1024M    256M
- 2048G  13     16   2048M    256M
- 4096G  13     16   4096M    512M
- 8192G  13     17   8192M    512M
-16384G  13     17  16384M   1024M
-32768G  13     18  32768M   1024M
-65536G  13     18  65536M   2048M
+Update s390 implementation with the size parameter as well.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Note that the change only affects huge_pte_clear() - the other generic
+hugetlb functions don't need any change.
+
+Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/page_alloc.c | 25 +++++++++++++++++++++++++
- 1 file changed, 25 insertions(+)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8afa63e81e73..409e0cd35381 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7169,6 +7169,21 @@ static unsigned long __init arch_reserved_kernel_pages(void)
- #endif
+Changes since v3
+
+* Drop weak function and use #ifndef block to allow architecture override
+* Drop unnecessary move of s390 function definition
+
+ arch/s390/include/asm/hugetlb.h | 2 +-
+ include/asm-generic/hugetlb.h   | 4 +++-
+ mm/hugetlb.c                    | 2 +-
+ 3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
+index cd546a245c68..c0443500baec 100644
+--- a/arch/s390/include/asm/hugetlb.h
++++ b/arch/s390/include/asm/hugetlb.h
+@@ -39,7 +39,7 @@ static inline int prepare_hugepage_range(struct file *file,
+ #define arch_clear_hugepage_flags(page)		do { } while (0)
  
- /*
-+ * Adaptive scale is meant to reduce sizes of hash tables on large memory
-+ * machines. As memory size is increased the scale is also increased but at
-+ * slower pace.  Starting from ADAPT_SCALE_BASE (64G), every time memory
-+ * quadruples the scale is increased by one, which means the size of hash table
-+ * only doubles, instead of quadrupling as well.
-+ * Because 32-bit systems cannot have large physical memory, where this scaling
-+ * makes sense, it is disabled on such platforms.
-+ */
-+#if __BITS_PER_LONG > 32
-+#define ADAPT_SCALE_BASE	(64ul << 30)
-+#define ADAPT_SCALE_SHIFT	2
-+#define ADAPT_SCALE_NPAGES	(ADAPT_SCALE_BASE >> PAGE_SHIFT)
-+#endif
-+
-+/*
-  * allocate a large system hash table from bootmem
-  * - it is assumed that the hash table must contain an exact power-of-2
-  *   quantity of entries
-@@ -7199,6 +7214,16 @@ void *__init alloc_large_system_hash(const char *tablename,
- 		if (PAGE_SHIFT < 20)
- 			numentries = round_up(numentries, (1<<20)/PAGE_SIZE);
+ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+-				  pte_t *ptep)
++				  pte_t *ptep, unsigned long sz)
+ {
+ 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+ 		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
+diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
+index 99b490b4d05a..540354f94f83 100644
+--- a/include/asm-generic/hugetlb.h
++++ b/include/asm-generic/hugetlb.h
+@@ -31,10 +31,12 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
+ 	return pte_modify(pte, newprot);
+ }
  
-+#if __BITS_PER_LONG > 32
-+		if (!high_limit) {
-+			unsigned long adapt;
-+
-+			for (adapt = ADAPT_SCALE_NPAGES; adapt < numentries;
-+			     adapt <<= ADAPT_SCALE_SHIFT)
-+				scale++;
-+		}
++#ifndef huge_pte_clear
+ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+-				  pte_t *ptep)
++		    pte_t *ptep, unsigned long sz)
+ {
+ 	pte_clear(mm, addr, ptep);
+ }
 +#endif
-+
- 		/* limit to 1 bucket per 2^scale bytes of low memory */
- 		if (scale > PAGE_SHIFT)
- 			numentries >>= (scale - PAGE_SHIFT);
+ 
+ #endif /* _ASM_GENERIC_HUGETLB_H */
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0e4d1fb3122f..ddfed20cd637 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3338,7 +3338,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 * unmapped and its refcount is dropped, so just clear pte here.
+ 		 */
+ 		if (unlikely(!pte_present(pte))) {
+-			huge_pte_clear(mm, address, ptep);
++			huge_pte_clear(mm, address, ptep, sz);
+ 			spin_unlock(ptl);
+ 			continue;
+ 		}
 -- 
-2.13.0
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
