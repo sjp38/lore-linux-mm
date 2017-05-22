@@ -1,144 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C8CC6B0292
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 17:57:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c10so143093161pfg.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06EDF6B02B4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 17:57:58 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j28so142463038pfk.14
         for <linux-mm@kvack.org>; Mon, 22 May 2017 14:57:57 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id s64si8910598pgb.336.2017.05.22.14.57.55
+        by mx.google.com with ESMTPS id s64si8910598pgb.336.2017.05.22.14.57.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 14:57:56 -0700 (PDT)
+        Mon, 22 May 2017 14:57:57 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 1/2] mm: avoid spurious 'bad pmd' warning messages
-Date: Mon, 22 May 2017 15:57:48 -0600
-Message-Id: <20170522215749.23516-1-ross.zwisler@linux.intel.com>
+Subject: [PATCH v2 2/2] dax: Fix race between colliding PMD & PTE entries
+Date: Mon, 22 May 2017 15:57:49 -0600
+Message-Id: <20170522215749.23516-2-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170522215749.23516-1-ross.zwisler@linux.intel.com>
+References: <20170522215749.23516-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Pawel Lebioda <pawel.lebioda@intel.com>, Dave Jiang <dave.jiang@intel.com>, Xiong Zhou <xzhou@redhat.com>, Eryu Guan <eguan@redhat.com>, stable@vger.kernel.org
 
-When the pmd_devmap() checks were added by:
+We currently have two related PMD vs PTE races in the DAX code.  These can
+both be easily triggered by having two threads reading and writing
+simultaneously to the same private mapping, with the key being that private
+mapping reads can be handled with PMDs but private mapping writes are
+always handled with PTEs so that we can COW.
 
-commit 5c7fb56e5e3f ("mm, dax: dax-pmd vs thp-pmd vs hugetlbfs-pmd")
+Here is the first race:
 
-to add better support for DAX huge pages, they were all added to the end of
-if() statements after existing pmd_trans_huge() checks.  So, things like:
+CPU 0					CPU 1
 
--       if (pmd_trans_huge(*pmd))
-+       if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
+(private mapping write)
+__handle_mm_fault()
+  create_huge_pmd() - FALLBACK
+  handle_pte_fault()
+    passes check for pmd_devmap()
 
-When further checks were added after pmd_trans_unstable() checks by:
+					(private mapping read)
+					__handle_mm_fault()
+					  create_huge_pmd()
+					    dax_iomap_pmd_fault() inserts PMD
 
-commit 7267ec008b5c ("mm: postpone page table allocation until we have page
-to map")
+    dax_iomap_pte_fault() does a PTE fault, but we already have a DAX PMD
+    			  installed in our page tables at this spot.
 
-they were also added at the end of the conditional:
+Here's the second race:
 
-+       if (pmd_trans_unstable(fe->pmd) || pmd_devmap(*fe->pmd))
+CPU 0					CPU 1
 
-This ordering is fine for pmd_trans_huge(), but doesn't work for
-pmd_trans_unstable().  This is because DAX huge pages trip the bad_pmd()
-check inside of pmd_none_or_trans_huge_or_clear_bad() (called by
-pmd_trans_unstable()), which prints out a warning and returns 1.  So, we do
-end up doing the right thing, but only after spamming dmesg with suspicious
-looking messages:
+(private mapping read)
+__handle_mm_fault()
+  passes check for pmd_none()
+  create_huge_pmd()
+    dax_iomap_pmd_fault() inserts PMD
 
-mm/pgtable-generic.c:39: bad pmd ffff8808daa49b88(84000001006000a5)
+(private mapping write)
+__handle_mm_fault()
+  create_huge_pmd() - FALLBACK
+					(private mapping read)
+					__handle_mm_fault()
+					  passes check for pmd_none()
+					  create_huge_pmd()
 
-Reorder these checks in a helper so that pmd_devmap() is checked first,
-avoiding the error messages, and add a comment explaining why the ordering
-is important.
+  handle_pte_fault()
+    dax_iomap_pte_fault() inserts PTE
+					    dax_iomap_pmd_fault() inserts PMD,
+					       but we already have a PTE at
+					       this spot.
+
+The core of the issue is that while there is isolation between faults to
+the same range in the DAX fault handlers via our DAX entry locking, there
+is no isolation between faults in the code in mm/memory.c.  This means for
+instance that this code in __handle_mm_fault() can run:
+
+	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
+		ret = create_huge_pmd(&vmf);
+
+But by the time we actually get to run the fault handler called by
+create_huge_pmd(), the PMD is no longer pmd_none() because a racing PTE
+fault has installed a normal PMD here as a parent.  This is the cause of
+the 2nd race.  The first race is similar - there is the following check in
+handle_pte_fault():
+
+	} else {
+		/* See comment in pte_alloc_one_map() */
+		if (pmd_devmap(*vmf->pmd) || pmd_trans_unstable(vmf->pmd))
+			return 0;
+
+So if a pmd_devmap() PMD (a DAX PMD) has been installed at vmf->pmd, we
+will bail and retry the fault.  This is correct, but there is nothing
+preventing the PMD from being installed after this check but before we
+actually get to the DAX PTE fault handlers.
+
+In my testing these races result in the following types of errors:
+
+ BUG: Bad rss-counter state mm:ffff8800a817d280 idx:1 val:1
+ BUG: non-zero nr_ptes on freeing mm: 15
+
+Fix this issue by having the DAX fault handlers verify that it is safe to
+continue their fault after they have taken an entry lock to block other
+racing faults.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Fixes: commit 7267ec008b5c ("mm: postpone page table allocation until we have page to map")
+Reported-by: Pawel Lebioda <pawel.lebioda@intel.com>
 Cc: stable@vger.kernel.org
 ---
 
 Changes from v1:
- - Break the checks out into the new pmd_devmap_trans_unstable() helper and
-   add a comment about the ordering (Dave).  I ended up keeping this helper
-   in mm/memory.c because I didn't see an obvious header where it would
-   live happily.  pmd_devmap() is either defined in
-   arch/x86/include/asm/pgtable.h or in include/linux/mm.h depending on
-   __HAVE_ARCH_PTE_DEVMAP and CONFIG_TRANSPARENT_HUGEPAGE, and
-   pmd_trans_unstable() is defined in include/asm-generic/pgtable.h.
+ - Handle the failure case in dax_iomap_pte_fault() by retrying the fault
+   (Jan).
 
- - Add a comment explaining why pte_alloc_one_map() doesn't suffer from races.
-   This was the result of a conversation with Dave Hansen.
+This series has survived my new xfstest (generic/437) and full xfstest
+regression testing runs.
 ---
- mm/memory.c | 40 ++++++++++++++++++++++++++++++----------
- 1 file changed, 30 insertions(+), 10 deletions(-)
+ fs/dax.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 6ff5d72..2e65df1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3029,6 +3029,17 @@ static int __do_fault(struct vm_fault *vmf)
- 	return ret;
- }
+diff --git a/fs/dax.c b/fs/dax.c
+index c22eaf1..fc62f36 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1155,6 +1155,17 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+ 	}
  
-+/*
-+ * The ordering of these checks is important for pmds with _PAGE_DEVMAP set.
-+ * If we check pmd_trans_unstable() first we will trip the bad_pmd() check
-+ * inside of pmd_none_or_trans_huge_or_clear_bad(). This will end up correctly
-+ * returning 1 but not before it spams dmesg with the pmd_clear_bad() output.
-+ */
-+static int pmd_devmap_trans_unstable(pmd_t *pmd)
-+{
-+	return pmd_devmap(*pmd) || pmd_trans_unstable(pmd);
-+}
-+
- static int pte_alloc_one_map(struct vm_fault *vmf)
- {
- 	struct vm_area_struct *vma = vmf->vma;
-@@ -3052,18 +3063,27 @@ static int pte_alloc_one_map(struct vm_fault *vmf)
- map_pte:
  	/*
- 	 * If a huge pmd materialized under us just retry later.  Use
--	 * pmd_trans_unstable() instead of pmd_trans_huge() to ensure the pmd
--	 * didn't become pmd_trans_huge under us and then back to pmd_none, as
--	 * a result of MADV_DONTNEED running immediately after a huge pmd fault
--	 * in a different thread of this mm, in turn leading to a misleading
--	 * pmd_trans_huge() retval.  All we have to ensure is that it is a
--	 * regular pmd that we can walk with pte_offset_map() and we can do that
--	 * through an atomic read in C, which is what pmd_trans_unstable()
--	 * provides.
-+	 * pmd_trans_unstable() via pmd_devmap_trans_unstable() instead of
-+	 * pmd_trans_huge() to ensure the pmd didn't become pmd_trans_huge
-+	 * under us and then back to pmd_none, as a result of MADV_DONTNEED
-+	 * running immediately after a huge pmd fault in a different thread of
-+	 * this mm, in turn leading to a misleading pmd_trans_huge() retval.
-+	 * All we have to ensure is that it is a regular pmd that we can walk
-+	 * with pte_offset_map() and we can do that through an atomic read in
-+	 * C, which is what pmd_trans_unstable() provides.
- 	 */
--	if (pmd_trans_unstable(vmf->pmd) || pmd_devmap(*vmf->pmd))
-+	if (pmd_devmap_trans_unstable(vmf->pmd))
- 		return VM_FAULT_NOPAGE;
- 
-+	/*
-+	 * At this point we know that our vmf->pmd points to a page of ptes
-+	 * and it cannot become pmd_none(), pmd_devmap() or pmd_trans_huge()
-+	 * for the duration of the fault.  If a racing MADV_DONTNEED runs and
-+	 * we zap the ptes pointed to by our vmf->pmd, the vmf->ptl will still
-+	 * be valid and we will re-check to make sure the vmf->pte isn't
-+	 * pte_none() under vmf->ptl protection when we return to
-+	 * alloc_set_pte().
++	 * It is possible, particularly with mixed reads & writes to private
++	 * mappings, that we have raced with a PMD fault that overlaps with
++	 * the PTE we need to set up.  If so just return and the fault will be
++	 * retried.
 +	 */
- 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
- 			&vmf->ptl);
- 	return 0;
-@@ -3690,7 +3710,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
- 		vmf->pte = NULL;
- 	} else {
- 		/* See comment in pte_alloc_one_map() */
--		if (pmd_trans_unstable(vmf->pmd) || pmd_devmap(*vmf->pmd))
-+		if (pmd_devmap_trans_unstable(vmf->pmd))
- 			return 0;
- 		/*
- 		 * A regular pmd is established and it can't morph into a huge
++	if (pmd_devmap(*vmf->pmd)) {
++		vmf_ret = VM_FAULT_NOPAGE;
++		goto unlock_entry;
++	}
++
++	/*
+ 	 * Note that we don't bother to use iomap_apply here: DAX required
+ 	 * the file system block size to be equal the page size, which means
+ 	 * that we never have to deal with more than a single extent here.
+@@ -1398,6 +1409,15 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
+ 		goto fallback;
+ 
+ 	/*
++	 * It is possible, particularly with mixed reads & writes to private
++	 * mappings, that we have raced with a PTE fault that overlaps with
++	 * the PMD we need to set up.  If so we just fall back to a PTE fault
++	 * ourselves.
++	 */
++	if (!pmd_none(*vmf->pmd))
++		goto unlock_entry;
++
++	/*
+ 	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+ 	 * setting up a mapping, so really we're using iomap_begin() as a way
+ 	 * to look up our filesystem block.
 -- 
 2.9.4
 
