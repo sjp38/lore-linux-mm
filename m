@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F068C6B02C3
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 18:30:20 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id m2so111680374oik.4
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 15:30:20 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4831C6B02F3
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 18:30:22 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w138so175305225oiw.0
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 15:30:22 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w65si8053163oia.58.2017.05.22.15.30.20
+        by mx.google.com with ESMTPS id v47si58725ota.145.2017.05.22.15.30.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 15:30:20 -0700 (PDT)
+        Mon, 22 May 2017 15:30:21 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 02/11] x86/mm: Reduce indentation in flush_tlb_func()
-Date: Mon, 22 May 2017 15:30:02 -0700
-Message-Id: <97901ddcc9821d7bc7b296d2918d1179f08aaf22.1495492063.git.luto@kernel.org>
+Subject: [PATCH v2 03/11] x86/mm: Make the batched unmap TLB flush API more generic
+Date: Mon, 22 May 2017 15:30:03 -0700
+Message-Id: <19f25a8581f9fb77876b7ff3b001f89835e34ea3.1495492063.git.luto@kernel.org>
 In-Reply-To: <cover.1495492063.git.luto@kernel.org>
 References: <cover.1495492063.git.luto@kernel.org>
 In-Reply-To: <cover.1495492063.git.luto@kernel.org>
@@ -20,68 +20,185 @@ References: <cover.1495492063.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: X86 ML <x86@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Sasha Levin <sasha.levin@oracle.com>
 
-The leave_mm() case can just exit the function early so we don't
-need to indent the entire remainder of the function.
+try_to_unmap_flush() used to open-code a rather x86-centric flush
+sequence: local_flush_tlb() + flush_tlb_others().  Rearrange the
+code so that the arch (only x86 for now) provides
+arch_tlbbatch_add_mm() and arch_tlbbatch_flush() and the core code
+calls those functions instead.
 
+I'll want this for x86 because, to enable address space ids, I can't
+support the flush_tlb_others() mode used by exising
+try_to_unmap_flush() implementation with good performance.  I can
+support the new API fairly easily, though.
+
+I imagine that other architectures may be in a similar position.
+Architectures with strong remote flush primitives (arm64?) may have
+even worse performance problems with flush_tlb_others() the way that
+try_to_unmap_flush() uses it.
+
+Cc: Mel Gorman <mgorman@suse.de>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Nadav Amit <namit@vmware.com>
 Cc: Michal Hocko <mhocko@suse.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/mm/tlb.c | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ arch/x86/include/asm/tlbbatch.h | 16 ++++++++++++++++
+ arch/x86/include/asm/tlbflush.h |  8 ++++++++
+ arch/x86/mm/tlb.c               | 17 +++++++++++++++++
+ include/linux/mm_types_task.h   | 15 +++++++++++----
+ mm/rmap.c                       | 16 ++--------------
+ 5 files changed, 54 insertions(+), 18 deletions(-)
+ create mode 100644 arch/x86/include/asm/tlbbatch.h
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index fe6471132ea3..4d303864b310 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -237,24 +237,26 @@ static void flush_tlb_func(void *info)
- 		return;
- 
- 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
--	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
--		if (f->flush_end == TLB_FLUSH_ALL) {
--			local_flush_tlb();
--			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
--		} else {
--			unsigned long addr;
--			unsigned long nr_pages =
--				(f->flush_end - f->flush_start) / PAGE_SIZE;
--			addr = f->flush_start;
--			while (addr < f->flush_end) {
--				__flush_tlb_single(addr);
--				addr += PAGE_SIZE;
--			}
--			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, nr_pages);
--		}
--	} else
+diff --git a/arch/x86/include/asm/tlbbatch.h b/arch/x86/include/asm/tlbbatch.h
+new file mode 100644
+index 000000000000..01a6de16fb96
+--- /dev/null
++++ b/arch/x86/include/asm/tlbbatch.h
+@@ -0,0 +1,16 @@
++#ifndef _ARCH_X86_TLBBATCH_H
++#define _ARCH_X86_TLBBATCH_H
 +
-+	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
- 		leave_mm(smp_processor_id());
-+		return;
-+	}
- 
-+	if (f->flush_end == TLB_FLUSH_ALL) {
-+		local_flush_tlb();
-+		trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
-+	} else {
-+		unsigned long addr;
-+		unsigned long nr_pages =
-+			(f->flush_end - f->flush_start) / PAGE_SIZE;
-+		addr = f->flush_start;
-+		while (addr < f->flush_end) {
-+			__flush_tlb_single(addr);
-+			addr += PAGE_SIZE;
-+		}
-+		trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, nr_pages);
-+	}
++#include <linux/cpumask.h>
++
++#ifdef CONFIG_SMP
++struct arch_tlbflush_unmap_batch {
++	/*
++	 * Each bit set is a CPU that potentially has a TLB entry for one of
++	 * the PFNs being flushed..
++	 */
++	struct cpumask cpumask;
++};
++#endif
++
++#endif /* _ARCH_X86_TLBBATCH_H */
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index b9db0f8fef55..8f6e2f87511b 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -329,6 +329,14 @@ static inline void reset_lazy_tlbstate(void)
+ 	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
  }
  
- void native_flush_tlb_others(const struct cpumask *cpumask,
++static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
++					struct mm_struct *mm)
++{
++	cpumask_or(&batch->cpumask, &batch->cpumask, mm_cpumask(mm));
++}
++
++extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
++
+ #endif	/* SMP */
+ 
+ #ifndef CONFIG_PARAVIRT
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 4d303864b310..743e4c6b4529 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -395,6 +395,23 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+ 	}
+ }
+ 
++void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
++{
++	int cpu = get_cpu();
++
++	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
++		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++		local_flush_tlb();
++		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
++	}
++
++	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
++		flush_tlb_others(&batch->cpumask, NULL, 0, TLB_FLUSH_ALL);
++	cpumask_clear(&batch->cpumask);
++
++	put_cpu();
++}
++
+ static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
+ 			     size_t count, loff_t *ppos)
+ {
+diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
+index 136dfdf63ba1..fc412fbd80bd 100644
+--- a/include/linux/mm_types_task.h
++++ b/include/linux/mm_types_task.h
+@@ -14,6 +14,10 @@
+ 
+ #include <asm/page.h>
+ 
++#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
++#include <asm/tlbbatch.h>
++#endif
++
+ #define USE_SPLIT_PTE_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
+ #define USE_SPLIT_PMD_PTLOCKS	(USE_SPLIT_PTE_PTLOCKS && \
+ 		IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK))
+@@ -67,12 +71,15 @@ struct page_frag {
+ struct tlbflush_unmap_batch {
+ #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+ 	/*
+-	 * Each bit set is a CPU that potentially has a TLB entry for one of
+-	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
++	 * The arch code makes the following promise: generic code can modify a
++	 * PTE, then call arch_tlbbatch_add_mm() (which internally provides all
++	 * needed barriers), then call arch_tlbbatch_flush(), and the entries
++	 * will be flushed on all CPUs by the time that arch_tlbbatch_flush()
++	 * returns.
+ 	 */
+-	struct cpumask cpumask;
++	struct arch_tlbflush_unmap_batch arch;
+ 
+-	/* True if any bit in cpumask is set */
++	/* True if a flush is needed. */
+ 	bool flush_required;
+ 
+ 	/*
+diff --git a/mm/rmap.c b/mm/rmap.c
+index f6838015810f..f29d725528d2 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -579,25 +579,13 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
+ void try_to_unmap_flush(void)
+ {
+ 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+-	int cpu;
+ 
+ 	if (!tlb_ubc->flush_required)
+ 		return;
+ 
+-	cpu = get_cpu();
+-
+-	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask)) {
+-		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+-		local_flush_tlb();
+-		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+-	}
+-
+-	if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids)
+-		flush_tlb_others(&tlb_ubc->cpumask, NULL, 0, TLB_FLUSH_ALL);
+-	cpumask_clear(&tlb_ubc->cpumask);
++	arch_tlbbatch_flush(&tlb_ubc->arch);
+ 	tlb_ubc->flush_required = false;
+ 	tlb_ubc->writable = false;
+-	put_cpu();
+ }
+ 
+ /* Flush iff there are potentially writable TLB entries that can race with IO */
+@@ -613,7 +601,7 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
+ {
+ 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
+ 
+-	cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
++	arch_tlbbatch_add_mm(&tlb_ubc->arch, mm);
+ 	tlb_ubc->flush_required = true;
+ 
+ 	/*
 -- 
 2.9.3
 
