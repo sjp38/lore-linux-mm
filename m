@@ -1,428 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 426AE831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:37:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h76so86626128pfh.15
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:37:06 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5D7E831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:37:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l73so128602711pfj.8
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:37:11 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p20si17108062pli.35.2017.05.22.06.37.04
+        by mx.google.com with ESMTP id f125si11038331pgc.180.2017.05.22.06.37.10
         for <linux-mm@kvack.org>;
-        Mon, 22 May 2017 06:37:05 -0700 (PDT)
+        Mon, 22 May 2017 06:37:10 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v3 3/6] mm/hugetlb: add size parameter to huge_pte_offset()
-Date: Mon, 22 May 2017 14:36:01 +0100
-Message-Id: <20170522133604.11392-4-punit.agrawal@arm.com>
+Subject: [PATCH v3 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
+Date: Mon, 22 May 2017 14:36:02 +0100
+Message-Id: <20170522133604.11392-5-punit.agrawal@arm.com>
 In-Reply-To: <20170522133604.11392-1-punit.agrawal@arm.com>
 References: <20170522133604.11392-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, hillf.zj@alibaba-inc.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, James Hogan <james.hogan@imgtec.com>, Ralf Baechle <ralf@linux-mips.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, hillf.zj@alibaba-inc.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>
 
-A poisoned or migrated hugepage is stored as a swap entry in the page
-tables. On architectures that support hugepages consisting of contiguous
-page table entries (such as on arm64) this leads to ambiguity in
-determining the page table entry to return in huge_pte_offset() when a
-poisoned entry is encountered.
+When unmapping a hugepage range, huge_pte_clear() is used to clear the
+page table entries that are marked as not present. huge_pte_clear()
+internally just ends up calling pte_clear() which does not correctly
+deal with hugepages consisting of contiguous page table entries.
 
-Let's remove the ambiguity by adding a size parameter to convey
-additional information about the requested address. Also fixup the
-definition/usage of huge_pte_offset() throughout the tree.
+Add a size argument to address this issue and allow architectures to
+override huge_pte_clear() in subsequent patches by making it a weak
+function.
+
+Update the s390 to use the new mechanism to override huge_pte_clear().
+
+Note that the change only affects huge_pte_clear() - the other generic
+hugetlb functions don't need any change.
 
 Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Acked-by: Steve Capper <steve.capper@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
-Cc: James Hogan <james.hogan@imgtec.com> (odd fixer:METAG ARCHITECTURE)
-Cc: Ralf Baechle <ralf@linux-mips.org> (supporter:MIPS)
-Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-Cc: Helge Deller <deller@gmx.de>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: Rich Felker <dalias@libc.org>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
 Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- arch/arm64/mm/hugetlbpage.c   |  3 ++-
- arch/ia64/mm/hugetlbpage.c    |  4 ++--
- arch/metag/mm/hugetlbpage.c   |  3 ++-
- arch/mips/mm/hugetlbpage.c    |  3 ++-
- arch/parisc/mm/hugetlbpage.c  |  3 ++-
- arch/powerpc/mm/hugetlbpage.c |  2 +-
- arch/s390/mm/hugetlbpage.c    |  3 ++-
- arch/sh/mm/hugetlbpage.c      |  3 ++-
- arch/sparc/mm/hugetlbpage.c   |  3 ++-
- arch/tile/mm/hugetlbpage.c    |  3 ++-
- arch/x86/mm/hugetlbpage.c     |  2 +-
- fs/userfaultfd.c              |  7 +++++--
- include/linux/hugetlb.h       |  5 +++--
- mm/hugetlb.c                  | 23 ++++++++++++++---------
- mm/page_vma_mapped.c          |  3 ++-
- mm/pagewalk.c                 |  3 ++-
- 16 files changed, 46 insertions(+), 27 deletions(-)
+ arch/s390/include/asm/hugetlb.h | 10 ++--------
+ arch/s390/mm/hugetlbpage.c      |  9 +++++++++
+ include/asm-generic/hugetlb.h   |  7 ++-----
+ mm/hugetlb.c                    |  8 +++++++-
+ 4 files changed, 20 insertions(+), 14 deletions(-)
 
-diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index 69b8200b1cfd..425a8fcd3d38 100644
---- a/arch/arm64/mm/hugetlbpage.c
-+++ b/arch/arm64/mm/hugetlbpage.c
-@@ -132,7 +132,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
- }
+diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
+index cd546a245c68..aa8489c07f24 100644
+--- a/arch/s390/include/asm/hugetlb.h
++++ b/arch/s390/include/asm/hugetlb.h
+@@ -38,14 +38,8 @@ static inline int prepare_hugepage_range(struct file *file,
  
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
-index 85de86d36fdf..ae35140332f7 100644
---- a/arch/ia64/mm/hugetlbpage.c
-+++ b/arch/ia64/mm/hugetlbpage.c
-@@ -44,7 +44,7 @@ huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
- }
+ #define arch_clear_hugepage_flags(page)		do { } while (0)
  
- pte_t *
--huge_pte_offset (struct mm_struct *mm, unsigned long addr)
-+huge_pte_offset (struct mm_struct *mm, unsigned long addr, unsigned long sz)
- {
- 	unsigned long taddr = htlbpage_to_page(addr);
- 	pgd_t *pgd;
-@@ -92,7 +92,7 @@ struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int writ
- 	if (REGION_NUMBER(addr) != RGN_HPAGE)
- 		return ERR_PTR(-EINVAL);
+-static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+-				  pte_t *ptep)
+-{
+-	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+-		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
+-	else
+-		pte_val(*ptep) = _SEGMENT_ENTRY_EMPTY;
+-}
++void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++		    pte_t *ptep, unsigned long sz);
  
--	ptep = huge_pte_offset(mm, addr);
-+	ptep = huge_pte_offset(mm, addr, HPAGE_SIZE);
- 	if (!ptep || pte_none(*ptep))
- 		return NULL;
- 	page = pte_page(*ptep);
-diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
-index db1b7da91e4f..67fd53e2935a 100644
---- a/arch/metag/mm/hugetlbpage.c
-+++ b/arch/metag/mm/hugetlbpage.c
-@@ -74,7 +74,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
- }
- 
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/mips/mm/hugetlbpage.c b/arch/mips/mm/hugetlbpage.c
-index 74aa6f62468f..cef152234312 100644
---- a/arch/mips/mm/hugetlbpage.c
-+++ b/arch/mips/mm/hugetlbpage.c
-@@ -36,7 +36,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr,
- 	return pte;
- }
- 
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
-+		       unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/parisc/mm/hugetlbpage.c b/arch/parisc/mm/hugetlbpage.c
-index aa50ac090e9b..5eb8f633b282 100644
---- a/arch/parisc/mm/hugetlbpage.c
-+++ b/arch/parisc/mm/hugetlbpage.c
-@@ -69,7 +69,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
- }
- 
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index a4f33de4008e..e46744d3b4ae 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -55,7 +55,7 @@ static unsigned nr_gpages;
- 
- #define hugepd_none(hpd)	(hpd_val(hpd) == 0)
- 
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr, unsigned long sz)
- {
- 	/* Only called for hugetlbfs pages, hence can ignore THP */
- 	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
+ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ 					 unsigned long address, pte_t *ptep)
 diff --git a/arch/s390/mm/hugetlbpage.c b/arch/s390/mm/hugetlbpage.c
-index 9b4050caa4e9..ae23afc18493 100644
+index ae23afc18493..48e19b324017 100644
 --- a/arch/s390/mm/hugetlbpage.c
 +++ b/arch/s390/mm/hugetlbpage.c
-@@ -176,7 +176,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return (pte_t *) pmdp;
+@@ -144,6 +144,15 @@ pte_t huge_ptep_get(pte_t *ptep)
+ 	return __rste_to_pte(pte_val(*ptep));
  }
  
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
++void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++		    pte_t *ptep, unsigned long sz)
++{
++	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
++		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
++	else
++		pte_val(*ptep) = _SEGMENT_ENTRY_EMPTY;
++}
++
+ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+ 			      unsigned long addr, pte_t *ptep)
  {
- 	pgd_t *pgdp;
- 	pud_t *pudp;
-diff --git a/arch/sh/mm/hugetlbpage.c b/arch/sh/mm/hugetlbpage.c
-index cc948db74878..d2412d2d6462 100644
---- a/arch/sh/mm/hugetlbpage.c
-+++ b/arch/sh/mm/hugetlbpage.c
-@@ -42,7 +42,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
+diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
+index 99b490b4d05a..3138e126f43b 100644
+--- a/include/asm-generic/hugetlb.h
++++ b/include/asm-generic/hugetlb.h
+@@ -31,10 +31,7 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
+ 	return pte_modify(pte, newprot);
  }
  
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
-index 7c29d38e6b99..8989c5e155b3 100644
---- a/arch/sparc/mm/hugetlbpage.c
-+++ b/arch/sparc/mm/hugetlbpage.c
-@@ -277,7 +277,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
- }
+-static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+-				  pte_t *ptep)
+-{
+-	pte_clear(mm, addr, ptep);
+-}
++void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++		    pte_t *ptep, unsigned long sz);
  
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
-index cb10153b5c9f..1f0993945521 100644
---- a/arch/tile/mm/hugetlbpage.c
-+++ b/arch/tile/mm/hugetlbpage.c
-@@ -102,7 +102,8 @@ static pte_t *get_pte(pte_t *base, int index, int level)
- 	return ptep;
- }
- 
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	pud_t *pud;
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 302f43fd9c28..ccf509063dfd 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -33,7 +33,7 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
- 	if (!vma || !is_vm_hugetlb_page(vma))
- 		return ERR_PTR(-EINVAL);
- 
--	pte = huge_pte_offset(mm, address);
-+	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
- 
- 	/* hugetlb should be locked, and hence, prefaulted */
- 	WARN_ON(!pte || pte_none(*pte));
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index f7555fc25877..7b9c94837895 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -214,6 +214,7 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
-  * hugepmd ranges.
-  */
- static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
-+					 struct vm_area_struct *vma,
- 					 unsigned long address,
- 					 unsigned long flags,
- 					 unsigned long reason)
-@@ -224,7 +225,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
- 
- 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
- 
--	pte = huge_pte_offset(mm, address);
-+	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
- 	if (!pte)
- 		goto out;
- 
-@@ -243,6 +244,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
- }
- #else
- static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
-+					 struct vm_area_struct *vma,
- 					 unsigned long address,
- 					 unsigned long flags,
- 					 unsigned long reason)
-@@ -435,7 +437,8 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
- 		must_wait = userfaultfd_must_wait(ctx, vmf->address, vmf->flags,
- 						  reason);
- 	else
--		must_wait = userfaultfd_huge_must_wait(ctx, vmf->address,
-+		must_wait = userfaultfd_huge_must_wait(ctx, vmf->vma,
-+						       vmf->address,
- 						       vmf->flags, reason);
- 	up_read(&mm->mmap_sem);
- 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index b857fc8cc2ec..23010a3b2047 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -113,7 +113,8 @@ extern struct list_head huge_boot_pages;
- 
- pte_t *huge_pte_alloc(struct mm_struct *mm,
- 			unsigned long addr, unsigned long sz);
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz);
- int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
- struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
- 			      int write);
-@@ -157,7 +158,7 @@ static inline void hugetlb_show_meminfo(void)
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
- 				src_addr, pagep)	({ BUG(); 0; })
--#define huge_pte_offset(mm, address)	0
-+#define huge_pte_offset(mm, address, sz)	0
- static inline int dequeue_hwpoisoned_huge_page(struct page *page)
- {
- 	return 0;
+ #endif /* _ASM_GENERIC_HUGETLB_H */
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e5828875f7bb..0e4d1fb3122f 100644
+index 0e4d1fb3122f..2b0f6f96f2c1 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -3233,7 +3233,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 
- 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
- 		spinlock_t *src_ptl, *dst_ptl;
--		src_pte = huge_pte_offset(src, addr);
-+		src_pte = huge_pte_offset(src, addr, sz);
- 		if (!src_pte)
- 			continue;
- 		dst_pte = huge_pte_alloc(dst, addr, sz);
-@@ -3317,7 +3317,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 	address = start;
- 	for (; address < end; address += sz) {
--		ptep = huge_pte_offset(mm, address);
-+		ptep = huge_pte_offset(mm, address, sz);
- 		if (!ptep)
- 			continue;
- 
-@@ -3535,7 +3535,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unmap_ref_private(mm, vma, old_page, address);
- 			BUG_ON(huge_pte_none(pte));
- 			spin_lock(ptl);
--			ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-+			ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-+					       huge_page_size(h));
- 			if (likely(ptep &&
- 				   pte_same(huge_ptep_get(ptep), pte)))
- 				goto retry_avoidcopy;
-@@ -3574,7 +3575,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * before the page tables are altered
- 	 */
- 	spin_lock(ptl);
--	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-+	ptep = huge_pte_offset(mm, address & huge_page_mask(h),
-+			       huge_page_size(h));
- 	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
- 		ClearPagePrivate(new_page);
- 
-@@ -3861,7 +3863,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	address &= huge_page_mask(h);
- 
--	ptep = huge_pte_offset(mm, address);
-+	ptep = huge_pte_offset(mm, address, huge_page_size(h));
- 	if (ptep) {
- 		entry = huge_ptep_get(ptep);
- 		if (unlikely(is_hugetlb_entry_migration(entry))) {
-@@ -4118,7 +4120,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		 *
- 		 * Note that page table lock is not held when pte is null.
- 		 */
--		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
-+		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h),
-+				      huge_page_size(h));
- 		if (pte)
- 			ptl = huge_pte_lock(h, mm, pte);
- 		absent = !pte || huge_pte_none(huge_ptep_get(pte));
-@@ -4252,7 +4255,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	i_mmap_lock_write(vma->vm_file->f_mapping);
- 	for (; address < end; address += huge_page_size(h)) {
- 		spinlock_t *ptl;
--		ptep = huge_pte_offset(mm, address);
-+		ptep = huge_pte_offset(mm, address, huge_page_size(h));
- 		if (!ptep)
- 			continue;
- 		ptl = huge_pte_lock(h, mm, ptep);
-@@ -4516,7 +4519,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 
- 		saddr = page_table_shareable(svma, vma, addr, idx);
- 		if (saddr) {
--			spte = huge_pte_offset(svma->vm_mm, saddr);
-+			spte = huge_pte_offset(svma->vm_mm, saddr,
-+					       vma_mmu_pagesize(svma));
- 			if (spte) {
- 				get_page(virt_to_page(spte));
- 				break;
-@@ -4612,7 +4616,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
- 	return pte;
+@@ -3289,6 +3289,12 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 	return ret;
  }
  
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-+pte_t *huge_pte_offset(struct mm_struct *mm,
-+		       unsigned long addr, unsigned long sz)
- {
- 	pgd_t *pgd;
- 	p4d_t *p4d;
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index de9c40d7304a..8ec6ba230bb9 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -116,7 +116,8 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
- 
- 	if (unlikely(PageHuge(pvmw->page))) {
- 		/* when pud is not present, pte will be NULL */
--		pvmw->pte = huge_pte_offset(mm, pvmw->address);
-+		pvmw->pte = huge_pte_offset(mm, pvmw->address,
-+					    PAGE_SIZE << compound_order(page));
- 		if (!pvmw->pte)
- 			return false;
- 
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 60f7856e508f..1a4197965415 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -180,12 +180,13 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long next;
- 	unsigned long hmask = huge_page_mask(h);
-+	unsigned long sz = huge_page_size(h);
- 	pte_t *pte;
- 	int err = 0;
- 
- 	do {
- 		next = hugetlb_entry_end(h, addr, end);
--		pte = huge_pte_offset(walk->mm, addr & hmask);
-+		pte = huge_pte_offset(walk->mm, addr & hmask, sz);
- 		if (pte && walk->hugetlb_entry)
- 			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
- 		if (err)
++void __weak huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++			   pte_t *ptep, unsigned long sz)
++{
++	pte_clear(mm, addr, ptep);
++}
++
+ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			    unsigned long start, unsigned long end,
+ 			    struct page *ref_page)
+@@ -3338,7 +3344,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 * unmapped and its refcount is dropped, so just clear pte here.
+ 		 */
+ 		if (unlikely(!pte_present(pte))) {
+-			huge_pte_clear(mm, address, ptep);
++			huge_pte_clear(mm, address, ptep, sz);
+ 			spin_unlock(ptl);
+ 			continue;
+ 		}
 -- 
 2.11.0
 
