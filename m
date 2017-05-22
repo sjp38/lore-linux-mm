@@ -1,104 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EA0BB831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 08:09:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 204so24876739wmy.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 05:09:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a66si13402519wrc.296.2017.05.22.05.09.43
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D8D831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:19:14 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id p85so24862647vkd.10
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:19:14 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 65si7929732uaa.201.2017.05.22.06.19.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 May 2017 05:09:43 -0700 (PDT)
-Date: Mon, 22 May 2017 14:09:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] dm ioctl: Restore __GFP_HIGH in copy_params()
-Message-ID: <20170522120937.GI8509@dhcp22.suse.cz>
-References: <20170518185040.108293-1-junaids@google.com>
- <20170518190406.GB2330@dhcp22.suse.cz>
- <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com>
- <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com>
- <20170519074647.GC13041@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522093725.GF8509@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 May 2017 06:19:13 -0700 (PDT)
+Subject: Re: [v4 1/1] mm: Adaptive hash table scaling
+References: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
+ <1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
+ <20170522092910.GD8509@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <f6585e67-1640-daa3-370c-f37562cb5245@oracle.com>
+Date: Mon, 22 May 2017 09:18:58 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20170522092910.GD8509@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Junaid Shahid <junaids@google.com>, David Rientjes <rientjes@google.com>, Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>
 
-On Mon 22-05-17 08:00:11, Mikulas Patocka wrote:
 > 
-> 
-> On Mon, 22 May 2017, Michal Hocko wrote:
-> 
-> > On Fri 19-05-17 19:43:23, Mikulas Patocka wrote:
-> > > 
-> > > 
-> > > On Fri, 19 May 2017, Michal Hocko wrote:
-> > > 
-> > > > On Thu 18-05-17 19:50:46, Junaid Shahid wrote:
-> > > > > (Adding back the correct linux-mm email address and also adding linux-kernel.)
-> > > > > 
-> > > > > On Thursday, May 18, 2017 01:41:33 PM David Rientjes wrote:
-> > > > [...]
-> > > > > > Let's ask Mikulas, who changed this from PF_MEMALLOC to __GFP_HIGH, 
-> > > > > > assuming there was a reason to do it in the first place in two different 
-> > > > > > ways.
-> > > > 
-> > > > Hmm, the old PF_MEMALLOC used to have the following comment
-> > > >         /*
-> > > >          * Trying to avoid low memory issues when a device is
-> > > >          * suspended. 
-> > > >          */
-> > > > 
-> > > > I am not really sure what that means but __GFP_HIGH certainly have a
-> > > > different semantic than PF_MEMALLOC. The later grants the full access to
-> > > > the memory reserves while the prior on partial access. If this is _really_
-> > > > needed then it deserves a comment explaining why.
-> > > > -- 
-> > > > Michal Hocko
-> > > > SUSE Labs
-> > > 
-> > > Sometimes, I/O to a device mapper device is blocked until the userspace 
-> > > daemon dmeventd does some action (for example, when dm-mirror leg fails, 
-> > > dmeventd needs to mark the leg as failed in the lvm metadata and then 
-> > > reload the device).
-> > > 
-> > > The dmeventd daemon mlocks itself in memory so that it doesn't generate 
-> > > any I/O. But it must be able to call ioctls. __GFP_HIGH is there so that 
-> > > the ioctls issued by dmeventd have higher chance of succeeding if some I/O 
-> > > is blocked, waiting for dmeventd action. It reduces the possibility of 
-> > > low-memory-deadlock, though it doesn't eliminate it entirely.
-> > 
-> > So what happens if the memory reserves are depleted. Do we deadlock?
-> 
-> Yes, it will deadlock.
+> I have only noticed this email today because my incoming emails stopped
+> syncing since Friday. But this is _definitely_ not the right approachh.
+> 64G for 32b systems is _way_ off. We have only ~1G for the kernel. I've
+> already proposed scaling up to 32M for 32b systems and Andi seems to be
+> suggesting the same. So can we fold or apply the following instead?
 
-That would be more than unfortunate and begs for a different solution.
-The thing is that __GFP_HIGH is not propagated to all allocations in the
-vmalloc proper. E.g. page table allocations are hardcoded GFP_KERNEL.
+Hi Michal,
 
-> > Why is OOM killer insufficient to allow the further progress?
-> 
-> I don't know if the OOM killer will or won't be triggered in this 
-> situation, it depends on the people who wrote the OOM killer.
+Thank you for your suggestion. I will update the patch.
 
-I am not sure I understand. OOM killer is invoked for _all_ allocations
-<= PAGE_ALLOC_COSTLY_ORDER that do not have __GFP_NORETRY as long as the
-OOM killer is not disabled (oom_killer_disable) and that only happens
-from the PM suspend path which makes sure that no userspace is active at
-the time. AFAIU this is a userspace triggered path and so the later
-shouldn't apply to it and GFP_KERNEL should be therefore sufficient.
-Relying to a portion of memory reserves to prevent from deadlock seems
-fundamentaly broken  to me.
+64G base for 32bit systems is not meant to be ever used, as the adaptive 
+scaling for 32bit system is just not needed. 32M and 64G are going to be 
+exactly the same on such systems.
 
--- 
-Michal Hocko
-SUSE Labs
+Here is theoretical limit for the max hash size of entries (dentry cache 
+example):
+
+size of bucket: sizeof(struct hlist_bl_head) = 4 bytes
+numentries:  (1 << 32) / PAGE_SIZE  = 1048576 (for 4K pages)
+hash size: 4b * 1048576 = 4M
+
+In practice it is going to be an order smaller, as number of kernel 
+pages is less then (1<<32).
+
+However, I will apply your suggestions as there seems to be a problem of 
+overflowing in comparing ul vs. ull as reported by Michael Ellerman, and 
+having a large base on 32bit systems will solve this issue. I will 
+revert back to "ul" all the quantities.
+
+Another approach is to make it a 64 bit only macro like this:
+
+#if __BITS_PER_LONG > 32
+
+#define ADAPT_SCALE_BASE     (64ull << 30)
+#define ADAPT_SCALE_SHIFT    2
+#define ADAPT_SCALE_NPAGES   (ADAPT_SCALE_BASE >> PAGE_SHIFT)
+
+#define adapt_scale(high_limit, numentries, scalep)
+       if (!(high_limit)) {                                    \
+               unsigned long adapt;                            \
+               for (adapt = ADAPT_SCALE_NPAGES; adapt <        \
+                    (numentries); adapt <<= ADAPT_SCALE_SHIFT) \
+                       (*(scalep))++;                          \
+       }
+#else
+#define adapt_scale(high_limit, numentries scalep)
+#endif
+
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
