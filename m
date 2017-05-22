@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A70F96B02C3
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 16:35:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a66so140981202pfl.6
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 13:35:43 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B636B0292
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 16:39:28 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p74so140756872pfd.11
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 13:39:28 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n9sor365590pgf.116.2017.05.22.13.35.43
+        by mx.google.com with SMTPS id t76sor335255pfk.53.2017.05.22.13.39.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 22 May 2017 13:35:43 -0700 (PDT)
-Date: Mon, 22 May 2017 13:35:41 -0700 (PDT)
+        Mon, 22 May 2017 13:39:27 -0700 (PDT)
+Date: Mon, 22 May 2017 13:39:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: dm ioctl: Restore __GFP_HIGH in copy_params()
-In-Reply-To: <20170522180415.GA25340@redhat.com>
-Message-ID: <alpine.DEB.2.10.1705221325200.30407@chino.kir.corp.google.com>
-References: <20170518190406.GB2330@dhcp22.suse.cz> <alpine.DEB.2.10.1705181338090.132717@chino.kir.corp.google.com> <1508444.i5EqlA1upv@js-desktop.svl.corp.google.com> <20170519074647.GC13041@dhcp22.suse.cz> <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522093725.GF8509@dhcp22.suse.cz> <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com> <20170522120937.GI8509@dhcp22.suse.cz> <alpine.LRH.2.02.1705221026430.20076@file01.intranet.prod.int.rdu2.redhat.com> <20170522150321.GM8509@dhcp22.suse.cz>
- <20170522180415.GA25340@redhat.com>
+Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
+ NUMA systems
+In-Reply-To: <20170519210036.146880-2-mka@chromium.org>
+Message-ID: <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
+References: <20170519210036.146880-1-mka@chromium.org> <20170519210036.146880-2-mka@chromium.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>, Junaid Shahid <junaids@google.com>, Alasdair Kergon <agk@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Matthias Kaehlcke <mka@chromium.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 22 May 2017, Mike Snitzer wrote:
+On Fri, 19 May 2017, Matthias Kaehlcke wrote:
 
-> > > The lvm2 was designed this way - it is broken, but there is not much that 
-> > > can be done about it - fixing this would mean major rewrite. The only 
-> > > thing we can do about it is to lower the deadlock probability with 
-> > > __GFP_HIGH (or PF_MEMALLOC that was used some times ago).
+> The function is only used when CONFIG_NUMA=y. Placing it in an #ifdef
+> block fixes the following warning when building with clang:
 > 
-> Yes, lvm2 was originally designed to to have access to memory reserves
-> to ensure forward progress.  But if the mm subsystem has improved to
-> allow for the required progress without lvm2 trying to stake a claim on
-> those reserves then we'll gladly avoid (ab)using them.
+> mm/slub.c:1246:20: error: unused function 'kmalloc_large_node_hook'
+>     [-Werror,-Wunused-function]
 > 
 
-There is no such improvement to the page allocator when allocating at 
-runtime.  A persistent amount of memory in a mempool could be set aside as 
-a preallocation and unavailable from the rest of the system forever as an 
-alternative to dynamically allocating with memory reserves, but that has 
-obvious downsides.  This patch is the exact right thing to do.
+Is clang not inlining kmalloc_large_node_hook() for some reason?  I don't 
+think this should ever warn on gcc.
 
-> > But let me repeat. GFP_KERNEL allocation for order-0 page will not fail.
+> Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
+
+Acked-by: David Rientjes <rientjes@google.com>
+
+> ---
+>  mm/slub.c | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> OK, but will it be serviced immediately?  Not failing isn't useful if it
-> never completes.
-> 
-
-No, and you can use __GFP_HIGH, which this patch does, to have a 
-reasonable expectation of forward progress in the very near term.
-
-> While adding the __GFP_NOFAIL flag would serve to document expectations
-> I'm left unconvinced that the memory allocator will _not fail_ for an
-> order-0 page -- as Mikulas said most ioctls don't need more than 4K.
-
-__GFP_NOFAIL would make no sense in kvmalloc() calls, ever, it would never 
-fallback to vmalloc :)
-
-I'm hoping this can get merged during the 4.12 window to fix the broken 
-commit d224e9381897.
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 57e5156f02be..66e1046435b7 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1313,11 +1313,14 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+>   * Hooks for other subsystems that check memory allocations. In a typical
+>   * production configuration these hooks all should produce no code at all.
+>   */
+> +
+> +#ifdef CONFIG_NUMA
+>  static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
+>  {
+>  	kmemleak_alloc(ptr, size, 1, flags);
+>  	kasan_kmalloc_large(ptr, size, flags);
+>  }
+> +#endif
+>  
+>  static inline void kfree_hook(const void *x)
+>  {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
