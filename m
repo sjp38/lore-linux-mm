@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E95831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 14:19:30 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id p85so26377221vkd.10
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 11:19:30 -0700 (PDT)
-Received: from mail-ua0-x22b.google.com (mail-ua0-x22b.google.com. [2607:f8b0:400c:c08::22b])
-        by mx.google.com with ESMTPS id l30si8216596uaa.68.2017.05.22.11.19.29
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 46B8B831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 15:26:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c6so139273479pfj.5
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 12:26:50 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k76sor281104pfb.30.2017.05.22.12.26.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 11:19:29 -0700 (PDT)
-Received: by mail-ua0-x22b.google.com with SMTP id y4so58116867uay.2
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 11:19:29 -0700 (PDT)
+        (Google Transport Security);
+        Mon, 22 May 2017 12:26:49 -0700 (PDT)
+Date: Mon, 22 May 2017 12:26:38 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm, something wring in page_lock_anon_vma_read()?
+In-Reply-To: <5922B3D4.1030700@huawei.com>
+Message-ID: <alpine.LSU.2.11.1705221213580.4090@eggly.anvils>
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com>
+ <alpine.LSU.2.11.1705191935220.11750@eggly.anvils> <5922B3D4.1030700@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1495474514-24425-1-git-send-email-catalin.marinas@arm.com>
-References: <1495474514-24425-1-git-send-email-catalin.marinas@arm.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 22 May 2017 11:19:08 -0700
-Message-ID: <CALCETrVaFPjQrVAiOad6GhFvK=AQphF0Kx5zDsCcAt4bPfQbnw@mail.gmail.com>
-Subject: Re: [PATCH] mm: kmemleak: Treat vm_struct as alternative reference to
- vmalloc'ed objects
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>
 
-On Mon, May 22, 2017 at 10:35 AM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> Kmemleak requires that vmalloc'ed objects have a minimum reference count
-> of 2: one in the corresponding vm_struct object and the other owned by
-> the vmalloc() caller. There are cases, however, where the original
-> vmalloc() returned pointer is lost and, instead, a pointer to vm_struct
-> is stored (see free_thread_stack()). Kmemleak currently reports such
-> objects as leaks.
->
-> This patch adds support for treating any surplus references to an object
-> as additional references to a specified object. It introduces the
-> kmemleak_vmalloc() API function which takes a vm_struct pointer and sets
-> its surplus reference passing to the actual vmalloc() returned pointer.
-> The __vmalloc_node_range() calling site has been modified accordingly.
->
-> An unrelated minor change is included in this patch to change the type
-> of kmemleak_object.flags to unsigned int (previously unsigned long).
->
-> Reported-by: "Luis R. Rodriguez" <mcgrof@kernel.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Andy Lutomirski <luto@amacapital.net>
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> ---
->
-> Hi,
->
-> As per [1], I added support to use pointers to vm_struct as an
-> alternative way to avoid false positives when the original vmalloc()
-> pointer has been lost. This is slightly harder to reason about but it
-> seems to work for this use-case. I'm not aware of other cases (than
-> free_thread_stack()) where the original vmalloc() pointer is removed in
-> favour of a vm_struct one.
->
-> An alternative implementation (simpler to understand), if preferred, is
-> to annotate alloc_thread_stack_node() and free_thread_stack() with
-> kmemleak_unignore()/kmemleak_ignore() calls and proper comments.
->
+On Mon, 22 May 2017, Xishi Qiu wrote:
+> On 2017/5/20 10:40, Hugh Dickins wrote:
+> > On Sat, 20 May 2017, Xishi Qiu wrote:
+> >>
+> >> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+> >> And I meet the bug too. However it is hard to reproduce, and 
+> >> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+> >>
+> >> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+> >> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+> >> but anon_vma has been corrupted.
+> >>
+> >> Any ideas?
+> > 
+> > Sorry, no.  I assume that _mapcount has been misaccounted, for example
+> > a pte mapped in on top of another pte; but cannot begin tell you where
+> 
+> Hi Hugh,
+> 
+> What does "a pte mapped in on top of another pte" mean? Could you give more info?
 
-I personally prefer the option in this patch.  It keeps the special
-case in kmemleak and the allocation code rather than putting it in the
-consumer code.
+I mean, there are various places in mm/memory.c which decide what they
+intend to do based on orig_pte, then take pte lock, then check that
+pte_same(pte, orig_pte) before taking it any further.  If a pte_same()
+check were missing (I do not know of any such case), then two racing
+tasks might install the same pte, one on top of the other - page
+mapcount being incremented twice, but decremented only once when
+that pte is finally unmapped later.
 
-Also, I want to add an API at some point that vmallocs some memory and
-returns the vm_struct directly.  That won't work with explicit
-annotations in the caller because kmemleak might think it's leaked
-before the caller can execute the annotations.
+Please see similar discussion in the earlier thread at
+marc.info/?l=linux-mm&m=148222656211837&w=2
+
+Hugh
+
+> 
+> Thanks,
+> Xishi Qiu
+> 
+> > in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+> > 
+> > Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
