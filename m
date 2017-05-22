@@ -1,161 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 06EDF6B02B4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 17:57:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j28so142463038pfk.14
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 14:57:57 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id s64si8910598pgb.336.2017.05.22.14.57.56
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5620C6B0292
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 18:30:18 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d142so175637706oib.7
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 15:30:18 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q94si52324ota.270.2017.05.22.15.30.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 14:57:57 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 2/2] dax: Fix race between colliding PMD & PTE entries
-Date: Mon, 22 May 2017 15:57:49 -0600
-Message-Id: <20170522215749.23516-2-ross.zwisler@linux.intel.com>
-In-Reply-To: <20170522215749.23516-1-ross.zwisler@linux.intel.com>
-References: <20170522215749.23516-1-ross.zwisler@linux.intel.com>
+        Mon, 22 May 2017 15:30:17 -0700 (PDT)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v2 00/11] x86 TLB flush cleanups, moving toward PCID support
+Date: Mon, 22 May 2017 15:30:00 -0700
+Message-Id: <cover.1495492063.git.luto@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Pawel Lebioda <pawel.lebioda@intel.com>, Dave Jiang <dave.jiang@intel.com>, Xiong Zhou <xzhou@redhat.com>, Eryu Guan <eguan@redhat.com>, stable@vger.kernel.org
+To: X86 ML <x86@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>
 
-We currently have two related PMD vs PTE races in the DAX code.  These can
-both be easily triggered by having two threads reading and writing
-simultaneously to the same private mapping, with the key being that private
-mapping reads can be handled with PMDs but private mapping writes are
-always handled with PTEs so that we can COW.
+As I've been working on polishing my PCID code, a major problem I've
+encountered is that there are too many x86 TLB flushing code paths and
+that they have too many inconsequential differences.  The result was
+that earlier versions of the PCID code were a colossal mess and very
+difficult to understand.
 
-Here is the first race:
+This series goes a long way toward cleaning up the mess.  With all the
+patches applied, there is a single function that contains the meat of
+the code to flush the TLB on a given CPU, and all the tlb flushing
+APIs call it for both local and remote CPUs.
 
-CPU 0					CPU 1
+This series should only adversely affect the kernel in a couple of
+minor ways:
 
-(private mapping write)
-__handle_mm_fault()
-  create_huge_pmd() - FALLBACK
-  handle_pte_fault()
-    passes check for pmd_devmap()
+ - It makes smp_mb() unconditional when flushing TLBs.  We used to
+   use the TLB flush itself to mostly avoid smp_mb() on the initiating
+   CPU.
 
-					(private mapping read)
-					__handle_mm_fault()
-					  create_huge_pmd()
-					    dax_iomap_pmd_fault() inserts PMD
+ - On UP kernels, we lose the dubious optimization of inlining nerfed
+   variants of all the TLB flush APIs.  This bloats the kernel a tiny
+   bit, although it should increase performance, since the SMP
+   versions were better.
 
-    dax_iomap_pte_fault() does a PTE fault, but we already have a DAX PMD
-    			  installed in our page tables at this spot.
+Patch 10 in here is a little bit off topic.  It's a cleanup that's
+also needed before PCID can go in, but it's not directly about
+TLB flushing.
 
-Here's the second race:
+Changes from RFC:
+ - Fixed missing call to arch_tlbbatch_flush().
+ - "Be more consistent wrt PAGE_SHIFT vs PAGE_SIZE in tlb flush code" is new
+ - Misc typos fixed.
+ - Actually compiles when UV is enabled.
 
-CPU 0					CPU 1
+Andy Lutomirski (11):
+  x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()
+  x86/mm: Reduce indentation in flush_tlb_func()
+  x86/mm: Make the batched unmap TLB flush API more generic
+  x86/mm: Pass flush_tlb_info to flush_tlb_others() etc
+  x86/mm: Change the leave_mm() condition for local TLB flushes
+  x86/mm: Refactor flush_tlb_mm_range() to merge local and remote cases
+  x86/mm: Use new merged flush logic in arch_tlbbatch_flush()
+  x86/mm: Remove the UP tlbflush code; always use the formerly SMP code
+  x86/mm: Rework lazy TLB to track the actual loaded mm
+  x86/mm: Be more consistent wrt PAGE_SHIFT vs PAGE_SIZE in tlb flush
+    code
+  x86,kvm: Teach KVM's VMX code that CR3 isn't a constant
 
-(private mapping read)
-__handle_mm_fault()
-  passes check for pmd_none()
-  create_huge_pmd()
-    dax_iomap_pmd_fault() inserts PMD
+ arch/x86/Kconfig                      |   2 +-
+ arch/x86/events/core.c                |   3 +-
+ arch/x86/include/asm/hardirq.h        |   2 +-
+ arch/x86/include/asm/mmu.h            |   6 -
+ arch/x86/include/asm/mmu_context.h    |  21 +-
+ arch/x86/include/asm/paravirt.h       |   6 +-
+ arch/x86/include/asm/paravirt_types.h |   5 +-
+ arch/x86/include/asm/tlbbatch.h       |  14 ++
+ arch/x86/include/asm/tlbflush.h       | 116 +++------
+ arch/x86/include/asm/uv/uv.h          |   9 +-
+ arch/x86/kernel/ldt.c                 |   7 +-
+ arch/x86/kvm/vmx.c                    |  21 +-
+ arch/x86/mm/init.c                    |   4 +-
+ arch/x86/mm/tlb.c                     | 429 +++++++++++++++-------------------
+ arch/x86/platform/uv/tlb_uv.c         |  10 +-
+ arch/x86/xen/mmu.c                    |  61 +++--
+ include/linux/mm_types_task.h         |  15 +-
+ mm/rmap.c                             |  16 +-
+ 18 files changed, 336 insertions(+), 411 deletions(-)
+ create mode 100644 arch/x86/include/asm/tlbbatch.h
 
-(private mapping write)
-__handle_mm_fault()
-  create_huge_pmd() - FALLBACK
-					(private mapping read)
-					__handle_mm_fault()
-					  passes check for pmd_none()
-					  create_huge_pmd()
-
-  handle_pte_fault()
-    dax_iomap_pte_fault() inserts PTE
-					    dax_iomap_pmd_fault() inserts PMD,
-					       but we already have a PTE at
-					       this spot.
-
-The core of the issue is that while there is isolation between faults to
-the same range in the DAX fault handlers via our DAX entry locking, there
-is no isolation between faults in the code in mm/memory.c.  This means for
-instance that this code in __handle_mm_fault() can run:
-
-	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
-		ret = create_huge_pmd(&vmf);
-
-But by the time we actually get to run the fault handler called by
-create_huge_pmd(), the PMD is no longer pmd_none() because a racing PTE
-fault has installed a normal PMD here as a parent.  This is the cause of
-the 2nd race.  The first race is similar - there is the following check in
-handle_pte_fault():
-
-	} else {
-		/* See comment in pte_alloc_one_map() */
-		if (pmd_devmap(*vmf->pmd) || pmd_trans_unstable(vmf->pmd))
-			return 0;
-
-So if a pmd_devmap() PMD (a DAX PMD) has been installed at vmf->pmd, we
-will bail and retry the fault.  This is correct, but there is nothing
-preventing the PMD from being installed after this check but before we
-actually get to the DAX PTE fault handlers.
-
-In my testing these races result in the following types of errors:
-
- BUG: Bad rss-counter state mm:ffff8800a817d280 idx:1 val:1
- BUG: non-zero nr_ptes on freeing mm: 15
-
-Fix this issue by having the DAX fault handlers verify that it is safe to
-continue their fault after they have taken an entry lock to block other
-racing faults.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reported-by: Pawel Lebioda <pawel.lebioda@intel.com>
-Cc: stable@vger.kernel.org
----
-
-Changes from v1:
- - Handle the failure case in dax_iomap_pte_fault() by retrying the fault
-   (Jan).
-
-This series has survived my new xfstest (generic/437) and full xfstest
-regression testing runs.
----
- fs/dax.c | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
-
-diff --git a/fs/dax.c b/fs/dax.c
-index c22eaf1..fc62f36 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1155,6 +1155,17 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
- 	}
- 
- 	/*
-+	 * It is possible, particularly with mixed reads & writes to private
-+	 * mappings, that we have raced with a PMD fault that overlaps with
-+	 * the PTE we need to set up.  If so just return and the fault will be
-+	 * retried.
-+	 */
-+	if (pmd_devmap(*vmf->pmd)) {
-+		vmf_ret = VM_FAULT_NOPAGE;
-+		goto unlock_entry;
-+	}
-+
-+	/*
- 	 * Note that we don't bother to use iomap_apply here: DAX required
- 	 * the file system block size to be equal the page size, which means
- 	 * that we never have to deal with more than a single extent here.
-@@ -1398,6 +1409,15 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
- 		goto fallback;
- 
- 	/*
-+	 * It is possible, particularly with mixed reads & writes to private
-+	 * mappings, that we have raced with a PTE fault that overlaps with
-+	 * the PMD we need to set up.  If so we just fall back to a PTE fault
-+	 * ourselves.
-+	 */
-+	if (!pmd_none(*vmf->pmd))
-+		goto unlock_entry;
-+
-+	/*
- 	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
- 	 * setting up a mapping, so really we're using iomap_begin() as a way
- 	 * to look up our filesystem block.
 -- 
-2.9.4
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
