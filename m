@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B5A831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:44:59 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id g15so9095509wmc.8
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:44:59 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id 88si12001542wre.266.2017.05.22.06.44.58
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB98A831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:55:51 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id j27so11856270wre.3
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:55:51 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v10si186616wmb.91.2017.05.22.06.55.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 06:44:58 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id b84so299283638wmh.0
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:44:58 -0700 (PDT)
-Date: Mon, 22 May 2017 16:44:56 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 22 May 2017 06:55:50 -0700 (PDT)
+Date: Mon, 22 May 2017 15:55:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170522134456.ig2tgf2spbuq55ig@node.shutemov.name>
+Message-ID: <20170522135548.GA8514@dhcp22.suse.cz>
 References: <1495433562-26625-1-git-send-email-rppt@linux.vnet.ibm.com>
  <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
  <20170522133559.GE27382@rapoport-lnx>
@@ -25,9 +23,9 @@ In-Reply-To: <20170522133559.GE27382@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Mon, May 22, 2017 at 04:36:00PM +0300, Mike Rapoport wrote:
+On Mon 22-05-17 16:36:00, Mike Rapoport wrote:
 > On Mon, May 22, 2017 at 02:42:43PM +0300, Kirill A. Shutemov wrote:
 > > On Mon, May 22, 2017 at 09:12:42AM +0300, Mike Rapoport wrote:
 > > > Currently applications can explicitly enable or disable THP for a memory
@@ -47,19 +45,17 @@ On Mon, May 22, 2017 at 04:36:00PM +0300, Mike Rapoport wrote:
 > userfaultfd and we expect to get page faults for the parts of the region
 > that were not yet populated. However, khugepaged collapses the pages and
 > the page faults we would expect do not occur.
-> 
-> We could have used MADV_NOHUGEPAGE before populating the region with the
-> pre-copy data, but then, in the end, the restored application will be resumed
-> with vma->vm_flags different from the ones it had when it was frozen.
-> 
-> Another possibility I've considered was to register the region with
-> userfaultfd before populating it with data, but in that case we get the
-> overhead of UFFD_EVENT_PAGEFAULT + UFFDIO_{COPY,ZEROPAGE} for nothing :(
 
-Okay. Makes sense. Feel free to use my Acked-by (with change to RESET).
-
+I am not sure I undestand the problem. Do I get it right that the
+khugepaged will effectivelly corrupt the memory by collapsing a range
+which is not yet fully populated? If yes shouldn't that be fixed in
+khugepaged rather than adding yet another madvise command? Also how do
+you prevent on races? (say you VM_NOHUGEPAGE, khugepaged would be in the
+middle of the operation and sees a collapsable vma and you get the same
+result)
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
