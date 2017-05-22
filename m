@@ -1,79 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 22162831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:35:12 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y106so12009589wrb.14
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:35:12 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id 90si14287247wrg.43.2017.05.22.07.35.10
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 015CD831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:37:53 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 6so853736wrb.15
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:37:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c142si20303549wmh.136.2017.05.22.07.37.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 07:35:10 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id d127so33613953wmf.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:35:10 -0700 (PDT)
-Date: Mon, 22 May 2017 17:29:17 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/mm: pgds getting out of sync after memory hot remove
-Message-ID: <20170522142917.pxvev563djdmm2ia@node.shutemov.name>
-References: <1495216887-3175-1-git-send-email-jglisse@redhat.com>
- <20170522131215.wrnklp4dtemntixz@node.shutemov.name>
- <20170522141150.GA3813@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 22 May 2017 07:37:51 -0700 (PDT)
+Date: Mon, 22 May 2017 16:37:48 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] dax: Fix race between colliding PMD & PTE entries
+Message-ID: <20170522143748.GC25118@quack2.suse.cz>
+References: <20170517171639.14501-1-ross.zwisler@linux.intel.com>
+ <20170517171639.14501-2-ross.zwisler@linux.intel.com>
+ <20170518075037.GA9084@quack2.suse.cz>
+ <20170518212939.GA28029@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170522141150.GA3813@redhat.com>
+In-Reply-To: <20170518212939.GA28029@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Pawel Lebioda <pawel.lebioda@intel.com>, Dave Jiang <dave.jiang@intel.com>, Xiong Zhou <xzhou@redhat.com>, Eryu Guan <eguan@redhat.com>, stable@vger.kernel.org
 
-On Mon, May 22, 2017 at 10:11:51AM -0400, Jerome Glisse wrote:
-> On Mon, May 22, 2017 at 04:12:15PM +0300, Kirill A. Shutemov wrote:
-> > On Fri, May 19, 2017 at 02:01:26PM -0400, Jerome Glisse wrote:
-> > > After memory hot remove it seems we do not synchronize pgds for kernel
-> > > virtual memory range (on vmemmap_free()). This seems bogus to me as it
-> > > means we are left with stall entry for process with mm != mm_init
+On Thu 18-05-17 15:29:39, Ross Zwisler wrote:
+> On Thu, May 18, 2017 at 09:50:37AM +0200, Jan Kara wrote:
+> > On Wed 17-05-17 11:16:39, Ross Zwisler wrote:
+> > > We currently have two related PMD vs PTE races in the DAX code.  These can
+> > > both be easily triggered by having two threads reading and writing
+> > > simultaneously to the same private mapping, with the key being that private
+> > > mapping reads can be handled with PMDs but private mapping writes are
+> > > always handled with PTEs so that we can COW.
 > > > 
-> > > Yet i am puzzle by the fact that i am only now hitting this issue. It
-> > > never was an issue with 4.12 or before ie HMM never triggered following
-> > > BUG_ON inside sync_global_pgds():
+> > > Here is the first race:
 > > > 
-> > > if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
-> > >    BUG_ON(p4d_page_vaddr(*p4d) != p4d_page_vaddr(*p4d_ref));
+> > > CPU 0					CPU 1
 > > > 
+> > > (private mapping write)
+> > > __handle_mm_fault()
+> > >   create_huge_pmd() - FALLBACK
+> > >   handle_pte_fault()
+> > >     passes check for pmd_devmap()
 > > > 
-> > > It seems that Kirill 5 level page table changes play a role in this
-> > > behavior change. I could not bisect because HMM is painfull to rebase
-> > > for each bisection step so that is just my best guess.
+> > > 					(private mapping read)
+> > > 					__handle_mm_fault()
+> > > 					  create_huge_pmd()
+> > > 					    dax_iomap_pmd_fault() inserts PMD
 > > > 
+> > >     dax_iomap_pte_fault() does a PTE fault, but we already have a DAX PMD
+> > >     			  installed in our page tables at this spot.
+> > >
 > > > 
-> > > Am i missing something here ? Am i wrong in assuming that should sync
-> > > pgd on vmemmap_free() ? If so anyone have a good guess on why i am now
-> > > seeing the above BUG_ON ?
+> > > Here's the second race:
+> > > 
+> > > CPU 0					CPU 1
+> > > 
+> > > (private mapping write)
+> > > __handle_mm_fault()
+> > >   create_huge_pmd() - FALLBACK
+> > > 					(private mapping read)
+> > > 					__handle_mm_fault()
+> > > 					  passes check for pmd_none()
+> > > 					  create_huge_pmd()
+> > > 
+> > >   handle_pte_fault()
+> > >     dax_iomap_pte_fault() inserts PTE
+> > > 					    dax_iomap_pmd_fault() inserts PMD,
+> > > 					       but we already have a PTE at
+> > > 					       this spot.
 > > 
-> > What would we gain by syncing pgd on free? Stale pgds are fine as long as
-> > they are not referenced (use-after-free case). Syncing is addtional work.
+> > So I don't see how this second scenario can happen. dax_iomap_pmd_fault()
+> > will call grab_mapping_entry(). That will either find PTE entry in the
+> > radix tree -> EEXIST and we retry the fault. Or we will not find PTE entry
+> > -> try to insert PMD entry which collides with the PTE entry -> EEXIST and
+> > we retry the fault. Am I missing something?
 > 
-> Well then how do i avoid the BUG_ON above ? Because the init_mm pgd is
-> clear but none of the stall entry in any other mm. So if i unplug memory
-> and replug memory at exact same address it tries to allocate new p4d/pud
-> for struct page area and then when sync_global_pgds() is call it goes
-> over the list of pgd and BUG_ON() :
-> 
-> if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
->     BUG_ON(p4d_page_vaddr(*p4d) != p4d_page_vaddr(*p4d_ref));
+> Yep, sorry, I guess I needed a few extra steps in my flow (the initial private
+> mapping read by CPU 0):
 > 
 > 
-> So to me either above check need to go and we should overwritte pgd no
-> matter what or we should restore previous behavior. I don't mind either
-> one.
+> CPU 0					CPU 1
+> 
+> (private mapping read)
+> __handle_mm_fault()
+>   passes check for pmd_none()
+>   create_huge_pmd()
+>     dax_iomap_pmd_fault() inserts PMD
+> 
+> (private mapping write)
+> __handle_mm_fault()
+>   create_huge_pmd() - FALLBACK
+> 					(private mapping read)
+> 					__handle_mm_fault()
+> 					  passes check for pmd_none()
+> 					  create_huge_pmd()
+> 
+>   handle_pte_fault()
+>     dax_iomap_pte_fault() inserts PTE
+> 					    dax_iomap_pmd_fault() inserts PMD,
+> 					       but we already have a PTE at
+> 					       this spot.
+> 
+> So what happens is that CPU 0 inserts a DAX PMD into the radix tree that has
+> real storage backing, and all PTE and PMD faults just use that same PMD radix
+> tree entry for locking and dirty tracking.
 
-I would prefer to drop the BUG_ON.
+OK, I see now. So essentially it's the same catch as the other case -
+grab_mapping_entry() returns PMD entry on CPU0 although we asked for PTE
+entry.
 
-Ingo?
+> > The first scenario seems to be possible. dax_iomap_pmd_fault() will create
+> > PMD entry in the radix tree. Then dax_iomap_pte_fault() will come, do
+> > grab_mapping_entry(), there it sees entry is PMD but we are doing PTE fault
+> > so I'd think that pmd_downgrade = true... But actually the condition there
+> > doesn't trigger in this case. And that's a catch that although we asked
+> > grab_mapping_entry() for PTE, we've got PMD back and that screws us later.
+> 
+> Yep, it was a concious decision when implementing the PMD support to allow one
+> thread to use PMDs and another to use PTEs in the same range, as long as the
+> thread faulting in PMDs is the first to insert into the radix tree.  A PMD
+> radix tree entry will be inserted and used for locking and dirty tracking, and
+> each thread or process can fault in either PTEs or PMDs into its own address
+> space as needed.
 
+Well, for *threads* it doesn't really make good sense to mix PMDs and PTEs
+as they share page tables. However for *processes* it makes some sense to
+allow one process to use PTEs and another process to use PMDs. And I
+remember we were discussing this in the past.
+
+> We can revisit this, if you think it is incorrect.  The option you outline
+> below would basically mean that if any thread were to fault in a PTE in a
+> range, all threads and processes would be forced to use PTEs because we would
+> use PTEs in the radix tree.
+
+Well, I don't think it is necessarily incorrect. I just think it is more
+difficult to get it right (as current bugs show) so I'm just considering
+whether the complexity is worth it.
+
+> This is cleaner...I'm not sure if the use case of having two threads accessing
+> the same area, one with PTEs and one with PMDs, is actually prevalent.  It's
+> also maybe a bit weird that the current behavior varies based on which thread
+> faulted first - if the PTE thread faults first, it'll insert a PTE into the
+> radix tree and everyone will just use PTEs.
+
+So for two *threads*, I don't think that is a sensible use-case. We just
+have to get it right. For two *processes* it makes sense - your DB might
+want to use PMDs while your backup program may just use PTEs. So thinking
+more about it I guess it is worth the effort to make the mixed case work
+efficiently.
+
+> > Actually I'm not convinced your patch quite fixes this because
+> > dax_load_hole() or dax_insert_mapping_entry() will modify the passed entry
+> > with the assumption that it's PTE entry and so they will likely corrupt the
+> > entry in the radix tree.
+> 
+> I don't think we can ever call dax_load_hole() if we have a DAX PMD entry in
+> the radix tree, because we have a block mapping from the filesystem.
+> 
+> For dax_insert_mapping_entry(), we do the right thing.  From the comments
+> above the function:
+> 
+>  * If we happen to be trying to insert a PTE and there is a PMD
+>  * already in the tree, we will skip the insertion and just dirty the PMD as
+>  * appropriate.  If we happen to be trying to insert a PTE and there is a PMD
+>  * already in the tree, we will skip the insertion and just dirty the PMD as
+>  * appropriate.
+
+Yeah, on the first reading I missed that we won't modify the radix tree in
+that particular case. Frankly, I think we should somewhat clean up that
+code to make things more obvious but let's leave that for a bit later. For
+now the code looks correct.
+
+> > So I think to fix the first case we should rather modify
+> > grab_mapping_entry() to properly go through the pmd_downgrade path once we
+> > find PMD entry and we do PTE fault.
+> > 
+> > What do you think?
+> 
+> That could also work, though I do think the fix as submitted is correct.
+> I think it comes down to whether we want to keep the behavior where a thread
+> faulting in a PTEs will use an existing PMD entry in the radix tree, instead
+> of making all other threads fall back to PTEs.
+> 
+> I think either way solves this issue for the DAX case...but do you understand
+> how this is solved for other fault handlers?  They don't have any isolation
+> between faults either in the mm/memory.c code, and are susceptible to the same
+> races.  How do they deal with the fact that by the time they get to their PTE
+> fault handler, a racing PMD fault handler in another thread could have
+> inserted a PMD into their page tables, and vice versa?
+
+So normal fault path uses alloc_set_pte() for installing new PTE. And that
+uses pte_alloc_one_map() which checks whether PMD is still suitable for
+inserting a PTE. If not, we return VM_FAULT_NOPAGE. Probably it would be
+cleanest to factor our common parts of PTE and PMD insertion so that we can
+use these functions both from DAX and generic fault paths.
+
+Anyway, I'll have a look at your fixes with fresh eyes as they could be the
+right way to go as a quick fix. Refactoring and cleanups can come later.
+
+								Honza
 -- 
- Kirill A. Shutemov
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
