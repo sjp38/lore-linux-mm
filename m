@@ -1,99 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 575D5831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:26:09 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c6so134110608pfj.5
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:26:09 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C31E831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:31:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n75so133563451pfh.0
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:31:19 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g4si17447538pgc.179.2017.05.22.09.26.08
+        by mx.google.com with ESMTP id m11si18160089pln.8.2017.05.22.09.31.17
         for <linux-mm@kvack.org>;
-        Mon, 22 May 2017 09:26:08 -0700 (PDT)
+        Mon, 22 May 2017 09:31:17 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v3.1 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
-Date: Mon, 22 May 2017 17:25:55 +0100
-Message-Id: <20170522162555.4313-1-punit.agrawal@arm.com>
-In-Reply-To: <20170522133604.11392-5-punit.agrawal@arm.com>
-References: <20170522133604.11392-5-punit.agrawal@arm.com>
+Subject: [PATCH v3.1 5/6] mm/hugetlb: Introduce set_huge_swap_pte_at() helper
+Date: Mon, 22 May 2017 17:30:31 +0100
+Message-Id: <20170522163031.4480-1-punit.agrawal@arm.com>
+In-Reply-To: <20170522133604.11392-6-punit.agrawal@arm.com>
+References: <20170522133604.11392-6-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
 
-When unmapping a hugepage range, huge_pte_clear() is used to clear the
-page table entries that are marked as not present. huge_pte_clear()
-internally just ends up calling pte_clear() which does not correctly
-deal with hugepages consisting of contiguous page table entries.
+set_huge_pte_at(), an architecture callback to populate hugepage ptes,
+does not provide the range of virtual memory that is targeted. This
+leads to ambiguity when dealing with swap entries on architectures that
+support hugepages consisting of contiguous ptes.
 
-Add a size argument to address this issue and allow architectures to
-override huge_pte_clear() by wrapping it in a #ifndef block.
+Fix the problem by introducing an overridable helper for architectures
+needing this support. The helper is called when populating the page
+tables with swap entries. The size of the targeted region is provided to
+the helper to help determine the number of entries to be updated.
 
-Update s390 implementation with the size parameter as well.
-
-Note that the change only affects huge_pte_clear() - the other generic
-hugetlb functions don't need any change.
+Provide a default implementation that maintains the current behaviour.
 
 Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Steve Capper <steve.capper@arm.com>
 Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 ---
 
-Changes since v3
+Changes since v3:
 
-* Drop weak function and use #ifndef block to allow architecture override
-* Drop unnecessary move of s390 function definition
+* Use #ifndef block instead of weak function
 
- arch/s390/include/asm/hugetlb.h | 2 +-
- include/asm-generic/hugetlb.h   | 4 +++-
- mm/hugetlb.c                    | 2 +-
- 3 files changed, 5 insertions(+), 3 deletions(-)
+ include/linux/hugetlb.h | 8 ++++++++
+ mm/hugetlb.c            | 8 +++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)
 
-diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-index cd546a245c68..c0443500baec 100644
---- a/arch/s390/include/asm/hugetlb.h
-+++ b/arch/s390/include/asm/hugetlb.h
-@@ -39,7 +39,7 @@ static inline int prepare_hugepage_range(struct file *file,
- #define arch_clear_hugepage_flags(page)		do { } while (0)
- 
- static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
--				  pte_t *ptep)
-+				  pte_t *ptep, unsigned long sz)
- {
- 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
- 		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
-diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
-index 99b490b4d05a..540354f94f83 100644
---- a/include/asm-generic/hugetlb.h
-+++ b/include/asm-generic/hugetlb.h
-@@ -31,10 +31,12 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
- 	return pte_modify(pte, newprot);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 23010a3b2047..879eb063fb95 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -435,6 +435,14 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
  }
+ #endif
  
-+#ifndef huge_pte_clear
- static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
--				  pte_t *ptep)
-+		    pte_t *ptep, unsigned long sz)
- {
- 	pte_clear(mm, addr, ptep);
- }
++#ifndef set_huge_swap_pte_at
++static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
++					pte_t *ptep, pte_t pte, unsigned long sz)
++{
++	set_huge_pte_at(mm, addr, ptep, pte);
++}
 +#endif
- 
- #endif /* _ASM_GENERIC_HUGETLB_H */
++
+ static inline struct hstate *page_hstate(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(!PageHuge(page), page);
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 0e4d1fb3122f..ddfed20cd637 100644
+index ddfed20cd637..e3052c16d29a 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -3338,7 +3338,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 * unmapped and its refcount is dropped, so just clear pte here.
- 		 */
- 		if (unlikely(!pte_present(pte))) {
--			huge_pte_clear(mm, address, ptep);
-+			huge_pte_clear(mm, address, ptep, sz);
+@@ -3263,9 +3263,10 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 				 */
+ 				make_migration_entry_read(&swp_entry);
+ 				entry = swp_entry_to_pte(swp_entry);
+-				set_huge_pte_at(src, addr, src_pte, entry);
++				set_huge_swap_pte_at(src, addr, src_pte,
++						     entry, sz);
+ 			}
+-			set_huge_pte_at(dst, addr, dst_pte, entry);
++			set_huge_swap_pte_at(dst, addr, dst_pte, entry, sz);
+ 		} else {
+ 			if (cow) {
+ 				huge_ptep_set_wrprotect(src, addr, src_pte);
+@@ -4277,7 +4278,8 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 
+ 				make_migration_entry_read(&entry);
+ 				newpte = swp_entry_to_pte(entry);
+-				set_huge_pte_at(mm, address, ptep, newpte);
++				set_huge_swap_pte_at(mm, address, ptep,
++						     newpte, huge_page_size(h));
+ 				pages++;
+ 			}
  			spin_unlock(ptl);
- 			continue;
- 		}
 -- 
 2.11.0
 
