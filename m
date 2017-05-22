@@ -1,104 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4CC831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:29:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h76so88106604pfh.15
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:29:38 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f14si17364410plm.267.2017.05.22.07.29.36
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 22162831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:35:12 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id y106so12009589wrb.14
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:35:12 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id 90si14287247wrg.43.2017.05.22.07.35.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 07:29:36 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4MEPi6W014654
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:29:36 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2aky1as7w5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 10:29:35 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 22 May 2017 15:29:33 +0100
-Date: Mon, 22 May 2017 17:29:28 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-References: <1495433562-26625-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
- <20170522133559.GE27382@rapoport-lnx>
- <20170522135548.GA8514@dhcp22.suse.cz>
+        Mon, 22 May 2017 07:35:10 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id d127so33613953wmf.1
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 07:35:10 -0700 (PDT)
+Date: Mon, 22 May 2017 17:29:17 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: pgds getting out of sync after memory hot remove
+Message-ID: <20170522142917.pxvev563djdmm2ia@node.shutemov.name>
+References: <1495216887-3175-1-git-send-email-jglisse@redhat.com>
+ <20170522131215.wrnklp4dtemntixz@node.shutemov.name>
+ <20170522141150.GA3813@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170522135548.GA8514@dhcp22.suse.cz>
-Message-Id: <20170522142927.GG27382@rapoport-lnx>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170522141150.GA3813@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, May 22, 2017 at 03:55:48PM +0200, Michal Hocko wrote:
-> On Mon 22-05-17 16:36:00, Mike Rapoport wrote:
-> > On Mon, May 22, 2017 at 02:42:43PM +0300, Kirill A. Shutemov wrote:
-> > > On Mon, May 22, 2017 at 09:12:42AM +0300, Mike Rapoport wrote:
-> > > > Currently applications can explicitly enable or disable THP for a memory
-> > > > region using MADV_HUGEPAGE or MADV_NOHUGEPAGE. However, once either of
-> > > > these advises is used, the region will always have
-> > > > VM_HUGEPAGE/VM_NOHUGEPAGE flag set in vma->vm_flags.
-> > > > The MADV_CLR_HUGEPAGE resets both these flags and allows managing THP in
-> > > > the region according to system-wide settings.
+On Mon, May 22, 2017 at 10:11:51AM -0400, Jerome Glisse wrote:
+> On Mon, May 22, 2017 at 04:12:15PM +0300, Kirill A. Shutemov wrote:
+> > On Fri, May 19, 2017 at 02:01:26PM -0400, Jerome Glisse wrote:
+> > > After memory hot remove it seems we do not synchronize pgds for kernel
+> > > virtual memory range (on vmemmap_free()). This seems bogus to me as it
+> > > means we are left with stall entry for process with mm != mm_init
 > > > 
-> > > Seems reasonable. But could you describe an use-case when it's useful in
-> > > real world.
+> > > Yet i am puzzle by the fact that i am only now hitting this issue. It
+> > > never was an issue with 4.12 or before ie HMM never triggered following
+> > > BUG_ON inside sync_global_pgds():
+> > > 
+> > > if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
+> > >    BUG_ON(p4d_page_vaddr(*p4d) != p4d_page_vaddr(*p4d_ref));
+> > > 
+> > > 
+> > > It seems that Kirill 5 level page table changes play a role in this
+> > > behavior change. I could not bisect because HMM is painfull to rebase
+> > > for each bisection step so that is just my best guess.
+> > > 
+> > > 
+> > > Am i missing something here ? Am i wrong in assuming that should sync
+> > > pgd on vmemmap_free() ? If so anyone have a good guess on why i am now
+> > > seeing the above BUG_ON ?
 > > 
-> > My use-case was combination of pre- and post-copy migration of containers
-> > with CRIU.
-> > In this case we populate a part of a memory region with data that was saved
-> > during the pre-copy stage. Afterwards, the region is registered with
-> > userfaultfd and we expect to get page faults for the parts of the region
-> > that were not yet populated. However, khugepaged collapses the pages and
-> > the page faults we would expect do not occur.
+> > What would we gain by syncing pgd on free? Stale pgds are fine as long as
+> > they are not referenced (use-after-free case). Syncing is addtional work.
 > 
-> I am not sure I undestand the problem. Do I get it right that the
-> khugepaged will effectivelly corrupt the memory by collapsing a range
-> which is not yet fully populated? If yes shouldn't that be fixed in
-> khugepaged rather than adding yet another madvise command? Also how do
-> you prevent on races? (say you VM_NOHUGEPAGE, khugepaged would be in the
-> middle of the operation and sees a collapsable vma and you get the same
-> result)
+> Well then how do i avoid the BUG_ON above ? Because the init_mm pgd is
+> clear but none of the stall entry in any other mm. So if i unplug memory
+> and replug memory at exact same address it tries to allocate new p4d/pud
+> for struct page area and then when sync_global_pgds() is call it goes
+> over the list of pgd and BUG_ON() :
+> 
+> if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
+>     BUG_ON(p4d_page_vaddr(*p4d) != p4d_page_vaddr(*p4d_ref));
+> 
+> 
+> So to me either above check need to go and we should overwritte pgd no
+> matter what or we should restore previous behavior. I don't mind either
+> one.
 
-Probably I didn't explained it too well.
+I would prefer to drop the BUG_ON.
 
-The range is intentionally not populated. When we combine pre- and
-post-copy for process migration, we create memory pre-dump without stopping
-the process, then we freeze the process without dumping the pages it has
-dirtied between pre-dump and freeze, and then, during restore, we populate
-the dirtied pages using userfaultfd.
+Ingo?
 
-When CRIU restores a process in such scenario, it does something like:
-
-* mmap() memory region
-* fill in the pages that were collected during the pre-dump
-* do some other stuff
-* register memory region with userfaultfd
-* populate the missing memory on demand
-
-khugepaged collapses the pages in the partially populated regions before we
-have a chance to register these regions with userfaultfd, which would
-prevent the collapse.
-
-We could have used MADV_NOHUGEPAGE right after the mmap() call, and then
-there would be no race because there would be nothing for khugepaged to
-collapse at that point. But the problem is that we have no way to reset
-*HUGEPAGE flags after the memory restore is complete.
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-
---
-Sincerely yours,
-Mike.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
