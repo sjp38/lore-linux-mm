@@ -1,61 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AB98A831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:55:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id j27so11856270wre.3
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:55:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10si186616wmb.91.2017.05.22.06.55.50
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2BA831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:58:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c10so129453254pfg.10
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:58:50 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0125.outbound.protection.outlook.com. [104.47.0.125])
+        by mx.google.com with ESMTPS id w7si17618633pls.159.2017.05.22.06.58.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 May 2017 06:55:50 -0700 (PDT)
-Date: Mon, 22 May 2017 15:55:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170522135548.GA8514@dhcp22.suse.cz>
-References: <1495433562-26625-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
- <20170522133559.GE27382@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 22 May 2017 06:58:49 -0700 (PDT)
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <ebcc02d9-fa2b-30b1-2260-99cdf7434487@virtuozzo.com>
+ <20170519015348.GA1763@js1304-desktop>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <0c14ea7f-1ae9-5923-8c4c-4f1b2f7dad62@virtuozzo.com>
+Date: Mon, 22 May 2017 17:00:29 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170522133559.GE27382@rapoport-lnx>
+In-Reply-To: <20170519015348.GA1763@js1304-desktop>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On Mon 22-05-17 16:36:00, Mike Rapoport wrote:
-> On Mon, May 22, 2017 at 02:42:43PM +0300, Kirill A. Shutemov wrote:
-> > On Mon, May 22, 2017 at 09:12:42AM +0300, Mike Rapoport wrote:
-> > > Currently applications can explicitly enable or disable THP for a memory
-> > > region using MADV_HUGEPAGE or MADV_NOHUGEPAGE. However, once either of
-> > > these advises is used, the region will always have
-> > > VM_HUGEPAGE/VM_NOHUGEPAGE flag set in vma->vm_flags.
-> > > The MADV_CLR_HUGEPAGE resets both these flags and allows managing THP in
-> > > the region according to system-wide settings.
-> > 
-> > Seems reasonable. But could you describe an use-case when it's useful in
-> > real world.
+
+
+On 05/19/2017 04:53 AM, Joonsoo Kim wrote:
+> On Wed, May 17, 2017 at 03:17:13PM +0300, Andrey Ryabinin wrote:
+>> On 05/16/2017 04:16 AM, js1304@gmail.com wrote:
+>>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>>
+>>> Hello, all.
+>>>
+>>> This is an attempt to recude memory consumption of KASAN. Please see
+>>> following description to get the more information.
+>>>
+>>> 1. What is per-page shadow memory
+>>>
+>>> This patch introduces infrastructure to support per-page shadow memory.
+>>> Per-page shadow memory is the same with original shadow memory except
+>>> the granualarity. It's one byte shows the shadow value for the page.
+>>> The purpose of introducing this new shadow memory is to save memory
+>>> consumption.
+>>>
+>>> 2. Problem of current approach
+>>>
+>>> Until now, KASAN needs shadow memory for all the range of the memory
+>>> so the amount of statically allocated memory is so large. It causes
+>>> the problem that KASAN cannot run on the system with hard memory
+>>> constraint. Even if KASAN can run, large memory consumption due to
+>>> KASAN changes behaviour of the workload so we cannot validate
+>>> the moment that we want to check.
+>>>
+>>> 3. How does this patch fix the problem
+>>>
+>>> This patch tries to fix the problem by reducing memory consumption for
+>>> the shadow memory. There are two observations.
+>>>
+>>
+>>
+>> I think that the best way to deal with your problem is to increase shadow scale size.
+>>
+>> You'll need to add tunable to gcc to control shadow size. I expect that gcc has some
+>> places where 8-shadow scale size is hardcoded, but it should be fixable.
+>>
+>> The kernel also have some small amount of code written with KASAN_SHADOW_SCALE_SIZE == 8 in mind,
+>> which should be easy to fix.
+>>
+>> Note that bigger shadow scale size requires bigger alignment of allocated memory and variables.
+>> However, according to comments in gcc/asan.c gcc already aligns stack and global variables and at
+>> 32-bytes boundary.
+>> So we could bump shadow scale up to 32 without increasing current stack consumption.
+>>
+>> On a small machine (1Gb) 1/32 of shadow is just 32Mb which is comparable to yours 30Mb, but I expect it to be
+>> much faster. More importantly, this will require only small amount of simple changes in code, which will be
+>> a *lot* more easier to maintain.
 > 
-> My use-case was combination of pre- and post-copy migration of containers
-> with CRIU.
-> In this case we populate a part of a memory region with data that was saved
-> during the pre-copy stage. Afterwards, the region is registered with
-> userfaultfd and we expect to get page faults for the parts of the region
-> that were not yet populated. However, khugepaged collapses the pages and
-> the page faults we would expect do not occur.
+> I agree that it is also a good option to reduce memory consumption.
+> Nevertheless, there are two reasons that justifies this patchset.
+> 
+> 1) With this patchset, memory consumption isn't increased in
+> proportional to total memory size. Please consider my 4Gb system
+> example on the below. With increasing shadow scale size to 32, memory
+> would be consumed by 128M. However, this patchset consumed 50MB. This
+> difference can be larger if we run KASAN with bigger machine.
+> 
 
-I am not sure I undestand the problem. Do I get it right that the
-khugepaged will effectivelly corrupt the memory by collapsing a range
-which is not yet fully populated? If yes shouldn't that be fixed in
-khugepaged rather than adding yet another madvise command? Also how do
-you prevent on races? (say you VM_NOHUGEPAGE, khugepaged would be in the
-middle of the operation and sees a collapsable vma and you get the same
-result)
--- 
-Michal Hocko
-SUSE Labs
+Well, yes, but I assume that bigger machine implies that we can use more memory without
+causing a significant change in system's behavior.
+
+> 2) These two optimization can be applied simulatenously. It is just an
+> orthogonal feature. If shadow scale size is increased to 32, memory
+> consumption will be decreased in case of my patchset, too.
+> 
+> Therefore, I think that this patchset is useful in any case.
+ 
+These are valid points, but IMO it's not enough to justify this patchset.
+Too much of hacky and fragile code.
+
+If our goal is to make KASAN to eat less memory, the first step definitely would be a 1/32 shadow.
+Simply because it's the best way to achieve that goal.
+And only if it's not enough we could think about something else, like decreasing/turning off quarantine
+and/or smaller redzones.
+
+
+> Note that increasing shadow scale has it's own trade-off. It requires
+> that the size of slab object is aligned to shadow scale. It will
+> increase memory consumption due to slab.
+> 
+
+Yes, but I don't think that it will be significant, many objects are aligned already.
+I've tried the kernel with 32 ARCH_SLAB_MINALIGN and ARCH_KMALLOC_MINALIGN and 
+the difference in Slab consumption after booting 1G VM was not significant:
+
+8-byte align:
+Slab:             126516 kB
+SReclaimable:      31140 kB
+SUnreclaim:        95376 kB
+
+32-byte align:
+Slab:             126712 kB
+SReclaimable:      30912 kB
+SUnreclaim:        95800 kB
+
+
+Numbers slightly vary from boot to boot.
+
+
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
