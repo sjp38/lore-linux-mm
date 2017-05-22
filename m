@@ -1,65 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 589FF831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:37:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b74so128602286pfd.2
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:37:20 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l192si16921311pga.13.2017.05.22.06.37.19
-        for <linux-mm@kvack.org>;
-        Mon, 22 May 2017 06:37:19 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v3 6/6] mm: rmap: Use correct helper when poisoning hugepages
-Date: Mon, 22 May 2017 14:36:04 +0100
-Message-Id: <20170522133604.11392-7-punit.agrawal@arm.com>
-In-Reply-To: <20170522133604.11392-1-punit.agrawal@arm.com>
-References: <20170522133604.11392-1-punit.agrawal@arm.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 304DE831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:38:37 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r203so25573156wmb.2
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:38:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 74si3338309wma.124.2017.05.22.06.38.35
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 22 May 2017 06:38:36 -0700 (PDT)
+Date: Mon, 22 May 2017 15:38:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v4 1/1] mm: Adaptive hash table scaling
+Message-ID: <20170522133834.GL8509@dhcp22.suse.cz>
+References: <1495300013-653283-1-git-send-email-pasha.tatashin@oracle.com>
+ <1495300013-653283-2-git-send-email-pasha.tatashin@oracle.com>
+ <20170522092910.GD8509@dhcp22.suse.cz>
+ <f6585e67-1640-daa3-370c-f37562cb5245@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f6585e67-1640-daa3-370c-f37562cb5245@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, hillf.zj@alibaba-inc.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>
 
-Using set_pte_at() does not do the right thing when putting down
-HWPOISON swap entries for hugepages on architectures that support
-contiguous ptes.
+On Mon 22-05-17 09:18:58, Pasha Tatashin wrote:
+> >
+> >I have only noticed this email today because my incoming emails stopped
+> >syncing since Friday. But this is _definitely_ not the right approachh.
+> >64G for 32b systems is _way_ off. We have only ~1G for the kernel. I've
+> >already proposed scaling up to 32M for 32b systems and Andi seems to be
+> >suggesting the same. So can we fold or apply the following instead?
+> 
+> Hi Michal,
+> 
+> Thank you for your suggestion. I will update the patch.
+> 
+> 64G base for 32bit systems is not meant to be ever used, as the adaptive
+> scaling for 32bit system is just not needed. 32M and 64G are going to be
+> exactly the same on such systems.
+> 
+> Here is theoretical limit for the max hash size of entries (dentry cache
+> example):
+> 
+> size of bucket: sizeof(struct hlist_bl_head) = 4 bytes
+> numentries:  (1 << 32) / PAGE_SIZE  = 1048576 (for 4K pages)
+> hash size: 4b * 1048576 = 4M
+> 
+> In practice it is going to be an order smaller, as number of kernel pages is
+> less then (1<<32).
 
-Fix this problem by using set_huge_swap_pte_at() which was introduced to
-fix exactly this problem.
+I haven't double check your math but if the above is correct then I
+would just go and disable the adaptive scaling for 32b altogether. More
+on that below.
 
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Acked-by: Steve Capper <steve.capper@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
----
- mm/rmap.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+> However, I will apply your suggestions as there seems to be a problem of
+> overflowing in comparing ul vs. ull as reported by Michael Ellerman, and
+> having a large base on 32bit systems will solve this issue. I will revert
+> back to "ul" all the quantities.
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d405f0e0ee96..feb2352aa95f 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1379,15 +1379,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		update_hiwater_rss(mm);
+Yeah, that is just calling for troubles.
  
- 		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-+			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
- 			if (PageHuge(page)) {
- 				int nr = 1 << compound_order(page);
- 				hugetlb_count_sub(nr, mm);
-+				set_huge_swap_pte_at(mm, address,
-+						     pvmw.pte, pteval,
-+						     vma_mmu_pagesize(vma));
- 			} else {
- 				dec_mm_counter(mm, mm_counter(page));
-+				set_pte_at(mm, address, pvmw.pte, pteval);
- 			}
- 
--			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
--			set_pte_at(mm, address, pvmw.pte, pteval);
- 		} else if (pte_unused(pteval)) {
- 			/*
- 			 * The guest indicated that the page content is of no
+> Another approach is to make it a 64 bit only macro like this:
+> 
+> #if __BITS_PER_LONG > 32
+> 
+> #define ADAPT_SCALE_BASE     (64ull << 30)
+> #define ADAPT_SCALE_SHIFT    2
+> #define ADAPT_SCALE_NPAGES   (ADAPT_SCALE_BASE >> PAGE_SHIFT)
+> 
+> #define adapt_scale(high_limit, numentries, scalep)
+>       if (!(high_limit)) {                                    \
+>               unsigned long adapt;                            \
+>               for (adapt = ADAPT_SCALE_NPAGES; adapt <        \
+>                    (numentries); adapt <<= ADAPT_SCALE_SHIFT) \
+>                       (*(scalep))++;                          \
+>       }
+> #else
+> #define adapt_scale(high_limit, numentries scalep)
+> #endif
+
+This is just too ugly to live, really. If we do not need adaptive
+scaling then just make it #if __BITS_PER_LONG around the code. I would
+be fine with this. A big fat warning explaining why this is 64b only
+would be appropriate.
+
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
