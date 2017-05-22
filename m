@@ -1,232 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D75E2803BF
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:52:31 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id a46so52629019qte.3
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:52:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r32si18755093qta.155.2017.05.22.09.52.30
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2217A2803BF
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 12:52:36 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g143so26274858wme.13
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 09:52:36 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q184si161949wmg.165.2017.05.22.09.52.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 09:52:30 -0700 (PDT)
-From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 15/15] mm/migrate: allow migrate_vma() to alloc new page on empty entry v2
-Date: Mon, 22 May 2017 12:52:06 -0400
-Message-Id: <20170522165206.6284-16-jglisse@redhat.com>
-In-Reply-To: <20170522165206.6284-1-jglisse@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 22 May 2017 09:52:33 -0700 (PDT)
+Subject: Re: mm, something wring in page_lock_anon_vma_read()?
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com>
+ <591EBE71.7080402@huawei.com>
+ <alpine.LSU.2.11.1705191453040.3819@eggly.anvils>
+ <591F9A09.6010707@huawei.com>
+ <alpine.LSU.2.11.1705191852360.11060@eggly.anvils>
+ <591FA78E.9050307@huawei.com>
+ <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
+ <591FB173.4020409@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz>
+Date: Mon, 22 May 2017 18:51:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <591FB173.4020409@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: zhong jiang <zhongjiang@huawei.com>, Hugh Dickins <hughd@google.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This allow caller of migrate_vma() to allocate new page for empty CPU
-page table entry. It only support anoymous memory and it won't allow
-new page to be instance if userfaultfd is armed.
+On 05/20/2017 05:01 AM, zhong jiang wrote:
+> On 2017/5/20 10:40, Hugh Dickins wrote:
+>> On Sat, 20 May 2017, Xishi Qiu wrote:
+>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+>>> And I meet the bug too. However it is hard to reproduce, and 
+>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+>>>
+>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+>>> but anon_vma has been corrupted.
+>>>
+>>> Any ideas?
+>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
+>> a pte mapped in on top of another pte; but cannot begin tell you where
+>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+>>
+>> Hugh
+>>
+>> .
+>>
+> Hi, Hugh
+> 
+> I find the following message from the dmesg.
+> 
+> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
+> 
+> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
+> still exist.
 
-This is useful to device driver that want to migrate a range of virtual
-address and would rather allocate new memory than having to fault later
-on.
+Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
+thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
 
-Changed since v1:
-  - 5 level page table fix
-
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
----
- mm/migrate.c | 135 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 131 insertions(+), 4 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9e68399..d7c4db6 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -37,6 +37,7 @@
- #include <linux/hugetlb_cgroup.h>
- #include <linux/gfp.h>
- #include <linux/memremap.h>
-+#include <linux/userfaultfd_k.h>
- #include <linux/balloon_compaction.h>
- #include <linux/mmu_notifier.h>
- #include <linux/page_idle.h>
-@@ -2111,9 +2112,10 @@ static int migrate_vma_collect_hole(unsigned long start,
- 				    struct mm_walk *walk)
- {
- 	struct migrate_vma *migrate = walk->private;
--	unsigned long addr, next;
-+	unsigned long addr;
- 
- 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-+		migrate->cpages++;
- 		migrate->dst[migrate->npages] = 0;
- 		migrate->src[migrate->npages++] = 0;
- 	}
-@@ -2150,6 +2152,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		pfn = pte_pfn(pte);
- 
- 		if (pte_none(pte)) {
-+			migrate->cpages++;
- 			mpfn = pfn = 0;
- 			goto next;
- 		}
-@@ -2463,6 +2466,118 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
- 	}
- }
- 
-+static void migrate_vma_insert_page(struct migrate_vma *migrate,
-+				    unsigned long addr,
-+				    struct page *page,
-+				    unsigned long *src,
-+				    unsigned long *dst)
-+{
-+	struct vm_area_struct *vma = migrate->vma;
-+	struct mm_struct *mm = vma->vm_mm;
-+	struct mem_cgroup *memcg;
-+	spinlock_t *ptl;
-+	pgd_t *pgdp;
-+	p4d_t *p4dp;
-+	pud_t *pudp;
-+	pmd_t *pmdp;
-+	pte_t *ptep;
-+	pte_t entry;
-+
-+	/* Only allow populating anonymous memory */
-+	if (!vma_is_anonymous(vma))
-+		goto abort;
-+
-+	pgdp = pgd_offset(mm, addr);
-+	p4dp = p4d_alloc(mm, pgdp, addr);
-+	if (!p4dp)
-+		goto abort;
-+	pudp = pud_alloc(mm, p4dp, addr);
-+	if (!pudp)
-+		goto abort;
-+	pmdp = pmd_alloc(mm, pudp, addr);
-+	if (!pmdp)
-+		goto abort;
-+
-+	if (pmd_trans_unstable(pmdp) || pmd_devmap(*pmdp))
-+		goto abort;
-+
-+	/*
-+	 * Use pte_alloc() instead of pte_alloc_map().  We can't run
-+	 * pte_offset_map() on pmds where a huge pmd might be created
-+	 * from a different thread.
-+	 *
-+	 * pte_alloc_map() is safe to use under down_write(mmap_sem) or when
-+	 * parallel threads are excluded by other means.
-+	 *
-+	 * Here we only have down_read(mmap_sem).
-+	 */
-+	if (pte_alloc(mm, pmdp, addr))
-+		goto abort;
-+
-+	/* See the comment in pte_alloc_one_map() */
-+	if (unlikely(pmd_trans_unstable(pmdp)))
-+		goto abort;
-+
-+	if (unlikely(anon_vma_prepare(vma)))
-+		goto abort;
-+	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL, &memcg, false))
-+		goto abort;
-+
-+	/*
-+	 * The memory barrier inside __SetPageUptodate makes sure that
-+	 * preceding stores to the page contents become visible before
-+	 * the set_pte_at() write.
-+	 */
-+	__SetPageUptodate(page);
-+
-+	if (is_zone_device_page(page) && is_device_private_page(page)) {
-+		swp_entry_t swp_entry;
-+
-+		swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
-+		entry = swp_entry_to_pte(swp_entry);
-+	} else {
-+		entry = mk_pte(page, vma->vm_page_prot);
-+		if (vma->vm_flags & VM_WRITE)
-+			entry = pte_mkwrite(pte_mkdirty(entry));
-+	}
-+
-+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+	if (!pte_none(*ptep)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		mem_cgroup_cancel_charge(page, memcg, false);
-+		goto abort;
-+	}
-+
-+	/*
-+	 * Check for usefaultfd but do not deliver the fault. Instead,
-+	 * just back off.
-+	 */
-+	if (userfaultfd_missing(vma)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		mem_cgroup_cancel_charge(page, memcg, false);
-+		goto abort;
-+	}
-+
-+	inc_mm_counter(mm, MM_ANONPAGES);
-+	page_add_new_anon_rmap(page, vma, addr, false);
-+	mem_cgroup_commit_charge(page, memcg, false, false);
-+	if (!is_zone_device_page(page))
-+		lru_cache_add_active_or_unevictable(page, vma);
-+	set_pte_at(mm, addr, ptep, entry);
-+
-+	/* Take a reference on the page */
-+	get_page(page);
-+
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(vma, addr, ptep);
-+	pte_unmap_unlock(ptep, ptl);
-+	*src = MIGRATE_PFN_MIGRATE;
-+	return;
-+
-+abort:
-+	*src &= ~MIGRATE_PFN_MIGRATE;
-+}
-+
- /*
-  * migrate_vma_pages() - migrate meta-data from src page to dst page
-  * @migrate: migrate struct containing all migration information
-@@ -2483,10 +2598,16 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
- 		struct address_space *mapping;
- 		int r;
- 
--		if (!page || !newpage)
-+		if (!newpage) {
-+			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
- 			continue;
--		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
-+		} else if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE)) {
-+			if (!page)
-+				migrate_vma_insert_page(migrate, addr, newpage,
-+							&migrate->src[i],
-+							&migrate->dst[i]);
- 			continue;
-+		}
- 
- 		mapping = page_mapping(page);
- 
-@@ -2536,8 +2657,14 @@ static void migrate_vma_finalize(struct migrate_vma *migrate)
- 		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
- 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
- 
--		if (!page)
-+		if (!page) {
-+			if (newpage) {
-+				unlock_page(newpage);
-+				put_page(newpage);
-+			}
- 			continue;
-+		}
-+
- 		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
- 			if (newpage) {
- 				unlock_page(newpage);
--- 
-2.9.3
+> Thanks
+> zhongjiang
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
