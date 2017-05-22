@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 143AA6B02C3
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 17:11:53 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m5so141932133pfc.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 14:11:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i193si18797706pfe.242.2017.05.22.14.11.52
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A516B02B4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 17:14:17 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id j22so47248125qtj.15
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 14:14:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 26si19929139qkt.215.2017.05.22.14.14.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 14:11:52 -0700 (PDT)
-Date: Mon, 22 May 2017 14:11:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Define KB, MB, GB, TB in core VM
-Message-Id: <20170522141149.9ef84bb0713769f4af0383f0@linux-foundation.org>
-In-Reply-To: <20170522111742.29433-1-khandual@linux.vnet.ibm.com>
-References: <20170522111742.29433-1-khandual@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 22 May 2017 14:14:17 -0700 (PDT)
+Date: Mon, 22 May 2017 18:13:41 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170522211337.GA4718@amt.cnet>
+References: <20170512154026.GA3556@amt.cnet>
+ <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
+ <20170512161915.GA4185@amt.cnet>
+ <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+ <20170515191531.GA31483@amt.cnet>
+ <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
+ <20170519143407.GA19282@amt.cnet>
+ <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
+ <20170520082646.GA16139@amt.cnet>
+ <alpine.DEB.2.20.1705221137001.12282@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1705221137001.12282@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-On Mon, 22 May 2017 16:47:42 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
+On Mon, May 22, 2017 at 11:38:02AM -0500, Christoph Lameter wrote:
+> On Sat, 20 May 2017, Marcelo Tosatti wrote:
+> 
+> > > And you can configure the interval of vmstat updates freely.... Set
+> > > the vmstat_interval to 60 seconds instead of 2 for a try? Is that rare
+> > > enough?
+> >
+> > Not rare enough. Never is rare enough.
+> 
+> Ok what about the other stuff that must be going on if you allow OS
+> activity like f.e. the tick, scheduler etc etc.
 
-> There are many places where we define size either left shifting integers
-> or multiplying 1024s without any generic definition to fall back on. But
-> there are couples of (powerpc and lz4) attempts to define these standard
-> memory sizes. Lets move these definitions to core VM to make sure that
-> all new usage come from these definitions eventually standardizing it
-> across all places.
+Yes these are also problems... but we're either getting rid of them or
+reducing their impact as much as possible.
 
-Grep further - there are many more definitions and some may now
-generate warnings.
+vmstat_update is one member of the problematic set.
 
-Newly including mm.h for these things seems a bit heavyweight.  I can't
-immediately think of a more appropriate place.  Maybe printk.h or
-kernel.h.
+I'll get you the detailed IPI measures, hold on...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
