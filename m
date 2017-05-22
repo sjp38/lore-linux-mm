@@ -1,61 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 20A19831F4
-	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:20:12 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j27so11729096wre.3
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:20:12 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 199si19998992wms.154.2017.05.22.06.20.10
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AABD4831F4
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:36:15 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r203so25566213wmb.2
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:36:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r137si19855408wmg.97.2017.05.22.06.36.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 06:20:10 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id d127so33197605wmf.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 06:20:10 -0700 (PDT)
-Date: Mon, 22 May 2017 16:12:15 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/mm: pgds getting out of sync after memory hot remove
-Message-ID: <20170522131215.wrnklp4dtemntixz@node.shutemov.name>
-References: <1495216887-3175-1-git-send-email-jglisse@redhat.com>
+        Mon, 22 May 2017 06:36:14 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4MDSsAA084454
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:36:13 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2akv55y2d6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 22 May 2017 09:36:12 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 22 May 2017 14:36:07 +0100
+Date: Mon, 22 May 2017 16:36:00 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+References: <1495433562-26625-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1495216887-3175-1-git-send-email-jglisse@redhat.com>
+In-Reply-To: <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
+Message-Id: <20170522133559.GE27382@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, May 19, 2017 at 02:01:26PM -0400, Jerome Glisse wrote:
-> After memory hot remove it seems we do not synchronize pgds for kernel
-> virtual memory range (on vmemmap_free()). This seems bogus to me as it
-> means we are left with stall entry for process with mm != mm_init
+On Mon, May 22, 2017 at 02:42:43PM +0300, Kirill A. Shutemov wrote:
+> On Mon, May 22, 2017 at 09:12:42AM +0300, Mike Rapoport wrote:
+> > Currently applications can explicitly enable or disable THP for a memory
+> > region using MADV_HUGEPAGE or MADV_NOHUGEPAGE. However, once either of
+> > these advises is used, the region will always have
+> > VM_HUGEPAGE/VM_NOHUGEPAGE flag set in vma->vm_flags.
+> > The MADV_CLR_HUGEPAGE resets both these flags and allows managing THP in
+> > the region according to system-wide settings.
 > 
-> Yet i am puzzle by the fact that i am only now hitting this issue. It
-> never was an issue with 4.12 or before ie HMM never triggered following
-> BUG_ON inside sync_global_pgds():
-> 
-> if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
->    BUG_ON(p4d_page_vaddr(*p4d) != p4d_page_vaddr(*p4d_ref));
-> 
-> 
-> It seems that Kirill 5 level page table changes play a role in this
-> behavior change. I could not bisect because HMM is painfull to rebase
-> for each bisection step so that is just my best guess.
-> 
-> 
-> Am i missing something here ? Am i wrong in assuming that should sync
-> pgd on vmemmap_free() ? If so anyone have a good guess on why i am now
-> seeing the above BUG_ON ?
+> Seems reasonable. But could you describe an use-case when it's useful in
+> real world.
 
-What would we gain by syncing pgd on free? Stale pgds are fine as long as
-they are not referenced (use-after-free case). Syncing is addtional work.
+My use-case was combination of pre- and post-copy migration of containers
+with CRIU.
+In this case we populate a part of a memory region with data that was saved
+during the pre-copy stage. Afterwards, the region is registered with
+userfaultfd and we expect to get page faults for the parts of the region
+that were not yet populated. However, khugepaged collapses the pages and
+the page faults we would expect do not occur.
 
-See af2cf278ef4f ("x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()")
-and 5372e155a28f ("x86/mm: Drop unused argument 'removed' from sync_global_pgds()").
+We could have used MADV_NOHUGEPAGE before populating the region with the
+pre-copy data, but then, in the end, the restored application will be resumed
+with vma->vm_flags different from the ones it had when it was frozen.
 
--- 
- Kirill A. Shutemov
+Another possibility I've considered was to register the region with
+userfaultfd before populating it with data, but in that case we get the
+overhead of UFFD_EVENT_PAGEFAULT + UFFDIO_{COPY,ZEROPAGE} for nothing :(
+
+> And the name is bad. But I don't have better suggestion. At least do not
+> abbreviate CLEAR. Saving two letters doesn't worth it.
+> 
+> Maybe RESET instead?
+
+I hesitated between CLR and RST, and CLR was chosen pretty much with coin
+toss :)
+I'm ok with RESET, which might be a bit more descriptive than CLEAR.
+ 
+> -- 
+>  Kirill A. Shutemov
+> 
+
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
