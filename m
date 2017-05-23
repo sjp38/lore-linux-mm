@@ -1,131 +1,254 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A13226B02B4
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 00:05:43 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m5so151169202pfc.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:43 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id y9si19309328pfk.357.2017.05.22.21.05.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E1AD6B02F3
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 00:05:46 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e131so150585073pfh.7
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:46 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id c25si19549822pfl.274.2017.05.22.21.05.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 21:05:42 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id w69so24482316pfk.1
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:42 -0700 (PDT)
+        Mon, 22 May 2017 21:05:45 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id w69so24482563pfk.1
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:45 -0700 (PDT)
 From: Oliver O'Halloran <oohall@gmail.com>
-Subject: [PATCH 3/6] powerpc/vmemmap: Add altmap support
-Date: Tue, 23 May 2017 14:05:21 +1000
-Message-Id: <20170523040524.13717-3-oohall@gmail.com>
+Subject: [PATCH 4/6] powerpc/mm: Add devmap support for ppc64
+Date: Tue, 23 May 2017 14:05:22 +1000
+Message-Id: <20170523040524.13717-4-oohall@gmail.com>
 In-Reply-To: <20170523040524.13717-1-oohall@gmail.com>
 References: <20170523040524.13717-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org
-Cc: linux-mm@kvack.org, Oliver O'Halloran <oohall@gmail.com>
+Cc: linux-mm@kvack.org, Oliver O'Halloran <oohall@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Adds support to powerpc for the altmap feature of ZONE_DEVICE memory. An
-altmap is a driver provided region that is used to provide the backing
-storage for the struct pages of ZONE_DEVICE memory. In situations where
-large amount of ZONE_DEVICE memory is being added to the system the
-altmap reduces pressure on main system memory by allowing the mm/
-metadata to be stored on the device itself rather in main memory.
+Add support for the devmap bit on PTEs and PMDs for PPC64 Book3S.  This
+is used to differentiate device backed memory from transparent huge
+pages since they are handled in more or less the same manner by the core
+mm code.
 
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
 ---
- arch/powerpc/mm/init_64.c | 15 +++++++++++++--
- arch/powerpc/mm/mem.c     | 16 +++++++++++++---
- 2 files changed, 26 insertions(+), 5 deletions(-)
+v1 -> v2: Properly differentiate THP and PMD Devmap entries. The
+mm core assumes that pmd_trans_huge() and pmd_devmap() are mutually
+exclusive and v1 had pmd_trans_huge() being true on a devmap pmd.
 
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 8851e4f5dbab..225fbb8034e6 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -44,6 +44,7 @@
- #include <linux/slab.h>
- #include <linux/of_fdt.h>
- #include <linux/libfdt.h>
-+#include <linux/memremap.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/page.h>
-@@ -171,13 +172,17 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
- 
- 	for (; start < end; start += page_size) {
-+		struct vmem_altmap *altmap;
- 		void *p;
- 		int rc;
- 
- 		if (vmemmap_populated(start, page_size))
- 			continue;
- 
--		p = vmemmap_alloc_block(page_size, node);
-+		/* altmap lookups only work at section boundaries */
-+		altmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
-+
-+		p =  __vmemmap_alloc_block_buf(page_size, node, altmap);
- 		if (!p)
- 			return -ENOMEM;
- 
-@@ -242,6 +247,8 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
- 
- 	for (; start < end; start += page_size) {
- 		unsigned long nr_pages, addr;
-+		struct vmem_altmap *altmap;
-+		struct page *section_base;
- 		struct page *page;
- 
- 		/*
-@@ -257,9 +264,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
- 			continue;
- 
- 		page = pfn_to_page(addr >> PAGE_SHIFT);
-+		section_base = pfn_to_page(vmemmap_section_start(start));
- 		nr_pages = 1 << page_order;
- 
--		if (PageReserved(page)) {
-+		altmap = to_vmem_altmap((unsigned long) section_base);
-+		if (altmap) {
-+			vmem_altmap_free(altmap, nr_pages);
-+		} else if (PageReserved(page)) {
- 			/* allocated from bootmem */
- 			if (page_size < PAGE_SIZE) {
- 				/*
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 9ee536ec0739..2c0c16f11eee 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -36,6 +36,7 @@
- #include <linux/hugetlb.h>
- #include <linux/slab.h>
- #include <linux/vmalloc.h>
-+#include <linux/memremap.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/prom.h>
-@@ -159,11 +160,20 @@ int arch_remove_memory(u64 start, u64 size)
+Aneesh, this has been fleshed out substantially since v1. Can you
+re-review it? Also no explicit gup support is required in this patch
+since devmap support was added generic GUP as a part of making x86 use
+the generic version.
+---
+ arch/powerpc/include/asm/book3s/64/hash-64k.h |  2 +-
+ arch/powerpc/include/asm/book3s/64/pgtable.h  | 37 ++++++++++++++++++++++++++-
+ arch/powerpc/include/asm/book3s/64/radix.h    |  2 +-
+ arch/powerpc/mm/hugetlbpage.c                 |  2 +-
+ arch/powerpc/mm/pgtable-book3s64.c            |  4 +--
+ arch/powerpc/mm/pgtable-hash64.c              |  4 ++-
+ arch/powerpc/mm/pgtable-radix.c               |  3 ++-
+ arch/powerpc/mm/pgtable_64.c                  |  2 +-
+ 8 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/arch/powerpc/include/asm/book3s/64/hash-64k.h b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+index 9732837aaae8..eaaf613c5347 100644
+--- a/arch/powerpc/include/asm/book3s/64/hash-64k.h
++++ b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+@@ -180,7 +180,7 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
+  */
+ static inline int hash__pmd_trans_huge(pmd_t pmd)
  {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
--	struct zone *zone;
-+	struct vmem_altmap *altmap;
-+	struct page *page;
- 	int ret;
+-	return !!((pmd_val(pmd) & (_PAGE_PTE | H_PAGE_THP_HUGE)) ==
++	return !!((pmd_val(pmd) & (_PAGE_PTE | H_PAGE_THP_HUGE | _PAGE_DEVMAP)) ==
+ 		  (_PAGE_PTE | H_PAGE_THP_HUGE));
+ }
  
--	zone = page_zone(pfn_to_page(start_pfn));
--	ret = __remove_pages(zone, start_pfn, nr_pages);
-+	/*
-+	 * If we have an altmap then we need to skip over any reserved PFNs
-+	 * when querying the zone.
-+	 */
-+	page = pfn_to_page(start_pfn);
-+	altmap = to_vmem_altmap((unsigned long) page);
-+	if (altmap)
-+		page += vmem_altmap_offset(altmap);
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 85bc9875c3be..24634e92dd0b 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -79,6 +79,9 @@
+ 
+ #define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
+ #define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
++#define _PAGE_DEVMAP		_RPAGE_SW1
++#define __HAVE_ARCH_PTE_DEVMAP
 +
-+	ret = __remove_pages(page_zone(page), start_pfn, nr_pages);
- 	if (ret)
- 		return ret;
+ /*
+  * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
+  * Instead of fixing all of them, add an alternate define which
+@@ -599,6 +602,16 @@ static inline pte_t pte_mkhuge(pte_t pte)
+ 	return pte;
+ }
  
++static inline pte_t pte_mkdevmap(pte_t pte)
++{
++	return __pte(pte_val(pte) | _PAGE_SPECIAL|_PAGE_DEVMAP);
++}
++
++static inline int pte_devmap(pte_t pte)
++{
++	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_DEVMAP));
++}
++
+ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ {
+ 	/* FIXME!! check whether this need to be a conditional */
+@@ -963,6 +976,9 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
+ #define pmd_mk_savedwrite(pmd)	pte_pmd(pte_mk_savedwrite(pmd_pte(pmd)))
+ #define pmd_clear_savedwrite(pmd)	pte_pmd(pte_clear_savedwrite(pmd_pte(pmd)))
+ 
++#define pud_pfn(...) (0)
++#define pgd_pfn(...) (0)
++
+ #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
+ #define pmd_soft_dirty(pmd)    pte_soft_dirty(pmd_pte(pmd))
+ #define pmd_mksoft_dirty(pmd)  pte_pmd(pte_mksoft_dirty(pmd_pte(pmd)))
+@@ -1137,7 +1153,6 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+ 	return true;
+ }
+ 
+-
+ #define arch_needs_pgtable_deposit arch_needs_pgtable_deposit
+ static inline bool arch_needs_pgtable_deposit(void)
+ {
+@@ -1146,6 +1161,26 @@ static inline bool arch_needs_pgtable_deposit(void)
+ 	return true;
+ }
+ 
++static inline pmd_t pmd_mkdevmap(pmd_t pmd)
++{
++	return pte_pmd(pte_mkdevmap(pmd_pte(pmd)));
++}
++
++static inline int pmd_devmap(pmd_t pmd)
++{
++	return pte_devmap(pmd_pte(pmd));
++}
++
++static inline int pud_devmap(pud_t pud)
++{
++	return 0;
++}
++
++static inline int pgd_devmap(pgd_t pgd)
++{
++	return 0;
++}
++
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #endif /* __ASSEMBLY__ */
+ #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */
+diff --git a/arch/powerpc/include/asm/book3s/64/radix.h b/arch/powerpc/include/asm/book3s/64/radix.h
+index ac16d1943022..ba43754e96d2 100644
+--- a/arch/powerpc/include/asm/book3s/64/radix.h
++++ b/arch/powerpc/include/asm/book3s/64/radix.h
+@@ -252,7 +252,7 @@ static inline int radix__pgd_bad(pgd_t pgd)
+ 
+ static inline int radix__pmd_trans_huge(pmd_t pmd)
+ {
+-	return !!(pmd_val(pmd) & _PAGE_PTE);
++	return (pmd_val(pmd) & (_PAGE_PTE | _PAGE_DEVMAP)) == _PAGE_PTE;
+ }
+ 
+ static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index a4f33de4008e..d9958af5c98e 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -963,7 +963,7 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+ 			if (pmd_none(pmd))
+ 				return NULL;
+ 
+-			if (pmd_trans_huge(pmd)) {
++			if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
+ 				if (is_thp)
+ 					*is_thp = true;
+ 				ret_pte = (pte_t *) pmdp;
+diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
+index 5fcb3dd74c13..31eed8fa8e99 100644
+--- a/arch/powerpc/mm/pgtable-book3s64.c
++++ b/arch/powerpc/mm/pgtable-book3s64.c
+@@ -32,7 +32,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+ {
+ 	int changed;
+ #ifdef CONFIG_DEBUG_VM
+-	WARN_ON(!pmd_trans_huge(*pmdp));
++	WARN_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+ 	assert_spin_locked(&vma->vm_mm->page_table_lock);
+ #endif
+ 	changed = !pmd_same(*(pmdp), entry);
+@@ -59,7 +59,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ #ifdef CONFIG_DEBUG_VM
+ 	WARN_ON(pte_present(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
+ 	assert_spin_locked(&mm->page_table_lock);
+-	WARN_ON(!pmd_trans_huge(pmd));
++	WARN_ON(!(pmd_trans_huge(pmd) || pmd_devmap(pmd)));
+ #endif
+ 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
+ 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
+diff --git a/arch/powerpc/mm/pgtable-hash64.c b/arch/powerpc/mm/pgtable-hash64.c
+index 8b85a14b08ea..7456cde4dbce 100644
+--- a/arch/powerpc/mm/pgtable-hash64.c
++++ b/arch/powerpc/mm/pgtable-hash64.c
+@@ -109,7 +109,7 @@ unsigned long hash__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr
+ 	unsigned long old;
+ 
+ #ifdef CONFIG_DEBUG_VM
+-	WARN_ON(!pmd_trans_huge(*pmdp));
++	WARN_ON(!hash__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+ 	assert_spin_locked(&mm->page_table_lock);
+ #endif
+ 
+@@ -141,6 +141,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON(pmd_trans_huge(*pmdp));
++	VM_BUG_ON(pmd_devmap(*pmdp));
+ 
+ 	pmd = *pmdp;
+ 	pmd_clear(pmdp);
+@@ -221,6 +222,7 @@ void hash__pmdp_huge_split_prepare(struct vm_area_struct *vma,
+ {
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON(REGION_ID(address) != USER_REGION_ID);
++	VM_BUG_ON(pmd_devmap(*pmdp));
+ 
+ 	/*
+ 	 * We can't mark the pmd none here, because that will cause a race
+diff --git a/arch/powerpc/mm/pgtable-radix.c b/arch/powerpc/mm/pgtable-radix.c
+index c28165d8970b..69e28dda81f2 100644
+--- a/arch/powerpc/mm/pgtable-radix.c
++++ b/arch/powerpc/mm/pgtable-radix.c
+@@ -683,7 +683,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
+ 	unsigned long old;
+ 
+ #ifdef CONFIG_DEBUG_VM
+-	WARN_ON(!radix__pmd_trans_huge(*pmdp));
++	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
+ 	assert_spin_locked(&mm->page_table_lock);
+ #endif
+ 
+@@ -701,6 +701,7 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 	VM_BUG_ON(radix__pmd_trans_huge(*pmdp));
++	VM_BUG_ON(pmd_devmap(*pmdp));
+ 	/*
+ 	 * khugepaged calls this for normal pmd
+ 	 */
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index db93cf747a03..aefde9bd3110 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -323,7 +323,7 @@ struct page *pud_page(pud_t pud)
+  */
+ struct page *pmd_page(pmd_t pmd)
+ {
+-	if (pmd_trans_huge(pmd) || pmd_huge(pmd))
++	if (pmd_trans_huge(pmd) || pmd_huge(pmd) || pmd_devmap(pmd))
+ 		return pte_page(pmd_pte(pmd));
+ 	return virt_to_page(pmd_page_vaddr(pmd));
+ }
 -- 
 2.9.3
 
