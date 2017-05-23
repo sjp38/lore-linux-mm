@@ -1,167 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3516E6B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 03:27:09 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 139so27926177wmf.5
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 00:27:09 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v19si15423190wra.229.2017.05.23.00.27.06
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E0FBB6B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 03:42:41 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p86so155714462pfl.12
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 00:42:41 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id d8si20261058pgn.60.2017.05.23.00.42.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 May 2017 00:27:07 -0700 (PDT)
-Date: Tue, 23 May 2017 09:27:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
-Message-ID: <20170523072704.GJ12813@dhcp22.suse.cz>
-References: <149520375057.74196.2843113275800730971.stgit@buzz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 May 2017 00:42:41 -0700 (PDT)
+Date: Tue, 23 May 2017 00:42:34 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] ib/core: not to set page dirty bit if it's already set.
+Message-ID: <20170523074234.GE29525@infradead.org>
+References: <20170518233353.14370-1-qing.huang@oracle.com>
+ <20170519130541.GA8017@infradead.org>
+ <9f4a4f90-a7b1-b1dc-6e7a-042f26254681@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <149520375057.74196.2843113275800730971.stgit@buzz>
+In-Reply-To: <9f4a4f90-a7b1-b1dc-6e7a-042f26254681@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: Qing Huang <qing.huang@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, dledford@redhat.com, sean.hefty@intel.com, artemyko@mellanox.com, linux-mm@kvack.org
 
-On Fri 19-05-17 17:22:30, Konstantin Khlebnikov wrote:
-> Show count of global oom killer invocations in /proc/vmstat and
-> count of oom kills inside memory cgroup in knob "memory.events"
-> (in memory.oom_control for v1 cgroup).
+On Mon, May 22, 2017 at 04:43:57PM -0700, Qing Huang wrote:
 > 
-> Also describe difference between "oom" and "oom_kill" in memory
-> cgroup documentation. Currently oom in memory cgroup kills tasks
-> iff shortage has happened inside page fault.
+> On 5/19/2017 6:05 AM, Christoph Hellwig wrote:
+> > On Thu, May 18, 2017 at 04:33:53PM -0700, Qing Huang wrote:
+> > > This change will optimize kernel memory deregistration operations.
+> > > __ib_umem_release() used to call set_page_dirty_lock() against every
+> > > writable page in its memory region. Its purpose is to keep data
+> > > synced between CPU and DMA device when swapping happens after mem
+> > > deregistration ops. Now we choose not to set page dirty bit if it's
+> > > already set by kernel prior to calling __ib_umem_release(). This
+> > > reduces memory deregistration time by half or even more when we ran
+> > > application simulation test program.
+> > As far as I can tell this code doesn't even need set_page_dirty_lock
+> > and could just use set_page_dirty
 > 
-> These counters helps in monitoring oom kills - for now
-> the only way is grepping for magic words in kernel log.
+> It seems that set_page_dirty_lock has been used here for more than 10 years.
+> Don't know the original purpose. Maybe it was used to prevent races between
+> setting dirty bits and swapping out pages?
 
-Have you considered adding memcg's oom alternative for the global case
-as well. It would be useful to see how many times we hit the OOM
-condition without killing anything. That could help debugging issues
-when the OOM killer cannot be invoked (e.g. GFP_NO{FS,IO} contextx)
-and the system cannot get out of the oom situation.
- 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  Documentation/cgroup-v2.txt   |   12 +++++++++++-
->  include/linux/memcontrol.h    |    1 +
->  include/linux/vm_event_item.h |    1 +
->  mm/memcontrol.c               |    2 ++
->  mm/oom_kill.c                 |    6 ++++++
->  mm/vmstat.c                   |    1 +
->  6 files changed, 22 insertions(+), 1 deletion(-)
-> 
-> diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-> index dc5e2dcdbef4..a742008d76aa 100644
-> --- a/Documentation/cgroup-v2.txt
-> +++ b/Documentation/cgroup-v2.txt
-> @@ -830,9 +830,19 @@ PAGE_SIZE multiple when read back.
->  
->  	  oom
->  
-> +		The number of time the cgroup's memory usage was
-> +		reached the limit and allocation was about to fail.
-> +		Result could be oom kill, -ENOMEM from any syscall or
-> +		completely ignored in cases like disk readahead.
-> +		For now oom in memory cgroup kills tasks iff shortage
-> +		has happened inside page fault.
-> +
-> +	  oom_kill
-> +
->  		The number of times the OOM killer has been invoked in
->  		the cgroup.  This may not exactly match the number of
-> -		processes killed but should generally be close.
-> +		processes killed but should generally be close:	each
-> +		invocation could kill several processes at once.
->  
->    memory.stat
->  
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 899949bbb2f9..2cdcebb78b58 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -55,6 +55,7 @@ enum memcg_event_item {
->  	MEMCG_HIGH,
->  	MEMCG_MAX,
->  	MEMCG_OOM,
-> +	MEMCG_OOM_KILL,
->  	MEMCG_NR_EVENTS,
->  };
->  
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index d84ae90ccd5c..1707e0a7d943 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
->  		PAGEOUTRUN, PGROTATED,
->  		DROP_PAGECACHE, DROP_SLAB,
-> +		OOM_KILL,
->  #ifdef CONFIG_NUMA_BALANCING
->  		NUMA_PTE_UPDATES,
->  		NUMA_HUGE_PTE_UPDATES,
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 94172089f52f..416024837b81 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3574,6 +3574,7 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
->  
->  	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
->  	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
-> +	seq_printf(sf, "oom_kill %lu\n", memcg_sum_events(memcg, MEMCG_OOM_KILL));
->  	return 0;
->  }
->  
-> @@ -5165,6 +5166,7 @@ static int memory_events_show(struct seq_file *m, void *v)
->  	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
->  	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
->  	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
-> +	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, MEMCG_OOM_KILL));
->  
->  	return 0;
->  }
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 04c9143a8625..c50bff3c3409 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -873,6 +873,12 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  		victim = p;
->  	}
->  
-> +	/* Raise event before sending signal: reaper must see this */
-> +	if (!is_memcg_oom(oc))
-> +		count_vm_event(OOM_KILL);
-> +	else
-> +		mem_cgroup_event(oc->memcg, MEMCG_OOM_KILL);
-> +
->  	/* Get a reference to safely compare mm after task_unlock(victim) */
->  	mm = victim->mm;
->  	mmgrab(mm);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 76f73670200a..fe80b81a86e0 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
->  
->  	"drop_pagecache",
->  	"drop_slab",
-> +	"oom_kill",
->  
->  #ifdef CONFIG_NUMA_BALANCING
->  	"numa_pte_updates",
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+I suspect copy & paste.  Or maybe I don't actually understand the
+explanation of set_page_dirty vs set_page_dirty_lock enough.  But
+I'd rather not hack around the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
