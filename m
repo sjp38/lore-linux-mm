@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 86BFB83292
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 17:57:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e131so179986963pfh.7
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 14:57:07 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n4si22384608pfk.396.2017.05.23.14.57.06
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D795783292
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 18:02:53 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k11so63029002qtk.4
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 15:02:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s40si22090846qtg.293.2017.05.23.15.02.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 14:57:06 -0700 (PDT)
-Date: Tue, 23 May 2017 14:57:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: make kswapd try harder to keep active pages in
- cache
-Message-Id: <20170523145704.afa4ad145af572275e310148@linux-foundation.org>
-In-Reply-To: <1495549403-3719-1-git-send-email-jbacik@fb.com>
-References: <1495549403-3719-1-git-send-email-jbacik@fb.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 23 May 2017 15:02:53 -0700 (PDT)
+Date: Tue, 23 May 2017 18:02:49 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
+Message-ID: <20170523220248.GA23833@redhat.com>
+References: <20170522165206.6284-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170522165206.6284-1-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: kernel-team@fb.com, riel@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Tue, 23 May 2017 10:23:23 -0400 Josef Bacik <josef@toxicpanda.com> wrote:
+Andrew i posted updated patch for 0007 0008 and 0009 as reply to orignal
+patches. It includes changes Dan and Kyrill wanted to see. I added the
+device_private_key to page_alloc.c to avoid modify more than 3 patches
+but if you prefer i can repost a v23 serie and move the static key to
+hmm.c
 
-> When testing a slab heavy workload I noticed that we often would barely
-> reclaim anything at all from slab when kswapd started doing reclaim.
-> This is because we use the ratio of nr_scanned / nr_lru to determine how
-> much of slab we should reclaim.  But in a slab only/mostly workload we
-> will not have much page cache to reclaim, and thus our ratio will be
-> really low and not at all related to where the memory on the system is.
-> Instead we want to use a ratio of the reclaimable slab to the actual
-> reclaimable space on the system.  That way if we are slab heavy we work
-> harder to reclaim slab.
-> 
-> The other part of this that hurts is when we are running close to full
-> memory with our working set.  If we start putting a lot of reclaimable
-> slab pressure on the system (think find /, or some other silliness), we
-> will happily evict the active pages over the slab cache.  This is kind
-> of backwards as we want to do all that we can to keep the active working
-> set in memory, and instead evict these short lived objects.  The same
-> thing occurs when say you do a yum update of a few packages while your
-> working set takes up most of RAM, you end up with inactive lists being
-> relatively small and so we reclaim active pages even though we could
-> reclaim these short lived inactive pages.
-> 
-> My approach here is twofold.  First, keep track of the difference in
-> inactive and slab pages since the last time kswapd ran.  In the first
-> run this will just be the overall counts of inactive and slab, but for
-> each subsequent run we'll have a good idea of where the memory pressure
-> is coming from.  Then we use this information to put pressure on either
-> the inactive lists or the slab caches, depending on where the pressure
-> is coming from.
->
-> ...
->
+Also i guess posting a v23 would have it tested against builder as i
+doubt automatic builder are clever enough to understand all this.
 
-hm, that's a pretty big change.  I took it, but it will require quite
-some reviewing and testing to get further, please.
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
