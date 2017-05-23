@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 50D5C6B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 09:20:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r203so29851780wmb.2
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:20:18 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id 45si16936539wrz.309.2017.05.23.06.20.16
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AED86B02C3
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 09:23:21 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id o139so13813949lfe.15
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:23:21 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id z10si9089500lja.175.2017.05.23.06.23.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 06:20:16 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id b84so23520547wmh.0
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:20:16 -0700 (PDT)
-Date: Tue, 23 May 2017 16:13:12 +0300
+        Tue, 23 May 2017 06:23:19 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id h4so8096296lfj.3
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:23:19 -0700 (PDT)
+Date: Tue, 23 May 2017 16:23:17 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 2/6] mm, gup: Ensure real head page is ref-counted
- when using hugepages
-Message-ID: <20170523131312.aim6obne2t5sxtdr@node.shutemov.name>
-References: <20170522133604.11392-1-punit.agrawal@arm.com>
- <20170522133604.11392-3-punit.agrawal@arm.com>
+Subject: Re: [HMM 08/15] mm/ZONE_DEVICE: special case put_page() for device
+ private pages
+Message-ID: <20170523132317.rfg33zwfbx3zl6be@node.shutemov.name>
+References: <20170522165206.6284-1-jglisse@redhat.com>
+ <20170522165206.6284-9-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170522133604.11392-3-punit.agrawal@arm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170522165206.6284-9-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, hillf.zj@alibaba-inc.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, Michal Hocko <mhocko@suse.com>
+To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon, May 22, 2017 at 02:36:00PM +0100, Punit Agrawal wrote:
-> When speculatively taking references to a hugepage using
-> page_cache_add_speculative() in gup_huge_pmd(), it is assumed that the
-> page returned by pmd_page() is the head page. Although normally true,
-> this assumption doesn't hold when the hugepage comprises of successive
-> page table entries such as when using contiguous bit on arm64 at PTE or
-> PMD levels.
+On Mon, May 22, 2017 at 12:51:59PM -0400, Jerome Glisse wrote:
+> A ZONE_DEVICE page that reach a refcount of 1 is free ie no longer
+> have any user. For device private pages this is important to catch
+> and thus we need to special case put_page() for this.
 > 
-> This can be addressed by ensuring that the page passed to
-> page_cache_add_speculative() is the real head or by de-referencing the
-> head page within the function.
+> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  include/linux/mm.h | 30 ++++++++++++++++++++++++++++++
+>  kernel/memremap.c  |  1 -
+>  2 files changed, 30 insertions(+), 1 deletion(-)
 > 
-> We take the first approach to keep the usage pattern aligned with
-> page_cache_get_speculative() where users already pass the appropriate
-> page, i.e., the de-referenced head.
-> 
-> Apply the same logic to fix gup_huge_[pud|pgd]() as well.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a825dab..11f7bac 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -23,6 +23,7 @@
+>  #include <linux/page_ext.h>
+>  #include <linux/err.h>
+>  #include <linux/page_ref.h>
+> +#include <linux/memremap.h>
+>  
+>  struct mempolicy;
+>  struct anon_vma;
+> @@ -795,6 +796,20 @@ static inline bool is_device_private_page(const struct page *page)
+>  	return ((page_zonenum(page) == ZONE_DEVICE) &&
+>  		(page->pgmap->type == MEMORY_DEVICE_PRIVATE));
+>  }
+> +
+> +static inline void put_zone_device_private_page(struct page *page)
 
-Hm. Okay. But I'm kinda surprise that this is the only place that need to
-be adjusted.
+Could you measure how much bloat this change produce?
 
-Have you validated all other pmd_page() use-cases?
+I would rather make put_zone_device_private_page() non-inline. put_page()
+is inlined everewhere. It's beneficial to keep it skinny.
+
+(And I guess it would help solving 0-day reporeted build issue).
 
 -- 
  Kirill A. Shutemov
