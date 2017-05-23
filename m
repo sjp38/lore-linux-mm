@@ -1,99 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 421726B0292
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 13:12:12 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id g72so107445328ywe.1
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 10:12:12 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s5sor939092ywb.226.2017.05.23.10.12.11
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A6ED36B0292
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 13:14:26 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id v195so65214566qka.1
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 10:14:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h42si22416082qtc.247.2017.05.23.10.14.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 May 2017 10:12:11 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170523165608.GN141096@google.com>
-References: <20170519210036.146880-1-mka@chromium.org> <20170519210036.146880-2-mka@chromium.org>
- <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
- <20170522205621.GL141096@google.com> <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
- <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com> <20170523165608.GN141096@google.com>
-From: Doug Anderson <dianders@chromium.org>
-Date: Tue, 23 May 2017 10:12:09 -0700
-Message-ID: <CAD=FV=WfrtOCOmt_aT+ZPiPUWqoZLB=j=K53E73DkvEUUrzsmA@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
- NUMA systems
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 May 2017 10:14:25 -0700 (PDT)
+Message-ID: <1495559662.20270.42.camel@redhat.com>
+Subject: Re: [PATCH] mm: make kswapd try harder to keep active pages in cache
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 23 May 2017 13:14:22 -0400
+In-Reply-To: <1495549403-3719-1-git-send-email-jbacik@fb.com>
+References: <1495549403-3719-1-git-send-email-jbacik@fb.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-q7pfu640lUfmgSlp6Zwj"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Kaehlcke <mka@chromium.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-
-Hi,
-
-On Tue, May 23, 2017 at 9:56 AM, Matthias Kaehlcke <mka@chromium.org> wrote:
-> Hi David,
->
-> El Mon, May 22, 2017 at 06:35:23PM -0700 David Rientjes ha dit:
->
->> On Mon, 22 May 2017, Andrew Morton wrote:
->>
->> > > > Is clang not inlining kmalloc_large_node_hook() for some reason?  I don't
->> > > > think this should ever warn on gcc.
->> > >
->> > > clang warns about unused static inline functions outside of header
->> > > files, in difference to gcc.
->> >
->> > I wish it wouldn't.  These patches just add clutter.
->> >
->>
->> Matthias, what breaks if you do this?
->>
->> diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
->> index de179993e039..e1895ce6fa1b 100644
->> --- a/include/linux/compiler-clang.h
->> +++ b/include/linux/compiler-clang.h
->> @@ -15,3 +15,8 @@
->>   * with any version that can compile the kernel
->>   */
->>  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
->> +
->> +#ifdef inline
->> +#undef inline
->> +#define inline __attribute__((unused))
->> +#endif
->
-> Thanks for the suggestion!
-
-Wow, I totally didn't think of this either when talking with Matthias
-about this.  I guess it makes the assumption that nobody else is
-hacking "inline" like we are, but "what are the chances of someone
-doing that (TM)"  ;-)
+To: Josef Bacik <josef@toxicpanda.com>, akpm@linux-foundation.org, kernel-team@fb.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
 
-> Nothing breaks and the warnings are silenced. It seems we could use
-> this if there is a stong opposition against having warnings on unused
-> static inline functions in .c files.
->
-> Still I am not convinced that gcc's behavior is preferable in this
-> case. True, it saves us from adding a bunch of __maybe_unused or
-> #ifdefs, on the other hand the warning is a useful tool to spot truly
-> unused code. So far about 50% of the warnings I looked into fall into
-> this category.
+--=-q7pfu640lUfmgSlp6Zwj
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Personally I actually prefer clang's behavior to gcc's here and I
-think Matthias's patches are actually doing a service to the
-community.  As he points out, many of the patches he's posted have
-removed totally dead code from the kernel.  This code has often
-existed for many years but never been noticed.  While the code wasn't
-hurting anyone (it was dead and the compiler wasn't generating any
-code for it), it would certainly add confusion to anyone reading the
-source code.
+On Tue, 2017-05-23 at 10:23 -0400, Josef Bacik wrote:
 
-Obviously my opinion isn't as important as the opinion of upstream
-maintainers, but hopefully you'll consider it anyway.  :)  If you
-still want to just make clang behave like gcc then I think David's
-suggestion is a great one.
+> My approach here is twofold.=C2=A0=C2=A0First, keep track of the differen=
+ce in
+> inactive and slab pages since the last time kswapd ran.=C2=A0=C2=A0In the=
+ first
+> run this will just be the overall counts of inactive and slab, but
+> for
+> each subsequent run we'll have a good idea of where the memory
+> pressure
+> is coming from.=C2=A0=C2=A0Then we use this information to put pressure o=
+n
+> either
+> the inactive lists or the slab caches, depending on where the
+> pressure
+> is coming from.
 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
--Doug
+This looks totally reasonable to me.
+
+Acked-by: Rik van Riel <riel@redhat.com>
+--=-q7pfu640lUfmgSlp6Zwj
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJZJG3uAAoJEM553pKExN6D5ugH/3tTOFovoDzq3vizllxGX4GQ
+jCFtfHnX0tYi9xbU2pCtQsMzXUjKn+umUftvx7VEw1DLBJr55kOFZK6Pu4s5CFm5
+FptBnACz6A8jKIAzZcl1Bc6mrc5NLRmhDgVQjjCsz0SFsClEapMDKRhyrQA2mWlB
+lcoXgQ5cwWYEm2eC5JK1RA14umx/go6w0r8BrVheex0ENnnSqlJMokFoyCaeUHYG
+MyWaSjFjsqa6v2dS4duQMfSdPBmO8vCXCGypR1PTG+DtErr0fxZd9zTJRyv4+3Ou
+g8HKlJJm71GpgGzmBa7oj9/fz1SNVLVSilpmR9YwRLuDEd8mMlaT2UMpmt699g8=
+=fjkC
+-----END PGP SIGNATURE-----
+
+--=-q7pfu640lUfmgSlp6Zwj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
