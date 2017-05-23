@@ -1,127 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B78526B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 08:42:04 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id g143so29571904wme.13
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 05:42:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c62si19822623edd.313.2017.05.23.05.42.02
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 242AB6B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 09:07:48 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id t75so19204274lfe.14
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:07:48 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id y26si7461225lja.138.2017.05.23.06.07.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 May 2017 05:42:02 -0700 (PDT)
-Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
-References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
- <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
- <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
- <20170516202919.GA2843@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <744fe557-3aaf-0010-4b94-5f53c9f28f89@suse.cz>
-Date: Tue, 23 May 2017 14:42:01 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 May 2017 06:07:46 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id h4so8041819lfj.3
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:07:45 -0700 (PDT)
+Date: Tue, 23 May 2017 16:07:43 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] Patch for remapping pages around the fault page
+Message-ID: <20170523130743.3oh3rlxwqg2odimg@node.shutemov.name>
+References: <rppt@linux.vnet.ibm.com>
+ <1495379520-23752-1-git-send-email-sarunya@vt.edu>
 MIME-Version: 1.0
-In-Reply-To: <20170516202919.GA2843@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1495379520-23752-1-git-send-email-sarunya@vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sarunya Pumma <sarunya@vt.edu>
+Cc: rppt@linux.vnet.ibm.com, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, mhocko@suse.com, aneesh.kumar@linux.vnet.ibm.com, lstoakes@gmail.com, dave.jiang@intel.com
 
-On 05/16/2017 10:29 PM, Andrea Arcangeli wrote:
-> On Wed, Apr 12, 2017 at 03:33:35PM +0200, Vlastimil Babka wrote:
->>
->> pmdp_invalidate() does:
->>
->>         pmd_t entry = *pmdp;
->>         set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
->>
->> so it's not atomic and if CPU sets dirty or accessed in the middle of
->> this, they will be lost?
+On Sun, May 21, 2017 at 11:12:00AM -0400, Sarunya Pumma wrote:
+> After the fault handler performs the __do_fault function to read a fault
+> page when a page fault occurs, it does not map other pages that have been
+> read together with the fault page. This can cause a number of minor page
+> faults to be large. Therefore, this patch is developed to remap pages
+> around the fault page by aiming to map the pages that have been read
+> synchronously or asynchronously with the fault page.
 > 
-> I agree it looks like the dirty bit can be lost. Furthermore this also
-> loses a MMU notifier invalidate that will lead to corruption at the
-> secondary MMU level (which will keep using the old protection
-> permission, potentially keeping writing to a wrprotected page).
-
-Oh, I didn't paste the whole function, just the pmd manipulation.
-There's also a third line:
-
-flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-
-so there's no missing invalidate, AFAICS? Sorry for the confusion.
-
->>
->> But I don't see how the other invalidate caller
->> __split_huge_pmd_locked() deals with this either. Andrea, any idea?
+> The major function of this patch is the redo_fault_around function. This
+> function computes the start and end offsets of the pages to be mapped,
+> determines whether to do the page remapping, remaps pages using the
+> map_pages function, and returns. In the redo_fault_around function, the
+> start and end offsets are computed the same way as the do_fault_around
+> function. To determine whether to do the remapping, we determine if the
+> pages around the fault page are already mapped. If they are, the remapping
+> will not be performed.
 > 
-> The original code I wrote did this in __split_huge_page_map to create
-> the "entry" to establish in the pte pagetables:
+> As checking every page can be inefficient if a number of pages to be mapped
+> is large, we have added a threshold called "vm_nr_rempping" to consider
+> whether to check the status of every page around the fault page or just
+> some pages. Note that the vm_nr_rempping parameter can be adjusted via the
+> Sysctl interface. In the case that a number of pages to be mapped is
+> smaller than the vm_nr_rempping threshold, we check all pages around the
+> fault page (within the start and end offsets). Otherwise, we check only the
+> adjacent pages (left and right).
 > 
->     	       entry = mk_pte(page + i, vma->vm_page_prot);
-> 	       entry = maybe_mkwrite(pte_mkdirty(entry),
-> 	       	       		   vma);
+> The page remapping is beneficial when performing the "almost sequential"
+> page accesses, where pages are accessed in order but some pages are
+> skipped.
 > 
-> For anonymous memory the dirty bit is only meaningful for swapping,
-> and THP couldn't be swapped so setting it unconditional avoided any
-> issue with the pmdp_invalidate; pmdp_establish.
-
-Yeah, but now we are going to swap THP's, and we have shmem THP's...
-
-> pmdp_invalidate is needed primarily to avoid aliasing of two different
-> TLB translation pointing from the same virtual address to the the same
-> physical address that triggered machine checks (while needing to keep
-> the pmd huge at all times, back then it was also splitting huge,
-> splitting is a software bit so userland could still access the data,
-> splitting bit only blocked kernel code to manipulate on it similar to
-> what migration entry does right now upstream, except those prevent
-> userland to access the page during split which is less efficient than
-> the splitting bit, but at least it's only used for the physical split,
-> back then there was no difference between virtual and physical split
-> and physical split is less frequent than the virtual one right now).
-
-This took me a while to grasp, but I think I understand now :)
-
-> It looks like this needs a pmdp_populate that atomically grabs the
-> value of the pmd and returns it like pmdp_huge_get_and_clear_notify
-> does
-
-pmdp_huge_get_and_clear_notify() is now gone...
-
-> and a _notify variant to use "freeze" is false (if freeze is true
-> the MMU notifier invalidate must have happened when the pmd was set to
-> a migration entry). If pmdp_populate_notify (freeze==true)
-> /pmd_populate (freeze==false) would return the old pmd value
-> atomically with xchg() (just instead of setting it to 0 we should set
-> it to the mknotpresent one), then we can set the dirty bit on the ptes
-> (__split_huge_pmd_locked) or in the pmd itself in the change_huge_pmd
-> accordingly.
-
-I think the confusion was partially caused by the comment at the
-original caller of pmdp_invalidate():
-
-we first mark the
-* current pmd notpresent (atomically because here the pmd_trans_huge
-* and pmd_trans_splitting must remain set at all times on the pmd
-* until the split is complete for this pmd),
-
-It says "atomically" but in fact that only means that the pmd_trans_huge
-and pmd_trans_splitting flags are not temporarily cleared at any point
-of time, right? It's not a true atomic swap.
-
-> If the "dirty" flag information is obtained by the pmd read before
-> calling pmdp_invalidate is not ok (losing _notify also not ok).
-
-Right.
-
-> Thanks!
-> Andrea
+> The following is one example scenario that we can reduce one page fault
+> every 16 page:
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Assume that we want to access pages sequentially and skip every page that
+> marked as PG_readahead. Assume that the read-ahead size is 32 pages and the
+> number of pages to be mapped each time (fault_around_pages) is 16.
 > 
+> When accessing a page at offset 0, a major page fault occurs, so pages from
+> page 0 to page 31 is read from the disk to the page cache. With this, page
+> 24 is marked as a read-ahead page (PG_readahead). Then only page 0 is
+> mapped to the virtual memory space.
+> 
+> When accessing a page at offset 1, a minor page fault occurs, pages from
+> page 0 to page 15 will be mapped.
+> 
+> We keep accessing pages until page 31. Note that we skip page 24.
+> 
+> When accessing a page at offset 32, a major page fault occurs.  The same
+> process will be repeated. The other 32 pages will be read from the disk.
+> Only page 32 is mapped. Then a minor page fault at the next page (page
+> 33) will occur.
+> 
+> From this example, two page faults occur every 16 page. With this patch, we
+> can eliminate the minor page fault in every 16 page.
+> 
+> Thank you very much for your time for reviewing the patch.
+> 
+> Signed-off-by: Sarunya Pumma <sarunya@vt.edu>
+
+Still no performance numbers?
+
+I doubt it's useful. You woundn't get "a number of minor page faults".
+The first minor page fault would take faultaround path and map these
+pages.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
