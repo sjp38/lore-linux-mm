@@ -1,92 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C678E6B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 00:05:36 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n75so150494614pfh.0
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:36 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7395A6B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 00:05:40 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l73so150565670pfj.8
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:40 -0700 (PDT)
 Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id 188si19378980pgb.399.2017.05.22.21.05.35
+        by mx.google.com with ESMTPS id t126si19539799pgb.362.2017.05.22.21.05.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 May 2017 21:05:35 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id u26so24493333pfd.2
-        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:35 -0700 (PDT)
+        Mon, 22 May 2017 21:05:39 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id f27so24501904pfe.0
+        for <linux-mm@kvack.org>; Mon, 22 May 2017 21:05:39 -0700 (PDT)
 From: Oliver O'Halloran <oohall@gmail.com>
-Subject: [PATCH 1/6] powerpc/mm: Wire up hpte_removebolted for powernv
-Date: Tue, 23 May 2017 14:05:19 +1000
-Message-Id: <20170523040524.13717-1-oohall@gmail.com>
+Subject: [PATCH 2/6] powerpc/vmemmap: Reshuffle vmemmap_free()
+Date: Tue, 23 May 2017 14:05:20 +1000
+Message-Id: <20170523040524.13717-2-oohall@gmail.com>
+In-Reply-To: <20170523040524.13717-1-oohall@gmail.com>
+References: <20170523040524.13717-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org
-Cc: linux-mm@kvack.org, Anton Blanchard <anton@samba.org>, Oliver O'Halloran <oohall@gmail.com>
+Cc: linux-mm@kvack.org, Oliver O'Halloran <oohall@gmail.com>
 
-From: Anton Blanchard <anton@samba.org>
+Removes an indentation level and shuffles some code around to make the
+following patch cleaner. No functional changes.
 
-Adds support for removing bolted (i.e kernel linear mapping) mappings on
-powernv. This is needed to support memory hot unplug operations which
-are required for the teardown of DAX/PMEM devices.
-
-Reviewed-by: Rashmica Gupta <rashmica.g@gmail.com>
-Signed-off-by: Anton Blanchard <anton@samba.org>
 Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
 ---
-v1 -> v2: Fixed the commit author
-          Added VM_WARN_ON() if we attempt to remove an unbolted hpte
+v1 -> v2: Remove broken initialiser
 ---
- arch/powerpc/mm/hash_native_64.c | 33 +++++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ arch/powerpc/mm/init_64.c | 48 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 25 insertions(+), 23 deletions(-)
 
-diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
-index 65bb8f33b399..b534d041cfe8 100644
---- a/arch/powerpc/mm/hash_native_64.c
-+++ b/arch/powerpc/mm/hash_native_64.c
-@@ -407,6 +407,38 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
- 	tlbie(vpn, psize, psize, ssize, 0);
- }
- 
-+/*
-+ * Remove a bolted kernel entry. Memory hotplug uses this.
-+ *
-+ * No need to lock here because we should be the only user.
-+ */
-+static int native_hpte_removebolted(unsigned long ea, int psize, int ssize)
-+{
-+	unsigned long vpn;
-+	unsigned long vsid;
-+	long slot;
-+	struct hash_pte *hptep;
-+
-+	vsid = get_kernel_vsid(ea, ssize);
-+	vpn = hpt_vpn(ea, vsid, ssize);
-+
-+	slot = native_hpte_find(vpn, psize, ssize);
-+	if (slot == -1)
-+		return -ENOENT;
-+
-+	hptep = htab_address + slot;
-+
-+	VM_WARN_ON(!(be64_to_cpu(hptep->v) & HPTE_V_BOLTED));
-+
-+	/* Invalidate the hpte */
-+	hptep->v = 0;
-+
-+	/* Invalidate the TLB */
-+	tlbie(vpn, psize, psize, ssize, 0);
-+	return 0;
-+}
-+
-+
- static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
- 				   int bpsize, int apsize, int ssize, int local)
+diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+index ec84b31c6c86..8851e4f5dbab 100644
+--- a/arch/powerpc/mm/init_64.c
++++ b/arch/powerpc/mm/init_64.c
+@@ -234,13 +234,15 @@ static unsigned long vmemmap_list_free(unsigned long start)
+ void __ref vmemmap_free(unsigned long start, unsigned long end)
  {
-@@ -725,6 +757,7 @@ void __init hpte_init_native(void)
- 	mmu_hash_ops.hpte_invalidate	= native_hpte_invalidate;
- 	mmu_hash_ops.hpte_updatepp	= native_hpte_updatepp;
- 	mmu_hash_ops.hpte_updateboltedpp = native_hpte_updateboltedpp;
-+	mmu_hash_ops.hpte_removebolted = native_hpte_removebolted;
- 	mmu_hash_ops.hpte_insert	= native_hpte_insert;
- 	mmu_hash_ops.hpte_remove	= native_hpte_remove;
- 	mmu_hash_ops.hpte_clear_all	= native_hpte_clear;
+ 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
++	unsigned long page_order = get_order(page_size);
+ 
+ 	start = _ALIGN_DOWN(start, page_size);
+ 
+ 	pr_debug("vmemmap_free %lx...%lx\n", start, end);
+ 
+ 	for (; start < end; start += page_size) {
+-		unsigned long addr;
++		unsigned long nr_pages, addr;
++		struct page *page;
+ 
+ 		/*
+ 		 * the section has already be marked as invalid, so
+@@ -251,29 +253,29 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
+ 			continue;
+ 
+ 		addr = vmemmap_list_free(start);
+-		if (addr) {
+-			struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
+-
+-			if (PageReserved(page)) {
+-				/* allocated from bootmem */
+-				if (page_size < PAGE_SIZE) {
+-					/*
+-					 * this shouldn't happen, but if it is
+-					 * the case, leave the memory there
+-					 */
+-					WARN_ON_ONCE(1);
+-				} else {
+-					unsigned int nr_pages =
+-						1 << get_order(page_size);
+-					while (nr_pages--)
+-						free_reserved_page(page++);
+-				}
+-			} else
+-				free_pages((unsigned long)(__va(addr)),
+-							get_order(page_size));
+-
+-			vmemmap_remove_mapping(start, page_size);
++		if (!addr)
++			continue;
++
++		page = pfn_to_page(addr >> PAGE_SHIFT);
++		nr_pages = 1 << page_order;
++
++		if (PageReserved(page)) {
++			/* allocated from bootmem */
++			if (page_size < PAGE_SIZE) {
++				/*
++				 * this shouldn't happen, but if it is
++				 * the case, leave the memory there
++				 */
++				WARN_ON_ONCE(1);
++			} else {
++				while (nr_pages--)
++					free_reserved_page(page++);
++			}
++		} else {
++			free_pages((unsigned long)(__va(addr)), page_order);
+ 		}
++
++		vmemmap_remove_mapping(start, page_size);
+ 	}
+ }
+ #endif
 -- 
 2.9.3
 
