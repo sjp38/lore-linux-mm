@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D795783292
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 18:02:53 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k11so63029002qtk.4
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 15:02:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s40si22090846qtg.293.2017.05.23.15.02.53
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A0C83292
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 18:05:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p74so180675913pfd.11
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 15:05:04 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s132si21647159pgs.174.2017.05.23.15.05.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 15:02:53 -0700 (PDT)
-Date: Tue, 23 May 2017 18:02:49 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
-Message-ID: <20170523220248.GA23833@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 23 May 2017 15:05:03 -0700 (PDT)
+Subject: Re: [Question] Mlocked count will not be decreased
+References: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <62ecda34-316d-6d79-cf86-d4b43f08d3dc@I-love.SAKURA.ne.jp>
+Date: Wed, 24 May 2017 07:04:53 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170522165206.6284-1-jglisse@redhat.com>
+In-Reply-To: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: Kefeng Wang <wangkefeng.wang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>, Qiuxishi <qiuxishi@huawei.com>, Yisheng Xie <xieyisheng1@huawei.com>
 
-Andrew i posted updated patch for 0007 0008 and 0009 as reply to orignal
-patches. It includes changes Dan and Kyrill wanted to see. I added the
-device_private_key to page_alloc.c to avoid modify more than 3 patches
-but if you prefer i can repost a v23 serie and move the static key to
-hmm.c
+Kefeng Wang wrote:
+> Hi All,
+> 
+> Mlocked in meminfo will be increasing with an small testcase, and never be released in mainline,
+> here is a testcase[1] to reproduce the issue, but the centos7.2/7.3 will not increase.
+> 
+> Is it normal?
 
-Also i guess posting a v23 would have it tested against builder as i
-doubt automatic builder are clever enough to understand all this.
+I confirmed your problem also occurs in Linux 4.11 using below testcase.
+MemFree is not decreasing while Mlocked is increasing.
+Thus, it seems to be statistics accounting bug.
 
-Cheers,
-Jerome
+----------
+#include <sys/mman.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int main(int argc, char ** argv)
+{
+	int i;
+	for (i = 0; i < 128; i++)
+		if (fork() == 0) {
+			malloc(1048576);
+			while (1) {
+				mlockall(MCL_CURRENT | MCL_FUTURE);
+				munlockall();
+			}
+		}
+	return 0;
+}
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
