@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5347D6B02C3
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 10:42:28 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e131so166449915pfh.7
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 07:42:28 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id 3si21513546plu.329.2017.05.23.07.42.27
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 May 2017 07:42:27 -0700 (PDT)
-From: Kefeng Wang <wangkefeng.wang@huawei.com>
-Subject: [Question] Mlocked count will not be decreased
-Message-ID: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com>
-Date: Tue, 23 May 2017 22:41:34 +0800
+	by kanga.kvack.org (Postfix) with ESMTP id CC39D6B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 10:53:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c10so167407688pfg.10
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 07:53:14 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b5si21629608plk.75.2017.05.23.07.53.13
+        for <linux-mm@kvack.org>;
+        Tue, 23 May 2017 07:53:13 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v3.1 4/6] mm/hugetlb: Allow architectures to override huge_pte_clear()
+References: <20170522133604.11392-5-punit.agrawal@arm.com>
+	<20170522162555.4313-1-punit.agrawal@arm.com>
+	<CAK8P3a0WppXFJ5==nymNHeqrKvixpLQ1AetFRGVv9Y3q8kT9Ew@mail.gmail.com>
+Date: Tue, 23 May 2017 15:53:10 +0100
+In-Reply-To: <CAK8P3a0WppXFJ5==nymNHeqrKvixpLQ1AetFRGVv9Y3q8kT9Ew@mail.gmail.com>
+	(Arnd Bergmann's message of "Mon, 22 May 2017 22:34:45 +0200")
+Message-ID: <87efvfhbft.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>, Qiuxishi <qiuxishi@huawei.com>, Yisheng Xie <xieyisheng1@huawei.com>, wangkefeng.wang@huawei.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, n-horiguchi@ah.jp.nec.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, mike.kravetz@oracle.com, steve.capper@arm.com, Mark Rutland <mark.rutland@arm.com>, linux-arch <linux-arch@vger.kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Hi All,
+Arnd Bergmann <arnd@arndb.de> writes:
 
-Mlocked in meminfo will be increasing with an small testcase, and never be released in mainline,
-here is a testcase[1] to reproduce the issue, but the centos7.2/7.3 will not increase.
+> On Mon, May 22, 2017 at 6:25 PM, Punit Agrawal <punit.agrawal@arm.com> wrote:
+>> When unmapping a hugepage range, huge_pte_clear() is used to clear the
+>> page table entries that are marked as not present. huge_pte_clear()
+>> internally just ends up calling pte_clear() which does not correctly
+>> deal with hugepages consisting of contiguous page table entries.
+>>
+>> Add a size argument to address this issue and allow architectures to
+>> override huge_pte_clear() by wrapping it in a #ifndef block.
+>>
+>> Update s390 implementation with the size parameter as well.
+>>
+>> Note that the change only affects huge_pte_clear() - the other generic
+>> hugetlb functions don't need any change.
+>>
+>> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+>> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+>> Cc: Arnd Bergmann <arnd@arndb.de>
+>> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+>
+> Acked-by: Arnd Bergmann <arnd@arndb.de>
 
-Is it normal?
+Thanks, Arnd. I've applied the tag locally.
 
-Thanks,
-Kefeng
-
-
-
-
-[1] testcase
-linux:~ # cat test_mlockall.sh
-grep Mlocked /proc/meminfo
- for j in `seq 0 10`
- do
-	for i in `seq 4 15`
-	do
-		./p_mlockall >> log &
-	done
-	sleep 0.2
-done
-grep Mlocked /proc/meminfo
-
-
-linux:~ # cat p_mlockall.c
-#include <sys/mman.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#define SPACE_LEN	4096
-
-int main(int argc, char ** argv)
-{
-	int ret;
-	void *adr = malloc(SPACE_LEN);
-	if (!adr)
-		return -1;
-	
-	ret = mlockall(MCL_CURRENT | MCL_FUTURE);
-	printf("mlcokall ret = %d\n", ret);
-
-	ret = munlockall();
-	printf("munlcokall ret = %d\n", ret);
-
-	free(adr);
-	return 0;
-}
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
