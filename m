@@ -1,73 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 40D796B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 06:32:21 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l188so18336909lfg.2
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 03:32:21 -0700 (PDT)
-Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
-        by mx.google.com with ESMTPS id d137si9437319lfd.200.2017.05.23.03.32.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E8FD46B02C3
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 06:34:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c6so159927208pfj.5
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 03:34:38 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id f19si20260663pgn.104.2017.05.23.03.34.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 03:32:19 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
-References: <149520375057.74196.2843113275800730971.stgit@buzz>
- <CALo0P1123MROxgveCdX6YFpWDwG4qrAyHu3Xd1F+ckaFBnF4dQ@mail.gmail.com>
- <ecd4a7ea-06c0-f549-a1bf-6d2d3c0af719@yandex-team.ru>
- <alpine.DEB.2.10.1705230044590.50796@chino.kir.corp.google.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <0f67046d-cdf6-1264-26f6-11c82978c621@yandex-team.ru>
-Date: Tue, 23 May 2017 13:32:17 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 23 May 2017 03:34:38 -0700 (PDT)
+Message-ID: <59240FC6.1030303@huawei.com>
+Date: Tue, 23 May 2017 18:32:38 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1705230044590.50796@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Subject: Re: mm, something wring in page_lock_anon_vma_read()?
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils> <591FB173.4020409@huawei.com> <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz> <5923FF31.5020801@huawei.com> <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz>
+In-Reply-To: <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Guschin <guroan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Xishi Qiu <qiuxishi@huawei.com>, Andrew
+ Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On 23.05.2017 10:49, David Rientjes wrote:
-> On Mon, 22 May 2017, Konstantin Khlebnikov wrote:
-> 
->> Nope, they are different. I think we should rephase documentation somehow
+On 2017/5/23 17:33, Vlastimil Babka wrote:
+> On 05/23/2017 11:21 AM, zhong jiang wrote:
+>> On 2017/5/23 0:51, Vlastimil Babka wrote:
+>>> On 05/20/2017 05:01 AM, zhong jiang wrote:
+>>>> On 2017/5/20 10:40, Hugh Dickins wrote:
+>>>>> On Sat, 20 May 2017, Xishi Qiu wrote:
+>>>>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+>>>>>> And I meet the bug too. However it is hard to reproduce, and 
+>>>>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+>>>>>>
+>>>>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+>>>>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+>>>>>> but anon_vma has been corrupted.
+>>>>>>
+>>>>>> Any ideas?
+>>>>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
+>>>>> a pte mapped in on top of another pte; but cannot begin tell you where
+>>>>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+>>>>>
+>>>>> Hugh
+>>>>>
+>>>>> .
+>>>>>
+>>>> Hi, Hugh
+>>>>
+>>>> I find the following message from the dmesg.
+>>>>
+>>>> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
+>>>>
+>>>> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
+>>>> still exist.
+>>> Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
+>>> thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
+>>   HI, Vlastimil
+>>  
+>>   I miss the patch.
+> Try applying it then, there's good chance the error and crash will go
+> away. Even if your workload doesn't actually run any madvise(MADV_DONTNEED).
+ ok , I will try.   Thanks
+>> when I read the patch. I find the following issue. but I am sure it is right.
 >>
->> low - count of reclaims below low level
->> high - count of post-allocation reclaims above high level
->> max - count of direct reclaims
->> oom - count of failed direct reclaims
->> oom_kill - count of oom killer invocations and killed processes
+>>       if (unlikely(pmd_trans_unstable(pmd)))
+>>         return 0;
+>>     /*
+>>      * A regular pmd is established and it can't morph into a huge pmd
+>>      * from under us anymore at this point because we hold the mmap_sem
+>>      * read mode and khugepaged takes it in write mode. So now it's
+>>      * safe to run pte_offset_map().
+>>      */
+>>     pte = pte_offset_map(pmd, address);
 >>
-> 
-> In our kernel, we've maintained counts of oom kills per memcg for years as
-> part of memory.oom_control for memcg v1, but we've also found it helpful
-> to complement that with another count that specifies the number of
-> processes oom killed that were attached to that exact memcg.
-> 
-> In your patch, oom_kill in memory.oom_control specifies that number of oom
-> events that resulted in an oom kill of a process from that hierarchy, but
-> not the number of processes killed from a specific memcg (the difference
-> between oc->memcg and mem_cgroup_from_task(victim)).  Not sure if you
-> would also find it helpful.
-> 
+>>   after pmd_trans_unstable call,  without any protect method.  by the comments,
+>>   it think the pte_offset_map is safe.    before pte_offset_map call, it still may be
+>>   unstable. it is possible?
+> IIRC it's "unstable" wrt possible none->huge->none transition. But once
+> we've seen it's a regular pmd via pmd_trans_unstable(), we're safe as a
+> transition from regular pmd can't happen.
+  Thank you for clarify. 
+ 
+  Regards
+ zhongjiang
+>>   Thanks
+>> zhongjiang
+>>>> Thanks
+>>>> zhongjiang
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>
+>>> .
+>>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> .
+>
 
-This is worth addition. Let's call it "oom_victim" for short.
-
-It allows to locate leaky part if they are spread over sub-containers within common limit.
-But doesn't tell which limit caused this kill. For hierarchical limits this might be not so easy.
-
-I think oom_kill better suits for automatic actions - restart affected hierarchy, increase limits, e.t.c.
-But oom_victim allows to determine container affected by global oom killer.
-
-So, probably it's worth to merge them together and increment oom_kill by global killer for victim memcg:
-
-	if (!is_memcg_oom(oc)) {
-		count_vm_event(OOM_KILL);
-		mem_cgroup_count_vm_event(mm, OOM_KILL);
-	} else
-		mem_cgroup_event(oc->memcg, OOM_KILL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
