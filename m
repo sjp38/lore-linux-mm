@@ -1,152 +1,433 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D566B02C3
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 09:26:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g143so29943680wme.13
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 06:26:06 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id l1si14766348eda.249.2017.05.23.06.26.04
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E19916B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 10:23:26 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id v195so63760817qka.1
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 07:23:26 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id 36si21855454qts.101.2017.05.23.07.23.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 06:26:04 -0700 (PDT)
-Date: Tue, 23 May 2017 09:25:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
-Message-ID: <20170523132544.GA13145@cmpxchg.org>
-References: <1495124884-28974-1-git-send-email-guro@fb.com>
- <20170520183729.GA3195@esperanza>
- <20170522170116.GB22625@castle>
- <20170523070747.GF12813@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170523070747.GF12813@dhcp22.suse.cz>
+        Tue, 23 May 2017 07:23:25 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id y128so23004790qka.3
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 07:23:25 -0700 (PDT)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH] mm: make kswapd try harder to keep active pages in cache
+Date: Tue, 23 May 2017 10:23:23 -0400
+Message-Id: <1495549403-3719-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov@tarantool.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, kernel-team@fb.com, riel@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org
 
-On Tue, May 23, 2017 at 09:07:47AM +0200, Michal Hocko wrote:
-> On Mon 22-05-17 18:01:16, Roman Gushchin wrote:
-> > On Sat, May 20, 2017 at 09:37:29PM +0300, Vladimir Davydov wrote:
-> > > On Thu, May 18, 2017 at 05:28:04PM +0100, Roman Gushchin wrote:
-> > > ...
-> > > > +5-2-4. Cgroup-aware OOM Killer
-> > > > +
-> > > > +Cgroup v2 memory controller implements a cgroup-aware OOM killer.
-> > > > +It means that it treats memory cgroups as memory consumers
-> > > > +rather then individual processes. Under the OOM conditions it tries
-> > > > +to find an elegible leaf memory cgroup, and kill all processes
-> > > > +in this cgroup. If it's not possible (e.g. all processes belong
-> > > > +to the root cgroup), it falls back to the traditional per-process
-> > > > +behaviour.
-> > > 
-> > > I agree that the current OOM victim selection algorithm is totally
-> > > unfair in a system using containers and it has been crying for rework
-> > > for the last few years now, so it's great to see this finally coming.
-> > > 
-> > > However, I don't reckon that killing a whole leaf cgroup is always the
-> > > best practice. It does make sense when cgroups are used for
-> > > containerizing services or applications, because a service is unlikely
-> > > to remain operational after one of its processes is gone, but one can
-> > > also use cgroups to containerize processes started by a user. Kicking a
-> > > user out for one of her process has gone mad doesn't sound right to me.
-> > 
-> > I agree, that it's not always a best practise, if you're not allowed
-> > to change the cgroup configuration (e.g. create new cgroups).
-> > IMHO, this case is mostly covered by using the v1 cgroup interface,
-> > which remains unchanged.
-> 
-> But there are features which are v2 only and users might really want to
-> use it. So I really do not buy this v2-only argument.
+When testing a slab heavy workload I noticed that we often would barely
+reclaim anything at all from slab when kswapd started doing reclaim.
+This is because we use the ratio of nr_scanned / nr_lru to determine how
+much of slab we should reclaim.  But in a slab only/mostly workload we
+will not have much page cache to reclaim, and thus our ratio will be
+really low and not at all related to where the memory on the system is.
+Instead we want to use a ratio of the reclaimable slab to the actual
+reclaimable space on the system.  That way if we are slab heavy we work
+harder to reclaim slab.
 
-I have to agree here. We won't get around making the leaf killing
-opt-in or opt-out in some fashion.
+The other part of this that hurts is when we are running close to full
+memory with our working set.  If we start putting a lot of reclaimable
+slab pressure on the system (think find /, or some other silliness), we
+will happily evict the active pages over the slab cache.  This is kind
+of backwards as we want to do all that we can to keep the active working
+set in memory, and instead evict these short lived objects.  The same
+thing occurs when say you do a yum update of a few packages while your
+working set takes up most of RAM, you end up with inactive lists being
+relatively small and so we reclaim active pages even though we could
+reclaim these short lived inactive pages.
 
-> > > Another example when the policy you're suggesting fails in my opinion is
-> > > in case a service (cgroup) consists of sub-services (sub-cgroups) that
-> > > run processes. The main service may stop working normally if one of its
-> > > sub-services is killed. So it might make sense to kill not just an
-> > > individual process or a leaf cgroup, but the whole main service with all
-> > > its sub-services.
-> > 
-> > I agree, although I do not pretend for solving all possible
-> > userspace problems caused by an OOM.
-> > 
-> > How to react on an OOM - is definitely a policy, which depends
-> > on the workload. Nothing is changing here from how it's working now,
-> > except now kernel will choose a victim cgroup, and kill the victim cgroup
-> > rather than a process.
-> 
-> There is a _big_ difference. The current implementation just tries
-> to recover from the OOM situation without carying much about the
-> consequences on the workload. This is the last resort and a services for
-> the _system_ to get back to sane state. You are trying to make it more
-> clever and workload aware and that is inevitable going to depend on the
-> specific workload. I really do think we cannot simply hardcode any
-> policy into the kernel for this purpose and that is why I would like to
-> see a discussion about how to do that in a more extensible way. This
-> might be harder to implement now but it I believe it will turn out
-> better longerm.
+My approach here is twofold.  First, keep track of the difference in
+inactive and slab pages since the last time kswapd ran.  In the first
+run this will just be the overall counts of inactive and slab, but for
+each subsequent run we'll have a good idea of where the memory pressure
+is coming from.  Then we use this information to put pressure on either
+the inactive lists or the slab caches, depending on where the pressure
+is coming from.
 
-And that's where I still maintain that this isn't really a policy
-change. Because what this code does ISN'T more clever, and the OOM
-killer STILL IS a last-resort thing. We don't need any elaborate
-just-in-time evaluation of what each entity is worth. We just want to
-kill the biggest job, not the biggest MM. Just like you wouldn't want
-just the biggest VMA unmapped and freed, since it leaves your process
-incoherent, killing one process leaves a job incoherent.
+If this optimization does not work, then we fall back to the previous
+methods of reclaiming space with a slight adjustment.  Instead of using
+the overall scan rate of page cache to determine the scan rate for slab,
+we instead use the total usage of slab compared to the reclaimable page
+cache on the box.  This will allow us to put an appropriate amount of
+pressure on the slab shrinkers if we are a mostly slab workload.
 
-I understand that making it fully configurable is a tempting thought,
-because you'd offload all responsibility to userspace. But on the
-other hand, this was brought up years ago and nothing has happened
-since. And to me this is evidence that nobody really cares all that
-much. Because it's still a rather rare event, and there isn't much you
-cannot accomplish with periodic score adjustments.
+I have two tests I was using to watch either side of this problem.  The
+first test kept 2 files that took up 3/4 of the memory, and then started
+creating a bunch of empty files.  Without this patch we would have to
+re-read both files in their entirety at least 3 times during the run.
+With this patch the active pages are never evicted.
 
-> > > And both kinds of workloads (services/applications and individual
-> > > processes run by users) can co-exist on the same host - consider the
-> > > default systemd setup, for instance.
-> > > 
-> > > IMHO it would be better to give users a choice regarding what they
-> > > really want for a particular cgroup in case of OOM - killing the whole
-> > > cgroup or one of its descendants. For example, we could introduce a
-> > > per-cgroup flag that would tell the kernel whether the cgroup can
-> > > tolerate killing a descendant or not. If it can, the kernel will pick
-> > > the fattest sub-cgroup or process and check it. If it cannot, it will
-> > > kill the whole cgroup and all its processes and sub-cgroups.
-> > 
-> > The last thing we want to do, is to compare processes with cgroups.
-> > I agree, that we can have some option to disable the cgroup-aware OOM at all,
-> > mostly for backward-compatibility. But I don't think it should be a
-> > per-cgroup configuration option, which we will support forever.
-> 
-> I can clearly see a demand for "this is definitely more important
-> container than others so do not kill" usecases. I can also see demand
-> for "do not kill this container running for X days". And more are likely
-> to pop out.
+The second test was a test that would read and stat all the files in a
+directory, which again would take up about 3/4 of the memory with slab
+cache.  Then I cat'ed a 100gib file into /dev/null and checked to see if
+any of the files were evicted and verified that none of the files were
+evicted.
 
-That can all be done with scoring.
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+ mm/vmscan.c | 194 +++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 171 insertions(+), 23 deletions(-)
 
-In fact, we HAD the oom killer consider a target's cputime/runtime
-before, and David replaced it all with simple scoring in a63d83f427fb
-("oom: badness heuristic rewrite").
-
-This was 10 years ago, and nobody has missed anything critical enough
-to implement something beyond scoring. So I don't see why we'd need to
-do it for cgroups all of a sudden.
-
-They're nothing special, they just group together things we have been
-OOM killing for ages. So why shouldn't we use the same config model?
-
-It seems to me, what we need for this patch is 1) a way to toggle
-whether the processes and subgroups of a group are interdependent or
-independent and 2) configurable OOM scoring per cgroup analogous to
-what we have per process already. If a group is marked interdependent
-we stop descending into it and evaluate it as one entity. Otherwise,
-we go look for victims in its subgroups and individual processes.
-
-Are there real-life usecases that wouldn't be covered by this?
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 8ad39bb..481e14e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -110,11 +110,20 @@ struct scan_control {
+ 	/* One of the zones is ready for compaction */
+ 	unsigned int compaction_ready:1;
+ 
++	/* Only reclaim inactive page cache or slab. */
++	unsigned int inactive_only:1;
++
+ 	/* Incremented by the number of inactive pages that were scanned */
+ 	unsigned long nr_scanned;
+ 
+ 	/* Number of pages freed so far during a call to shrink_zones() */
+ 	unsigned long nr_reclaimed;
++
++	/* Number of inactive pages added since last kswapd run. */
++	unsigned long inactive_diff;
++
++	/* Number of slab pages added since last kswapd run. */
++	unsigned long slab_diff;
+ };
+ 
+ #ifdef ARCH_HAS_PREFETCH
+@@ -308,7 +317,8 @@ EXPORT_SYMBOL(unregister_shrinker);
+ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 				    struct shrinker *shrinker,
+ 				    unsigned long nr_scanned,
+-				    unsigned long nr_eligible)
++				    unsigned long nr_eligible,
++				    unsigned long *slab_scanned)
+ {
+ 	unsigned long freed = 0;
+ 	unsigned long long delta;
+@@ -409,6 +419,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		next_deferred -= scanned;
+ 	else
+ 		next_deferred = 0;
++	if (slab_scanned)
++		(*slab_scanned) += scanned;
++
+ 	/*
+ 	 * move the unused scan count back into the shrinker in a
+ 	 * manner that handles concurrent updates. If we exhausted the
+@@ -455,7 +468,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 				 struct mem_cgroup *memcg,
+ 				 unsigned long nr_scanned,
+-				 unsigned long nr_eligible)
++				 unsigned long nr_eligible,
++				 unsigned long *slab_scanned)
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+@@ -463,9 +477,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 		return 0;
+ 
+-	if (nr_scanned == 0)
+-		nr_scanned = SWAP_CLUSTER_MAX;
+-
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/*
+ 		 * If we would return 0, our callers would understand that we
+@@ -496,7 +507,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+-		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible,
++					slab_scanned);
+ 	}
+ 
+ 	up_read(&shrinker_rwsem);
+@@ -515,7 +527,7 @@ void drop_slab_node(int nid)
+ 		freed = 0;
+ 		do {
+ 			freed += shrink_slab(GFP_KERNEL, nid, memcg,
+-					     1000, 1000);
++					     1000, 1000, NULL);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+ 	} while (freed > 10);
+ }
+@@ -2102,6 +2114,7 @@ enum scan_balance {
+ 	SCAN_FRACT,
+ 	SCAN_ANON,
+ 	SCAN_FILE,
++	SCAN_INACTIVE,
+ };
+ 
+ /*
+@@ -2128,6 +2141,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	unsigned long ap, fp;
+ 	enum lru_list lru;
+ 
++	if (sc->inactive_only) {
++		scan_balance = SCAN_INACTIVE;
++		goto out;
++	}
++
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
+ 		scan_balance = SCAN_FILE;
+@@ -2292,6 +2310,15 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 				scan = 0;
+ 			}
+ 			break;
++		case SCAN_INACTIVE:
++			if (file && !is_active_lru(lru)) {
++				if (scan && size > sc->nr_to_reclaim)
++					scan = sc->nr_to_reclaim;
++			} else {
++				size = 0;
++				scan = 0;
++			}
++			break;
+ 		default:
+ 			/* Look ma, no brain */
+ 			BUG();
+@@ -2509,8 +2536,62 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ {
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long nr_reclaimed, nr_scanned;
++	unsigned long nr_reclaim, nr_slab, total_high_wmark = 0, nr_inactive;
++	int z;
+ 	bool reclaimable = false;
++	bool skip_slab = false;
++
++	nr_slab = sum_zone_node_page_state(pgdat->node_id,
++					   NR_SLAB_RECLAIMABLE);
++	nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
++	nr_reclaim = pgdat_reclaimable_pages(pgdat);
++
++	for (z = 0; z < MAX_NR_ZONES; z++) {
++		struct zone *zone = &pgdat->node_zones[z];
++		if (!managed_zone(zone))
++			continue;
++		total_high_wmark += high_wmark_pages(zone);
++	}
++
++	/*
++	 * If we don't have a lot of inactive or slab pages then there's no
++	 * point in trying to free them exclusively, do the normal scan stuff.
++	 */
++	if (nr_inactive < total_high_wmark && nr_slab < total_high_wmark)
++		sc->inactive_only = 0;
+ 
++	/*
++	 * We don't have historical information, we can't make good decisions
++	 * about ratio's and where we should put pressure, so just apply
++	 * pressure based on overall consumption ratios.
++	 */
++	if (!sc->slab_diff && !sc->inactive_diff)
++		sc->inactive_only = 0;
++
++	/*
++	 * We still want to slightly prefer slab over inactive, so if the
++	 * inactive on this node is large enough and what is pushing us into
++	 * reclaim terretitory then limit our flushing to the inactive list for
++	 * the first go around.
++	 *
++	 * The idea is that with a memcg configured system we will still reclaim
++	 * memcg aware shrinkers, which includes the super block shrinkers.  So
++	 * if our steady state is keeping fs objects in cache for our workload
++	 * we'll still put a certain amount of pressure on them anyway.  To
++	 * avoid evicting things we actually care about we want to skip slab
++	 * reclaim altogether.
++	 *
++	 * However we still want to account for slab and inactive growing at the
++	 * same rate, so if that is the case just carry on shrinking inactive
++	 * and slab together.
++	 */
++	if (nr_inactive > total_high_wmark &&
++	    sc->inactive_diff > sc->slab_diff) {
++		unsigned long tmp = sc->inactive_diff >> 1;
++
++		if (tmp >= sc->slab_diff)
++			skip_slab = true;
++	}
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+@@ -2518,6 +2599,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			.priority = sc->priority,
+ 		};
+ 		unsigned long node_lru_pages = 0;
++		unsigned long slab_reclaimed = 0;
++		unsigned long slab_scanned = 0;
+ 		struct mem_cgroup *memcg;
+ 
+ 		nr_reclaimed = sc->nr_reclaimed;
+@@ -2543,10 +2626,27 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+-			if (memcg)
+-				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->nr_scanned - scanned,
+-					    lru_pages);
++			/*
++			 * We don't want to put a lot of pressure on all of the
++			 * slabs if a memcg is mostly full, so use the ratio of
++			 * the lru size to the total reclaimable space on the
++			 * system.  If we have sc->inactive_only set then we
++			 * want to use the ratio of the difference between the
++			 * two since the last kswapd run so we apply pressure to
++			 * the consumer appropriately.
++			 */
++			if (memcg && !skip_slab) {
++				unsigned long numerator = lru_pages;
++				unsigned long denominator = nr_reclaim;
++				if (sc->inactive_only) {
++					numerator = sc->slab_diff;
++					denominator = sc->inactive_diff;
++				}
++				slab_reclaimed +=
++					shrink_slab(sc->gfp_mask, pgdat->node_id,
++						    memcg, numerator, denominator,
++						    &slab_scanned);
++			}
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2570,14 +2670,18 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+-		if (global_reclaim(sc))
+-			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    node_lru_pages);
++		if (!skip_slab && global_reclaim(sc)) {
++			unsigned long numerator = nr_slab;
++			unsigned long denominator = nr_reclaim;
++			if (sc->inactive_only) {
++				numerator = sc->slab_diff;
++				denominator = sc->inactive_diff;
++			}
++			slab_reclaimed += shrink_slab(sc->gfp_mask,
++						      pgdat->node_id, NULL,
++						      numerator, denominator,
++						      &slab_scanned);
++		}
+ 
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+@@ -2589,9 +2693,27 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+ 
+-		if (sc->nr_reclaimed - nr_reclaimed)
++		if (sc->nr_reclaimed - nr_reclaimed) {
+ 			reclaimable = true;
++		} else if (sc->inactive_only && !skip_slab) {
++			unsigned long percent;
+ 
++			/*
++			 * We didn't reclaim anything this go around, so the
++			 * inactive list is likely spent.  If we're reclaiming
++			 * less than half of the objects in slab that we're
++			 * scanning then just stop doing the inactive only scan.
++			 * Otherwise ramp up the pressure on the slab caches
++			 * hoping that eventually we'll start freeing enough
++			 * objects to reclaim space.
++			 */
++			percent = (slab_reclaimed * 100 / slab_scanned);
++			if (percent < 50)
++				sc->inactive_only = 0;
++			else
++				nr_slab <<= 1;
++		}
++		skip_slab = false;
+ 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
+ 					 sc->nr_scanned - nr_scanned, sc));
+ 
+@@ -3234,7 +3356,8 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
+  * or lower is eligible for reclaim until at least one usable zone is
+  * balanced.
+  */
+-static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
++static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx,
++			 unsigned long inactive_diff, unsigned long slab_diff)
+ {
+ 	int i;
+ 	unsigned long nr_soft_reclaimed;
+@@ -3247,6 +3370,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
++		.inactive_only = 1,
++		.inactive_diff = inactive_diff,
++		.slab_diff = slab_diff,
+ 	};
+ 	count_vm_event(PAGEOUTRUN);
+ 
+@@ -3466,7 +3592,7 @@ static int kswapd(void *p)
+ 	unsigned int classzone_idx = MAX_NR_ZONES - 1;
+ 	pg_data_t *pgdat = (pg_data_t*)p;
+ 	struct task_struct *tsk = current;
+-
++	unsigned long nr_slab = 0, nr_inactive = 0;
+ 	struct reclaim_state reclaim_state = {
+ 		.reclaimed_slab = 0,
+ 	};
+@@ -3496,6 +3622,7 @@ static int kswapd(void *p)
+ 	pgdat->kswapd_order = 0;
+ 	pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
+ 	for ( ; ; ) {
++		unsigned long slab_diff, inactive_diff;
+ 		bool ret;
+ 
+ 		alloc_order = reclaim_order = pgdat->kswapd_order;
+@@ -3523,6 +3650,23 @@ static int kswapd(void *p)
+ 			continue;
+ 
+ 		/*
++		 * We want to know where we're adding pages so we can make
++		 * smarter decisions about where we're going to put pressure
++		 * when shrinking.
++		 */
++		slab_diff = sum_zone_node_page_state(pgdat->node_id,
++						     NR_SLAB_RECLAIMABLE);
++		inactive_diff = node_page_state(pgdat, NR_INACTIVE_FILE);
++		if (nr_slab > slab_diff)
++			slab_diff = 0;
++		else
++			slab_diff -= nr_slab;
++		if (inactive_diff < nr_inactive)
++			inactive_diff = 0;
++		else
++			inactive_diff -= nr_inactive;
++
++		/*
+ 		 * Reclaim begins at the requested order but if a high-order
+ 		 * reclaim fails then kswapd falls back to reclaiming for
+ 		 * order-0. If that happens, kswapd will consider sleeping
+@@ -3532,7 +3676,11 @@ static int kswapd(void *p)
+ 		 */
+ 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
+ 						alloc_order);
+-		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
++		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx,
++					      inactive_diff, slab_diff);
++		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
++		nr_slab = sum_zone_node_page_state(pgdat->node_id,
++						   NR_SLAB_RECLAIMABLE);
+ 		if (reclaim_order < alloc_order)
+ 			goto kswapd_try_sleep;
+ 	}
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
