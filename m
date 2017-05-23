@@ -1,121 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1942C6B0279
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 03:07:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b28so14716170wrb.2
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 00:07:51 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 99CF36B0279
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 03:11:35 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id j27so14723304wre.3
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 00:11:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i24si12672130wrc.170.2017.05.23.00.07.49
+        by mx.google.com with ESMTPS id 193si1241182wmh.153.2017.05.23.00.11.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 May 2017 00:07:49 -0700 (PDT)
-Date: Tue, 23 May 2017 09:07:47 +0200
+        Tue, 23 May 2017 00:11:34 -0700 (PDT)
+Date: Tue, 23 May 2017 09:11:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
-Message-ID: <20170523070747.GF12813@dhcp22.suse.cz>
-References: <1495124884-28974-1-git-send-email-guro@fb.com>
- <20170520183729.GA3195@esperanza>
- <20170522170116.GB22625@castle>
+Subject: Re: [PATCH v2 4/6] mm, mempolicy: simplify rebinding mempolicies
+ when updating cpusets
+Message-ID: <20170523071131.GG12813@dhcp22.suse.cz>
+References: <20170517081140.30654-1-vbabka@suse.cz>
+ <20170517081140.30654-5-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170522170116.GB22625@castle>
+In-Reply-To: <20170517081140.30654-5-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Vladimir Davydov <vdavydov@tarantool.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 22-05-17 18:01:16, Roman Gushchin wrote:
-> On Sat, May 20, 2017 at 09:37:29PM +0300, Vladimir Davydov wrote:
-> > Hello Roman,
+On Wed 17-05-17 10:11:38, Vlastimil Babka wrote:
+> Commit c0ff7453bb5c ("cpuset,mm: fix no node to alloc memory when changing
+> cpuset's mems") has introduced a two-step protocol when rebinding task's
+> mempolicy due to cpuset update, in order to avoid a parallel allocation seeing
+> an empty effective nodemask and failing. Later, commit cc9a6c877661 ("cpuset:
+> mm: reduce large amounts of memory barrier related damage v3") introduced
+> a seqlock protection and removed the synchronization point between the two
+> update steps. At that point (or perhaps later), the two-step rebinding became
+> unnecessary. Currently it only makes sure that the update first adds new nodes
+> in step 1 and then removes nodes in step 2. Without memory barriers the effects
+> are questionable, and even then this cannot prevent a parallel zonelist
+> iteration checking the nodemask at each step to observe all nodes as unusable
+> for allocation. We now fully rely on the seqlock to prevent premature OOMs and
+> allocation failures.
 > 
-> Hi Vladimir!
+> We can thus remove the two-step update parts and simplify the code.
 > 
-> > 
-> > On Thu, May 18, 2017 at 05:28:04PM +0100, Roman Gushchin wrote:
-> > ...
-> > > +5-2-4. Cgroup-aware OOM Killer
-> > > +
-> > > +Cgroup v2 memory controller implements a cgroup-aware OOM killer.
-> > > +It means that it treats memory cgroups as memory consumers
-> > > +rather then individual processes. Under the OOM conditions it tries
-> > > +to find an elegible leaf memory cgroup, and kill all processes
-> > > +in this cgroup. If it's not possible (e.g. all processes belong
-> > > +to the root cgroup), it falls back to the traditional per-process
-> > > +behaviour.
-> > 
-> > I agree that the current OOM victim selection algorithm is totally
-> > unfair in a system using containers and it has been crying for rework
-> > for the last few years now, so it's great to see this finally coming.
-> > 
-> > However, I don't reckon that killing a whole leaf cgroup is always the
-> > best practice. It does make sense when cgroups are used for
-> > containerizing services or applications, because a service is unlikely
-> > to remain operational after one of its processes is gone, but one can
-> > also use cgroups to containerize processes started by a user. Kicking a
-> > user out for one of her process has gone mad doesn't sound right to me.
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+
+\o/ This code has been just piling up more complicated code on top of
+the code which shouldn't have existed in the first place so I am very
+happy to see it go. I hope we can go without rebinding altogether
+longterm. Chaging data under feets just asks for problems and this is a
+nice example of where it goes.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/mempolicy.h      |   6 +--
+>  include/uapi/linux/mempolicy.h |   8 ----
+>  kernel/cgroup/cpuset.c         |   4 +-
+>  mm/mempolicy.c                 | 102 ++++++++---------------------------------
+>  4 files changed, 21 insertions(+), 99 deletions(-)
 > 
-> I agree, that it's not always a best practise, if you're not allowed
-> to change the cgroup configuration (e.g. create new cgroups).
-> IMHO, this case is mostly covered by using the v1 cgroup interface,
-> which remains unchanged.
+> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+> index ecb6cbeede5a..3a58b4be1b0c 100644
+> --- a/include/linux/mempolicy.h
+> +++ b/include/linux/mempolicy.h
+> @@ -142,8 +142,7 @@ bool vma_policy_mof(struct vm_area_struct *vma);
+>  
+>  extern void numa_default_policy(void);
+>  extern void numa_policy_init(void);
+> -extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+> -				enum mpol_rebind_step step);
+> +extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new);
+>  extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
+>  
+>  extern int huge_node(struct vm_area_struct *vma,
+> @@ -260,8 +259,7 @@ static inline void numa_default_policy(void)
+>  }
+>  
+>  static inline void mpol_rebind_task(struct task_struct *tsk,
+> -				const nodemask_t *new,
+> -				enum mpol_rebind_step step)
+> +				const nodemask_t *new)
+>  {
+>  }
+>  
+> diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+> index 9cd8b21dddbe..2a4d89508fec 100644
+> --- a/include/uapi/linux/mempolicy.h
+> +++ b/include/uapi/linux/mempolicy.h
+> @@ -24,13 +24,6 @@ enum {
+>  	MPOL_MAX,	/* always last member of enum */
+>  };
+>  
+> -enum mpol_rebind_step {
+> -	MPOL_REBIND_ONCE,	/* do rebind work at once(not by two step) */
+> -	MPOL_REBIND_STEP1,	/* first step(set all the newly nodes) */
+> -	MPOL_REBIND_STEP2,	/* second step(clean all the disallowed nodes)*/
+> -	MPOL_REBIND_NSTEP,
+> -};
+> -
+>  /* Flags for set_mempolicy */
+>  #define MPOL_F_STATIC_NODES	(1 << 15)
+>  #define MPOL_F_RELATIVE_NODES	(1 << 14)
+> @@ -65,7 +58,6 @@ enum mpol_rebind_step {
+>   */
+>  #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
+>  #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+> -#define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
+>  #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
+>  #define MPOL_F_MORON	(1 << 4) /* Migrate On protnone Reference On Node */
+>  
+> diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+> index 0f41292be0fb..dfd5b420452d 100644
+> --- a/kernel/cgroup/cpuset.c
+> +++ b/kernel/cgroup/cpuset.c
+> @@ -1063,9 +1063,7 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
+>  	}
+>  
+>  	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
+> -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
+> -
+> -	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+> +	mpol_rebind_task(tsk, newmems);
+>  	tsk->mems_allowed = *newmems;
+>  
+>  	if (need_loop) {
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index c60807625fd5..047181452040 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -146,22 +146,7 @@ struct mempolicy *get_task_policy(struct task_struct *p)
+>  
+>  static const struct mempolicy_operations {
+>  	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
+> -	/*
+> -	 * If read-side task has no lock to protect task->mempolicy, write-side
+> -	 * task will rebind the task->mempolicy by two step. The first step is
+> -	 * setting all the newly nodes, and the second step is cleaning all the
+> -	 * disallowed nodes. In this way, we can avoid finding no node to alloc
+> -	 * page.
+> -	 * If we have a lock to protect task->mempolicy in read-side, we do
+> -	 * rebind directly.
+> -	 *
+> -	 * step:
+> -	 * 	MPOL_REBIND_ONCE - do rebind work at once
+> -	 * 	MPOL_REBIND_STEP1 - set all the newly nodes
+> -	 * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+> -	 */
+> -	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes,
+> -			enum mpol_rebind_step step);
+> +	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes);
+>  } mpol_ops[MPOL_MAX];
+>  
+>  static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
+> @@ -304,19 +289,11 @@ void __mpol_put(struct mempolicy *p)
+>  	kmem_cache_free(policy_cache, p);
+>  }
+>  
+> -static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes,
+> -				enum mpol_rebind_step step)
+> +static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
+>  {
+>  }
+>  
+> -/*
+> - * step:
+> - * 	MPOL_REBIND_ONCE  - do rebind work at once
+> - * 	MPOL_REBIND_STEP1 - set all the newly nodes
+> - * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+> - */
+> -static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+> -				 enum mpol_rebind_step step)
+> +static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+>  {
+>  	nodemask_t tmp;
+>  
+> @@ -325,35 +302,19 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+>  	else if (pol->flags & MPOL_F_RELATIVE_NODES)
+>  		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+>  	else {
+> -		/*
+> -		 * if step == 1, we use ->w.cpuset_mems_allowed to cache the
+> -		 * result
+> -		 */
+> -		if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP1) {
+> -			nodes_remap(tmp, pol->v.nodes,
+> -					pol->w.cpuset_mems_allowed, *nodes);
+> -			pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
+> -		} else if (step == MPOL_REBIND_STEP2) {
+> -			tmp = pol->w.cpuset_mems_allowed;
+> -			pol->w.cpuset_mems_allowed = *nodes;
+> -		} else
+> -			BUG();
+> +		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
+> +								*nodes);
+> +		pol->w.cpuset_mems_allowed = tmp;
+>  	}
+>  
+>  	if (nodes_empty(tmp))
+>  		tmp = *nodes;
+>  
+> -	if (step == MPOL_REBIND_STEP1)
+> -		nodes_or(pol->v.nodes, pol->v.nodes, tmp);
+> -	else if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP2)
+> -		pol->v.nodes = tmp;
+> -	else
+> -		BUG();
+> +	pol->v.nodes = tmp;
+>  }
+>  
+>  static void mpol_rebind_preferred(struct mempolicy *pol,
+> -				  const nodemask_t *nodes,
+> -				  enum mpol_rebind_step step)
+> +						const nodemask_t *nodes)
+>  {
+>  	nodemask_t tmp;
+>  
+> @@ -379,42 +340,19 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
+>  /*
+>   * mpol_rebind_policy - Migrate a policy to a different set of nodes
+>   *
+> - * If read-side task has no lock to protect task->mempolicy, write-side
+> - * task will rebind the task->mempolicy by two step. The first step is
+> - * setting all the newly nodes, and the second step is cleaning all the
+> - * disallowed nodes. In this way, we can avoid finding no node to alloc
+> - * page.
+> - * If we have a lock to protect task->mempolicy in read-side, we do
+> - * rebind directly.
+> - *
+> - * step:
+> - * 	MPOL_REBIND_ONCE  - do rebind work at once
+> - * 	MPOL_REBIND_STEP1 - set all the newly nodes
+> - * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+> + * Per-vma policies are protected by mmap_sem. Allocations using per-task
+> + * policies are protected by task->mems_allowed_seq to prevent a premature
+> + * OOM/allocation failure due to parallel nodemask modification.
+>   */
+> -static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
+> -				enum mpol_rebind_step step)
+> +static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
+>  {
+>  	if (!pol)
+>  		return;
+> -	if (!mpol_store_user_nodemask(pol) && step == MPOL_REBIND_ONCE &&
+> +	if (!mpol_store_user_nodemask(pol) &&
+>  	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+>  		return;
+>  
+> -	if (step == MPOL_REBIND_STEP1 && (pol->flags & MPOL_F_REBINDING))
+> -		return;
+> -
+> -	if (step == MPOL_REBIND_STEP2 && !(pol->flags & MPOL_F_REBINDING))
+> -		BUG();
+> -
+> -	if (step == MPOL_REBIND_STEP1)
+> -		pol->flags |= MPOL_F_REBINDING;
+> -	else if (step == MPOL_REBIND_STEP2)
+> -		pol->flags &= ~MPOL_F_REBINDING;
+> -	else if (step >= MPOL_REBIND_NSTEP)
+> -		BUG();
+> -
+> -	mpol_ops[pol->mode].rebind(pol, newmask, step);
+> +	mpol_ops[pol->mode].rebind(pol, newmask);
+>  }
+>  
+>  /*
+> @@ -424,10 +362,9 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
+>   * Called with task's alloc_lock held.
+>   */
+>  
+> -void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+> -			enum mpol_rebind_step step)
+> +void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
+>  {
+> -	mpol_rebind_policy(tsk->mempolicy, new, step);
+> +	mpol_rebind_policy(tsk->mempolicy, new);
+>  }
+>  
+>  /*
+> @@ -442,7 +379,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+>  
+>  	down_write(&mm->mmap_sem);
+>  	for (vma = mm->mmap; vma; vma = vma->vm_next)
+> -		mpol_rebind_policy(vma->vm_policy, new, MPOL_REBIND_ONCE);
+> +		mpol_rebind_policy(vma->vm_policy, new);
+>  	up_write(&mm->mmap_sem);
+>  }
+>  
+> @@ -2101,10 +2038,7 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
+>  
+>  	if (current_cpuset_is_being_rebound()) {
+>  		nodemask_t mems = cpuset_mems_allowed(current);
+> -		if (new->flags & MPOL_F_REBINDING)
+> -			mpol_rebind_policy(new, &mems, MPOL_REBIND_STEP2);
+> -		else
+> -			mpol_rebind_policy(new, &mems, MPOL_REBIND_ONCE);
+> +		mpol_rebind_policy(new, &mems);
+>  	}
+>  	atomic_set(&new->refcnt, 1);
+>  	return new;
+> -- 
+> 2.12.2
 
-But there are features which are v2 only and users might really want to
-use it. So I really do not buy this v2-only argument.
-
-> If you do have control over cgroups, you can put processes into
-> separate cgroups, and obtain control over OOM victim selection and killing.
-
-Usually you do not have that control because there is a global daemon
-doing the placement for you.
-
-> > Another example when the policy you're suggesting fails in my opinion is
-> > in case a service (cgroup) consists of sub-services (sub-cgroups) that
-> > run processes. The main service may stop working normally if one of its
-> > sub-services is killed. So it might make sense to kill not just an
-> > individual process or a leaf cgroup, but the whole main service with all
-> > its sub-services.
-> 
-> I agree, although I do not pretend for solving all possible
-> userspace problems caused by an OOM.
-> 
-> How to react on an OOM - is definitely a policy, which depends
-> on the workload. Nothing is changing here from how it's working now,
-> except now kernel will choose a victim cgroup, and kill the victim cgroup
-> rather than a process.
-
-There is a _big_ difference. The current implementation just tries
-to recover from the OOM situation without carying much about the
-consequences on the workload. This is the last resort and a services for
-the _system_ to get back to sane state. You are trying to make it more
-clever and workload aware and that is inevitable going to depend on the
-specific workload. I really do think we cannot simply hardcode any
-policy into the kernel for this purpose and that is why I would like to
-see a discussion about how to do that in a more extensible way. This
-might be harder to implement now but it I believe it will turn out
-better longerm.
-
-> > And both kinds of workloads (services/applications and individual
-> > processes run by users) can co-exist on the same host - consider the
-> > default systemd setup, for instance.
-> > 
-> > IMHO it would be better to give users a choice regarding what they
-> > really want for a particular cgroup in case of OOM - killing the whole
-> > cgroup or one of its descendants. For example, we could introduce a
-> > per-cgroup flag that would tell the kernel whether the cgroup can
-> > tolerate killing a descendant or not. If it can, the kernel will pick
-> > the fattest sub-cgroup or process and check it. If it cannot, it will
-> > kill the whole cgroup and all its processes and sub-cgroups.
-> 
-> The last thing we want to do, is to compare processes with cgroups.
-> I agree, that we can have some option to disable the cgroup-aware OOM at all,
-> mostly for backward-compatibility. But I don't think it should be a
-> per-cgroup configuration option, which we will support forever.
-
-I can clearly see a demand for "this is definitely more important
-container than others so do not kill" usecases. I can also see demand
-for "do not kill this container running for X days". And more are likely
-to pop out.
 -- 
 Michal Hocko
 SUSE Labs
