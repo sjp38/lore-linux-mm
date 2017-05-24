@@ -1,401 +1,842 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EBBEB6B037E
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 05:55:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id q23so5774301pgn.14
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 02:55:08 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id n190si23857449pga.80.2017.05.24.02.55.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B9C416B0397
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 05:55:34 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id m5so191756243pfc.1
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 02:55:34 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id n1si23736846pfj.414.2017.05.24.02.55.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 02:55:06 -0700 (PDT)
+        Wed, 24 May 2017 02:55:33 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 10/10] x86/mm: Allow to have userspace mappings above 47-bits
-Date: Wed, 24 May 2017 12:54:19 +0300
-Message-Id: <20170524095419.14281-11-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 01/10] x86/mm/gup: Switch GUP to the generic get_user_page_fast() implementation
+Date: Wed, 24 May 2017 12:54:10 +0300
+Message-Id: <20170524095419.14281-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170524095419.14281-1-kirill.shutemov@linux.intel.com>
 References: <20170524095419.14281-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-api@vger.kernel.org
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On x86, 5-level paging enables 56-bit userspace virtual address space.
-Not all user space is ready to handle wide addresses. It's known that
-at least some JIT compilers use higher bits in pointers to encode their
-information. It collides with valid pointers with 5-level paging and
-leads to crashes.
-
-To mitigate this, we are not going to allocate virtual address space
-above 47-bit by default.
-
-But userspace can ask for allocation from full address space by
-specifying hint address (with or without MAP_FIXED) above 47-bits.
-
-If hint address set above 47-bit, but MAP_FIXED is not specified, we try
-to look for unmapped area by specified address. If it's already
-occupied, we look for unmapped area in *full* address space, rather than
-from 47-bit window.
-
-A high hint address would only affect the allocation in question, but not
-any future mmap()s.
-
-Specifying high hint address on older kernel or on machine without 5-level
-paging support is safe. The hint will be ignored and kernel will fall back
-to allocation from 47-bit address space.
-
-This approach helps to easily make application's memory allocator aware
-about large address space without manually tracking allocated virtual
-address space.
-
-One important case we need to handle here is interaction with MPX.
-MPX (without MAWA( extension cannot handle addresses above 47-bit, so we
-need to make sure that MPX cannot be enabled we already have VMA above
-the boundary and forbid creating such VMAs once MPX is enabled.
+This patch provides all required callbacks required by the generic
+get_user_pages_fast() code and switches x86 over - and removes
+the platform specific implementation.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: linux-api@vger.kernel.org
 ---
- arch/x86/include/asm/elf.h       |  4 ++--
- arch/x86/include/asm/mpx.h       |  9 +++++++++
- arch/x86/include/asm/processor.h | 12 +++++++++---
- arch/x86/kernel/sys_x86_64.c     | 30 ++++++++++++++++++++++++++----
- arch/x86/mm/hugetlbpage.c        | 27 +++++++++++++++++++++++----
- arch/x86/mm/mmap.c               |  6 +++---
- arch/x86/mm/mpx.c                | 33 ++++++++++++++++++++++++++++++++-
- 7 files changed, 104 insertions(+), 17 deletions(-)
+ arch/arm/Kconfig                      |   2 +-
+ arch/arm64/Kconfig                    |   2 +-
+ arch/powerpc/Kconfig                  |   2 +-
+ arch/x86/Kconfig                      |   3 +
+ arch/x86/include/asm/mmu_context.h    |  12 -
+ arch/x86/include/asm/pgtable-3level.h |  47 ++++
+ arch/x86/include/asm/pgtable.h        |  53 ++++
+ arch/x86/include/asm/pgtable_64.h     |  16 +-
+ arch/x86/mm/Makefile                  |   2 +-
+ arch/x86/mm/gup.c                     | 496 ----------------------------------
+ mm/Kconfig                            |   2 +-
+ mm/gup.c                              |  10 +-
+ 12 files changed, 128 insertions(+), 519 deletions(-)
+ delete mode 100644 arch/x86/mm/gup.c
 
-diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
-index e8ab9a46bc68..7a30513a4046 100644
---- a/arch/x86/include/asm/elf.h
-+++ b/arch/x86/include/asm/elf.h
-@@ -250,7 +250,7 @@ extern int force_personality32;
-    the loader.  We need to make sure that it is out of the way of the program
-    that it will "exec", and that there is sufficient room for the brk.  */
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 4c1a35f15838..c3c49c9491d5 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1637,7 +1637,7 @@ config ARCH_SELECT_MEMORY_MODEL
+ config HAVE_ARCH_PFN_VALID
+ 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
  
--#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
-+#define ELF_ET_DYN_BASE		(TASK_SIZE_LOW / 3 * 2)
+-config HAVE_GENERIC_RCU_GUP
++config HAVE_GENERIC_GUP
+ 	def_bool y
+ 	depends on ARM_LPAE
  
- /* This yields a mask that user programs can use to figure out what
-    instruction set this CPU supports.  This could be done in user space,
-@@ -304,7 +304,7 @@ static inline int mmap_is_ia32(void)
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 3dcd7ec69bca..a7c5f8c3f13d 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -205,7 +205,7 @@ config GENERIC_CALIBRATE_DELAY
+ config ZONE_DMA
+ 	def_bool y
+ 
+-config HAVE_GENERIC_RCU_GUP
++config HAVE_GENERIC_GUP
+ 	def_bool y
+ 
+ config ARCH_DMA_ADDR_T_64BIT
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index f7c8f9972f61..7d898796c819 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -184,7 +184,7 @@ config PPC
+ 	select HAVE_FUNCTION_GRAPH_TRACER
+ 	select HAVE_FUNCTION_TRACER
+ 	select HAVE_GCC_PLUGINS
+-	select HAVE_GENERIC_RCU_GUP
++	select HAVE_GENERIC_GUP
+ 	select HAVE_HW_BREAKPOINT		if PERF_EVENTS && (PPC_BOOK3S || PPC_8xx)
+ 	select HAVE_IDE
+ 	select HAVE_IOREMAP_PROT
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index cd18994a9555..bd0f2ff59029 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2797,6 +2797,9 @@ config X86_DMA_REMAP
+ 	bool
+ 	depends on STA2X11
+ 
++config HAVE_GENERIC_GUP
++	def_bool y
++
+ source "net/Kconfig"
+ 
+ source "drivers/Kconfig"
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 68b329d77b3a..6e933d2d88d9 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -220,18 +220,6 @@ static inline int vma_pkey(struct vm_area_struct *vma)
  }
+ #endif
  
- extern unsigned long tasksize_32bit(void);
--extern unsigned long tasksize_64bit(void);
-+extern unsigned long tasksize_64bit(int full_addr_space);
- extern unsigned long get_mmap_base(int is_legacy);
- 
- #ifdef CONFIG_X86_32
-diff --git a/arch/x86/include/asm/mpx.h b/arch/x86/include/asm/mpx.h
-index a0d662be4c5b..7d7404756bb4 100644
---- a/arch/x86/include/asm/mpx.h
-+++ b/arch/x86/include/asm/mpx.h
-@@ -73,6 +73,9 @@ static inline void mpx_mm_init(struct mm_struct *mm)
- }
- void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
- 		      unsigned long start, unsigned long end);
-+
-+unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-+		unsigned long flags);
- #else
- static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
- {
-@@ -94,6 +97,12 @@ static inline void mpx_notify_unmap(struct mm_struct *mm,
- 				    unsigned long start, unsigned long end)
- {
- }
-+
-+static inline unsigned long mpx_unmapped_area_check(unsigned long addr,
-+		unsigned long len, unsigned long flags)
-+{
-+	return addr;
-+}
- #endif /* CONFIG_X86_INTEL_MPX */
- 
- #endif /* _ASM_X86_MPX_H */
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 3cada998a402..65663de9287b 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -794,7 +794,9 @@ static inline void spin_lock_prefetch(const void *x)
-  */
- #define IA32_PAGE_OFFSET	PAGE_OFFSET
- #define TASK_SIZE		PAGE_OFFSET
-+#define TASK_SIZE_LOW		TASK_SIZE
- #define TASK_SIZE_MAX		TASK_SIZE
-+#define DEFAULT_MAP_WINDOW	TASK_SIZE
- #define STACK_TOP		TASK_SIZE
- #define STACK_TOP_MAX		STACK_TOP
- 
-@@ -834,7 +836,9 @@ static inline void spin_lock_prefetch(const void *x)
-  * particular problem by preventing anything from being mapped
-  * at the maximum canonical address.
-  */
--#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
-+#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
-+
-+#define DEFAULT_MAP_WINDOW	((1UL << 47) - PAGE_SIZE)
- 
- /* This decides where the kernel will search for a free chunk of vm
-  * space during mmap's.
-@@ -842,12 +846,14 @@ static inline void spin_lock_prefetch(const void *x)
- #define IA32_PAGE_OFFSET	((current->personality & ADDR_LIMIT_3GB) ? \
- 					0xc0000000 : 0xFFFFe000)
- 
-+#define TASK_SIZE_LOW		(test_thread_flag(TIF_ADDR32) ? \
-+					IA32_PAGE_OFFSET : DEFAULT_MAP_WINDOW)
- #define TASK_SIZE		(test_thread_flag(TIF_ADDR32) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
- #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
- 
--#define STACK_TOP		TASK_SIZE
-+#define STACK_TOP		TASK_SIZE_LOW
- #define STACK_TOP_MAX		TASK_SIZE_MAX
- 
- #define INIT_THREAD  {						\
-@@ -870,7 +876,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
-  * space during mmap's.
-  */
- #define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
--#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE)
-+#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
- 
- #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
- 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 207b8f2582c7..74d1587b181d 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -21,6 +21,7 @@
- #include <asm/compat.h>
- #include <asm/ia32.h>
- #include <asm/syscalls.h>
-+#include <asm/mpx.h>
- 
- /*
-  * Align a virtual address to avoid aliasing in the I$ on AMD F15h.
-@@ -100,8 +101,8 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
- 	return error;
- }
- 
--static void find_start_end(unsigned long flags, unsigned long *begin,
--			   unsigned long *end)
-+static void find_start_end(unsigned long addr, unsigned long flags,
-+		unsigned long *begin, unsigned long *end)
- {
- 	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
- 		/* This is usually used needed to map code in small
-@@ -120,7 +121,10 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
- 	}
- 
- 	*begin	= get_mmap_base(1);
--	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
-+	if (in_compat_syscall())
-+		*end = tasksize_32bit();
-+	else
-+		*end = tasksize_64bit(addr > DEFAULT_MAP_WINDOW);
- }
- 
- unsigned long
-@@ -132,10 +136,14 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 	struct vm_unmapped_area_info info;
- 	unsigned long begin, end;
- 
-+	addr = mpx_unmapped_area_check(addr, len, flags);
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
-+
- 	if (flags & MAP_FIXED)
- 		return addr;
- 
--	find_start_end(flags, &begin, &end);
-+	find_start_end(addr, flags, &begin, &end);
- 
- 	if (len > end)
- 		return -ENOMEM;
-@@ -171,6 +179,10 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	unsigned long addr = addr0;
- 	struct vm_unmapped_area_info info;
- 
-+	addr = mpx_unmapped_area_check(addr, len, flags);
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
-+
- 	/* requested length too big for entire address space */
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
-@@ -195,6 +207,16 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	info.length = len;
- 	info.low_limit = PAGE_SIZE;
- 	info.high_limit = get_mmap_base(0);
-+
-+	/*
-+	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-+	 * in the full address space.
-+	 *
-+	 * !in_compat_syscall() check to avoid high addresses for x32.
-+	 */
-+	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-+		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
-+
- 	info.align_mask = 0;
- 	info.align_offset = pgoff << PAGE_SHIFT;
- 	if (filp) {
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 302f43fd9c28..730f00250acb 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -18,6 +18,7 @@
- #include <asm/tlbflush.h>
- #include <asm/pgalloc.h>
- #include <asm/elf.h>
-+#include <asm/mpx.h>
- 
- #if 0	/* This is just for testing */
- struct page *
-@@ -85,25 +86,38 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
- 	info.flags = 0;
- 	info.length = len;
- 	info.low_limit = get_mmap_base(1);
-+
-+	/*
-+	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-+	 * in the full address space.
-+	 */
- 	info.high_limit = in_compat_syscall() ?
--		tasksize_32bit() : tasksize_64bit();
-+		tasksize_32bit() : tasksize_64bit(addr > DEFAULT_MAP_WINDOW);
-+
- 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
- 	info.align_offset = 0;
- 	return vm_unmapped_area(&info);
- }
- 
- static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
--		unsigned long addr0, unsigned long len,
-+		unsigned long addr, unsigned long len,
- 		unsigned long pgoff, unsigned long flags)
- {
- 	struct hstate *h = hstate_file(file);
- 	struct vm_unmapped_area_info info;
--	unsigned long addr;
- 
- 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
- 	info.length = len;
- 	info.low_limit = PAGE_SIZE;
- 	info.high_limit = get_mmap_base(0);
-+
-+	/*
-+	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-+	 * in the full address space.
-+	 */
-+	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
-+		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
-+
- 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
- 	info.align_offset = 0;
- 	addr = vm_unmapped_area(&info);
-@@ -118,7 +132,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
- 		VM_BUG_ON(addr != -ENOMEM);
- 		info.flags = 0;
- 		info.low_limit = TASK_UNMAPPED_BASE;
--		info.high_limit = TASK_SIZE;
-+		info.high_limit = TASK_SIZE_LOW;
- 		addr = vm_unmapped_area(&info);
- 	}
- 
-@@ -135,6 +149,11 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 
- 	if (len & ~huge_page_mask(h))
- 		return -EINVAL;
-+
-+	addr = mpx_unmapped_area_check(addr, len, flags);
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
-+
- 	if (len > TASK_SIZE)
- 		return -ENOMEM;
- 
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 19ad095b41df..199050249d60 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -42,9 +42,9 @@ unsigned long tasksize_32bit(void)
- 	return IA32_PAGE_OFFSET;
- }
- 
--unsigned long tasksize_64bit(void)
-+unsigned long tasksize_64bit(int full_addr_space)
- {
--	return TASK_SIZE_MAX;
-+	return full_addr_space ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW;
- }
- 
- static unsigned long stack_maxrandom_size(unsigned long task_size)
-@@ -140,7 +140,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
- 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
- 
- 	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
--			arch_rnd(mmap64_rnd_bits), tasksize_64bit());
-+			arch_rnd(mmap64_rnd_bits), tasksize_64bit(0));
- 
- #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
- 	/*
-diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
-index 1c34b767c84c..8c8da27e8549 100644
---- a/arch/x86/mm/mpx.c
-+++ b/arch/x86/mm/mpx.c
-@@ -355,10 +355,19 @@ int mpx_enable_management(void)
- 	 */
- 	bd_base = mpx_get_bounds_dir();
- 	down_write(&mm->mmap_sem);
-+
-+	/* MPX doesn't support addresses above 47-bits yet. */
-+	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
-+		pr_warn_once("%s (%d): MPX cannot handle addresses "
-+				"above 47-bits. Disabling.",
-+				current->comm, current->pid);
-+		ret = -ENXIO;
-+		goto out;
-+	}
- 	mm->context.bd_addr = bd_base;
- 	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
- 		ret = -ENXIO;
+-static inline bool __pkru_allows_pkey(u16 pkey, bool write)
+-{
+-	u32 pkru = read_pkru();
 -
-+out:
- 	up_write(&mm->mmap_sem);
- 	return ret;
- }
-@@ -1030,3 +1039,25 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (ret)
- 		force_sig(SIGSEGV, current);
- }
-+
-+/* MPX cannot handle addresses above 47-bits yet. */
-+unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
-+		unsigned long flags)
+-	if (!__pkru_allows_read(pkru, pkey))
+-		return false;
+-	if (write && !__pkru_allows_write(pkru, pkey))
+-		return false;
+-
+-	return true;
+-}
+-
+ /*
+  * We only want to enforce protection keys on the current process
+  * because we effectively have no access to PKRU for other
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index 50d35e3185f5..c8821bab938f 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -212,4 +212,51 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
+ #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
+ #define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
+ 
++#define gup_get_pte gup_get_pte
++/*
++ * WARNING: only to be used in the get_user_pages_fast() implementation.
++ *
++ * With get_user_pages_fast(), we walk down the pagetables without taking
++ * any locks.  For this we would like to load the pointers atomically,
++ * but that is not possible (without expensive cmpxchg8b) on PAE.  What
++ * we do have is the guarantee that a PTE will only either go from not
++ * present to present, or present to not present or both -- it will not
++ * switch to a completely different present page without a TLB flush in
++ * between; something that we are blocking by holding interrupts off.
++ *
++ * Setting ptes from not present to present goes:
++ *
++ *   ptep->pte_high = h;
++ *   smp_wmb();
++ *   ptep->pte_low = l;
++ *
++ * And present to not present goes:
++ *
++ *   ptep->pte_low = 0;
++ *   smp_wmb();
++ *   ptep->pte_high = 0;
++ *
++ * We must ensure here that the load of pte_low sees 'l' iff pte_high
++ * sees 'h'. We load pte_high *after* loading pte_low, which ensures we
++ * don't see an older value of pte_high.  *Then* we recheck pte_low,
++ * which ensures that we haven't picked up a changed pte high. We might
++ * have gotten rubbish values from pte_low and pte_high, but we are
++ * guaranteed that pte_low will not have the present bit set *unless*
++ * it is 'l'. Because get_user_pages_fast() only operates on present ptes
++ * we're safe.
++ */
++static inline pte_t gup_get_pte(pte_t *ptep)
 +{
-+	if (!kernel_managing_mpx_tables(current->mm))
-+		return addr;
-+	if (addr + len <= DEFAULT_MAP_WINDOW)
-+		return addr;
-+	if (flags & MAP_FIXED)
-+		return -ENOMEM;
++	pte_t pte;
 +
-+	/*
-+	 * Requested len is larger than whole area we're allowed to map in.
-+	 * Resetting hinting address wouldn't do much good -- fail early.
-+	 */
-+	if (len > DEFAULT_MAP_WINDOW)
-+		return -ENOMEM;
++	do {
++		pte.pte_low = ptep->pte_low;
++		smp_rmb();
++		pte.pte_high = ptep->pte_high;
++		smp_rmb();
++	} while (unlikely(pte.pte_low != ptep->pte_low));
 +
-+	/* Look for unmap area within DEFAULT_MAP_WINDOW */
++	return pte;
++}
++
+ #endif /* _ASM_X86_PGTABLE_3LEVEL_H */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index f5af95a0c6b8..942482ac36a8 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -244,6 +244,11 @@ static inline int pud_devmap(pud_t pud)
+ 	return 0;
+ }
+ #endif
++
++static inline int pgd_devmap(pgd_t pgd)
++{
 +	return 0;
 +}
+ #endif
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+@@ -1185,6 +1190,54 @@ static inline u16 pte_flags_pkey(unsigned long pte_flags)
+ #endif
+ }
+ 
++static inline bool __pkru_allows_pkey(u16 pkey, bool write)
++{
++	u32 pkru = read_pkru();
++
++	if (!__pkru_allows_read(pkru, pkey))
++		return false;
++	if (write && !__pkru_allows_write(pkru, pkey))
++		return false;
++
++	return true;
++}
++
++/*
++ * 'pteval' can come from a PTE, PMD or PUD.  We only check
++ * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
++ * same value on all 3 types.
++ */
++static inline bool __pte_access_permitted(unsigned long pteval, bool write)
++{
++	unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
++
++	if (write)
++		need_pte_bits |= _PAGE_RW;
++
++	if ((pteval & need_pte_bits) != need_pte_bits)
++		return 0;
++
++	return __pkru_allows_pkey(pte_flags_pkey(pteval), write);
++}
++
++#define pte_access_permitted pte_access_permitted
++static inline bool pte_access_permitted(pte_t pte, bool write)
++{
++	return __pte_access_permitted(pte_val(pte), write);
++}
++
++#define pmd_access_permitted pmd_access_permitted
++static inline bool pmd_access_permitted(pmd_t pmd, bool write)
++{
++	return __pte_access_permitted(pmd_val(pmd), write);
++}
++
++#define pud_access_permitted pud_access_permitted
++static inline bool pud_access_permitted(pud_t pud, bool write)
++{
++	return __pte_access_permitted(pud_val(pud), write);
++}
++
+ #include <asm-generic/pgtable.h>
+ #endif	/* __ASSEMBLY__ */
+ 
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 9991224f6238..12ea31274eb6 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -227,6 +227,20 @@ extern void cleanup_highmap(void);
+ extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
+ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
+ 
+-#endif /* !__ASSEMBLY__ */
++#define gup_fast_permitted gup_fast_permitted
++static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
++		int write)
++{
++	unsigned long len, end;
++
++	len = (unsigned long)nr_pages << PAGE_SHIFT;
++	end = start + len;
++	if (end < start)
++		return false;
++	if (end >> __VIRTUAL_MASK_SHIFT)
++		return false;
++	return true;
++}
+ 
++#endif /* !__ASSEMBLY__ */
+ #endif /* _ASM_X86_PGTABLE_64_H */
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 96d2b847e09e..0fbdcb64f9f8 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -2,7 +2,7 @@
+ KCOV_INSTRUMENT_tlb.o	:= n
+ 
+ obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
+-	    pat.o pgtable.o physaddr.o gup.o setup_nx.o tlb.o
++	    pat.o pgtable.o physaddr.o setup_nx.o tlb.o
+ 
+ # Make sure __phys_addr has no stackprotector
+ nostackp := $(call cc-option, -fno-stack-protector)
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+deleted file mode 100644
+index 456dfdfd2249..000000000000
+--- a/arch/x86/mm/gup.c
++++ /dev/null
+@@ -1,496 +0,0 @@
+-/*
+- * Lockless get_user_pages_fast for x86
+- *
+- * Copyright (C) 2008 Nick Piggin
+- * Copyright (C) 2008 Novell Inc.
+- */
+-#include <linux/sched.h>
+-#include <linux/mm.h>
+-#include <linux/vmstat.h>
+-#include <linux/highmem.h>
+-#include <linux/swap.h>
+-#include <linux/memremap.h>
+-
+-#include <asm/mmu_context.h>
+-#include <asm/pgtable.h>
+-
+-static inline pte_t gup_get_pte(pte_t *ptep)
+-{
+-#ifndef CONFIG_X86_PAE
+-	return READ_ONCE(*ptep);
+-#else
+-	/*
+-	 * With get_user_pages_fast, we walk down the pagetables without taking
+-	 * any locks.  For this we would like to load the pointers atomically,
+-	 * but that is not possible (without expensive cmpxchg8b) on PAE.  What
+-	 * we do have is the guarantee that a pte will only either go from not
+-	 * present to present, or present to not present or both -- it will not
+-	 * switch to a completely different present page without a TLB flush in
+-	 * between; something that we are blocking by holding interrupts off.
+-	 *
+-	 * Setting ptes from not present to present goes:
+-	 * ptep->pte_high = h;
+-	 * smp_wmb();
+-	 * ptep->pte_low = l;
+-	 *
+-	 * And present to not present goes:
+-	 * ptep->pte_low = 0;
+-	 * smp_wmb();
+-	 * ptep->pte_high = 0;
+-	 *
+-	 * We must ensure here that the load of pte_low sees l iff pte_high
+-	 * sees h. We load pte_high *after* loading pte_low, which ensures we
+-	 * don't see an older value of pte_high.  *Then* we recheck pte_low,
+-	 * which ensures that we haven't picked up a changed pte high. We might
+-	 * have got rubbish values from pte_low and pte_high, but we are
+-	 * guaranteed that pte_low will not have the present bit set *unless*
+-	 * it is 'l'. And get_user_pages_fast only operates on present ptes, so
+-	 * we're safe.
+-	 *
+-	 * gup_get_pte should not be used or copied outside gup.c without being
+-	 * very careful -- it does not atomically load the pte or anything that
+-	 * is likely to be useful for you.
+-	 */
+-	pte_t pte;
+-
+-retry:
+-	pte.pte_low = ptep->pte_low;
+-	smp_rmb();
+-	pte.pte_high = ptep->pte_high;
+-	smp_rmb();
+-	if (unlikely(pte.pte_low != ptep->pte_low))
+-		goto retry;
+-
+-	return pte;
+-#endif
+-}
+-
+-static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
+-{
+-	while ((*nr) - nr_start) {
+-		struct page *page = pages[--(*nr)];
+-
+-		ClearPageReferenced(page);
+-		put_page(page);
+-	}
+-}
+-
+-/*
+- * 'pteval' can come from a pte, pmd, pud or p4d.  We only check
+- * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
+- * same value on all 4 types.
+- */
+-static inline int pte_allows_gup(unsigned long pteval, int write)
+-{
+-	unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
+-
+-	if (write)
+-		need_pte_bits |= _PAGE_RW;
+-
+-	if ((pteval & need_pte_bits) != need_pte_bits)
+-		return 0;
+-
+-	/* Check memory protection keys permissions. */
+-	if (!__pkru_allows_pkey(pte_flags_pkey(pteval), write))
+-		return 0;
+-
+-	return 1;
+-}
+-
+-/*
+- * The performance critical leaf functions are made noinline otherwise gcc
+- * inlines everything into a single function which results in too much
+- * register pressure.
+- */
+-static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	struct dev_pagemap *pgmap = NULL;
+-	int nr_start = *nr, ret = 0;
+-	pte_t *ptep, *ptem;
+-
+-	/*
+-	 * Keep the original mapped PTE value (ptem) around since we
+-	 * might increment ptep off the end of the page when finishing
+-	 * our loop iteration.
+-	 */
+-	ptem = ptep = pte_offset_map(&pmd, addr);
+-	do {
+-		pte_t pte = gup_get_pte(ptep);
+-		struct page *page;
+-
+-		/* Similar to the PMD case, NUMA hinting must take slow path */
+-		if (pte_protnone(pte))
+-			break;
+-
+-		if (!pte_allows_gup(pte_val(pte), write))
+-			break;
+-
+-		if (pte_devmap(pte)) {
+-			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
+-			if (unlikely(!pgmap)) {
+-				undo_dev_pagemap(nr, nr_start, pages);
+-				break;
+-			}
+-		} else if (pte_special(pte))
+-			break;
+-
+-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-		page = pte_page(pte);
+-		get_page(page);
+-		put_dev_pagemap(pgmap);
+-		SetPageReferenced(page);
+-		pages[*nr] = page;
+-		(*nr)++;
+-
+-	} while (ptep++, addr += PAGE_SIZE, addr != end);
+-	if (addr == end)
+-		ret = 1;
+-	pte_unmap(ptem);
+-
+-	return ret;
+-}
+-
+-static inline void get_head_page_multiple(struct page *page, int nr)
+-{
+-	VM_BUG_ON_PAGE(page != compound_head(page), page);
+-	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	page_ref_add(page, nr);
+-	SetPageReferenced(page);
+-}
+-
+-static int __gup_device_huge(unsigned long pfn, unsigned long addr,
+-		unsigned long end, struct page **pages, int *nr)
+-{
+-	int nr_start = *nr;
+-	struct dev_pagemap *pgmap = NULL;
+-
+-	do {
+-		struct page *page = pfn_to_page(pfn);
+-
+-		pgmap = get_dev_pagemap(pfn, pgmap);
+-		if (unlikely(!pgmap)) {
+-			undo_dev_pagemap(nr, nr_start, pages);
+-			return 0;
+-		}
+-		SetPageReferenced(page);
+-		pages[*nr] = page;
+-		get_page(page);
+-		put_dev_pagemap(pgmap);
+-		(*nr)++;
+-		pfn++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-	return 1;
+-}
+-
+-static int __gup_device_huge_pmd(pmd_t pmd, unsigned long addr,
+-		unsigned long end, struct page **pages, int *nr)
+-{
+-	unsigned long fault_pfn;
+-
+-	fault_pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+-	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+-}
+-
+-static int __gup_device_huge_pud(pud_t pud, unsigned long addr,
+-		unsigned long end, struct page **pages, int *nr)
+-{
+-	unsigned long fault_pfn;
+-
+-	fault_pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+-	return __gup_device_huge(fault_pfn, addr, end, pages, nr);
+-}
+-
+-static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	struct page *head, *page;
+-	int refs;
+-
+-	if (!pte_allows_gup(pmd_val(pmd), write))
+-		return 0;
+-
+-	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
+-	if (pmd_devmap(pmd))
+-		return __gup_device_huge_pmd(pmd, addr, end, pages, nr);
+-
+-	/* hugepages are never "special" */
+-	VM_BUG_ON(pmd_flags(pmd) & _PAGE_SPECIAL);
+-
+-	refs = 0;
+-	head = pmd_page(pmd);
+-	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+-	do {
+-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-	get_head_page_multiple(head, refs);
+-
+-	return 1;
+-}
+-
+-static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+-		int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pmd_t *pmdp;
+-
+-	pmdp = pmd_offset(&pud, addr);
+-	do {
+-		pmd_t pmd = *pmdp;
+-
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
+-			return 0;
+-		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
+-			/*
+-			 * NUMA hinting faults need to be handled in the GUP
+-			 * slowpath for accounting purposes and so that they
+-			 * can be serialised against THP migration.
+-			 */
+-			if (pmd_protnone(pmd))
+-				return 0;
+-			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
+-				return 0;
+-		} else {
+-			if (!gup_pte_range(pmd, addr, next, write, pages, nr))
+-				return 0;
+-		}
+-	} while (pmdp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	struct page *head, *page;
+-	int refs;
+-
+-	if (!pte_allows_gup(pud_val(pud), write))
+-		return 0;
+-
+-	VM_BUG_ON(!pfn_valid(pud_pfn(pud)));
+-	if (pud_devmap(pud))
+-		return __gup_device_huge_pud(pud, addr, end, pages, nr);
+-
+-	/* hugepages are never "special" */
+-	VM_BUG_ON(pud_flags(pud) & _PAGE_SPECIAL);
+-
+-	refs = 0;
+-	head = pud_page(pud);
+-	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+-	do {
+-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-	get_head_page_multiple(head, refs);
+-
+-	return 1;
+-}
+-
+-static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pud_t *pudp;
+-
+-	pudp = pud_offset(&p4d, addr);
+-	do {
+-		pud_t pud = *pudp;
+-
+-		next = pud_addr_end(addr, end);
+-		if (pud_none(pud))
+-			return 0;
+-		if (unlikely(pud_large(pud))) {
+-			if (!gup_huge_pud(pud, addr, next, write, pages, nr))
+-				return 0;
+-		} else {
+-			if (!gup_pmd_range(pud, addr, next, write, pages, nr))
+-				return 0;
+-		}
+-	} while (pudp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	p4d_t *p4dp;
+-
+-	p4dp = p4d_offset(&pgd, addr);
+-	do {
+-		p4d_t p4d = *p4dp;
+-
+-		next = p4d_addr_end(addr, end);
+-		if (p4d_none(p4d))
+-			return 0;
+-		BUILD_BUG_ON(p4d_large(p4d));
+-		if (!gup_pud_range(p4d, addr, next, write, pages, nr))
+-			return 0;
+-	} while (p4dp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-/*
+- * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
+- * back to the regular GUP.
+- */
+-int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+-			  struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long addr, len, end;
+-	unsigned long next;
+-	unsigned long flags;
+-	pgd_t *pgdp;
+-	int nr = 0;
+-
+-	start &= PAGE_MASK;
+-	addr = start;
+-	len = (unsigned long) nr_pages << PAGE_SHIFT;
+-	end = start + len;
+-	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
+-					(void __user *)start, len)))
+-		return 0;
+-
+-	/*
+-	 * XXX: batch / limit 'nr', to avoid large irq off latency
+-	 * needs some instrumenting to determine the common sizes used by
+-	 * important workloads (eg. DB2), and whether limiting the batch size
+-	 * will decrease performance.
+-	 *
+-	 * It seems like we're in the clear for the moment. Direct-IO is
+-	 * the main guy that batches up lots of get_user_pages, and even
+-	 * they are limited to 64-at-a-time which is not so many.
+-	 */
+-	/*
+-	 * This doesn't prevent pagetable teardown, but does prevent
+-	 * the pagetables and pages from being freed on x86.
+-	 *
+-	 * So long as we atomically load page table pointers versus teardown
+-	 * (which we do on x86, with the above PAE exception), we can follow the
+-	 * address down to the the page and take a ref on it.
+-	 */
+-	local_irq_save(flags);
+-	pgdp = pgd_offset(mm, addr);
+-	do {
+-		pgd_t pgd = *pgdp;
+-
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none(pgd))
+-			break;
+-		if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
+-			break;
+-	} while (pgdp++, addr = next, addr != end);
+-	local_irq_restore(flags);
+-
+-	return nr;
+-}
+-
+-/**
+- * get_user_pages_fast() - pin user pages in memory
+- * @start:	starting user address
+- * @nr_pages:	number of pages from start to pin
+- * @write:	whether pages will be written to
+- * @pages:	array that receives pointers to the pages pinned.
+- * 		Should be at least nr_pages long.
+- *
+- * Attempt to pin user pages in memory without taking mm->mmap_sem.
+- * If not successful, it will fall back to taking the lock and
+- * calling get_user_pages().
+- *
+- * Returns number of pages pinned. This may be fewer than the number
+- * requested. If nr_pages is 0 or negative, returns 0. If no pages
+- * were pinned, returns -errno.
+- */
+-int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+-			struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long addr, len, end;
+-	unsigned long next;
+-	pgd_t *pgdp;
+-	int nr = 0;
+-
+-	start &= PAGE_MASK;
+-	addr = start;
+-	len = (unsigned long) nr_pages << PAGE_SHIFT;
+-
+-	end = start + len;
+-	if (end < start)
+-		goto slow_irqon;
+-
+-#ifdef CONFIG_X86_64
+-	if (end >> __VIRTUAL_MASK_SHIFT)
+-		goto slow_irqon;
+-#endif
+-
+-	/*
+-	 * XXX: batch / limit 'nr', to avoid large irq off latency
+-	 * needs some instrumenting to determine the common sizes used by
+-	 * important workloads (eg. DB2), and whether limiting the batch size
+-	 * will decrease performance.
+-	 *
+-	 * It seems like we're in the clear for the moment. Direct-IO is
+-	 * the main guy that batches up lots of get_user_pages, and even
+-	 * they are limited to 64-at-a-time which is not so many.
+-	 */
+-	/*
+-	 * This doesn't prevent pagetable teardown, but does prevent
+-	 * the pagetables and pages from being freed on x86.
+-	 *
+-	 * So long as we atomically load page table pointers versus teardown
+-	 * (which we do on x86, with the above PAE exception), we can follow the
+-	 * address down to the the page and take a ref on it.
+-	 */
+-	local_irq_disable();
+-	pgdp = pgd_offset(mm, addr);
+-	do {
+-		pgd_t pgd = *pgdp;
+-
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none(pgd))
+-			goto slow;
+-		if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
+-			goto slow;
+-	} while (pgdp++, addr = next, addr != end);
+-	local_irq_enable();
+-
+-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+-	return nr;
+-
+-	{
+-		int ret;
+-
+-slow:
+-		local_irq_enable();
+-slow_irqon:
+-		/* Try to get the remaining pages with get_user_pages */
+-		start += nr << PAGE_SHIFT;
+-		pages += nr;
+-
+-		ret = get_user_pages_unlocked(start,
+-					      (end - start) >> PAGE_SHIFT,
+-					      pages, write ? FOLL_WRITE : 0);
+-
+-		/* Have to be a bit careful with return values */
+-		if (nr > 0) {
+-			if (ret < 0)
+-				ret = nr;
+-			else
+-				ret += nr;
+-		}
+-
+-		return ret;
+-	}
+-}
+diff --git a/mm/Kconfig b/mm/Kconfig
+index beb7a455915d..398b46064544 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -137,7 +137,7 @@ config HAVE_MEMBLOCK_NODE_MAP
+ config HAVE_MEMBLOCK_PHYS_MAP
+ 	bool
+ 
+-config HAVE_GENERIC_RCU_GUP
++config HAVE_GENERIC_GUP
+ 	bool
+ 
+ config ARCH_DISCARD_MEMBLOCK
+diff --git a/mm/gup.c b/mm/gup.c
+index d9e6fddcc51f..7f5bc26d9229 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1155,7 +1155,7 @@ struct page *get_dump_page(unsigned long addr)
+ #endif /* CONFIG_ELF_CORE */
+ 
+ /*
+- * Generic RCU Fast GUP
++ * Generic Fast GUP
+  *
+  * get_user_pages_fast attempts to pin user pages by walking the page
+  * tables directly and avoids taking locks. Thus the walker needs to be
+@@ -1176,8 +1176,8 @@ struct page *get_dump_page(unsigned long addr)
+  * Before activating this code, please be aware that the following assumptions
+  * are currently made:
+  *
+- *  *) HAVE_RCU_TABLE_FREE is enabled, and tlb_remove_table is used to free
+- *      pages containing page tables.
++ *  *) Either HAVE_RCU_TABLE_FREE is enabled, and tlb_remove_table() is used to
++ *  free pages containing page tables or TLB flushing requires IPI broadcast.
+  *
+  *  *) ptes can be read atomically by the architecture.
+  *
+@@ -1187,7 +1187,7 @@ struct page *get_dump_page(unsigned long addr)
+  *
+  * This code is based heavily on the PowerPC implementation by Nick Piggin.
+  */
+-#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
++#ifdef CONFIG_HAVE_GENERIC_GUP
+ 
+ #ifndef gup_get_pte
+ /*
+@@ -1677,4 +1677,4 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	return ret;
+ }
+ 
+-#endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
++#endif /* CONFIG_HAVE_GENERIC_GUP */
 -- 
 2.11.0
 
