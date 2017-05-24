@@ -1,66 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E94D86B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:56:03 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id l123so122700852ywe.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:56:03 -0700 (PDT)
-Received: from mail-yb0-x22b.google.com (mail-yb0-x22b.google.com. [2607:f8b0:4002:c09::22b])
-        by mx.google.com with ESMTPS id 197si8342882ybd.164.2017.05.24.10.56.02
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C926B02B4
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 14:09:38 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id w131so75211013qka.5
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 11:09:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a81si237952qkh.320.2017.05.24.11.09.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:56:03 -0700 (PDT)
-Received: by mail-yb0-x22b.google.com with SMTP id 130so29152201ybl.3
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:56:02 -0700 (PDT)
-Date: Wed, 24 May 2017 13:56:00 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 13/17] cgroup: Allow fine-grained controllers
- control in cgroup v2
-Message-ID: <20170524175600.GL24798@htj.duckdns.org>
+        Wed, 24 May 2017 11:09:34 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 12/17] cgroup: Remove cgroup v2 no internal process
+ constraint
 References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-14-git-send-email-longman@redhat.com>
- <20170519205550.GD15279@wtj.duckdns.org>
- <6fe07727-e611-bfcd-8382-593a51bb4888@redhat.com>
- <20170524173144.GI24798@htj.duckdns.org>
- <29bc746d-f89b-3385-fd5c-314bcd22f9f7@redhat.com>
+ <1494855256-12558-13-git-send-email-longman@redhat.com>
+ <20170519203824.GC15279@wtj.duckdns.org>
+ <93a69664-4ba6-9ee8-e4ea-ce76b6682c77@redhat.com>
+ <20170524170527.GH24798@htj.duckdns.org>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <2642542c-3002-73ec-b386-ca0d38f57021@redhat.com>
+Date: Wed, 24 May 2017 14:09:30 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <29bc746d-f89b-3385-fd5c-314bcd22f9f7@redhat.com>
+In-Reply-To: <20170524170527.GH24798@htj.duckdns.org>
+Content-Type: multipart/alternative;
+ boundary="------------F2D2BFF9B58180D354D45682"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
+To: Tejun Heo <tj@kernel.org>
 Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-Hello,
+This is a multi-part message in MIME format.
+--------------F2D2BFF9B58180D354D45682
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-On Wed, May 24, 2017 at 01:49:46PM -0400, Waiman Long wrote:
-> What I am saying is as follows:
->     / A
-> P - B
->    \ C
-> 
-> # echo +memory > P/cgroups.subtree_control
-> # echo -memory > P/A/cgroup.controllers
-> # echo "#memory" > P/B/cgroup.controllers
-> 
-> The parent grants the memory controller to its children - A, B and C.
-> Child A has the memory controller explicitly disabled. Child B has the
-> memory controller in pass-through mode, while child C has the memory
-> controller enabled by default. "echo +memory > cgroup.controllers" is
-> not allowed. There are 2 possible choices with regard to the '-' or '#'
-> prefixes. We can allow them before the grant from the parent or only
-> after that. In the former case, the state remains dormant until after
-> the grant from the parent.
+On 05/24/2017 01:05 PM, Tejun Heo wrote:
+> Hello,
+>
+> On Mon, May 22, 2017 at 12:56:08PM -0400, Waiman Long wrote:
+>> All controllers can use the special sub-directory if userland chooses =
+to
+>> do so. The problem that I am trying to address in this patch is to all=
+ow
+>> more natural hierarchy that reflect a certain purpose, like the task
+>> classification done by systemd. Restricting tasks only to leaf nodes
+>> makes the hierarchy unnatural and probably difficult to manage.
+> I see but how is this different from userland just creating the leaf
+> cgroup?  I'm not sure what this actually enables in terms of what can
+> be achieved with cgroup.  I suppose we can argue that this is more
+> convenient but I'd like to keep the interface orthogonal as much as
+> reasonably possible.
+>
+> Thanks.
+>
+I am just thinking that it is a bit more natural with the concept of the
+special resource domain sub-directory. You are right that the same
+effect can be achieved by proper placement of tasks and enabling of
+controllers.
 
-Ah, I see, you want cgroup.controllers to be able to mask available
-controllers by the parent.  Can you expand your example with further
-nesting and how #memory on cgroup.controllers would affect the nested
-descendant?
+A (cpu,memory) [T1] - B(cpu,memory) [T2]
+                                  \ cgroups.resource_domain (memory)
+
+A (cpu,memory)  - B(cpu,memory) [T2]
+                            \ C (memory) [T1]
+
+With respect to the tasks T1 and T2, the above 2 configurations are the
+same.
+
+I am OK to drop this patch. However, I still think the current
+no-internal process constraint is too restricting. I will suggest either
+
+ 1. Allow internal processes and document the way to avoid internal
+    process competition as shown above from the userland, or
+ 2. Mark only certain controllers as not allowing internal processes
+    when they are enabled.
+
+What do you think about this?
+
+Cheers,
+Longman
+
+--------------F2D2BFF9B58180D354D45682
+Content-Type: text/html; charset=windows-1252
+Content-Transfer-Encoding: 8bit
+
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <div class="moz-cite-prefix">On 05/24/2017 01:05 PM, Tejun Heo
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:20170524170527.GH24798@htj.duckdns.org"
+      type="cite">
+      <pre wrap="">Hello,
+
+On Mon, May 22, 2017 at 12:56:08PM -0400, Waiman Long wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">All controllers can use the special sub-directory if userland chooses to
+do so. The problem that I am trying to address in this patch is to allow
+more natural hierarchy that reflect a certain purpose, like the task
+classification done by systemd. Restricting tasks only to leaf nodes
+makes the hierarchy unnatural and probably difficult to manage.
+</pre>
+      </blockquote>
+      <pre wrap="">
+I see but how is this different from userland just creating the leaf
+cgroup?  I'm not sure what this actually enables in terms of what can
+be achieved with cgroup.  I suppose we can argue that this is more
+convenient but I'd like to keep the interface orthogonal as much as
+reasonably possible.
 
 Thanks.
 
--- 
-tejun
+</pre>
+    </blockquote>
+    <p>I am just thinking that it is a bit more natural with the concept
+      of the special resource domain sub-directory. You are right that
+      the same effect can be achieved by proper placement of tasks and
+      enabling of controllers.</p>
+    <p>A (cpu,memory) [T1] - B(cpu,memory) [T2]<br>
+                                        \ cgroups.resource_domain
+      (memory)</p>
+    <p>A (cpu,memory)  - B(cpu,memory) [T2]<br>
+                                  \ C (memory) [T1]<br>
+    </p>
+    <p>With respect to the tasks T1 and T2, the above 2 configurations
+      are the same.</p>
+    <p>I am OK to drop this patch. However, I still think the current
+      no-internal process constraint is too restricting. I will suggest
+      either<br>
+    </p>
+    <ol>
+      <li>Allow internal processes and document the way to avoid
+        internal process competition as shown above from the userland,
+        or</li>
+      <li>Mark only certain controllers as not allowing internal
+        processes when they are enabled.</li>
+    </ol>
+    What do you think about this?<br>
+    <br>
+    Cheers,<br>
+    Longman<br>
+  </body>
+</html>
+
+--------------F2D2BFF9B58180D354D45682--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
