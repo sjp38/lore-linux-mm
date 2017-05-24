@@ -1,72 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED886B02B4
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 04:40:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id g143so36538149wme.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 01:40:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z9si22083770edb.89.2017.05.24.01.39.58
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 01:39:58 -0700 (PDT)
-Date: Wed, 24 May 2017 10:39:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [-next] memory hotplug regression
-Message-ID: <20170524083956.GC14733@dhcp22.suse.cz>
-References: <20170524082022.GC5427@osiris>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170524082022.GC5427@osiris>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C896B02F3
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 05:00:42 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e7so183840960pfk.9
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 02:00:42 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id u6si10791316plj.325.2017.05.24.02.00.41
+        for <linux-mm@kvack.org>;
+        Wed, 24 May 2017 02:00:41 -0700 (PDT)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH v7 01/16] lockdep: Refactor lookup_chain_cache()
+Date: Wed, 24 May 2017 17:59:34 +0900
+Message-Id: <1495616389-29772-2-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
+References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Wed 24-05-17 10:20:22, Heiko Carstens wrote:
-> Hello Michal,
-> 
-> I just re-tested linux-next with respect to your memory hotplug changes and
-> actually (finally) figured out that your patch ("mm, memory_hotplug: do not
-> associate hotadded memory to zones until online)" changes behaviour on
-> s390:
-> 
-> before your patch memory blocks that were offline and located behind the
-> last online memory block were added by default to ZONE_MOVABLE:
-> 
-> # cat /sys/devices/system/memory/memory16/valid_zones
-> Movable Normal
-> 
-> With your patch this changes, so that they will be added to ZONE_NORMAL by
-> default instead:
-> 
-> # cat /sys/devices/system/memory/memory16/valid_zones
-> Normal Movable
-> 
-> Sorry, that I didn't realize this earlier!
->
-> Having the ZONE_MOVABLE default was actually the only point why s390's
-> arch_add_memory() was rather complex compared to other architectures.
-> 
-> We always had this behaviour, since we always wanted to be able to offline
-> memory after it was brought online. Given that back then "online_movable"
-> did not exist, the initial s390 memory hotplug support simply added all
-> additional memory to ZONE_MOVABLE.
-> 
-> Keeping the default the same would be quite important.
+Currently, lookup_chain_cache() provides both 'lookup' and 'add'
+functionalities in a function. However, each is useful. So this
+patch makes lookup_chain_cache() only do 'lookup' functionality and
+makes add_chain_cahce() only do 'add' functionality. And it's more
+readable than before.
 
-Hmm, that is really unfortunate because I would _really_ like to get rid
-of the previous semantic which was really awkward. The whole point of
-the rework is to get rid of the nasty zone shifting.
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ kernel/locking/lockdep.c | 132 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 86 insertions(+), 46 deletions(-)
 
-Is it an option to use `online_movable' rather than `online' in your setup?
-Btw. my long term plan is to remove the zone range constrains altogether
-so you could online each memblock to the type you want. Would that be
-sufficient for you in general?
-
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 4d7ffc0..0c6e6b7 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -2110,14 +2110,15 @@ static int check_no_collision(struct task_struct *curr,
+ }
+ 
+ /*
+- * Look up a dependency chain. If the key is not present yet then
+- * add it and return 1 - in this case the new dependency chain is
+- * validated. If the key is already hashed, return 0.
+- * (On return with 1 graph_lock is held.)
++ * Adds a dependency chain into chain hashtable. And must be called with
++ * graph_lock held.
++ *
++ * Return 0 if fail, and graph_lock is released.
++ * Return 1 if succeed, with graph_lock held.
+  */
+-static inline int lookup_chain_cache(struct task_struct *curr,
+-				     struct held_lock *hlock,
+-				     u64 chain_key)
++static inline int add_chain_cache(struct task_struct *curr,
++				  struct held_lock *hlock,
++				  u64 chain_key)
+ {
+ 	struct lock_class *class = hlock_class(hlock);
+ 	struct hlist_head *hash_head = chainhashentry(chain_key);
+@@ -2125,49 +2126,18 @@ static inline int lookup_chain_cache(struct task_struct *curr,
+ 	int i, j;
+ 
+ 	/*
++	 * Allocate a new chain entry from the static array, and add
++	 * it to the hash:
++	 */
++
++	/*
+ 	 * We might need to take the graph lock, ensure we've got IRQs
+ 	 * disabled to make this an IRQ-safe lock.. for recursion reasons
+ 	 * lockdep won't complain about its own locking errors.
+ 	 */
+ 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+ 		return 0;
+-	/*
+-	 * We can walk it lock-free, because entries only get added
+-	 * to the hash:
+-	 */
+-	hlist_for_each_entry_rcu(chain, hash_head, entry) {
+-		if (chain->chain_key == chain_key) {
+-cache_hit:
+-			debug_atomic_inc(chain_lookup_hits);
+-			if (!check_no_collision(curr, hlock, chain))
+-				return 0;
+ 
+-			if (very_verbose(class))
+-				printk("\nhash chain already cached, key: "
+-					"%016Lx tail class: [%p] %s\n",
+-					(unsigned long long)chain_key,
+-					class->key, class->name);
+-			return 0;
+-		}
+-	}
+-	if (very_verbose(class))
+-		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
+-			(unsigned long long)chain_key, class->key, class->name);
+-	/*
+-	 * Allocate a new chain entry from the static array, and add
+-	 * it to the hash:
+-	 */
+-	if (!graph_lock())
+-		return 0;
+-	/*
+-	 * We have to walk the chain again locked - to avoid duplicates:
+-	 */
+-	hlist_for_each_entry(chain, hash_head, entry) {
+-		if (chain->chain_key == chain_key) {
+-			graph_unlock();
+-			goto cache_hit;
+-		}
+-	}
+ 	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
+ 		if (!debug_locks_off_graph_unlock())
+ 			return 0;
+@@ -2219,6 +2189,75 @@ static inline int lookup_chain_cache(struct task_struct *curr,
+ 	return 1;
+ }
+ 
++/*
++ * Look up a dependency chain.
++ */
++static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
++{
++	struct hlist_head *hash_head = chainhashentry(chain_key);
++	struct lock_chain *chain;
++
++	/*
++	 * We can walk it lock-free, because entries only get added
++	 * to the hash:
++	 */
++	hlist_for_each_entry_rcu(chain, hash_head, entry) {
++		if (chain->chain_key == chain_key) {
++			debug_atomic_inc(chain_lookup_hits);
++			return chain;
++		}
++	}
++	return NULL;
++}
++
++/*
++ * If the key is not present yet in dependency chain cache then
++ * add it and return 1 - in this case the new dependency chain is
++ * validated. If the key is already hashed, return 0.
++ * (On return with 1 graph_lock is held.)
++ */
++static inline int lookup_chain_cache_add(struct task_struct *curr,
++					 struct held_lock *hlock,
++					 u64 chain_key)
++{
++	struct lock_class *class = hlock_class(hlock);
++	struct lock_chain *chain = lookup_chain_cache(chain_key);
++
++	if (chain) {
++cache_hit:
++		if (!check_no_collision(curr, hlock, chain))
++			return 0;
++
++		if (very_verbose(class))
++			printk("\nhash chain already cached, key: "
++					"%016Lx tail class: [%p] %s\n",
++					(unsigned long long)chain_key,
++					class->key, class->name);
++		return 0;
++	}
++
++	if (very_verbose(class))
++		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
++			(unsigned long long)chain_key, class->key, class->name);
++
++	if (!graph_lock())
++		return 0;
++
++	/*
++	 * We have to walk the chain again locked - to avoid duplicates:
++	 */
++	chain = lookup_chain_cache(chain_key);
++	if (chain) {
++		graph_unlock();
++		goto cache_hit;
++	}
++
++	if (!add_chain_cache(curr, hlock, chain_key))
++		return 0;
++
++	return 1;
++}
++
+ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 		struct held_lock *hlock, int chain_head, u64 chain_key)
+ {
+@@ -2229,11 +2268,11 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 	 *
+ 	 * We look up the chain_key and do the O(N^2) check and update of
+ 	 * the dependencies only if this is a new dependency chain.
+-	 * (If lookup_chain_cache() returns with 1 it acquires
++	 * (If lookup_chain_cache_add() return with 1 it acquires
+ 	 * graph_lock for us)
+ 	 */
+ 	if (!hlock->trylock && hlock->check &&
+-	    lookup_chain_cache(curr, hlock, chain_key)) {
++	    lookup_chain_cache_add(curr, hlock, chain_key)) {
+ 		/*
+ 		 * Check whether last held lock:
+ 		 *
+@@ -2264,9 +2303,10 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 		if (!chain_head && ret != 2)
+ 			if (!check_prevs_add(curr, hlock))
+ 				return 0;
++
+ 		graph_unlock();
+ 	} else
+-		/* after lookup_chain_cache(): */
++		/* after lookup_chain_cache_add(): */
+ 		if (unlikely(!debug_locks))
+ 			return 0;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
