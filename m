@@ -1,101 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 86AD96B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:47:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id i63so115054776pgd.15
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:47:51 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D066B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:57:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id l125so90173562pga.4
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:57:36 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q5si438470pgs.129.2017.05.24.08.47.49
+        by mx.google.com with ESMTP id 1si24581429pgu.95.2017.05.24.08.57.35
         for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 08:47:50 -0700 (PDT)
+        Wed, 24 May 2017 08:57:35 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH] mm/migrate: Fix ref-count handling when !hugepage_migration_supported()
-Date: Wed, 24 May 2017 16:47:28 +0100
-Message-Id: <20170524154728.2492-1-punit.agrawal@arm.com>
+Subject: Re: [PATCH] mm: hwpoison: Use compound_head() flags for huge pages
+References: <20170524130204.21845-1-james.morse@arm.com>
+Date: Wed, 24 May 2017 16:57:32 +0100
+In-Reply-To: <20170524130204.21845-1-james.morse@arm.com> (James Morse's
+	message of "Wed, 24 May 2017 14:02:04 +0100")
+Message-ID: <8737bufdsj.fsf@e105922-lin.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Punit Agrawal <punit.agrawal@arm.com>, will.deacon@arm.com, catalin.marinas@arm.com, manoj.iyer@arm.com, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tbaicar@codeaurora.org, timur@qti.qualcomm.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: James Morse <james.morse@arm.com>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On failing to migrate a page, soft_offline_huge_page() performs the
-necessary update to the hugepage ref-count. When
-!hugepage_migration_supported() , unmap_and_move_hugepage() also
-decrements the page ref-count for the hugepage. The combined behaviour
-leaves the ref-count in an inconsistent state.
+James Morse <james.morse@arm.com> writes:
 
-This leads to soft lockups when running the overcommitted hugepage test
-from mce-tests suite.
+> memory_failure() chooses a recovery action function based on the page
+> flags. For huge pages it uses the tail page flags which don't have
+> anything interesting set, resulting in:
+>> Memory failure: 0x9be3b4: Unknown page state
+>> Memory failure: 0x9be3b4: recovery action for unknown page: Failed
+>
+> Instead, save a copy of the head page's flags if this is a huge page,
+> this means if there are no relevant flags for this tail page, we use
+> the head pages flags instead. This results in the me_huge_page()
+> recovery action being called:
+>> Memory failure: 0x9b7969: recovery action for huge page: Delayed
+>
+> For hugepages that have not yet been allocated, this allows the hugepage
+> to be dequeued.
+>
+> CC: Punit Agrawal <punit.agrawal@arm.com>
+> Signed-off-by: James Morse <james.morse@arm.com>
+> ---
+> This is intended as a fix, but I can't find the patch that introduced this
+> behaviour. (not recent, and there is a lot of history down there!)
+>
+> This doesn't apply to stable trees before v3.10...
+> Cc: stable@vger.kernel.org # 3.10.105
+>
+>  mm/memory-failure.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 2527dfeddb00..44a6a33af219 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1184,7 +1184,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>  	 * page_remove_rmap() in try_to_unmap_one(). So to determine page status
+>  	 * correctly, we save a copy of the page flags at this time.
+>  	 */
+> -	page_flags = p->flags;
+> +	if (PageHuge(p))
+> +		page_flags = hpage->flags;
+> +	else
+> +		page_flags = p->flags;
+>  
+>  	/*
+>  	 * unpoison always clear PG_hwpoison inside page lock
 
-Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
-soft offline: 0x83ed600: migration failed 1, type
-1fffc00000008008 (uptodate|head)
-INFO: rcu_preempt detected stalls on CPUs/tasks:
- Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
-  (detected by 7, t=5254 jiffies, g=963, c=962, q=321)
-  thugetlb_overco R  running task        0  2715   2685 0x00000008
-  Call trace:
-  [<ffff000008089f90>] dump_backtrace+0x0/0x268
-  [<ffff00000808a2d4>] show_stack+0x24/0x30
-  [<ffff000008100d34>] sched_show_task+0x134/0x180
-  [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
-  [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
-  [<ffff000008143a3c>] update_process_times+0x34/0x60
-  [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
-  [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
-  [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
-  [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
-  [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
-  [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
-  [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
-  [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
-  [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
+I can confirm that this patch reduces the number of failing cases when
+running hugepage tests from mce-tests suite.
 
-Fix this by dropping the ref-count decrement in
-unmap_and_move_hugepage() when !hugepage_migration_supported().
+FWIW,
 
-Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_migration_support()")
-Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>
+Acked-by: Punit Agrawal <punit.agrawal@arm.com>
+Tested-by: Punit Agrawal <punit.agrawal@arm.com>
 
---
-Hi Andrew,
-
-We ran into this bug when working towards enabling memory corruption
-on arm64. The patch was tested on an arm64 platform running v4.12-rc2
-with the series to enable memory corruption handling[0].
-
-Please consider merging as a fix for the 4.12 release.
-
-Thanks,
-Punit
-
-[0] https://www.spinics.net/lists/arm-kernel/msg581657.html
----
- mm/migrate.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 89a0a1707f4c..187abd1526df 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1201,10 +1201,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 	 * tables or check whether the hugepage is pmd-based or not before
- 	 * kicking migration.
- 	 */
--	if (!hugepage_migration_supported(page_hstate(hpage))) {
--		putback_active_hugepage(hpage);
-+	if (!hugepage_migration_supported(page_hstate(hpage)))
- 		return -ENOSYS;
--	}
- 
- 	new_hpage = get_new_page(hpage, private, &result);
- 	if (!new_hpage)
--- 
-2.11.0
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
