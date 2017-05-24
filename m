@@ -1,104 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C66FF6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:22:33 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id l125so89619753pga.4
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:22:33 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id s134si11779417pgs.209.2017.05.24.08.22.33
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFEF6B0292
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:22:55 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id s58so68839564qtb.1
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:22:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k66si900087qte.2.2017.05.24.08.22.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 08:22:33 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id u26so33305870pfd.2
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:22:33 -0700 (PDT)
-Date: Wed, 24 May 2017 23:21:24 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 0/6] refine and rename slub sysfs
-Message-ID: <20170524152124.GB8445@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170517141146.11063-1-richard.weiyang@gmail.com>
- <20170518090636.GA25471@dhcp22.suse.cz>
- <20170523032705.GA4275@WeideMBP.lan>
- <20170523063911.GC12813@dhcp22.suse.cz>
- <20170524095450.GA7706@WeideMBP.lan>
- <20170524120318.GE14733@dhcp22.suse.cz>
+        Wed, 24 May 2017 08:22:54 -0700 (PDT)
+Date: Wed, 24 May 2017 17:22:51 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+Message-ID: <20170524152251.GA17425@redhat.com>
+References: <20170522114243.2wrdbncilozygbpl@node.shutemov.name>
+ <20170522133559.GE27382@rapoport-lnx>
+ <20170522135548.GA8514@dhcp22.suse.cz>
+ <20170522142927.GG27382@rapoport-lnx>
+ <a9e74c22-1a07-f49a-42b5-497fee85e9c9@suse.cz>
+ <20170524075043.GB3063@rapoport-lnx>
+ <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
+ <20170524103947.GC3063@rapoport-lnx>
+ <20170524111800.GD14733@dhcp22.suse.cz>
+ <20170524142735.GF3063@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="tjCHc7DPkfUGtrlw"
-Content-Disposition: inline
-In-Reply-To: <20170524120318.GE14733@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---tjCHc7DPkfUGtrlw
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170524142735.GF3063@rapoport-lnx>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, May 24, 2017 at 02:03:18PM +0200, Michal Hocko wrote:
->On Wed 24-05-17 17:54:50, Wei Yang wrote:
->> On Tue, May 23, 2017 at 08:39:11AM +0200, Michal Hocko wrote:
->[...]
->> >Is this worth risking breakage of the userspace which consume this data
->> >now? Do you have any user space code which will greatly benefit from the
->> >new data and which couldn't do the same with the current format/output?
->> >
->> >If yes this all should be in the changelog.
->>=20
->> The answer is no.
->>=20
->> I have the same concern as yours. So this patch set could be divided int=
-o two
->> parts: 1. add some new entry with current name convention, 2. change the=
- name
->> convention.
->
->Who is going to use those new entries and for what purpose? Why do we
->want to expose even more details of the slab allocator to the userspace.
->Is the missing information something fundamental that some user space
->cannot work without it? Seriously these are essential questions you
->should have answer for _before_ posting the patch and mention all those
->reasons in the changelog.
+Hello,
 
-It is me who wants to get more details of the slub behavior. =20
-AFAIK, no one else is expecting this.
+On Wed, May 24, 2017 at 05:27:36PM +0300, Mike Rapoport wrote:
+> khugepaged does skip over VMAs which have userfault. We could register the
+> regions with userfault before populating them to avoid collapses in the
+> transition period. But then we'll have to populate these regions with
+> UFFDIO_COPY which adds quite an overhead.
 
-Hmm, if we really don't want to export these entries, why not remove related
-code? Looks we are sure they will not be touched.
+Yes, in fact with postcopy-only mode, there's no issue because of the
+above.
 
->--=20
->Michal Hocko
->SUSE Labs
+The case where THP has to be temporarily disabled by CRIU is before
+postcopy/userfaults engages, i.e. during the precopy with a
+precopy+postcopy mode.
 
---=20
-Wei Yang
-Help you, Help me
+QEMU preferred mode is to do one pass of precopy before starting
+postcopy/userfaults. During QEMU precopy phase VM_HUGEPAGE is set for
+maximum performance and to back with THP in the destination as many
+readonly (i.e. no source-redirtied) pages as possible. The dirty
+logging in the source happens at 4k granularity by forcing the KVM
+shadow MMU to map all pages at 4k granularity and by tracking the
+dirty bit in software for the updates happening through the primary
+MMU (linux pagetables dirty bit are ignored because soft dirty would
+be too slow with O(N) complexity where N is linear with the size of
+the VM, not with the number of re-dirtied pages in a precopy
+pass). After that we track which 4k pages aren't uptodate on
+destination and we zap them at 4k granularity with MADV_DONTNEED (we
+badly need madvisev in fact to reduce the totally unnecessary flood of
+4k wide MADV_DONTNEED there). So before calling the MADV_DONTNEED
+flood, QEMU sets VM_NOHUGEPAGE, and after calling UFFDIO_REGISTER QEMU
+sets back VM_HUGEPAGE (as the UFFDIO registration will keep khugepaged
+at bay until postcopy completes). QEMU then finally calls
+UFFDIO_UNREGISTER and khugepaged starts compacting everything that was
+migrated through 4k wide userfaults.
 
---tjCHc7DPkfUGtrlw
-Content-Type: application/pgp-signature; name="signature.asc"
+CRIU doesn't attempt to populate destination with THP at all to be
+simpler, but the problem is similar. It still has to call
+VM_NOHUGEPAGE somehow during precopy (i.e. during the whole precopy
+phase, precisely to avoid having to call MADV_DONTNEED to zap
+4k not-uptodate fragments).
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+QEMU gets away with setting VM_NOHUGEPAGE and then back to VM_HUGEPAGE
+without any issue because it's cooperative. CRIU as opposed has to
+restore the same vm_flags that the vma had in the source to avoid
+changing the behavior of the app after precopy+postcopy
+completes. This is where the need of clearing the VM_*HUGEPAGE bits
+from vm_flags comes into play.
 
-iQIcBAEBCAAGBQJZJaT0AAoJEKcLNpZP5cTd3kYP/jTCJ3GvIN+kFANMKUlkExUT
-dmiDu/YyOVPDSbTcZxhcBzfGHwHGVdIyX/nCEM1yxSVv2cjQ8kNtGD02CrGQliUP
-eJ29ETtQLy7b7o+999cUVdrIp4HD2qF8kB8KveEclvxVSD7kw6+qKQvzWBcU1HAc
-dDz7Lxojmvaaiy4d+vhMhnPpNrqX65zwSRWwMX88g3rS0WvgmhRCTdieVW2ywmvl
-XPbqaS7VAO24myQ1tIVzKhGOlKOWtTURucozxwjt2MeN8PIoroYrkq0G1AgfO+7I
-I4In7i3MVsRVIYSw1MTHWXFODI1fD0SuR516uk4ktbFxuso25kTQ0hvU0dno+ooz
-qMwAiiASbIij62dxvKhTbPrCGncsaeM+VN6jZyjc+NiTDpKmbCATaBcOlxHt9HVs
-Gy0y+jXm+WeKI+/lszbUKpvYAuP5aDSBpgiJkkbMnwoD4DJmpx9C//Z8/2plVI/L
-RqVa7JV0pfCNyBWpYtPy/yu7y30wjOcqnkTzQbO79PJIcmVH20erjvZeuup8LytO
-PWc9B+RW26uQ9pl4f3V8Zn+TSUwpTeOvwdVq4GEQbH6fOM+Rn9iDx5gEufpsvzfh
-pFJWVJUaS2Kv5saorfyMW92gJJ1hMLkpXHquPADMyK0iXkXaR2snqmOoxz4rPtGH
-Dlr14dxR+NECvkLNlrXf
-=PnzF
------END PGP SIGNATURE-----
-
---tjCHc7DPkfUGtrlw--
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
