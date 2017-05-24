@@ -1,232 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C66316B0374
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:20:52 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id r58so69769651qtb.0
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:20:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m131si113968qke.65.2017.05.24.10.20.51
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AF356B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:31:48 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id 130so56836623ybl.7
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:31:48 -0700 (PDT)
+Received: from mail-yb0-x22a.google.com (mail-yb0-x22a.google.com. [2607:f8b0:4002:c09::22a])
+        by mx.google.com with ESMTPS id l139si7920708ywb.302.2017.05.24.10.31.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:20:51 -0700 (PDT)
-From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 15/15] mm/migrate: allow migrate_vma() to alloc new page on empty entry v2
-Date: Wed, 24 May 2017 13:20:24 -0400
-Message-Id: <20170524172024.30810-16-jglisse@redhat.com>
-In-Reply-To: <20170524172024.30810-1-jglisse@redhat.com>
-References: <20170524172024.30810-1-jglisse@redhat.com>
+        Wed, 24 May 2017 10:31:46 -0700 (PDT)
+Received: by mail-yb0-x22a.google.com with SMTP id p143so47183169yba.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:31:46 -0700 (PDT)
+Date: Wed, 24 May 2017 13:31:44 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 13/17] cgroup: Allow fine-grained controllers
+ control in cgroup v2
+Message-ID: <20170524173144.GI24798@htj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-14-git-send-email-longman@redhat.com>
+ <20170519205550.GD15279@wtj.duckdns.org>
+ <6fe07727-e611-bfcd-8382-593a51bb4888@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6fe07727-e611-bfcd-8382-593a51bb4888@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-This allow caller of migrate_vma() to allocate new page for empty CPU
-page table entry. It only support anoymous memory and it won't allow
-new page to be instance if userfaultfd is armed.
+Hello, Waiman.
 
-This is useful to device driver that want to migrate a range of virtual
-address and would rather allocate new memory than having to fault later
-on.
+On Fri, May 19, 2017 at 05:20:01PM -0400, Waiman Long wrote:
+> > This breaks the invariant that in a cgroup its resource control knobs
+> > control distribution of resources from its parent.  IOW, the resource
+> > control knobs of a cgroup always belong to the parent.  This is also
+> > reflected in how delegation is done.  The delegatee assumes ownership
+> > of the cgroup itself and the ability to manage sub-cgroups but doesn't
+> > get the ownership of the resource control knobs as otherwise the
+> > parent would lose control over how it distributes its resources.
+> 
+> One twist that I am thinking is to have a controller enabled by the
+> parent in subtree_control, but then allow the child to either disable it
+> or set it in pass-through mode by writing to controllers file. IOW, a
+> child cannot enable a controller without parent's permission. Once a
+> child has permission, it can do whatever it wants. A parent cannot force
+> a child to have a controller enabled.
 
-Changed since v1:
-  - 5 level page table fix
+Heh, I think I need more details to follow your proposal.  Anyways,
+what we need to guarantee is that a descendant is never allowed to
+pull in more resources than its ancestors want it to.
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
----
- mm/migrate.c | 135 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 131 insertions(+), 4 deletions(-)
+> > Another aspect is that most controllers aren't that sensitive to
+> > nesting several levels.  Expensive operations can be and already are
+> > aggregated and the performance overhead of several levels of nesting
+> > barely shows up.  Skipping levels can be an interesting optimization
+> > approach and we can definitely support from the core side; however,
+> > it'd be a lot nicer if we could do that optimization transparently
+> > (e.g. CPU can skip multi level queueing if there usually is only one
+> > item at some levels).
+> 
+> The trend that I am seeing is that the total number of controllers is
+> going to grow over time. New controllers may be sensitive to the level
+> of nesting like the cpu controller. I am also thinking about how systemd
+> is using the cgroup filesystem for task classification purpose without
+> any controller attached to it. With this scheme, we can accommodate all
+> the different needs without using different cgroup filesystems.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9e68399..d7c4db6 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -37,6 +37,7 @@
- #include <linux/hugetlb_cgroup.h>
- #include <linux/gfp.h>
- #include <linux/memremap.h>
-+#include <linux/userfaultfd_k.h>
- #include <linux/balloon_compaction.h>
- #include <linux/mmu_notifier.h>
- #include <linux/page_idle.h>
-@@ -2111,9 +2112,10 @@ static int migrate_vma_collect_hole(unsigned long start,
- 				    struct mm_walk *walk)
- {
- 	struct migrate_vma *migrate = walk->private;
--	unsigned long addr, next;
-+	unsigned long addr;
- 
- 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-+		migrate->cpages++;
- 		migrate->dst[migrate->npages] = 0;
- 		migrate->src[migrate->npages++] = 0;
- 	}
-@@ -2150,6 +2152,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		pfn = pte_pfn(pte);
- 
- 		if (pte_none(pte)) {
-+			migrate->cpages++;
- 			mpfn = pfn = 0;
- 			goto next;
- 		}
-@@ -2463,6 +2466,118 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
- 	}
- }
- 
-+static void migrate_vma_insert_page(struct migrate_vma *migrate,
-+				    unsigned long addr,
-+				    struct page *page,
-+				    unsigned long *src,
-+				    unsigned long *dst)
-+{
-+	struct vm_area_struct *vma = migrate->vma;
-+	struct mm_struct *mm = vma->vm_mm;
-+	struct mem_cgroup *memcg;
-+	spinlock_t *ptl;
-+	pgd_t *pgdp;
-+	p4d_t *p4dp;
-+	pud_t *pudp;
-+	pmd_t *pmdp;
-+	pte_t *ptep;
-+	pte_t entry;
-+
-+	/* Only allow populating anonymous memory */
-+	if (!vma_is_anonymous(vma))
-+		goto abort;
-+
-+	pgdp = pgd_offset(mm, addr);
-+	p4dp = p4d_alloc(mm, pgdp, addr);
-+	if (!p4dp)
-+		goto abort;
-+	pudp = pud_alloc(mm, p4dp, addr);
-+	if (!pudp)
-+		goto abort;
-+	pmdp = pmd_alloc(mm, pudp, addr);
-+	if (!pmdp)
-+		goto abort;
-+
-+	if (pmd_trans_unstable(pmdp) || pmd_devmap(*pmdp))
-+		goto abort;
-+
-+	/*
-+	 * Use pte_alloc() instead of pte_alloc_map().  We can't run
-+	 * pte_offset_map() on pmds where a huge pmd might be created
-+	 * from a different thread.
-+	 *
-+	 * pte_alloc_map() is safe to use under down_write(mmap_sem) or when
-+	 * parallel threads are excluded by other means.
-+	 *
-+	 * Here we only have down_read(mmap_sem).
-+	 */
-+	if (pte_alloc(mm, pmdp, addr))
-+		goto abort;
-+
-+	/* See the comment in pte_alloc_one_map() */
-+	if (unlikely(pmd_trans_unstable(pmdp)))
-+		goto abort;
-+
-+	if (unlikely(anon_vma_prepare(vma)))
-+		goto abort;
-+	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL, &memcg, false))
-+		goto abort;
-+
-+	/*
-+	 * The memory barrier inside __SetPageUptodate makes sure that
-+	 * preceding stores to the page contents become visible before
-+	 * the set_pte_at() write.
-+	 */
-+	__SetPageUptodate(page);
-+
-+	if (is_zone_device_page(page) && is_device_private_page(page)) {
-+		swp_entry_t swp_entry;
-+
-+		swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
-+		entry = swp_entry_to_pte(swp_entry);
-+	} else {
-+		entry = mk_pte(page, vma->vm_page_prot);
-+		if (vma->vm_flags & VM_WRITE)
-+			entry = pte_mkwrite(pte_mkdirty(entry));
-+	}
-+
-+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+	if (!pte_none(*ptep)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		mem_cgroup_cancel_charge(page, memcg, false);
-+		goto abort;
-+	}
-+
-+	/*
-+	 * Check for usefaultfd but do not deliver the fault. Instead,
-+	 * just back off.
-+	 */
-+	if (userfaultfd_missing(vma)) {
-+		pte_unmap_unlock(ptep, ptl);
-+		mem_cgroup_cancel_charge(page, memcg, false);
-+		goto abort;
-+	}
-+
-+	inc_mm_counter(mm, MM_ANONPAGES);
-+	page_add_new_anon_rmap(page, vma, addr, false);
-+	mem_cgroup_commit_charge(page, memcg, false, false);
-+	if (!is_zone_device_page(page))
-+		lru_cache_add_active_or_unevictable(page, vma);
-+	set_pte_at(mm, addr, ptep, entry);
-+
-+	/* Take a reference on the page */
-+	get_page(page);
-+
-+	/* No need to invalidate - it was non-present before */
-+	update_mmu_cache(vma, addr, ptep);
-+	pte_unmap_unlock(ptep, ptl);
-+	*src = MIGRATE_PFN_MIGRATE;
-+	return;
-+
-+abort:
-+	*src &= ~MIGRATE_PFN_MIGRATE;
-+}
-+
- /*
-  * migrate_vma_pages() - migrate meta-data from src page to dst page
-  * @migrate: migrate struct containing all migration information
-@@ -2483,10 +2598,16 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
- 		struct address_space *mapping;
- 		int r;
- 
--		if (!page || !newpage)
-+		if (!newpage) {
-+			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
- 			continue;
--		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
-+		} else if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE)) {
-+			if (!page)
-+				migrate_vma_insert_page(migrate, addr, newpage,
-+							&migrate->src[i],
-+							&migrate->dst[i]);
- 			continue;
-+		}
- 
- 		mapping = page_mapping(page);
- 
-@@ -2536,8 +2657,14 @@ static void migrate_vma_finalize(struct migrate_vma *migrate)
- 		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
- 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
- 
--		if (!page)
-+		if (!page) {
-+			if (newpage) {
-+				unlock_page(newpage);
-+				put_page(newpage);
-+			}
- 			continue;
-+		}
-+
- 		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
- 			if (newpage) {
- 				unlock_page(newpage);
+I'm not sure about that.  It's true that cgroup hierarchy is being
+used more but there are only so many hard / complex resources that we
+deal with - cpu, memory and io.  Beyond those, other uses are usually
+about identifying membership (perf, net) or propagating and
+restricting attributes (cpuset).  pids can be considered an exception
+but we have it only because pids can globally run out a lot sooner
+than can be controlled through memory.  Even then, it's trivial.
+
+Thanks.
+
 -- 
-2.9.4
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
