@@ -1,72 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 733F36B0314
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 06:04:02 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p29so109608864pgn.3
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 03:04:02 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id w6si23753743pfk.420.2017.05.24.03.04.01
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EE0836B0311
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 06:05:19 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d127so36986560wmf.15
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 03:05:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y4si24584001edc.183.2017.05.24.03.05.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 03:04:01 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id s62so16607040pgc.0
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 03:04:01 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/vmalloc: a slight change of compare target in __insert_vmap_area()
-Date: Wed, 24 May 2017 18:03:47 +0800
-Message-Id: <20170524100347.8131-1-richard.weiyang@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 May 2017 03:05:18 -0700 (PDT)
+Subject: Re: [PATCHv6 04/10] x86/boot/64: Rename init_level4_pgt and
+ early_level4_pgt
+References: <20170524095419.14281-1-kirill.shutemov@linux.intel.com>
+ <20170524095419.14281-5-kirill.shutemov@linux.intel.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <efcac8cf-a772-3c84-1821-1e243e8cee00@suse.com>
+Date: Wed, 24 May 2017 12:05:16 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170524095419.14281-5-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The vmap RB tree store the elements in order and no overlap between any of
-them. The comparison in __insert_vmap_area() is to decide which direction
-the search should follow and make sure the new vmap_area is not overlap
-with any other.
+On 24/05/17 11:54, Kirill A. Shutemov wrote:
+> With CONFIG_X86_5LEVEL=y, level 4 is no longer top level of page tables.
+> 
+> Let's give these variable more generic names: init_top_pgt and
+> early_top_pgt.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Current implementation fails to do the overlap check.
+Xen parts: Reviewed-by: Juergen Gross <jgross@suse.com>
 
-When first "if" is not true, it means
 
-    va->va_start >= tmp_va->va_end
-
-And with the truth
-
-    xxx->va_end > xxx->va_start
-
-The deduction is
-
-    va->va_end > tmp_va->va_start
-
-which is the condition in second "if".
-
-This patch changes a little of the comparison in __insert_vmap_area() to
-make sure it forbids the overlapped vmap_area.
-
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/vmalloc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0b057628a7ba..8087451cb332 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -360,9 +360,9 @@ static void __insert_vmap_area(struct vmap_area *va)
- 
- 		parent = *p;
- 		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
--		if (va->va_start < tmp_va->va_end)
-+		if (va->va_end <= tmp_va->va_start)
- 			p = &(*p)->rb_left;
--		else if (va->va_end > tmp_va->va_start)
-+		else if (va->va_start >= tmp_va->va_end)
- 			p = &(*p)->rb_right;
- 		else
- 			BUG();
--- 
-2.11.0
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
