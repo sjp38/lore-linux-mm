@@ -1,96 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 163E76B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 12:57:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s62so116258424pgc.2
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 09:57:18 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a34si24374170pld.162.2017.05.24.09.57.15
-        for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 09:57:16 -0700 (PDT)
-Date: Wed, 24 May 2017 17:57:11 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] mm: kmemleak: Treat vm_struct as alternative reference
- to vmalloc'ed objects
-Message-ID: <20170524165710.GG19448@e104818-lin.cambridge.arm.com>
-References: <1495474514-24425-1-git-send-email-catalin.marinas@arm.com>
- <20170523203700.GW8951@wotan.suse.de>
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F61C6B0292
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:01:46 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id b40so48935322ybj.15
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:01:46 -0700 (PDT)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id j3si8339783ywk.186.2017.05.24.10.01.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 10:01:45 -0700 (PDT)
+Received: by mail-yw0-x241.google.com with SMTP id 17so13193054ywk.1
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:01:45 -0700 (PDT)
+Date: Wed, 24 May 2017 13:01:40 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 12/17] cgroup: Remove cgroup v2 no internal
+ process constraint
+Message-ID: <20170524170140.GG24798@htj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-13-git-send-email-longman@redhat.com>
+ <20170519203824.GC15279@wtj.duckdns.org>
+ <1495246207.7442.2.camel@gmx.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170523203700.GW8951@wotan.suse.de>
+In-Reply-To: <1495246207.7442.2.camel@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>
+To: Mike Galbraith <efault@gmx.de>
+Cc: Waiman Long <longman@redhat.com>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net
 
-On Tue, May 23, 2017 at 10:37:00PM +0200, Luis R. Rodriguez wrote:
-> On Mon, May 22, 2017 at 06:35:14PM +0100, Catalin Marinas wrote:
-> > Kmemleak requires that vmalloc'ed objects have a minimum reference count
-> > of 2: one in the corresponding vm_struct object and the other owned by
-> > the vmalloc() caller. There are cases, however, where the original
-> > vmalloc() returned pointer is lost and, instead, a pointer to vm_struct
-> > is stored (see free_thread_stack()). Kmemleak currently reports such
-> > objects as leaks.
+Hello, Mike.
+
+On Sat, May 20, 2017 at 04:10:07AM +0200, Mike Galbraith wrote:
+> On Fri, 2017-05-19 at 16:38 -0400, Tejun Heo wrote:
+> > Hello, Waiman.
 > > 
-> > This patch adds support for treating any surplus references to an object
-> > as additional references to a specified object. It introduces the
-> > kmemleak_vmalloc() API function which takes a vm_struct pointer and sets
-> > its surplus reference passing to the actual vmalloc() returned pointer.
-> > The __vmalloc_node_range() calling site has been modified accordingly.
+> > On Mon, May 15, 2017 at 09:34:11AM -0400, Waiman Long wrote:
+> > > The rationale behind the cgroup v2 no internal process constraint is
+> > > to avoid resouorce competition between internal processes and child
+> > > cgroups. However, not all controllers have problem with internal
+> > > process competiton. Enforcing this rule may lead to unnatural process
+> > > hierarchy and unneeded levels for those controllers.
 > > 
-> > An unrelated minor change is included in this patch to change the type
-> > of kmemleak_object.flags to unsigned int (previously unsigned long).
-> > 
-> > Reported-by: "Luis R. Rodriguez" <mcgrof@kernel.org>
+> > This isn't necessarily something we can determine by looking at the
+> > current state of controllers.  It's true that some controllers - pid
+> > and perf - inherently only care about membership of each task but at
+> > the same time neither really suffers from the constraint either.  CPU
+> > which is the problematic one here...
 > 
-> Tested-by: Luis R. Rodriguez <mcgrof@kernel.org>
+> (+ cpuacct + cpuset)
+
+Yeah, cpuacct and cpuset are in the same boat as perf.  cpuset is
+completely so and we can move the tree walk to the reader side or
+aggregate propagation for cpuacct as necessary.
 
 Thanks.
 
-> > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> > index 20036d4f9f13..11ab654502fd 100644
-> > --- a/mm/kmemleak.c
-> > +++ b/mm/kmemleak.c
-> > @@ -1188,6 +1249,30 @@ static bool update_checksum(struct kmemleak_object *object)
-> >  }
-> >  
-> >  /*
-> > + * Update an object's references. object->lock must be held by the caller.
-> > + */
-> > +static void update_refs(struct kmemleak_object *object)
-> > +{
-> > +	if (!color_white(object)) {
-> > +		/* non-orphan, ignored or new */
-> > +		return;
-> > +	}
-> > +
-> > +	/*
-> > +	 * Increase the object's reference count (number of pointers to the
-> > +	 * memory block). If this count reaches the required minimum, the
-> > +	 * object's color will become gray and it will be added to the
-> > +	 * gray_list.
-> > +	 */
-> > +	object->count++;
-> > +	if (color_gray(object)) {
-> > +		/* put_object() called when removing from gray_list */
-> > +		WARN_ON(!get_object(object));
-> > +		list_add_tail(&object->gray_list, &gray_list);
-> > +	}
-> > +}
-> > +
-> > +/*
-> 
-> This an initial use of it seems to be very possible and likely without the
-> vmalloc special case, ie, can this be added as a separate patch to make the
-> actual functional change easier to read ?
-
-The above is just moving code from scan_block() into a separate
-function. But I'm happy to split this patch into 2-3 patches if it's
-easier to follow.
-
 -- 
-Catalin
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
