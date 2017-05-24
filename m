@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B8D056B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:45:14 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u96so15493749wrc.7
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:45:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1D13B6B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:54:35 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 44so15516086wry.5
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:54:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y54si23637719edd.48.2017.05.24.05.45.13
+        by mx.google.com with ESMTPS id i2si21472008edi.240.2017.05.24.05.54.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 05:45:13 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] mm, memory_hotplug: drop artificial restriction
- on online/offline
+        Wed, 24 May 2017 05:54:33 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
 References: <20170524122411.25212-1-mhocko@kernel.org>
- <20170524122411.25212-2-mhocko@kernel.org>
+ <20170524122411.25212-3-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <467b4bcb-cc7e-a001-b35c-29d0ce29efee@suse.cz>
-Date: Wed, 24 May 2017 14:44:34 +0200
+Message-ID: <3a85146e-2f31-8a9e-26da-6051119586fe@suse.cz>
+Date: Wed, 24 May 2017 14:53:57 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170524122411.25212-2-mhocko@kernel.org>
+In-Reply-To: <20170524122411.25212-3-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,148 +27,98 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, And
 On 05/24/2017 02:24 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> 74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
-> memory") has added can_offline_normal which checks the amount of
-> memory in !movable zones as long as CONFIG_MOVABLE_NODE is disable.
-> It disallows to offline memory if there is nothing left with a
-> justification that "memory-management acts bad when we have nodes which
-> is online but don't have any normal memory".
-> 
-> 74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
-> memory")
-
-That's the same commit as above... one of them should be different?
-
-> has introduced a restriction that every numa node has to have
-> at least some memory in !movable zones before a first movable memory
-> can be onlined if !CONFIG_MOVABLE_NODE with the same justification
-> 
-> While it is true that not having _any_ memory for kernel allocations on
-> a NUMA node is far from great and such a node would be quite subotimal
-> because all kernel allocations will have to fallback to another NUMA
-> node but there is no reason to disallow such a configuration in
-> principle.
-> 
-> Besides that there is not really a big difference to have one memblock
-> for ZONE_NORMAL available or none. With 128MB size memblocks the system
-> might trash on the kernel allocations requests anyway. It is really
-> hard to draw a line on how much normal memory is really sufficient so
-> we have to rely on administrator to configure system sanely therefore
-> drop the artificial restriction and remove can_offline_normal and
-> can_online_high_movable altogether.
+> 20b2f52b73fe ("numa: add CONFIG_MOVABLE_NODE for movable-dedicated
+> node") has introduced CONFIG_MOVABLE_NODE without a good explanation on
+> why it is actually useful. It makes a lot of sense to make movable node
+> semantic opt in but we already have that because the feature has to be
+> explicitly enabled on the kernel command line. A config option on top
+> only makes the configuration space larger without a good reason. It also
+> adds an additional ifdefery that pollutes the code. Just drop the config
+> option and make it de-facto always enabled. This shouldn't introduce any
+> change to the semantic.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
--
-
-> mm, memory_hotplug: drop can_online_high_movable
-> 
->  because "memory-management acts
-> bad when we have nodes which is online but don't have any normal memory.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
--
-Some editing issue?
-
-Otherwise makes sense to me.
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I agree with the intention.
 
 > ---
->  mm/memory_hotplug.c | 58 -----------------------------------------------------
->  1 file changed, 58 deletions(-)
+>  Documentation/admin-guide/kernel-parameters.txt |  7 +++++--
+>  drivers/base/node.c                             |  4 ----
+>  include/linux/memblock.h                        | 18 -----------------
+>  include/linux/nodemask.h                        |  4 ----
+>  mm/Kconfig                                      | 26 -------------------------
+>  mm/memblock.c                                   |  2 --
+>  mm/memory_hotplug.c                             |  4 ----
+>  mm/page_alloc.c                                 |  2 --
+>  8 files changed, 5 insertions(+), 62 deletions(-)
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 599c675ad538..10052c2fd400 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -763,23 +763,6 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  	return 0;
->  }
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+> index facc20a3f962..ec7d6ae01c96 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -2246,8 +2246,11 @@
+>  			that the amount of memory usable for all allocations
+>  			is not too small.
 >  
-> -#ifdef CONFIG_MOVABLE_NODE
-> -/*
-> - * When CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-> - * normal memory.
-> - */
-> -static bool can_online_high_movable(int nid)
-> -{
-> -	return true;
-> -}
-> -#else /* CONFIG_MOVABLE_NODE */
-> -/* ensure every online node has NORMAL memory */
-> -static bool can_online_high_movable(int nid)
-> -{
-> -	return node_state(nid, N_NORMAL_MEMORY);
-> -}
-> -#endif /* CONFIG_MOVABLE_NODE */
-> -
->  /* check which state of node_states will be changed when online memory */
->  static void node_states_check_changes_online(unsigned long nr_pages,
->  	struct zone *zone, struct memory_notify *arg)
-> @@ -979,9 +962,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->  	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
->  		return -EINVAL;
+> -	movable_node	[KNL] Boot-time switch to enable the effects
+> -			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
+> +	movable_node	[KNL] Boot-time switch to make hotplugable to be
+
+			hotplugable what, memory? nodes?
+
+> +			movable. This means that the memory of such nodes
+> +			will be usable only for movable allocations which
+> +			rules out almost all kernel allocations. Use with
+> +			caution!
 >  
-> -	if (online_type == MMOP_ONLINE_MOVABLE && !can_online_high_movable(nid))
-> -		return -EINVAL;
-> -
->  	/* associate pfn range with the zone */
->  	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+>  	MTD_Partition=	[MTD]
+>  			Format: <name>,<region-number>,<size>,<offset>
+
+...
+
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -149,32 +149,6 @@ config NO_BOOTMEM
+>  config MEMORY_ISOLATION
+>  	bool
 >  
-> @@ -1579,41 +1559,6 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->  	return offlined;
->  }
->  
-> -#ifdef CONFIG_MOVABLE_NODE
-> -/*
-> - * When CONFIG_MOVABLE_NODE, we permit offlining of a node which doesn't have
-> - * normal memory.
-> - */
-> -static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
-> -{
-> -	return true;
-> -}
-> -#else /* CONFIG_MOVABLE_NODE */
-> -/* ensure the node has NORMAL memory if it is still online */
-> -static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
-> -{
-> -	struct pglist_data *pgdat = zone->zone_pgdat;
-> -	unsigned long present_pages = 0;
-> -	enum zone_type zt;
+> -config MOVABLE_NODE
+> -	bool "Enable to assign a node which has only movable memory"
+> -	depends on HAVE_MEMBLOCK
+> -	depends on NO_BOOTMEM
+> -	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
+> -	depends on NUMA
+
+That's a lot of depends. What happens if some of them are not met and
+the movable_node bootparam is used?
+
+> -	default n
+> -	help
+> -	  Allow a node to have only movable memory.  Pages used by the kernel,
+> -	  such as direct mapping pages cannot be migrated.  So the corresponding
+> -	  memory device cannot be hotplugged.  This option allows the following
+> -	  two things:
+> -	  - When the system is booting, node full of hotpluggable memory can
+> -	  be arranged to have only movable memory so that the whole node can
+> -	  be hot-removed. (need movable_node boot option specified).
+
+> -	  - After the system is up, the option allows users to online all the
+> -	  memory of a node as movable memory so that the whole node can be
+> -	  hot-removed.
+
+Strictly speaking this part is already gone with patch 1/2. Only matters
+in case this one is rejected for some reason.
+
+> -	  Users who don't use the memory hotplug feature are fine with this
+> -	  option on since they don't specify movable_node boot option or they
+> -	  don't online memory as movable.
 > -
-> -	for (zt = 0; zt <= ZONE_NORMAL; zt++)
-> -		present_pages += pgdat->node_zones[zt].present_pages;
+> -	  Say Y here if you want to hotplug a whole node.
+> -	  Say N here if you want kernel to use memory on all nodes evenly.
 > -
-> -	if (present_pages > nr_pages)
-> -		return true;
-> -
-> -	present_pages = 0;
-> -	for (; zt <= ZONE_MOVABLE; zt++)
-> -		present_pages += pgdat->node_zones[zt].present_pages;
-> -
-> -	/*
-> -	 * we can't offline the last normal memory until all
-> -	 * higher memory is offlined.
-> -	 */
-> -	return present_pages == 0;
-> -}
-> -#endif /* CONFIG_MOVABLE_NODE */
-> -
->  static int __init cmdline_parse_movable_node(char *p)
->  {
->  #ifdef CONFIG_MOVABLE_NODE
-> @@ -1741,9 +1686,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  	node = zone_to_nid(zone);
->  	nr_pages = end_pfn - start_pfn;
->  
-> -	if (zone_idx(zone) <= ZONE_NORMAL && !can_offline_normal(zone, nr_pages))
-> -		return -EINVAL;
-> -
->  	/* set above range as isolated */
->  	ret = start_isolate_page_range(start_pfn, end_pfn,
->  				       MIGRATE_MOVABLE, true);
-> 
+>  #
+>  # Only be set on architectures that have completely implemented memory hotplug
+>  # feature. If you are not sure, don't touch it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
