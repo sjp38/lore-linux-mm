@@ -1,53 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B330C6B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:05:30 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id b68so122145177ywe.0
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:05:30 -0700 (PDT)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id c68si8529545ywe.424.2017.05.24.10.05.29
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 903836B02F3
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:06:26 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id n188so221299593oig.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:06:26 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g41si3018803otd.261.2017.05.24.10.06.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:05:29 -0700 (PDT)
-Received: by mail-yw0-x244.google.com with SMTP id 17so13199506ywk.1
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:05:29 -0700 (PDT)
-Date: Wed, 24 May 2017 13:05:27 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 12/17] cgroup: Remove cgroup v2 no internal
- process constraint
-Message-ID: <20170524170527.GH24798@htj.duckdns.org>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-13-git-send-email-longman@redhat.com>
- <20170519203824.GC15279@wtj.duckdns.org>
- <93a69664-4ba6-9ee8-e4ea-ce76b6682c77@redhat.com>
+        Wed, 24 May 2017 10:06:25 -0700 (PDT)
+Received: from mail-yw0-f177.google.com (mail-yw0-f177.google.com [209.85.161.177])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D7483239F9
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 17:06:24 +0000 (UTC)
+Received: by mail-yw0-f177.google.com with SMTP id l74so92347818ywe.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:06:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <93a69664-4ba6-9ee8-e4ea-ce76b6682c77@redhat.com>
+In-Reply-To: <20170524165710.GG19448@e104818-lin.cambridge.arm.com>
+References: <1495474514-24425-1-git-send-email-catalin.marinas@arm.com>
+ <20170523203700.GW8951@wotan.suse.de> <20170524165710.GG19448@e104818-lin.cambridge.arm.com>
+From: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Date: Wed, 24 May 2017 10:06:03 -0700
+Message-ID: <CAB=NE6XiL98RAv3hSRsvDjmDmkOckymQ-pKcQh=oNVfhU6FtOg@mail.gmail.com>
+Subject: Re: [PATCH] mm: kmemleak: Treat vm_struct as alternative reference to
+ vmalloc'ed objects
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>
 
-Hello,
+On Wed, May 24, 2017 at 9:57 AM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> On Tue, May 23, 2017 at 10:37:00PM +0200, Luis R. Rodriguez wrote:
+>> On Mon, May 22, 2017 at 06:35:14PM +0100, Catalin Marinas wrote:
+>> > Kmemleak requires that vmalloc'ed objects have a minimum reference count
+>> > of 2: one in the corresponding vm_struct object and the other owned by
+>> > the vmalloc() caller. There are cases, however, where the original
+>> > vmalloc() returned pointer is lost and, instead, a pointer to vm_struct
+>> > is stored (see free_thread_stack()). Kmemleak currently reports such
+>> > objects as leaks.
+>> >
+>> > This patch adds support for treating any surplus references to an object
+>> > as additional references to a specified object. It introduces the
+>> > kmemleak_vmalloc() API function which takes a vm_struct pointer and sets
+>> > its surplus reference passing to the actual vmalloc() returned pointer.
+>> > The __vmalloc_node_range() calling site has been modified accordingly.
+>> >
+>> > An unrelated minor change is included in this patch to change the type
+>> > of kmemleak_object.flags to unsigned int (previously unsigned long).
+>> >
+>> > Reported-by: "Luis R. Rodriguez" <mcgrof@kernel.org>
+>>
+>> Tested-by: Luis R. Rodriguez <mcgrof@kernel.org>
+>
+> Thanks.
+>
+>> > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+>> > index 20036d4f9f13..11ab654502fd 100644
+>> > --- a/mm/kmemleak.c
+>> > +++ b/mm/kmemleak.c
+>> > @@ -1188,6 +1249,30 @@ static bool update_checksum(struct kmemleak_object *object)
+>> >  }
+>> >
+>> >  /*
+>> > + * Update an object's references. object->lock must be held by the caller.
+>> > + */
+>> > +static void update_refs(struct kmemleak_object *object)
+>> > +{
+>> > +   if (!color_white(object)) {
+>> > +           /* non-orphan, ignored or new */
+>> > +           return;
+>> > +   }
+>> > +
+>> > +   /*
+>> > +    * Increase the object's reference count (number of pointers to the
+>> > +    * memory block). If this count reaches the required minimum, the
+>> > +    * object's color will become gray and it will be added to the
+>> > +    * gray_list.
+>> > +    */
+>> > +   object->count++;
+>> > +   if (color_gray(object)) {
+>> > +           /* put_object() called when removing from gray_list */
+>> > +           WARN_ON(!get_object(object));
+>> > +           list_add_tail(&object->gray_list, &gray_list);
+>> > +   }
+>> > +}
+>> > +
+>> > +/*
+>>
+>> This an initial use of it seems to be very possible and likely without the
+>> vmalloc special case, ie, can this be added as a separate patch to make the
+>> actual functional change easier to read ?
+>
+> The above is just moving code from scan_block() into a separate
+> function.
 
-On Mon, May 22, 2017 at 12:56:08PM -0400, Waiman Long wrote:
-> All controllers can use the special sub-directory if userland chooses to
-> do so. The problem that I am trying to address in this patch is to allow
-> more natural hierarchy that reflect a certain purpose, like the task
-> classification done by systemd. Restricting tasks only to leaf nodes
-> makes the hierarchy unnatural and probably difficult to manage.
+Exactly.
 
-I see but how is this different from userland just creating the leaf
-cgroup?  I'm not sure what this actually enables in terms of what can
-be achieved with cgroup.  I suppose we can argue that this is more
-convenient but I'd like to keep the interface orthogonal as much as
-reasonably possible.
+> But I'm happy to split this patch into 2-3 patches if it's
+> easier to follow.
 
-Thanks.
+If it does cause a regression the block of code reverted would also be
+smaller to revert / inspect.
 
--- 
-tejun
+  Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
