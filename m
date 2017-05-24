@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 73CA36B02F3
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 07:56:24 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id m5so193377207pfc.1
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 04:56:24 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i193si24652423pfe.242.2017.05.24.04.56.23
-        for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 04:56:23 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v4 8/8] mm: rmap: Use correct helper when poisoning hugepages
-Date: Wed, 24 May 2017 12:54:09 +0100
-Message-Id: <20170524115409.31309-9-punit.agrawal@arm.com>
-In-Reply-To: <20170524115409.31309-1-punit.agrawal@arm.com>
-References: <20170524115409.31309-1-punit.agrawal@arm.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E4D336B0338
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:03:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id g143so38060212wme.13
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:03:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q33si21557529edd.116.2017.05.24.05.03.21
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 May 2017 05:03:21 -0700 (PDT)
+Date: Wed, 24 May 2017 14:03:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] refine and rename slub sysfs
+Message-ID: <20170524120318.GE14733@dhcp22.suse.cz>
+References: <20170517141146.11063-1-richard.weiyang@gmail.com>
+ <20170518090636.GA25471@dhcp22.suse.cz>
+ <20170523032705.GA4275@WeideMBP.lan>
+ <20170523063911.GC12813@dhcp22.suse.cz>
+ <20170524095450.GA7706@WeideMBP.lan>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170524095450.GA7706@WeideMBP.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Using set_pte_at() does not do the right thing when putting down
-HWPOISON swap entries for hugepages on architectures that support
-contiguous ptes.
+On Wed 24-05-17 17:54:50, Wei Yang wrote:
+> On Tue, May 23, 2017 at 08:39:11AM +0200, Michal Hocko wrote:
+[...]
+> >Is this worth risking breakage of the userspace which consume this data
+> >now? Do you have any user space code which will greatly benefit from the
+> >new data and which couldn't do the same with the current format/output?
+> >
+> >If yes this all should be in the changelog.
+> 
+> The answer is no.
+> 
+> I have the same concern as yours. So this patch set could be divided into two
+> parts: 1. add some new entry with current name convention, 2. change the name
+> convention.
 
-Fix this problem by using set_huge_swap_pte_at() which was introduced to
-fix exactly this problem.
-
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Acked-by: Steve Capper <steve.capper@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
----
- mm/rmap.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d405f0e0ee96..feb2352aa95f 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1379,15 +1379,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		update_hiwater_rss(mm);
- 
- 		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-+			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
- 			if (PageHuge(page)) {
- 				int nr = 1 << compound_order(page);
- 				hugetlb_count_sub(nr, mm);
-+				set_huge_swap_pte_at(mm, address,
-+						     pvmw.pte, pteval,
-+						     vma_mmu_pagesize(vma));
- 			} else {
- 				dec_mm_counter(mm, mm_counter(page));
-+				set_pte_at(mm, address, pvmw.pte, pteval);
- 			}
- 
--			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
--			set_pte_at(mm, address, pvmw.pte, pteval);
- 		} else if (pte_unused(pteval)) {
- 			/*
- 			 * The guest indicated that the page content is of no
+Who is going to use those new entries and for what purpose? Why do we
+want to expose even more details of the slab allocator to the userspace.
+Is the missing information something fundamental that some user space
+cannot work without it? Seriously these are essential questions you
+should have answer for _before_ posting the patch and mention all those
+reasons in the changelog.
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
