@@ -1,89 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E106B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 16:36:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y65so204005960pff.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 13:36:24 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 369316B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 16:43:31 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h76so161405375pfh.15
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 13:43:31 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a71sor634504pfc.50.2017.05.24.13.36.23
+        by mx.google.com with SMTPS id s80sor1698831pfk.19.2017.05.24.13.43.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 May 2017 13:36:23 -0700 (PDT)
-Date: Wed, 24 May 2017 13:36:21 -0700 (PDT)
+        Wed, 24 May 2017 13:43:30 -0700 (PDT)
+Date: Wed, 24 May 2017 13:43:28 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
- NUMA systems
-In-Reply-To: <20170523165608.GN141096@google.com>
-Message-ID: <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
-References: <20170519210036.146880-1-mka@chromium.org> <20170519210036.146880-2-mka@chromium.org> <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com> <20170522205621.GL141096@google.com> <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
- <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com> <20170523165608.GN141096@google.com>
+Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
+In-Reply-To: <0f67046d-cdf6-1264-26f6-11c82978c621@yandex-team.ru>
+Message-ID: <alpine.DEB.2.10.1705241338120.49680@chino.kir.corp.google.com>
+References: <149520375057.74196.2843113275800730971.stgit@buzz> <CALo0P1123MROxgveCdX6YFpWDwG4qrAyHu3Xd1F+ckaFBnF4dQ@mail.gmail.com> <ecd4a7ea-06c0-f549-a1bf-6d2d3c0af719@yandex-team.ru> <alpine.DEB.2.10.1705230044590.50796@chino.kir.corp.google.com>
+ <0f67046d-cdf6-1264-26f6-11c82978c621@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Kaehlcke <mka@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Douglas Anderson <dianders@chromium.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Roman Guschin <guroan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org
 
-On Tue, 23 May 2017, Matthias Kaehlcke wrote:
+On Tue, 23 May 2017, Konstantin Khlebnikov wrote:
 
-> > diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
-> > index de179993e039..e1895ce6fa1b 100644
-> > --- a/include/linux/compiler-clang.h
-> > +++ b/include/linux/compiler-clang.h
-> > @@ -15,3 +15,8 @@
-> >   * with any version that can compile the kernel
-> >   */
-> >  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
-> > +
-> > +#ifdef inline
-> > +#undef inline
-> > +#define inline __attribute__((unused))
-> > +#endif
+> This is worth addition. Let's call it "oom_victim" for short.
 > 
-> Thanks for the suggestion!
+> It allows to locate leaky part if they are spread over sub-containers within
+> common limit.
+> But doesn't tell which limit caused this kill. For hierarchical limits this
+> might be not so easy.
 > 
-> Nothing breaks and the warnings are silenced. It seems we could use
-> this if there is a stong opposition against having warnings on unused
-> static inline functions in .c files.
+> I think oom_kill better suits for automatic actions - restart affected
+> hierarchy, increase limits, e.t.c.
+> But oom_victim allows to determine container affected by global oom killer.
 > 
-
-It would be slightly different, it would be:
-
-#define inline inline __attribute__((unused))
-
-to still inline the functions, I was just seeing if there was anything 
-else that clang was warning about that was unrelated to a function's 
-inlining.
-
-> Still I am not convinced that gcc's behavior is preferable in this
-> case. True, it saves us from adding a bunch of __maybe_unused or
-> #ifdefs, on the other hand the warning is a useful tool to spot truly
-> unused code. So far about 50% of the warnings I looked into fall into
-> this category.
+> So, probably it's worth to merge them together and increment oom_kill by
+> global killer for victim memcg:
+> 
+> 	if (!is_memcg_oom(oc)) {
+> 		count_vm_event(OOM_KILL);
+> 		mem_cgroup_count_vm_event(mm, OOM_KILL);
+> 	} else
+> 		mem_cgroup_event(oc->memcg, OOM_KILL);
 > 
 
-I think gcc's behavior is a result of how it does preprocessing and is a 
-clearly defined and long-standing semantic given in the gcc manual 
-regarding -Wunused-function.
+Our complete solution is that we have a complementary 
+memory.oom_kill_control that allows users to register for eventfd(2) 
+notification when the kernel oom killer kills a victim, but this is 
+because we have had complete support for userspace oom handling for years.  
+When read, it exports three classes of information:
 
-#define IS_PAGE_ALIGNED(__size)	(!(__size & ((size_t)PAGE_SIZE - 1)))
-static inline int is_page_aligned(size_t size)
-{
-	return !(size & ((size_t)PAGE_SIZE - 1));
-}
+ - the "total" (hierarchical) and "local" (memcg specific) number of oom
+   kills for system oom conditions (overcommit),
 
-Gcc will not warn about either of these being unused, regardless of -Wall, 
--Wunused-function, or -pedantic.  Clang, correct me if I'm wrong, will 
-only warn about is_page_aligned().
+ - the "total" and "local" number of oom kills for memcg oom conditions, 
+   and
+ 
+ - the total number of processes in the hierarchy where an oom victim was
+   reaped successfully and unsuccessfully.
 
-So the argument could be made that one of the additional benefits of 
-static inline functions is that a subset of compilers, heavily in the 
-minority, will detect whether it's unused and we'll get patches that 
-remove them.  Functionally, it would only result in LOC reduction.  But, 
-isn't adding #ifdef's to silence the warning just adding more LOC?
-
-I have no preference either way, I think it would be up to the person who 
-is maintaining the code and has to deal with the patches.
+One benefit of this is that it prevents us from having to scrape the 
+kernel log for oom events which has been troublesome in the past, but 
+userspace can easily do so when the eventfd triggers for the kill 
+notification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
