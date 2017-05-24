@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3B86B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 09:02:54 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id x64so111281623pgd.6
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 06:02:54 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 590526B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 09:11:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e131so193773894pfh.7
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 06:11:38 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 199si23642798pfu.230.2017.05.24.06.02.53
+        by mx.google.com with ESMTP id d90si24827884pfm.216.2017.05.24.06.11.37
         for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 06:02:53 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH] mm: hwpoison: Use compound_head() flags for huge pages
-Date: Wed, 24 May 2017 14:02:04 +0100
-Message-Id: <20170524130204.21845-1-james.morse@arm.com>
+        Wed, 24 May 2017 06:11:37 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: [PATCH v4 0/9] arm64: Enable contiguous pte hugepage support
+Date: Wed, 24 May 2017 14:11:13 +0100
+Message-Id: <20170524131122.5309-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, James Morse <james.morse@arm.com>, Punit Agrawal <punit.agrawal@arm.com>
+To: will.deacon@arm.com, catalin.marinas@arm.com
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-arm-kernel@lists.infradead.org, steve.capper@arm.com, mark.rutland@arm.com, linux-mm@kvack.org
 
-memory_failure() chooses a recovery action function based on the page
-flags. For huge pages it uses the tail page flags which don't have
-anything interesting set, resulting in:
-> Memory failure: 0x9be3b4: Unknown page state
-> Memory failure: 0x9be3b4: recovery action for unknown page: Failed
+Hi,
 
-Instead, save a copy of the head page's flags if this is a huge page,
-this means if there are no relevant flags for this tail page, we use
-the head pages flags instead. This results in the me_huge_page()
-recovery action being called:
-> Memory failure: 0x9b7969: recovery action for huge page: Delayed
+This patchset addresses all the known issues with contiguous hugetlb
+pages. Support for contiguous hugepages is useful on systems where the
+PMD hugepage size is too large (512MB hugepage when using 64k page
+granule) and contiguous hugepages can be used to provide reasonable
+hugepage sizes to the user.
 
-For hugepages that have not yet been allocated, this allows the hugepage
-to be dequeued.
+The patches can be split as 
 
-CC: Punit Agrawal <punit.agrawal@arm.com>
-Signed-off-by: James Morse <james.morse@arm.com>
----
-This is intended as a fix, but I can't find the patch that introduced this
-behaviour. (not recent, and there is a lot of history down there!)
+* Patches 1-3, 9 cleanups and improvements
 
-This doesn't apply to stable trees before v3.10...
-Cc: stable@vger.kernel.org # 3.10.105
+* Patch 4 addresses the break-before-make requirement of the
+  architecture for contiguous hugepages. These patches depend on
+  enabling memory failure handling on arm64[2].
 
- mm/memory-failure.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+* Patch 5-7 add support for handling swap entries for contiguous pte
+  hugepages. These patches depend on fixes to core code required to
+  support contiguous hugepages[3].
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 2527dfeddb00..44a6a33af219 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1184,7 +1184,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * page_remove_rmap() in try_to_unmap_one(). So to determine page status
- 	 * correctly, we save a copy of the page flags at this time.
- 	 */
--	page_flags = p->flags;
-+	if (PageHuge(p))
-+		page_flags = hpage->flags;
-+	else
-+		page_flags = p->flags;
- 
- 	/*
- 	 * unpoison always clear PG_hwpoison inside page lock
+* Patch 8 enables contiguous hugepage support for arm64
+
+The patches are based on v4.12-rc2. Previous postings can be found at
+[0], [1].
+
+All feedback welcome.
+
+Thanks,
+Punit
+
+[0] https://www.spinics.net/lists/arm-kernel/msg570422.html
+[1] http://lists.infradead.org/pipermail/linux-arm-kernel/2017-March/497027.html
+[2] https://www.spinics.net/lists/arm-kernel/msg581657.html
+[3] https://www.spinics.net/lists/arm-kernel/msg583342.html
+
+Changes v3 -> v4
+* Moved Patches 2 and 4 to [3] due to dependencies
+
+Changes v2 -> v3
+* Rebased on v4.12-rc2
+* Included swap related fixes in this series
+* Enable contiguous pte hugepages
+
+Changes v1 -> v2:
+* Marked patch 2 for stable
+* Fixed comment issues in patch 7
+* Added tags
+
+Punit Agrawal (4):
+  arm64: hugetlbpages: Handle swap entries in huge_pte_offset() for
+    contiguous hugepages
+  arm64: hugetlb: Override huge_pte_clear() to support contiguous
+    hugepages
+  arm64: hugetlb: Override set_huge_swap_pte_at() to support contiguous
+    hugepages
+  arm64: Re-enable support for contiguous hugepages
+
+Steve Capper (5):
+  arm64: hugetlb: set_huge_pte_at Add WARN_ON on !pte_present
+  arm64: hugetlb: Introduce pte_pgprot helper
+  arm64: hugetlb: Spring clean huge pte accessors
+  arm64: hugetlb: Add break-before-make logic for contiguous entries
+  arm64: hugetlb: Cleanup setup_hugepagesz
+
+ arch/arm64/include/asm/hugetlb.h |   9 +-
+ arch/arm64/mm/hugetlbpage.c      | 287 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 213 insertions(+), 83 deletions(-)
+
 -- 
 2.11.0
 
