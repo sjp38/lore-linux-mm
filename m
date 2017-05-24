@@ -1,55 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B99AD6B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 17:51:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w79so39996976wme.7
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 14:51:46 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 81si7626883wmi.53.2017.05.24.14.51.45
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E39AE6B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 18:09:51 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q27so21511946pfi.8
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 15:09:51 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id l4si25977422pga.331.2017.05.24.15.09.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 14:51:45 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4OLn4Lf118207
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 17:51:44 -0400
-Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2anh96arq8-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 17:51:43 -0400
-Received: from localhost
-	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 24 May 2017 17:51:43 -0400
-Date: Wed, 24 May 2017 16:51:37 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 2/2] mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
-References: <20170524122411.25212-1-mhocko@kernel.org>
- <20170524122411.25212-3-mhocko@kernel.org>
+        Wed, 24 May 2017 15:09:51 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id m17so147959946pfg.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 15:09:50 -0700 (PDT)
+Date: Wed, 24 May 2017 15:09:49 -0700
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
+ NUMA systems
+Message-ID: <20170524220949.GS141096@google.com>
+References: <20170519210036.146880-1-mka@chromium.org>
+ <20170519210036.146880-2-mka@chromium.org>
+ <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
+ <20170522205621.GL141096@google.com>
+ <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
+ <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com>
+ <20170523165608.GN141096@google.com>
+ <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170524122411.25212-3-mhocko@kernel.org>
-Message-Id: <20170524215136.itrsuwtthq65s3av@arbab-laptop.localdomain>
+In-Reply-To: <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Douglas Anderson <dianders@chromium.org>
 
-On Wed, May 24, 2017 at 02:24:11PM +0200, Michal Hocko wrote:
->20b2f52b73fe ("numa: add CONFIG_MOVABLE_NODE for movable-dedicated
->node") has introduced CONFIG_MOVABLE_NODE without a good explanation on
->why it is actually useful. It makes a lot of sense to make movable node
->semantic opt in but we already have that because the feature has to be
->explicitly enabled on the kernel command line. A config option on top
->only makes the configuration space larger without a good reason. It also
->adds an additional ifdefery that pollutes the code. Just drop the config
->option and make it de-facto always enabled. This shouldn't introduce any
->change to the semantic.
+Hi David,
 
-Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+El Wed, May 24, 2017 at 01:36:21PM -0700 David Rientjes ha dit:
 
--- 
-Reza Arbab
+> On Tue, 23 May 2017, Matthias Kaehlcke wrote:
+> 
+> > > diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+> > > index de179993e039..e1895ce6fa1b 100644
+> > > --- a/include/linux/compiler-clang.h
+> > > +++ b/include/linux/compiler-clang.h
+> > > @@ -15,3 +15,8 @@
+> > >   * with any version that can compile the kernel
+> > >   */
+> > >  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
+> > > +
+> > > +#ifdef inline
+> > > +#undef inline
+> > > +#define inline __attribute__((unused))
+> > > +#endif
+> > 
+> > Thanks for the suggestion!
+> > 
+> > Nothing breaks and the warnings are silenced. It seems we could use
+> > this if there is a stong opposition against having warnings on unused
+> > static inline functions in .c files.
+> > 
+> 
+> It would be slightly different, it would be:
+> 
+> #define inline inline __attribute__((unused))
+> 
+> to still inline the functions, I was just seeing if there was anything 
+> else that clang was warning about that was unrelated to a function's 
+> inlining.
+> 
+> > Still I am not convinced that gcc's behavior is preferable in this
+> > case. True, it saves us from adding a bunch of __maybe_unused or
+> > #ifdefs, on the other hand the warning is a useful tool to spot truly
+> > unused code. So far about 50% of the warnings I looked into fall into
+> > this category.
+> > 
+> 
+> I think gcc's behavior is a result of how it does preprocessing and is a 
+> clearly defined and long-standing semantic given in the gcc manual 
+> regarding -Wunused-function.
+> 
+> #define IS_PAGE_ALIGNED(__size)	(!(__size & ((size_t)PAGE_SIZE - 1)))
+> static inline int is_page_aligned(size_t size)
+> {
+> 	return !(size & ((size_t)PAGE_SIZE - 1));
+> }
+> 
+> Gcc will not warn about either of these being unused, regardless of -Wall, 
+> -Wunused-function, or -pedantic.  Clang, correct me if I'm wrong, will 
+> only warn about is_page_aligned().
+
+Indeed, clang does not warn about unused defines.
+
+> So the argument could be made that one of the additional benefits of 
+> static inline functions is that a subset of compilers, heavily in the 
+> minority, will detect whether it's unused and we'll get patches that 
+> remove them.  Functionally, it would only result in LOC reduction.  But, 
+> isn't adding #ifdef's to silence the warning just adding more LOC?
+
+The LOC reduction comes from the removal of the actual dead code that
+is spotted because the warning was enabled and pointed it out :)
+
+Using #ifdef is one option, in most cases the function can be marked as
+__maybe_unused, which technically doesn't (necessarily) increase
+LOC. However some maintainers prefer the use of #ifdef over
+__maybe_unused in certain cases.
+
+> I have no preference either way, I think it would be up to the person who 
+> is maintaining the code and has to deal with the patches.
+
+I think it would be good to have a general policy/agreement, to either
+disable the warning completely (not my preference) or 'allow' the use
+of one of the available mechanism to suppress the warning for
+functions that are not used in some configurations or only kept around
+for reference/debugging/symmetry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
