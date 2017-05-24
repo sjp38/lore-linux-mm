@@ -1,74 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C91DA6B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:53:54 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id j13so70063736qta.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:53:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l63si210019qke.55.2017.05.24.10.53.53
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E94D86B0292
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:56:03 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id l123so122700852ywe.13
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:56:03 -0700 (PDT)
+Received: from mail-yb0-x22b.google.com (mail-yb0-x22b.google.com. [2607:f8b0:4002:c09::22b])
+        by mx.google.com with ESMTPS id 197si8342882ybd.164.2017.05.24.10.56.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:53:54 -0700 (PDT)
-Date: Wed, 24 May 2017 13:53:50 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
-Message-ID: <20170524175349.GB24024@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com>
- <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
+        Wed, 24 May 2017 10:56:03 -0700 (PDT)
+Received: by mail-yb0-x22b.google.com with SMTP id 130so29152201ybl.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:56:02 -0700 (PDT)
+Date: Wed, 24 May 2017 13:56:00 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 13/17] cgroup: Allow fine-grained controllers
+ control in cgroup v2
+Message-ID: <20170524175600.GL24798@htj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-14-git-send-email-longman@redhat.com>
+ <20170519205550.GD15279@wtj.duckdns.org>
+ <6fe07727-e611-bfcd-8382-593a51bb4888@redhat.com>
+ <20170524173144.GI24798@htj.duckdns.org>
+ <29bc746d-f89b-3385-fd5c-314bcd22f9f7@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
+In-Reply-To: <29bc746d-f89b-3385-fd5c-314bcd22f9f7@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Wed, May 24, 2017 at 11:55:12AM +1000, Balbir Singh wrote:
-> On Tue, May 23, 2017 at 2:51 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > Patchset is on top of mmotm mmotm-2017-05-18, git branch:
-> >
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v22
-> >
-> > Change since v21 is adding back special refcounting in put_page() to
-> > catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
-> > unlike regular page where a refcount of 0 means the page is free).
-> > See patch 8 of this serie for this refcounting. I did not use static
-> > keys because it kind of scares me to do that for an inline function.
-> > If people strongly feel about this i can try to make static key works
-> > here. Kirill will most likely want to review this.
-> >
-> >
-> > Everything else is the same. Below is the long description of what HMM
-> > is about and why. At the end of this email i describe briefly each patch
-> > and suggest reviewers for each of them.
-> >
-> >
-> > Heterogeneous Memory Management (HMM) (description and justification)
-> >
-> 
-> Thanks for the patches! These patches are very helpful. There are a
-> few additional things we would need on top of this (once HMM the base
-> is merged)
-> 
-> 1. Support for other architectures, we'd like to make sure we can get
-> this working for powerpc for example. As a first step we have
-> ZONE_DEVICE enablement patches, but I think we need some additional
-> patches for iomem space searching and memory hotplug, IIRC
-> 2. HMM-CDM and physical address based migration bits. In a recent RFC
-> we decided to try and use the HMM CDM route as a route to implementing
-> coherent device memory as a starting point. It would be nice to have
-> those patches on top of these once these make it to mm -
-> https://lwn.net/Articles/720380/
-> 
+Hello,
 
-I intend to post the updated HMM CDM patchset early next week. I am
-tie in couple internal backport but i should be able to resume work
-on that this week.
+On Wed, May 24, 2017 at 01:49:46PM -0400, Waiman Long wrote:
+> What I am saying is as follows:
+>     / A
+> P - B
+>    \ C
+> 
+> # echo +memory > P/cgroups.subtree_control
+> # echo -memory > P/A/cgroup.controllers
+> # echo "#memory" > P/B/cgroup.controllers
+> 
+> The parent grants the memory controller to its children - A, B and C.
+> Child A has the memory controller explicitly disabled. Child B has the
+> memory controller in pass-through mode, while child C has the memory
+> controller enabled by default. "echo +memory > cgroup.controllers" is
+> not allowed. There are 2 possible choices with regard to the '-' or '#'
+> prefixes. We can allow them before the grant from the parent or only
+> after that. In the former case, the state remains dormant until after
+> the grant from the parent.
 
-Cheers,
-Jerome
+Ah, I see, you want cgroup.controllers to be able to mask available
+controllers by the parent.  Can you expand your example with further
+nesting and how #memory on cgroup.controllers would affect the nested
+descendant?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
