@@ -1,134 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 55AF16B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 19:28:44 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y106so17903530wrb.14
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 16:28:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 16sor53379wrw.13.2017.05.24.16.28.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AAD636B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 19:36:45 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c6so209391794pfj.5
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 16:36:45 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id h19si9040799pgk.221.2017.05.24.16.36.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 May 2017 16:28:42 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 16:36:44 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: hwpoison: Use compound_head() flags for huge pages
+Date: Wed, 24 May 2017 23:30:41 +0000
+Message-ID: <20170524233039.GA27332@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170524130204.21845-1-james.morse@arm.com>
+In-Reply-To: <20170524130204.21845-1-james.morse@arm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <85EF2371C6487C4B91A82ECDC37C5B96@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org>
-References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com>
- <20170524212229.GR141096@google.com> <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org>
-From: Doug Anderson <dianders@chromium.org>
-Date: Wed, 24 May 2017 16:28:41 -0700
-Message-ID: <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
-Subject: Re: [patch] compiler, clang: suppress warning for unused static
- inline functions
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthias Kaehlcke <mka@chromium.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mark Brown <broonie@kernel.org>, Ingo Molnar <mingo@kernel.org>, David Miller <davem@davemloft.net>
+To: James Morse <james.morse@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Punit Agrawal <punit.agrawal@arm.com>
 
-Hi,
+On Wed, May 24, 2017 at 02:02:04PM +0100, James Morse wrote:
+> memory_failure() chooses a recovery action function based on the page
+> flags. For huge pages it uses the tail page flags which don't have
+> anything interesting set, resulting in:
+> > Memory failure: 0x9be3b4: Unknown page state
+> > Memory failure: 0x9be3b4: recovery action for unknown page: Failed
+>=20
+> Instead, save a copy of the head page's flags if this is a huge page,
+> this means if there are no relevant flags for this tail page, we use
+> the head pages flags instead. This results in the me_huge_page()
+> recovery action being called:
+> > Memory failure: 0x9b7969: recovery action for huge page: Delayed
+>=20
+> For hugepages that have not yet been allocated, this allows the hugepage
+> to be dequeued.
+>=20
+> CC: Punit Agrawal <punit.agrawal@arm.com>
+> Signed-off-by: James Morse <james.morse@arm.com>
 
-On Wed, May 24, 2017 at 2:32 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 24 May 2017 14:22:29 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
->
->> I'm not a kernel maintainer, so it's not my decision whether this
->> warning should be silenced, my personal opinion is that it's benfits
->> outweigh the inconveniences of dealing with half-false positives,
->> generally caused by the heavy use of #ifdef by the kernel itself.
->
-> Please resend and include this info in the changelog.  Describe
-> instances where this warning has resulted in actual runtime or
-> developer-visible benefits.
->
-> Where possible an appropriate I suggest it is better to move the
-> offending function into a header file, rather than adding ifdefs.
+Looks good to me.
 
-Can you clarify what you're asking for here?
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-* Matthias has been sending out individual patches that take each
-particular case into account to try to remove the warnings.  In some
-cases this removes totally dead code.  In other cases this adds
-__maybe_unused.  ...and as a last resort it uses #ifdef.  In each of
-these individual patches we wouldn't want a list of all other patches,
-I think.
+> ---
+> This is intended as a fix, but I can't find the patch that introduced thi=
+s
+> behaviour. (not recent, and there is a lot of history down there!)
 
-* Matthias is arguing here _against_ David's patch.
+Please add a tag
 
+Fixes: 524fca1e7356 ("HWPOISON: fix misjudgement of page_action() for error=
+s on mlocked pages")
 
-The best I can understand is that you're asking David to add
-Matthias's objections into his patch description, then say why we're
-still disabling this warning?
+>=20
+> This doesn't apply to stable trees before v3.10...
+> Cc: stable@vger.kernel.org # 3.10.105
 
----
+You can skip older stable kernels to which the fix isn't cleanly applicable=
+.
 
-If you just want a list of things in response to this thread...
+Thanks,
+Naoya Horiguchi
 
-Clang's behavior has found some dead code, as shown by:
-
-* https://patchwork.kernel.org/patch/9732161/
-  ring-buffer: Remove unused function __rb_data_page_index()
-* https://patchwork.kernel.org/patch/9735027/
-  r8152: Remove unused function usb_ocp_read()
-* https://patchwork.kernel.org/patch/9735053/
-  net1080: Remove unused function nc_dump_ttl()
-* https://patchwork.kernel.org/patch/9741513/
-  crypto: rng: Remove unused function __crypto_rng_cast()
-* https://patchwork.kernel.org/patch/9741539/
-  x86/ioapic: Remove unused function IO_APIC_irq_trigger()
-* https://patchwork.kernel.org/patch/9741549/
-  ASoC: Intel: sst: Remove unused function sst_restore_shim64()
-* https://patchwork.kernel.org/patch/9743225/
-  ASoC: cht_bsw_max98090_ti: Remove unused function cht_get_codec_dai()
-
-...plus more examples...
-
-
-However, clang's behavior has also led to patches that add a
-"__maybe_unused" attribute (usually no increase in LOC unless it
-causes word wrap) and also added a handful of #ifdefs, as you've
-pointed out.  The example we already talked about was:
-
-* https://patchwork.kernel.org/patch/9738139/
-  mm/slub: Only define kmalloc_large_node_hook() for NUMA systems
-
-We can, of course, discuss the best way to solve each individual
-issue.  ...and if we can find a way around #ifdef in most places that
-seems ideal.  If people really think the ability to spot dead code is
-not important, though, then disabling the warning globally like
-David's patch is the way to go.
-
-
-Note that in addition to spotting some dead code, clang's warnings
-also have the ability to identify "paste-o" bugs during development
-that would be harder to find if these warnings were disabled.  It's
-unlikely problems like this would last long in the kernel, but
-certainly I've made paste-o mistakes like this and then spent quite a
-while trying to figure out why things weren't working until my eyes
-finally spotted my stupidity.  Like:
-
-static inline void its_a_dog(void) {
-  pr_info("It's a dog\n");
-}
-
-static inline void its_a_cat(void) {
-  pr_info("It's a dog\n");
-}
-
-static void foo(void) {
-  if (strcmp(animal, "cat") == 0) {
-    /* It's a cat! */
-    its_a_cat();
-  } else {
-    /* It's a dog! */
-   its_a_cat();
-  }
-}
-
-Clang would (nicely) tell me that its_a_dog() is unused.  This is a
-stupid example but I've made this type of mistake in the past for
-sure.
-
-
--Doug
+>=20
+>  mm/memory-failure.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>=20
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 2527dfeddb00..44a6a33af219 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1184,7 +1184,10 @@ int memory_failure(unsigned long pfn, int trapno, =
+int flags)
+>  	 * page_remove_rmap() in try_to_unmap_one(). So to determine page statu=
+s
+>  	 * correctly, we save a copy of the page flags at this time.
+>  	 */
+> -	page_flags =3D p->flags;
+> +	if (PageHuge(p))
+> +		page_flags =3D hpage->flags;
+> +	else
+> +		page_flags =3D p->flags;
+> =20
+>  	/*
+>  	 * unpoison always clear PG_hwpoison inside page lock
+> --=20
+> 2.11.0
+>=20
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
