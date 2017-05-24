@@ -1,173 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 254576B0292
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:46:20 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v42so1384468wrc.12
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:46:20 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id d22si24422490ede.75.2017.05.24.10.46.18
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 75AA76B02B4
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:47:12 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t9so222252615oih.13
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 10:47:12 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id k143si10986229oib.247.2017.05.24.10.47.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:46:18 -0700 (PDT)
-Date: Wed, 24 May 2017 13:46:10 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: make kswapd try harder to keep active pages in cache
-Message-ID: <20170524174610.GB22174@cmpxchg.org>
-References: <1495549403-3719-1-git-send-email-jbacik@fb.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 May 2017 10:47:11 -0700 (PDT)
+Subject: Re: [PATCH 1/1] Sealable memory support
+References: <20170519103811.2183-1-igor.stoppa@huawei.com>
+ <20170519103811.2183-2-igor.stoppa@huawei.com>
+ <CAGXu5j+3-CZpZ4Vj2fHH+0UPAa_jOdJQxHtrQ=F_FvvzWvE00Q@mail.gmail.com>
+ <656b6465-16cd-ab0a-b439-ab5bea42006d@huawei.com>
+ <CAGXu5jK25XvX4vSODg7rkdBPj_FzveUSODFUKu1=KatmKhFVzg@mail.gmail.com>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <138740ab-ba0b-053c-d5b9-a71d6a5c7187@huawei.com>
+Date: Wed, 24 May 2017 20:45:30 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1495549403-3719-1-git-send-email-jbacik@fb.com>
+In-Reply-To: <CAGXu5jK25XvX4vSODg7rkdBPj_FzveUSODFUKu1=KatmKhFVzg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: akpm@linux-foundation.org, kernel-team@fb.com, riel@redhat.com, linux-mm@kvack.org
+To: Kees Cook <keescook@google.com>
+Cc: Casey Schaufler <casey@schaufler-ca.com>, Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Micay <danielmicay@gmail.com>, Greg KH <gregkh@linuxfoundation.org>, James Morris <james.l.morris@oracle.com>, Stephen Smalley <sds@tycho.nsa.gov>
 
-Hi Josef,
 
-On Tue, May 23, 2017 at 10:23:23AM -0400, Josef Bacik wrote:
-> @@ -308,7 +317,8 @@ EXPORT_SYMBOL(unregister_shrinker);
->  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  				    struct shrinker *shrinker,
->  				    unsigned long nr_scanned,
-> -				    unsigned long nr_eligible)
-> +				    unsigned long nr_eligible,
-> +				    unsigned long *slab_scanned)
 
-Once you pass in pool size ratios here, nr_scanned and nr_eligible
-become confusing. Can you update the names?
+On 23/05/17 23:11, Kees Cook wrote:
+> On Tue, May 23, 2017 at 2:43 AM, Igor Stoppa <igor.stoppa@huawei.com> wrote:
 
-> @@ -2292,6 +2310,15 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
->  				scan = 0;
->  			}
->  			break;
-> +		case SCAN_INACTIVE:
-> +			if (file && !is_active_lru(lru)) {
-> +				if (scan && size > sc->nr_to_reclaim)
-> +					scan = sc->nr_to_reclaim;
+[...]
 
-Why is the scan target different than with regular cache reclaim? I'd
-expect that we only need to zero the active list sizes here, not that
-we'd also need any further updates to 'scan'.
+> I would want hardened usercopy support as a requirement for using
+> smalloc(). Without it, we're regressing the over-read protection that
+> already exists for slab objects, if kernel code switched from slab to
+> smalloc. It should be very similar to the existing slab checks. "Is
+> this a smalloc object? Have we read beyond the end of a given object?"
+> etc. The metadata is all there, except for an efficient way to mark a
+> page as a smalloc page, but I think that just requires a new Page$Name
+> bit test, as done for slab.
 
-> @@ -2509,8 +2536,62 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  {
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	unsigned long nr_reclaimed, nr_scanned;
-> +	unsigned long nr_reclaim, nr_slab, total_high_wmark = 0, nr_inactive;
-> +	int z;
->  	bool reclaimable = false;
-> +	bool skip_slab = false;
-> +
-> +	nr_slab = sum_zone_node_page_state(pgdat->node_id,
-> +					   NR_SLAB_RECLAIMABLE);
-> +	nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
-> +	nr_reclaim = pgdat_reclaimable_pages(pgdat);
-> +
-> +	for (z = 0; z < MAX_NR_ZONES; z++) {
-> +		struct zone *zone = &pgdat->node_zones[z];
-> +		if (!managed_zone(zone))
-> +			continue;
-> +		total_high_wmark += high_wmark_pages(zone);
-> +	}
+ok
 
-This function is used for memcg target reclaim, in which case you're
-only looking at a subset of the pgdats and zones. Any pgdat or zone
-state read here would be scoped incorrectly; and the ratios on the
-node level are independent from ratios on the cgroup level and can
-diverge heavily from each other.
+[...]
 
-These size inquiries to drive the balancing will have to be made
-inside the memcg iteration loop further down with per-cgroup numbers.
+> I meant this:
+> 
+> CPU 1     CPU 2
+> create
+> alloc
+> write
+> seal
+> ...
+> unseal
+>                 write
+> write
+> seal
+> 
+> The CPU 2 write would be, for example, an attacker using a
+> vulnerability to attempt to write to memory in the sealed area. All it
+> would need to do to succeed would be to trigger an action in the
+> kernel that would do a "legitimate" write (which requires the unseal),
+> and race it. Unsealing should be CPU-local, if the API is going to
+> support this kind of access.
 
-> +	/*
-> +	 * If we don't have a lot of inactive or slab pages then there's no
-> +	 * point in trying to free them exclusively, do the normal scan stuff.
-> +	 */
-> +	if (nr_inactive < total_high_wmark && nr_slab < total_high_wmark)
-> +		sc->inactive_only = 0;
+I see.
+If the CPU1 were to forcibly halt anything that can race with it, then
+it would be sure that there was no interference.
+A reactive approach could be, instead, to re-validate the content after
+the sealing, assuming that it is possible.
 
-Yes, we need something like this, to know when to fall back to full
-reclaim. Cgroups don't have high watermarks, but I guess some magic
-number for "too few pages" could do the trick.
+[...]
 
-> +	/*
-> +	 * We don't have historical information, we can't make good decisions
-> +	 * about ratio's and where we should put pressure, so just apply
-> +	 * pressure based on overall consumption ratios.
-> +	 */
-> +	if (!sc->slab_diff && !sc->inactive_diff)
-> +		sc->inactive_only = 0;
+> I am more concerned about _any_ unseal after initial seal. And even
+> then, it'd be nice to keep things CPU-local. My concerns are related
+> to the write-rarely proposal (https://lkml.org/lkml/2017/3/29/704)
+> which is kind of like this, but focused on the .data section, not
+> dynamic memory. It has similar concerns about CPU-locality.
+> Additionally, even writing to memory and then making it read-only
+> later runs risks (see threads about BPF JIT races vs making things
+> read-only: https://patchwork.kernel.org/patch/9662653/ Alexei's NAK
+> doesn't change the risk this series is fixing: races with attacker
+> writes during assignment but before read-only marking).
 
-This one I'm not sure about. If we have enough slabs and and inactive
-pages why shouldn't we go for them first anyway - regardless of
-whether they have grown since the last reclaim invocation?
+If you are talking about an attacker, rather than protection against
+accidental overwrites, how hashing can be enough?
+Couldn't the attacker compromise that too?
 
-> @@ -2543,10 +2626,27 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
->  			node_lru_pages += lru_pages;
->  
-> -			if (memcg)
-> -				shrink_slab(sc->gfp_mask, pgdat->node_id,
-> -					    memcg, sc->nr_scanned - scanned,
-> -					    lru_pages);
-> +			/*
-> +			 * We don't want to put a lot of pressure on all of the
-> +			 * slabs if a memcg is mostly full, so use the ratio of
-> +			 * the lru size to the total reclaimable space on the
-> +			 * system.  If we have sc->inactive_only set then we
-> +			 * want to use the ratio of the difference between the
-> +			 * two since the last kswapd run so we apply pressure to
-> +			 * the consumer appropriately.
-> +			 */
-> +			if (memcg && !skip_slab) {
-> +				unsigned long numerator = lru_pages;
-> +				unsigned long denominator = nr_reclaim;
+> So, while smalloc would hugely reduce the window an attacker has
+> available to change data contents, this API doesn't eliminate it. (To
+> eliminate it, there would need to be a CPU-local page permission view
+> that let only the current CPU to the page, and then restore it to
+> read-only to match the global read-only view.)
 
-I don't quite follow this.
+That or, if one is ready to take the hit, freeze every other possible
+attack vector. But I'm not sure this could be justifiable.
 
-It calculates the share of this memcg's pages on the node, which is
-the ratio we should apply to the global slab pool to have equivalent
-pressure. However, it's being applied to the *memcg's* share of slab
-pages. This means that the smaller the memcg relative to the node, the
-less of its tiny share of slab objects we reclaim.
+[...]
 
-We're not translating from fraction to total, we're translating from
-fraction to fraction. Shouldn't the ratio be always 1:1?
+> Ah! In that case, sure. This isn't what the proposed API provided,
+> though, so let's adjust it to only perform the unseal at destroy time.
+> That makes it much saner, IMO. "Write once" dynamic allocations, or
+> "read-only after seal". woalloc? :P yay naming
 
-For example, if there is only one cgroup on the node, the ratio would
-be 1 share of LRU pages and 1 share of slab pages. But if there are
-two cgroups, we still scan one share of each cgroup's LRU pages but
-only half a share of each cgroup's slab pages. That doesn't add up.
+For now I'm still using smalloc.
+Anything that is either [x]malloc or [yz]malloc is fine, lengthwise.
+Other options might require some re-formatting.
 
-Am I missing something?
+[...]
 
-> +				if (sc->inactive_only) {
-> +					numerator = sc->slab_diff;
-> +					denominator = sc->inactive_diff;
-> +				}
+> I think a shared global pool would need to be eliminated for true
+> write-once semantics.
 
-Shouldn't these diffs already be reflected in the pool sizes? If we
-scan pools proportional to their size, we also go more aggressively
-for the one that grows faster relative to the other one, right?
+ok
 
-I guess this *could* be more adaptive to fluctuations, but I wonder if
-that's an optimization that could be split out into a separate patch,
-to make it easier to review on its own merit. Start with a simple size
-based balancing in the first patch, add improved adaptiveness after.
+[...]
 
-As mentioned above, this function is used not just by kswapd but also
-by direct reclaim, which doesn't initialize these fields and so always
-passes 0:0. We should be able to retain sensible balancing for them as
-well, but it would require moving the diff sampling.
+>> I'd rather not add extra locking to something that doesn't need it:
+>> Allocate - write - seal - read, read, read, ... - unseal - destroy.
+> 
+> Yup, I would be totally fine with this. It still has a race between
+> allocate and seal, but it's a huge improvement over the existing state
+> of the world where all dynamic memory is writable. :)
 
-To make it work for cgroup reclaim, it would have to look at the
-growths not on the node level, but on the lruvec level in
-get_scan_count() or thereabouts.
+Great!
 
-Anyway, I think it might be less confusing to nail down the size-based
-pressure balancing for slab caches first, and then do the recent diff
-balancing on top of it as an optimization.
+
+[...]
+
+> Ah, okay. Most of the LSM is happily covered by __ro_after_init. If we
+> could just drop the runtime disabling of SELinux, we'd be fine.
+
+I am not sure I understand this point.
+If the kernel is properly configured, the master toggle variable
+disappears, right?
+Or do you mean the disabling through modifications of the linked list of
+the hooks?
+
+[...]
+
+
+> Hm, I just meant add a char[] to the metadata and pass it in during
+> create(). Then it's possible to report which smalloc cache is being
+> examined during hardened usercopy checks.
+
+Ok, that is not a big deal.
+wrt this, I have spent some time writing a debug module, which currently
+dumps into a debugfs entry a bunch of info about the various pools.
+I could split it across multiple entries, using the label to generate
+their names.
+
+[...]
+
+> It seems like smalloc pools could also be refcounted?
+
+I am not sure what you mean.
+What do you want to count?
+Number of pools? Nodes per pool? Allocations per node?
+
+And what for?
+
+At least in the case of tearing down a pool, when a module is unloaded,
+nobody needs to free anything that was allocated with smalloc.
+The teardown function will free the pages from each node.
+
+Is this the place where you think there should be a check on the number
+of pages freed?
+
+[...]
+
+>>>> +#define NODE_HEADER                                    \
+>>>> +       struct {                                        \
+>>>> +               __SMALLOC_ALIGNED__ struct {            \
+>>>> +                       struct list_head list;          \
+>>>> +                       align_t *free;                  \
+>>>> +                       unsigned long available_words;  \
+>>>> +               };                                      \
+>>>> +       }
+>>
+>> Does this look ok? ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 
+> It's probably a sufficient starting point, depending on how the API
+> shakes out. Without unseal-write-seal properties, I case much less
+> about redzoning, etc.
+
+ok, but my question (I am not sure if it was clear) was about the use of
+a macro for the nameless structure that contains the header.
+
+[...]
+
+> Well, a poor example would be struct sock, since it needs to be
+> regularly written to, but it has function pointers near the end which
+> have been a very common target for attackers. (Though this is less so
+> now that INET_DIAG no longer exposes the kernel addresses to allocated
+> struct socks.)
+
+Ok, this could be the scope for a further set of patches, after this one
+is done.
+
+
+
+One more thing: how should I tie this allocator to the rest?
+I have verified that is seems to work with both SLUB and SLAB.
+Can I make it depend on either of them being enabled?
+
+Should it be optionally enabled?
+What to default to, if it's not enabled? vmalloc?
+
+---
+thanks, igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
