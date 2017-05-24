@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BE866B02B4
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 454BC6B02FD
 	for <linux-mm@kvack.org>; Wed, 24 May 2017 05:00:43 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id x64so107725929pgd.6
+Received: by mail-pg0-f69.google.com with SMTP id t12so108641227pgo.7
         for <linux-mm@kvack.org>; Wed, 24 May 2017 02:00:43 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t21si23800388pfa.99.2017.05.24.02.00.41
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id r39si23670285pld.299.2017.05.24.02.00.41
         for <linux-mm@kvack.org>;
         Wed, 24 May 2017 02:00:42 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v7 04/16] lockdep: Make check_prev_add() able to handle external stack_trace
-Date: Wed, 24 May 2017 17:59:37 +0900
-Message-Id: <1495616389-29772-5-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v7 02/16] lockdep: Add a function building a chain between two classes
+Date: Wed, 24 May 2017 17:59:35 +0900
+Message-Id: <1495616389-29772-3-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
 References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,119 +19,97 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Currently, a space for stack_trace is pinned in check_prev_add(), that
-makes us not able to use external stack_trace. The simplest way to
-achieve it is to pass an external stack_trace as an argument.
-
-A more suitable solution is to pass a callback additionally along with
-a stack_trace so that callers can decide the way to save or whether to
-save. Actually crossrelease needs to do other than saving a stack_trace.
-So pass a stack_trace and callback to handle it, to check_prev_add().
+Crossrelease needs to build a chain between two classes regardless of
+their contexts. However, add_chain_cache() cannot be used for that
+purpose since it assumes that it's called in the acquisition context
+of the hlock. So this patch introduces a new function doing it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- kernel/locking/lockdep.c | 40 +++++++++++++++++++---------------------
- 1 file changed, 19 insertions(+), 21 deletions(-)
+ kernel/locking/lockdep.c | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)
 
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 4709110..2847356 100644
+index 0c6e6b7..eb39474 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -1797,20 +1797,13 @@ static inline void inc_chains(void)
-  */
- static int
- check_prev_add(struct task_struct *curr, struct held_lock *prev,
--	       struct held_lock *next, int distance, int *stack_saved)
-+	       struct held_lock *next, int distance, struct stack_trace *trace,
-+	       int (*save)(struct stack_trace *trace))
- {
- 	struct lock_list *entry;
- 	int ret;
- 	struct lock_list this;
- 	struct lock_list *uninitialized_var(target_entry);
--	/*
--	 * Static variable, serialized by the graph_lock().
--	 *
--	 * We use this static variable to save the stack trace in case
--	 * we call into this function multiple times due to encountering
--	 * trylocks in the held lock stack.
--	 */
--	static struct stack_trace trace;
+@@ -2110,6 +2110,76 @@ static int check_no_collision(struct task_struct *curr,
+ }
  
- 	/*
- 	 * Prove that the new <prev> -> <next> dependency would not
-@@ -1858,11 +1851,8 @@ static inline void inc_chains(void)
- 		}
- 	}
- 
--	if (!*stack_saved) {
--		if (!save_trace(&trace))
--			return 0;
--		*stack_saved = 1;
--	}
-+	if (save && !save(trace))
+ /*
++ * This is for building a chain between just two different classes,
++ * instead of adding a new hlock upon current, which is done by
++ * add_chain_cache().
++ *
++ * This can be called in any context with two classes, while
++ * add_chain_cache() must be done within the lock owener's context
++ * since it uses hlock which might be racy in another context.
++ */
++static inline int add_chain_cache_classes(unsigned int prev,
++					  unsigned int next,
++					  unsigned int irq_context,
++					  u64 chain_key)
++{
++	struct hlist_head *hash_head = chainhashentry(chain_key);
++	struct lock_chain *chain;
++
++	/*
++	 * Allocate a new chain entry from the static array, and add
++	 * it to the hash:
++	 */
++
++	/*
++	 * We might need to take the graph lock, ensure we've got IRQs
++	 * disabled to make this an IRQ-safe lock.. for recursion reasons
++	 * lockdep won't complain about its own locking errors.
++	 */
++	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 +		return 0;
- 
- 	/*
- 	 * Ok, all validations passed, add the new lock
-@@ -1870,14 +1860,14 @@ static inline void inc_chains(void)
- 	 */
- 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
- 			       &hlock_class(prev)->locks_after,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 
- 	if (!ret)
- 		return 0;
- 
- 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
- 			       &hlock_class(next)->locks_before,
--			       next->acquire_ip, distance, &trace);
-+			       next->acquire_ip, distance, trace);
- 	if (!ret)
- 		return 0;
- 
-@@ -1885,8 +1875,6 @@ static inline void inc_chains(void)
- 	 * Debugging printouts:
- 	 */
- 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
--		/* We drop graph lock, so another thread can overwrite trace. */
--		*stack_saved = 0;
- 		graph_unlock();
- 		printk("\n new dependency: ");
- 		print_lock_name(hlock_class(prev));
-@@ -1910,8 +1898,9 @@ static inline void inc_chains(void)
- check_prevs_add(struct task_struct *curr, struct held_lock *next)
- {
- 	int depth = curr->lockdep_depth;
--	int stack_saved = 0;
- 	struct held_lock *hlock;
-+	struct stack_trace trace;
-+	int (*save)(struct stack_trace *trace) = save_trace;
- 
- 	/*
- 	 * Debugging checks.
-@@ -1936,9 +1925,18 @@ static inline void inc_chains(void)
- 		 * added:
- 		 */
- 		if (hlock->read != 2 && hlock->check) {
--			if (!check_prev_add(curr, hlock, next,
--						distance, &stack_saved))
-+			int ret = check_prev_add(curr, hlock, next,
-+						distance, &trace, save);
-+			if (!ret)
- 				return 0;
 +
-+			/*
-+			 * Stop saving stack_trace if save_trace() was
-+			 * called at least once:
-+			 */
-+			if (save && ret == 2)
-+				save = NULL;
++	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
++		if (!debug_locks_off_graph_unlock())
++			return 0;
 +
- 			/*
- 			 * Stop after the first non-trylock entry,
- 			 * as non-trylock entries have added their
++		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
++		dump_stack();
++		return 0;
++	}
++
++	chain = lock_chains + nr_lock_chains++;
++	chain->chain_key = chain_key;
++	chain->irq_context = irq_context;
++	chain->depth = 2;
++	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
++		chain->base = nr_chain_hlocks;
++		nr_chain_hlocks += chain->depth;
++		chain_hlocks[chain->base] = prev - 1;
++		chain_hlocks[chain->base + 1] = next -1;
++	}
++#ifdef CONFIG_DEBUG_LOCKDEP
++	/*
++	 * Important for check_no_collision().
++	 */
++	else {
++		if (!debug_locks_off_graph_unlock())
++			return 0;
++
++		print_lockdep_off("BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!");
++		dump_stack();
++		return 0;
++	}
++#endif
++
++	hlist_add_head_rcu(&chain->entry, hash_head);
++	debug_atomic_inc(chain_lookup_misses);
++	inc_chains();
++
++	return 1;
++}
++
++/*
+  * Adds a dependency chain into chain hashtable. And must be called with
+  * graph_lock held.
+  *
 -- 
 1.9.1
 
