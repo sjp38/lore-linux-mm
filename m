@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78BFE6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 15:56:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b74so201715931pfd.2
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 12:56:14 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b78si25161507pfe.220.2017.05.24.12.56.13
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D25456B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 16:36:19 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id b68so124670760ywe.0
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 13:36:19 -0700 (PDT)
+Received: from mail-yb0-x234.google.com (mail-yb0-x234.google.com. [2607:f8b0:4002:c09::234])
+        by mx.google.com with ESMTPS id n9si5961793ybf.199.2017.05.24.13.36.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 12:56:13 -0700 (PDT)
-Date: Wed, 24 May 2017 12:56:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/migrate: Fix ref-count handling when
- !hugepage_migration_supported()
-Message-Id: <20170524125610.8fbc644f8fa1cf8175b7757b@linux-foundation.org>
-In-Reply-To: <20170524154728.2492-1-punit.agrawal@arm.com>
-References: <20170524154728.2492-1-punit.agrawal@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 24 May 2017 13:36:18 -0700 (PDT)
+Received: by mail-yb0-x234.google.com with SMTP id p143so48337456yba.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 13:36:18 -0700 (PDT)
+Date: Wed, 24 May 2017 16:36:16 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
+Message-ID: <20170524203616.GO24798@htj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-12-git-send-email-longman@redhat.com>
+ <20170519202624.GA15279@wtj.duckdns.org>
+ <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: will.deacon@arm.com, catalin.marinas@arm.com, manoj.iyer@arm.com, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tbaicar@codeaurora.org, timur@qti.qualcomm.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Wed, 24 May 2017 16:47:28 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
+Hello, Waiman.
 
-> On failing to migrate a page, soft_offline_huge_page() performs the
-> necessary update to the hugepage ref-count. When
-> !hugepage_migration_supported() , unmap_and_move_hugepage() also
-> decrements the page ref-count for the hugepage. The combined behaviour
-> leaves the ref-count in an inconsistent state.
+On Mon, May 22, 2017 at 01:13:16PM -0400, Waiman Long wrote:
+> > Maybe I'm misunderstanding the design, but this seems to push the
+> > processes which belong to the threaded subtree to the parent which is
+> > part of the usual resource domain hierarchy thus breaking the no
+> > internal competition constraint.  I'm not sure this is something we'd
+> > want.  Given that the limitation of the original threaded mode was the
+> > required nesting below root and that we treat root special anyway
+> > (exactly in the way necessary), I wonder whether it'd be better to
+> > simply allow root to be both domain and thread root.
 > 
-> This leads to soft lockups when running the overcommitted hugepage test
-> from mce-tests suite.
-> 
-> Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
-> soft offline: 0x83ed600: migration failed 1, type
-> 1fffc00000008008 (uptodate|head)
-> INFO: rcu_preempt detected stalls on CPUs/tasks:
->  Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
->   (detected by 7, t=5254 jiffies, g=963, c=962, q=321)
->   thugetlb_overco R  running task        0  2715   2685 0x00000008
->   Call trace:
->   [<ffff000008089f90>] dump_backtrace+0x0/0x268
->   [<ffff00000808a2d4>] show_stack+0x24/0x30
->   [<ffff000008100d34>] sched_show_task+0x134/0x180
->   [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
->   [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
->   [<ffff000008143a3c>] update_process_times+0x34/0x60
->   [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
->   [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
->   [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
->   [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
->   [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
->   [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
->   [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
->   [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
->   [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
-> 
-> Fix this by dropping the ref-count decrement in
-> unmap_and_move_hugepage() when !hugepage_migration_supported().
-> 
-> Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_migration_support()")
-> Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
-> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> Cc: Christoph Lameter <cl@linux.com>
+> Yes, root can be both domain and thread root. I haven't placed any
+> restriction on that.
 
-32665f2bbfed was three years ago.  Do you have any theory as to why
-this took so long to be detected?  And do you believe a -stable
-backport is warranted?
+I've been playing with the proposed "make the parent resource domain".
+Unfortunately, the parent - child relationship becomes weird.
+
+The parent becomes the thread root, which means that its
+cgroup.threads file becomes writable and threads can be put in there.
+It's really weird to write to a child's interface and have the
+parent's behavior changed.  This becomes weirder with delegation.  If
+a cgroup is delegated, its cgroup.threads should be delegated too but
+if the child enables threaded mode, that makes the undelegated parent
+thread root, which means that either 1. the delegatee can't migrate
+threads to the thread root or 2. if the parent's cgroup.threads is
+writeable, the delegatee can mass with other descendants under it
+which shouldn't be allowed.
+
+I think the operation of making a cgroup a thread root should happen
+on the cgroup where that's requested; otherwise, nesting becomes too
+twisted.  This should be solvable.  Will think more about it.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
