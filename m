@@ -1,122 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B93A36B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 07:54:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b74so192444144pfd.2
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 04:54:31 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E88406B02B4
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 07:55:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y65so193353179pff.13
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 04:55:02 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d9si24956664plj.252.2017.05.24.04.54.30
+        by mx.google.com with ESMTP id c89si24163831pfk.21.2017.05.24.04.55.01
         for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 04:54:30 -0700 (PDT)
+        Wed, 24 May 2017 04:55:02 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v4 0/8] Support for contiguous pte hugepages
-Date: Wed, 24 May 2017 12:54:01 +0100
-Message-Id: <20170524115409.31309-1-punit.agrawal@arm.com>
+Subject: [PATCH v4 1/8] arm64: hugetlb: Refactor find_num_contig
+Date: Wed, 24 May 2017 12:54:02 +0100
+Message-Id: <20170524115409.31309-2-punit.agrawal@arm.com>
+In-Reply-To: <20170524115409.31309-1-punit.agrawal@arm.com>
+References: <20170524115409.31309-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, David Woods <dwoods@mellanox.com>, Punit Agrawal <punit.agrawal@arm.com>
 
-Hi,
+From: Steve Capper <steve.capper@arm.com>
 
-This patchset updates the hugetlb code to fix issues arising from
-contiguous pte hugepages (such as on arm64). Compared to v3, This
-version addresses a build failure on arm64 by including two cleanup
-patches. Other than the arm64 cleanups, the rest are generic code
-changes. The remaining arm64 support based on these patches will be
-posted separately. The patches are based on v4.12-rc2. Previous
-related postings can be found at [0], [1], [2], and [3].
+As we regularly check for contiguous pte's in the huge accessors, remove
+this extra check from find_num_contig.
 
-The patches fall into three categories -
+Cc: David Woods <dwoods@mellanox.com>
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+[ Resolved rebase conflicts due to patch re-ordering ]
+Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+---
+ arch/arm64/mm/hugetlbpage.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
 
-* Patch 1-2 - arm64 cleanups required to greatly simplify changing
-  huge_pte_offset() prototype in Patch 5.
-
-  Catalin, Will - are you happy for these patches to go via mm?
-
-* Patches 3-4 address issues with gup
-
-* Patches 5-8 relate to passing a size argument to hugepage helpers to
-  disambiguate the size of the referred page. These changes are
-  required to enable arch code to properly handle swap entries for
-  contiguous pte hugepages.
-
-  The changes to huge_pte_offset() (patch 5) touch multiple
-  architectures but I've managed to minimise these changes for the
-  other affected functions - huge_pte_clear() and set_huge_pte_at().
-
-These patches gate the enabling of contiguous hugepages support on
-arm64 which has been requested for systems using !4k page granule.
-
-Feedback welcome.
-
-Thanks,
-Punit
-
-v3 -> v4
-
-* Reworked huge_pte_clear() and set_huge_swap_pte_at() to use #ifndef
-  block pattern
-* Included two arm64 hugetlb patches to address build failure
-* Updated tags
-
-v2 -> v3
-
-* Added gup fixes
-
-v1 -> v2
-
-* switch huge_pte_offset() to use size instead of hstate for
-  consistency with the rest of the api
-* Expand the series to address huge_pte_clear() and set_huge_pte_at()
-
-RFC -> v1
-
-* Fixed a missing conversion of huge_pte_offset() prototype to add
-  hstate parameter. Reported by 0-day.
-
-[0] https://www.spinics.net/lists/arm-kernel/msg582682.html
-[1] http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1370686.html
-[2] https://lkml.org/lkml/2017/3/30/770
-[3] https://lkml.org/lkml/2017/3/23/293
-
-
-Punit Agrawal (5):
-  mm, gup: Ensure real head page is ref-counted when using hugepages
-  mm/hugetlb: add size parameter to huge_pte_offset()
-  mm/hugetlb: Allow architectures to override huge_pte_clear()
-  mm/hugetlb: Introduce set_huge_swap_pte_at() helper
-  mm: rmap: Use correct helper when poisoning hugepages
-
-Steve Capper (2):
-  arm64: hugetlb: Refactor find_num_contig
-  arm64: hugetlb: Remove spurious calls to huge_ptep_offset
-
-Will Deacon (1):
-  mm, gup: Remove broken VM_BUG_ON_PAGE compound check for hugepages
-
- arch/arm64/mm/hugetlbpage.c     | 53 +++++++++++++++++------------------------
- arch/ia64/mm/hugetlbpage.c      |  4 ++--
- arch/metag/mm/hugetlbpage.c     |  3 ++-
- arch/mips/mm/hugetlbpage.c      |  3 ++-
- arch/parisc/mm/hugetlbpage.c    |  3 ++-
- arch/powerpc/mm/hugetlbpage.c   |  2 +-
- arch/s390/include/asm/hugetlb.h |  2 +-
- arch/s390/mm/hugetlbpage.c      |  3 ++-
- arch/sh/mm/hugetlbpage.c        |  3 ++-
- arch/sparc/mm/hugetlbpage.c     |  3 ++-
- arch/tile/mm/hugetlbpage.c      |  3 ++-
- arch/x86/mm/hugetlbpage.c       |  2 +-
- fs/userfaultfd.c                |  7 ++++--
- include/asm-generic/hugetlb.h   |  4 +++-
- include/linux/hugetlb.h         | 13 ++++++++--
- mm/gup.c                        | 15 +++++-------
- mm/hugetlb.c                    | 33 +++++++++++++++----------
- mm/page_vma_mapped.c            |  3 ++-
- mm/pagewalk.c                   |  3 ++-
- mm/rmap.c                       |  7 ++++--
- 20 files changed, 95 insertions(+), 74 deletions(-)
-
+diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+index 69b8200b1cfd..710bf935a473 100644
+--- a/arch/arm64/mm/hugetlbpage.c
++++ b/arch/arm64/mm/hugetlbpage.c
+@@ -42,15 +42,13 @@ int pud_huge(pud_t pud)
+ }
+ 
+ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
+-			   pte_t *ptep, pte_t pte, size_t *pgsize)
++			   pte_t *ptep, size_t *pgsize)
+ {
+ 	pgd_t *pgd = pgd_offset(mm, addr);
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 
+ 	*pgsize = PAGE_SIZE;
+-	if (!pte_cont(pte))
+-		return 1;
+ 	pud = pud_offset(pgd, addr);
+ 	pmd = pmd_offset(pud, addr);
+ 	if ((pte_t *)pmd == ptep) {
+@@ -65,15 +63,16 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+ {
+ 	size_t pgsize;
+ 	int i;
+-	int ncontig = find_num_contig(mm, addr, ptep, pte, &pgsize);
++	int ncontig;
+ 	unsigned long pfn;
+ 	pgprot_t hugeprot;
+ 
+-	if (ncontig == 1) {
++	if (!pte_cont(pte)) {
+ 		set_pte_at(mm, addr, ptep, pte);
+ 		return;
+ 	}
+ 
++	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
+ 	pfn = pte_pfn(pte);
+ 	hugeprot = __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
+ 	for (i = 0; i < ncontig; i++) {
+@@ -188,7 +187,7 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+ 		bool is_dirty = false;
+ 
+ 		cpte = huge_pte_offset(mm, addr);
+-		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
++		ncontig = find_num_contig(mm, addr, cpte, &pgsize);
+ 		/* save the 1st pte to return */
+ 		pte = ptep_get_and_clear(mm, addr, cpte);
+ 		for (i = 1, addr += pgsize; i < ncontig; ++i, addr += pgsize) {
+@@ -228,7 +227,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 		cpte = huge_pte_offset(vma->vm_mm, addr);
+ 		pfn = pte_pfn(*cpte);
+ 		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
+-					  *cpte, &pgsize);
++					  &pgsize);
+ 		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize) {
+ 			changed |= ptep_set_access_flags(vma, addr, cpte,
+ 							pfn_pte(pfn,
+@@ -251,7 +250,7 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 		size_t pgsize = 0;
+ 
+ 		cpte = huge_pte_offset(mm, addr);
+-		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
++		ncontig = find_num_contig(mm, addr, cpte, &pgsize);
+ 		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
+ 			ptep_set_wrprotect(mm, addr, cpte);
+ 	} else {
+@@ -269,7 +268,7 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ 
+ 		cpte = huge_pte_offset(vma->vm_mm, addr);
+ 		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
+-					  *cpte, &pgsize);
++					  &pgsize);
+ 		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
+ 			ptep_clear_flush(vma, addr, cpte);
+ 	} else {
 -- 
 2.11.0
 
