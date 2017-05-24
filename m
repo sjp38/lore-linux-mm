@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3986B0314
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E04C46B0315
 	for <linux-mm@kvack.org>; Wed, 24 May 2017 13:20:38 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q71so74963047qkl.2
+Received: by mail-qt0-f197.google.com with SMTP id j13so69839577qta.13
         for <linux-mm@kvack.org>; Wed, 24 May 2017 10:20:38 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 40si117511qkv.20.2017.05.24.10.20.36
+        by mx.google.com with ESMTPS id b52si102250qta.156.2017.05.24.10.20.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 10:20:36 -0700 (PDT)
+        Wed, 24 May 2017 10:20:38 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM 05/15] mm/hmm/mirror: device page fault handler
-Date: Wed, 24 May 2017 13:20:14 -0400
-Message-Id: <20170524172024.30810-6-jglisse@redhat.com>
+Subject: [HMM 06/15] mm/memory_hotplug: introduce add_pages
+Date: Wed, 24 May 2017 13:20:15 -0400
+Message-Id: <20170524172024.30810-7-jglisse@redhat.com>
 In-Reply-To: <20170524172024.30810-1-jglisse@redhat.com>
 References: <20170524172024.30810-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,433 +21,116 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-This handle page fault on behalf of device driver, unlike handle_mm_fault()
-it does not trigger migration back to system memory for device memory.
+From: Michal Hocko <mhocko@suse.com>
 
+There are new users of memory hotplug emerging. Some of them require
+different subset of arch_add_memory. There are some which only require
+allocation of struct pages without mapping those pages to the kernel
+address space. We currently have __add_pages for that purpose. But this
+is rather lowlevel and not very suitable for the code outside of the
+memory hotplug. E.g. x86_64 wants to update max_pfn which should be
+done by the caller. Introduce add_pages() which should care about those
+details if they are needed. Each architecture should define its
+implementation and select CONFIG_ARCH_HAS_ADD_PAGES. All others use
+the currently existing __add_pages.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h |  27 ++++++
- mm/hmm.c            | 256 +++++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 271 insertions(+), 12 deletions(-)
+ arch/x86/Kconfig               |  4 ++++
+ arch/x86/mm/init_64.c          | 22 +++++++++++++++-------
+ include/linux/memory_hotplug.h | 11 +++++++++++
+ 3 files changed, 30 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index f254856..248a6e0 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -292,6 +292,33 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 		     unsigned long end,
- 		     hmm_pfn_t *pfns);
- bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
-+
-+
-+/*
-+ * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
-+ * not migrate any device memory back to system memory. The hmm_pfn_t array will
-+ * be updated with the fault result and current snapshot of the CPU page table
-+ * for the range.
-+ *
-+ * The mmap_sem must be taken in read mode before entering and it might be
-+ * dropped by the function if the block argument is false. In that case, the
-+ * function returns -EAGAIN.
-+ *
-+ * Return value does not reflect if the fault was successful for every single
-+ * address or not. Therefore, the caller must to inspect the hmm_pfn_t array to
-+ * determine fault status for each address.
-+ *
-+ * Trying to fault inside an invalid vma will result in -EINVAL.
-+ *
-+ * See the function description in mm/hmm.c for further documentation.
-+ */
-+int hmm_vma_fault(struct vm_area_struct *vma,
-+		  struct hmm_range *range,
-+		  unsigned long start,
-+		  unsigned long end,
-+		  hmm_pfn_t *pfns,
-+		  bool write,
-+		  bool block);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index a42ac0f..1baa525 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2264,6 +2264,10 @@ source "kernel/livepatch/Kconfig"
  
+ endmenu
  
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 472d237..e7d5a36 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -236,6 +236,36 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
- }
- EXPORT_SYMBOL(hmm_mirror_unregister);
- 
-+struct hmm_vma_walk {
-+	struct hmm_range	*range;
-+	unsigned long		last;
-+	bool			fault;
-+	bool			block;
-+	bool			write;
-+};
++config ARCH_HAS_ADD_PAGES
++	def_bool y
++	depends on X86_64 && ARCH_ENABLE_MEMORY_HOTPLUG
 +
-+static int hmm_vma_do_fault(struct mm_walk *walk,
-+			    unsigned long addr,
-+			    hmm_pfn_t *pfn)
-+{
-+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_REMOTE;
-+	struct hmm_vma_walk *hmm_vma_walk = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
-+	int r;
-+
-+	flags |= hmm_vma_walk->block ? 0 : FAULT_FLAG_ALLOW_RETRY;
-+	flags |= hmm_vma_walk->write ? FAULT_FLAG_WRITE : 0;
-+	r = handle_mm_fault(vma, addr, flags);
-+	if (r & VM_FAULT_RETRY)
-+		return -EBUSY;
-+	if (r & VM_FAULT_ERROR) {
-+		*pfn = HMM_PFN_ERROR;
-+		return -EFAULT;
-+	}
-+
-+	return -EAGAIN;
-+}
-+
- static void hmm_pfns_special(hmm_pfn_t *pfns,
- 			     unsigned long addr,
- 			     unsigned long end)
-@@ -259,34 +289,62 @@ static int hmm_pfns_bad(unsigned long addr,
- 	return 0;
- }
- 
-+static void hmm_pfns_clear(hmm_pfn_t *pfns,
-+			   unsigned long addr,
-+			   unsigned long end)
-+{
-+	for (; addr < end; addr += PAGE_SIZE, pfns++)
-+		*pfns = 0;
-+}
-+
- static int hmm_vma_walk_hole(unsigned long addr,
- 			     unsigned long end,
- 			     struct mm_walk *walk)
+ config ARCH_ENABLE_MEMORY_HOTPLUG
+ 	def_bool y
+ 	depends on X86_64 || (X86_32 && HIGHMEM)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 7332930..a8a9972 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -671,7 +671,7 @@ void __init paging_init(void)
+  * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
+  * updating.
+  */
+-static void  update_end_of_memory_vars(u64 start, u64 size)
++static void update_end_of_memory_vars(u64 start, u64 size)
  {
--	struct hmm_range *range = walk->private;
-+	struct hmm_vma_walk *hmm_vma_walk = walk->private;
-+	struct hmm_range *range = hmm_vma_walk->range;
- 	hmm_pfn_t *pfns = range->pfns;
- 	unsigned long i;
+ 	unsigned long end_pfn = PFN_UP(start + size);
  
-+	hmm_vma_walk->last = addr;
- 	i = (addr - range->start) >> PAGE_SHIFT;
--	for (; addr < end; addr += PAGE_SIZE, i++)
-+	for (; addr < end; addr += PAGE_SIZE, i++) {
- 		pfns[i] = HMM_PFN_EMPTY;
-+		if (hmm_vma_walk->fault) {
-+			int ret;
- 
--	return 0;
-+			ret = hmm_vma_do_fault(walk, addr, &pfns[i]);
-+			if (ret != -EAGAIN)
-+				return ret;
-+		}
-+	}
-+
-+	return hmm_vma_walk->fault ? -EAGAIN : 0;
- }
- 
- static int hmm_vma_walk_clear(unsigned long addr,
- 			      unsigned long end,
- 			      struct mm_walk *walk)
- {
--	struct hmm_range *range = walk->private;
-+	struct hmm_vma_walk *hmm_vma_walk = walk->private;
-+	struct hmm_range *range = hmm_vma_walk->range;
- 	hmm_pfn_t *pfns = range->pfns;
- 	unsigned long i;
- 
-+	hmm_vma_walk->last = addr;
- 	i = (addr - range->start) >> PAGE_SHIFT;
--	for (; addr < end; addr += PAGE_SIZE, i++)
-+	for (; addr < end; addr += PAGE_SIZE, i++) {
- 		pfns[i] = 0;
-+		if (hmm_vma_walk->fault) {
-+			int ret;
- 
--	return 0;
-+			ret = hmm_vma_do_fault(walk, addr, &pfns[i]);
-+			if (ret != -EAGAIN)
-+				return ret;
-+		}
-+	}
-+
-+	return hmm_vma_walk->fault ? -EAGAIN : 0;
- }
- 
- static int hmm_vma_walk_pmd(pmd_t *pmdp,
-@@ -294,15 +352,18 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 			    unsigned long end,
- 			    struct mm_walk *walk)
- {
--	struct hmm_range *range = walk->private;
-+	struct hmm_vma_walk *hmm_vma_walk = walk->private;
-+	struct hmm_range *range = hmm_vma_walk->range;
- 	struct vm_area_struct *vma = walk->vma;
- 	hmm_pfn_t *pfns = range->pfns;
- 	unsigned long addr = start, i;
-+	bool write_fault;
- 	hmm_pfn_t flag;
- 	pte_t *ptep;
- 
- 	i = (addr - range->start) >> PAGE_SHIFT;
- 	flag = vma->vm_flags & VM_READ ? HMM_PFN_READ : 0;
-+	write_fault = hmm_vma_walk->fault & hmm_vma_walk->write;
- 
- 	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {
- 		pmd_t pmd;
-@@ -321,6 +382,9 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
- 			unsigned long pfn = pmd_pfn(pmd) + pte_index(addr);
- 
-+			if (write_fault && !pmd_write(pmd))
-+				return hmm_vma_walk_clear(start, end, walk);
-+
- 			flag |= pmd_write(pmd) ? HMM_PFN_WRITE : 0;
- 			for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
- 				pfns[i] = hmm_pfn_t_from_pfn(pfn) | flag;
-@@ -342,13 +406,55 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 
- 		pfns[i] = 0;
- 
--		if (pte_none(pte) || !pte_present(pte)) {
-+		if (pte_none(pte)) {
- 			pfns[i] = HMM_PFN_EMPTY;
-+			if (hmm_vma_walk->fault)
-+				goto fault;
-+			continue;
-+		}
-+
-+		if (!pte_present(pte)) {
-+			swp_entry_t entry;
-+
-+			if (!non_swap_entry(entry)) {
-+				if (hmm_vma_walk->fault)
-+					goto fault;
-+				continue;
-+			}
-+
-+			entry = pte_to_swp_entry(pte);
-+
-+			/*
-+			 * This is a special swap entry, ignore migration, use
-+			 * device and report anything else as error.
-+			 */
-+			if (is_migration_entry(entry)) {
-+				if (hmm_vma_walk->fault) {
-+					pte_unmap(ptep);
-+					hmm_vma_walk->last = addr;
-+					migration_entry_wait(vma->vm_mm,
-+							     pmdp, addr);
-+					return -EAGAIN;
-+				}
-+				continue;
-+			} else {
-+				/* Report error for everything else */
-+				pfns[i] = HMM_PFN_ERROR;
-+			}
- 			continue;
- 		}
- 
-+		if (write_fault && !pte_write(pte))
-+			goto fault;
-+
- 		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte)) | flag;
- 		pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
-+		continue;
-+
-+fault:
-+		pte_unmap(ptep);
-+		/* Fault all pages in range */
-+		return hmm_vma_walk_clear(start, end, walk);
+@@ -682,22 +682,30 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
  	}
- 	pte_unmap(ptep - 1);
+ }
  
-@@ -381,6 +487,7 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 		     unsigned long end,
- 		     hmm_pfn_t *pfns)
+-int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
++int add_pages(int nid, unsigned long start_pfn,
++	      unsigned long nr_pages, bool want_memblock)
  {
-+	struct hmm_vma_walk hmm_vma_walk;
- 	struct mm_walk mm_walk;
- 	struct hmm *hmm;
+-	unsigned long start_pfn = start >> PAGE_SHIFT;
+-	unsigned long nr_pages = size >> PAGE_SHIFT;
+ 	int ret;
  
-@@ -412,9 +519,12 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 	list_add_rcu(&range->list, &hmm->ranges);
- 	spin_unlock(&hmm->lock);
- 
-+	hmm_vma_walk.fault = false;
-+	hmm_vma_walk.range = range;
-+	mm_walk.private = &hmm_vma_walk;
-+
- 	mm_walk.vma = vma;
- 	mm_walk.mm = vma->vm_mm;
--	mm_walk.private = range;
- 	mm_walk.pte_entry = NULL;
- 	mm_walk.test_walk = NULL;
- 	mm_walk.hugetlb_entry = NULL;
-@@ -422,7 +532,6 @@ int hmm_vma_get_pfns(struct vm_area_struct *vma,
- 	mm_walk.pte_hole = hmm_vma_walk_hole;
- 
- 	walk_page_range(start, end, &mm_walk);
+-	init_memory_mapping(start, start + size);
 -
- 	return 0;
+ 	ret = __add_pages(nid, start_pfn, nr_pages, want_memblock);
+ 	WARN_ON_ONCE(ret);
+ 
+ 	/* update max_pfn, max_low_pfn and high_memory */
+-	update_end_of_memory_vars(start, size);
++	update_end_of_memory_vars(start_pfn << PAGE_SHIFT,
++				  nr_pages << PAGE_SHIFT);
+ 
+ 	return ret;
  }
- EXPORT_SYMBOL(hmm_vma_get_pfns);
-@@ -449,7 +558,7 @@ EXPORT_SYMBOL(hmm_vma_get_pfns);
-  *
-  * There are two ways to use this :
-  * again:
-- *   hmm_vma_get_pfns(vma, range, start, end, pfns);
-+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);
-  *   trans = device_build_page_table_update_transaction(pfns);
-  *   device_page_table_lock();
-  *   if (!hmm_vma_range_done(vma, range)) {
-@@ -460,7 +569,7 @@ EXPORT_SYMBOL(hmm_vma_get_pfns);
-  *   device_page_table_unlock();
-  *
-  * Or:
-- *   hmm_vma_get_pfns(vma, range, start, end, pfns);
-+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);
-  *   device_page_table_lock();
-  *   hmm_vma_range_done(vma, range);
-  *   device_update_page_table(pfns);
-@@ -489,4 +598,127 @@ bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range)
- 	return range->valid;
- }
- EXPORT_SYMBOL(hmm_vma_range_done);
 +
-+/*
-+ * hmm_vma_fault() - try to fault some address in a virtual address range
-+ * @vma: virtual memory area containing the virtual address range
-+ * @range: use to track pfns array content validity
-+ * @start: fault range virtual start address (inclusive)
-+ * @end: fault range virtual end address (exclusive)
-+ * @pfns: array of hmm_pfn_t, only entry with fault flag set will be faulted
-+ * @write: is it a write fault
-+ * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
-+ * Returns: 0 success, error otherwise (-EAGAIN means mmap_sem have been drop)
-+ *
-+ * This is similar to a regular CPU page fault except that it will not trigger
-+ * any memory migration if the memory being faulted is not accessible by CPUs.
-+ *
-+ * On error, for one virtual address in the range, the function will set the
-+ * hmm_pfn_t error flag for the corresponding pfn entry.
-+ *
-+ * Expected use pattern:
-+ * retry:
-+ *   down_read(&mm->mmap_sem);
-+ *   // Find vma and address device wants to fault, initialize hmm_pfn_t
-+ *   // array accordingly
-+ *   ret = hmm_vma_fault(vma, start, end, pfns, allow_retry);
-+ *   switch (ret) {
-+ *   case -EAGAIN:
-+ *     hmm_vma_range_done(vma, range);
-+ *     // You might want to rate limit or yield to play nicely, you may
-+ *     // also commit any valid pfn in the array assuming that you are
-+ *     // getting true from hmm_vma_range_monitor_end()
-+ *     goto retry;
-+ *   case 0:
-+ *     break;
-+ *   default:
-+ *     // Handle error !
-+ *     up_read(&mm->mmap_sem)
-+ *     return;
-+ *   }
-+ *   // Take device driver lock that serialize device page table update
-+ *   driver_lock_device_page_table_update();
-+ *   hmm_vma_range_done(vma, range);
-+ *   // Commit pfns we got from hmm_vma_fault()
-+ *   driver_unlock_device_page_table_update();
-+ *   up_read(&mm->mmap_sem)
-+ *
-+ * YOU MUST CALL hmm_vma_range_done() AFTER THIS FUNCTION RETURN SUCCESS (0)
-+ * BEFORE FREEING THE range struct OR YOU WILL HAVE SERIOUS MEMORY CORRUPTION !
-+ *
-+ * YOU HAVE BEEN WARNED !
-+ */
-+int hmm_vma_fault(struct vm_area_struct *vma,
-+		  struct hmm_range *range,
-+		  unsigned long start,
-+		  unsigned long end,
-+		  hmm_pfn_t *pfns,
-+		  bool write,
-+		  bool block)
++int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 +{
-+	struct hmm_vma_walk hmm_vma_walk;
-+	struct mm_walk mm_walk;
-+	struct hmm *hmm;
-+	int ret;
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
 +
-+	/* Sanity check, this really should not happen ! */
-+	if (start < vma->vm_start || start >= vma->vm_end)
-+		return -EINVAL;
-+	if (end < vma->vm_start || end > vma->vm_end)
-+		return -EINVAL;
++	init_memory_mapping(start, start + size);
 +
-+	hmm = hmm_register(vma->vm_mm);
-+	if (!hmm) {
-+		hmm_pfns_clear(pfns, start, end);
-+		return -ENOMEM;
-+	}
-+	/* Caller must have registered a mirror using hmm_mirror_register() */
-+	if (!hmm->mmu_notifier.ops)
-+		return -EINVAL;
-+
-+	/* Initialize range to track CPU page table update */
-+	range->start = start;
-+	range->pfns = pfns;
-+	range->end = end;
-+	spin_lock(&hmm->lock);
-+	range->valid = true;
-+	list_add_rcu(&range->list, &hmm->ranges);
-+	spin_unlock(&hmm->lock);
-+
-+	/* FIXME support hugetlb fs */
-+	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
-+		hmm_pfns_special(pfns, start, end);
-+		return 0;
-+	}
-+
-+	hmm_vma_walk.fault = true;
-+	hmm_vma_walk.write = write;
-+	hmm_vma_walk.block = block;
-+	hmm_vma_walk.range = range;
-+	mm_walk.private = &hmm_vma_walk;
-+	hmm_vma_walk.last = range->start;
-+
-+	mm_walk.vma = vma;
-+	mm_walk.mm = vma->vm_mm;
-+	mm_walk.pte_entry = NULL;
-+	mm_walk.test_walk = NULL;
-+	mm_walk.hugetlb_entry = NULL;
-+	mm_walk.pmd_entry = hmm_vma_walk_pmd;
-+	mm_walk.pte_hole = hmm_vma_walk_hole;
-+
-+	do {
-+		ret = walk_page_range(start, end, &mm_walk);
-+		start = hmm_vma_walk.last;
-+	} while (ret == -EAGAIN);
-+
-+	if (ret) {
-+		unsigned long i;
-+
-+		i = (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
-+		hmm_pfns_clear(&pfns[i], hmm_vma_walk.last, end);
-+		hmm_vma_range_done(vma, range);
-+	}
-+	return ret;
++	return add_pages(nid, start_pfn, nr_pages, want_memblock);
 +}
-+EXPORT_SYMBOL(hmm_vma_fault);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
+ #define PAGE_INUSE 0xFD
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 9e0249d..abb9395d 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -127,6 +127,17 @@ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
+ extern int __add_pages(int nid, unsigned long start_pfn,
+ 	unsigned long nr_pages, bool want_memblock);
+ 
++#ifndef CONFIG_ARCH_HAS_ADD_PAGES
++static inline int add_pages(int nid, unsigned long start_pfn,
++			    unsigned long nr_pages, bool want_memblock)
++{
++	return __add_pages(nid, start_pfn, nr_pages, want_memblock);
++}
++#else /* ARCH_HAS_ADD_PAGES */
++int add_pages(int nid, unsigned long start_pfn,
++	      unsigned long nr_pages, bool want_memblock);
++#endif /* ARCH_HAS_ADD_PAGES */
++
+ #ifdef CONFIG_NUMA
+ extern int memory_add_physaddr_to_nid(u64 start);
+ #else
 -- 
 2.9.4
 
