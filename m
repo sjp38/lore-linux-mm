@@ -1,104 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E6ECC6B0338
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:19:45 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id o65so213759781oif.15
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:19:45 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id s4si2688214otd.112.2017.05.24.05.19.44
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3A26B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:24:19 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v42so13623wrc.12
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:24:18 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id d24si18876920wrb.106.2017.05.24.05.24.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 05:19:45 -0700 (PDT)
-Message-ID: <5925784E.802@huawei.com>
-Date: Wed, 24 May 2017 20:10:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [Question] Mlocked count will not be decreased
-References: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com> <85591559-2a99-f46b-7a5a-bc7affb53285@huawei.com> <93f1b063-6288-d109-117d-d3c1cf152a8e@suse.cz> <5925709F.1030105@huawei.com> <d354b321-0d11-4308-0b0e-aacef5a5e34b@suse.cz>
-In-Reply-To: <d354b321-0d11-4308-0b0e-aacef5a5e34b@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 05:24:17 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id k15so45847393wmh.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:24:17 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH 0/2] remove CONFIG_MOVABLE_NODE
+Date: Wed, 24 May 2017 14:24:09 +0200
+Message-Id: <20170524122411.25212-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, Kefeng Wang <wangkefeng.wang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 2017/5/24 19:52, Vlastimil Babka wrote:
+Hi,
+I am continuing to cleanup the memory hotplug code and
+CONFIG_MOVABLE_NODE seems dubious at best. The following two patches
+simply removes the flag and make it de-facto always enabled.
 
-> On 05/24/2017 01:38 PM, Xishi Qiu wrote:
->>>
->>> Race condition with what? Who else would isolate our pages?
->>>
->>
->> Hi Vlastimil,
->>
->> I find the root cause, if the page was not cached on the current cpu,
->> lru_add_drain() will not push it to LRU. So we should handle fail
->> case in mlock_vma_page().
-> 
-> Yeah that would explain it.
-> 
->> follow_page_pte()
->> 		...
->> 		if (page->mapping && trylock_page(page)) {
->> 			lru_add_drain();  /* push cached pages to LRU */
->> 			/*
->> 			 * Because we lock page here, and migration is
->> 			 * blocked by the pte's page reference, and we
->> 			 * know the page is still mapped, we don't even
->> 			 * need to check for file-cache page truncation.
->> 			 */
->> 			mlock_vma_page(page);
->> 			unlock_page(page);
->> 		}
->> 		...
->>
->> I think we should add yisheng's patch, also we should add the following change.
->> I think it is better than use lru_add_drain_all().
-> 
-> I agree about yisheng's fix (but v2 didn't address my comments). I don't
-> think we should add the hunk below, as that deviates from the rest of
-> the design.
+The current semantic of the config option is twofold 1) it automatically
+binds hotplugable nodes to have memory in zone_movable by default when
+movable_node is enabled 2) forbids memory hotplug to online all the memory
+as movable when !CONFIG_MOVABLE_NODE.
 
-Hi Vlastimil,
+The later restriction is quite dubious because there is no clear cut of
+how much normal memory do we need for a reasonable system operation. A
+single memory block which is sufficient to allow further movable
+onlines is far from sufficient (e.g a node with >2GB and memblocks
+128MB will fill up this zone with struct pages leaving nothing for
+other allocations). Removing the config option will not only reduce the
+configuration space it also removes quite some code.
 
-The rest of the design is that mlock should always success here, right?
+The semantic of the movable_node command line parameter is preserved.
 
-If we don't handle the fail case, the page will be in anon/file lru list
-later when call __pagevec_lru_add(), but NR_MLOCK increased,
-this is wrong, right?
+The first patch removes the restriction mentioned above and the second
+one simply removes all the CONFIG_MOVABLE_NODE related stuff.
 
-Thanks,
-Xishi Qiu
+Shortlog
+Michal Hocko (2):
+      mm, memory_hotplug: drop artificial restriction on online/offline
+      mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
 
-> 
-> Thanks,
-> Vlastimil
-> 
->> diff --git a/mm/mlock.c b/mm/mlock.c
->> index 3d3ee6c..ca2aeb9 100644
->> --- a/mm/mlock.c
->> +++ b/mm/mlock.c
->> @@ -88,6 +88,11 @@ void mlock_vma_page(struct page *page)
->>  		count_vm_event(UNEVICTABLE_PGMLOCKED);
->>  		if (!isolate_lru_page(page))
->>  			putback_lru_page(page);
->> +		else {
->> +			ClearPageMlocked(page);
->> +			mod_zone_page_state(page_zone(page), NR_MLOCK,
->> +					-hpage_nr_pages(page));
->> +		}
->>  	}
->>  }
->>
->> Thanks,
->> Xishi Qiu
->>
-> 
-> 
-> .
-> 
-
+Diffstat:
+ Documentation/admin-guide/kernel-parameters.txt |  7 ++-
+ drivers/base/node.c                             |  4 --
+ include/linux/memblock.h                        | 18 -------
+ include/linux/nodemask.h                        |  4 --
+ mm/Kconfig                                      | 26 -----------
+ mm/memblock.c                                   |  2 -
+ mm/memory_hotplug.c                             | 62 -------------------------
+ mm/page_alloc.c                                 |  2 -
+ 8 files changed, 5 insertions(+), 120 deletions(-)
 
 
 --
