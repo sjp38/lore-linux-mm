@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2578F6B02F4
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BE866B02B4
 	for <linux-mm@kvack.org>; Wed, 24 May 2017 05:00:43 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d127so108587575pga.11
+Received: by mail-pg0-f72.google.com with SMTP id x64so107725929pgd.6
         for <linux-mm@kvack.org>; Wed, 24 May 2017 02:00:43 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e27si17353578pfj.41.2017.05.24.02.00.41
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id t21si23800388pfa.99.2017.05.24.02.00.41
         for <linux-mm@kvack.org>;
         Wed, 24 May 2017 02:00:42 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v7 03/16] lockdep: Change the meaning of check_prev_add()'s return value
-Date: Wed, 24 May 2017 17:59:36 +0900
-Message-Id: <1495616389-29772-4-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v7 04/16] lockdep: Make check_prev_add() able to handle external stack_trace
+Date: Wed, 24 May 2017 17:59:37 +0900
+Message-Id: <1495616389-29772-5-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
 References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,45 +19,119 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Firstly, return 1 instead of 2 when 'prev -> next' dependency already
-exists. Since the value 2 is not referenced anywhere, just return 1
-indicating success in this case.
+Currently, a space for stack_trace is pinned in check_prev_add(), that
+makes us not able to use external stack_trace. The simplest way to
+achieve it is to pass an external stack_trace as an argument.
 
-Secondly, return 2 instead of 1 when successfully added a lock_list
-entry with saving stack_trace. With that, a caller can decide whether
-to avoid redundant save_trace() on the caller site.
+A more suitable solution is to pass a callback additionally along with
+a stack_trace so that callers can decide the way to save or whether to
+save. Actually crossrelease needs to do other than saving a stack_trace.
+So pass a stack_trace and callback to handle it, to check_prev_add().
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- kernel/locking/lockdep.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ kernel/locking/lockdep.c | 40 +++++++++++++++++++---------------------
+ 1 file changed, 19 insertions(+), 21 deletions(-)
 
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index eb39474..4709110 100644
+index 4709110..2847356 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -1854,7 +1854,7 @@ static inline void inc_chains(void)
- 		if (entry->class == hlock_class(next)) {
- 			if (distance == 1)
- 				entry->distance = 1;
--			return 2;
-+			return 1;
+@@ -1797,20 +1797,13 @@ static inline void inc_chains(void)
+  */
+ static int
+ check_prev_add(struct task_struct *curr, struct held_lock *prev,
+-	       struct held_lock *next, int distance, int *stack_saved)
++	       struct held_lock *next, int distance, struct stack_trace *trace,
++	       int (*save)(struct stack_trace *trace))
+ {
+ 	struct lock_list *entry;
+ 	int ret;
+ 	struct lock_list this;
+ 	struct lock_list *uninitialized_var(target_entry);
+-	/*
+-	 * Static variable, serialized by the graph_lock().
+-	 *
+-	 * We use this static variable to save the stack trace in case
+-	 * we call into this function multiple times due to encountering
+-	 * trylocks in the held lock stack.
+-	 */
+-	static struct stack_trace trace;
+ 
+ 	/*
+ 	 * Prove that the new <prev> -> <next> dependency would not
+@@ -1858,11 +1851,8 @@ static inline void inc_chains(void)
  		}
  	}
  
-@@ -1894,9 +1894,10 @@ static inline void inc_chains(void)
- 		print_lock_name(hlock_class(next));
- 		printk(KERN_CONT "\n");
- 		dump_stack();
--		return graph_lock();
-+		if (!graph_lock())
-+			return 0;
- 	}
--	return 1;
-+	return 2;
- }
+-	if (!*stack_saved) {
+-		if (!save_trace(&trace))
+-			return 0;
+-		*stack_saved = 1;
+-	}
++	if (save && !save(trace))
++		return 0;
  
- /*
+ 	/*
+ 	 * Ok, all validations passed, add the new lock
+@@ -1870,14 +1860,14 @@ static inline void inc_chains(void)
+ 	 */
+ 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
+ 			       &hlock_class(prev)->locks_after,
+-			       next->acquire_ip, distance, &trace);
++			       next->acquire_ip, distance, trace);
+ 
+ 	if (!ret)
+ 		return 0;
+ 
+ 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
+ 			       &hlock_class(next)->locks_before,
+-			       next->acquire_ip, distance, &trace);
++			       next->acquire_ip, distance, trace);
+ 	if (!ret)
+ 		return 0;
+ 
+@@ -1885,8 +1875,6 @@ static inline void inc_chains(void)
+ 	 * Debugging printouts:
+ 	 */
+ 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
+-		/* We drop graph lock, so another thread can overwrite trace. */
+-		*stack_saved = 0;
+ 		graph_unlock();
+ 		printk("\n new dependency: ");
+ 		print_lock_name(hlock_class(prev));
+@@ -1910,8 +1898,9 @@ static inline void inc_chains(void)
+ check_prevs_add(struct task_struct *curr, struct held_lock *next)
+ {
+ 	int depth = curr->lockdep_depth;
+-	int stack_saved = 0;
+ 	struct held_lock *hlock;
++	struct stack_trace trace;
++	int (*save)(struct stack_trace *trace) = save_trace;
+ 
+ 	/*
+ 	 * Debugging checks.
+@@ -1936,9 +1925,18 @@ static inline void inc_chains(void)
+ 		 * added:
+ 		 */
+ 		if (hlock->read != 2 && hlock->check) {
+-			if (!check_prev_add(curr, hlock, next,
+-						distance, &stack_saved))
++			int ret = check_prev_add(curr, hlock, next,
++						distance, &trace, save);
++			if (!ret)
+ 				return 0;
++
++			/*
++			 * Stop saving stack_trace if save_trace() was
++			 * called at least once:
++			 */
++			if (save && ret == 2)
++				save = NULL;
++
+ 			/*
+ 			 * Stop after the first non-trylock entry,
+ 			 * as non-trylock entries have added their
 -- 
 1.9.1
 
