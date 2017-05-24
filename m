@@ -1,118 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E39AE6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 18:09:51 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q27so21511946pfi.8
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 15:09:51 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id l4si25977422pga.331.2017.05.24.15.09.50
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 431C86B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 18:19:28 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 10so40097922wml.4
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 15:19:28 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id f27si6147327wmi.75.2017.05.24.15.19.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 15:09:51 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id m17so147959946pfg.3
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 15:09:50 -0700 (PDT)
-Date: Wed, 24 May 2017 15:09:49 -0700
-From: Matthias Kaehlcke <mka@chromium.org>
-Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
- NUMA systems
-Message-ID: <20170524220949.GS141096@google.com>
-References: <20170519210036.146880-1-mka@chromium.org>
- <20170519210036.146880-2-mka@chromium.org>
- <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
- <20170522205621.GL141096@google.com>
- <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
- <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com>
- <20170523165608.GN141096@google.com>
- <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 May 2017 15:19:26 -0700 (PDT)
+Date: Wed, 24 May 2017 17:19:16 -0500 (CDT)
+From: Manoj Iyer <manoj.iyer@canonical.com>
+Subject: Re: mm/migrate: Fix ref-count handling when
+ !hugepage_migration_supported()
+In-Reply-To: <20170524154728.2492-1-punit.agrawal@arm.com>
+Message-ID: <alpine.DEB.2.20.1705241713240.3333@lazy>
+References: <20170524154728.2492-1-punit.agrawal@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Douglas Anderson <dianders@chromium.org>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, will.deacon@arm.com, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tbaicar@codeaurora.org, "Tabi, Timur" <timur@qti.qualcomm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-Hi David,
+On Wed, 24 May 2017, Punit Agrawal wrote:
 
-El Wed, May 24, 2017 at 01:36:21PM -0700 David Rientjes ha dit:
+> On failing to migrate a page, soft_offline_huge_page() performs the
+> necessary update to the hugepage ref-count. When
+> !hugepage_migration_supported() , unmap_and_move_hugepage() also
+> decrements the page ref-count for the hugepage. The combined behaviour
+> leaves the ref-count in an inconsistent state.
+>
+> This leads to soft lockups when running the overcommitted hugepage test
+> from mce-tests suite.
+>
+> Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
+> soft offline: 0x83ed600: migration failed 1, type
+> 1fffc00000008008 (uptodate|head)
+> INFO: rcu_preempt detected stalls on CPUs/tasks:
+> Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
+>  (detected by 7, t=5254 jiffies, g=963, c=962, q=321)
+>  thugetlb_overco R  running task        0  2715   2685 0x00000008
+>  Call trace:
+>  [<ffff000008089f90>] dump_backtrace+0x0/0x268
+>  [<ffff00000808a2d4>] show_stack+0x24/0x30
+>  [<ffff000008100d34>] sched_show_task+0x134/0x180
+>  [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
+>  [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
+>  [<ffff000008143a3c>] update_process_times+0x34/0x60
+>  [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
+>  [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
+>  [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
+>  [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
+>  [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
+>  [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
+>  [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
+>  [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
+>  [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
+>
+> Fix this by dropping the ref-count decrement in
+> unmap_and_move_hugepage() when !hugepage_migration_supported().
+>
+> Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_migration_support()")
+> Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
+> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> ---
+> Hi Andrew,
+>
+> We ran into this bug when working towards enabling memory corruption
+> on arm64. The patch was tested on an arm64 platform running v4.12-rc2
+> with the series to enable memory corruption handling[0].
+>
+> Please consider merging as a fix for the 4.12 release.
+>
+> Thanks,
+> Punit
+>
 
-> On Tue, 23 May 2017, Matthias Kaehlcke wrote:
-> 
-> > > diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
-> > > index de179993e039..e1895ce6fa1b 100644
-> > > --- a/include/linux/compiler-clang.h
-> > > +++ b/include/linux/compiler-clang.h
-> > > @@ -15,3 +15,8 @@
-> > >   * with any version that can compile the kernel
-> > >   */
-> > >  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
-> > > +
-> > > +#ifdef inline
-> > > +#undef inline
-> > > +#define inline __attribute__((unused))
-> > > +#endif
-> > 
-> > Thanks for the suggestion!
-> > 
-> > Nothing breaks and the warnings are silenced. It seems we could use
-> > this if there is a stong opposition against having warnings on unused
-> > static inline functions in .c files.
-> > 
-> 
-> It would be slightly different, it would be:
-> 
-> #define inline inline __attribute__((unused))
-> 
-> to still inline the functions, I was just seeing if there was anything 
-> else that clang was warning about that was unrelated to a function's 
-> inlining.
-> 
-> > Still I am not convinced that gcc's behavior is preferable in this
-> > case. True, it saves us from adding a bunch of __maybe_unused or
-> > #ifdefs, on the other hand the warning is a useful tool to spot truly
-> > unused code. So far about 50% of the warnings I looked into fall into
-> > this category.
-> > 
-> 
-> I think gcc's behavior is a result of how it does preprocessing and is a 
-> clearly defined and long-standing semantic given in the gcc manual 
-> regarding -Wunused-function.
-> 
-> #define IS_PAGE_ALIGNED(__size)	(!(__size & ((size_t)PAGE_SIZE - 1)))
-> static inline int is_page_aligned(size_t size)
-> {
-> 	return !(size & ((size_t)PAGE_SIZE - 1));
-> }
-> 
-> Gcc will not warn about either of these being unused, regardless of -Wall, 
-> -Wunused-function, or -pedantic.  Clang, correct me if I'm wrong, will 
-> only warn about is_page_aligned().
+I applied this patch applied to Ubuntu Zesty (4.10) kernel and tested on 
+QDF2400 platform with mce-test without config migration enabled.
 
-Indeed, clang does not warn about unused defines.
+== dmesg ==
+[   91.569358] Soft offlining page 0x1763c00 at 0x400000000000
+[   91.569364] soft offline: 0x1763c00: migration failed 1, type 
+100000000008008
+[  150.282911] Soft offlining page 0x1763c00 at 0x400000000000
+[  150.282917] soft offline: 0x1763c00: migration failed 1, type 
+100000000008008
 
-> So the argument could be made that one of the additional benefits of 
-> static inline functions is that a subset of compilers, heavily in the 
-> minority, will detect whether it's unused and we'll get patches that 
-> remove them.  Functionally, it would only result in LOC reduction.  But, 
-> isn't adding #ifdef's to silence the warning just adding more LOC?
+The mce-test failed as expected but did not encounter the soft lockups. 
+(The test case might have an error it is missing an 'echo' in failure 
+case.)
 
-The LOC reduction comes from the removal of the actual dead code that
-is spotted because the warning was enabled and pointed it out :)
+$ sudo ./run_hugepage_overcommit.sh
 
-Using #ifdef is one option, in most cases the function can be marked as
-__maybe_unused, which technically doesn't (necessarily) increase
-LOC. However some maintainers prefer the use of #ifdef over
-__maybe_unused in certain cases.
+***************************************************************************
+Pay attention:
 
-> I have no preference either way, I think it would be up to the person who 
-> is maintaining the code and has to deal with the patches.
+This test checks that hugepage soft-offlining works under overcommitting.
+***************************************************************************
 
-I think it would be good to have a general policy/agreement, to either
-disable the warning completely (not my preference) or 'allow' the use
-of one of the available mechanism to suppress the warning for
-functions that are not used in some configurations or only kept around
-for reference/debugging/symmetry.
+
+-------------------------------------
+TestCase ./thugetlb_overcommit 1
+FAIL: migration failed.
+Unpoisoning.
+
+ 	Num of Executed Test Case: 1	Num of Failed Case: 1
+
+Tested-By: Manoj Iyer <manoj.iyer@canonical.com>
+
+Thanks
+Manoj Iyer
+
+> [0] https://www.spinics.net/lists/arm-kernel/msg581657.html
+> ---
+> mm/migrate.c | 4 +---
+> 1 file changed, 1 insertion(+), 3 deletions(-)
+>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 89a0a1707f4c..187abd1526df 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1201,10 +1201,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+> 	 * tables or check whether the hugepage is pmd-based or not before
+> 	 * kicking migration.
+> 	 */
+> -	if (!hugepage_migration_supported(page_hstate(hpage))) {
+> -		putback_active_hugepage(hpage);
+> +	if (!hugepage_migration_supported(page_hstate(hpage)))
+> 		return -ENOSYS;
+> -	}
+>
+> 	new_hpage = get_new_page(hpage, private, &result);
+> 	if (!new_hpage)
+>
+
+--
+============================
+Manoj Iyer
+Ubuntu/Canonical
+ARM Servers - Cloud
+============================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
