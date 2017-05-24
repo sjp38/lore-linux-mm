@@ -1,125 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B7D426B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 02:41:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m5so189437226pfc.1
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 23:41:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p4si23150612pfi.197.2017.05.23.23.41.09
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B686B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 02:57:46 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id g12so45542213uab.10
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 23:57:46 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j3sor1127198uad.15.2017.05.23.23.57.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 May 2017 23:41:09 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4O6cgaW136630
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 02:41:09 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2an099sj8s-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 02:41:09 -0400
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 24 May 2017 16:41:06 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v4O6euG051642502
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 16:41:04 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v4O6eVtq010111
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 16:40:32 +1000
-Subject: Re: [PATCH] mm: Define KB, MB, GB, TB in core VM
-References: <20170522111742.29433-1-khandual@linux.vnet.ibm.com>
- <20170522141149.9ef84bb0713769f4af0383f0@linux-foundation.org>
- <20170523070227.GA27864@infradead.org>
- <09a6bafa-5743-425e-8def-bd9219cd756c@suse.cz>
- <161638da-3b2b-7912-2ae2-3b2936ca1537@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 24 May 2017 12:10:13 +0530
+        (Google Transport Security);
+        Tue, 23 May 2017 23:57:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <161638da-3b2b-7912-2ae2-3b2936ca1537@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <7f85724c-6fc1-bb51-11e4-15fc2f89372b@linux.vnet.ibm.com>
+In-Reply-To: <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+ <20170516062318.GC16015@js1304-desktop> <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 24 May 2017 08:57:23 +0200
+Message-ID: <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On 05/23/2017 04:49 PM, Anshuman Khandual wrote:
-> On 05/23/2017 02:08 PM, Vlastimil Babka wrote:
->> On 05/23/2017 09:02 AM, Christoph Hellwig wrote:
->>> On Mon, May 22, 2017 at 02:11:49PM -0700, Andrew Morton wrote:
->>>> On Mon, 22 May 2017 16:47:42 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
->>>>
->>>>> There are many places where we define size either left shifting integers
->>>>> or multiplying 1024s without any generic definition to fall back on. But
->>>>> there are couples of (powerpc and lz4) attempts to define these standard
->>>>> memory sizes. Lets move these definitions to core VM to make sure that
->>>>> all new usage come from these definitions eventually standardizing it
->>>>> across all places.
->>>> Grep further - there are many more definitions and some may now
->>>> generate warnings.
->>>>
->>>> Newly including mm.h for these things seems a bit heavyweight.  I can't
->>>> immediately think of a more appropriate place.  Maybe printk.h or
->>>> kernel.h.
->>> IFF we do these kernel.h is the right place.  And please also add the
->>> MiB & co variants for the binary versions right next to the decimal
->>> ones.
->> Those defined in the patch are binary, not decimal. Do we even need
->> decimal ones?
+On Tue, May 16, 2017 at 10:49 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Mon, May 15, 2017 at 11:23 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+>>> >
+>>> > Hello, all.
+>>> >
+>>> > This is an attempt to recude memory consumption of KASAN. Please see
+>>> > following description to get the more information.
+>>> >
+>>> > 1. What is per-page shadow memory
+>>>
+>>> Hi Joonsoo,
 >>
-> 
-> I can define KiB, MiB, .... with the same values as binary.
-> Did not get about the decimal ones, we need different names
-> for them holding values which are multiple of 1024 ?
+>> Hello, Dmitry.
+>>
+>>>
+>>> First I need to say that this is great work. I wanted KASAN to consume
+>>
+>> Thanks!
+>>
+>>> 1/8-th of _kernel_ memory rather than total physical memory for a long
+>>> time.
+>>>
+>>> However, this implementation does not work inline instrumentation. And
+>>> the inline instrumentation is the main mode for KASAN. Outline
+>>> instrumentation is merely a rudiment to support gcc 4.9, and it needs
+>>> to be removed as soon as we stop caring about gcc 4.9 (do we at all?
+>>> is it the current compiler in any distro? Ubuntu 12 has 4.8, Ubuntu 14
+>>> already has 5.4. And if you build gcc yourself or get a fresher
+>>> compiler from somewhere else, you hopefully get something better than
+>>> 4.9).
+>>
+>> Hmm... I don't think that outline instrumentation is something to be
+>> removed. In embedded world, there is a fixed partition table and
+>> enlarging the kernel binary would cause the problem. Changing that
+>> table is possible but is really uncomfortable thing for debugging
+>> something. So, I think that outline instrumentation has it's own merit.
+>
+> Fair. Let's consider both as important.
+>
+>> Anyway, I have missed inline instrumentation completely.
+>>
+>> I will attach the fix in the bottom. It doesn't look beautiful
+>> since it breaks layer design (some check will be done at report
+>> function). However, I think that it's a good trade-off.
+>
+>
+> I can confirm that inline works with that patch.
+>
+> I can also confirm that it reduces memory usage. I've booted qemu with
+> 2G ram and run some fixed workload. Before:
+> 31853 dvyukov   20   0 3043200 765464  21312 S 366.0  4.7   2:39.53
+> qemu-system-x86
+>  7528 dvyukov   20   0 3043200 732444  21676 S 333.3  4.5   2:23.19
+> qemu-system-x86
+> After:
+> 6192 dvyukov   20   0 3043200 394244  20636 S  17.9  2.4   2:32.95
+> qemu-system-x86
+>  6265 dvyukov   20   0 3043200 388860  21416 S 399.3  2.4   3:02.88
+> qemu-system-x86
+>  9005 dvyukov   20   0 3043200 383564  21220 S 397.1  2.3   2:35.33
+> qemu-system-x86
+>
+> However, I see some very significant slowdowns with inline
+> instrumentation. I did 3 tests:
+> 1. Boot speed, I measured time for a particular message to appear on
+> console. Before:
+> [    2.504652] random: crng init done
+> [    2.435861] random: crng init done
+> [    2.537135] random: crng init done
+> After:
+> [    7.263402] random: crng init done
+> [    7.263402] random: crng init done
+> [    7.174395] random: crng init done
+>
+> That's ~3x slowdown.
+>
+> 2. I've run bench_readv benchmark:
+> https://raw.githubusercontent.com/google/sanitizers/master/address-sanitizer/kernel_buildbot/slave/bench_readv.c
+> as:
+> while true; do time ./bench_readv bench_readv 300000 1; done
+>
+> Before:
+> sys 0m7.299s
+> sys 0m7.218s
+> sys 0m6.973s
+> sys 0m6.892s
+> sys 0m7.035s
+> sys 0m6.982s
+> sys 0m6.921s
+> sys 0m6.940s
+> sys 0m6.905s
+> sys 0m7.006s
+>
+> After:
+> sys 0m8.141s
+> sys 0m8.077s
+> sys 0m8.067s
+> sys 0m8.116s
+> sys 0m8.128s
+> sys 0m8.115s
+> sys 0m8.108s
+> sys 0m8.326s
+> sys 0m8.529s
+> sys 0m8.164s
+> sys 0m8.380s
+>
+> This is ~19% slowdown.
+>
+> 3. I've run bench_pipes benchmark:
+> https://raw.githubusercontent.com/google/sanitizers/master/address-sanitizer/kernel_buildbot/slave/bench_pipes.c
+> as:
+> while true; do time ./bench_pipes 10 10000 1; done
+>
+> Before:
+> sys 0m5.393s
+> sys 0m6.178s
+> sys 0m5.909s
+> sys 0m6.024s
+> sys 0m5.874s
+> sys 0m5.737s
+> sys 0m5.826s
+> sys 0m5.664s
+> sys 0m5.758s
+> sys 0m5.421s
+> sys 0m5.444s
+> sys 0m5.479s
+> sys 0m5.461s
+> sys 0m5.417s
+>
+> After:
+> sys 0m8.718s
+> sys 0m8.281s
+> sys 0m8.268s
+> sys 0m8.334s
+> sys 0m8.246s
+> sys 0m8.267s
+> sys 0m8.265s
+> sys 0m8.437s
+> sys 0m8.228s
+> sys 0m8.312s
+> sys 0m8.556s
+> sys 0m8.680s
+>
+> This is ~52% slowdown.
+>
+>
+> This does not look acceptable to me. I would ready to pay for this,
+> say, 10% of performance. But it seems that this can have up to 2-4x
+> slowdown for some workloads.
+>
+>
+> Your use-case is embed devices where you care a lot about both code
+> size and memory consumption, right?
+>
+> I see 2 possible ways forward:
+> 1. Enable this new mode only for outline, but keep current scheme for
+> inline. Then outline will be "small but slow" type of configuration.
+> 2. Somehow fix slowness (at least in inline mode).
+>
+>
+>> Mapping zero page to non-kernel memory could cause true-negative
+>> problem since we cannot flush the TLB in all cpus. We will read zero
+>> shadow value value in this case even if actual shadow value is not
+>> zero. This is one of the reason that black page is introduced in this
+>> patchset.
+>
+> What does make your current patch work then?
+> Say we map a new shadow page, update the page shadow to say that there
+> is mapped shadow. Then another CPU loads the page shadow and then
+> loads from the newly mapped shadow. If we don't flush TLB, what makes
+> the second CPU see the newly mapped shadow?
 
-Now it seems little bit complicated than I initially thought.
-There are three different kind of definitions scattered across
-the tree.
+/\/\/\/\/\/\
 
-(1) Constant defines like these which can be unified across
-    with little effort.
-
-+#define KB (1UL << 10)
-+#define MB (1UL << 20)
-+#define GB (1UL << 30)
-+#define TB (1UL << 40)
-
-(2) Function type defines like these which need to be renamed
-    first because of the static defines already added above.
-
-#define KB(x) ((x) * 1024)
-#define MB(x) (KB(x) * 1024)
-
-    Does these sound good as a rename ?
-
-+#define KBN(x) ((x) * KB)
-+#define MBN(x) ((x) * MB)
-+#define GBN(x) ((x) * GB)
-+#define TBN(x) ((x) * TB)
-
-    And these need to be replaced across the tree.
-
-(3) Then there are many defines for MB, KB, GB which have nothing
-    to do with memory size and they need to be changed as well to
-    something else more appropriately to something they actually
-    do.
-
-#define MB CRB
-
-* Defined inside arch/powerpc/xmon/ppc-opc.c
-
-#define GB(p,n,s) gf2k_get_bits(data, p, n, s)
-
-* Defined inside drivers/input/joystick/gf2k.c
-
-#define GB(pos,num) sw_get_bits(buf, pos, num, sw->bits)
-
-* Defined inside drivers/input/joystick/sidewinder.c 
-
-So the question is are we willing to do all these changes across
-the tree to achieve common definitions of KB, MB, GB, TB in the
-kernel ? Is it worth ?
+Joonsoo, please answer this question above.
+I am trying to understand if there is any chance to make mapping a
+single page for all non-interesting shadow ranges work. That would be
+much simpler change that does not require changing instrumentation,
+and will not force inline instrumentation onto slow path for some
+ranges (vmalloc?).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
