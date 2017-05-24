@@ -1,206 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD146B0292
-	for <linux-mm@kvack.org>; Tue, 23 May 2017 21:06:18 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d127so34107228wmf.15
-        for <linux-mm@kvack.org>; Tue, 23 May 2017 18:06:18 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s50si22349154edd.107.2017.05.23.18.06.16
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D67E6B02C3
+	for <linux-mm@kvack.org>; Tue, 23 May 2017 21:55:14 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id g55so64180404qtc.8
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 18:55:14 -0700 (PDT)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id j12si23358943qta.322.2017.05.23.18.55.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 May 2017 18:06:16 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Wed, 24 May 2017 11:06:04 +1000
-Subject: Re: [RFC PATCH 0/4 v2] mm: give __GFP_REPEAT a better semantic
-In-Reply-To: <77fdc6db-5cc1-297f-e049-0d6f824e688c@suse.cz>
-References: <20170307154843.32516-1-mhocko@kernel.org> <20170516091022.GD2481@dhcp22.suse.cz> <77fdc6db-5cc1-297f-e049-0d6f824e688c@suse.cz>
-Message-ID: <87shjvhxmr.fsf@notabene.neil.brown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 May 2017 18:55:13 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id l39so24645146qtb.1
+        for <linux-mm@kvack.org>; Tue, 23 May 2017 18:55:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+In-Reply-To: <20170522165206.6284-1-jglisse@redhat.com>
+References: <20170522165206.6284-1-jglisse@redhat.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Wed, 24 May 2017 11:55:12 +1000
+Message-ID: <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
+Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, NeilBrown <neilb@suse.de>, Jonathan Corbet <corbet@lwn.net>, Paolo Bonzini <pbonzini@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, May 23 2017, Vlastimil Babka wrote:
-
-> On 05/16/2017 11:10 AM, Michal Hocko wrote:
->> So, is there some interest in this? I am not going to push this if there
->> is a general consensus that we do not need to do anything about the
->> current situation or need a different approach.
+On Tue, May 23, 2017 at 2:51 AM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.co=
+m> wrote:
+> Patchset is on top of mmotm mmotm-2017-05-18, git branch:
 >
-> After the recent LWN article [1] I think that we should really support
-> marking allocations as failable, without making them too easily failable
-> via __GFP_NORETRY. The __GFP_RETRY_MAY_FAIL flag sounds like a good way
-> to do that without introducing a new __GFP_MAYFAIL. We could also
-> introduce a wrapper such as GFP_KERNEL_MAYFAIL.
+> https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-v22
 >
-> [1] https://lwn.net/Articles/723317/
-
-Yes please!!!
-
-I particularly like:
-
-> - GFP_KERNEL | __GFP_NORETRY - overrides the default allocator behavior a=
-nd
->   all allocation requests fail early rather than cause disruptive
->   reclaim (one round of reclaim in this implementation). The OOM killer
->   is not invoked.
-> - GFP_KERNEL | __GFP_RETRY_MAYFAIL - overrides the default allocator beha=
-vior
->   and all allocation requests try really hard. The request will fail if t=
-he
->   reclaim cannot make any progress. The OOM killer won't be triggered.
-> - GFP_KERNEL | __GFP_NOFAIL - overrides the default allocator behavior
->   and all allocation requests will loop endlessly until they
->   succeed. This might be really dangerous especially for larger orders.
-
-There seems to be a good range here, and the two end points are good
-choices.
-I like that only __GFP_NOFAIL triggers the OOM.
-I would like the middle option to be the default.  I think that is what
-many people thought the default was.  I appreciate that making the
-transition might be awkward.
-Maybe create GFP_DEFAULT which matches the middle option and encourage
-that in new code??
-
-We would probably want guidelines on when __GFP_NOFAIL is acceptable.
-I assume:
-  - no locks held
-  - small allocations OK, large allocation need clear justification.
-  - error would be exposed to systemcall
-???
-
-I think it is important to give kernel developers clear options and make
-it easy for them to choose the best option.  This helps to do that.
-
-Thanks,
-NeilBrown
-
-
+> Change since v21 is adding back special refcounting in put_page() to
+> catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
+> unlike regular page where a refcount of 0 means the page is free).
+> See patch 8 of this serie for this refcounting. I did not use static
+> keys because it kind of scares me to do that for an inline function.
+> If people strongly feel about this i can try to make static key works
+> here. Kirill will most likely want to review this.
 >
->> On Tue 07-03-17 16:48:39, Michal Hocko wrote:
->>> Hi,
->>> this is a follow up for __GFP_REPEAT clean up merged in 4.7. The previo=
-us
->>> version of this patch series was posted as an RFC
->>> http://lkml.keprnel.org/r/1465212736-14637-1-git-send-email-mhocko@kern=
-el.org
->>> Since then I have reconsidered the semantic and made it a counterpart
->>> to the __GFP_NORETRY and made it the other extreme end of the retry
->>> logic. Both are not invoking the OOM killer so they are suitable
->>> for allocation paths with a fallback. Also a new potential user has
->>> emerged (kvmalloc - see patch 4). I have also renamed the flag from
->>> __GFP_RETRY_HARD to __GFP_RETRY_MAY_FAIL as this should be more clear.
->>>
->>> I have kept the RFC status because of the semantic change. The patch 1
->>> is an exception because it should be merge regardless of the rest.
->>>
->>> The main motivation for the change is that the current implementation of
->>> __GFP_REPEAT is not very much useful.
->>>
->>> The documentation says:
->>>  * __GFP_REPEAT: Try hard to allocate the memory, but the allocation at=
-tempt
->>>  *   _might_ fail.  This depends upon the particular VM implementation.
->>>
->>> It just fails to mention that this is true only for large (costly) high
->>> order which has been the case since the flag was introduced. A similar
->>> semantic would be really helpful for smal orders as well, though,
->>> because we have places where a failure with a specific fallback error
->>> handling is preferred to a potential endless loop inside the page
->>> allocator.
->>>
->>> The earlier cleanup dropped __GFP_REPEAT usage for low (!costly) order
->>> users so only those which might use larger orders have stayed. One user
->>> which slipped through cracks is addressed in patch 1.
->>>
->>> Let's rename the flag to something more verbose and use it for existing
->>> users. Semantic for those will not change. Then implement low (!costly)
->>> orders failure path which is hit after the page allocator is about to
->>> invoke the oom killer. Now we have a good counterpart for __GFP_NORETRY
->>> and finally can tell try as hard as possible without the OOM killer.
->>>
->>> Xfs code already has an existing annotation for allocations which are
->>> allowed to fail and we can trivially map them to the new gfp flag
->>> because it will provide the semantic KM_MAYFAIL wants.
->>>
->>> kvmalloc will allow also !costly high order allocations to retry hard
->>> before falling back to the vmalloc.
->>>
->>> The patchset is based on the current linux-next.
->>>
->>> Shortlog
->>> Michal Hocko (4):
->>>       s390: get rid of superfluous __GFP_REPEAT
->>>       mm, tree wide: replace __GFP_REPEAT by __GFP_RETRY_MAYFAIL with m=
-ore useful semantic
->>>       xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
->>>       mm: kvmalloc support __GFP_RETRY_MAYFAIL for all sizes
->>>
->>> Diffstat
->>>  Documentation/DMA-ISA-LPC.txt                |  2 +-
->>>  arch/powerpc/include/asm/book3s/64/pgalloc.h |  2 +-
->>>  arch/powerpc/kvm/book3s_64_mmu_hv.c          |  2 +-
->>>  arch/s390/mm/pgalloc.c                       |  2 +-
->>>  drivers/mmc/host/wbsd.c                      |  2 +-
->>>  drivers/s390/char/vmcp.c                     |  2 +-
->>>  drivers/target/target_core_transport.c       |  2 +-
->>>  drivers/vhost/net.c                          |  2 +-
->>>  drivers/vhost/scsi.c                         |  2 +-
->>>  drivers/vhost/vsock.c                        |  2 +-
->>>  fs/btrfs/check-integrity.c                   |  2 +-
->>>  fs/btrfs/raid56.c                            |  2 +-
->>>  fs/xfs/kmem.h                                | 10 +++++++++
->>>  include/linux/gfp.h                          | 32 +++++++++++++++++++-=
---------
->>>  include/linux/slab.h                         |  3 ++-
->>>  include/trace/events/mmflags.h               |  2 +-
->>>  mm/hugetlb.c                                 |  4 ++--
->>>  mm/internal.h                                |  2 +-
->>>  mm/page_alloc.c                              | 14 +++++++++---
->>>  mm/sparse-vmemmap.c                          |  4 ++--
->>>  mm/util.c                                    | 14 ++++--------
->>>  mm/vmalloc.c                                 |  2 +-
->>>  mm/vmscan.c                                  |  8 +++----
->>>  net/core/dev.c                               |  6 +++---
->>>  net/core/skbuff.c                            |  2 +-
->>>  net/sched/sch_fq.c                           |  2 +-
->>>  tools/perf/builtin-kmem.c                    |  2 +-
->>>  27 files changed, 78 insertions(+), 53 deletions(-)
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->>=20
+>
+> Everything else is the same. Below is the long description of what HMM
+> is about and why. At the end of this email i describe briefly each patch
+> and suggest reviewers for each of them.
+>
+>
+> Heterogeneous Memory Management (HMM) (description and justification)
+>
 
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
+Thanks for the patches! These patches are very helpful. There are a
+few additional things we would need on top of this (once HMM the base
+is merged)
 
------BEGIN PGP SIGNATURE-----
+1. Support for other architectures, we'd like to make sure we can get
+this working for powerpc for example. As a first step we have
+ZONE_DEVICE enablement patches, but I think we need some additional
+patches for iomem space searching and memory hotplug, IIRC
+2. HMM-CDM and physical address based migration bits. In a recent RFC
+we decided to try and use the HMM CDM route as a route to implementing
+coherent device memory as a starting point. It would be nice to have
+those patches on top of these once these make it to mm -
+https://lwn.net/Articles/720380/
 
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlkk3HwACgkQOeye3VZi
-gbm+3xAAvL5R0fwZE3rsAtQJvraBvi2t9JbaLBm95SlwLlAMXSbZWOU7qdEpQByf
-eA535GFvmTbTFRqiloINfIsOBjXB7AaooTlsYY+szOUPdxOjemIBw0agJ+gxHG7I
-2vIjaVaD0Qhnxyhw8LSbqTb3y3wPYe5va7+FXVWQGaFxXI8/5MhDI5pwVgvtAEtp
-4+U1mX9nEXPqj3pQpP1AybvZ5H7q0B+XyoUAe3ZNQAIxz0RijrD9PbwJuw4MA1xK
-uR15mO9lxEpRSNtZHUZjKtR8lz0rmgkyZAVtnSRg1itkAEKRY3qgVm7VKo47lzKj
-CsKeoO+hoMTSxvSzDNiKgHbAUJDup6vxcik0pkcwHKgknU3qxLpG1b8XLvsvgSDX
-vXlZgtpkn2WeEcnFZt+Jn8hhQ7hBiDuHrJF1bvLoJohUYV8QDTKIemy5L38xXFj/
-QRxPAlISAduykVV6OA4KBkhTeAq9UlRkbij91pquWrZ3ZXU3uJ9VhIPx5IMMMaR5
-bWt6bcTcMZHIWqpwODREQh/n6dp3vkVsdzoq8LJES4mCMjcW6qXlLy4TM1GGJ1IM
-oPTk9RAW+0YREiYfnrBjR2KMs+n9aiHgtqOD/Oz3x8quzKD1bcmG2IaupyA8PPAp
-vuSO1Anjn2hkVIrLPDstZWwQLCuxQNqvqtCXT5/LKjBl+epnrDg=
-=tXZb
------END PGP SIGNATURE-----
---=-=-=--
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
