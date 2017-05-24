@@ -1,53 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E4D336B0338
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:03:22 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g143so38060212wme.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:03:22 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C6A6B0338
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 08:11:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w79so38030969wme.7
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 05:11:40 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q33si21557529edd.116.2017.05.24.05.03.21
+        by mx.google.com with ESMTPS id h90si23843266edd.327.2017.05.24.05.11.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 05:03:21 -0700 (PDT)
-Date: Wed, 24 May 2017 14:03:18 +0200
+        Wed, 24 May 2017 05:11:38 -0700 (PDT)
+Date: Wed, 24 May 2017 14:11:35 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/6] refine and rename slub sysfs
-Message-ID: <20170524120318.GE14733@dhcp22.suse.cz>
-References: <20170517141146.11063-1-richard.weiyang@gmail.com>
- <20170518090636.GA25471@dhcp22.suse.cz>
- <20170523032705.GA4275@WeideMBP.lan>
- <20170523063911.GC12813@dhcp22.suse.cz>
- <20170524095450.GA7706@WeideMBP.lan>
+Subject: Re: [PATCH] mm/vmalloc: a slight change of compare target in
+ __insert_vmap_area()
+Message-ID: <20170524121135.GF14733@dhcp22.suse.cz>
+References: <20170524100347.8131-1-richard.weiyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170524095450.GA7706@WeideMBP.lan>
+In-Reply-To: <20170524100347.8131-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Yang <richard.weiyang@gmail.com>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 24-05-17 17:54:50, Wei Yang wrote:
-> On Tue, May 23, 2017 at 08:39:11AM +0200, Michal Hocko wrote:
-[...]
-> >Is this worth risking breakage of the userspace which consume this data
-> >now? Do you have any user space code which will greatly benefit from the
-> >new data and which couldn't do the same with the current format/output?
-> >
-> >If yes this all should be in the changelog.
+On Wed 24-05-17 18:03:47, Wei Yang wrote:
+> The vmap RB tree store the elements in order and no overlap between any of
+> them. The comparison in __insert_vmap_area() is to decide which direction
+> the search should follow and make sure the new vmap_area is not overlap
+> with any other.
 > 
-> The answer is no.
+> Current implementation fails to do the overlap check.
 > 
-> I have the same concern as yours. So this patch set could be divided into two
-> parts: 1. add some new entry with current name convention, 2. change the name
-> convention.
+> When first "if" is not true, it means
+> 
+>     va->va_start >= tmp_va->va_end
+> 
+> And with the truth
+> 
+>     xxx->va_end > xxx->va_start
+> 
+> The deduction is
+> 
+>     va->va_end > tmp_va->va_start
+> 
+> which is the condition in second "if".
+> 
+> This patch changes a little of the comparison in __insert_vmap_area() to
+> make sure it forbids the overlapped vmap_area.
 
-Who is going to use those new entries and for what purpose? Why do we
-want to expose even more details of the slab allocator to the userspace.
-Is the missing information something fundamental that some user space
-cannot work without it? Seriously these are essential questions you
-should have answer for _before_ posting the patch and mention all those
-reasons in the changelog.
+Why do we care about overlapping vmap areas at this level. This is an
+internal function and all the sanity checks should have been done by
+that time AFAIR. Could you describe the problem which you are trying to
+fix/address?
+
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  mm/vmalloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 0b057628a7ba..8087451cb332 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -360,9 +360,9 @@ static void __insert_vmap_area(struct vmap_area *va)
+>  
+>  		parent = *p;
+>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
+> -		if (va->va_start < tmp_va->va_end)
+> +		if (va->va_end <= tmp_va->va_start)
+>  			p = &(*p)->rb_left;
+> -		else if (va->va_end > tmp_va->va_start)
+> +		else if (va->va_start >= tmp_va->va_end)
+>  			p = &(*p)->rb_right;
+>  		else
+>  			BUG();
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
 Michal Hocko
 SUSE Labs
