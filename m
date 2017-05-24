@@ -1,178 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 639F76B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:17:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id x184so38894029wmf.14
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:17:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 63si25138806edi.1.2017.05.24.08.17.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C66FF6B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:22:33 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l125so89619753pga.4
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:22:33 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id s134si11779417pgs.209.2017.05.24.08.22.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 08:17:49 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/2] mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
-References: <20170524122411.25212-1-mhocko@kernel.org>
- <20170524122411.25212-3-mhocko@kernel.org>
- <3a85146e-2f31-8a9e-26da-6051119586fe@suse.cz>
- <20170524134237.GH14733@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6a0bd7c7-8beb-d599-ed31-caca68cd8b30@suse.cz>
-Date: Wed, 24 May 2017 17:17:08 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 08:22:33 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id u26so33305870pfd.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:22:33 -0700 (PDT)
+Date: Wed, 24 May 2017 23:21:24 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 0/6] refine and rename slub sysfs
+Message-ID: <20170524152124.GB8445@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170517141146.11063-1-richard.weiyang@gmail.com>
+ <20170518090636.GA25471@dhcp22.suse.cz>
+ <20170523032705.GA4275@WeideMBP.lan>
+ <20170523063911.GC12813@dhcp22.suse.cz>
+ <20170524095450.GA7706@WeideMBP.lan>
+ <20170524120318.GE14733@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170524134237.GH14733@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="tjCHc7DPkfUGtrlw"
+Content-Disposition: inline
+In-Reply-To: <20170524120318.GE14733@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/24/2017 03:42 PM, Michal Hocko wrote:
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index ec7d6ae01c96..64aed7386fe4 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -2246,11 +2246,11 @@
->  			that the amount of memory usable for all allocations
->  			is not too small.
->  
-> -	movable_node	[KNL] Boot-time switch to make hotplugable to be
-> -			movable. This means that the memory of such nodes
-> -			will be usable only for movable allocations which
-> -			rules out almost all kernel allocations. Use with
-> -			caution!
-> +	movable_node	[KNL] Boot-time switch to make hotplugable memory
-> +			NUMA nodes to be movable. This means that the memory
-> +			of such nodes will be usable only for movable
-> +			allocations which rules out almost all kernel
-> +			allocations. Use with caution!
->  
->  	MTD_Partition=	[MTD]
->  			Format: <name>,<region-number>,<size>,<offset>
-> 
-> Better?
 
-Yes, thanks.
+--tjCHc7DPkfUGtrlw
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> [...]
->>> --- a/mm/Kconfig
->>> +++ b/mm/Kconfig
->>> @@ -149,32 +149,6 @@ config NO_BOOTMEM
->>>  config MEMORY_ISOLATION
->>>  	bool
->>>  
->>> -config MOVABLE_NODE
->>> -	bool "Enable to assign a node which has only movable memory"
->>> -	depends on HAVE_MEMBLOCK
->>> -	depends on NO_BOOTMEM
->>> -	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
->>> -	depends on NUMA
->>
->> That's a lot of depends. What happens if some of them are not met and
->> the movable_node bootparam is used?
-> 
-> Good question. I haven't explored that, to be honest. Now that I am looking closer
-> I am not even sure why all those dependencies are thre. MEMORY_HOTPLUG
-> is clear and OF_EARLY_FLATTREE is explained by 41a9ada3e6b4 ("of/fdt:
-> mark hotpluggable memory"). NUMA is less clear to me because
-> MEMORY_HOTPLUG doesn't really depend on NUMA systems. Dependency on
-> NO_BOOTMEM is also not clear to me because zones layout
-> doesn't really depend on the specific boot time allocator.
-> 
-> So we are left with HAVE_MEMBLOCK which seems to be there because
-> movable_node_enabled is defined there while the parameter handling is in
-> the hotplug proper. But there is no real reason to have it like that.
-> This compiles but I will have to put throw my full compile battery on it
-> to be sure. I will make it a separate patch.
+On Wed, May 24, 2017 at 02:03:18PM +0200, Michal Hocko wrote:
+>On Wed 24-05-17 17:54:50, Wei Yang wrote:
+>> On Tue, May 23, 2017 at 08:39:11AM +0200, Michal Hocko wrote:
+>[...]
+>> >Is this worth risking breakage of the userspace which consume this data
+>> >now? Do you have any user space code which will greatly benefit from the
+>> >new data and which couldn't do the same with the current format/output?
+>> >
+>> >If yes this all should be in the changelog.
+>>=20
+>> The answer is no.
+>>=20
+>> I have the same concern as yours. So this patch set could be divided int=
+o two
+>> parts: 1. add some new entry with current name convention, 2. change the=
+ name
+>> convention.
+>
+>Who is going to use those new entries and for what purpose? Why do we
+>want to expose even more details of the slab allocator to the userspace.
+>Is the missing information something fundamental that some user space
+>cannot work without it? Seriously these are essential questions you
+>should have answer for _before_ posting the patch and mention all those
+>reasons in the changelog.
 
-I'd expect stuff might compile and work (run without crash), just in
-some cases the boot option could be effectively ignored? In that case
-it's just a matter of documenting the option, possibly also some warning
-when used, e.g. "node_movable was ignored because CONFIG_FOO is not
-enabled"?
+It is me who wants to get more details of the slub behavior. =20
+AFAIK, no one else is expecting this.
 
-Vlastimil
+Hmm, if we really don't want to export these entries, why not remove related
+code? Looks we are sure they will not be touched.
 
-> Thanks!
-> --- 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 9622fb8c101b..071692894254 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -57,8 +57,6 @@ struct memblock {
->  
->  extern struct memblock memblock;
->  extern int memblock_debug;
-> -/* If movable_node boot option specified */
-> -extern bool movable_node_enabled;
->  
->  #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
->  #define __init_memblock __meminit
-> @@ -171,11 +169,6 @@ static inline bool memblock_is_hotpluggable(struct memblock_region *m)
->  	return m->flags & MEMBLOCK_HOTPLUG;
->  }
->  
-> -static inline bool __init_memblock movable_node_is_enabled(void)
-> -{
-> -	return movable_node_enabled;
-> -}
-> -
->  static inline bool memblock_is_mirror(struct memblock_region *m)
->  {
->  	return m->flags & MEMBLOCK_MIRROR;
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 9e0249d0f5e4..9c1ac94f857b 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -115,6 +115,12 @@ extern void __online_page_free(struct page *page);
->  extern int try_online_node(int nid);
->  
->  extern bool memhp_auto_online;
-> +/* If movable_node boot option specified */
-> +extern bool movable_node_enabled;
-> +static inline bool movable_node_is_enabled(void)
-> +{
-> +	return movable_node_enabled;
-> +}
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  extern bool is_pageblock_removable_nolock(struct page *page);
-> @@ -266,6 +272,10 @@ static inline void put_online_mems(void) {}
->  static inline void mem_hotplug_begin(void) {}
->  static inline void mem_hotplug_done(void) {}
->  
-> +static inline bool __init_memblock movable_node_is_enabled(void)
-> +{
-> +	return false;
-> +}
->  #endif /* ! CONFIG_MEMORY_HOTPLUG */
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 4895f5a6cf7e..8c52fb11510c 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -54,7 +54,6 @@ struct memblock memblock __initdata_memblock = {
->  };
->  
->  int memblock_debug __initdata_memblock;
-> -bool movable_node_enabled __initdata_memblock = false;
->  static bool system_has_some_mirror __initdata_memblock = false;
->  static int memblock_can_resize __initdata_memblock;
->  static int memblock_memory_in_slab __initdata_memblock = 0;
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 2a14f8c18a22..b0d2bf3256d0 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -79,6 +79,8 @@ static struct {
->  #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
->  #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
->  
-> +bool movable_node_enabled = false;
-> +
->  #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
->  bool memhp_auto_online;
->  #else
-> 
+>--=20
+>Michal Hocko
+>SUSE Labs
+
+--=20
+Wei Yang
+Help you, Help me
+
+--tjCHc7DPkfUGtrlw
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZJaT0AAoJEKcLNpZP5cTd3kYP/jTCJ3GvIN+kFANMKUlkExUT
+dmiDu/YyOVPDSbTcZxhcBzfGHwHGVdIyX/nCEM1yxSVv2cjQ8kNtGD02CrGQliUP
+eJ29ETtQLy7b7o+999cUVdrIp4HD2qF8kB8KveEclvxVSD7kw6+qKQvzWBcU1HAc
+dDz7Lxojmvaaiy4d+vhMhnPpNrqX65zwSRWwMX88g3rS0WvgmhRCTdieVW2ywmvl
+XPbqaS7VAO24myQ1tIVzKhGOlKOWtTURucozxwjt2MeN8PIoroYrkq0G1AgfO+7I
+I4In7i3MVsRVIYSw1MTHWXFODI1fD0SuR516uk4ktbFxuso25kTQ0hvU0dno+ooz
+qMwAiiASbIij62dxvKhTbPrCGncsaeM+VN6jZyjc+NiTDpKmbCATaBcOlxHt9HVs
+Gy0y+jXm+WeKI+/lszbUKpvYAuP5aDSBpgiJkkbMnwoD4DJmpx9C//Z8/2plVI/L
+RqVa7JV0pfCNyBWpYtPy/yu7y30wjOcqnkTzQbO79PJIcmVH20erjvZeuup8LytO
+PWc9B+RW26uQ9pl4f3V8Zn+TSUwpTeOvwdVq4GEQbH6fOM+Rn9iDx5gEufpsvzfh
+pFJWVJUaS2Kv5saorfyMW92gJJ1hMLkpXHquPADMyK0iXkXaR2snqmOoxz4rPtGH
+Dlr14dxR+NECvkLNlrXf
+=PnzF
+-----END PGP SIGNATURE-----
+
+--tjCHc7DPkfUGtrlw--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
