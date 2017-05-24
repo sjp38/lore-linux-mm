@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D066B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 11:57:36 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id l125so90173562pga.4
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 08:57:36 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 1si24581429pgu.95.2017.05.24.08.57.35
-        for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 08:57:35 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH] mm: hwpoison: Use compound_head() flags for huge pages
-References: <20170524130204.21845-1-james.morse@arm.com>
-Date: Wed, 24 May 2017 16:57:32 +0100
-In-Reply-To: <20170524130204.21845-1-james.morse@arm.com> (James Morse's
-	message of "Wed, 24 May 2017 14:02:04 +0100")
-Message-ID: <8737bufdsj.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD836B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 12:06:33 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id k4so48603188uaa.0
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 09:06:33 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id d28si11510881uah.111.2017.05.24.09.06.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 09:06:32 -0700 (PDT)
+Date: Wed, 24 May 2017 11:03:58 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/6] refine and rename slub sysfs
+In-Reply-To: <20170524152124.GB8445@WeideMacBook-Pro.local>
+Message-ID: <alpine.DEB.2.20.1705241101090.24771@east.gentwo.org>
+References: <20170517141146.11063-1-richard.weiyang@gmail.com> <20170518090636.GA25471@dhcp22.suse.cz> <20170523032705.GA4275@WeideMBP.lan> <20170523063911.GC12813@dhcp22.suse.cz> <20170524095450.GA7706@WeideMBP.lan> <20170524120318.GE14733@dhcp22.suse.cz>
+ <20170524152124.GB8445@WeideMacBook-Pro.local>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-James Morse <james.morse@arm.com> writes:
+On Wed, 24 May 2017, Wei Yang wrote:
 
-> memory_failure() chooses a recovery action function based on the page
-> flags. For huge pages it uses the tail page flags which don't have
-> anything interesting set, resulting in:
->> Memory failure: 0x9be3b4: Unknown page state
->> Memory failure: 0x9be3b4: recovery action for unknown page: Failed
+> >
+> >Who is going to use those new entries and for what purpose? Why do we
+> >want to expose even more details of the slab allocator to the userspace.
+> >Is the missing information something fundamental that some user space
+> >cannot work without it? Seriously these are essential questions you
+> >should have answer for _before_ posting the patch and mention all those
+> >reasons in the changelog.
 >
-> Instead, save a copy of the head page's flags if this is a huge page,
-> this means if there are no relevant flags for this tail page, we use
-> the head pages flags instead. This results in the me_huge_page()
-> recovery action being called:
->> Memory failure: 0x9b7969: recovery action for huge page: Delayed
->
-> For hugepages that have not yet been allocated, this allows the hugepage
-> to be dequeued.
->
-> CC: Punit Agrawal <punit.agrawal@arm.com>
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
-> This is intended as a fix, but I can't find the patch that introduced this
-> behaviour. (not recent, and there is a lot of history down there!)
->
-> This doesn't apply to stable trees before v3.10...
-> Cc: stable@vger.kernel.org # 3.10.105
->
->  mm/memory-failure.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 2527dfeddb00..44a6a33af219 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1184,7 +1184,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
->  	 * page_remove_rmap() in try_to_unmap_one(). So to determine page status
->  	 * correctly, we save a copy of the page flags at this time.
->  	 */
-> -	page_flags = p->flags;
-> +	if (PageHuge(p))
-> +		page_flags = hpage->flags;
-> +	else
-> +		page_flags = p->flags;
->  
->  	/*
->  	 * unpoison always clear PG_hwpoison inside page lock
+> It is me who wants to get more details of the slub behavior.
+> AFAIK, no one else is expecting this.
 
-I can confirm that this patch reduces the number of failing cases when
-running hugepage tests from mce-tests suite.
+I would appreciate some clearer structured statistics. These are important
+for diagnostics and for debugging. Do not go overboard with this. Respin
+it and provide also a cleanup of the slabinfo tool? I would appreciate it.
 
-FWIW,
+> Hmm, if we really don't want to export these entries, why not remove related
+> code? Looks we are sure they will not be touched.
 
-Acked-by: Punit Agrawal <punit.agrawal@arm.com>
-Tested-by: Punit Agrawal <punit.agrawal@arm.com>
-
-Thanks!
+Please have a look at the slabinfo code which depends on those fields in
+order to display slab information. I have patchsets here that will add
+more functionality to slab and those will also add additional fields to
+sysfs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
