@@ -1,134 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 856AF6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 22:20:21 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e7so205768546pfk.9
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 19:20:21 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id e19si26270903pgk.199.2017.05.24.19.20.20
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C79416B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 23:06:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p86so214270131pfl.12
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 20:06:40 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id j1si26130545pld.54.2017.05.24.20.06.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 19:20:20 -0700 (PDT)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH v2] mlock: fix mlock count can not decrease in race condition
-Date: Thu, 25 May 2017 10:13:25 +0800
-Message-ID: <1495678405-54569-1-git-send-email-xieyisheng1@huawei.com>
+        Wed, 24 May 2017 20:06:39 -0700 (PDT)
+Message-ID: <592649CC.8090702@huawei.com>
+Date: Thu, 25 May 2017 11:04:44 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] mm/vmalloc: a slight change of compare target in __insert_vmap_area()
+References: <20170524100347.8131-1-richard.weiyang@gmail.com>
+In-Reply-To: <20170524100347.8131-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: vbabka@suse.cz, joern@logfs.org, mgorman@suse.de, walken@google.com, hughd@google.com, riel@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, qiuxishi@huawei.com, zhongjiang@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Kefeng reported that when run the follow test the mlock count in meminfo
-cannot be decreased:
- [1] testcase
- linux:~ # cat test_mlockal
- grep Mlocked /proc/meminfo
-  for j in `seq 0 10`
-  do
- 	for i in `seq 4 15`
- 	do
- 		./p_mlockall >> log &
- 	done
- 	sleep 0.2
- done
- # wait some time to let mlock counter decrease and 5s may not enough
- sleep 5
- grep Mlocked /proc/meminfo
+I hit the overlap issue, but it  is hard to reproduced. if you think it is safe. and the situation
+is not happen. AFAIC, it is no need to add the code.
 
- linux:~ # cat p_mlockall.c
- #include <sys/mman.h>
- #include <stdlib.h>
- #include <stdio.h>
+if you insist on the point. Maybe VM_WARN_ON is a choice.
 
- #define SPACE_LEN	4096
+Regards
+zhongjiang
+On 2017/5/24 18:03, Wei Yang wrote:
+> The vmap RB tree store the elements in order and no overlap between any of
+> them. The comparison in __insert_vmap_area() is to decide which direction
+> the search should follow and make sure the new vmap_area is not overlap
+> with any other.
+>
+> Current implementation fails to do the overlap check.
+>
+> When first "if" is not true, it means
+>
+>     va->va_start >= tmp_va->va_end
+>
+> And with the truth
+>
+>     xxx->va_end > xxx->va_start
+>
+> The deduction is
+>
+>     va->va_end > tmp_va->va_start
+>
+> which is the condition in second "if".
+>
+> This patch changes a little of the comparison in __insert_vmap_area() to
+> make sure it forbids the overlapped vmap_area.
+>
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  mm/vmalloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 0b057628a7ba..8087451cb332 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -360,9 +360,9 @@ static void __insert_vmap_area(struct vmap_area *va)
+>  
+>  		parent = *p;
+>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
+> -		if (va->va_start < tmp_va->va_end)
+> +		if (va->va_end <= tmp_va->va_start)
+>  			p = &(*p)->rb_left;
+> -		else if (va->va_end > tmp_va->va_start)
+> +		else if (va->va_start >= tmp_va->va_end)
+>  			p = &(*p)->rb_right;
+>  		else
+>  			BUG();
 
- int main(int argc, char ** argv)
- {
- 	int ret;
- 	void *adr = malloc(SPACE_LEN);
- 	if (!adr)
- 		return -1;
-
- 	ret = mlockall(MCL_CURRENT | MCL_FUTURE);
- 	printf("mlcokall ret = %d\n", ret);
-
- 	ret = munlockall();
- 	printf("munlcokall ret = %d\n", ret);
-
- 	free(adr);
- 	return 0;
- }
-
-When __munlock_pagevec, we ClearPageMlock but isolation_failed in race
-condition, and we do not count these page into delta_munlocked, which cause
-mlock counter incorrect for we had Clear the PageMlock and cannot count down
-the number in the feture.
-
-Fix it by count the number of page whoes PageMlock flag is cleared.
-
-Fixes: 1ebb7cc6a583 (" mm: munlock: batch NR_MLOCK zone state updates")
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-Reported-by: Kefeng Wang <wangkefeng.wang@huawei.com>
-Tested-by: Kefeng Wang <wangkefeng.wang@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joern Engel <joern@logfs.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Xishi Qiu <qiuxishi@huawei.com>
-CC: zhongjiang <zhongjiang@huawei.com>
-Cc: Hanjun Guo <guohanjun@huawei.com>
-Cc: <stable@vger.kernel.org>
----
-v2:
- - use delta_munlocked for it doesn't do the increment in fastpath - Vlastimil
-
-Hi Andrew:
-Could you please help to fold this?
-
-Thanks
-Yisheng Xie
-
- mm/mlock.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index c483c5c..b562b55 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -284,7 +284,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
- {
- 	int i;
- 	int nr = pagevec_count(pvec);
--	int delta_munlocked;
-+	int delta_munlocked = -nr;
- 	struct pagevec pvec_putback;
- 	int pgrescued = 0;
- 
-@@ -304,6 +304,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
- 				continue;
- 			else
- 				__munlock_isolation_failed(page);
-+		} else {
-+			delta_munlocked++;
- 		}
- 
- 		/*
-@@ -315,7 +317,6 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
- 		pagevec_add(&pvec_putback, pvec->pages[i]);
- 		pvec->pages[i] = NULL;
- 	}
--	delta_munlocked = -nr + pagevec_count(&pvec_putback);
- 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
- 	spin_unlock_irq(zone_lru_lock(zone));
- 
--- 
-1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
