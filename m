@@ -1,77 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B906B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:27:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 44so18972343wry.5
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:27:26 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 43F306B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:28:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 10so41014452wml.4
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:28:11 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 14si27074813edu.184.2017.05.24.23.27.24
+        by mx.google.com with ESMTPS id c40si24269506edb.70.2017.05.24.23.28.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 23:27:25 -0700 (PDT)
-Date: Thu, 25 May 2017 08:27:22 +0200
+        Wed, 24 May 2017 23:28:10 -0700 (PDT)
+Date: Thu, 25 May 2017 08:28:08 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
-Message-ID: <20170525062722.GD12721@dhcp22.suse.cz>
+Subject: Re: [RFC PATCH 1/2] mm, memory_hotplug: drop artificial restriction
+ on online/offline
+Message-ID: <20170525062808.GE12721@dhcp22.suse.cz>
 References: <20170524122411.25212-1-mhocko@kernel.org>
- <20170524122411.25212-3-mhocko@kernel.org>
- <3a85146e-2f31-8a9e-26da-6051119586fe@suse.cz>
- <20170524134237.GH14733@dhcp22.suse.cz>
- <6a0bd7c7-8beb-d599-ed31-caca68cd8b30@suse.cz>
+ <20170524122411.25212-2-mhocko@kernel.org>
+ <20170524215056.h4r3sdk23bn4c2sr@arbab-laptop.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6a0bd7c7-8beb-d599-ed31-caca68cd8b30@suse.cz>
+In-Reply-To: <20170524215056.h4r3sdk23bn4c2sr@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 24-05-17 17:17:08, Vlastimil Babka wrote:
-> On 05/24/2017 03:42 PM, Michal Hocko wrote:
-[...]
-> >>> --- a/mm/Kconfig
-> >>> +++ b/mm/Kconfig
-> >>> @@ -149,32 +149,6 @@ config NO_BOOTMEM
-> >>>  config MEMORY_ISOLATION
-> >>>  	bool
-> >>>  
-> >>> -config MOVABLE_NODE
-> >>> -	bool "Enable to assign a node which has only movable memory"
-> >>> -	depends on HAVE_MEMBLOCK
-> >>> -	depends on NO_BOOTMEM
-> >>> -	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
-> >>> -	depends on NUMA
-> >>
-> >> That's a lot of depends. What happens if some of them are not met and
-> >> the movable_node bootparam is used?
-> > 
-> > Good question. I haven't explored that, to be honest. Now that I am looking closer
-> > I am not even sure why all those dependencies are thre. MEMORY_HOTPLUG
-> > is clear and OF_EARLY_FLATTREE is explained by 41a9ada3e6b4 ("of/fdt:
-> > mark hotpluggable memory"). NUMA is less clear to me because
-> > MEMORY_HOTPLUG doesn't really depend on NUMA systems. Dependency on
-> > NO_BOOTMEM is also not clear to me because zones layout
-> > doesn't really depend on the specific boot time allocator.
-> > 
-> > So we are left with HAVE_MEMBLOCK which seems to be there because
-> > movable_node_enabled is defined there while the parameter handling is in
-> > the hotplug proper. But there is no real reason to have it like that.
-> > This compiles but I will have to put throw my full compile battery on it
-> > to be sure. I will make it a separate patch.
+On Wed 24-05-17 16:50:56, Reza Arbab wrote:
+> On Wed, May 24, 2017 at 02:24:10PM +0200, Michal Hocko wrote:
+> >74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
+> >memory") has added can_offline_normal which checks the amount of
+> >memory in !movable zones as long as CONFIG_MOVABLE_NODE is disable.
+> >It disallows to offline memory if there is nothing left with a
+> >justification that "memory-management acts bad when we have nodes which
+> >is online but don't have any normal memory".
+> >
+> >74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
+> >memory") has introduced a restriction that every numa node has to have
+> >at least some memory in !movable zones before a first movable memory
+> >can be onlined if !CONFIG_MOVABLE_NODE with the same justification
+> >
+> >While it is true that not having _any_ memory for kernel allocations on
+> >a NUMA node is far from great and such a node would be quite subotimal
+> >because all kernel allocations will have to fallback to another NUMA
+> >node but there is no reason to disallow such a configuration in
+> >principle.
+> >
+> >Besides that there is not really a big difference to have one memblock
+> >for ZONE_NORMAL available or none. With 128MB size memblocks the system
+> >might trash on the kernel allocations requests anyway. It is really
+> >hard to draw a line on how much normal memory is really sufficient so
+> >we have to rely on administrator to configure system sanely therefore
+> >drop the artificial restriction and remove can_offline_normal and
+> >can_online_high_movable altogether.
 > 
-> I'd expect stuff might compile and work (run without crash), just in
-> some cases the boot option could be effectively ignored? In that case
-> it's just a matter of documenting the option, possibly also some warning
-> when used, e.g. "node_movable was ignored because CONFIG_FOO is not
-> enabled"?
+> I'm really liking all this cleanup of the memory hotplug code. Thanks!  Much
+> appreciated.
 
-Hmm, I can make the cmd parameter available only when
-CONFIG_HAVE_MEMBLOCK_NODE_MAP but I am not sure how helpful it would be.
-AFAIR unrecognized options are just ignored. On the other hand debugging
-why the parameter doesn't do anything might be really frustrating. Here
-is the patch I will put on top of the two posted. Strictly speaking it
-breaks the bisection but swithing the order would be kind of pointless
-ifdefery game and I do not see it would matter all that much. I can
-rework if you guys think otherwise though.
----
+I am glad to hear that and more is to come.
+
+> Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
