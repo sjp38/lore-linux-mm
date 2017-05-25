@@ -1,263 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C526C6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 20:19:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c6so210464503pfj.5
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:19:25 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id x11si25989986pfk.187.2017.05.24.17.19.24
-        for <linux-mm@kvack.org>;
-        Wed, 24 May 2017 17:19:24 -0700 (PDT)
-Date: Thu, 25 May 2017 09:19:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: add counters for different page fault types
-Message-ID: <20170525001915.GA14999@bbox>
-References: <20170524194126.18040-1-semenzato@chromium.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7379D6B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 20:41:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 62so210609445pft.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:41:18 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id o61si15461886plb.187.2017.05.24.17.41.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 17:41:17 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id u26so35415716pfd.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:41:17 -0700 (PDT)
+Date: Thu, 25 May 2017 09:41:07 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
+Message-ID: <20170525004104.GA21336@js1304-desktop>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+ <20170516062318.GC16015@js1304-desktop>
+ <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+ <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
+ <20170524074539.GA9697@js1304-desktop>
+ <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170524194126.18040-1-semenzato@chromium.org>
+In-Reply-To: <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@chromium.org>
-Cc: linux-mm@kvack.org, dianders@google.com, dtor@google.com, sonnyrao@google.com, Luigi Semenzato <semenzato@google.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-Hi Luigi,
+On Wed, May 24, 2017 at 07:19:50PM +0200, Dmitry Vyukov wrote:
+> On Wed, May 24, 2017 at 9:45 AM, Joonsoo Kim <js1304@gmail.com> wrote:
+> >> > What does make your current patch work then?
+> >> > Say we map a new shadow page, update the page shadow to say that there
+> >> > is mapped shadow. Then another CPU loads the page shadow and then
+> >> > loads from the newly mapped shadow. If we don't flush TLB, what makes
+> >> > the second CPU see the newly mapped shadow?
+> >>
+> >> /\/\/\/\/\/\
+> >>
+> >> Joonsoo, please answer this question above.
+> >
+> > Hello, I've answered it in another e-mail however it would not be
+> > sufficient. I try again.
+> >
+> > If the page isn't used for kernel stack, slab, and global variable
+> > (aka. kernel memory), black shadow is mapped for the page. We map a
+> > new shadow page if the page will be used for kernel memory. We need to
+> > flush TLB in all cpus when mapping a new shadow however it's not
+> > possible in some cases. So, this patch does just flushing local cpu's
+> > TLB. Another cpu could have stale TLB that points black shadow for
+> > this page. If that cpu with stale TLB try to check vailidity of the
+> > object on this page, result would be invalid since stale TLB points
+> > the black shadow and it's shadow value is non-zero. We need a magic
+> > here. At this moment, we cannot make sure if invalid is correct result
+> > or not since we didn't do full TLB flush. So fixup processing is
+> > started. It is implemented in check_memory_region_slow(). Flushing
+> > local TLB and re-checking the shadow value. With flushing local TLB,
+> > we will use fresh TLB at this time. Therefore, we can pass the
+> > validity check as usual.
+> >
+> >> I am trying to understand if there is any chance to make mapping a
+> >> single page for all non-interesting shadow ranges work. That would be
+> >
+> > This is what this patchset does. Mapping a single (zero/black) shadow
+> > page for all non-interesting (non-kernel memory) shadow ranges.
+> > There is only single instance of zero/black shadow page. On v1,
+> > I used black shadow page only so fail to get enough performance. On
+> > v2 mentioned in another thread, I use zero shadow for some region. I
+> > guess that performance problem would be gone.
+> 
+> 
+> I can't say I understand everything here, but after staring at the
+> patch I don't understand why we need pshadow at all now. Especially
+> with this commit
+> https://github.com/JoonsooKim/linux/commit/be36ee65f185e3c4026fe93b633056ea811120fb.
+> It seems that the current shadow is enough.
 
-On Wed, May 24, 2017 at 12:41:26PM -0700, Luigi Semenzato wrote:
-> VM event counters are added to keep track of anonymous
-> vs. file vs. shmem page faults.  They are: pgmajfault_a,
-> pgmajfault_f and pgmajfault_s.  These are useful to
-> analyze system performance, particularly when the cost
-> of a fault for a file page is very different from that
-> of an anonymous page, as would happen, for instance, in
-> the presence of zram.
+pshadow exists for non-kernel memory like as page cache or anonymous page.
+This patch doesn't map a new shadow (per-byte shadow) for those pages
+to reduce memory consumption. However, we need to know if those page
+are allocated or not in order to check the validity of access to those
+page. We cannot utilize zero/black shadow page here since mapping
+single zero/black shadow page represents eight real page's shadow
+value. Instead, we use per-page shadow here and mark/unmark it when
+allocation and free happens. With it, we can know the state of the
+page and we can determine the validity of access to them.
 
-Yeb, it's useful with zram and the way I have used is 
+> If we see bad shadow when the actual shadow value is good, we fall
+> onto slow path, flush tlb, reload shadow, see that it is good and
+> return. Pshadow is not needed in this case.
 
-        PGMAJFAULT - PSWPIN
+For the kernel memory, if we see bad shadow due to *stale TLB*, we
+fall onto slow path (check_memory_region_slow()) and flush tlb and
+reload shadow.
 
-With that, I can get how many portion in majfault stems from
-file-backed pages while others are from swap.
+For the non-kernel memory, if we see bad shadow, we fall onto
+pshadow_val() check and we can see actual state of the page.
 
-Can't it meet for your requirement?
+> If we see good shadow when the actual shadow value is bad, we return
+> immediately and get false negative. Pshadow is not involved as well.
+> What am I missing?
+
+In this patchset, there is no case that we see good shadow when the
+actual (p)shadow value is bad. This case should not happen since we
+can miss actual error.
+
+Please let me know that these explanation is insufficient. I will try
+more. :)
 
 Thanks.
-
-> 
-> The PGMAJFAULT counter is no longer directly maintained.
-> Instead the three new counters are added whenever the
-> total count is needed.
-> 
-> Signed-off-by: Luigi Semenzato <semenzato@google.com>
-> ---
->  arch/s390/appldata/appldata_mem.c | 9 ++++++++-
->  drivers/virtio/virtio_balloon.c   | 5 ++++-
->  fs/dax.c                          | 5 +++--
->  fs/ncpfs/mmap.c                   | 4 ++--
->  include/linux/vm_event_item.h     | 1 +
->  mm/filemap.c                      | 4 ++--
->  mm/memcontrol.c                   | 7 ++++++-
->  mm/memory.c                       | 4 ++--
->  mm/shmem.c                        | 4 ++--
->  mm/vmstat.c                       | 5 +++++
->  10 files changed, 35 insertions(+), 13 deletions(-)
-> 
-> diff --git a/arch/s390/appldata/appldata_mem.c b/arch/s390/appldata/appldata_mem.c
-> index 598df5708501..adb8b6412ffa 100644
-> --- a/arch/s390/appldata/appldata_mem.c
-> +++ b/arch/s390/appldata/appldata_mem.c
-> @@ -62,6 +62,9 @@ struct appldata_mem_data {
->  	u64 pgalloc;		/* page allocations */
->  	u64 pgfault;		/* page faults (major+minor) */
->  	u64 pgmajfault;		/* page faults (major only) */
-> +	u64 pgmajfault_s;	/* shmem page faults (major only) */
-> +	u64 pgmajfault_a;	/* anonymous page faults (major only) */
-> +	u64 pgmajfault_f;	/* file page faults (major only) */
->  // <-- New in 2.6
->  
->  } __packed;
-> @@ -93,7 +96,11 @@ static void appldata_get_mem_data(void *data)
->  	mem_data->pgalloc    = ev[PGALLOC_NORMAL];
->  	mem_data->pgalloc    += ev[PGALLOC_DMA];
->  	mem_data->pgfault    = ev[PGFAULT];
-> -	mem_data->pgmajfault = ev[PGMAJFAULT];
-> +	mem_data->pgmajfault =
-> +		ev[PGMAJFAULT_S] + ev[PGMAJFAULT_A] + ev[PGMAJFAULT_F];
-> +	mem_data->pgmajfault_s = ev[PGMAJFAULT_S];
-> +	mem_data->pgmajfault_a = ev[PGMAJFAULT_A];
-> +	mem_data->pgmajfault_f = ev[PGMAJFAULT_F];
->  
->  	si_meminfo(&val);
->  	mem_data->sharedram = val.sharedram;
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 408c174ef0d5..ed7100645d25 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -259,7 +259,10 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
->  				pages_to_bytes(events[PSWPIN]));
->  	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_OUT,
->  				pages_to_bytes(events[PSWPOUT]));
-> -	update_stat(vb, idx++, VIRTIO_BALLOON_S_MAJFLT, events[PGMAJFAULT]);
-> +	update_stat(vb, idx++, VIRTIO_BALLOON_S_MAJFLT,
-> +		    events[PGMAJFAULT_S] +
-> +		    events[PGMAJFAULT_A] +
-> +		    events[PGMAJFAULT_F]);
->  	update_stat(vb, idx++, VIRTIO_BALLOON_S_MINFLT, events[PGFAULT]);
->  #endif
->  	update_stat(vb, idx++, VIRTIO_BALLOON_S_MEMFREE,
-> diff --git a/fs/dax.c b/fs/dax.c
-> index c22eaf162f95..3c92f2af0514 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1200,8 +1200,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
->  	switch (iomap.type) {
->  	case IOMAP_MAPPED:
->  		if (iomap.flags & IOMAP_F_NEW) {
-> -			count_vm_event(PGMAJFAULT);
-> -			mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
-> +			count_vm_event(PGMAJFAULT_F);
-> +			mem_cgroup_count_vm_event(vmf->vma->vm_mm,
-> +						  PGMAJFAULT_F);
->  			major = VM_FAULT_MAJOR;
->  		}
->  		error = dax_insert_mapping(mapping, iomap.bdev, iomap.dax_dev,
-> diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
-> index 0c3905e0542e..ae04b9d86288 100644
-> --- a/fs/ncpfs/mmap.c
-> +++ b/fs/ncpfs/mmap.c
-> @@ -88,8 +88,8 @@ static int ncp_file_mmap_fault(struct vm_fault *vmf)
->  	 * fetches from the network, here the analogue of disk.
->  	 * -- nyc
->  	 */
-> -	count_vm_event(PGMAJFAULT);
-> -	mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
-> +	count_vm_event(PGMAJFAULT_F);
-> +	mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT_F);
->  	return VM_FAULT_MAJOR;
->  }
->  
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index d84ae90ccd5c..2d2df45d4520 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -27,6 +27,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  		FOR_ALL_ZONES(PGSCAN_SKIP),
->  		PGFREE, PGACTIVATE, PGDEACTIVATE, PGLAZYFREE,
->  		PGFAULT, PGMAJFAULT,
-> +		PGMAJFAULT_S, PGMAJFAULT_A, PGMAJFAULT_F,
->  		PGLAZYFREED,
->  		PGREFILL,
->  		PGSTEAL_KSWAPD,
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 6f1be573a5e6..d2b187b648b3 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2225,8 +2225,8 @@ int filemap_fault(struct vm_fault *vmf)
->  	} else if (!page) {
->  		/* No page in the page cache at all */
->  		do_sync_mmap_readahead(vmf->vma, ra, file, offset);
-> -		count_vm_event(PGMAJFAULT);
-> -		mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
-> +		count_vm_event(PGMAJFAULT_F);
-> +		mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT_F);
->  		ret = VM_FAULT_MAJOR;
->  retry_find:
->  		page = find_get_page(mapping, offset);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 94172089f52f..045361f2b8fa 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3122,6 +3122,8 @@ unsigned int memcg1_events[] = {
->  	PGPGOUT,
->  	PGFAULT,
->  	PGMAJFAULT,
-> +	PGMAJFAULT_A,
-> +	PGMAJFAULT_F,
->  };
->  
->  static const char *const memcg1_event_names[] = {
-> @@ -3129,6 +3131,8 @@ static const char *const memcg1_event_names[] = {
->  	"pgpgout",
->  	"pgfault",
->  	"pgmajfault",
-> +	"pgmajfault_a",
-> +	"pgmajfault_f",
->  };
->  
->  static int memcg_stat_show(struct seq_file *m, void *v)
-> @@ -5229,7 +5233,8 @@ static int memory_stat_show(struct seq_file *m, void *v)
->  	/* Accumulated memory events */
->  
->  	seq_printf(m, "pgfault %lu\n", events[PGFAULT]);
-> -	seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
-> +	seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT_S] +
-> +			events[PGMAJFAULT_A] + events[PGMAJFAULT_F]);
->  
->  	seq_printf(m, "workingset_refault %lu\n",
->  		   stat[WORKINGSET_REFAULT]);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6ff5d729ded0..2c2b7b3ffe7f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2718,8 +2718,8 @@ int do_swap_page(struct vm_fault *vmf)
->  
->  		/* Had to read the page from swap area: Major fault */
->  		ret = VM_FAULT_MAJOR;
-> -		count_vm_event(PGMAJFAULT);
-> -		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
-> +		count_vm_event(PGMAJFAULT_A);
-> +		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT_A);
->  	} else if (PageHWPoison(page)) {
->  		/*
->  		 * hwpoisoned dirty swapcache pages are kept for killing
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index e67d6ba4e98e..5eea045575c4 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1644,9 +1644,9 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
->  			/* Or update major stats only when swapin succeeds?? */
->  			if (fault_type) {
->  				*fault_type |= VM_FAULT_MAJOR;
-> -				count_vm_event(PGMAJFAULT);
-> +				count_vm_event(PGMAJFAULT_S);
->  				mem_cgroup_count_vm_event(charge_mm,
-> -							  PGMAJFAULT);
-> +							  PGMAJFAULT_S);
->  			}
->  			/* Here we actually start the io */
->  			page = shmem_swapin(swap, gfp, info, index);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 76f73670200a..741bb14761cd 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -995,6 +995,9 @@ const char * const vmstat_text[] = {
->  
->  	"pgfault",
->  	"pgmajfault",
-> +	"pgmajfault_s",
-> +	"pgmajfault_a",
-> +	"pgmajfault_f",
->  	"pglazyfreed",
->  
->  	"pgrefill",
-> @@ -1511,6 +1514,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->  	all_vm_events(v);
->  	v[PGPGIN] /= 2;		/* sectors -> kbytes */
->  	v[PGPGOUT] /= 2;
-> +	/* Add up page faults */
-> +	v[PGMAJFAULT] = v[PGMAJFAULT_S] + v[PGMAJFAULT_A] + v[PGMAJFAULT_F];
->  #endif
->  	return (unsigned long *)m->private + *pos;
->  }
-> -- 
-> 2.13.0.219.gdb65acc882-goog
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
