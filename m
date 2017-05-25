@@ -1,87 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 897966B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 04:44:44 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id c1so31291725lfe.7
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 01:44:44 -0700 (PDT)
-Received: from forwardcorp1h.cmail.yandex.net (forwardcorp1h.cmail.yandex.net. [2a02:6b8:0:f35::e5])
-        by mx.google.com with ESMTPS id o204si9065892lff.304.2017.05.25.01.44.42
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F47F6B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 04:58:31 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y22so19443878wry.1
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 01:58:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 7si22729640edt.108.2017.05.25.01.58.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 01:44:42 -0700 (PDT)
-Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
-References: <149520375057.74196.2843113275800730971.stgit@buzz>
- <CALo0P1123MROxgveCdX6YFpWDwG4qrAyHu3Xd1F+ckaFBnF4dQ@mail.gmail.com>
- <ecd4a7ea-06c0-f549-a1bf-6d2d3c0af719@yandex-team.ru>
- <alpine.DEB.2.10.1705230044590.50796@chino.kir.corp.google.com>
- <0f67046d-cdf6-1264-26f6-11c82978c621@yandex-team.ru>
- <alpine.DEB.2.10.1705241338120.49680@chino.kir.corp.google.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <a81cd5a2-3bbf-aeac-028f-d73218f17f66@yandex-team.ru>
-Date: Thu, 25 May 2017 11:44:41 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 May 2017 01:58:30 -0700 (PDT)
+Date: Thu, 25 May 2017 10:58:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: dm ioctl: Restore __GFP_HIGH in copy_params()
+Message-ID: <20170525085827.GH12721@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170522093725.GF8509@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170522120937.GI8509@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1705221026430.20076@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170522150321.GM8509@dhcp22.suse.cz>
+ <20170522180415.GA25340@redhat.com>
+ <alpine.DEB.2.10.1705221325200.30407@chino.kir.corp.google.com>
+ <20170523060534.GA12813@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1705231236210.20039@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1705241338120.49680@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1705231236210.20039@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Guschin <guroan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Mike Snitzer <snitzer@redhat.com>, Junaid Shahid <junaids@google.com>, Alasdair Kergon <agk@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
 
+On Tue 23-05-17 12:44:18, Mikulas Patocka wrote:
+> 
+> 
+> On Tue, 23 May 2017, Michal Hocko wrote:
+> 
+> > On Mon 22-05-17 13:35:41, David Rientjes wrote:
+> > > On Mon, 22 May 2017, Mike Snitzer wrote:
+> > [...]
+> > > > While adding the __GFP_NOFAIL flag would serve to document expectations
+> > > > I'm left unconvinced that the memory allocator will _not fail_ for an
+> > > > order-0 page -- as Mikulas said most ioctls don't need more than 4K.
+> > > 
+> > > __GFP_NOFAIL would make no sense in kvmalloc() calls, ever, it would never 
+> > > fallback to vmalloc :)
+> > 
+> > Sorry, I could have been more specific. You would have to opencode
+> > kvmalloc obviously. It is documented to not support this flag for the
+> > reasons you have mentioned above.
+> > 
+> > > I'm hoping this can get merged during the 4.12 window to fix the broken 
+> > > commit d224e9381897.
+> > 
+> > I obviously disagree. Relying on memory reserves for _correctness_ is
+> > clearly broken by design, full stop. But it is dm code and you are going
+> > it is responsibility of the respective maintainers to support this code.
+> 
+> Block loop device is broken in the same way - it converts block requests 
+> to filesystem reads and writes and those FS reads and writes allocate 
+> memory.
 
+I do not see those would depend on the __GFP_HIGH. Also writes are throttled
+so the memory shouldn't get full of dirty pages.
 
-On 24.05.2017 23:43, David Rientjes wrote:
-> On Tue, 23 May 2017, Konstantin Khlebnikov wrote:
-> 
->> This is worth addition. Let's call it "oom_victim" for short.
->>
->> It allows to locate leaky part if they are spread over sub-containers within
->> common limit.
->> But doesn't tell which limit caused this kill. For hierarchical limits this
->> might be not so easy.
->>
->> I think oom_kill better suits for automatic actions - restart affected
->> hierarchy, increase limits, e.t.c.
->> But oom_victim allows to determine container affected by global oom killer.
->>
->> So, probably it's worth to merge them together and increment oom_kill by
->> global killer for victim memcg:
->>
->> 	if (!is_memcg_oom(oc)) {
->> 		count_vm_event(OOM_KILL);
->> 		mem_cgroup_count_vm_event(mm, OOM_KILL);
->> 	} else
->> 		mem_cgroup_event(oc->memcg, OOM_KILL);
->>
-> 
-> Our complete solution is that we have a complementary
-> memory.oom_kill_control that allows users to register for eventfd(2)
-> notification when the kernel oom killer kills a victim, but this is
-> because we have had complete support for userspace oom handling for years.
-> When read, it exports three classes of information:
-> 
->   - the "total" (hierarchical) and "local" (memcg specific) number of oom
->     kills for system oom conditions (overcommit),
-> 
->   - the "total" and "local" number of oom kills for memcg oom conditions,
->     and
->   
->   - the total number of processes in the hierarchy where an oom victim was
->     reaped successfully and unsuccessfully.
-> 
-> One benefit of this is that it prevents us from having to scrape the
-> kernel log for oom events which has been troublesome in the past, but
-> userspace can easily do so when the eventfd triggers for the kill
-> notification.
-> 
+> Network block device needs an userspace daemon to perform I/O.
 
-Ok. I've decided to simplify this thing and count kills to cgroup where task lived.
-Like page faults. And show in vmstat total count of any kind of kills.
+which makes it pretty much not reliable for any forward progress. AFAIR
+swap over NBD access full memory reserves to overcome this. But that is
+merely an exception
 
-Simply:
-	count_vm_event(OOM_KILL);
-	mem_cgroup_count_vm_event(mm, OOM_KILL);
+> iSCSI also needs to allocate memory to perform I/O.
+
+Shouldn't it use mempools? I am sorry but I am not familiar with this
+area at all.
+ 
+> NFS and other networking filesystems are also broken in the same way (they 
+> need to receive a packet to acknowledge a write and packet reception needs 
+> to allocate memory).
+> 
+> So - what should these *broken* drivers do to reduce the possibility of 
+> the deadlock?
+
+the IO path has traditionally used mempools to guarantee a forward
+progress. If this is not an option then the choice is not all that
+great. We are throttling memory writers (or drop packets when the memory
+is too low) and finally have the OOM killer to free up some memory. 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
