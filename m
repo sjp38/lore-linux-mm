@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1056B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 05:49:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c10so223304294pfg.10
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 02:49:52 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 448866B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 06:18:11 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c10so224109085pfg.10
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 03:18:11 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r76si27452432pfg.285.2017.05.25.02.49.51
+        by mx.google.com with ESMTP id u143si26457124pgb.67.2017.05.25.03.18.09
         for <linux-mm@kvack.org>;
-        Thu, 25 May 2017 02:49:51 -0700 (PDT)
+        Thu, 25 May 2017 03:18:10 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
 Subject: Re: [PATCH] mm/migrate: Fix ref-count handling when !hugepage_migration_supported()
 References: <20170524154728.2492-1-punit.agrawal@arm.com>
-	<20170524125610.8fbc644f8fa1cf8175b7757b@linux-foundation.org>
-Date: Thu, 25 May 2017 10:49:47 +0100
-In-Reply-To: <20170524125610.8fbc644f8fa1cf8175b7757b@linux-foundation.org>
-	(Andrew Morton's message of "Wed, 24 May 2017 12:56:10 -0700")
-Message-ID: <87y3tle05g.fsf@e105922-lin.cambridge.arm.com>
+	<20170525015927.GA26520@hori1.linux.bs1.fc.nec.co.jp>
+Date: Thu, 25 May 2017 11:18:06 +0100
+In-Reply-To: <20170525015927.GA26520@hori1.linux.bs1.fc.nec.co.jp> (Naoya
+	Horiguchi's message of "Thu, 25 May 2017 01:59:28 +0000")
+Message-ID: <87tw49dyu9.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: will.deacon@arm.com, catalin.marinas@arm.com, manoj.iyer@arm.com, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tbaicar@codeaurora.org, timur@qti.qualcomm.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "manoj.iyer@arm.com" <manoj.iyer@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tbaicar@codeaurora.org" <tbaicar@codeaurora.org>, "timur@qti.qualcomm.com" <timur@qti.qualcomm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-> On Wed, 24 May 2017 16:47:28 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
->
+> On Wed, May 24, 2017 at 04:47:28PM +0100, Punit Agrawal wrote:
 >> On failing to migrate a page, soft_offline_huge_page() performs the
 >> necessary update to the hugepage ref-count. When
 >> !hugepage_migration_supported() , unmap_and_move_hugepage() also
@@ -70,22 +69,61 @@ Andrew Morton <akpm@linux-foundation.org> writes:
 >> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 >> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >> Cc: Christoph Lameter <cl@linux.com>
+>> 
+>> --
+>> Hi Andrew,
+>> 
+>> We ran into this bug when working towards enabling memory corruption
+>> on arm64. The patch was tested on an arm64 platform running v4.12-rc2
+>> with the series to enable memory corruption handling[0].
+>> 
+>> Please consider merging as a fix for the 4.12 release.
+>> 
+>> Thanks,
+>> Punit
+>> 
+>> [0] https://www.spinics.net/lists/arm-kernel/msg581657.html
+>> ---
+>>  mm/migrate.c | 4 +---
+>>  1 file changed, 1 insertion(+), 3 deletions(-)
+>> 
+>> diff --git a/mm/migrate.c b/mm/migrate.c
+>> index 89a0a1707f4c..187abd1526df 100644
+>> --- a/mm/migrate.c
+>> +++ b/mm/migrate.c
+>> @@ -1201,10 +1201,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>>  	 * tables or check whether the hugepage is pmd-based or not before
+>>  	 * kicking migration.
+>>  	 */
+>> -	if (!hugepage_migration_supported(page_hstate(hpage))) {
+>> -		putback_active_hugepage(hpage);
 >
-> 32665f2bbfed was three years ago.  Do you have any theory as to why
-> this took so long to be detected?
+> Thank you for reporting and suggestion, Punit, Manoj.
+>
+> Simply dropping this putback_active_hugepage() may resume the failure
+> counting issue addressed in 32665f2bbfed, so I would recommend to call
+> putback_movable_pages() in failure path in soft_offline_huge_page().
+>
+> @@ -1600,7 +1600,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  		 * only one hugepage pointed to by hpage, so we need not
+>  		 * run through the pagelist here.
+>  		 */
+> -		putback_active_hugepage(hpage);
+> +		if (!list_empty(&pagelist))
+> +			putback_movable_pages(&pagelist);
+>  		if (ret > 0)
+>  			ret = -EIO;
+>  	} else {
+>
+> Could you check this works for you?
 
-This only triggers on systems that enable memory failure handling
-(ARCH_SUPPORTS_MEMORY_FAILURE) but not hugepage migration
-(!ARCH_ENABLE_HUGEPAGE_MIGRATION).
+Using this sequence works as well. I'll send out an update shortly.
 
-I imagine this wasn't triggered as there aren't many systems running
-this configuration.
-
-> And do you believe a -stable backport is warranted?
-
-I'll defer to Horiguchi-san's judgement here.
+Thanks
 
 >
+> Thanks,
+> Naoya Horiguchi
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
