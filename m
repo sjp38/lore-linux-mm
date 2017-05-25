@@ -1,123 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AC196B02B4
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 20:59:22 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e7so203864787pfk.9
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:59:22 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q5si1852398pgs.129.2017.05.24.17.59.21
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 91A246B02B4
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 21:07:08 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j66so231686586oib.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 18:07:08 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id 94si3203448otx.307.2017.05.24.18.07.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 17:59:21 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v6] mm, swap: Sort swap entries before free
-Date: Thu, 25 May 2017 08:59:16 +0800
-Message-Id: <20170525005916.25249-1-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 May 2017 18:07:07 -0700 (PDT)
+Subject: Re: [Question] Mlocked count will not be decreased
+References: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com>
+ <85591559-2a99-f46b-7a5a-bc7affb53285@huawei.com>
+ <93f1b063-6288-d109-117d-d3c1cf152a8e@suse.cz> <5925709F.1030105@huawei.com>
+ <d354b321-0d11-4308-0b0e-aacef5a5e34b@suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <73292b91-1290-6a30-902c-840696cf9ab5@huawei.com>
+Date: Thu, 25 May 2017 09:00:33 +0800
+MIME-Version: 1.0
+In-Reply-To: <d354b321-0d11-4308-0b0e-aacef5a5e34b@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Kefeng Wang <wangkefeng.wang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>
 
-From: Huang Ying <ying.huang@intel.com>
+Hi Vlastimil,
 
-To reduce the lock contention of swap_info_struct->lock when freeing
-swap entry.  The freed swap entries will be collected in a per-CPU
-buffer firstly, and be really freed later in batch.  During the batch
-freeing, if the consecutive swap entries in the per-CPU buffer belongs
-to same swap device, the swap_info_struct->lock needs to be
-acquired/released only once, so that the lock contention could be
-reduced greatly.  But if there are multiple swap devices, it is
-possible that the lock may be unnecessarily released/acquired because
-the swap entries belong to the same swap device are non-consecutive in
-the per-CPU buffer.
+Thanks for comment.
+On 2017/5/24 19:52, Vlastimil Babka wrote:
+> On 05/24/2017 01:38 PM, Xishi Qiu wrote:
+>>>
+>>> Race condition with what? Who else would isolate our pages?
+>>>
+>>
+>> Hi Vlastimil,
+>>
+>> I find the root cause, if the page was not cached on the current cpu,
+>> lru_add_drain() will not push it to LRU. So we should handle fail
+>> case in mlock_vma_page().
+> 
+> Yeah that would explain it.
+> 
+>> follow_page_pte()
+>> 		...
+>> 		if (page->mapping && trylock_page(page)) {
+>> 			lru_add_drain();  /* push cached pages to LRU */
+>> 			/*
+>> 			 * Because we lock page here, and migration is
+>> 			 * blocked by the pte's page reference, and we
+>> 			 * know the page is still mapped, we don't even
+>> 			 * need to check for file-cache page truncation.
+>> 			 */
+>> 			mlock_vma_page(page);
+>> 			unlock_page(page);
+>> 		}
+>> 		...
+>>
+>> I think we should add yisheng's patch, also we should add the following change.
+>> I think it is better than use lru_add_drain_all().
+> 
+> I agree about yisheng's fix (but v2 didn't address my comments). I don't
+> think we should add the hunk below, as that deviates from the rest of
+> the design.
+> 
+Sorry, I have sent the patch before your comment. Anyway I will send another version
+as your suggestion.
 
-To solve the issue, the per-CPU buffer is sorted according to the swap
-device before freeing the swap entries.
+Thanks
+Yisheng Xie
 
-With the patch, the memory (some swapped out) free time reduced
-11.6% (from 2.65s to 2.35s) in the vm-scalability swap-w-rand test
-case with 16 processes.  The test is done on a Xeon E5 v3 system.  The
-swap device used is a RAM simulated PMEM (persistent memory) device.
-To test swapping, the test case creates 16 processes, which allocate
-and write to the anonymous pages until the RAM and part of the swap
-device is used up, finally the memory (some swapped out) is freed
-before exit.
 
-Signed-off-by: Huang Ying <ying.huang@intel.com>
-Acked-by: Tim Chen <tim.c.chen@intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-
-v6:
-
-- Revert to a simpler way to determine whether sort is necessary,
-  because it is found the overhead of sort is very small.
-
-v5:
-
-- Use a smarter way to determine whether sort is necessary.
-
-v4:
-
-- Avoid unnecessary sort if all entries are from one swap device.
-
-v3:
-
-- Add some comments in code per Rik's suggestion.
-
-v2:
-
-- Avoid sort swap entries if there is only one swap device.
----
- mm/swapfile.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8a6cdf9e55f9..07b1a3d4910a 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -37,6 +37,7 @@
- #include <linux/swapfile.h>
- #include <linux/export.h>
- #include <linux/swap_slots.h>
-+#include <linux/sort.h>
- 
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
-@@ -1198,6 +1199,13 @@ void put_swap_page(struct page *page, swp_entry_t entry)
- 		swapcache_free_cluster(entry);
- }
- 
-+static int swp_entry_cmp(const void *ent1, const void *ent2)
-+{
-+	const swp_entry_t *e1 = ent1, *e2 = ent2;
-+
-+	return (int)swp_type(*e1) - (int)swp_type(*e2);
-+}
-+
- void swapcache_free_entries(swp_entry_t *entries, int n)
- {
- 	struct swap_info_struct *p, *prev;
-@@ -1208,6 +1216,15 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
- 
- 	prev = NULL;
- 	p = NULL;
-+
-+	/*
-+	 * Sort swap entries by swap device, so each lock is only
-+	 * taken once.  Although nr_swapfiles isn't absolute correct,
-+	 * but the overhead of sort() is so low that it isn't
-+	 * necessary to optimize further.
-+	 */
-+	if (nr_swapfiles > 1)
-+		sort(entries, n, sizeof(entries[0]), swp_entry_cmp, NULL);
- 	for (i = 0; i < n; ++i) {
- 		p = swap_info_get_cont(entries[i], prev);
- 		if (p)
--- 
-2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
