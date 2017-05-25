@@ -1,31 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DC86B0313
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:47:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y65so218686211pff.13
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:47:05 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B416B0314
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:47:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e7so211189436pfk.9
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:47:08 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u69si26530689pgb.168.2017.05.24.23.47.05
+        by mx.google.com with ESMTPS id u69si26530689pgb.168.2017.05.24.23.47.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 23:47:05 -0700 (PDT)
+        Wed, 24 May 2017 23:47:07 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm 07/13] mm, THP, swap: Support to write THP to swap device as a whole
-Date: Thu, 25 May 2017 14:46:29 +0800
-Message-Id: <20170525064635.2832-8-ying.huang@intel.com>
+Subject: [PATCH -mm 08/13] mm, THP, swap: Support to split THP for THP swapped out
+Date: Thu, 25 May 2017 14:46:30 +0800
+Message-Id: <20170525064635.2832-9-ying.huang@intel.com>
 In-Reply-To: <20170525064635.2832-1-ying.huang@intel.com>
 References: <20170525064635.2832-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Jens Axboe <axboe@fb.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-In the patch, the swap writing is enhanced to support to write a
-THP (Transparent Huge Page) as a whole.  This is a part of the THP
-swap optimization and will improve swap write IO performance for the
-more large continuous IOs.
+After adding swapping out support for THP (Transparent Huge Page), it
+is possible that a THP in swap cache (partly swapped out) need to be
+split.  To split such a THP, the swap cluster backing the THP need to
+be split too, that is, the CLUSTER_FLAG_HUGE flag need to be cleared
+for the swap cluster.  The patch implemented this.
+
+And because the THP swap writing needs the THP keeps as huge page
+during writing.  The PageWriteback flag is checked before splitting.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -33,113 +37,88 @@ Cc: Minchan Kim <minchan@kernel.org>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: Shaohua Li <shli@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 ---
- include/linux/page-flags.h    |  4 ++--
- include/linux/vm_event_item.h |  1 +
- mm/page_io.c                  | 21 ++++++++++++++++-----
- mm/vmstat.c                   |  1 +
- 4 files changed, 20 insertions(+), 7 deletions(-)
+ include/linux/swap.h |  9 +++++++++
+ mm/huge_memory.c     | 10 +++++++++-
+ mm/swapfile.c        | 15 +++++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index d33e3280c8ad..ba2d470d2d0a 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -303,8 +303,8 @@ PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
-  * Only test-and-set exist for PG_writeback.  The unconditional operators are
-  * risky: they bypass page accounting.
-  */
--TESTPAGEFLAG(Writeback, writeback, PF_NO_COMPOUND)
--	TESTSCFLAG(Writeback, writeback, PF_NO_COMPOUND)
-+TESTPAGEFLAG(Writeback, writeback, PF_NO_TAIL)
-+	TESTSCFLAG(Writeback, writeback, PF_NO_TAIL)
- PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index ed51d5e699e0..fbe75245971e 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -525,6 +525,15 @@ static inline swp_entry_t get_swap_page(struct page *page)
  
- /* PG_readahead is only used for reads; PG_reclaim is only for writes */
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index d84ae90ccd5c..5b5b0f094060 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -84,6 +84,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
-+		THP_SWPOUT,
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 		BALLOON_INFLATE,
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 23f6d0d3470f..ec5229fb3607 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -27,16 +27,18 @@
- static struct bio *get_swap_bio(gfp_t gfp_flags,
- 				struct page *page, bio_end_io_t end_io)
- {
-+	int i, nr = hpage_nr_pages(page);
- 	struct bio *bio;
+ #endif /* CONFIG_SWAP */
  
--	bio = bio_alloc(gfp_flags, 1);
-+	bio = bio_alloc(gfp_flags, nr);
- 	if (bio) {
- 		bio->bi_iter.bi_sector = map_swap_page(page, &bio->bi_bdev);
- 		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
- 		bio->bi_end_io = end_io;
- 
--		bio_add_page(bio, page, PAGE_SIZE, 0);
--		BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE);
-+		for (i = 0; i < nr; i++)
-+			bio_add_page(bio, page + i, PAGE_SIZE, 0);
-+		VM_BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
- 	}
- 	return bio;
- }
-@@ -257,6 +259,15 @@ static sector_t swap_page_sector(struct page *page)
- 	return (sector_t)__page_file_index(page) << (PAGE_SHIFT - 9);
- }
- 
-+static inline void count_swpout_vm_event(struct page *page)
++#ifdef CONFIG_THP_SWAP
++extern int split_swap_cluster(swp_entry_t entry);
++#else
++static inline int split_swap_cluster(swp_entry_t entry)
 +{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (unlikely(PageTransHuge(page)))
-+		count_vm_event(THP_SWPOUT);
-+#endif
-+	count_vm_events(PSWPOUT, hpage_nr_pages(page));
++	return 0;
 +}
++#endif
 +
- int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		bio_end_io_t end_write_func)
+ #ifdef CONFIG_MEMCG
+ static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
  {
-@@ -308,7 +319,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0eb1251f924a..0aefc90c6573 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2446,6 +2446,9 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
- 	ret = bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc);
- 	if (!ret) {
--		count_vm_event(PSWPOUT);
-+		count_swpout_vm_event(page);
- 		return 0;
++	if (PageWriteback(page))
++		return -EBUSY;
++
+ 	if (PageAnon(head)) {
+ 		/*
+ 		 * The caller does not necessarily hold an mmap_sem that would
+@@ -2523,7 +2526,12 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			__dec_node_page_state(page, NR_SHMEM_THPS);
+ 		spin_unlock(&pgdata->split_queue_lock);
+ 		__split_huge_page(page, list, flags);
+-		ret = 0;
++		if (PageSwapCache(head)) {
++			swp_entry_t entry = { .val = page_private(head) };
++
++			ret = split_swap_cluster(entry);
++		} else
++			ret = 0;
+ 	} else {
+ 		if (IS_ENABLED(CONFIG_DEBUG_VM) && mapcount) {
+ 			pr_alert("total_mapcount: %u, page_count(): %u\n",
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 2a2f5d08f0a9..d4fd80be2e2d 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1215,6 +1215,21 @@ static void swapcache_free_cluster(swp_entry_t entry)
+ 		}
  	}
- 
-@@ -321,7 +332,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 		goto out;
- 	}
- 	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
--	count_vm_event(PSWPOUT);
-+	count_swpout_vm_event(page);
- 	set_page_writeback(page);
- 	unlock_page(page);
- 	submit_bio(bio);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c432e581f9a9..ebfd79df1008 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1070,6 +1070,7 @@ const char * const vmstat_text[] = {
- #endif
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
-+	"thp_swpout",
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 	"balloon_inflate",
+ }
++
++int split_swap_cluster(swp_entry_t entry)
++{
++	struct swap_info_struct *si;
++	struct swap_cluster_info *ci;
++	unsigned long offset = swp_offset(entry);
++
++	si = _swap_info_get(entry);
++	if (!si)
++		return -EBUSY;
++	ci = lock_cluster(si, offset);
++	cluster_clear_huge(ci);
++	unlock_cluster(ci);
++	return 0;
++}
+ #else
+ static inline void swapcache_free_cluster(swp_entry_t entry)
+ {
 -- 
 2.11.0
 
