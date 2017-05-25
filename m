@@ -1,123 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12C306B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 15:35:34 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id z142so85228582qkz.8
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 12:35:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t72si4075938qkt.211.2017.05.25.12.35.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EE0D6B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 16:33:56 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p86so242761876pfl.12
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 13:33:56 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id g13si3553577plk.213.2017.05.25.13.33.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 12:35:32 -0700 (PDT)
-Date: Thu, 25 May 2017 16:35:08 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
- configuration
-Message-ID: <20170525193508.GA30252@amt.cnet>
-References: <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org>
- <20170512154026.GA3556@amt.cnet>
- <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
- <20170512161915.GA4185@amt.cnet>
- <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
- <20170515191531.GA31483@amt.cnet>
- <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
- <20170519143407.GA19282@amt.cnet>
- <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
- <20170519134934.0c298882@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170519134934.0c298882@redhat.com>
+        Thu, 25 May 2017 13:33:55 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 0/8] Boot-time switching between 4- and 5-level paging
+Date: Thu, 25 May 2017 23:33:26 +0300
+Message-Id: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>, Christoph Lameter <cl@linux.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, May 19, 2017 at 01:49:34PM -0400, Luiz Capitulino wrote:
-> On Fri, 19 May 2017 12:13:26 -0500 (CDT)
-> Christoph Lameter <cl@linux.com> wrote:
-> 
-> > > So why are you against integrating this simple, isolated patch which
-> > > does not affect how current logic works?  
-> > 
-> > Frankly the argument does not make sense. Vmstat updates occur very
-> > infrequently (probably even less than you IPIs and the other OS stuff that
-> > also causes additional latencies that you seem to be willing to tolerate).
-> 
-> Infrequently is not good enough. It only has to happen once to
-> cause a problem.
-> 
-> Also, IPIs take a few us, usually less. That's not a problem. In our
-> testing we see the preemption caused by the kworker take 10us or
-> even more. I've never seeing it take 3us. I'm not saying this is not
-> true, I'm saying if this is causing a problem to us it will cause
-> a problem to other people too.
+Here' my first attempt to bring boot-time between 4- and 5-level paging.
+It looks not too terrible to me. I've expected it to be worse.
 
-Christoph, 
+The basic idea is to implement the same logic as pgtable-nop4d.h provides,
+but at runtime.
 
-Some data:
+Runtime folding is only implemented for CONFIG_X86_5LEVEL=y case. With the
+option disabled, we do compile-time folding.
 
- qemu-system-x86-12902 [003] ....1..  6517.621557: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000fc
- qemu-system-x86-12902 [003] d...2..  6517.621557: kvm_entry: vcpu 2
- qemu-system-x86-12902 [003] ....1..  6517.621560: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000fc
- qemu-system-x86-12902 [003] d...2..  6517.621561: kvm_entry: vcpu 2
- qemu-system-x86-12902 [003] ....1..  6517.621563: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000fc
- qemu-system-x86-12902 [003] d...2..  6517.621564: kvm_entry: vcpu 2
- qemu-system-x86-12902 [003] d..h1..  6517.622037: empty_smp_call_func:
-empty_smp_call_func ran
- qemu-system-x86-12902 [003] ....1..  6517.622040: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000fb
- qemu-system-x86-12902 [003] d...2..  6517.622041: kvm_entry: vcpu 2
+Initially, I tried to fold pgd instread. I've got to shell, but it
+required a lot of hacks as kernel threats pgd in a special way.
 
-empty_smp_function_call: 3us.
+Few things are broken (see patch 7/8) and many things are not yet tested.
+So more work is required.
 
- qemu-system-x86-12902 [003] ....1..  6517.702739: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000ef
- qemu-system-x86-12902 [003] d...2..  6517.702741: kvm_entry: vcpu 2
- qemu-system-x86-12902 [003] d..h1..  6517.702758: scheduler_tick
-<-update_process_times
- qemu-system-x86-12902 [003] ....1..  6517.702760: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000ef
- qemu-system-x86-12902 [003] d...2..  6517.702760: kvm_entry: vcpu 2
+I also haven't evaluated performance impact. We can look into some form of
+boot-time code patching later if required.
 
-scheduler_tick: 2us.
+Please review. Any feedback is welcome.
 
- qemu-system-x86-12902 [003] ....1..  6518.194570: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000ef
- qemu-system-x86-12902 [003] d...2..  6518.194571: kvm_entry: vcpu 2
- qemu-system-x86-12902 [003] ....1..  6518.194591: kvm_exit: reason
-EXTERNAL_INTERRUPT rip 0x4004f1 info 0 800000ef
- qemu-system-x86-12902 [003] d...2..  6518.194593: kvm_entry: vcpu 2
+Kirill A. Shutemov (8):
+  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+  x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
+  x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
+  x86/mm: Handle boot-time paging mode switching at early boot
+  x86/mm: Fold p4d page table layer at runtime
+  x86/mm: Replace compile-time checks for 5-level with runtime-time
+  x86/mm: Hacks for boot-time switching between 4- and 5-level paging
+  x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
 
-That, and the 10us number for kworker mentioned above changes your
-point of view of your 
-"Frankly the argument does not make sense. Vmstat updates occur very
-infrequently (probably even less than you IPIs and the other OS stuff that
-also causes additional latencies that you seem to be willing to tolerate).
-And you can configure the interval of vmstat updates freely.... Set
- the vmstat_interval to 60 seconds instead of 2 for a try? Is that rare
-enough?" 
+ arch/x86/Kconfig                         |  4 +-
+ arch/x86/boot/compressed/head_64.S       | 37 ++++++++++++++++++
+ arch/x86/entry/entry_64.S                |  5 +++
+ arch/x86/include/asm/kaslr.h             |  4 --
+ arch/x86/include/asm/page_64.h           |  4 ++
+ arch/x86/include/asm/page_64_types.h     | 15 +++-----
+ arch/x86/include/asm/paravirt.h          |  3 +-
+ arch/x86/include/asm/pgalloc.h           |  5 ++-
+ arch/x86/include/asm/pgtable.h           | 10 ++++-
+ arch/x86/include/asm/pgtable_32.h        |  2 +
+ arch/x86/include/asm/pgtable_64_types.h  | 46 ++++++++++++++--------
+ arch/x86/include/asm/processor.h         |  2 +-
+ arch/x86/include/asm/required-features.h |  8 +---
+ arch/x86/kernel/head64.c                 | 66 ++++++++++++++++++++++++++++----
+ arch/x86/kernel/head_64.S                | 22 +++++++----
+ arch/x86/mm/dump_pagetables.c            | 11 ++----
+ arch/x86/mm/ident_map.c                  |  2 +-
+ arch/x86/mm/init_64.c                    | 30 +++++++++------
+ arch/x86/mm/kaslr.c                      | 16 ++------
+ arch/x86/platform/efi/efi_64.c           |  4 +-
+ arch/x86/power/hibernate_64.c            |  4 +-
+ arch/x86/xen/Kconfig                     |  2 +-
+ arch/x86/xen/mmu_pv.c                    |  2 +-
+ 23 files changed, 208 insertions(+), 96 deletions(-)
 
-Argument? We're showing you the data that this is causing a latency
-problem for us.
-
-Is there anything you'd like to be improved on the patch?
-Is there anything you dislike about it?
-
-> No, we'd have to set it high enough to disable it and this will
-> affect all CPUs.
-> 
-> Something that crossed my mind was to add a new tunable to set
-> the vmstat_interval for each CPU, this way we could essentially
-> disable it to the CPUs where DPDK is running. What's the implications
-> of doing this besides not getting up to date stats in /proc/vmstat
-> (which I still have to confirm would be OK)? Can this break anything
-> in the kernel for example?
-
-Well, you get incorrect statistics. 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
