@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 652756B02FA
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C49B6B0313
 	for <linux-mm@kvack.org>; Thu, 25 May 2017 10:19:57 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 23so82215972qks.12
+Received: by mail-qt0-f198.google.com with SMTP id a46so77190257qte.3
         for <linux-mm@kvack.org>; Thu, 25 May 2017 07:19:57 -0700 (PDT)
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id h18si3174105qtb.259.2017.05.25.07.19.56
+        by mx.google.com with ESMTPS id a74si2994750qkg.7.2017.05.25.07.19.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 25 May 2017 07:19:56 -0700 (PDT)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v6 08/10] mm: mempolicy: mbind and migrate_pages support thp migration
-Date: Thu, 25 May 2017 10:19:43 -0400
-Message-Id: <20170525141945.56028-9-zi.yan@sent.com>
+Subject: [PATCH v6 07/10] mm: soft-dirty: keep soft-dirty bits over thp migration
+Date: Thu, 25 May 2017 10:19:42 -0400
+Message-Id: <20170525141945.56028-8-zi.yan@sent.com>
 In-Reply-To: <20170525141945.56028-1-zi.yan@sent.com>
 References: <20170525141945.56028-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,193 +22,240 @@ Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techs
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-This patch enables thp migration for mbind(2) and migrate_pages(2).
+Soft dirty bit is designed to keep tracked over page migration. This patch
+makes it work in the same manner for thp migration too.
 
+---
 ChangeLog v1 -> v2:
-- support pte-mapped and doubly-mapped thp
+- separate diff moving _PAGE_SWP_SOFT_DIRTY from bit 7 to bit 1
+- clear_soft_dirty_pmd can handle migration entry
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-ChangeLog v2 -> v6:
-- use the same gfp flag (GFP_TRANSHUGE) in mbind() and migrate_pages()
-  for thp allocations.
+ChangeLog v1 -> v5:
+- read soft dirty bit from correct place (*src_pmd) in copy_huge_pmd()
+- add missing soft dirty bit transfer in change_huge_pmd()
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 ---
- mm/mempolicy.c | 108 +++++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 79 insertions(+), 29 deletions(-)
+ arch/x86/include/asm/pgtable.h | 17 +++++++++++++++++
+ fs/proc/task_mmu.c             | 27 ++++++++++++++++-----------
+ include/asm-generic/pgtable.h  | 34 +++++++++++++++++++++++++++++++++-
+ include/linux/swapops.h        |  2 ++
+ mm/huge_memory.c               | 27 ++++++++++++++++++++++++---
+ 5 files changed, 92 insertions(+), 15 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 64f9eed068b8..292b7450e3e3 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -97,6 +97,7 @@
- #include <linux/mm_inline.h>
- #include <linux/mmu_notifier.h>
- #include <linux/printk.h>
-+#include <linux/swapops.h>
- 
- #include <asm/tlbflush.h>
- #include <linux/uaccess.h>
-@@ -495,6 +496,49 @@ static inline bool queue_pages_required(struct page *page,
- 	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index f5af95a0c6b8..54fc6da8bdf0 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1153,6 +1153,23 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
+ {
+ 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
  }
- 
-+static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
 +{
-+	int ret = 0;
-+	struct page *page;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags;
-+
-+	if (unlikely(is_pmd_migration_entry(*pmd))) {
-+		ret = 1;
-+		goto unlock;
-+	}
-+	page = pmd_page(*pmd);
-+	if (is_huge_zero_page(page)) {
-+		spin_unlock(ptl);
-+		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
-+		goto out;
-+	}
-+	if (!thp_migration_supported()) {
-+		get_page(page);
-+		spin_unlock(ptl);
-+		lock_page(page);
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+		goto out;
-+	}
-+	if (!queue_pages_required(page, qp)) {
-+		ret = 1;
-+		goto unlock;
-+	}
-+
-+	ret = 1;
-+	flags = qp->flags;
-+	/* go to thp migration */
-+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-+		migrate_page_add(page, qp->pagelist, flags);
-+unlock:
-+	spin_unlock(ptl);
-+out:
-+	return ret;
++	return pmd_set_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
 +}
 +
- /*
-  * Scan through pages checking if pages follow certain conditions,
-  * and move them to the pagelist if they do.
-@@ -506,30 +550,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 	struct page *page;
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
--	int nid, ret;
-+	int ret;
- 	pte_t *pte;
- 	spinlock_t *ptl;
++static inline int pmd_swp_soft_dirty(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_SWP_SOFT_DIRTY;
++}
++
++static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_SWP_SOFT_DIRTY);
++}
++#endif
+ #endif
  
--	if (pmd_trans_huge(*pmd)) {
--		ptl = pmd_lock(walk->mm, pmd);
--		if (pmd_trans_huge(*pmd)) {
--			page = pmd_page(*pmd);
--			if (is_huge_zero_page(page)) {
--				spin_unlock(ptl);
--				__split_huge_pmd(vma, pmd, addr, false, NULL);
--			} else {
--				get_page(page);
--				spin_unlock(ptl);
--				lock_page(page);
--				ret = split_huge_page(page);
--				unlock_page(page);
--				put_page(page);
--				if (ret)
--					return 0;
--			}
--		} else {
--			spin_unlock(ptl);
--		}
-+	ptl = pmd_trans_huge_lock(pmd, vma);
-+	if (ptl) {
-+		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
-+		if (ret)
-+			return 0;
- 	}
- 
- 	if (pmd_trans_unstable(pmd))
-@@ -550,7 +579,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 			continue;
- 		if (!queue_pages_required(page, qp))
- 			continue;
--		if (PageTransCompound(page)) {
-+		if (PageTransCompound(page) && !thp_migration_supported()) {
- 			get_page(page);
- 			pte_unmap_unlock(pte, ptl);
- 			lock_page(page);
-@@ -968,19 +997,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
- 
- #ifdef CONFIG_MIGRATION
- /*
-- * page migration
-+ * page migration, thp tail pages can be passed.
-  */
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags)
+ #define PKRU_AD_BIT 0x1
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 86ea6e400e8f..5f82f1a6361d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -909,17 +909,22 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
  {
-+	struct page *head = compound_head(page);
- 	/*
- 	 * Avoid migrating a page that is shared with others.
- 	 */
--	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
--		if (!isolate_lru_page(page)) {
--			list_add_tail(&page->lru, pagelist);
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(head) == 1) {
-+		if (!isolate_lru_page(head)) {
-+			list_add_tail(&head->lru, pagelist);
-+			mod_node_page_state(page_pgdat(head),
-+				NR_ISOLATED_ANON + page_is_file_cache(head),
-+				hpage_nr_pages(head));
+ 	pmd_t pmd = *pmdp;
+ 
+-	/* See comment in change_huge_pmd() */
+-	pmdp_invalidate(vma, addr, pmdp);
+-	if (pmd_dirty(*pmdp))
+-		pmd = pmd_mkdirty(pmd);
+-	if (pmd_young(*pmdp))
+-		pmd = pmd_mkyoung(pmd);
+-
+-	pmd = pmd_wrprotect(pmd);
+-	pmd = pmd_clear_soft_dirty(pmd);
+-
+-	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
++	if (pmd_present(pmd)) {
++		/* See comment in change_huge_pmd() */
++		pmdp_invalidate(vma, addr, pmdp);
++		if (pmd_dirty(*pmdp))
++			pmd = pmd_mkdirty(pmd);
++		if (pmd_young(*pmdp))
++			pmd = pmd_mkyoung(pmd);
++
++		pmd = pmd_wrprotect(pmd);
++		pmd = pmd_clear_soft_dirty(pmd);
++
++		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
++	} else if (is_migration_entry(pmd_to_swp_entry(pmd))) {
++		pmd = pmd_swp_clear_soft_dirty(pmd);
++		set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
++	}
+ }
+ #else
+ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 88119351fecc..34ef631c5964 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -618,7 +618,24 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
+ #define arch_start_context_switch(prev)	do {} while (0)
+ #endif
+ 
+-#ifndef CONFIG_HAVE_ARCH_SOFT_DIRTY
++#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
++#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
++static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
++{
++	return pmd;
++}
++
++static inline int pmd_swp_soft_dirty(pmd_t pmd)
++{
++	return 0;
++}
++
++static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
++{
++	return pmd;
++}
++#endif
++#else /* !CONFIG_HAVE_ARCH_SOFT_DIRTY */
+ static inline int pte_soft_dirty(pte_t pte)
+ {
+ 	return 0;
+@@ -663,6 +680,21 @@ static inline pte_t pte_swp_clear_soft_dirty(pte_t pte)
+ {
+ 	return pte;
+ }
++
++static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
++{
++	return pmd;
++}
++
++static inline int pmd_swp_soft_dirty(pmd_t pmd)
++{
++	return 0;
++}
++
++static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
++{
++	return pmd;
++}
+ #endif
+ 
+ #ifndef __HAVE_PFNMAP_TRACKING
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index c543c6f25e8f..c2f2efa45f3a 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -179,6 +179,8 @@ static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
+ {
+ 	swp_entry_t arch_entry;
+ 
++	if (pmd_swp_soft_dirty(pmd))
++		pmd = pmd_swp_clear_soft_dirty(pmd);
+ 	arch_entry = __pmd_to_swp_entry(pmd);
+ 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+ }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 04e12b2929a0..2c313cbf1873 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -923,6 +923,8 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		if (is_write_migration_entry(entry)) {
+ 			make_migration_entry_read(&entry);
+ 			pmd = swp_entry_to_pmd(entry);
++			if (pmd_swp_soft_dirty(*src_pmd))
++				pmd = pmd_swp_mksoft_dirty(pmd);
+ 			set_pmd_at(src_mm, addr, src_pmd, pmd);
  		}
- 	}
+ 		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+@@ -1708,6 +1710,17 @@ static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
  }
-@@ -990,7 +1021,17 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
- 	if (PageHuge(page))
- 		return alloc_huge_page_node(page_hstate(compound_head(page)),
- 					node);
--	else
-+	else if (thp_migration_supported() && PageTransHuge(page)) {
-+		struct page *thp;
+ #endif
+ 
++static pmd_t move_soft_dirty_pmd(pmd_t pmd)
++{
++#ifdef CONFIG_MEM_SOFT_DIRTY
++	if (unlikely(is_pmd_migration_entry(pmd)))
++		pmd = pmd_swp_mksoft_dirty(pmd);
++	else if (pmd_present(pmd))
++		pmd = pmd_mksoft_dirty(pmd);
++#endif
++	return pmd;
++}
 +
-+		thp = alloc_pages_node(node,
-+			(GFP_TRANSHUGE | __GFP_THISNODE),
-+			HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	} else
- 		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
- 						    __GFP_THISNODE, 0);
- }
-@@ -1156,6 +1197,15 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
- 	if (PageHuge(page)) {
- 		BUG_ON(!vma);
- 		return alloc_huge_page_noerr(vma, address, 1);
-+	} else if (thp_migration_supported() && PageTransHuge(page)) {
-+		struct page *thp;
-+
-+		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
-+					 HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
- 	}
- 	/*
- 	 * if !vma, alloc_page_vma() will use task or system default policy
+ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+ 		  unsigned long new_addr, unsigned long old_end,
+ 		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)
+@@ -1750,7 +1763,8 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+ 			pgtable = pgtable_trans_huge_withdraw(mm, old_pmd);
+ 			pgtable_trans_huge_deposit(mm, new_pmd, pgtable);
+ 		}
+-		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
++		pmd = move_soft_dirty_pmd(pmd);
++		set_pmd_at(mm, new_addr, new_pmd, pmd);
+ 		if (new_ptl != old_ptl)
+ 			spin_unlock(new_ptl);
+ 		if (force_flush)
+@@ -1795,6 +1809,8 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 			make_migration_entry_read(&entry);
+ 			newpmd = swp_entry_to_pmd(entry);
++			if (pmd_swp_soft_dirty(*pmd))
++				newpmd = pmd_swp_mksoft_dirty(newpmd);
+ 			set_pmd_at(mm, addr, pmd, newpmd);
+ 		}
+ 		goto unlock;
+@@ -2762,6 +2778,7 @@ void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+ 	unsigned long address = pvmw->address;
+ 	pmd_t pmdval;
+ 	swp_entry_t entry;
++	pmd_t pmdswp;
+ 
+ 	if (!(pvmw->pmd && !pvmw->pte))
+ 		return;
+@@ -2774,8 +2791,10 @@ void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
+ 	if (pmd_dirty(pmdval))
+ 		set_page_dirty(page);
+ 	entry = make_migration_entry(page, pmd_write(pmdval));
+-	pmdval = swp_entry_to_pmd(entry);
+-	set_pmd_at(mm, address, pvmw->pmd, pmdval);
++	pmdswp = swp_entry_to_pmd(entry);
++	if (pmd_soft_dirty(pmdval))
++		pmdswp = pmd_swp_mksoft_dirty(pmdswp);
++	set_pmd_at(mm, address, pvmw->pmd, pmdswp);
+ 	page_remove_rmap(page, true);
+ 	put_page(page);
+ 
+@@ -2799,6 +2818,8 @@ void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)
+ 	entry = pmd_to_swp_entry(*pvmw->pmd);
+ 	get_page(new);
+ 	pmde = pmd_mkold(mk_huge_pmd(new, vma->vm_page_prot));
++	if (pmd_swp_soft_dirty(*pvmw->pmd))
++		pmde = pmd_mksoft_dirty(pmde);
+ 	if (is_write_migration_entry(entry))
+ 		pmde = maybe_pmd_mkwrite(pmde, vma);
+ 
 -- 
 2.11.0
 
