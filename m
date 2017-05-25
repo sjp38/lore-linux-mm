@@ -1,116 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7379D6B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 20:41:18 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 62so210609445pft.3
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:41:18 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id o61si15461886plb.187.2017.05.24.17.41.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DCF36B02B4
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 20:46:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e8so211270963pfl.4
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:46:51 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id o186si26375055pga.24.2017.05.24.17.46.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 May 2017 17:41:17 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id u26so35415716pfd.2
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:41:17 -0700 (PDT)
-Date: Thu, 25 May 2017 09:41:07 +0900
+        Wed, 24 May 2017 17:46:50 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id 9so150753642pfj.1
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 17:46:50 -0700 (PDT)
+Date: Thu, 25 May 2017 09:46:40 +0900
 From: Joonsoo Kim <js1304@gmail.com>
 Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
  reduce memory consumption
-Message-ID: <20170525004104.GA21336@js1304-desktop>
+Message-ID: <20170525004638.GB21336@js1304-desktop>
 References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
- <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
- <20170516062318.GC16015@js1304-desktop>
- <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
- <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
- <20170524074539.GA9697@js1304-desktop>
- <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
+ <ebcc02d9-fa2b-30b1-2260-99cdf7434487@virtuozzo.com>
+ <20170519015348.GA1763@js1304-desktop>
+ <CACT4Y+bZVJpi++kfMkAc-3pXK165ZQyHaEU_6oN94+qQErJd8A@mail.gmail.com>
+ <20170524060432.GA8672@js1304-desktop>
+ <CACT4Y+b56nGv6WcTqysa=Xxdksxr-c9-tCzBxEY8PzfVYAUbrA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
+In-Reply-To: <CACT4Y+b56nGv6WcTqysa=Xxdksxr-c9-tCzBxEY8PzfVYAUbrA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On Wed, May 24, 2017 at 07:19:50PM +0200, Dmitry Vyukov wrote:
-> On Wed, May 24, 2017 at 9:45 AM, Joonsoo Kim <js1304@gmail.com> wrote:
-> >> > What does make your current patch work then?
-> >> > Say we map a new shadow page, update the page shadow to say that there
-> >> > is mapped shadow. Then another CPU loads the page shadow and then
-> >> > loads from the newly mapped shadow. If we don't flush TLB, what makes
-> >> > the second CPU see the newly mapped shadow?
+On Wed, May 24, 2017 at 06:31:04PM +0200, Dmitry Vyukov wrote:
+> On Wed, May 24, 2017 at 8:04 AM, Joonsoo Kim <js1304@gmail.com> wrote:
+> >> >> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >> >> >
+> >> >> > Hello, all.
+> >> >> >
+> >> >> > This is an attempt to recude memory consumption of KASAN. Please see
+> >> >> > following description to get the more information.
+> >> >> >
+> >> >> > 1. What is per-page shadow memory
+> >> >> >
+> >> >> > This patch introduces infrastructure to support per-page shadow memory.
+> >> >> > Per-page shadow memory is the same with original shadow memory except
+> >> >> > the granualarity. It's one byte shows the shadow value for the page.
+> >> >> > The purpose of introducing this new shadow memory is to save memory
+> >> >> > consumption.
+> >> >> >
+> >> >> > 2. Problem of current approach
+> >> >> >
+> >> >> > Until now, KASAN needs shadow memory for all the range of the memory
+> >> >> > so the amount of statically allocated memory is so large. It causes
+> >> >> > the problem that KASAN cannot run on the system with hard memory
+> >> >> > constraint. Even if KASAN can run, large memory consumption due to
+> >> >> > KASAN changes behaviour of the workload so we cannot validate
+> >> >> > the moment that we want to check.
+> >> >> >
+> >> >> > 3. How does this patch fix the problem
+> >> >> >
+> >> >> > This patch tries to fix the problem by reducing memory consumption for
+> >> >> > the shadow memory. There are two observations.
+> >> >> >
+> >> >>
+> >> >>
+> >> >> I think that the best way to deal with your problem is to increase shadow scale size.
+> >> >>
+> >> >> You'll need to add tunable to gcc to control shadow size. I expect that gcc has some
+> >> >> places where 8-shadow scale size is hardcoded, but it should be fixable.
+> >> >>
+> >> >> The kernel also have some small amount of code written with KASAN_SHADOW_SCALE_SIZE == 8 in mind,
+> >> >> which should be easy to fix.
+> >> >>
+> >> >> Note that bigger shadow scale size requires bigger alignment of allocated memory and variables.
+> >> >> However, according to comments in gcc/asan.c gcc already aligns stack and global variables and at
+> >> >> 32-bytes boundary.
+> >> >> So we could bump shadow scale up to 32 without increasing current stack consumption.
+> >> >>
+> >> >> On a small machine (1Gb) 1/32 of shadow is just 32Mb which is comparable to yours 30Mb, but I expect it to be
+> >> >> much faster. More importantly, this will require only small amount of simple changes in code, which will be
+> >> >> a *lot* more easier to maintain.
 > >>
-> >> /\/\/\/\/\/\
 > >>
-> >> Joonsoo, please answer this question above.
+> >> Interesting option. We never considered increasing scale in user space
+> >> due to performance implications. But the algorithm always supported up
+> >> to 128x scale. Definitely worth considering as an option.
 > >
-> > Hello, I've answered it in another e-mail however it would not be
-> > sufficient. I try again.
-> >
-> > If the page isn't used for kernel stack, slab, and global variable
-> > (aka. kernel memory), black shadow is mapped for the page. We map a
-> > new shadow page if the page will be used for kernel memory. We need to
-> > flush TLB in all cpus when mapping a new shadow however it's not
-> > possible in some cases. So, this patch does just flushing local cpu's
-> > TLB. Another cpu could have stale TLB that points black shadow for
-> > this page. If that cpu with stale TLB try to check vailidity of the
-> > object on this page, result would be invalid since stale TLB points
-> > the black shadow and it's shadow value is non-zero. We need a magic
-> > here. At this moment, we cannot make sure if invalid is correct result
-> > or not since we didn't do full TLB flush. So fixup processing is
-> > started. It is implemented in check_memory_region_slow(). Flushing
-> > local TLB and re-checking the shadow value. With flushing local TLB,
-> > we will use fresh TLB at this time. Therefore, we can pass the
-> > validity check as usual.
-> >
-> >> I am trying to understand if there is any chance to make mapping a
-> >> single page for all non-interesting shadow ranges work. That would be
-> >
-> > This is what this patchset does. Mapping a single (zero/black) shadow
-> > page for all non-interesting (non-kernel memory) shadow ranges.
-> > There is only single instance of zero/black shadow page. On v1,
-> > I used black shadow page only so fail to get enough performance. On
-> > v2 mentioned in another thread, I use zero shadow for some region. I
-> > guess that performance problem would be gone.
+> > Could you explain me how does increasing scale reduce performance? I
+> > tried to guess the reason but failed.
 > 
 > 
-> I can't say I understand everything here, but after staring at the
-> patch I don't understand why we need pshadow at all now. Especially
-> with this commit
-> https://github.com/JoonsooKim/linux/commit/be36ee65f185e3c4026fe93b633056ea811120fb.
-> It seems that the current shadow is enough.
+> The main reason is inline instrumentation. Inline instrumentation for
+> a check of 8-byte access (which are very common in 64-bit code) is
+> just a check of the shadow byte for 0. For smaller accesses we have
+> more complex instrumentation that first checks shadow for 0 and then
+> does precise check based on size/offset of the access + shadow value.
+> That's slower and also increases register pressure and code size
+> (which can further reduce performance due to icache overflow). If we
+> increase scale to 16/32, all accesses will need that slow path.
+> Another thing is stack instrumentation: larger scale will require
+> larger redzones to ensure proper alignment. That will increase stack
+> frames and also more instructions to poison/unpoison stack shadow on
+> function entry/exit.
 
-pshadow exists for non-kernel memory like as page cache or anonymous page.
-This patch doesn't map a new shadow (per-byte shadow) for those pages
-to reduce memory consumption. However, we need to know if those page
-are allocated or not in order to check the validity of access to those
-page. We cannot utilize zero/black shadow page here since mapping
-single zero/black shadow page represents eight real page's shadow
-value. Instead, we use per-page shadow here and mark/unmark it when
-allocation and free happens. With it, we can know the state of the
-page and we can determine the validity of access to them.
-
-> If we see bad shadow when the actual shadow value is good, we fall
-> onto slow path, flush tlb, reload shadow, see that it is good and
-> return. Pshadow is not needed in this case.
-
-For the kernel memory, if we see bad shadow due to *stale TLB*, we
-fall onto slow path (check_memory_region_slow()) and flush tlb and
-reload shadow.
-
-For the non-kernel memory, if we see bad shadow, we fall onto
-pshadow_val() check and we can see actual state of the page.
-
-> If we see good shadow when the actual shadow value is bad, we return
-> immediately and get false negative. Pshadow is not involved as well.
-> What am I missing?
-
-In this patchset, there is no case that we see good shadow when the
-actual (p)shadow value is bad. This case should not happen since we
-can miss actual error.
-
-Please let me know that these explanation is insufficient. I will try
-more. :)
+Now, I see. Thanks for explanation.
 
 Thanks.
 
