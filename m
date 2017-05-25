@@ -1,70 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F306B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:28:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 10so41014452wml.4
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:28:11 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1676B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 02:33:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id j27so18990493wre.3
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 23:33:00 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c40si24269506edb.70.2017.05.24.23.28.09
+        by mx.google.com with ESMTPS id h39si30080930edb.239.2017.05.24.23.32.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 23:28:10 -0700 (PDT)
-Date: Thu, 25 May 2017 08:28:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mm, memory_hotplug: drop artificial restriction
- on online/offline
-Message-ID: <20170525062808.GE12721@dhcp22.suse.cz>
-References: <20170524122411.25212-1-mhocko@kernel.org>
- <20170524122411.25212-2-mhocko@kernel.org>
- <20170524215056.h4r3sdk23bn4c2sr@arbab-laptop.localdomain>
+        Wed, 24 May 2017 23:32:59 -0700 (PDT)
+Subject: Re: [PATCH v2] mlock: fix mlock count can not decrease in race
+ condition
+References: <1495678405-54569-1-git-send-email-xieyisheng1@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6c19fa2f-36b6-d36b-3b51-7fdfc22e1a5c@suse.cz>
+Date: Thu, 25 May 2017 08:32:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170524215056.h4r3sdk23bn4c2sr@arbab-laptop.localdomain>
+In-Reply-To: <1495678405-54569-1-git-send-email-xieyisheng1@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org
+Cc: joern@logfs.org, mgorman@suse.de, walken@google.com, hughd@google.com, riel@redhat.com, hannes@cmpxchg.org, mhocko@suse.cz, qiuxishi@huawei.com, zhongjiang@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 24-05-17 16:50:56, Reza Arbab wrote:
-> On Wed, May 24, 2017 at 02:24:10PM +0200, Michal Hocko wrote:
-> >74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
-> >memory") has added can_offline_normal which checks the amount of
-> >memory in !movable zones as long as CONFIG_MOVABLE_NODE is disable.
-> >It disallows to offline memory if there is nothing left with a
-> >justification that "memory-management acts bad when we have nodes which
-> >is online but don't have any normal memory".
-> >
-> >74d42d8fe146 ("memory_hotplug: ensure every online node has NORMAL
-> >memory") has introduced a restriction that every numa node has to have
-> >at least some memory in !movable zones before a first movable memory
-> >can be onlined if !CONFIG_MOVABLE_NODE with the same justification
-> >
-> >While it is true that not having _any_ memory for kernel allocations on
-> >a NUMA node is far from great and such a node would be quite subotimal
-> >because all kernel allocations will have to fallback to another NUMA
-> >node but there is no reason to disallow such a configuration in
-> >principle.
-> >
-> >Besides that there is not really a big difference to have one memblock
-> >for ZONE_NORMAL available or none. With 128MB size memblocks the system
-> >might trash on the kernel allocations requests anyway. It is really
-> >hard to draw a line on how much normal memory is really sufficient so
-> >we have to rely on administrator to configure system sanely therefore
-> >drop the artificial restriction and remove can_offline_normal and
-> >can_online_high_movable altogether.
+On 05/25/2017 04:13 AM, Yisheng Xie wrote:
+> Kefeng reported that when run the follow test the mlock count
+
+> in meminfo
+> cannot be decreased:
+
+"increases permanently."?
+
+>  [1] testcase
+>  linux:~ # cat test_mlockal
+>  grep Mlocked /proc/meminfo
+>   for j in `seq 0 10`
+>   do
+>  	for i in `seq 4 15`
+>  	do
+>  		./p_mlockall >> log &
+>  	done
+>  	sleep 0.2
+>  done
+>  # wait some time to let mlock counter decrease and 5s may not enough
+>  sleep 5
+>  grep Mlocked /proc/meminfo
 > 
-> I'm really liking all this cleanup of the memory hotplug code. Thanks!  Much
-> appreciated.
+>  linux:~ # cat p_mlockall.c
+>  #include <sys/mman.h>
+>  #include <stdlib.h>
+>  #include <stdio.h>
+> 
+>  #define SPACE_LEN	4096
+> 
+>  int main(int argc, char ** argv)
+>  {
+>  	int ret;
+>  	void *adr = malloc(SPACE_LEN);
+>  	if (!adr)
+>  		return -1;
+> 
+>  	ret = mlockall(MCL_CURRENT | MCL_FUTURE);
+>  	printf("mlcokall ret = %d\n", ret);
+> 
+>  	ret = munlockall();
+>  	printf("munlcokall ret = %d\n", ret);
+> 
+>  	free(adr);
+>  	return 0;
+>  }
+> 
+> When __munlock_pagevec, we ClearPageMlock but isolation_failed in race
+> condition, and we do not count these page into delta_munlocked, which cause
+> mlock counter incorrect for we had Clear the PageMlock and cannot count down
+> the number in the feture.
 
-I am glad to hear that and more is to come.
+Can I suggest the following instead:
 
-> Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+In __munlock_pagevec() we should decrement NR_MLOCK for each page where
+we clear the PageMlocked flag. Commit 1ebb7cc6a583 ("mm: munlock: batch
+NR_MLOCK zone state updates") has introduced a bug where we don't
+decrement NR_MLOCK for pages where we clear the flag, but fail to
+isolate them from the lru list (e.g. when the pages are on some other
+cpu's percpu pagevec). Since PageMlocked stays cleared, the NR_MLOCK
+accounting gets permanently disrupted by this.
+
+> Fix it by count the number of page whoes PageMlock flag is cleared.
+> 
+> Fixes: 1ebb7cc6a583 (" mm: munlock: batch NR_MLOCK zone state updates")
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> Reported-by: Kefeng Wang <wangkefeng.wang@huawei.com>
+> Tested-by: Kefeng Wang <wangkefeng.wang@huawei.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 Thanks!
--- 
-Michal Hocko
-SUSE Labs
+
+> Cc: Joern Engel <joern@logfs.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Xishi Qiu <qiuxishi@huawei.com>
+> CC: zhongjiang <zhongjiang@huawei.com>
+> Cc: Hanjun Guo <guohanjun@huawei.com>
+> Cc: <stable@vger.kernel.org>
+> ---
+> v2:
+>  - use delta_munlocked for it doesn't do the increment in fastpath - Vlastimil
+> 
+> Hi Andrew:
+> Could you please help to fold this?
+> 
+> Thanks
+> Yisheng Xie
+> 
+>  mm/mlock.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index c483c5c..b562b55 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -284,7 +284,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+>  {
+>  	int i;
+>  	int nr = pagevec_count(pvec);
+> -	int delta_munlocked;
+> +	int delta_munlocked = -nr;
+>  	struct pagevec pvec_putback;
+>  	int pgrescued = 0;
+>  
+> @@ -304,6 +304,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+>  				continue;
+>  			else
+>  				__munlock_isolation_failed(page);
+> +		} else {
+> +			delta_munlocked++;
+>  		}
+>  
+>  		/*
+> @@ -315,7 +317,6 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+>  		pagevec_add(&pvec_putback, pvec->pages[i]);
+>  		pvec->pages[i] = NULL;
+>  	}
+> -	delta_munlocked = -nr + pagevec_count(&pvec_putback);
+>  	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
+>  	spin_unlock_irq(zone_lru_lock(zone));
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
