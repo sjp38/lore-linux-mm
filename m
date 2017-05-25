@@ -1,150 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC806B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 13:33:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e131so236208283pfh.7
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 10:33:42 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i14si28677702plk.84.2017.05.25.10.33.41
-        for <linux-mm@kvack.org>;
-        Thu, 25 May 2017 10:33:41 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v2] mm/hugetlb: Report -EHWPOISON not -EFAULT when FOLL_HWPOISON is specified
-References: <20170525171035.16359-1-james.morse@arm.com>
-Date: Thu, 25 May 2017 18:33:38 +0100
-In-Reply-To: <20170525171035.16359-1-james.morse@arm.com> (James Morse's
-	message of "Thu, 25 May 2017 18:10:35 +0100")
-Message-ID: <87y3tkdeod.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C06CF6B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 13:49:24 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id p24so131086960ioi.8
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 10:49:24 -0700 (PDT)
+Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
+        by mx.google.com with ESMTPS id r75si29760872iod.226.2017.05.25.10.49.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 May 2017 10:49:23 -0700 (PDT)
+Received: by mail-io0-x22b.google.com with SMTP id o12so141609856iod.3
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 10:49:23 -0700 (PDT)
+Date: Thu, 25 May 2017 10:49:21 -0700
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: Re: [patch] compiler, clang: suppress warning for unused static
+ inline functions
+Message-ID: <20170525174921.GU141096@google.com>
+References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com>
+ <20170524212229.GR141096@google.com>
+ <20170525055207.udcphnshuzl2gkps@gmail.com>
+ <20170525161406.GT141096@google.com>
+ <1495730933.29207.6.camel@perches.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1495730933.29207.6.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Joe Perches <joe@perches.com>
+Cc: Ingo Molnar <mingo@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Douglas Anderson <dianders@chromium.org>, Mark Brown <broonie@kernel.org>, David Miller <davem@davemloft.net>
 
-James Morse <james.morse@arm.com> writes:
+Hi Joe,
 
-> KVM uses get_user_pages() to resolve its stage2 faults. KVM sets the
-> FOLL_HWPOISON flag causing faultin_page() to return -EHWPOISON when it
-> finds a VM_FAULT_HWPOISON. KVM handles these hwpoison pages as a special
-> case.
->
-> When huge pages are involved, this doesn't work so well. get_user_pages()
-> calls follow_hugetlb_page(), which stops early if it receives
-> VM_FAULT_HWPOISON from hugetlb_fault(), eventually returning -EFAULT to
-> the caller. The step to map this to -EHWPOISON based on the FOLL_ flags
-> is missing. The hwpoison special case is skipped, and -EFAULT is returned
-> to user-space, causing Qemu or kvmtool to exit.
->
-> Instead, move this VM_FAULT_ to errno mapping code into a header file
-> and use it from faultin_page(), follow_hugetlb_page() and faultin_page().
+El Thu, May 25, 2017 at 09:48:53AM -0700 Joe Perches ha dit:
 
-You've got faultin_page() listed twice - I think you meant to add
-fixup_user_fault().
+> On Thu, 2017-05-25 at 09:14 -0700, Matthias Kaehlcke wrote:
+> > clang doesn't raise
+> > warnings about unused static inline functions in headers.
+> 
+> Is any "#include" file a "header" to clang or only "*.h" files?
+> 
+> For instance:
+> 
+> The kernel has ~500 .c files that other .c files #include.
+> Are unused inline functions in those .c files reported?
 
-With that addressed,
-
-Acked-by: Punit Agrawal <punit.agrawal@arm.com>
-
->
-> With this, KVM works as expected.
->
-> CC: Punit Agrawal <punit.agrawal@arm.com>
-> CC: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
-> Changes since v1:
->  * Fixed checkpatch warnings (oops, wrong file)
->  * Added vm_fault_to_errno() call to faultin_page() as Naoya Horiguchi
->    suggested.
->
-> This isn't a problem for arm64 today as we haven't enabled MEMORY_FAILURE,
-> but I can't see any reason this doesn't happen on x86 too, so I think this
-> should be a fix. This doesn't apply earlier than stable's v4.11.1 due to
-> all sorts of cleanup. My best offer is:
-> Cc: <stable@vger.kernel.org> # 4.11.1
->
->  include/linux/mm.h | 11 +++++++++++
->  mm/gup.c           | 20 ++++++++------------
->  mm/hugetlb.c       |  5 +++++
->  3 files changed, 24 insertions(+), 12 deletions(-)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 7cb17c6b97de..b892e95d4929 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2327,6 +2327,17 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
->  #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
->  #define FOLL_COW	0x4000	/* internal GUP flag */
->  
-> +static inline int vm_fault_to_errno(int vm_fault, int foll_flags)
-> +{
-> +	if (vm_fault & VM_FAULT_OOM)
-> +		return -ENOMEM;
-> +	if (vm_fault & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
-> +		return (foll_flags & FOLL_HWPOISON) ? -EHWPOISON : -EFAULT;
-> +	if (vm_fault & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV))
-> +		return -EFAULT;
-> +	return 0;
-> +}
-> +
->  typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
->  			void *data);
->  extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
-> diff --git a/mm/gup.c b/mm/gup.c
-> index d9e6fddcc51f..b3c7214d710d 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -407,12 +407,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
->  
->  	ret = handle_mm_fault(vma, address, fault_flags);
->  	if (ret & VM_FAULT_ERROR) {
-> -		if (ret & VM_FAULT_OOM)
-> -			return -ENOMEM;
-> -		if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
-> -			return *flags & FOLL_HWPOISON ? -EHWPOISON : -EFAULT;
-> -		if (ret & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV))
-> -			return -EFAULT;
-> +		int err = vm_fault_to_errno(ret, *flags);
-> +
-> +		if (err)
-> +			return err;
->  		BUG();
->  	}
->  
-> @@ -723,12 +721,10 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
->  	ret = handle_mm_fault(vma, address, fault_flags);
->  	major |= ret & VM_FAULT_MAJOR;
->  	if (ret & VM_FAULT_ERROR) {
-> -		if (ret & VM_FAULT_OOM)
-> -			return -ENOMEM;
-> -		if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
-> -			return -EHWPOISON;
-> -		if (ret & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV))
-> -			return -EFAULT;
-> +		int err = vm_fault_to_errno(ret, 0);
-> +
-> +		if (err)
-> +			return err;
->  		BUG();
->  	}
->  
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e5828875f7bb..3eedb187e549 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4170,6 +4170,11 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			}
->  			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
->  			if (ret & VM_FAULT_ERROR) {
-> +				int err = vm_fault_to_errno(ret, flags);
-> +
-> +				if (err)
-> +					return err;
-> +
->  				remainder = 0;
->  				break;
->  			}
+Any "#include" file is a "header" to clang, no warnings are generated
+for unused inline functions in included .c files.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
