@@ -1,95 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F47F6B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 04:58:31 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y22so19443878wry.1
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 01:58:31 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 7si22729640edt.108.2017.05.25.01.58.30
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 May 2017 01:58:30 -0700 (PDT)
-Date: Thu, 25 May 2017 10:58:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: dm ioctl: Restore __GFP_HIGH in copy_params()
-Message-ID: <20170525085827.GH12721@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1705191934340.17646@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522093725.GF8509@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705220759001.27401@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522120937.GI8509@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705221026430.20076@file01.intranet.prod.int.rdu2.redhat.com>
- <20170522150321.GM8509@dhcp22.suse.cz>
- <20170522180415.GA25340@redhat.com>
- <alpine.DEB.2.10.1705221325200.30407@chino.kir.corp.google.com>
- <20170523060534.GA12813@dhcp22.suse.cz>
- <alpine.LRH.2.02.1705231236210.20039@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1056B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 05:49:52 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c10so223304294pfg.10
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 02:49:52 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r76si27452432pfg.285.2017.05.25.02.49.51
+        for <linux-mm@kvack.org>;
+        Thu, 25 May 2017 02:49:51 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH] mm/migrate: Fix ref-count handling when !hugepage_migration_supported()
+References: <20170524154728.2492-1-punit.agrawal@arm.com>
+	<20170524125610.8fbc644f8fa1cf8175b7757b@linux-foundation.org>
+Date: Thu, 25 May 2017 10:49:47 +0100
+In-Reply-To: <20170524125610.8fbc644f8fa1cf8175b7757b@linux-foundation.org>
+	(Andrew Morton's message of "Wed, 24 May 2017 12:56:10 -0700")
+Message-ID: <87y3tle05g.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1705231236210.20039@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Mike Snitzer <snitzer@redhat.com>, Junaid Shahid <junaids@google.com>, Alasdair Kergon <agk@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, andreslc@google.com, gthelen@google.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: will.deacon@arm.com, catalin.marinas@arm.com, manoj.iyer@arm.com, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, tbaicar@codeaurora.org, timur@qti.qualcomm.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On Tue 23-05-17 12:44:18, Mikulas Patocka wrote:
-> 
-> 
-> On Tue, 23 May 2017, Michal Hocko wrote:
-> 
-> > On Mon 22-05-17 13:35:41, David Rientjes wrote:
-> > > On Mon, 22 May 2017, Mike Snitzer wrote:
-> > [...]
-> > > > While adding the __GFP_NOFAIL flag would serve to document expectations
-> > > > I'm left unconvinced that the memory allocator will _not fail_ for an
-> > > > order-0 page -- as Mikulas said most ioctls don't need more than 4K.
-> > > 
-> > > __GFP_NOFAIL would make no sense in kvmalloc() calls, ever, it would never 
-> > > fallback to vmalloc :)
-> > 
-> > Sorry, I could have been more specific. You would have to opencode
-> > kvmalloc obviously. It is documented to not support this flag for the
-> > reasons you have mentioned above.
-> > 
-> > > I'm hoping this can get merged during the 4.12 window to fix the broken 
-> > > commit d224e9381897.
-> > 
-> > I obviously disagree. Relying on memory reserves for _correctness_ is
-> > clearly broken by design, full stop. But it is dm code and you are going
-> > it is responsibility of the respective maintainers to support this code.
-> 
-> Block loop device is broken in the same way - it converts block requests 
-> to filesystem reads and writes and those FS reads and writes allocate 
-> memory.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-I do not see those would depend on the __GFP_HIGH. Also writes are throttled
-so the memory shouldn't get full of dirty pages.
+> On Wed, 24 May 2017 16:47:28 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
+>
+>> On failing to migrate a page, soft_offline_huge_page() performs the
+>> necessary update to the hugepage ref-count. When
+>> !hugepage_migration_supported() , unmap_and_move_hugepage() also
+>> decrements the page ref-count for the hugepage. The combined behaviour
+>> leaves the ref-count in an inconsistent state.
+>> 
+>> This leads to soft lockups when running the overcommitted hugepage test
+>> from mce-tests suite.
+>> 
+>> Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
+>> soft offline: 0x83ed600: migration failed 1, type
+>> 1fffc00000008008 (uptodate|head)
+>> INFO: rcu_preempt detected stalls on CPUs/tasks:
+>>  Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
+>>   (detected by 7, t=5254 jiffies, g=963, c=962, q=321)
+>>   thugetlb_overco R  running task        0  2715   2685 0x00000008
+>>   Call trace:
+>>   [<ffff000008089f90>] dump_backtrace+0x0/0x268
+>>   [<ffff00000808a2d4>] show_stack+0x24/0x30
+>>   [<ffff000008100d34>] sched_show_task+0x134/0x180
+>>   [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
+>>   [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
+>>   [<ffff000008143a3c>] update_process_times+0x34/0x60
+>>   [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
+>>   [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
+>>   [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
+>>   [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
+>>   [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
+>>   [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
+>>   [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
+>>   [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
+>>   [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
+>> 
+>> Fix this by dropping the ref-count decrement in
+>> unmap_and_move_hugepage() when !hugepage_migration_supported().
+>> 
+>> Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_migration_support()")
+>> Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
+>> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>
+> 32665f2bbfed was three years ago.  Do you have any theory as to why
+> this took so long to be detected?
 
-> Network block device needs an userspace daemon to perform I/O.
+This only triggers on systems that enable memory failure handling
+(ARCH_SUPPORTS_MEMORY_FAILURE) but not hugepage migration
+(!ARCH_ENABLE_HUGEPAGE_MIGRATION).
 
-which makes it pretty much not reliable for any forward progress. AFAIR
-swap over NBD access full memory reserves to overcome this. But that is
-merely an exception
+I imagine this wasn't triggered as there aren't many systems running
+this configuration.
 
-> iSCSI also needs to allocate memory to perform I/O.
+> And do you believe a -stable backport is warranted?
 
-Shouldn't it use mempools? I am sorry but I am not familiar with this
-area at all.
- 
-> NFS and other networking filesystems are also broken in the same way (they 
-> need to receive a packet to acknowledge a write and packet reception needs 
-> to allocate memory).
-> 
-> So - what should these *broken* drivers do to reduce the possibility of 
-> the deadlock?
+I'll defer to Horiguchi-san's judgement here.
 
-the IO path has traditionally used mempools to guarantee a forward
-progress. If this is not an option then the choice is not all that
-great. We are throttling memory writers (or drop packets when the memory
-is too low) and finally have the OOM killer to free up some memory. 
--- 
-Michal Hocko
-SUSE Labs
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
