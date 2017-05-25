@@ -1,137 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 856646B0279
-	for <linux-mm@kvack.org>; Wed, 24 May 2017 21:23:08 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id w205so231775997oif.12
-        for <linux-mm@kvack.org>; Wed, 24 May 2017 18:23:08 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id y32si3467557oty.29.2017.05.24.18.23.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 255EF6B0279
+	for <linux-mm@kvack.org>; Wed, 24 May 2017 22:11:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b74so211976102pfd.2
+        for <linux-mm@kvack.org>; Wed, 24 May 2017 19:11:57 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id z69si26255636pfk.418.2017.05.24.19.11.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 May 2017 18:23:07 -0700 (PDT)
-Message-ID: <5926306F.2060205@huawei.com>
-Date: Thu, 25 May 2017 09:16:31 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 May 2017 19:11:56 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/migrate: Fix ref-count handling when
+ !hugepage_migration_supported()
+Date: Thu, 25 May 2017 01:59:28 +0000
+Message-ID: <20170525015927.GA26520@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170524154728.2492-1-punit.agrawal@arm.com>
+In-Reply-To: <20170524154728.2492-1-punit.agrawal@arm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <C6D9430C97B82B4B9D3C77F0A5097CEF@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [Question] Mlocked count will not be decreased
-References: <a61701d8-3dce-51a2-5eaf-14de84425640@huawei.com> <85591559-2a99-f46b-7a5a-bc7affb53285@huawei.com> <93f1b063-6288-d109-117d-d3c1cf152a8e@suse.cz> <5925709F.1030105@huawei.com> <d354b321-0d11-4308-0b0e-aacef5a5e34b@suse.cz> <5925784E.802@huawei.com> <b41f2c9a-7e74-529f-2ec1-3d9ae369dcb5@suse.cz>
-In-Reply-To: <b41f2c9a-7e74-529f-2ec1-3d9ae369dcb5@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, Kefeng Wang <wangkefeng.wang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "manoj.iyer@arm.com" <manoj.iyer@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tbaicar@codeaurora.org" <tbaicar@codeaurora.org>, "timur@qti.qualcomm.com" <timur@qti.qualcomm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
 
-On 2017/5/24 21:16, Vlastimil Babka wrote:
+On Wed, May 24, 2017 at 04:47:28PM +0100, Punit Agrawal wrote:
+> On failing to migrate a page, soft_offline_huge_page() performs the
+> necessary update to the hugepage ref-count. When
+> !hugepage_migration_supported() , unmap_and_move_hugepage() also
+> decrements the page ref-count for the hugepage. The combined behaviour
+> leaves the ref-count in an inconsistent state.
+>=20
+> This leads to soft lockups when running the overcommitted hugepage test
+> from mce-tests suite.
+>=20
+> Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
+> soft offline: 0x83ed600: migration failed 1, type
+> 1fffc00000008008 (uptodate|head)
+> INFO: rcu_preempt detected stalls on CPUs/tasks:
+>  Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
+>   (detected by 7, t=3D5254 jiffies, g=3D963, c=3D962, q=3D321)
+>   thugetlb_overco R  running task        0  2715   2685 0x00000008
+>   Call trace:
+>   [<ffff000008089f90>] dump_backtrace+0x0/0x268
+>   [<ffff00000808a2d4>] show_stack+0x24/0x30
+>   [<ffff000008100d34>] sched_show_task+0x134/0x180
+>   [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
+>   [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
+>   [<ffff000008143a3c>] update_process_times+0x34/0x60
+>   [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
+>   [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
+>   [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
+>   [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
+>   [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
+>   [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
+>   [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
+>   [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
+>   [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
+>=20
+> Fix this by dropping the ref-count decrement in
+> unmap_and_move_hugepage() when !hugepage_migration_supported().
+>=20
+> Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_m=
+igration_support()")
+> Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
+> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Cc: Christoph Lameter <cl@linux.com>
+>=20
+> --
+> Hi Andrew,
+>=20
+> We ran into this bug when working towards enabling memory corruption
+> on arm64. The patch was tested on an arm64 platform running v4.12-rc2
+> with the series to enable memory corruption handling[0].
+>=20
+> Please consider merging as a fix for the 4.12 release.
+>=20
+> Thanks,
+> Punit
+>=20
+> [0] https://www.spinics.net/lists/arm-kernel/msg581657.html
+> ---
+>  mm/migrate.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+>=20
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 89a0a1707f4c..187abd1526df 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1201,10 +1201,8 @@ static int unmap_and_move_huge_page(new_page_t get=
+_new_page,
+>  	 * tables or check whether the hugepage is pmd-based or not before
+>  	 * kicking migration.
+>  	 */
+> -	if (!hugepage_migration_supported(page_hstate(hpage))) {
+> -		putback_active_hugepage(hpage);
 
-> On 05/24/2017 02:10 PM, Xishi Qiu wrote:
->> On 2017/5/24 19:52, Vlastimil Babka wrote:
->>
->>> On 05/24/2017 01:38 PM, Xishi Qiu wrote:
->>>>>
->>>>> Race condition with what? Who else would isolate our pages?
->>>>>
->>>>
->>>> Hi Vlastimil,
->>>>
->>>> I find the root cause, if the page was not cached on the current cpu,
->>>> lru_add_drain() will not push it to LRU. So we should handle fail
->>>> case in mlock_vma_page().
->>>
->>> Yeah that would explain it.
->>>
->>>> follow_page_pte()
->>>> 		...
->>>> 		if (page->mapping && trylock_page(page)) {
->>>> 			lru_add_drain();  /* push cached pages to LRU */
->>>> 			/*
->>>> 			 * Because we lock page here, and migration is
->>>> 			 * blocked by the pte's page reference, and we
->>>> 			 * know the page is still mapped, we don't even
->>>> 			 * need to check for file-cache page truncation.
->>>> 			 */
->>>> 			mlock_vma_page(page);
->>>> 			unlock_page(page);
->>>> 		}
->>>> 		...
->>>>
->>>> I think we should add yisheng's patch, also we should add the following change.
->>>> I think it is better than use lru_add_drain_all().
->>>
->>> I agree about yisheng's fix (but v2 didn't address my comments). I don't
->>> think we should add the hunk below, as that deviates from the rest of
->>> the design.
->>
->> Hi Vlastimil,
->>
->> The rest of the design is that mlock should always success here, right?
-> 
-> The rest of the design allows a temporary disconnect between mlocked
-> flag and being placed on unevictable lru.
-> 
->> If we don't handle the fail case, the page will be in anon/file lru list
->> later when call __pagevec_lru_add(), but NR_MLOCK increased,
->> this is wrong, right?
-> 
-> It's not wrong, the page cannot get evicted even if on wrong lru, so
-> effectively it's already mlocked. We would be underaccounting NR_MLOCK.
-> 
+Thank you for reporting and suggestion, Punit, Manoj.
 
-Hi Vlastimil,
+Simply dropping this putback_active_hugepage() may resume the failure
+counting issue addressed in 32665f2bbfed, so I would recommend to call
+putback_movable_pages() in failure path in soft_offline_huge_page().
 
-I'm not quite understand why the page cannot get evicted even if on wrong lru.
-__isolate_lru_page() will only skip PageUnevictable(page), but this flag has not
-been set, we only set PageMlocked.
+@@ -1600,7 +1600,8 @@ static int soft_offline_huge_page(struct page *page, =
+int flags)
+ 		 * only one hugepage pointed to by hpage, so we need not
+ 		 * run through the pagelist here.
+ 		 */
+-		putback_active_hugepage(hpage);
++		if (!list_empty(&pagelist))
++			putback_movable_pages(&pagelist);
+ 		if (ret > 0)
+ 			ret =3D -EIO;
+ 	} else {
+
+Could you check this works for you?
 
 Thanks,
-Xishi Qiu
-
->> Thanks,
->> Xishi Qiu
->>
->>>
->>> Thanks,
->>> Vlastimil
->>>
->>>> diff --git a/mm/mlock.c b/mm/mlock.c
->>>> index 3d3ee6c..ca2aeb9 100644
->>>> --- a/mm/mlock.c
->>>> +++ b/mm/mlock.c
->>>> @@ -88,6 +88,11 @@ void mlock_vma_page(struct page *page)
->>>>  		count_vm_event(UNEVICTABLE_PGMLOCKED);
->>>>  		if (!isolate_lru_page(page))
->>>>  			putback_lru_page(page);
->>>> +		else {
->>>> +			ClearPageMlocked(page);
->>>> +			mod_zone_page_state(page_zone(page), NR_MLOCK,
->>>> +					-hpage_nr_pages(page));
->>>> +		}
->>>>  	}
->>>>  }
->>>>
->>>> Thanks,
->>>> Xishi Qiu
->>>>
->>>
->>>
->>> .
->>>
->>
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
-> 
-> 
-> .
-> 
-
-
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
