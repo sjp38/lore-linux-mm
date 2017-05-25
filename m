@@ -1,279 +1,286 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A02D6B02FA
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 11:42:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m5so233666827pfc.1
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 08:42:32 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x23si28475395pff.102.2017.05.25.08.42.30
-        for <linux-mm@kvack.org>;
-        Thu, 25 May 2017 08:42:31 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH v2 3/3] mm: kmemleak: Treat vm_struct as alternative reference to vmalloc'ed objects
-Date: Thu, 25 May 2017 16:42:17 +0100
-Message-Id: <1495726937-23557-4-git-send-email-catalin.marinas@arm.com>
-In-Reply-To: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
-References: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB7276B02B4
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 11:54:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g13so25419029wmd.9
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 08:54:12 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y22sor65570wrd.46.2017.05.25.08.54.11
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 25 May 2017 08:54:11 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170525001915.GA14999@bbox>
+References: <20170524194126.18040-1-semenzato@chromium.org> <20170525001915.GA14999@bbox>
+From: Luigi Semenzato <semenzato@chromium.org>
+Date: Thu, 25 May 2017 08:54:09 -0700
+Message-ID: <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
+Subject: Re: [PATCH] mm: add counters for different page fault types
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
 
-Kmemleak requires that vmalloc'ed objects have a minimum reference count
-of 2: one in the corresponding vm_struct object and the other owned by
-the vmalloc() caller. There are cases, however, where the original
-vmalloc() returned pointer is lost and, instead, a pointer to vm_struct
-is stored (see free_thread_stack()). Kmemleak currently reports such
-objects as leaks.
+Thank you Minchan, that's certainly simpler and I am annoyed that I
+didn't consider that :/
 
-This patch adds support for treating any surplus references to an object
-as additional references to a specified object. It introduces the
-kmemleak_vmalloc() API function which takes a vm_struct pointer and sets
-its surplus reference passing to the actual vmalloc() returned pointer.
-The __vmalloc_node_range() calling site has been modified accordingly.
+By a quick look, there are a few differences but maybe they don't matter?
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Reported-by: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
- Documentation/dev-tools/kmemleak.rst |  1 +
- include/linux/kmemleak.h             |  7 +++
- mm/kmemleak.c                        | 93 ++++++++++++++++++++++++++++++++++--
- mm/vmalloc.c                         |  7 +--
- 4 files changed, 98 insertions(+), 10 deletions(-)
+1. can a major (anon) fault result in a hit in the swap cache?  So
+pswpin will not get incremented and the fault will be counted as a
+file fault.
 
-diff --git a/Documentation/dev-tools/kmemleak.rst b/Documentation/dev-tools/kmemleak.rst
-index b2391b829169..cb8862659178 100644
---- a/Documentation/dev-tools/kmemleak.rst
-+++ b/Documentation/dev-tools/kmemleak.rst
-@@ -150,6 +150,7 @@ See the include/linux/kmemleak.h header for the functions prototype.
- - ``kmemleak_init``		 - initialize kmemleak
- - ``kmemleak_alloc``		 - notify of a memory block allocation
- - ``kmemleak_alloc_percpu``	 - notify of a percpu memory block allocation
-+- ``kmemleak_vmalloc``		 - notify of a vmalloc() memory allocation
- - ``kmemleak_free``		 - notify of a memory block freeing
- - ``kmemleak_free_part``	 - notify of a partial memory block freeing
- - ``kmemleak_free_percpu``	 - notify of a percpu memory block freeing
-diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
-index 1c2a32829620..590343f6c1b1 100644
---- a/include/linux/kmemleak.h
-+++ b/include/linux/kmemleak.h
-@@ -22,6 +22,7 @@
- #define __KMEMLEAK_H
- 
- #include <linux/slab.h>
-+#include <linux/vmalloc.h>
- 
- #ifdef CONFIG_DEBUG_KMEMLEAK
- 
-@@ -30,6 +31,8 @@ extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
- 			   gfp_t gfp) __ref;
- extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
- 				  gfp_t gfp) __ref;
-+extern void kmemleak_vmalloc(const struct vm_struct *area, size_t size,
-+			     gfp_t gfp) __ref;
- extern void kmemleak_free(const void *ptr) __ref;
- extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
- extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
-@@ -81,6 +84,10 @@ static inline void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
- 					 gfp_t gfp)
- {
- }
-+static inline void kmemleak_vmalloc(const struct vm_struct *area, size_t size,
-+				    gfp_t gfp)
-+{
-+}
- static inline void kmemleak_free(const void *ptr)
- {
- }
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 266482f460c2..7780cd83a495 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -159,6 +159,8 @@ struct kmemleak_object {
- 	atomic_t use_count;
- 	unsigned long pointer;
- 	size_t size;
-+	/* pass surplus references to this pointer */
-+	unsigned long excess_ref;
- 	/* minimum number of a pointers found before it is considered leak */
- 	int min_count;
- 	/* the total number of pointers found pointing to this object */
-@@ -253,7 +255,8 @@ enum {
- 	KMEMLEAK_NOT_LEAK,
- 	KMEMLEAK_IGNORE,
- 	KMEMLEAK_SCAN_AREA,
--	KMEMLEAK_NO_SCAN
-+	KMEMLEAK_NO_SCAN,
-+	KMEMLEAK_SET_EXCESS_REF
- };
- 
- /*
-@@ -264,7 +267,10 @@ struct early_log {
- 	int op_type;			/* kmemleak operation type */
- 	int min_count;			/* minimum reference count */
- 	const void *ptr;		/* allocated/freed memory block */
--	size_t size;			/* memory block size */
-+	union {
-+		size_t size;		/* memory block size */
-+		unsigned long excess_ref; /* surplus reference passing */
-+	};
- 	unsigned long trace[MAX_TRACE];	/* stack trace */
- 	unsigned int trace_len;		/* stack trace length */
- };
-@@ -562,6 +568,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	object->flags = OBJECT_ALLOCATED;
- 	object->pointer = ptr;
- 	object->size = size;
-+	object->excess_ref = 0;
- 	object->min_count = min_count;
- 	object->count = 0;			/* white color initially */
- 	object->jiffies = jiffies;
-@@ -795,6 +802,30 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
- }
- 
- /*
-+ * Any surplus references (object already gray) to 'ptr' are passed to
-+ * 'excess_ref'. This is used in the vmalloc() case where a pointer to
-+ * vm_struct may be used as an alternative reference to the vmalloc'ed object
-+ * (see free_thread_stack()).
-+ */
-+static void object_set_excess_ref(unsigned long ptr, unsigned long excess_ref)
-+{
-+	unsigned long flags;
-+	struct kmemleak_object *object;
-+
-+	object = find_and_get_object(ptr, 0);
-+	if (!object) {
-+		kmemleak_warn("Setting excess_ref on unknown object at 0x%08lx\n",
-+			      ptr);
-+		return;
-+	}
-+
-+	spin_lock_irqsave(&object->lock, flags);
-+	object->excess_ref = excess_ref;
-+	spin_unlock_irqrestore(&object->lock, flags);
-+	put_object(object);
-+}
-+
-+/*
-  * Set the OBJECT_NO_SCAN flag for the object corresponding to the give
-  * pointer. Such object will not be scanned by kmemleak but references to it
-  * are searched.
-@@ -908,7 +939,7 @@ static void early_alloc_percpu(struct early_log *log)
-  * @gfp:	kmalloc() flags used for kmemleak internal memory allocations
-  *
-  * This function is called from the kernel allocators when a new object
-- * (memory block) is allocated (kmem_cache_alloc, kmalloc, vmalloc etc.).
-+ * (memory block) is allocated (kmem_cache_alloc, kmalloc etc.).
-  */
- void __ref kmemleak_alloc(const void *ptr, size_t size, int min_count,
- 			  gfp_t gfp)
-@@ -952,6 +983,36 @@ void __ref kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
- EXPORT_SYMBOL_GPL(kmemleak_alloc_percpu);
- 
- /**
-+ * kmemleak_vmalloc - register a newly vmalloc'ed object
-+ * @area:	pointer to vm_struct
-+ * @size:	size of the object
-+ * @gfp:	__vmalloc() flags used for kmemleak internal memory allocations
-+ *
-+ * This function is called from the vmalloc() kernel allocator when a new
-+ * object (memory block) is allocated.
-+ */
-+void __ref kmemleak_vmalloc(const struct vm_struct *area, size_t size, gfp_t gfp)
-+{
-+	pr_debug("%s(0x%p, %zu)\n", __func__, area, size);
-+
-+	/*
-+	 * A min_count = 2 is needed because vm_struct contains a reference to
-+	 * the virtual address of the vmalloc'ed block.
-+	 */
-+	if (kmemleak_enabled) {
-+		create_object((unsigned long)area->addr, size, 2, gfp);
-+		object_set_excess_ref((unsigned long)area,
-+				      (unsigned long)area->addr);
-+	} else if (kmemleak_early_log) {
-+		log_early(KMEMLEAK_ALLOC, area->addr, size, 2);
-+		/* reusing early_log.size for storing area->addr */
-+		log_early(KMEMLEAK_SET_EXCESS_REF,
-+			  area, (unsigned long)area->addr, 0);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(kmemleak_vmalloc);
-+
-+/**
-  * kmemleak_free - unregister a previously registered object
-  * @ptr:	pointer to beginning of the object
-  *
-@@ -1248,6 +1309,7 @@ static void scan_block(void *_start, void *_end,
- 	for (ptr = start; ptr < end; ptr++) {
- 		struct kmemleak_object *object;
- 		unsigned long pointer;
-+		unsigned long excess_ref;
- 
- 		if (scan_should_stop())
- 			break;
-@@ -1283,8 +1345,27 @@ static void scan_block(void *_start, void *_end,
- 		 * enclosed by scan_mutex.
- 		 */
- 		spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
--		update_refs(object);
-+		/* only pass surplus references (object already gray) */
-+		if (color_gray(object)) {
-+			excess_ref = object->excess_ref;
-+			/* no need for update_refs() if object already gray */
-+		} else {
-+			excess_ref = 0;
-+			update_refs(object);
-+		}
- 		spin_unlock(&object->lock);
-+
-+		if (excess_ref) {
-+			object = lookup_object(excess_ref, 0);
-+			if (!object)
-+				continue;
-+			if (object == scanned)
-+				/* circular reference, ignore */
-+				continue;
-+			spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
-+			update_refs(object);
-+			spin_unlock(&object->lock);
-+		}
- 	}
- 	read_unlock_irqrestore(&kmemleak_lock, flags);
- }
-@@ -1987,6 +2068,10 @@ void __init kmemleak_init(void)
- 		case KMEMLEAK_NO_SCAN:
- 			kmemleak_no_scan(log->ptr);
- 			break;
-+		case KMEMLEAK_SET_EXCESS_REF:
-+			object_set_excess_ref((unsigned long)log->ptr,
-+					      log->excess_ref);
-+			break;
- 		default:
- 			kmemleak_warn("Unknown early log operation: %d\n",
- 				      log->op_type);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 34a1c3e46ed7..b805cc5ecca0 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1759,12 +1759,7 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	 */
- 	clear_vm_uninitialized_flag(area);
- 
--	/*
--	 * A ref_count = 2 is needed because vm_struct allocated in
--	 * __get_vm_area_node() contains a reference to the virtual address of
--	 * the vmalloc'ed block.
--	 */
--	kmemleak_alloc(addr, real_size, 2, gfp_mask);
-+	kmemleak_vmalloc(area, size, gfp_mask);
- 
- 	return addr;
- 
+2. pswpin also counts swapins from readahead --- which however I think
+we have turned off (at least I hope so, since readahead isn't useful
+with zram, in fact maybe zram should log a warning when readahead is
+greater than 0 because I think that's the default).
+
+Incidentally, I understand anon and file faults, but what's a shmem fault?
+
+Thanks!
+
+
+
+
+
+On Wed, May 24, 2017 at 5:19 PM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi Luigi,
+>
+> On Wed, May 24, 2017 at 12:41:26PM -0700, Luigi Semenzato wrote:
+>> VM event counters are added to keep track of anonymous
+>> vs. file vs. shmem page faults.  They are: pgmajfault_a,
+>> pgmajfault_f and pgmajfault_s.  These are useful to
+>> analyze system performance, particularly when the cost
+>> of a fault for a file page is very different from that
+>> of an anonymous page, as would happen, for instance, in
+>> the presence of zram.
+>
+> Yeb, it's useful with zram and the way I have used is
+>
+>         PGMAJFAULT - PSWPIN
+>
+> With that, I can get how many portion in majfault stems from
+> file-backed pages while others are from swap.
+>
+> Can't it meet for your requirement?
+>
+> Thanks.
+>
+>>
+>> The PGMAJFAULT counter is no longer directly maintained.
+>> Instead the three new counters are added whenever the
+>> total count is needed.
+>>
+>> Signed-off-by: Luigi Semenzato <semenzato@google.com>
+>> ---
+>>  arch/s390/appldata/appldata_mem.c | 9 ++++++++-
+>>  drivers/virtio/virtio_balloon.c   | 5 ++++-
+>>  fs/dax.c                          | 5 +++--
+>>  fs/ncpfs/mmap.c                   | 4 ++--
+>>  include/linux/vm_event_item.h     | 1 +
+>>  mm/filemap.c                      | 4 ++--
+>>  mm/memcontrol.c                   | 7 ++++++-
+>>  mm/memory.c                       | 4 ++--
+>>  mm/shmem.c                        | 4 ++--
+>>  mm/vmstat.c                       | 5 +++++
+>>  10 files changed, 35 insertions(+), 13 deletions(-)
+>>
+>> diff --git a/arch/s390/appldata/appldata_mem.c b/arch/s390/appldata/appldata_mem.c
+>> index 598df5708501..adb8b6412ffa 100644
+>> --- a/arch/s390/appldata/appldata_mem.c
+>> +++ b/arch/s390/appldata/appldata_mem.c
+>> @@ -62,6 +62,9 @@ struct appldata_mem_data {
+>>       u64 pgalloc;            /* page allocations */
+>>       u64 pgfault;            /* page faults (major+minor) */
+>>       u64 pgmajfault;         /* page faults (major only) */
+>> +     u64 pgmajfault_s;       /* shmem page faults (major only) */
+>> +     u64 pgmajfault_a;       /* anonymous page faults (major only) */
+>> +     u64 pgmajfault_f;       /* file page faults (major only) */
+>>  // <-- New in 2.6
+>>
+>>  } __packed;
+>> @@ -93,7 +96,11 @@ static void appldata_get_mem_data(void *data)
+>>       mem_data->pgalloc    = ev[PGALLOC_NORMAL];
+>>       mem_data->pgalloc    += ev[PGALLOC_DMA];
+>>       mem_data->pgfault    = ev[PGFAULT];
+>> -     mem_data->pgmajfault = ev[PGMAJFAULT];
+>> +     mem_data->pgmajfault =
+>> +             ev[PGMAJFAULT_S] + ev[PGMAJFAULT_A] + ev[PGMAJFAULT_F];
+>> +     mem_data->pgmajfault_s = ev[PGMAJFAULT_S];
+>> +     mem_data->pgmajfault_a = ev[PGMAJFAULT_A];
+>> +     mem_data->pgmajfault_f = ev[PGMAJFAULT_F];
+>>
+>>       si_meminfo(&val);
+>>       mem_data->sharedram = val.sharedram;
+>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+>> index 408c174ef0d5..ed7100645d25 100644
+>> --- a/drivers/virtio/virtio_balloon.c
+>> +++ b/drivers/virtio/virtio_balloon.c
+>> @@ -259,7 +259,10 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
+>>                               pages_to_bytes(events[PSWPIN]));
+>>       update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_OUT,
+>>                               pages_to_bytes(events[PSWPOUT]));
+>> -     update_stat(vb, idx++, VIRTIO_BALLOON_S_MAJFLT, events[PGMAJFAULT]);
+>> +     update_stat(vb, idx++, VIRTIO_BALLOON_S_MAJFLT,
+>> +                 events[PGMAJFAULT_S] +
+>> +                 events[PGMAJFAULT_A] +
+>> +                 events[PGMAJFAULT_F]);
+>>       update_stat(vb, idx++, VIRTIO_BALLOON_S_MINFLT, events[PGFAULT]);
+>>  #endif
+>>       update_stat(vb, idx++, VIRTIO_BALLOON_S_MEMFREE,
+>> diff --git a/fs/dax.c b/fs/dax.c
+>> index c22eaf162f95..3c92f2af0514 100644
+>> --- a/fs/dax.c
+>> +++ b/fs/dax.c
+>> @@ -1200,8 +1200,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+>>       switch (iomap.type) {
+>>       case IOMAP_MAPPED:
+>>               if (iomap.flags & IOMAP_F_NEW) {
+>> -                     count_vm_event(PGMAJFAULT);
+>> -                     mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
+>> +                     count_vm_event(PGMAJFAULT_F);
+>> +                     mem_cgroup_count_vm_event(vmf->vma->vm_mm,
+>> +                                               PGMAJFAULT_F);
+>>                       major = VM_FAULT_MAJOR;
+>>               }
+>>               error = dax_insert_mapping(mapping, iomap.bdev, iomap.dax_dev,
+>> diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+>> index 0c3905e0542e..ae04b9d86288 100644
+>> --- a/fs/ncpfs/mmap.c
+>> +++ b/fs/ncpfs/mmap.c
+>> @@ -88,8 +88,8 @@ static int ncp_file_mmap_fault(struct vm_fault *vmf)
+>>        * fetches from the network, here the analogue of disk.
+>>        * -- nyc
+>>        */
+>> -     count_vm_event(PGMAJFAULT);
+>> -     mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
+>> +     count_vm_event(PGMAJFAULT_F);
+>> +     mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT_F);
+>>       return VM_FAULT_MAJOR;
+>>  }
+>>
+>> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+>> index d84ae90ccd5c..2d2df45d4520 100644
+>> --- a/include/linux/vm_event_item.h
+>> +++ b/include/linux/vm_event_item.h
+>> @@ -27,6 +27,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>>               FOR_ALL_ZONES(PGSCAN_SKIP),
+>>               PGFREE, PGACTIVATE, PGDEACTIVATE, PGLAZYFREE,
+>>               PGFAULT, PGMAJFAULT,
+>> +             PGMAJFAULT_S, PGMAJFAULT_A, PGMAJFAULT_F,
+>>               PGLAZYFREED,
+>>               PGREFILL,
+>>               PGSTEAL_KSWAPD,
+>> diff --git a/mm/filemap.c b/mm/filemap.c
+>> index 6f1be573a5e6..d2b187b648b3 100644
+>> --- a/mm/filemap.c
+>> +++ b/mm/filemap.c
+>> @@ -2225,8 +2225,8 @@ int filemap_fault(struct vm_fault *vmf)
+>>       } else if (!page) {
+>>               /* No page in the page cache at all */
+>>               do_sync_mmap_readahead(vmf->vma, ra, file, offset);
+>> -             count_vm_event(PGMAJFAULT);
+>> -             mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT);
+>> +             count_vm_event(PGMAJFAULT_F);
+>> +             mem_cgroup_count_vm_event(vmf->vma->vm_mm, PGMAJFAULT_F);
+>>               ret = VM_FAULT_MAJOR;
+>>  retry_find:
+>>               page = find_get_page(mapping, offset);
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 94172089f52f..045361f2b8fa 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -3122,6 +3122,8 @@ unsigned int memcg1_events[] = {
+>>       PGPGOUT,
+>>       PGFAULT,
+>>       PGMAJFAULT,
+>> +     PGMAJFAULT_A,
+>> +     PGMAJFAULT_F,
+>>  };
+>>
+>>  static const char *const memcg1_event_names[] = {
+>> @@ -3129,6 +3131,8 @@ static const char *const memcg1_event_names[] = {
+>>       "pgpgout",
+>>       "pgfault",
+>>       "pgmajfault",
+>> +     "pgmajfault_a",
+>> +     "pgmajfault_f",
+>>  };
+>>
+>>  static int memcg_stat_show(struct seq_file *m, void *v)
+>> @@ -5229,7 +5233,8 @@ static int memory_stat_show(struct seq_file *m, void *v)
+>>       /* Accumulated memory events */
+>>
+>>       seq_printf(m, "pgfault %lu\n", events[PGFAULT]);
+>> -     seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
+>> +     seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT_S] +
+>> +                     events[PGMAJFAULT_A] + events[PGMAJFAULT_F]);
+>>
+>>       seq_printf(m, "workingset_refault %lu\n",
+>>                  stat[WORKINGSET_REFAULT]);
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 6ff5d729ded0..2c2b7b3ffe7f 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -2718,8 +2718,8 @@ int do_swap_page(struct vm_fault *vmf)
+>>
+>>               /* Had to read the page from swap area: Major fault */
+>>               ret = VM_FAULT_MAJOR;
+>> -             count_vm_event(PGMAJFAULT);
+>> -             mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+>> +             count_vm_event(PGMAJFAULT_A);
+>> +             mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT_A);
+>>       } else if (PageHWPoison(page)) {
+>>               /*
+>>                * hwpoisoned dirty swapcache pages are kept for killing
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index e67d6ba4e98e..5eea045575c4 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -1644,9 +1644,9 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+>>                       /* Or update major stats only when swapin succeeds?? */
+>>                       if (fault_type) {
+>>                               *fault_type |= VM_FAULT_MAJOR;
+>> -                             count_vm_event(PGMAJFAULT);
+>> +                             count_vm_event(PGMAJFAULT_S);
+>>                               mem_cgroup_count_vm_event(charge_mm,
+>> -                                                       PGMAJFAULT);
+>> +                                                       PGMAJFAULT_S);
+>>                       }
+>>                       /* Here we actually start the io */
+>>                       page = shmem_swapin(swap, gfp, info, index);
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 76f73670200a..741bb14761cd 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -995,6 +995,9 @@ const char * const vmstat_text[] = {
+>>
+>>       "pgfault",
+>>       "pgmajfault",
+>> +     "pgmajfault_s",
+>> +     "pgmajfault_a",
+>> +     "pgmajfault_f",
+>>       "pglazyfreed",
+>>
+>>       "pgrefill",
+>> @@ -1511,6 +1514,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+>>       all_vm_events(v);
+>>       v[PGPGIN] /= 2;         /* sectors -> kbytes */
+>>       v[PGPGOUT] /= 2;
+>> +     /* Add up page faults */
+>> +     v[PGMAJFAULT] = v[PGMAJFAULT_S] + v[PGMAJFAULT_A] + v[PGMAJFAULT_F];
+>>  #endif
+>>       return (unsigned long *)m->private + *pos;
+>>  }
+>> --
+>> 2.13.0.219.gdb65acc882-goog
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
