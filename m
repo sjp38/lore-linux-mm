@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B796B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 04:43:02 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v195so80188089qka.1
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 01:43:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s129si2444254qkc.31.2017.05.25.01.43.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 897966B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 04:44:44 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id c1so31291725lfe.7
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 01:44:44 -0700 (PDT)
+Received: from forwardcorp1h.cmail.yandex.net (forwardcorp1h.cmail.yandex.net. [2a02:6b8:0:f35::e5])
+        by mx.google.com with ESMTPS id o204si9065892lff.304.2017.05.25.01.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 01:43:01 -0700 (PDT)
-Date: Thu, 25 May 2017 16:42:44 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH -mm 06/13] block: Increase BIO_MAX_PAGES to PMD size if
- THP_SWAP enabled
-Message-ID: <20170525084238.GA15737@ming.t460p>
-References: <20170525064635.2832-1-ying.huang@intel.com>
- <20170525064635.2832-7-ying.huang@intel.com>
+        Thu, 25 May 2017 01:44:42 -0700 (PDT)
+Subject: Re: [PATCH] mm/oom_kill: count global and memory cgroup oom kills
+References: <149520375057.74196.2843113275800730971.stgit@buzz>
+ <CALo0P1123MROxgveCdX6YFpWDwG4qrAyHu3Xd1F+ckaFBnF4dQ@mail.gmail.com>
+ <ecd4a7ea-06c0-f549-a1bf-6d2d3c0af719@yandex-team.ru>
+ <alpine.DEB.2.10.1705230044590.50796@chino.kir.corp.google.com>
+ <0f67046d-cdf6-1264-26f6-11c82978c621@yandex-team.ru>
+ <alpine.DEB.2.10.1705241338120.49680@chino.kir.corp.google.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <a81cd5a2-3bbf-aeac-028f-d73218f17f66@yandex-team.ru>
+Date: Thu, 25 May 2017 11:44:41 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170525064635.2832-7-ying.huang@intel.com>
+In-Reply-To: <alpine.DEB.2.10.1705241338120.49680@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Jens Axboe <axboe@kernel.dk>, Ming Lei <tom.leiming@gmail.com>, Shaohua Li <shli@fb.com>, linux-block@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Guschin <guroan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, hannes@cmpxchg.org
 
-On Thu, May 25, 2017 at 02:46:28PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+
+
+On 24.05.2017 23:43, David Rientjes wrote:
+> On Tue, 23 May 2017, Konstantin Khlebnikov wrote:
 > 
-> In this patch, BIO_MAX_PAGES is changed from 256 to HPAGE_PMD_NR if
-> CONFIG_THP_SWAP is enabled and HPAGE_PMD_NR > 256.  This is to support
-> THP (Transparent Huge Page) swap optimization.  Where the THP will be
-> write to disk as a whole instead of HPAGE_PMD_NR normal pages to batch
-> the various operations during swap.  And the page is likely to be
-> written to disk to free memory when system memory goes really low, the
-> memory pool need to be used to avoid deadlock.
+>> This is worth addition. Let's call it "oom_victim" for short.
+>>
+>> It allows to locate leaky part if they are spread over sub-containers within
+>> common limit.
+>> But doesn't tell which limit caused this kill. For hierarchical limits this
+>> might be not so easy.
+>>
+>> I think oom_kill better suits for automatic actions - restart affected
+>> hierarchy, increase limits, e.t.c.
+>> But oom_victim allows to determine container affected by global oom killer.
+>>
+>> So, probably it's worth to merge them together and increment oom_kill by
+>> global killer for victim memcg:
+>>
+>> 	if (!is_memcg_oom(oc)) {
+>> 		count_vm_event(OOM_KILL);
+>> 		mem_cgroup_count_vm_event(mm, OOM_KILL);
+>> 	} else
+>> 		mem_cgroup_event(oc->memcg, OOM_KILL);
+>>
 > 
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Ming Lei <tom.leiming@gmail.com>
-> Cc: Shaohua Li <shli@fb.com>
-> Cc: linux-block@vger.kernel.org
-> ---
->  include/linux/bio.h | 8 ++++++++
->  1 file changed, 8 insertions(+)
+> Our complete solution is that we have a complementary
+> memory.oom_kill_control that allows users to register for eventfd(2)
+> notification when the kernel oom killer kills a victim, but this is
+> because we have had complete support for userspace oom handling for years.
+> When read, it exports three classes of information:
 > 
-> diff --git a/include/linux/bio.h b/include/linux/bio.h
-> index d1b04b0e99cf..314796486507 100644
-> --- a/include/linux/bio.h
-> +++ b/include/linux/bio.h
-> @@ -38,7 +38,15 @@
->  #define BIO_BUG_ON
->  #endif
->  
-> +#ifdef CONFIG_THP_SWAP
-> +#if HPAGE_PMD_NR > 256
-> +#define BIO_MAX_PAGES		HPAGE_PMD_NR
-> +#else
->  #define BIO_MAX_PAGES		256
-> +#endif
-> +#else
-> +#define BIO_MAX_PAGES		256
-> +#endif
->  
->  #define bio_prio(bio)			(bio)->bi_ioprio
->  #define bio_set_prio(bio, prio)		((bio)->bi_ioprio = prio)
+>   - the "total" (hierarchical) and "local" (memcg specific) number of oom
+>     kills for system oom conditions (overcommit),
+> 
+>   - the "total" and "local" number of oom kills for memcg oom conditions,
+>     and
+>   
+>   - the total number of processes in the hierarchy where an oom victim was
+>     reaped successfully and unsuccessfully.
+> 
+> One benefit of this is that it prevents us from having to scrape the
+> kernel log for oom events which has been troublesome in the past, but
+> userspace can easily do so when the eventfd triggers for the kill
+> notification.
+> 
 
-Last time we discussed we should use multipage bvec for this usage.
+Ok. I've decided to simplify this thing and count kills to cgroup where task lived.
+Like page faults. And show in vmstat total count of any kind of kills.
 
-I will rebase the last post on v4.12-rc and kick if off again since
-the raid cleanup is just done on v4.11.
-
-	http://marc.info/?t=148453679000002&r=1&w=2
-
-Thanks,
-Ming
+Simply:
+	count_vm_event(OOM_KILL);
+	mem_cgroup_count_vm_event(mm, OOM_KILL);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
