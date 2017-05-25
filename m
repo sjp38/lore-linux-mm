@@ -1,134 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 448866B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 06:18:11 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c10so224109085pfg.10
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 03:18:11 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u143si26457124pgb.67.2017.05.25.03.18.09
-        for <linux-mm@kvack.org>;
-        Thu, 25 May 2017 03:18:10 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH] mm/migrate: Fix ref-count handling when !hugepage_migration_supported()
-References: <20170524154728.2492-1-punit.agrawal@arm.com>
-	<20170525015927.GA26520@hori1.linux.bs1.fc.nec.co.jp>
-Date: Thu, 25 May 2017 11:18:06 +0100
-In-Reply-To: <20170525015927.GA26520@hori1.linux.bs1.fc.nec.co.jp> (Naoya
-	Horiguchi's message of "Thu, 25 May 2017 01:59:28 +0000")
-Message-ID: <87tw49dyu9.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3A36B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 06:28:36 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id o139so26329168lfe.15
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 03:28:36 -0700 (PDT)
+Received: from forwardcorp1m.cmail.yandex.net (forwardcorp1m.cmail.yandex.net. [2a02:6b8:b030::ee])
+        by mx.google.com with ESMTPS id r10si4577491ljd.156.2017.05.25.03.28.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 May 2017 03:28:34 -0700 (PDT)
+Subject: [PATCH v2] mm/oom_kill: count global and memory cgroup oom kills
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Thu, 25 May 2017 13:28:30 +0300
+Message-ID: <149570810989.203600.9492483715840752937.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "manoj.iyer@arm.com" <manoj.iyer@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "tbaicar@codeaurora.org" <tbaicar@codeaurora.org>, "timur@qti.qualcomm.com" <timur@qti.qualcomm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>
 
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+Show count of oom killer invocations in /proc/vmstat and count of
+processes killed in memory cgroup in knob "memory.events"
+(in memory.oom_control for v1 cgroup).
 
-> On Wed, May 24, 2017 at 04:47:28PM +0100, Punit Agrawal wrote:
->> On failing to migrate a page, soft_offline_huge_page() performs the
->> necessary update to the hugepage ref-count. When
->> !hugepage_migration_supported() , unmap_and_move_hugepage() also
->> decrements the page ref-count for the hugepage. The combined behaviour
->> leaves the ref-count in an inconsistent state.
->> 
->> This leads to soft lockups when running the overcommitted hugepage test
->> from mce-tests suite.
->> 
->> Soft offlining pfn 0x83ed600 at process virtual address 0x400000000000
->> soft offline: 0x83ed600: migration failed 1, type
->> 1fffc00000008008 (uptodate|head)
->> INFO: rcu_preempt detected stalls on CPUs/tasks:
->>  Tasks blocked on level-0 rcu_node (CPUs 0-7): P2715
->>   (detected by 7, t=5254 jiffies, g=963, c=962, q=321)
->>   thugetlb_overco R  running task        0  2715   2685 0x00000008
->>   Call trace:
->>   [<ffff000008089f90>] dump_backtrace+0x0/0x268
->>   [<ffff00000808a2d4>] show_stack+0x24/0x30
->>   [<ffff000008100d34>] sched_show_task+0x134/0x180
->>   [<ffff0000081c90fc>] rcu_print_detail_task_stall_rnp+0x54/0x7c
->>   [<ffff00000813cfd4>] rcu_check_callbacks+0xa74/0xb08
->>   [<ffff000008143a3c>] update_process_times+0x34/0x60
->>   [<ffff0000081550e8>] tick_sched_handle.isra.7+0x38/0x70
->>   [<ffff00000815516c>] tick_sched_timer+0x4c/0x98
->>   [<ffff0000081442e0>] __hrtimer_run_queues+0xc0/0x300
->>   [<ffff000008144fa4>] hrtimer_interrupt+0xac/0x228
->>   [<ffff0000089a56d4>] arch_timer_handler_phys+0x3c/0x50
->>   [<ffff00000812f1bc>] handle_percpu_devid_irq+0x8c/0x290
->>   [<ffff0000081297fc>] generic_handle_irq+0x34/0x50
->>   [<ffff000008129f00>] __handle_domain_irq+0x68/0xc0
->>   [<ffff0000080816b4>] gic_handle_irq+0x5c/0xb0
->> 
->> Fix this by dropping the ref-count decrement in
->> unmap_and_move_hugepage() when !hugepage_migration_supported().
->> 
->> Fixes: 32665f2bbfed ("mm/migrate: correct failure handling if !hugepage_migration_support()")
->> Reported-by: Manoj Iyer <manoj.iyer@canonical.com>
->> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
->> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> Cc: Christoph Lameter <cl@linux.com>
->> 
->> --
->> Hi Andrew,
->> 
->> We ran into this bug when working towards enabling memory corruption
->> on arm64. The patch was tested on an arm64 platform running v4.12-rc2
->> with the series to enable memory corruption handling[0].
->> 
->> Please consider merging as a fix for the 4.12 release.
->> 
->> Thanks,
->> Punit
->> 
->> [0] https://www.spinics.net/lists/arm-kernel/msg581657.html
->> ---
->>  mm/migrate.c | 4 +---
->>  1 file changed, 1 insertion(+), 3 deletions(-)
->> 
->> diff --git a/mm/migrate.c b/mm/migrate.c
->> index 89a0a1707f4c..187abd1526df 100644
->> --- a/mm/migrate.c
->> +++ b/mm/migrate.c
->> @@ -1201,10 +1201,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->>  	 * tables or check whether the hugepage is pmd-based or not before
->>  	 * kicking migration.
->>  	 */
->> -	if (!hugepage_migration_supported(page_hstate(hpage))) {
->> -		putback_active_hugepage(hpage);
->
-> Thank you for reporting and suggestion, Punit, Manoj.
->
-> Simply dropping this putback_active_hugepage() may resume the failure
-> counting issue addressed in 32665f2bbfed, so I would recommend to call
-> putback_movable_pages() in failure path in soft_offline_huge_page().
->
-> @@ -1600,7 +1600,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  		 * only one hugepage pointed to by hpage, so we need not
->  		 * run through the pagelist here.
->  		 */
-> -		putback_active_hugepage(hpage);
-> +		if (!list_empty(&pagelist))
-> +			putback_movable_pages(&pagelist);
->  		if (ret > 0)
->  			ret = -EIO;
->  	} else {
->
-> Could you check this works for you?
+Also describe difference between "oom" and "oom_kill" in memory
+cgroup documentation. Currently oom in memory cgroup kills tasks
+iff shortage has happened inside page fault.
 
-Using this sequence works as well. I'll send out an update shortly.
+These counters helps in monitoring oom kills - for now
+the only way is grepping for magic words in kernel log.
 
-Thanks
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
->
-> Thanks,
-> Naoya Horiguchi
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
+
+v1: https://lkml.kernel.org/r/149520375057.74196.2843113275800730971.stgit@buzz
+
+v2:
+* count all oom kills in /proc/vmstat
+* update counter for cgroup which tasks belongs to
+---
+ Documentation/cgroup-v2.txt   |   20 ++++++++++++++++----
+ include/linux/memcontrol.h    |    5 ++++-
+ include/linux/vm_event_item.h |    1 +
+ mm/memcontrol.c               |    2 ++
+ mm/oom_kill.c                 |    5 +++++
+ mm/vmstat.c                   |    1 +
+ 6 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+index dc5e2dcdbef4..738b1c7023ad 100644
+--- a/Documentation/cgroup-v2.txt
++++ b/Documentation/cgroup-v2.txt
+@@ -826,13 +826,25 @@ PAGE_SIZE multiple when read back.
+ 
+ 		The number of times the cgroup's memory usage was
+ 		about to go over the max boundary.  If direct reclaim
+-		fails to bring it down, the OOM killer is invoked.
++		fails to bring it down, the cgroup goes to OOM state.
+ 
+ 	  oom
+ 
+-		The number of times the OOM killer has been invoked in
+-		the cgroup.  This may not exactly match the number of
+-		processes killed but should generally be close.
++		The number of time the cgroup's memory usage was
++		reached the limit and allocation was about to fail.
++
++		Depending on context result could be invocation of OOM
++		killer and retrying allocation or failing alloction.
++
++		Failed allocation in its turn could be returned into
++		userspace as -ENOMEM or siletly ignored in cases like
++		disk readahead.	 For now OOM in memory cgroup kills
++		tasks iff shortage has happened inside page fault.
++
++	  oom_kill
++
++		The number of processes belonging to this cgroup
++		killed by any kind of OOM killer.
+ 
+   memory.stat
+ 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 899949bbb2f9..42296f7001da 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -556,8 +556,11 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+ 
+ 	rcu_read_lock();
+ 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+-	if (likely(memcg))
++	if (likely(memcg)) {
+ 		this_cpu_inc(memcg->stat->events[idx]);
++		if (idx == OOM_KILL)
++			cgroup_file_notify(&memcg->events_file);
++	}
+ 	rcu_read_unlock();
+ }
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index d84ae90ccd5c..1707e0a7d943 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -41,6 +41,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		PAGEOUTRUN, PGROTATED,
+ 		DROP_PAGECACHE, DROP_SLAB,
++		OOM_KILL,
+ #ifdef CONFIG_NUMA_BALANCING
+ 		NUMA_PTE_UPDATES,
+ 		NUMA_HUGE_PTE_UPDATES,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 94172089f52f..7011ebf2b90e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3574,6 +3574,7 @@ static int mem_cgroup_oom_control_read(struct seq_file *sf, void *v)
+ 
+ 	seq_printf(sf, "oom_kill_disable %d\n", memcg->oom_kill_disable);
+ 	seq_printf(sf, "under_oom %d\n", (bool)memcg->under_oom);
++	seq_printf(sf, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
+ 	return 0;
+ }
+ 
+@@ -5165,6 +5166,7 @@ static int memory_events_show(struct seq_file *m, void *v)
+ 	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
+ 	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
+ 	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
++	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
+ 
+ 	return 0;
+ }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 04c9143a8625..dd30a045ef5b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	/* Get a reference to safely compare mm after task_unlock(victim) */
+ 	mm = victim->mm;
+ 	mmgrab(mm);
++
++	/* Raise event before sending signal: reaper must see this */
++	count_vm_event(OOM_KILL);
++	mem_cgroup_count_vm_event(mm, OOM_KILL);
++
+ 	/*
+ 	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+ 	 * the OOM victim from depleting the memory reserves from the user
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 76f73670200a..fe80b81a86e0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1018,6 +1018,7 @@ const char * const vmstat_text[] = {
+ 
+ 	"drop_pagecache",
+ 	"drop_slab",
++	"oom_kill",
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+ 	"numa_pte_updates",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
