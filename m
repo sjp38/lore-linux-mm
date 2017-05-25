@@ -1,33 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 07C136B0279
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 08:03:34 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i77so2669027wmh.10
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 05:03:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q33si24640879edd.116.2017.05.25.05.03.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B3E236B0279
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 08:15:56 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p74so226545445pfd.11
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 05:15:56 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id r67si28188061pfe.5.2017.05.25.05.15.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 May 2017 05:03:32 -0700 (PDT)
-Date: Thu, 25 May 2017 14:03:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/2] remove CONFIG_MOVABLE_NODE
-Message-ID: <20170525120330.GJ12721@dhcp22.suse.cz>
-References: <20170524122411.25212-1-mhocko@kernel.org>
+        Thu, 25 May 2017 05:15:55 -0700 (PDT)
+Message-ID: <5926CA8B.8080102@huawei.com>
+Date: Thu, 25 May 2017 20:14:03 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170524122411.25212-1-mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm: fix mlock incorrent event account
+References: <1495699179-7566-1-git-send-email-zhongjiang@huawei.com> <20170525081330.GG12721@dhcp22.suse.cz>
+In-Reply-To: <20170525081330.GG12721@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, qiuxishi@huawei.com, linux-mm@kvack.org
 
-JFYI, I am waiting for some additional feedback and if there is none I
-will re-send next week.
--- 
-Michal Hocko
-SUSE Labs
+On 2017/5/25 16:13, Michal Hocko wrote:
+> On Thu 25-05-17 15:59:39, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> when clear_page_mlock call, we had finish the page isolate successfully,
+>> but it fails to increase the UNEVICTABLE_PGMUNLOCKED account.
+>>
+>> The patch add the event account when successful page isolation.
+> Could you describe _what_ is the problem, how it can be _triggered_
+> and _how_ serious it is. Is it something that can be triggered from
+> userspace? The mlock code is really tricky and it is far from trivial
+> to see whether this is obviously right or a wrong assumption on your
+> side. Before people go and spend time reviewing it is fair to introduce
+> them to the problem.
+>
+> I believe this is not the first time I am giving you this feedback
+> so I would _really_ appreciated if you tried harder with the changelog.
+> It is much simpler to write a patch than review it in many cases.
+ HI, MIchal
+ 
+  I am sorry for that. I will keep in mind. 
+
+  As for the above issue. I get the conclusin after reviewing the code.
+  I will further prove wheher the issue is exist or not.
+
+  Thanks
+  zhongjiang
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  mm/mlock.c | 1 +
+>>  1 file changed, 1 insertion(+)
+>>
+>> diff --git a/mm/mlock.c b/mm/mlock.c
+>> index c483c5c..941930b 100644
+>> --- a/mm/mlock.c
+>> +++ b/mm/mlock.c
+>> @@ -64,6 +64,7 @@ void clear_page_mlock(struct page *page)
+>>  			    -hpage_nr_pages(page));
+>>  	count_vm_event(UNEVICTABLE_PGCLEARED);
+>>  	if (!isolate_lru_page(page)) {
+>> +		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+>>  		putback_lru_page(page);
+>>  	} else {
+>>  		/*
+>> -- 
+>> 1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
