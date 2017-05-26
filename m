@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5396B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 22:16:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id a10so1866221itg.3
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:16:06 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id x8si12237412itx.32.2017.05.25.19.16.04
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20B026B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 22:49:57 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id s58so81853721qtb.1
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:49:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q2si5015152qtb.231.2017.05.25.19.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 May 2017 19:16:06 -0700 (PDT)
-Message-ID: <59278B13.4070304@huawei.com>
-Date: Fri, 26 May 2017 09:55:31 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 May 2017 19:49:56 -0700 (PDT)
+Date: Fri, 26 May 2017 10:49:33 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
+ Encryption
+Message-ID: <20170526024933.GA3228@dhcp-128-65.nay.redhat.com>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
+ <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/vmalloc: a slight change of compare target in __insert_vmap_area()
-References: <20170524100347.8131-1-richard.weiyang@gmail.com> <592649CC.8090702@huawei.com> <20170526013639.GA10727@WeideMacBook-Pro.local>
-In-Reply-To: <20170526013639.GA10727@WeideMacBook-Pro.local>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, xlpang@redhat.com
 
-On 2017/5/26 9:36, Wei Yang wrote:
-> On Thu, May 25, 2017 at 11:04:44AM +0800, zhong jiang wrote:
->> I hit the overlap issue, but it  is hard to reproduced. if you think it is safe. and the situation
->> is not happen. AFAIC, it is no need to add the code.
->>
->> if you insist on the point. Maybe VM_WARN_ON is a choice.
->>
-> Do you have some log to show the overlap happens?
- Hi  wei
+Ccing Xunlei he is reading the patches see what need to be done for
+kdump. There should still be several places to handle to make kdump work.
 
-cat /proc/vmallocinfo
-0xf1580000-0xf1600000  524288 raw_dump_mem_write+0x10c/0x188 phys=8b901000 ioremap
-0xf1638000-0xf163a000    8192 mcss_pou_queue_init+0xa0/0x13c [mcss] phys=fc614000 ioremap
-0xf528e000-0xf5292000   16384 n_tty_open+0x10/0xd0 pages=3 vmalloc
-0xf5000000-0xf9001000 67112960 devm_ioremap+0x38/0x70 phys=40000000 ioremap
-0xfe001000-0xfe002000    4096 iotable_init+0x0/0xc phys=20001000 ioremap
-0xfe200000-0xfe201000    4096 iotable_init+0x0/0xc phys=1a000000 ioremap
-0xff100000-0xff101000    4096 iotable_init+0x0/0xc phys=2000a000 ioremap
+On 05/18/17 at 07:01pm, Borislav Petkov wrote:
+> On Tue, Apr 18, 2017 at 04:22:12PM -0500, Tom Lendacky wrote:
+> > Add sysfs support for SME so that user-space utilities (kdump, etc.) can
+> > determine if SME is active.
+> 
+> But why do user-space tools need to know that?
+> 
+> I mean, when we load the kdump kernel, we do it with the first kernel,
+> with the kexec_load() syscall, AFAICT. And that code does a lot of
+> things during that init, like machine_kexec_prepare()->init_pgtable() to
+> prepare the ident mapping of the second kernel, for example.
+> 
+> What I'm aiming at is that the first kernel knows *exactly* whether SME
+> is enabled or not and doesn't need to tell the second one through some
+> sysfs entries - it can do that during loading.
+> 
+> So I don't think we need any userspace things at all...
 
-I hit the above issue, but the log no more useful info. it just is found by accident.
-and it is hard to reprodeced. no more info can be supported for further investigation.
-therefore, it is no idea for me. 
+If kdump kernel can get the SME status from hardware register then this
+should be not necessary and this patch can be dropped.
 
 Thanks
-zhongjinag
-
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
