@@ -1,93 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 569D06B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 14:43:51 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y43so1598956wrc.11
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 11:43:51 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a24sor8749wra.34.2017.05.26.11.43.49
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FA296B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 15:10:08 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z142so5759694qkz.8
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 12:10:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q67si1539340qkb.106.2017.05.26.12.10.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 May 2017 11:43:49 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 May 2017 12:10:07 -0700 (PDT)
+Date: Fri, 26 May 2017 16:09:29 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+Message-ID: <20170526190926.GA8974@amt.cnet>
+References: <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org>
+ <20170512161915.GA4185@amt.cnet>
+ <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+ <20170515191531.GA31483@amt.cnet>
+ <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
+ <20170519143407.GA19282@amt.cnet>
+ <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
+ <20170519134934.0c298882@redhat.com>
+ <20170525193508.GA30252@amt.cnet>
+ <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20170526040622.GB17837@bbox>
-References: <20170524194126.18040-1-semenzato@chromium.org>
- <20170525001915.GA14999@bbox> <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
- <20170526040622.GB17837@bbox>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Fri, 26 May 2017 11:43:48 -0700
-Message-ID: <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: add counters for different page fault types
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-Many thanks Minchan.
+On Thu, May 25, 2017 at 10:24:46PM -0500, Christoph Lameter wrote:
+> On Thu, 25 May 2017, Marcelo Tosatti wrote:
+> 
+> > Argument? We're showing you the data that this is causing a latency
+> > problem for us.
+> 
+> Sorry I am not sure where the data shows a latency problem. There are
+> interrupts and scheduler ticks. But what does this have to do with vmstat?
+> 
+> Show me your dpdk code running and trace the tick on / off events  as well
+> as the vmstat invocations. Also show all system calls occurring on the cpu
+> that runs dpdk. That is necessary to see what triggers vmstat and how the
+> system reacts to the changes to the differentials.
 
-On Thu, May 25, 2017 at 9:06 PM, Minchan Kim <minchan@kernel.org> wrote:
+Sure, i can get that to you. The question remains: Are you arguing
+its not valid for a realtime application to use any system call
+which changes a vmstat counter? 
 
-> If it is swap cache hit, it's not a major fault which causes IO
-> so VM count it as minor fault, not major.
+Because if they are allowed, then its obvious something like
+this is needed.
 
-Cool---but see below.
+> Then please rerun the test by setting the vmstat_interval to 60.
+> 
+> Do another run with your modifications and show the difference.
 
-> Yub, I expected you guys used zram with readahead off so it shouldn't
-> be a big problem.
+Will do so.
 
-By the way, I was referring to page clustering.  We do this in sysctl.conf:
-
-# Disable swap read-ahead
-vm.page-cluster = 0
-
-I figured that the readahead from the disk device
-(/sys/block/zram0/queue/read_ahead_kb) is not meaningful---am I
-correct?
-
-These numbers are from a Chromebook with a few dozen Chrome tabs and a
-couple of Android apps, and pretty heavy use of zram.
-
-pgpgin 4688863
-pgpgout 442052
-pswpin 353675
-pswpout 1072021
-...
-pgfault 5564247
-pgmajfault 355758
-pgmajfault_s 6297
-pgmajfault_a 317645
-pgmajfault_f 31816
-pgmajfault_ax 8494
-pgmajfault_fx 13201
-
-where _s, _a, and _f are for shmem, anon, and file pages.
-(ax and fx are for the subset of executable pages---I was curious about that)
-
-So the numbers don't completely match:
-anon faults = 318,000
-swap ins = 354,000
-
-Any idea of what might explain the difference?
-
-> About auto resetting readahead with zram, I agree with you.
-> But there are some reasons I postpone the work. No want to discuss
-> it in this thread/moment. ;)
-
-Yes, I wasn't even thinking of auto-resetting, just log a warning.
-
->> Incidentally, I understand anon and file faults, but what's a shmem fault?
->
-> For me, it was out of my interest but if you want to count shmem fault,
-> maybe, we need to introdue new stat(e.g., PSWPIN_SHM) in shmem_swapin
-> but there are concrete reasons to justify in changelog. :)
-
-Actually mine was a simpler question---I have no idea what a major
-shmem fault is.   And for this experiment it's a relatively small
-number, but a similar order of magnitude to the (expensive) file
-faults, so I don't want to completely ignore it.
-
-Thanks again.
+> > > Something that crossed my mind was to add a new tunable to set
+> > > the vmstat_interval for each CPU, this way we could essentially
+> > > disable it to the CPUs where DPDK is running. What's the implications
+> > > of doing this besides not getting up to date stats in /proc/vmstat
+> > > (which I still have to confirm would be OK)? Can this break anything
+> > > in the kernel for example?
+> >
+> > Well, you get incorrect statistics.
+> 
+> The statistics are never completely accurate. You will get less accurate
+> statistics but they will be correct. The differentials may not be
+> reflected in the counts shown via /proc but there is a cap on how
+> inaccurate those can becore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
