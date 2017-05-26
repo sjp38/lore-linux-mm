@@ -1,163 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5832A6B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 11:30:48 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id t26so3760569qtg.12
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 08:30:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i5si1109982qke.210.2017.05.26.08.30.46
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B6CE66B02C3
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 11:47:47 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id q81so9742170itc.9
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 08:47:47 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0052.outbound.protection.outlook.com. [104.47.32.52])
+        by mx.google.com with ESMTPS id y143si2373588itb.47.2017.05.26.08.47.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 08:30:46 -0700 (PDT)
-Subject: Re: [PATCH v3 8/8] x86,kvm: Teach KVM's VMX code that CR3 isn't a
- constant
-References: <cover.1495759610.git.luto@kernel.org>
- <4ac698fc0c44a4eef2d05b472bd42389272e0c40.1495759610.git.luto@kernel.org>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <28e1b61e-c98f-18af-8cc7-92604b8f5e0c@redhat.com>
-Date: Fri, 26 May 2017 17:30:39 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 26 May 2017 08:47:46 -0700 (PDT)
+Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
+ Encryption
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
+ <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
+ <20170526024933.GA3228@dhcp-128-65.nay.redhat.com>
+ <5927B767.3010701@redhat.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <d05fa3d2-54d7-f317-b31f-3123f638dd25@amd.com>
+Date: Fri, 26 May 2017 10:47:39 -0500
 MIME-Version: 1.0
-In-Reply-To: <4ac698fc0c44a4eef2d05b472bd42389272e0c40.1495759610.git.luto@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <5927B767.3010701@redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: xlpang@redhat.com, Dave Young <dyoung@redhat.com>, Borislav Petkov <bp@alien8.de>
+Cc: linux-efi@vger.kernel.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, x86@kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, linux-arch@vger.kernel.org, kvm@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 
+On 5/26/2017 12:04 AM, Xunlei Pang wrote:
+> On 05/26/2017 at 10:49 AM, Dave Young wrote:
+>> Ccing Xunlei he is reading the patches see what need to be done for
+>> kdump. There should still be several places to handle to make kdump work.
+>>
+>> On 05/18/17 at 07:01pm, Borislav Petkov wrote:
+>>> On Tue, Apr 18, 2017 at 04:22:12PM -0500, Tom Lendacky wrote:
+>>>> Add sysfs support for SME so that user-space utilities (kdump, etc.) can
+>>>> determine if SME is active.
+>>> But why do user-space tools need to know that?
+>>>
+>>> I mean, when we load the kdump kernel, we do it with the first kernel,
+>>> with the kexec_load() syscall, AFAICT. And that code does a lot of
+>>> things during that init, like machine_kexec_prepare()->init_pgtable() to
+>>> prepare the ident mapping of the second kernel, for example.
+>>>
+>>> What I'm aiming at is that the first kernel knows *exactly* whether SME
+>>> is enabled or not and doesn't need to tell the second one through some
+>>> sysfs entries - it can do that during loading.
+>>>
+>>> So I don't think we need any userspace things at all...
+>> If kdump kernel can get the SME status from hardware register then this
+>> should be not necessary and this patch can be dropped.
+>
+> Yes, I also agree with dropping this one.
 
+Consensus is to drop, so it will be.
 
-On 26/05/2017 02:47, Andy Lutomirski wrote:
-> When PCID is enabled, CR3's PCID bits can change during context
-> switches, so KVM won't be able to treat CR3 as a per-mm constant any
-> more.
-> 
-> I structured this like the existing CR4 handling.  Under ordinary
-> circumstances (PCID disabled or if the current PCID and the value
-> that's already in the VMCS match), then we won't do an extra VMCS
-> write, and we'll never do an extra direct CR3 read.  The overhead
-> should be minimal.
-> 
-> I disallowed using the new helper in non-atomic context because
-> PCID support will cause CR3 to stop being constant in non-atomic
-> process context.
-> 
-> (Frankly, it also scares me a bit that KVM ever treated CR3 as
-> constant, but it looks like it was okay before.)
-> 
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-> Cc: kvm@vger.kernel.org
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Nadav Amit <namit@vmware.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Arjan van de Ven <arjan@linux.intel.com>
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/include/asm/mmu_context.h | 19 +++++++++++++++++++
->  arch/x86/kvm/vmx.c                 | 21 ++++++++++++++++++---
->  2 files changed, 37 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-> index 187c39470a0b..f20d7ea47095 100644
-> --- a/arch/x86/include/asm/mmu_context.h
-> +++ b/arch/x86/include/asm/mmu_context.h
-> @@ -266,4 +266,23 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
->  	return __pkru_allows_pkey(vma_pkey(vma), write);
->  }
->  
-> +
-> +/*
-> + * This can be used from process context to figure out what the value of
-> + * CR3 is without needing to do a (slow) read_cr3().
-> + *
-> + * It's intended to be used for code like KVM that sneakily changes CR3
-> + * and needs to restore it.  It needs to be used very carefully.
-> + */
-> +static inline unsigned long __get_current_cr3_fast(void)
-> +{
-> +	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
-> +
-> +	/* For now, be very restrictive about when this can be called. */
-> +	VM_WARN_ON(in_nmi() || !in_atomic());
-> +
-> +	VM_BUG_ON(cr3 != read_cr3());
-> +	return cr3;
-> +}
-> +
->  #endif /* _ASM_X86_MMU_CONTEXT_H */
-> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-> index 72f78396bc09..b7b36c9ffa3d 100644
-> --- a/arch/x86/kvm/vmx.c
-> +++ b/arch/x86/kvm/vmx.c
-> @@ -48,6 +48,7 @@
->  #include <asm/kexec.h>
->  #include <asm/apic.h>
->  #include <asm/irq_remapping.h>
-> +#include <asm/mmu_context.h>
->  
->  #include "trace.h"
->  #include "pmu.h"
-> @@ -596,6 +597,7 @@ struct vcpu_vmx {
->  		int           gs_ldt_reload_needed;
->  		int           fs_reload_needed;
->  		u64           msr_host_bndcfgs;
-> +		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
->  		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
->  	} host_state;
->  	struct {
-> @@ -5012,12 +5014,19 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
->  	u32 low32, high32;
->  	unsigned long tmpl;
->  	struct desc_ptr dt;
-> -	unsigned long cr0, cr4;
-> +	unsigned long cr0, cr3, cr4;
->  
->  	cr0 = read_cr0();
->  	WARN_ON(cr0 & X86_CR0_TS);
->  	vmcs_writel(HOST_CR0, cr0);  /* 22.2.3 */
-> -	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
-> +
-> +	/*
-> +	 * Save the most likely value for this task's CR3 in the VMCS.
-> +	 * We can't use __get_current_cr3_fast() because we're not atomic.
-> +	 */
-> +	cr3 = read_cr3();
-> +	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
-> +	vmx->host_state.vmcs_host_cr3 = cr3;
->  
->  	/* Save the most likely value for this task's CR4 in the VMCS. */
->  	cr4 = cr4_read_shadow();
-> @@ -8843,7 +8852,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
->  static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
->  {
->  	struct vcpu_vmx *vmx = to_vmx(vcpu);
-> -	unsigned long debugctlmsr, cr4;
-> +	unsigned long debugctlmsr, cr3, cr4;
->  
->  	/* Don't enter VMX if guest state is invalid, let the exit handler
->  	   start emulation until we arrive back to a valid state */
-> @@ -8865,6 +8874,12 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
->  	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
->  		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
->  
-> +	cr3 = __get_current_cr3_fast();
-> +	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
-> +		vmcs_writel(HOST_CR3, cr3);
-> +		vmx->host_state.vmcs_host_cr3 = cr3;
-> +	}
-> +
->  	cr4 = cr4_read_shadow();
->  	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
->  		vmcs_writel(HOST_CR4, cr4);
-> 
+Thanks,
+Tom
 
-Queued, thanks.  If anybody needs a topic branch, please holler.
-
-Paolo
+>
+> Regards,
+> Xunlei
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
