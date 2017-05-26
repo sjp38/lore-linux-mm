@@ -1,50 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC026B0292
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 03:22:05 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l1so2515509oib.4
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 00:22:05 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x85si12960254oia.309.2017.05.26.00.22.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 593386B0292
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 05:06:35 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b86so2697634wmi.6
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 02:06:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b34si971175edb.32.2017.05.26.02.06.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 00:22:04 -0700 (PDT)
-Received: from mail-ua0-f178.google.com (mail-ua0-f178.google.com [209.85.217.178])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4C057239EF
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 07:22:03 +0000 (UTC)
-Received: by mail-ua0-f178.google.com with SMTP id j17so1596931uag.3
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 00:22:03 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 May 2017 02:06:33 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: fix mlock incorrent event account
+References: <1495770854-13920-1-git-send-email-zhongjiang@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e30ea010-1cee-a1d9-9136-249372ea1640@suse.cz>
+Date: Fri, 26 May 2017 11:06:31 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170526041853.GA27213@la.guarana.org>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <CA+55aFznnXPDxYy5CN6qVU7QJ3Y9hbSf-s2-w0QkaNJuTspGcQ@mail.gmail.com>
- <CALCETrWACTFPDrpuZgoPqeRLU4ZooDjHOpQaNCFmCfVCHM-sHQ@mail.gmail.com> <20170526041853.GA27213@la.guarana.org>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 26 May 2017 00:21:41 -0700
-Message-ID: <CALCETrUCsWxLNGTN=CUZWWagghEwVdPYr6UFzwTENFTr6JTfRA@mail.gmail.com>
-Subject: Re: [PATCHv1, RFC 0/8] Boot-time switching between 4- and 5-level paging
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1495770854-13920-1-git-send-email-zhongjiang@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Easton <kevin@guarana.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: zhongjiang <zhongjiang@huawei.com>, akpm@linux-foundation.org
+Cc: mhocko@suse.cz, qiuxishi@huawei.com, linux-mm@kvack.org
 
-On Thu, May 25, 2017 at 9:18 PM, Kevin Easton <kevin@guarana.org> wrote:
-> (If it weren't for that, maybe you could point the last entry in the PML4
-> at the PML4 itself, so it also works as a PML5 for accessing kernel
-> addresses? And of course make sure nothing gets loaded above
-> 0xffffff8000000000).
+On 05/26/2017 05:54 AM, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> 
+> Recently, when I address in the issue, Subject "mlock: fix mlock count
+> can not decrease in race condition" had been take over, I review
+> the code and find the potential issue. it will result in the incorrect
+> account, it will make us misunderstand straightforward.
+> 
+> The following testcase can prove the issue.
+> 
+> int main(void)
+> {
+>     char *map;
+>     int fd;
+> 
+>     fd = open("test", O_CREAT|O_RDWR);
+>     unlink("test");
+>     ftruncate(fd, 4096);
+>     map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
+>     map[0] = 11;
+>     mlock(map, 4096);
+>     ftruncate(fd, 0);
+>     close(fd);
+>     munlock(map, 4096);
+>     munmap(map, 4096);
+> 
+>     return 0;
+> }
+> 
+> before:
+> unevictable_pgs_mlocked 10589
+> unevictable_pgs_munlocked 10588
+> unevictable_pgs_cleared 1
+> 
+> apply the patch;
+> after:
+> unevictable_pgs_mlocked 9497
+> unevictable_pgs_munlocked 9497
+> unevictable_pgs_cleared 1
+> 
+> unmap_mapping_range unmap them,  page_remove_rmap will deal with
+> clear_page_mlock situation.  we clear page Mlock flag and successful
+> isolate the page,  the page will putback the evictable list. but it is not
+> record the munlock event.
+> 
+> The patch add the event account when successful page isolation.
+> 
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 
-This was an old trick done for a very different reason: it lets you
-find your page tables at virtual addresses that depend only on the VA
-whose page table you're looking for and the top-level slot that points
-back to itself.  IIRC Windows used to do this for its own memory
-management purposes.  A major downside is that an arbitrary write
-vulnerability lets you write your own PTEs without any guesswork.
+Hi,
 
---Andy
+I think this is by design. UNEVICTABLE_PGMUNLOCKED is supposed for explicit
+munlock() actions from userspace. Truncation etc is counted by
+UNEVICTABLE_PGCLEARED.
+
+Vlastimil
+
+> ---
+>  mm/mlock.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index c483c5c..941930b 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -64,6 +64,7 @@ void clear_page_mlock(struct page *page)
+>  			    -hpage_nr_pages(page));
+>  	count_vm_event(UNEVICTABLE_PGCLEARED);
+>  	if (!isolate_lru_page(page)) {
+> +		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+>  		putback_lru_page(page);
+>  	} else {
+>  		/*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
