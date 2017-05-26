@@ -1,69 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 408856B02B4
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:46:08 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y65so19263387pff.13
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:46:08 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id r13si1331266pgr.213.2017.05.26.09.46.07
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 995826B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 13:05:22 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id b28so1287231wrb.2
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 10:05:22 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o83sor5696wmo.44.2017.05.26.10.05.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 09:46:07 -0700 (PDT)
-Subject: Re: [v3 0/9] parallelized "struct page" zeroing
-References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
- <20170509181234.GA4397@dhcp22.suse.cz>
- <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
- <20170515193817.GC7551@dhcp22.suse.cz>
- <9b3d68aa-d2b6-2b02-4e75-f8372cbeb041@oracle.com>
- <20170516083601.GB2481@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
-Date: Fri, 26 May 2017 12:45:55 -0400
+        (Google Transport Security);
+        Fri, 26 May 2017 10:05:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170516083601.GB2481@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170524220949.GS141096@google.com>
+References: <20170519210036.146880-1-mka@chromium.org> <20170519210036.146880-2-mka@chromium.org>
+ <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
+ <20170522205621.GL141096@google.com> <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
+ <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com>
+ <20170523165608.GN141096@google.com> <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
+ <20170524220949.GS141096@google.com>
+From: Doug Anderson <dianders@chromium.org>
+Date: Fri, 26 May 2017 10:05:18 -0700
+Message-ID: <CAD=FV=VFih02J1D-fOrpVEO9qDtLOusyqP3dHdeM7h0Etrrn2A@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
+ NUMA systems
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
+To: Matthias Kaehlcke <mka@chromium.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Michal,
+Hi,
 
-I have considered your proposals:
+On Wed, May 24, 2017 at 3:09 PM, Matthias Kaehlcke <mka@chromium.org> wrote:
+> Hi David,
+>
+> El Wed, May 24, 2017 at 01:36:21PM -0700 David Rientjes ha dit:
+>
+>> On Tue, 23 May 2017, Matthias Kaehlcke wrote:
+>>
+>> > > diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+>> > > index de179993e039..e1895ce6fa1b 100644
+>> > > --- a/include/linux/compiler-clang.h
+>> > > +++ b/include/linux/compiler-clang.h
+>> > > @@ -15,3 +15,8 @@
+>> > >   * with any version that can compile the kernel
+>> > >   */
+>> > >  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
+>> > > +
+>> > > +#ifdef inline
+>> > > +#undef inline
+>> > > +#define inline __attribute__((unused))
+>> > > +#endif
+>> >
+>> > Thanks for the suggestion!
+>> >
+>> > Nothing breaks and the warnings are silenced. It seems we could use
+>> > this if there is a stong opposition against having warnings on unused
+>> > static inline functions in .c files.
+>> >
+>>
+>> It would be slightly different, it would be:
+>>
+>> #define inline inline __attribute__((unused))
+>>
+>> to still inline the functions, I was just seeing if there was anything
+>> else that clang was warning about that was unrelated to a function's
+>> inlining.
+>>
+>> > Still I am not convinced that gcc's behavior is preferable in this
+>> > case. True, it saves us from adding a bunch of __maybe_unused or
+>> > #ifdefs, on the other hand the warning is a useful tool to spot truly
+>> > unused code. So far about 50% of the warnings I looked into fall into
+>> > this category.
+>> >
+>>
+>> I think gcc's behavior is a result of how it does preprocessing and is a
+>> clearly defined and long-standing semantic given in the gcc manual
+>> regarding -Wunused-function.
+>>
+>> #define IS_PAGE_ALIGNED(__size)       (!(__size & ((size_t)PAGE_SIZE - 1)))
+>> static inline int is_page_aligned(size_t size)
+>> {
+>>       return !(size & ((size_t)PAGE_SIZE - 1));
+>> }
+>>
+>> Gcc will not warn about either of these being unused, regardless of -Wall,
+>> -Wunused-function, or -pedantic.  Clang, correct me if I'm wrong, will
+>> only warn about is_page_aligned().
+>
+> Indeed, clang does not warn about unused defines.
+>
+>> So the argument could be made that one of the additional benefits of
+>> static inline functions is that a subset of compilers, heavily in the
+>> minority, will detect whether it's unused and we'll get patches that
+>> remove them.  Functionally, it would only result in LOC reduction.  But,
+>> isn't adding #ifdef's to silence the warning just adding more LOC?
+>
+> The LOC reduction comes from the removal of the actual dead code that
+> is spotted because the warning was enabled and pointed it out :)
+>
+> Using #ifdef is one option, in most cases the function can be marked as
+> __maybe_unused, which technically doesn't (necessarily) increase
+> LOC. However some maintainers prefer the use of #ifdef over
+> __maybe_unused in certain cases.
+>
+>> I have no preference either way, I think it would be up to the person who
+>> is maintaining the code and has to deal with the patches.
+>
+> I think it would be good to have a general policy/agreement, to either
+> disable the warning completely (not my preference) or 'allow' the use
+> of one of the available mechanism to suppress the warning for
+> functions that are not used in some configurations or only kept around
+> for reference/debugging/symmetry.
 
-1. Making memset(0) unconditional inside __init_single_page() is not 
-going to work because it slows down SPARC, and ppc64. On SPARC even the 
-BSTI optimization that I have proposed earlier won't work, because after 
-consulting with other engineers I was told that stores (without loads!) 
-after BSTI without membar are unsafe
+I would tend to agree with Matthias that we need some type of general
+policy / agreement with enough maintainers.  It's nice to consider all
+warnings as important and if there are a few outliers it makes it
+easier to ignore all warnings.
 
-2. Adding ARCH_WANT_LARGE_PAGEBLOCK_INIT is not going to solve the 
-problem, because while arch might want a large memset(), it still wants 
-to get the benefit of parallelized struct page initialization.
+BTW: just as extra motivation showing the usefulness of this work, see
+a patch I just posted that deletes a bunch of unneeded code in an ASoC
+driver:
 
-3. Another approach that have I considered is moving memset() above 
-__init_single_page() and do it in a larger chunks. However, this 
-solution is also not going to work, because inside the loops, there are 
-cases where "struct page"s are skipped, so every single page is checked:
-early_pfn_valid(pfn), early_pfn_in_nid(), and also mirroed_kernelcore cases.
+https://patchwork.kernel.org/patch/9750813/
 
-> I wouldn't be so sure about this. If any other platform has a similar
-> issues with small memset as sparc then the overhead is just papered over
-> by parallel initialization.
+I don't know anything about this driver but the clang warning made it
+obvious that something was wrong.  Either we were doing a bit of
+useless saving or (perhaps) the restore was actually supposed to be
+called somewhere and we had a bug.
 
-That is true, and that is fine, because parallelization gives an order 
-of magnitude better improvements compared to trade of slower single 
-thread performance. Remember, this will happen during boot and memory 
-hotplug only, and not something that will eat up computing resources 
-during runtime.
-
-So, at the moment I cannot really find a better solution compared to 
-what I have proposed: do memset() inside __init_single_page() only when 
-deferred initialization is enabled.
-
-Pasha
+-Doug
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
