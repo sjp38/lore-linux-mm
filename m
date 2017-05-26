@@ -1,45 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5256B02B4
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:35:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id k57so1161991wrk.6
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:35:22 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id y187si13611671wme.120.2017.05.26.09.35.20
-        for <linux-mm@kvack.org>;
-        Fri, 26 May 2017 09:35:20 -0700 (PDT)
-Date: Fri, 26 May 2017 18:35:17 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 17/32] x86/mm: Add support to access boot related data
- in the clear
-Message-ID: <20170526163517.nrweesvse24dszkz@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418211921.10190.1537.stgit@tlendack-t1.amdoffice.net>
- <20170515183517.mb4k2gp2qobbuvtm@pd.tnic>
- <20170518195051.GA5651@codeblueprint.co.uk>
- <4c2ef3ba-2940-3330-d362-5b2b0d812c6f@amd.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 408856B02B4
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:46:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y65so19263387pff.13
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:46:08 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r13si1331266pgr.213.2017.05.26.09.46.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 May 2017 09:46:07 -0700 (PDT)
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170509181234.GA4397@dhcp22.suse.cz>
+ <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+ <20170515193817.GC7551@dhcp22.suse.cz>
+ <9b3d68aa-d2b6-2b02-4e75-f8372cbeb041@oracle.com>
+ <20170516083601.GB2481@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
+Date: Fri, 26 May 2017 12:45:55 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <4c2ef3ba-2940-3330-d362-5b2b0d812c6f@amd.com>
+In-Reply-To: <20170516083601.GB2481@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Matt Fleming <matt@codeblueprint.co.uk>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-On Fri, May 26, 2017 at 11:22:36AM -0500, Tom Lendacky wrote:
-> In addition to the same issue as efi.memmap.phys_map, efi_phys has
-> the __initdata attribute so it will be released/freed which will cause
-> problems in checks performed afterwards.
+Hi Michal,
 
-Sounds to me like we should drop the __initdata attr and prepare them
-much earlier for use by the SME code.
+I have considered your proposals:
 
--- 
-Regards/Gruss,
-    Boris.
+1. Making memset(0) unconditional inside __init_single_page() is not 
+going to work because it slows down SPARC, and ppc64. On SPARC even the 
+BSTI optimization that I have proposed earlier won't work, because after 
+consulting with other engineers I was told that stores (without loads!) 
+after BSTI without membar are unsafe
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2. Adding ARCH_WANT_LARGE_PAGEBLOCK_INIT is not going to solve the 
+problem, because while arch might want a large memset(), it still wants 
+to get the benefit of parallelized struct page initialization.
+
+3. Another approach that have I considered is moving memset() above 
+__init_single_page() and do it in a larger chunks. However, this 
+solution is also not going to work, because inside the loops, there are 
+cases where "struct page"s are skipped, so every single page is checked:
+early_pfn_valid(pfn), early_pfn_in_nid(), and also mirroed_kernelcore cases.
+
+> I wouldn't be so sure about this. If any other platform has a similar
+> issues with small memset as sparc then the overhead is just papered over
+> by parallel initialization.
+
+That is true, and that is fine, because parallelization gives an order 
+of magnitude better improvements compared to trade of slower single 
+thread performance. Remember, this will happen during boot and memory 
+hotplug only, and not something that will eat up computing resources 
+during runtime.
+
+So, at the moment I cannot really find a better solution compared to 
+what I have proposed: do memset() inside __init_single_page() only when 
+deferred initialization is enabled.
+
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
