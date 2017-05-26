@@ -1,59 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8DB6B02F4
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 11:58:16 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k57so1009668wrk.6
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 08:58:16 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id j67si14182402wmg.92.2017.05.26.08.58.14
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 994396B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:05:58 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k11so4070345qtk.4
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:05:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l126si1056661qkf.293.2017.05.26.09.05.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 08:58:15 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id d127so4717716wmf.1
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 08:58:14 -0700 (PDT)
-Date: Fri, 26 May 2017 18:58:12 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv1, RFC 0/8] Boot-time switching between 4- and 5-level
- paging
-Message-ID: <20170526155812.gdc6x6pz2howdpjb@node.shutemov.name>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <CA+55aFznnXPDxYy5CN6qVU7QJ3Y9hbSf-s2-w0QkaNJuTspGcQ@mail.gmail.com>
- <20170526130057.t7zsynihkdtsepkf@node.shutemov.name>
- <CA+55aFw2HDHRZTYss2xbSTRAZuS1qAFmKrAXsiMp34ngNapTiw@mail.gmail.com>
+        Fri, 26 May 2017 09:05:57 -0700 (PDT)
+Subject: Re: [PATCH v3 8/8] x86,kvm: Teach KVM's VMX code that CR3 isn't a
+ constant
+From: Paolo Bonzini <pbonzini@redhat.com>
+References: <cover.1495759610.git.luto@kernel.org>
+ <4ac698fc0c44a4eef2d05b472bd42389272e0c40.1495759610.git.luto@kernel.org>
+ <28e1b61e-c98f-18af-8cc7-92604b8f5e0c@redhat.com>
+Message-ID: <829229b9-f62d-aab1-acd3-18697f93c3eb@redhat.com>
+Date: Fri, 26 May 2017 18:05:51 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFw2HDHRZTYss2xbSTRAZuS1qAFmKrAXsiMp34ngNapTiw@mail.gmail.com>
+In-Reply-To: <28e1b61e-c98f-18af-8cc7-92604b8f5e0c@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Fri, May 26, 2017 at 08:51:48AM -0700, Linus Torvalds wrote:
-> On Fri, May 26, 2017 at 6:00 AM, Kirill A. Shutemov
-> <kirill@shutemov.name> wrote:
-> >
-> > I don't see how kernel threads can use 4-level paging. It doesn't work
-> > from virtual memory layout POV. Kernel claims half of full virtual address
-> > space for itself -- 256 PGD entries, not one as we would effectively have
-> > in case of switching to 4-level paging. For instance, addresses, where
-> > vmalloc and vmemmap are mapped, are not canonical with 4-level paging.
+
+
+On 26/05/2017 17:30, Paolo Bonzini wrote:
 > 
-> I would have just assumed we'd map the kernel in the shared part that
-> fits in the top 47 bits.
 > 
-> But it sounds like you can't switch back and forth anyway, so I guess it's moot.
+> On 26/05/2017 02:47, Andy Lutomirski wrote:
+>> When PCID is enabled, CR3's PCID bits can change during context
+>> switches, so KVM won't be able to treat CR3 as a per-mm constant any
+>> more.
+>>
+>> I structured this like the existing CR4 handling.  Under ordinary
+>> circumstances (PCID disabled or if the current PCID and the value
+>> that's already in the VMCS match), then we won't do an extra VMCS
+>> write, and we'll never do an extra direct CR3 read.  The overhead
+>> should be minimal.
+>>
+>> I disallowed using the new helper in non-atomic context because
+>> PCID support will cause CR3 to stop being constant in non-atomic
+>> process context.
+>>
+>> (Frankly, it also scares me a bit that KVM ever treated CR3 as
+>> constant, but it looks like it was okay before.)
+>>
+>> Cc: Paolo Bonzini <pbonzini@redhat.com>
+>> Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+>> Cc: kvm@vger.kernel.org
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> Cc: Nadav Amit <namit@vmware.com>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Arjan van de Ven <arjan@linux.intel.com>
+>> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+>> ---
+>>  arch/x86/include/asm/mmu_context.h | 19 +++++++++++++++++++
+>>  arch/x86/kvm/vmx.c                 | 21 ++++++++++++++++++---
+>>  2 files changed, 37 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+>> index 187c39470a0b..f20d7ea47095 100644
+>> --- a/arch/x86/include/asm/mmu_context.h
+>> +++ b/arch/x86/include/asm/mmu_context.h
+>> @@ -266,4 +266,23 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+>>  	return __pkru_allows_pkey(vma_pkey(vma), write);
+>>  }
+>>  
+>> +
+>> +/*
+>> + * This can be used from process context to figure out what the value of
+>> + * CR3 is without needing to do a (slow) read_cr3().
+>> + *
+>> + * It's intended to be used for code like KVM that sneakily changes CR3
+>> + * and needs to restore it.  It needs to be used very carefully.
+>> + */
+>> +static inline unsigned long __get_current_cr3_fast(void)
+>> +{
+>> +	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
+>> +
+>> +	/* For now, be very restrictive about when this can be called. */
+>> +	VM_WARN_ON(in_nmi() || !in_atomic());
+>> +
+>> +	VM_BUG_ON(cr3 != read_cr3());
+>> +	return cr3;
+>> +}
+>> +
+>>  #endif /* _ASM_X86_MMU_CONTEXT_H */
+>> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+>> index 72f78396bc09..b7b36c9ffa3d 100644
+>> --- a/arch/x86/kvm/vmx.c
+>> +++ b/arch/x86/kvm/vmx.c
+>> @@ -48,6 +48,7 @@
+>>  #include <asm/kexec.h>
+>>  #include <asm/apic.h>
+>>  #include <asm/irq_remapping.h>
+>> +#include <asm/mmu_context.h>
+>>  
+>>  #include "trace.h"
+>>  #include "pmu.h"
+>> @@ -596,6 +597,7 @@ struct vcpu_vmx {
+>>  		int           gs_ldt_reload_needed;
+>>  		int           fs_reload_needed;
+>>  		u64           msr_host_bndcfgs;
+>> +		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
+>>  		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
+>>  	} host_state;
+>>  	struct {
+>> @@ -5012,12 +5014,19 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
+>>  	u32 low32, high32;
+>>  	unsigned long tmpl;
+>>  	struct desc_ptr dt;
+>> -	unsigned long cr0, cr4;
+>> +	unsigned long cr0, cr3, cr4;
+>>  
+>>  	cr0 = read_cr0();
+>>  	WARN_ON(cr0 & X86_CR0_TS);
+>>  	vmcs_writel(HOST_CR0, cr0);  /* 22.2.3 */
+>> -	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
+>> +
+>> +	/*
+>> +	 * Save the most likely value for this task's CR3 in the VMCS.
+>> +	 * We can't use __get_current_cr3_fast() because we're not atomic.
+>> +	 */
+>> +	cr3 = read_cr3();
+>> +	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
+>> +	vmx->host_state.vmcs_host_cr3 = cr3;
+>>  
+>>  	/* Save the most likely value for this task's CR4 in the VMCS. */
+>>  	cr4 = cr4_read_shadow();
+>> @@ -8843,7 +8852,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
+>>  static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
+>>  {
+>>  	struct vcpu_vmx *vmx = to_vmx(vcpu);
+>> -	unsigned long debugctlmsr, cr4;
+>> +	unsigned long debugctlmsr, cr3, cr4;
+>>  
+>>  	/* Don't enter VMX if guest state is invalid, let the exit handler
+>>  	   start emulation until we arrive back to a valid state */
+>> @@ -8865,6 +8874,12 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
+>>  	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
+>>  		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
+>>  
+>> +	cr3 = __get_current_cr3_fast();
+>> +	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
+>> +		vmcs_writel(HOST_CR3, cr3);
+>> +		vmx->host_state.vmcs_host_cr3 = cr3;
+>> +	}
+>> +
+>>  	cr4 = cr4_read_shadow();
+>>  	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
+>>  		vmcs_writel(HOST_CR4, cr4);
+>>
 > 
-> Where *is* the LA57 documentation, btw? I had an old x86 architecture
-> manual, so I updated it, but LA57 isn't mentioned in the new one
-> either.
+> Queued, thanks.  If anybody needs a topic branch, please holler.
 
-It's in a separate white paper for now:
+Ah, no, it depends on the others.  Note to self, compile first, answer
+second.
 
-https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf
-
--- 
- Kirill A. Shutemov
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
