@@ -1,72 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 572526B02C3
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 09:25:33 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id g39so3046607qkh.3
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 06:25:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j123si726132qkc.268.2017.05.26.06.25.31
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D70196B0292
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 09:35:05 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n75so13345117pfh.0
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 06:35:05 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 7si893397pgt.334.2017.05.26.06.35.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 06:25:32 -0700 (PDT)
-Message-ID: <1495805128.29205.64.camel@redhat.com>
-Subject: Re: [PATCH v3 2/8] x86/mm: Change the leave_mm() condition for
- local TLB flushes
-From: Rik van Riel <riel@redhat.com>
-Date: Fri, 26 May 2017 09:25:28 -0400
-In-Reply-To: <CALCETrVDpWL4kQbxNVWBX-OKuThoaYaqefbKY-dD0A2y4BgNfA@mail.gmail.com>
-References: <cover.1495759610.git.luto@kernel.org>
-	 <61de238db6d9c9018db020c41047ce32dac64488.1495759610.git.luto@kernel.org>
-	 <1495762747.29205.63.camel@redhat.com>
-	 <CALCETrVDpWL4kQbxNVWBX-OKuThoaYaqefbKY-dD0A2y4BgNfA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 26 May 2017 06:35:05 -0700 (PDT)
+Date: Fri, 26 May 2017 06:35:04 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCHv1, RFC 0/8] Boot-time switching between 4- and 5-level
+ paging
+Message-ID: <20170526133504.GD24144@tassilo.jf.intel.com>
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
+ <CA+55aFznnXPDxYy5CN6qVU7QJ3Y9hbSf-s2-w0QkaNJuTspGcQ@mail.gmail.com>
+ <20170526130057.t7zsynihkdtsepkf@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170526130057.t7zsynihkdtsepkf@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 2017-05-25 at 19:01 -0700, Andy Lutomirski wrote:
-> On Thu, May 25, 2017 at 6:39 PM, Rik van Riel <riel@redhat.com>
-> wrote:
-> > On Thu, 2017-05-25 at 17:47 -0700, Andy Lutomirski wrote:
-> > > 
-> > > +++ b/arch/x86/mm/tlb.c
-> > > @@ -311,7 +311,7 @@ void flush_tlb_mm_range(struct mm_struct *mm,
-> > > unsigned long start,
-> > > A A A A A A A A A A A A A A goto out;
-> > > A A A A A A }
-> > > 
-> > > -A A A A A if (!current->mm) {
-> > > +A A A A A if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
-> > > A A A A A A A A A A A A A A leave_mm(smp_processor_id());
-> > 
-> > Unless -mm changed leave_mm (I did not check), this
-> > is not quite correct yet.
-> > 
-> > The reason is leave_mm (at least in the latest Linus
-> > tree) ignores the cpu argument for one of its checks.
-> > 
-> > You should probably fix that in an earlier patch,
-> > assuming you haven't already done so in -mm.
-> > 
-> > void leave_mm(int cpu)
-> > {
-> > A A A A A A A A struct mm_struct *active_mm =
-> > this_cpu_read(cpu_tlbstate.active_mm);
-> > A A A A A A A A if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-> > A A A A A A A A A A A A A A A A BUG();
-> > A A A A A A A A if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
-> > A A A A A A A A A A A A A A A A cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
-> > A A A A A A A A A A A A A A A A load_cr3(swapper_pg_dir);
-> 
-> I agree it's odd, but what's the bug?A A Both before and after,
-> leave_mm
-> needed to be called with cpu == smp_processor_id(), and
-> smp_processor_id() warns if it's called in a preemptible context.
+> Even ignoring all of above, I don't see much benefit of having per-mm
+> switching. It adds complexity without much benefit -- saving few lines of
+> logic during early boot doesn't look as huge win to me.
 
-Indeed, you are right. Looking at too much code at once...
+Also giving kthreads a different VM would prevent lazy VM switching
+when switching from/to idle, which can be quite important for performance
+when doing fast IO.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
