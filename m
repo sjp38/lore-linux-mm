@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B026B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 22:49:57 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id s58so81853721qtb.1
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:49:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q2si5015152qtb.231.2017.05.25.19.49.55
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B5EE96B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 23:24:49 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 64so2325343itb.1
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 20:24:49 -0700 (PDT)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id a203si611368itd.24.2017.05.25.20.24.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 19:49:56 -0700 (PDT)
-Date: Fri, 26 May 2017 10:49:33 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
- Encryption
-Message-ID: <20170526024933.GA3228@dhcp-128-65.nay.redhat.com>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
- <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
+        Thu, 25 May 2017 20:24:48 -0700 (PDT)
+Date: Thu, 25 May 2017 22:24:46 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+In-Reply-To: <20170525193508.GA30252@amt.cnet>
+Message-ID: <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org>
+References: <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org> <20170512154026.GA3556@amt.cnet> <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org> <20170512161915.GA4185@amt.cnet> <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
+ <20170515191531.GA31483@amt.cnet> <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org> <20170519143407.GA19282@amt.cnet> <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org> <20170519134934.0c298882@redhat.com> <20170525193508.GA30252@amt.cnet>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, xlpang@redhat.com
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-Ccing Xunlei he is reading the patches see what need to be done for
-kdump. There should still be several places to handle to make kdump work.
+On Thu, 25 May 2017, Marcelo Tosatti wrote:
 
-On 05/18/17 at 07:01pm, Borislav Petkov wrote:
-> On Tue, Apr 18, 2017 at 04:22:12PM -0500, Tom Lendacky wrote:
-> > Add sysfs support for SME so that user-space utilities (kdump, etc.) can
-> > determine if SME is active.
-> 
-> But why do user-space tools need to know that?
-> 
-> I mean, when we load the kdump kernel, we do it with the first kernel,
-> with the kexec_load() syscall, AFAICT. And that code does a lot of
-> things during that init, like machine_kexec_prepare()->init_pgtable() to
-> prepare the ident mapping of the second kernel, for example.
-> 
-> What I'm aiming at is that the first kernel knows *exactly* whether SME
-> is enabled or not and doesn't need to tell the second one through some
-> sysfs entries - it can do that during loading.
-> 
-> So I don't think we need any userspace things at all...
+> Argument? We're showing you the data that this is causing a latency
+> problem for us.
 
-If kdump kernel can get the SME status from hardware register then this
-should be not necessary and this patch can be dropped.
+Sorry I am not sure where the data shows a latency problem. There are
+interrupts and scheduler ticks. But what does this have to do with vmstat?
 
-Thanks
-Dave
+Show me your dpdk code running and trace the tick on / off events  as well
+as the vmstat invocations. Also show all system calls occurring on the cpu
+that runs dpdk. That is necessary to see what triggers vmstat and how the
+system reacts to the changes to the differentials.
+
+Then please rerun the test by setting the vmstat_interval to 60.
+
+Do another run with your modifications and show the difference.
+
+> > Something that crossed my mind was to add a new tunable to set
+> > the vmstat_interval for each CPU, this way we could essentially
+> > disable it to the CPUs where DPDK is running. What's the implications
+> > of doing this besides not getting up to date stats in /proc/vmstat
+> > (which I still have to confirm would be OK)? Can this break anything
+> > in the kernel for example?
+>
+> Well, you get incorrect statistics.
+
+The statistics are never completely accurate. You will get less accurate
+statistics but they will be correct. The differentials may not be
+reflected in the counts shown via /proc but there is a cap on how
+inaccurate those can becore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
