@@ -1,58 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B5EE96B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 23:24:49 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 64so2325343itb.1
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 20:24:49 -0700 (PDT)
-Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
-        by mx.google.com with ESMTPS id a203si611368itd.24.2017.05.25.20.24.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 026E66B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 23:59:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y65so252935827pff.13
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 20:59:49 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id h19si13523560pgk.221.2017.05.25.20.59.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 20:24:48 -0700 (PDT)
-Date: Thu, 25 May 2017 22:24:46 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
- configuration
-In-Reply-To: <20170525193508.GA30252@amt.cnet>
-Message-ID: <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org>
-References: <alpine.DEB.2.20.1705121002310.22243@east.gentwo.org> <20170512154026.GA3556@amt.cnet> <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org> <20170512161915.GA4185@amt.cnet> <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
- <20170515191531.GA31483@amt.cnet> <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org> <20170519143407.GA19282@amt.cnet> <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org> <20170519134934.0c298882@redhat.com> <20170525193508.GA30252@amt.cnet>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 May 2017 20:59:49 -0700 (PDT)
+Message-ID: <5927A7C5.7070403@huawei.com>
+Date: Fri, 26 May 2017 11:57:57 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH] mm: fix mlock incorrent event account
+References: <1495699179-7566-1-git-send-email-zhongjiang@huawei.com> <20170525081330.GG12721@dhcp22.suse.cz> <5926E0C8.9050908@huawei.com> <20170525141945.GK12721@dhcp22.suse.cz>
+In-Reply-To: <20170525141945.GK12721@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Michal Hocko <mhocko@suse.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, qiuxishi@huawei.com, linux-mm@kvack.org
 
-On Thu, 25 May 2017, Marcelo Tosatti wrote:
-
-> Argument? We're showing you the data that this is causing a latency
-> problem for us.
-
-Sorry I am not sure where the data shows a latency problem. There are
-interrupts and scheduler ticks. But what does this have to do with vmstat?
-
-Show me your dpdk code running and trace the tick on / off events  as well
-as the vmstat invocations. Also show all system calls occurring on the cpu
-that runs dpdk. That is necessary to see what triggers vmstat and how the
-system reacts to the changes to the differentials.
-
-Then please rerun the test by setting the vmstat_interval to 60.
-
-Do another run with your modifications and show the difference.
-
-> > Something that crossed my mind was to add a new tunable to set
-> > the vmstat_interval for each CPU, this way we could essentially
-> > disable it to the CPUs where DPDK is running. What's the implications
-> > of doing this besides not getting up to date stats in /proc/vmstat
-> > (which I still have to confirm would be OK)? Can this break anything
-> > in the kernel for example?
+On 2017/5/25 22:19, Michal Hocko wrote:
+> On Thu 25-05-17 21:48:56, zhong jiang wrote:
+>> Hi Michal
+>>
+>> by a testcase, The patch is work as I think. The testcase is as follows.
+>>
+>> int main(void)
+>> {
+>>     char *map;
+>>     int fd;
+>>
+>>     fd = open("test", O_CREAT|O_RDWR);
+>>     unlink("test");
+>>     ftruncate(fd, 4096);
+>>     map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
+>>     map[0] = 11;
+>>     mlock(map, sizeof(fd));
+> just a nit
+> you probably wanted mlock(map, 4096)
 >
-> Well, you get incorrect statistics.
+>>     ftruncate(fd, 0);
+>>     close(fd);
+>>     munlock(map, sizeof(fd));
+> similarly here
+>
+>>     munmap(map, 4096);
+>>
+>>     return 0;
+>> }
+>>
+>> before:
+>> unevictable_pgs_mlocked 10589
+>> unevictable_pgs_munlocked 10588
+>> unevictable_pgs_cleared 1
+>>
+>> apply the patch;
+>> after:
+>> unevictable_pgs_mlocked 9497
+>> unevictable_pgs_munlocked 9497
+>> unevictable_pgs_cleared 1
+> OK, this is definitely useful for the changelog.
+>
+>> unmap_mapping_range unmap them,  page_remove_rmap will deal with
+>> clear_page_mlock situation.  we clear page Mlock flag and successful
+>> isolate the page,  the page will putback the evictable list. but it is not
+>> record the munlock event.
+> and this as well. I haven't checked that but it gives reviewers chance
+> to understand your thinking much better so it is definitely useful.
+> Mlock code is everything but straightforward.
+>
+ HI, Michal
 
-The statistics are never completely accurate. You will get less accurate
-statistics but they will be correct. The differentials may not be
-reflected in the counts shown via /proc but there is a cap on how
-inaccurate those can becore.
+ I will add the above info the chanelog. and resent it in v2.
+
+ Thanks
+zhongjiang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
