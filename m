@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2BC6B0292
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 00:43:48 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h76so210872248pfh.15
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 21:43:48 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id g192si29983269pgc.140.2017.05.25.21.43.47
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E196B0292
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 01:03:18 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id y31so93018qty.7
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 22:03:18 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h42si5357303qtc.247.2017.05.25.22.03.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 21:43:47 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id f27so66599pfe.0
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 21:43:47 -0700 (PDT)
-Date: Thu, 25 May 2017 21:43:43 -0700
-From: Nick Desaulniers <nick.desaulniers@gmail.com>
-Subject: Re: [Patch v2] mm/vmscan: fix unsequenced modification and access
- warning
-Message-ID: <20170526044343.autu63rpfigbzhyi@lostoracle.net>
-References: <20170510071511.GA31466@dhcp22.suse.cz>
- <20170510082734.2055-1-nick.desaulniers@gmail.com>
- <20170510083844.GG31466@dhcp22.suse.cz>
- <20170516082746.GA2481@dhcp22.suse.cz>
+        Thu, 25 May 2017 22:03:17 -0700 (PDT)
+Reply-To: xlpang@redhat.com
+Subject: Re: [PATCH v5 31/32] x86: Add sysfs support for Secure Memory
+ Encryption
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212212.10190.73484.stgit@tlendack-t1.amdoffice.net>
+ <20170518170153.eqiyat5s6q3yeejl@pd.tnic>
+ <20170526024933.GA3228@dhcp-128-65.nay.redhat.com>
+From: Xunlei Pang <xpang@redhat.com>
+Message-ID: <5927B767.3010701@redhat.com>
+Date: Fri, 26 May 2017 13:04:39 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170516082746.GA2481@dhcp22.suse.cz>
+In-Reply-To: <20170526024933.GA3228@dhcp-128-65.nay.redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Young <dyoung@redhat.com>, Borislav Petkov <bp@alien8.de>
+Cc: linux-efi@vger.kernel.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, x86@kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, linux-arch@vger.kernel.org, kvm@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tom Lendacky <thomas.lendacky@amd.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, xlpang@redhat.com, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue, May 16, 2017 at 10:27:46AM +0200, Michal Hocko wrote:
-> I guess it is worth reporting this to clang bugzilla. Could you take
-> care of that Nick?
+On 05/26/2017 at 10:49 AM, Dave Young wrote:
+> Ccing Xunlei he is reading the patches see what need to be done for
+> kdump. There should still be several places to handle to make kdump work.
+>
+> On 05/18/17 at 07:01pm, Borislav Petkov wrote:
+>> On Tue, Apr 18, 2017 at 04:22:12PM -0500, Tom Lendacky wrote:
+>>> Add sysfs support for SME so that user-space utilities (kdump, etc.) can
+>>> determine if SME is active.
+>> But why do user-space tools need to know that?
+>>
+>> I mean, when we load the kdump kernel, we do it with the first kernel,
+>> with the kexec_load() syscall, AFAICT. And that code does a lot of
+>> things during that init, like machine_kexec_prepare()->init_pgtable() to
+>> prepare the ident mapping of the second kernel, for example.
+>>
+>> What I'm aiming at is that the first kernel knows *exactly* whether SME
+>> is enabled or not and doesn't need to tell the second one through some
+>> sysfs entries - it can do that during loading.
+>>
+>> So I don't think we need any userspace things at all...
+> If kdump kernel can get the SME status from hardware register then this
+> should be not necessary and this patch can be dropped.
 
->From https://bugs.llvm.org//show_bug.cgi?id=33065#c5
-it seems that this is indeed a sequence bug in the previous version of
-this code and not a compiler bug.  You can read that response for the
-properly-cited wording but my TL;DR/understanding is for the given code:
+Yes, I also agree with dropping this one.
 
-struct foo bar = {
-  .a = (c = 0),
-  .b = c,
-};
-
-That the compiler is allowed to reorder the initializations of bar.a and
-bar.b, so what the value of c here might not be what you expect.
+Regards,
+Xunlei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
