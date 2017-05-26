@@ -1,63 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1D96B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 13:19:07 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g67so1330515wrd.0
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 10:19:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y30si2102211edy.113.2017.05.26.10.19.05
+	by kanga.kvack.org (Postfix) with ESMTP id 569D06B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 14:43:51 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y43so1598956wrc.11
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 11:43:51 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a24sor8749wra.34.2017.05.26.11.43.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 26 May 2017 10:19:06 -0700 (PDT)
-Date: Fri, 26 May 2017 18:19:03 +0100
-From: Luis Henriques <lhenriques@suse.com>
-Subject: Re: [PATCH v2 2/3] mm: kmemleak: Factor object reference updating
- out of scan_block()
-Message-ID: <20170526171903.5q3e5vqbhzcymdcd@hermes.olymp>
-References: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
- <1495726937-23557-3-git-send-email-catalin.marinas@arm.com>
- <20170526160916.ptlc2huao3bn4qwq@hermes.olymp>
- <20170526162107.GC30853@e104818-lin.cambridge.arm.com>
- <20170526162329.GD30853@e104818-lin.cambridge.arm.com>
+        (Google Transport Security);
+        Fri, 26 May 2017 11:43:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170526162329.GD30853@e104818-lin.cambridge.arm.com>
+In-Reply-To: <20170526040622.GB17837@bbox>
+References: <20170524194126.18040-1-semenzato@chromium.org>
+ <20170525001915.GA14999@bbox> <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
+ <20170526040622.GB17837@bbox>
+From: Luigi Semenzato <semenzato@google.com>
+Date: Fri, 26 May 2017 11:43:48 -0700
+Message-ID: <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: add counters for different page fault types
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
 
-On Fri, May 26, 2017 at 05:23:30PM +0100, Catalin Marinas wrote:
-> On Fri, May 26, 2017 at 05:21:08PM +0100, Catalin Marinas wrote:
-> > On Fri, May 26, 2017 at 05:09:17PM +0100, Luis Henriques wrote:
-> > > On Thu, May 25, 2017 at 04:42:16PM +0100, Catalin Marinas wrote:
-> > > > The scan_block() function updates the number of references (pointers) to
-> > > > objects, adding them to the gray_list when object->min_count is reached.
-> > > > The patch factors out this functionality into a separate update_refs()
-> > > > function.
-> > > > 
-> > > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > > Cc: Andy Lutomirski <luto@amacapital.net>
-> > > > Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
-> > > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> [...]
-> > > FWIW, I've tested this patchset and I don't see kmemleak triggering the
-> > > false positives anymore.
-> > 
-> > Thanks for re-testing (I dropped your tested-by from the initial patch
-> > since I made a small modification).
-> 
-> Sorry, the "re-testing" comment was meant at the other Luis on cc ;)
-> (Luis R. Rodriguez). It's been a long day...
+Many thanks Minchan.
 
-Heh, no worries!  What are the odds of having 2 different guys named Luis
-testing the same patch? :-)
+On Thu, May 25, 2017 at 9:06 PM, Minchan Kim <minchan@kernel.org> wrote:
 
-Cheers,
---
-Luis
+> If it is swap cache hit, it's not a major fault which causes IO
+> so VM count it as minor fault, not major.
+
+Cool---but see below.
+
+> Yub, I expected you guys used zram with readahead off so it shouldn't
+> be a big problem.
+
+By the way, I was referring to page clustering.  We do this in sysctl.conf:
+
+# Disable swap read-ahead
+vm.page-cluster = 0
+
+I figured that the readahead from the disk device
+(/sys/block/zram0/queue/read_ahead_kb) is not meaningful---am I
+correct?
+
+These numbers are from a Chromebook with a few dozen Chrome tabs and a
+couple of Android apps, and pretty heavy use of zram.
+
+pgpgin 4688863
+pgpgout 442052
+pswpin 353675
+pswpout 1072021
+...
+pgfault 5564247
+pgmajfault 355758
+pgmajfault_s 6297
+pgmajfault_a 317645
+pgmajfault_f 31816
+pgmajfault_ax 8494
+pgmajfault_fx 13201
+
+where _s, _a, and _f are for shmem, anon, and file pages.
+(ax and fx are for the subset of executable pages---I was curious about that)
+
+So the numbers don't completely match:
+anon faults = 318,000
+swap ins = 354,000
+
+Any idea of what might explain the difference?
+
+> About auto resetting readahead with zram, I agree with you.
+> But there are some reasons I postpone the work. No want to discuss
+> it in this thread/moment. ;)
+
+Yes, I wasn't even thinking of auto-resetting, just log a warning.
+
+>> Incidentally, I understand anon and file faults, but what's a shmem fault?
+>
+> For me, it was out of my interest but if you want to count shmem fault,
+> maybe, we need to introdue new stat(e.g., PSWPIN_SHM) in shmem_swapin
+> but there are concrete reasons to justify in changelog. :)
+
+Actually mine was a simpler question---I have no idea what a major
+shmem fault is.   And for this experiment it's a relatively small
+number, but a similar order of magnitude to the (expensive) file
+faults, so I don't want to completely ignore it.
+
+Thanks again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
