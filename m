@@ -1,43 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 609C86B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:13:23 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id c15so10167712ith.7
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:13:23 -0700 (PDT)
-Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
-        by mx.google.com with ESMTPS id w189si2481312ith.3.2017.05.26.09.13.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 09:13:22 -0700 (PDT)
-Received: by mail-io0-x231.google.com with SMTP id p24so12242935ioi.0
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:13:22 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F35D6B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:21:15 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j28so18324372pfk.14
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:21:15 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t8si1330155pfa.36.2017.05.26.09.21.13
+        for <linux-mm@kvack.org>;
+        Fri, 26 May 2017 09:21:14 -0700 (PDT)
+Date: Fri, 26 May 2017 17:21:08 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v2 2/3] mm: kmemleak: Factor object reference updating
+ out of scan_block()
+Message-ID: <20170526162107.GC30853@e104818-lin.cambridge.arm.com>
+References: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
+ <1495726937-23557-3-git-send-email-catalin.marinas@arm.com>
+ <20170526160916.ptlc2huao3bn4qwq@hermes.olymp>
 MIME-Version: 1.0
-In-Reply-To: <20170526155812.gdc6x6pz2howdpjb@node.shutemov.name>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <CA+55aFznnXPDxYy5CN6qVU7QJ3Y9hbSf-s2-w0QkaNJuTspGcQ@mail.gmail.com>
- <20170526130057.t7zsynihkdtsepkf@node.shutemov.name> <CA+55aFw2HDHRZTYss2xbSTRAZuS1qAFmKrAXsiMp34ngNapTiw@mail.gmail.com>
- <20170526155812.gdc6x6pz2howdpjb@node.shutemov.name>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 26 May 2017 09:13:20 -0700
-Message-ID: <CA+55aFz=S=085qe=a2qBWKLXwD1NC4sxjR_xUd9knVv_a3tSiA@mail.gmail.com>
-Subject: Re: [PATCHv1, RFC 0/8] Boot-time switching between 4- and 5-level paging
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170526160916.ptlc2huao3bn4qwq@hermes.olymp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Luis Henriques <lhenriques@suse.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, May 26, 2017 at 8:58 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
->
-> It's in a separate white paper for now:
->
-> https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf
+On Fri, May 26, 2017 at 05:09:17PM +0100, Luis Henriques wrote:
+> On Thu, May 25, 2017 at 04:42:16PM +0100, Catalin Marinas wrote:
+> > The scan_block() function updates the number of references (pointers) to
+> > objects, adding them to the gray_list when object->min_count is reached.
+> > The patch factors out this functionality into a separate update_refs()
+> > function.
+> > 
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Andy Lutomirski <luto@amacapital.net>
+> > Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+> > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> > ---
+> >  mm/kmemleak.c | 43 +++++++++++++++++++++++++------------------
+> >  1 file changed, 25 insertions(+), 18 deletions(-)
+> > 
+> > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> > index 964b12eba2c1..266482f460c2 100644
+> > --- a/mm/kmemleak.c
+> > +++ b/mm/kmemleak.c
+> > @@ -1188,6 +1188,30 @@ static bool update_checksum(struct kmemleak_object *object)
+> >  }
+> >  
+> >  /*
+> > + * Update an object's references. object->lock must be held by the caller.
+> > + */
+> > +static void update_refs(struct kmemleak_object *object)
+> > +{
+> > +	if (!color_white(object)) {
+> > +		/* non-orphan, ignored or new */
+> > +		return;
+> > +	}
+> > +
+> > +	/*
+> > +	 * Increase the object's reference count (number of pointers to the
+> > +	 * memory block). If this count reaches the required minimum, the
+> > +	 * object's color will become gray and it will be added to the
+> > +	 * gray_list.
+> > +	 */
+> > +	object->count++;
+> > +	if (color_gray(object)) {
+> > +		/* put_object() called when removing from gray_list */
+> > +		WARN_ON(!get_object(object));
+> > +		list_add_tail(&object->gray_list, &gray_list);
+> > +	}
+> > +}
+> > +
+> > +/*
+> >   * Memory scanning is a long process and it needs to be interruptable. This
+> >   * function checks whether such interrupt condition occurred.
+> >   */
+> > @@ -1259,24 +1283,7 @@ static void scan_block(void *_start, void *_end,
+> >  		 * enclosed by scan_mutex.
+> >  		 */
+> >  		spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
+> > -		if (!color_white(object)) {
+> > -			/* non-orphan, ignored or new */
+> > -			spin_unlock(&object->lock);
+> > -			continue;
+> > -		}
+> > -
+> > -		/*
+> > -		 * Increase the object's reference count (number of pointers
+> > -		 * to the memory block). If this count reaches the required
+> > -		 * minimum, the object's color will become gray and it will be
+> > -		 * added to the gray_list.
+> > -		 */
+> > -		object->count++;
+> > -		if (color_gray(object)) {
+> > -			/* put_object() called when removing from gray_list */
+> > -			WARN_ON(!get_object(object));
+> > -			list_add_tail(&object->gray_list, &gray_list);
+> > -		}
+> > +		update_refs(object);
+> >  		spin_unlock(&object->lock);
+> 
+> FWIW, I've tested this patchset and I don't see kmemleak triggering the
+> false positives anymore.
 
-Thanks. It didn't show up with "LA57 site:intel.com" with google,
-which is how I tried to find it ;)
+Thanks for re-testing (I dropped your tested-by from the initial patch
+since I made a small modification).
 
-                 Linus
+> I've also done a quick review and couldn't find anything obviously
+> incorrect, just a question: why didn't you moved the spin_lock/unlock into
+> update_refs() too?  It would save you 2 lines in the next patch :)
+
+There is a small difference: for the first object it needs to check
+color_gray() and access object->excess_ref while the lock is held. It
+doesn't need this in the second case. I could've written it in different
+ways but probably with a similar number of lines; I just found this
+clearer.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
