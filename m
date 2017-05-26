@@ -1,134 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 995826B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 13:05:22 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b28so1287231wrb.2
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 10:05:22 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o83sor5696wmo.44.2017.05.26.10.05.20
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1D96B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 13:19:07 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g67so1330515wrd.0
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 10:19:07 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y30si2102211edy.113.2017.05.26.10.19.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 May 2017 10:05:20 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 May 2017 10:19:06 -0700 (PDT)
+Date: Fri, 26 May 2017 18:19:03 +0100
+From: Luis Henriques <lhenriques@suse.com>
+Subject: Re: [PATCH v2 2/3] mm: kmemleak: Factor object reference updating
+ out of scan_block()
+Message-ID: <20170526171903.5q3e5vqbhzcymdcd@hermes.olymp>
+References: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
+ <1495726937-23557-3-git-send-email-catalin.marinas@arm.com>
+ <20170526160916.ptlc2huao3bn4qwq@hermes.olymp>
+ <20170526162107.GC30853@e104818-lin.cambridge.arm.com>
+ <20170526162329.GD30853@e104818-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170524220949.GS141096@google.com>
-References: <20170519210036.146880-1-mka@chromium.org> <20170519210036.146880-2-mka@chromium.org>
- <alpine.DEB.2.10.1705221338100.30407@chino.kir.corp.google.com>
- <20170522205621.GL141096@google.com> <20170522144501.2d02b5799e07167dc5aecf3e@linux-foundation.org>
- <alpine.DEB.2.10.1705221834440.13805@chino.kir.corp.google.com>
- <20170523165608.GN141096@google.com> <alpine.DEB.2.10.1705241326200.49680@chino.kir.corp.google.com>
- <20170524220949.GS141096@google.com>
-From: Doug Anderson <dianders@chromium.org>
-Date: Fri, 26 May 2017 10:05:18 -0700
-Message-ID: <CAD=FV=VFih02J1D-fOrpVEO9qDtLOusyqP3dHdeM7h0Etrrn2A@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm/slub: Only define kmalloc_large_node_hook() for
- NUMA systems
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170526162329.GD30853@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Kaehlcke <mka@chromium.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+On Fri, May 26, 2017 at 05:23:30PM +0100, Catalin Marinas wrote:
+> On Fri, May 26, 2017 at 05:21:08PM +0100, Catalin Marinas wrote:
+> > On Fri, May 26, 2017 at 05:09:17PM +0100, Luis Henriques wrote:
+> > > On Thu, May 25, 2017 at 04:42:16PM +0100, Catalin Marinas wrote:
+> > > > The scan_block() function updates the number of references (pointers) to
+> > > > objects, adding them to the gray_list when object->min_count is reached.
+> > > > The patch factors out this functionality into a separate update_refs()
+> > > > function.
+> > > > 
+> > > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > > Cc: Andy Lutomirski <luto@amacapital.net>
+> > > > Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+> > > > Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> [...]
+> > > FWIW, I've tested this patchset and I don't see kmemleak triggering the
+> > > false positives anymore.
+> > 
+> > Thanks for re-testing (I dropped your tested-by from the initial patch
+> > since I made a small modification).
+> 
+> Sorry, the "re-testing" comment was meant at the other Luis on cc ;)
+> (Luis R. Rodriguez). It's been a long day...
 
-On Wed, May 24, 2017 at 3:09 PM, Matthias Kaehlcke <mka@chromium.org> wrote:
-> Hi David,
->
-> El Wed, May 24, 2017 at 01:36:21PM -0700 David Rientjes ha dit:
->
->> On Tue, 23 May 2017, Matthias Kaehlcke wrote:
->>
->> > > diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
->> > > index de179993e039..e1895ce6fa1b 100644
->> > > --- a/include/linux/compiler-clang.h
->> > > +++ b/include/linux/compiler-clang.h
->> > > @@ -15,3 +15,8 @@
->> > >   * with any version that can compile the kernel
->> > >   */
->> > >  #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
->> > > +
->> > > +#ifdef inline
->> > > +#undef inline
->> > > +#define inline __attribute__((unused))
->> > > +#endif
->> >
->> > Thanks for the suggestion!
->> >
->> > Nothing breaks and the warnings are silenced. It seems we could use
->> > this if there is a stong opposition against having warnings on unused
->> > static inline functions in .c files.
->> >
->>
->> It would be slightly different, it would be:
->>
->> #define inline inline __attribute__((unused))
->>
->> to still inline the functions, I was just seeing if there was anything
->> else that clang was warning about that was unrelated to a function's
->> inlining.
->>
->> > Still I am not convinced that gcc's behavior is preferable in this
->> > case. True, it saves us from adding a bunch of __maybe_unused or
->> > #ifdefs, on the other hand the warning is a useful tool to spot truly
->> > unused code. So far about 50% of the warnings I looked into fall into
->> > this category.
->> >
->>
->> I think gcc's behavior is a result of how it does preprocessing and is a
->> clearly defined and long-standing semantic given in the gcc manual
->> regarding -Wunused-function.
->>
->> #define IS_PAGE_ALIGNED(__size)       (!(__size & ((size_t)PAGE_SIZE - 1)))
->> static inline int is_page_aligned(size_t size)
->> {
->>       return !(size & ((size_t)PAGE_SIZE - 1));
->> }
->>
->> Gcc will not warn about either of these being unused, regardless of -Wall,
->> -Wunused-function, or -pedantic.  Clang, correct me if I'm wrong, will
->> only warn about is_page_aligned().
->
-> Indeed, clang does not warn about unused defines.
->
->> So the argument could be made that one of the additional benefits of
->> static inline functions is that a subset of compilers, heavily in the
->> minority, will detect whether it's unused and we'll get patches that
->> remove them.  Functionally, it would only result in LOC reduction.  But,
->> isn't adding #ifdef's to silence the warning just adding more LOC?
->
-> The LOC reduction comes from the removal of the actual dead code that
-> is spotted because the warning was enabled and pointed it out :)
->
-> Using #ifdef is one option, in most cases the function can be marked as
-> __maybe_unused, which technically doesn't (necessarily) increase
-> LOC. However some maintainers prefer the use of #ifdef over
-> __maybe_unused in certain cases.
->
->> I have no preference either way, I think it would be up to the person who
->> is maintaining the code and has to deal with the patches.
->
-> I think it would be good to have a general policy/agreement, to either
-> disable the warning completely (not my preference) or 'allow' the use
-> of one of the available mechanism to suppress the warning for
-> functions that are not used in some configurations or only kept around
-> for reference/debugging/symmetry.
+Heh, no worries!  What are the odds of having 2 different guys named Luis
+testing the same patch? :-)
 
-I would tend to agree with Matthias that we need some type of general
-policy / agreement with enough maintainers.  It's nice to consider all
-warnings as important and if there are a few outliers it makes it
-easier to ignore all warnings.
-
-BTW: just as extra motivation showing the usefulness of this work, see
-a patch I just posted that deletes a bunch of unneeded code in an ASoC
-driver:
-
-https://patchwork.kernel.org/patch/9750813/
-
-I don't know anything about this driver but the clang warning made it
-obvious that something was wrong.  Either we were doing a bit of
-useless saving or (perhaps) the restore was actually supposed to be
-called somewhere and we had a bug.
-
--Doug
+Cheers,
+--
+Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
