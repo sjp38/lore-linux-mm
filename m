@@ -1,170 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 994396B0279
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:05:58 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k11so4070345qtk.4
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:05:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l126si1056661qkf.293.2017.05.26.09.05.57
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F0CDD6B0279
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 12:09:22 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g143so4301962wme.13
+        for <linux-mm@kvack.org>; Fri, 26 May 2017 09:09:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y19si1983666edi.175.2017.05.26.09.09.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 09:05:57 -0700 (PDT)
-Subject: Re: [PATCH v3 8/8] x86,kvm: Teach KVM's VMX code that CR3 isn't a
- constant
-From: Paolo Bonzini <pbonzini@redhat.com>
-References: <cover.1495759610.git.luto@kernel.org>
- <4ac698fc0c44a4eef2d05b472bd42389272e0c40.1495759610.git.luto@kernel.org>
- <28e1b61e-c98f-18af-8cc7-92604b8f5e0c@redhat.com>
-Message-ID: <829229b9-f62d-aab1-acd3-18697f93c3eb@redhat.com>
-Date: Fri, 26 May 2017 18:05:51 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 May 2017 09:09:20 -0700 (PDT)
+Date: Fri, 26 May 2017 17:09:17 +0100
+From: Luis Henriques <lhenriques@suse.com>
+Subject: Re: [PATCH v2 2/3] mm: kmemleak: Factor object reference updating
+ out of scan_block()
+Message-ID: <20170526160916.ptlc2huao3bn4qwq@hermes.olymp>
+References: <1495726937-23557-1-git-send-email-catalin.marinas@arm.com>
+ <1495726937-23557-3-git-send-email-catalin.marinas@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <28e1b61e-c98f-18af-8cc7-92604b8f5e0c@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <1495726937-23557-3-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Andy Lutomirski <luto@amacapital.net>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-
-
-On 26/05/2017 17:30, Paolo Bonzini wrote:
+On Thu, May 25, 2017 at 04:42:16PM +0100, Catalin Marinas wrote:
+> The scan_block() function updates the number of references (pointers) to
+> objects, adding them to the gray_list when object->min_count is reached.
+> The patch factors out this functionality into a separate update_refs()
+> function.
 > 
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> ---
+>  mm/kmemleak.c | 43 +++++++++++++++++++++++++------------------
+>  1 file changed, 25 insertions(+), 18 deletions(-)
 > 
-> On 26/05/2017 02:47, Andy Lutomirski wrote:
->> When PCID is enabled, CR3's PCID bits can change during context
->> switches, so KVM won't be able to treat CR3 as a per-mm constant any
->> more.
->>
->> I structured this like the existing CR4 handling.  Under ordinary
->> circumstances (PCID disabled or if the current PCID and the value
->> that's already in the VMCS match), then we won't do an extra VMCS
->> write, and we'll never do an extra direct CR3 read.  The overhead
->> should be minimal.
->>
->> I disallowed using the new helper in non-atomic context because
->> PCID support will cause CR3 to stop being constant in non-atomic
->> process context.
->>
->> (Frankly, it also scares me a bit that KVM ever treated CR3 as
->> constant, but it looks like it was okay before.)
->>
->> Cc: Paolo Bonzini <pbonzini@redhat.com>
->> Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
->> Cc: kvm@vger.kernel.org
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Dave Hansen <dave.hansen@intel.com>
->> Cc: Nadav Amit <namit@vmware.com>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Arjan van de Ven <arjan@linux.intel.com>
->> Signed-off-by: Andy Lutomirski <luto@kernel.org>
->> ---
->>  arch/x86/include/asm/mmu_context.h | 19 +++++++++++++++++++
->>  arch/x86/kvm/vmx.c                 | 21 ++++++++++++++++++---
->>  2 files changed, 37 insertions(+), 3 deletions(-)
->>
->> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
->> index 187c39470a0b..f20d7ea47095 100644
->> --- a/arch/x86/include/asm/mmu_context.h
->> +++ b/arch/x86/include/asm/mmu_context.h
->> @@ -266,4 +266,23 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
->>  	return __pkru_allows_pkey(vma_pkey(vma), write);
->>  }
->>  
->> +
->> +/*
->> + * This can be used from process context to figure out what the value of
->> + * CR3 is without needing to do a (slow) read_cr3().
->> + *
->> + * It's intended to be used for code like KVM that sneakily changes CR3
->> + * and needs to restore it.  It needs to be used very carefully.
->> + */
->> +static inline unsigned long __get_current_cr3_fast(void)
->> +{
->> +	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
->> +
->> +	/* For now, be very restrictive about when this can be called. */
->> +	VM_WARN_ON(in_nmi() || !in_atomic());
->> +
->> +	VM_BUG_ON(cr3 != read_cr3());
->> +	return cr3;
->> +}
->> +
->>  #endif /* _ASM_X86_MMU_CONTEXT_H */
->> diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
->> index 72f78396bc09..b7b36c9ffa3d 100644
->> --- a/arch/x86/kvm/vmx.c
->> +++ b/arch/x86/kvm/vmx.c
->> @@ -48,6 +48,7 @@
->>  #include <asm/kexec.h>
->>  #include <asm/apic.h>
->>  #include <asm/irq_remapping.h>
->> +#include <asm/mmu_context.h>
->>  
->>  #include "trace.h"
->>  #include "pmu.h"
->> @@ -596,6 +597,7 @@ struct vcpu_vmx {
->>  		int           gs_ldt_reload_needed;
->>  		int           fs_reload_needed;
->>  		u64           msr_host_bndcfgs;
->> +		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
->>  		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
->>  	} host_state;
->>  	struct {
->> @@ -5012,12 +5014,19 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
->>  	u32 low32, high32;
->>  	unsigned long tmpl;
->>  	struct desc_ptr dt;
->> -	unsigned long cr0, cr4;
->> +	unsigned long cr0, cr3, cr4;
->>  
->>  	cr0 = read_cr0();
->>  	WARN_ON(cr0 & X86_CR0_TS);
->>  	vmcs_writel(HOST_CR0, cr0);  /* 22.2.3 */
->> -	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
->> +
->> +	/*
->> +	 * Save the most likely value for this task's CR3 in the VMCS.
->> +	 * We can't use __get_current_cr3_fast() because we're not atomic.
->> +	 */
->> +	cr3 = read_cr3();
->> +	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
->> +	vmx->host_state.vmcs_host_cr3 = cr3;
->>  
->>  	/* Save the most likely value for this task's CR4 in the VMCS. */
->>  	cr4 = cr4_read_shadow();
->> @@ -8843,7 +8852,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
->>  static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
->>  {
->>  	struct vcpu_vmx *vmx = to_vmx(vcpu);
->> -	unsigned long debugctlmsr, cr4;
->> +	unsigned long debugctlmsr, cr3, cr4;
->>  
->>  	/* Don't enter VMX if guest state is invalid, let the exit handler
->>  	   start emulation until we arrive back to a valid state */
->> @@ -8865,6 +8874,12 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
->>  	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
->>  		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
->>  
->> +	cr3 = __get_current_cr3_fast();
->> +	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
->> +		vmcs_writel(HOST_CR3, cr3);
->> +		vmx->host_state.vmcs_host_cr3 = cr3;
->> +	}
->> +
->>  	cr4 = cr4_read_shadow();
->>  	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
->>  		vmcs_writel(HOST_CR4, cr4);
->>
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index 964b12eba2c1..266482f460c2 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -1188,6 +1188,30 @@ static bool update_checksum(struct kmemleak_object *object)
+>  }
+>  
+>  /*
+> + * Update an object's references. object->lock must be held by the caller.
+> + */
+> +static void update_refs(struct kmemleak_object *object)
+> +{
+> +	if (!color_white(object)) {
+> +		/* non-orphan, ignored or new */
+> +		return;
+> +	}
+> +
+> +	/*
+> +	 * Increase the object's reference count (number of pointers to the
+> +	 * memory block). If this count reaches the required minimum, the
+> +	 * object's color will become gray and it will be added to the
+> +	 * gray_list.
+> +	 */
+> +	object->count++;
+> +	if (color_gray(object)) {
+> +		/* put_object() called when removing from gray_list */
+> +		WARN_ON(!get_object(object));
+> +		list_add_tail(&object->gray_list, &gray_list);
+> +	}
+> +}
+> +
+> +/*
+>   * Memory scanning is a long process and it needs to be interruptable. This
+>   * function checks whether such interrupt condition occurred.
+>   */
+> @@ -1259,24 +1283,7 @@ static void scan_block(void *_start, void *_end,
+>  		 * enclosed by scan_mutex.
+>  		 */
+>  		spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
+> -		if (!color_white(object)) {
+> -			/* non-orphan, ignored or new */
+> -			spin_unlock(&object->lock);
+> -			continue;
+> -		}
+> -
+> -		/*
+> -		 * Increase the object's reference count (number of pointers
+> -		 * to the memory block). If this count reaches the required
+> -		 * minimum, the object's color will become gray and it will be
+> -		 * added to the gray_list.
+> -		 */
+> -		object->count++;
+> -		if (color_gray(object)) {
+> -			/* put_object() called when removing from gray_list */
+> -			WARN_ON(!get_object(object));
+> -			list_add_tail(&object->gray_list, &gray_list);
+> -		}
+> +		update_refs(object);
+>  		spin_unlock(&object->lock);
+
+FWIW, I've tested this patchset and I don't see kmemleak triggering the
+false positives anymore.
+
+I've also done a quick review and couldn't find anything obviously
+incorrect, just a question: why didn't you moved the spin_lock/unlock into
+update_refs() too?  It would save you 2 lines in the next patch :)
+
+Cheers,
+--
+Luis
+
+
+>  	}
+>  	read_unlock_irqrestore(&kmemleak_lock, flags);
 > 
-> Queued, thanks.  If anybody needs a topic branch, please holler.
-
-Ah, no, it depends on the others.  Note to self, compile first, answer
-second.
-
-Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
