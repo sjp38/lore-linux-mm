@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C9FE6B02B4
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 00:00:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n75so251978532pfh.0
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 21:00:32 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id f9si3020771pfe.45.2017.05.25.21.00.27
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 May 2017 21:00:28 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] mm: fix mlock incorrent event account
-Date: Fri, 26 May 2017 11:54:14 +0800
-Message-ID: <1495770854-13920-1-git-send-email-zhongjiang@huawei.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 109F86B0292
+	for <linux-mm@kvack.org>; Fri, 26 May 2017 00:06:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e8so253503433pfl.4
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 21:06:25 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id n34si30061239pld.268.2017.05.25.21.06.23
+        for <linux-mm@kvack.org>;
+        Thu, 25 May 2017 21:06:23 -0700 (PDT)
+Date: Fri, 26 May 2017 13:06:22 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: add counters for different page fault types
+Message-ID: <20170526040622.GB17837@bbox>
+References: <20170524194126.18040-1-semenzato@chromium.org>
+ <20170525001915.GA14999@bbox>
+ <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.cz, vbabka@suse.cz, qiuxishi@huawei.com, linux-mm@kvack.org
+To: Luigi Semenzato <semenzato@chromium.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Thu, May 25, 2017 at 08:54:09AM -0700, Luigi Semenzato wrote:
+> Thank you Minchan, that's certainly simpler and I am annoyed that I
+> didn't consider that :/
+> 
+> By a quick look, there are a few differences but maybe they don't matter?
+> 
+> 1. can a major (anon) fault result in a hit in the swap cache?  So
+> pswpin will not get incremented and the fault will be counted as a
+> file fault.
 
-Recently, when I address in the issue, Subject "mlock: fix mlock count
-can not decrease in race condition" had been take over, I review
-the code and find the potential issue. it will result in the incorrect
-account, it will make us misunderstand straightforward.
+If it is swap cache hit, it's not a major fault which causes IO
+so VM count it as minor fault, not major.
 
-The following testcase can prove the issue.
+> 
+> 2. pswpin also counts swapins from readahead --- which however I think
+> we have turned off (at least I hope so, since readahead isn't useful
+> with zram, in fact maybe zram should log a warning when readahead is
+> greater than 0 because I think that's the default).
 
-int main(void)
-{
-    char *map;
-    int fd;
+Yub, I expected you guys used zram with readahead off so it shouldn't
+be a big problem.
+About auto resetting readahead with zram, I agree with you.
+But there are some reasons I postpone the work. No want to discuss
+it in this thread/moment. ;)
 
-    fd = open("test", O_CREAT|O_RDWR);
-    unlink("test");
-    ftruncate(fd, 4096);
-    map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
-    map[0] = 11;
-    mlock(map, 4096);
-    ftruncate(fd, 0);
-    close(fd);
-    munlock(map, 4096);
-    munmap(map, 4096);
+> 
+> Incidentally, I understand anon and file faults, but what's a shmem fault?
 
-    return 0;
-}
+For me, it was out of my interest but if you want to count shmem fault,
+maybe, we need to introdue new stat(e.g., PSWPIN_SHM) in shmem_swapin
+but there are concrete reasons to justify in changelog. :)
 
-before:
-unevictable_pgs_mlocked 10589
-unevictable_pgs_munlocked 10588
-unevictable_pgs_cleared 1
-
-apply the patch;
-after:
-unevictable_pgs_mlocked 9497
-unevictable_pgs_munlocked 9497
-unevictable_pgs_cleared 1
-
-unmap_mapping_range unmap them,  page_remove_rmap will deal with
-clear_page_mlock situation.  we clear page Mlock flag and successful
-isolate the page,  the page will putback the evictable list. but it is not
-record the munlock event.
-
-The patch add the event account when successful page isolation.
-
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/mlock.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index c483c5c..941930b 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -64,6 +64,7 @@ void clear_page_mlock(struct page *page)
- 			    -hpage_nr_pages(page));
- 	count_vm_event(UNEVICTABLE_PGCLEARED);
- 	if (!isolate_lru_page(page)) {
-+		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
- 		putback_lru_page(page);
- 	} else {
- 		/*
--- 
-1.8.3.1
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
