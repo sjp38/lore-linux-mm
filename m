@@ -1,71 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DA2376B0292
-	for <linux-mm@kvack.org>; Thu, 25 May 2017 22:02:03 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id v80so257743792oie.10
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:02:03 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d84si13052770oib.189.2017.05.25.19.02.02
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5396B0292
+	for <linux-mm@kvack.org>; Thu, 25 May 2017 22:16:06 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id a10so1866221itg.3
+        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:16:06 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id x8si12237412itx.32.2017.05.25.19.16.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 May 2017 19:02:03 -0700 (PDT)
-Received: from mail-vk0-f48.google.com (mail-vk0-f48.google.com [209.85.213.48])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5135623A06
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 02:02:02 +0000 (UTC)
-Received: by mail-vk0-f48.google.com with SMTP id x71so100387734vkd.0
-        for <linux-mm@kvack.org>; Thu, 25 May 2017 19:02:02 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 May 2017 19:16:06 -0700 (PDT)
+Message-ID: <59278B13.4070304@huawei.com>
+Date: Fri, 26 May 2017 09:55:31 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1495762747.29205.63.camel@redhat.com>
-References: <cover.1495759610.git.luto@kernel.org> <61de238db6d9c9018db020c41047ce32dac64488.1495759610.git.luto@kernel.org>
- <1495762747.29205.63.camel@redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 25 May 2017 19:01:40 -0700
-Message-ID: <CALCETrVDpWL4kQbxNVWBX-OKuThoaYaqefbKY-dD0A2y4BgNfA@mail.gmail.com>
-Subject: Re: [PATCH v3 2/8] x86/mm: Change the leave_mm() condition for local
- TLB flushes
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH] mm/vmalloc: a slight change of compare target in __insert_vmap_area()
+References: <20170524100347.8131-1-richard.weiyang@gmail.com> <592649CC.8090702@huawei.com> <20170526013639.GA10727@WeideMacBook-Pro.local>
+In-Reply-To: <20170526013639.GA10727@WeideMacBook-Pro.local>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 25, 2017 at 6:39 PM, Rik van Riel <riel@redhat.com> wrote:
-> On Thu, 2017-05-25 at 17:47 -0700, Andy Lutomirski wrote:
+On 2017/5/26 9:36, Wei Yang wrote:
+> On Thu, May 25, 2017 at 11:04:44AM +0800, zhong jiang wrote:
+>> I hit the overlap issue, but it  is hard to reproduced. if you think it is safe. and the situation
+>> is not happen. AFAIC, it is no need to add the code.
 >>
->> +++ b/arch/x86/mm/tlb.c
->> @@ -311,7 +311,7 @@ void flush_tlb_mm_range(struct mm_struct *mm,
->> unsigned long start,
->>               goto out;
->>       }
+>> if you insist on the point. Maybe VM_WARN_ON is a choice.
 >>
->> -     if (!current->mm) {
->> +     if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
->>               leave_mm(smp_processor_id());
->
-> Unless -mm changed leave_mm (I did not check), this
-> is not quite correct yet.
->
-> The reason is leave_mm (at least in the latest Linus
-> tree) ignores the cpu argument for one of its checks.
->
-> You should probably fix that in an earlier patch,
-> assuming you haven't already done so in -mm.
->
-> void leave_mm(int cpu)
-> {
->         struct mm_struct *active_mm =
-> this_cpu_read(cpu_tlbstate.active_mm);
->         if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
->                 BUG();
->         if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
->                 cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
->                 load_cr3(swapper_pg_dir);
+> Do you have some log to show the overlap happens?
+ Hi  wei
 
-I agree it's odd, but what's the bug?  Both before and after, leave_mm
-needed to be called with cpu == smp_processor_id(), and
-smp_processor_id() warns if it's called in a preemptible context.
+cat /proc/vmallocinfo
+0xf1580000-0xf1600000  524288 raw_dump_mem_write+0x10c/0x188 phys=8b901000 ioremap
+0xf1638000-0xf163a000    8192 mcss_pou_queue_init+0xa0/0x13c [mcss] phys=fc614000 ioremap
+0xf528e000-0xf5292000   16384 n_tty_open+0x10/0xd0 pages=3 vmalloc
+0xf5000000-0xf9001000 67112960 devm_ioremap+0x38/0x70 phys=40000000 ioremap
+0xfe001000-0xfe002000    4096 iotable_init+0x0/0xc phys=20001000 ioremap
+0xfe200000-0xfe201000    4096 iotable_init+0x0/0xc phys=1a000000 ioremap
+0xff100000-0xff101000    4096 iotable_init+0x0/0xc phys=2000a000 ioremap
+
+I hit the above issue, but the log no more useful info. it just is found by accident.
+and it is hard to reprodeced. no more info can be supported for further investigation.
+therefore, it is no idea for me. 
+
+Thanks
+zhongjinag
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
