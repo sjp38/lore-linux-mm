@@ -1,59 +1,413 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3336B0292
-	for <linux-mm@kvack.org>; Sat, 27 May 2017 18:56:56 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id 14so10595825uar.7
-        for <linux-mm@kvack.org>; Sat, 27 May 2017 15:56:56 -0700 (PDT)
-Received: from mail-ua0-x22a.google.com (mail-ua0-x22a.google.com. [2607:f8b0:400c:c08::22a])
-        by mx.google.com with ESMTPS id 73si2344855uag.23.2017.05.27.15.56.55
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFCB6B0292
+	for <linux-mm@kvack.org>; Sat, 27 May 2017 19:15:29 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n75so43665980pfh.0
+        for <linux-mm@kvack.org>; Sat, 27 May 2017 16:15:29 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
+        by mx.google.com with ESMTPS id e4si5442418pgc.317.2017.05.27.16.15.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 May 2017 15:56:55 -0700 (PDT)
-Received: by mail-ua0-x22a.google.com with SMTP id y4so21035862uay.2
-        for <linux-mm@kvack.org>; Sat, 27 May 2017 15:56:55 -0700 (PDT)
+        Sat, 27 May 2017 16:15:28 -0700 (PDT)
+Date: Sat, 27 May 2017 16:02:31 -0700
+In-Reply-To: <3758f3da9de01b1a082c4e1f44ba3b48f7a840ea.1495825151.git.dvyukov@google.com>
+References: <cover.1495825151.git.dvyukov@google.com><cover.1495825151.git.dvyukov@google.com> <3758f3da9de01b1a082c4e1f44ba3b48f7a840ea.1495825151.git.dvyukov@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20170527224624.opc4yg4m7irvwbjl@node.shutemov.name>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <20170525203334.867-6-kirill.shutemov@linux.intel.com> <CAMzpN2j+CMCn-5pgEVZBNm9JMK1GEodvXqEtpAB2NXwTTHSM6g@mail.gmail.com>
- <20170527224624.opc4yg4m7irvwbjl@node.shutemov.name>
-From: Brian Gerst <brgerst@gmail.com>
-Date: Sat, 27 May 2017 18:56:54 -0400
-Message-ID: <CAMzpN2gqK-QKwMh-tzXvU-tCKGWuhRdA6BFswsSQpT+YVuQyQQ@mail.gmail.com>
-Subject: Re: [PATCHv1, RFC 5/8] x86/mm: Fold p4d page table layer at runtime
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v2 2/7] x86: use long long for 64-bit atomic ops
+From: hpa@zytor.com
+Message-ID: <683DBA00-B29A-4A05-A8DD-23E7C936C38E@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>, mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com
+Cc: akpm@linux-foundation.org, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, x86@kernel.org, tglx@linutronix.de, willy@infradead.org, linux-mm@kvack.org
 
-On Sat, May 27, 2017 at 6:46 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Sat, May 27, 2017 at 11:09:54AM -0400, Brian Gerst wrote:
->> >  static inline int pgd_none(pgd_t pgd)
->> >  {
->> > +       if (p4d_folded)
->> > +               return 0;
->> >         /*
->> >          * There is no need to do a workaround for the KNL stray
->> >          * A/D bit erratum here.  PGDs only point to page tables
->>
->> These should use static_cpu_has(X86_FEATURE_LA57), so that it gets
->> patched by alternatives.
+On May 26, 2017 12:09:04 PM PDT, Dmitry Vyukov <dvyukov@google=2Ecom> wrote=
+:
+>Some 64-bit atomic operations use 'long long' as operand/return type
+>(e=2Eg=2E asm-generic/atomic64=2Eh, arch/x86/include/asm/atomic64_32=2Eh)=
+;
+>while others use 'long' (e=2Eg=2E arch/x86/include/asm/atomic64_64=2Eh)=
+=2E
+>This makes it impossible to write portable code=2E
+>For example, there is no format specifier that prints result of
+>atomic64_read() without warnings=2E atomic64_try_cmpxchg() is almost
+>impossible to use in portable fashion because it requires either
+>'long *' or 'long long *' as argument depending on arch=2E
 >
-> Right, eventually we would likely need something like this. But at this
-> point I'm more worried about correctness than performance. Performance
-> will be the next step.
+>Switch arch/x86/include/asm/atomic64_64=2Eh to 'long long'=2E
 >
-> And I haven't tried it yet, but I would expect direct use of alternatives
-> wouldn't be possible. If I read code correctly, we enable paging way
-> before we apply alternatives. But we need to have something functional in
-> between.
+>Signed-off-by: Dmitry Vyukov <dvyukov@google=2Ecom>
+>Cc: Mark Rutland <mark=2Erutland@arm=2Ecom>
+>Cc: Peter Zijlstra <peterz@infradead=2Eorg>
+>Cc: Will Deacon <will=2Edeacon@arm=2Ecom>
+>Cc: Andrew Morton <akpm@linux-foundation=2Eorg>
+>Cc: Andrey Ryabinin <aryabinin@virtuozzo=2Ecom>
+>Cc: Ingo Molnar <mingo@redhat=2Ecom>
+>Cc: kasan-dev@googlegroups=2Ecom
+>Cc: linux-mm@kvack=2Eorg
+>Cc: linux-kernel@vger=2Ekernel=2Eorg
+>Cc: x86@kernel=2Eorg
+>
+>---
+>Changes since v1:
+> - reverted stray s/long/long long/ replace in comment
+> - added arch/s390 changes to fix build errors/warnings
+>---
+> arch/s390/include/asm/atomic_ops=2Eh | 14 +++++-----
+> arch/s390/include/asm/bitops=2Eh     | 12 ++++-----
+>arch/x86/include/asm/atomic64_64=2Eh | 52
+>+++++++++++++++++++-------------------
+> include/linux/types=2Eh              |  2 +-
+> 4 files changed, 40 insertions(+), 40 deletions(-)
+>
+>diff --git a/arch/s390/include/asm/atomic_ops=2Eh
+>b/arch/s390/include/asm/atomic_ops=2Eh
+>index ac9e2b939d04=2E=2E055a9083e52d 100644
+>--- a/arch/s390/include/asm/atomic_ops=2Eh
+>+++ b/arch/s390/include/asm/atomic_ops=2Eh
+>@@ -31,10 +31,10 @@ __ATOMIC_OPS(__atomic_and, int, "lan")
+> __ATOMIC_OPS(__atomic_or,  int, "lao")
+> __ATOMIC_OPS(__atomic_xor, int, "lax")
+>=20
+>-__ATOMIC_OPS(__atomic64_add, long, "laag")
+>-__ATOMIC_OPS(__atomic64_and, long, "lang")
+>-__ATOMIC_OPS(__atomic64_or,  long, "laog")
+>-__ATOMIC_OPS(__atomic64_xor, long, "laxg")
+>+__ATOMIC_OPS(__atomic64_add, long long, "laag")
+>+__ATOMIC_OPS(__atomic64_and, long long, "lang")
+>+__ATOMIC_OPS(__atomic64_or,  long long, "laog")
+>+__ATOMIC_OPS(__atomic64_xor, long long, "laxg")
+>=20
+> #undef __ATOMIC_OPS
+> #undef __ATOMIC_OP
+>@@ -46,7 +46,7 @@ static inline void __atomic_add_const(int val, int
+>*ptr)
+> 		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc");
+> }
+>=20
+>-static inline void __atomic64_add_const(long val, long *ptr)
+>+static inline void __atomic64_add_const(long val, long long *ptr)
+> {
+> 	asm volatile(
+> 		"	agsi	%[ptr],%[val]\n"
+>@@ -82,7 +82,7 @@ __ATOMIC_OPS(__atomic_xor, "xr")
+> #undef __ATOMIC_OPS
+>=20
+> #define __ATOMIC64_OP(op_name, op_string)				\
+>-static inline long op_name(long val, long *ptr)				\
+>+static inline long op_name(long val, long long *ptr)			\
+> {									\
+> 	long old, new;							\
+> 									\
+>@@ -118,7 +118,7 @@ static inline int __atomic_cmpxchg(int *ptr, int
+>old, int new)
+> 	return old;
+> }
+>=20
+>-static inline long __atomic64_cmpxchg(long *ptr, long old, long new)
+>+static inline long __atomic64_cmpxchg(long long *ptr, long old, long
+>new)
+> {
+> 	asm volatile(
+> 		"	csg	%[old],%[new],%[ptr]"
+>diff --git a/arch/s390/include/asm/bitops=2Eh
+>b/arch/s390/include/asm/bitops=2Eh
+>index d92047da5ccb=2E=2E8912f52bca5d 100644
+>--- a/arch/s390/include/asm/bitops=2Eh
+>+++ b/arch/s390/include/asm/bitops=2Eh
+>@@ -80,7 +80,7 @@ static inline void set_bit(unsigned long nr, volatile
+>unsigned long *ptr)
+> 	}
+> #endif
+> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
+>-	__atomic64_or(mask, addr);
+>+	__atomic64_or(mask, (long long *)addr);
+> }
+>=20
+>static inline void clear_bit(unsigned long nr, volatile unsigned long
+>*ptr)
+>@@ -101,7 +101,7 @@ static inline void clear_bit(unsigned long nr,
+>volatile unsigned long *ptr)
+> 	}
+> #endif
+> 	mask =3D ~(1UL << (nr & (BITS_PER_LONG - 1)));
+>-	__atomic64_and(mask, addr);
+>+	__atomic64_and(mask, (long long *)addr);
+> }
+>=20
+>static inline void change_bit(unsigned long nr, volatile unsigned long
+>*ptr)
+>@@ -122,7 +122,7 @@ static inline void change_bit(unsigned long nr,
+>volatile unsigned long *ptr)
+> 	}
+> #endif
+> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
+>-	__atomic64_xor(mask, addr);
+>+	__atomic64_xor(mask, (long long *)addr);
+> }
+>=20
+> static inline int
+>@@ -132,7 +132,7 @@ test_and_set_bit(unsigned long nr, volatile
+>unsigned long *ptr)
+> 	unsigned long old, mask;
+>=20
+> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
+>-	old =3D __atomic64_or_barrier(mask, addr);
+>+	old =3D __atomic64_or_barrier(mask, (long long *)addr);
+> 	return (old & mask) !=3D 0;
+> }
+>=20
+>@@ -143,7 +143,7 @@ test_and_clear_bit(unsigned long nr, volatile
+>unsigned long *ptr)
+> 	unsigned long old, mask;
+>=20
+> 	mask =3D ~(1UL << (nr & (BITS_PER_LONG - 1)));
+>-	old =3D __atomic64_and_barrier(mask, addr);
+>+	old =3D __atomic64_and_barrier(mask, (long long *)addr);
+> 	return (old & ~mask) !=3D 0;
+> }
+>=20
+>@@ -154,7 +154,7 @@ test_and_change_bit(unsigned long nr, volatile
+>unsigned long *ptr)
+> 	unsigned long old, mask;
+>=20
+> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
+>-	old =3D __atomic64_xor_barrier(mask, addr);
+>+	old =3D __atomic64_xor_barrier(mask, (long long *)addr);
+> 	return (old & mask) !=3D 0;
+> }
+>=20
+>diff --git a/arch/x86/include/asm/atomic64_64=2Eh
+>b/arch/x86/include/asm/atomic64_64=2Eh
+>index 8db8879a6d8c=2E=2E8555cd19a916 100644
+>--- a/arch/x86/include/asm/atomic64_64=2Eh
+>+++ b/arch/x86/include/asm/atomic64_64=2Eh
+>@@ -16,7 +16,7 @@
+>  * Atomically reads the value of @v=2E
+>  * Doesn't imply a read memory barrier=2E
+>  */
+>-static inline long atomic64_read(const atomic64_t *v)
+>+static inline long long atomic64_read(const atomic64_t *v)
+> {
+> 	return READ_ONCE((v)->counter);
+> }
+>@@ -28,7 +28,7 @@ static inline long atomic64_read(const atomic64_t *v)
+>  *
+>  * Atomically sets the value of @v to @i=2E
+>  */
+>-static inline void atomic64_set(atomic64_t *v, long i)
+>+static inline void atomic64_set(atomic64_t *v, long long i)
+> {
+> 	WRITE_ONCE(v->counter, i);
+> }
+>@@ -40,7 +40,7 @@ static inline void atomic64_set(atomic64_t *v, long
+>i)
+>  *
+>  * Atomically adds @i to @v=2E
+>  */
+>-static __always_inline void atomic64_add(long i, atomic64_t *v)
+>+static __always_inline void atomic64_add(long long i, atomic64_t *v)
+> {
+> 	asm volatile(LOCK_PREFIX "addq %1,%0"
+> 		     : "=3Dm" (v->counter)
+>@@ -54,7 +54,7 @@ static __always_inline void atomic64_add(long i,
+>atomic64_t *v)
+>  *
+>  * Atomically subtracts @i from @v=2E
+>  */
+>-static inline void atomic64_sub(long i, atomic64_t *v)
+>+static inline void atomic64_sub(long long i, atomic64_t *v)
+> {
+> 	asm volatile(LOCK_PREFIX "subq %1,%0"
+> 		     : "=3Dm" (v->counter)
+>@@ -70,7 +70,7 @@ static inline void atomic64_sub(long i, atomic64_t
+>*v)
+>  * true if the result is zero, or false for all
+>  * other cases=2E
+>  */
+>-static inline bool atomic64_sub_and_test(long i, atomic64_t *v)
+>+static inline bool atomic64_sub_and_test(long long i, atomic64_t *v)
+> {
+> 	GEN_BINARY_RMWcc(LOCK_PREFIX "subq", v->counter, "er", i, "%0", e);
+> }
+>@@ -136,7 +136,7 @@ static inline bool atomic64_inc_and_test(atomic64_t
+>*v)
+>  * if the result is negative, or false when
+>  * result is greater than or equal to zero=2E
+>  */
+>-static inline bool atomic64_add_negative(long i, atomic64_t *v)
+>+static inline bool atomic64_add_negative(long long i, atomic64_t *v)
+> {
+> 	GEN_BINARY_RMWcc(LOCK_PREFIX "addq", v->counter, "er", i, "%0", s);
+> }
+>@@ -148,22 +148,22 @@ static inline bool atomic64_add_negative(long i,
+>atomic64_t *v)
+>  *
+>  * Atomically adds @i to @v and returns @i + @v
+>  */
+>-static __always_inline long atomic64_add_return(long i, atomic64_t *v)
+>+static __always_inline long long atomic64_add_return(long long i,
+>atomic64_t *v)
+> {
+> 	return i + xadd(&v->counter, i);
+> }
+>=20
+>-static inline long atomic64_sub_return(long i, atomic64_t *v)
+>+static inline long long atomic64_sub_return(long long i, atomic64_t
+>*v)
+> {
+> 	return atomic64_add_return(-i, v);
+> }
+>=20
+>-static inline long atomic64_fetch_add(long i, atomic64_t *v)
+>+static inline long long atomic64_fetch_add(long long i, atomic64_t *v)
+> {
+> 	return xadd(&v->counter, i);
+> }
+>=20
+>-static inline long atomic64_fetch_sub(long i, atomic64_t *v)
+>+static inline long long atomic64_fetch_sub(long long i, atomic64_t *v)
+> {
+> 	return xadd(&v->counter, -i);
+> }
+>@@ -171,18 +171,18 @@ static inline long atomic64_fetch_sub(long i,
+>atomic64_t *v)
+> #define atomic64_inc_return(v)  (atomic64_add_return(1, (v)))
+> #define atomic64_dec_return(v)  (atomic64_sub_return(1, (v)))
+>=20
+>-static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
+>+static inline long long atomic64_cmpxchg(atomic64_t *v, long long old,
+>long long new)
+> {
+> 	return cmpxchg(&v->counter, old, new);
+> }
+>=20
+> #define atomic64_try_cmpxchg atomic64_try_cmpxchg
+>-static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long
+>*old, long new)
+>+static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long
+>long *old, long long new)
+> {
+> 	return try_cmpxchg(&v->counter, old, new);
+> }
+>=20
+>-static inline long atomic64_xchg(atomic64_t *v, long new)
+>+static inline long long atomic64_xchg(atomic64_t *v, long long new)
+> {
+> 	return xchg(&v->counter, new);
+> }
+>@@ -196,9 +196,9 @@ static inline long atomic64_xchg(atomic64_t *v,
+>long new)
+>  * Atomically adds @a to @v, so long as it was not @u=2E
+>  * Returns the old value of @v=2E
+>  */
+>-static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
+>+static inline bool atomic64_add_unless(atomic64_t *v, long long a,
+>long long u)
+> {
+>-	long c =3D atomic64_read(v);
+>+	long long c =3D atomic64_read(v);
+> 	do {
+> 		if (unlikely(c =3D=3D u))
+> 			return false;
+>@@ -215,9 +215,9 @@ static inline bool atomic64_add_unless(atomic64_t
+>*v, long a, long u)
+>  * The function returns the old value of *v minus 1, even if
+>  * the atomic variable, v, was not decremented=2E
+>  */
+>-static inline long atomic64_dec_if_positive(atomic64_t *v)
+>+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+> {
+>-	long dec, c =3D atomic64_read(v);
+>+	long long dec, c =3D atomic64_read(v);
+> 	do {
+> 		dec =3D c - 1;
+> 		if (unlikely(dec < 0))
+>@@ -226,7 +226,7 @@ static inline long
+>atomic64_dec_if_positive(atomic64_t *v)
+> 	return dec;
+> }
+>=20
+>-static inline void atomic64_and(long i, atomic64_t *v)
+>+static inline void atomic64_and(long long i, atomic64_t *v)
+> {
+> 	asm volatile(LOCK_PREFIX "andq %1,%0"
+> 			: "+m" (v->counter)
+>@@ -234,16 +234,16 @@ static inline void atomic64_and(long i,
+>atomic64_t *v)
+> 			: "memory");
+> }
+>=20
+>-static inline long atomic64_fetch_and(long i, atomic64_t *v)
+>+static inline long long atomic64_fetch_and(long long i, atomic64_t *v)
+> {
+>-	long val =3D atomic64_read(v);
+>+	long long val =3D atomic64_read(v);
+>=20
+> 	do {
+> 	} while (!atomic64_try_cmpxchg(v, &val, val & i));
+> 	return val;
+> }
+>=20
+>-static inline void atomic64_or(long i, atomic64_t *v)
+>+static inline void atomic64_or(long long i, atomic64_t *v)
+> {
+> 	asm volatile(LOCK_PREFIX "orq %1,%0"
+> 			: "+m" (v->counter)
+>@@ -251,16 +251,16 @@ static inline void atomic64_or(long i, atomic64_t
+>*v)
+> 			: "memory");
+> }
+>=20
+>-static inline long atomic64_fetch_or(long i, atomic64_t *v)
+>+static inline long long atomic64_fetch_or(long long i, atomic64_t *v)
+> {
+>-	long val =3D atomic64_read(v);
+>+	long long val =3D atomic64_read(v);
+>=20
+> 	do {
+> 	} while (!atomic64_try_cmpxchg(v, &val, val | i));
+> 	return val;
+> }
+>=20
+>-static inline void atomic64_xor(long i, atomic64_t *v)
+>+static inline void atomic64_xor(long long i, atomic64_t *v)
+> {
+> 	asm volatile(LOCK_PREFIX "xorq %1,%0"
+> 			: "+m" (v->counter)
+>@@ -268,9 +268,9 @@ static inline void atomic64_xor(long i, atomic64_t
+>*v)
+> 			: "memory");
+> }
+>=20
+>-static inline long atomic64_fetch_xor(long i, atomic64_t *v)
+>+static inline long long atomic64_fetch_xor(long long i, atomic64_t *v)
+> {
+>-	long val =3D atomic64_read(v);
+>+	long long val =3D atomic64_read(v);
+>=20
+> 	do {
+> 	} while (!atomic64_try_cmpxchg(v, &val, val ^ i));
+>diff --git a/include/linux/types=2Eh b/include/linux/types=2Eh
+>index 1e7bd24848fc=2E=2E569fc6db1bd5 100644
+>--- a/include/linux/types=2Eh
+>+++ b/include/linux/types=2Eh
+>@@ -177,7 +177,7 @@ typedef struct {
+>=20
+> #ifdef CONFIG_64BIT
+> typedef struct {
+>-	long counter;
+>+	long long counter;
+> } atomic64_t;
+> #endif
+>=20
 
-static_cpu_has() does the check dynamically before alternatives are
-applied, so using it early isn't a problem.
-
---
-Brian Gerst
+NAK - this is what u64/s64 is for=2E
+--=20
+Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
