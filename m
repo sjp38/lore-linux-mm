@@ -1,64 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 56EA96B0292
-	for <linux-mm@kvack.org>; Fri, 26 May 2017 22:18:20 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id c75so8117074qka.7
-        for <linux-mm@kvack.org>; Fri, 26 May 2017 19:18:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d85si2527112qkb.251.2017.05.26.19.18.17
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F6A6B0292
+	for <linux-mm@kvack.org>; Sat, 27 May 2017 11:09:56 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id x47so8739439uab.14
+        for <linux-mm@kvack.org>; Sat, 27 May 2017 08:09:56 -0700 (PDT)
+Received: from mail-ua0-x243.google.com (mail-ua0-x243.google.com. [2607:f8b0:400c:c08::243])
+        by mx.google.com with ESMTPS id e17si1799474vkf.84.2017.05.27.08.09.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 May 2017 19:18:17 -0700 (PDT)
-Date: Sat, 27 May 2017 10:17:57 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH v5 28/32] x86/mm, kexec: Allow kexec to be used with SME
-Message-ID: <20170527021757.GA3132@dhcp-128-65.nay.redhat.com>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212121.10190.94885.stgit@tlendack-t1.amdoffice.net>
- <5927AC6E.8080209@redhat.com>
+        Sat, 27 May 2017 08:09:55 -0700 (PDT)
+Received: by mail-ua0-x243.google.com with SMTP id j17so2443574uag.1
+        for <linux-mm@kvack.org>; Sat, 27 May 2017 08:09:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5927AC6E.8080209@redhat.com>
+In-Reply-To: <20170525203334.867-6-kirill.shutemov@linux.intel.com>
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com> <20170525203334.867-6-kirill.shutemov@linux.intel.com>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Sat, 27 May 2017 11:09:54 -0400
+Message-ID: <CAMzpN2j+CMCn-5pgEVZBNm9JMK1GEodvXqEtpAB2NXwTTHSM6g@mail.gmail.com>
+Subject: Re: [PATCHv1, RFC 5/8] x86/mm: Fold p4d page table layer at runtime
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xlpang@redhat.com
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 05/26/17 at 12:17pm, Xunlei Pang wrote:
-> On 04/19/2017 at 05:21 AM, Tom Lendacky wrote:
-> > Provide support so that kexec can be used to boot a kernel when SME is
-> > enabled.
-> >
-> > Support is needed to allocate pages for kexec without encryption.  This
-> > is needed in order to be able to reboot in the kernel in the same manner
-> > as originally booted.
-> 
-> Hi Tom,
-> 
-> Looks like kdump will break, I didn't see the similar handling for kdump cases, see kernel:
->     kimage_alloc_crash_control_pages(), kimage_load_crash_segment(), etc.
-> 
-> We need to support kdump with SME, kdump kernel/initramfs/purgatory/elfcorehdr/etc
-> are all loaded into the reserved memory(see crashkernel=X) by userspace kexec-tools.
+On Thu, May 25, 2017 at 4:33 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> This patch changes page table helpers to fold p4d at runtime.
+> The logic is the same as in <asm-generic/pgtable-nop4d.h>.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/include/asm/paravirt.h |  3 ++-
+>  arch/x86/include/asm/pgalloc.h  |  5 ++++-
+>  arch/x86/include/asm/pgtable.h  | 10 +++++++++-
+>  3 files changed, 15 insertions(+), 3 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+> index 55fa56fe4e45..e934ed6dc036 100644
+> --- a/arch/x86/include/asm/paravirt.h
+> +++ b/arch/x86/include/asm/paravirt.h
+> @@ -615,7 +615,8 @@ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+>
+>  static inline void pgd_clear(pgd_t *pgdp)
+>  {
+> -       set_pgd(pgdp, __pgd(0));
+> +       if (!p4d_folded)
+> +               set_pgd(pgdp, __pgd(0));
+>  }
+>
+>  #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+> diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+> index b2d0cd8288aa..5c42262169d0 100644
+> --- a/arch/x86/include/asm/pgalloc.h
+> +++ b/arch/x86/include/asm/pgalloc.h
+> @@ -155,6 +155,8 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+>  #if CONFIG_PGTABLE_LEVELS > 4
+>  static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
+>  {
+> +       if (p4d_folded)
+> +               return;
+>         paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
+>         set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
+>  }
+> @@ -179,7 +181,8 @@ extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);
+>  static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+>                                   unsigned long address)
+>  {
+> -       ___p4d_free_tlb(tlb, p4d);
+> +       if (!p4d_folded)
+> +               ___p4d_free_tlb(tlb, p4d);
+>  }
+>
+>  #endif /* CONFIG_PGTABLE_LEVELS > 4 */
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+> index 77037b6f1caa..4516a1bdcc31 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -53,7 +53,7 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
+>
+>  #ifndef __PAGETABLE_P4D_FOLDED
+>  #define set_pgd(pgdp, pgd)             native_set_pgd(pgdp, pgd)
+> -#define pgd_clear(pgd)                 native_pgd_clear(pgd)
+> +#define pgd_clear(pgd)                 (!p4d_folded ? native_pgd_clear(pgd) : 0)
+>  #endif
+>
+>  #ifndef set_p4d
+> @@ -847,6 +847,8 @@ static inline unsigned long p4d_index(unsigned long address)
+>  #if CONFIG_PGTABLE_LEVELS > 4
+>  static inline int pgd_present(pgd_t pgd)
+>  {
+> +       if (p4d_folded)
+> +               return 1;
+>         return pgd_flags(pgd) & _PAGE_PRESENT;
+>  }
+>
+> @@ -864,16 +866,22 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+>  /* to find an entry in a page-table-directory. */
+>  static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
+>  {
+> +       if (p4d_folded)
+> +               return (p4d_t *)pgd;
+>         return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
+>  }
+>
+>  static inline int pgd_bad(pgd_t pgd)
+>  {
+> +       if (p4d_folded)
+> +               return 0;
+>         return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
+>  }
+>
+>  static inline int pgd_none(pgd_t pgd)
+>  {
+> +       if (p4d_folded)
+> +               return 0;
+>         /*
+>          * There is no need to do a workaround for the KNL stray
+>          * A/D bit erratum here.  PGDs only point to page tables
 
-For kexec_load, it is loaded by kexec-tools, we have in kernel loader
-syscall kexec_file_load, it is handled in kernel.
+These should use static_cpu_has(X86_FEATURE_LA57), so that it gets
+patched by alternatives.
 
-> I think a straightforward way would be to mark the whole reserved memory range without
-> encryption before loading all the kexec segments for kdump, I guess we can handle this
-> easily in arch_kexec_unprotect_crashkres().
-> 
-> Moreover, now that "elfcorehdr=X" is left as decrypted, it needs to be remapped to the
-> encrypted data.
-
-Tom, could you have a try on kdump according to suggestion from Xunlei?
-It is just based on theoretical patch understanding, there could be
-other issues when you work on it. Feel free to ask if we can help on
-anything.
-
-Thanks
-Dave
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
