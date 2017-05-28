@@ -1,156 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CC756B02F4
-	for <linux-mm@kvack.org>; Sun, 28 May 2017 13:03:00 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id l1so51779012oib.4
-        for <linux-mm@kvack.org>; Sun, 28 May 2017 10:03:00 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 97si2909563otr.207.2017.05.28.10.02.59
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 938CD6B0292
+	for <linux-mm@kvack.org>; Sun, 28 May 2017 13:37:28 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id s94so30607829ioe.14
+        for <linux-mm@kvack.org>; Sun, 28 May 2017 10:37:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z67sor1062098itb.23.2017.05.28.10.37.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 May 2017 10:02:59 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v4 8/8] x86,kvm: Teach KVM's VMX code that CR3 isn't a constant
-Date: Sun, 28 May 2017 10:00:17 -0700
-Message-Id: <7d369dab491071edc02d39e2fa2b218a3be401f2.1495990440.git.luto@kernel.org>
-In-Reply-To: <cover.1495990440.git.luto@kernel.org>
-References: <cover.1495990440.git.luto@kernel.org>
-In-Reply-To: <cover.1495990440.git.luto@kernel.org>
-References: <cover.1495990440.git.luto@kernel.org>
+        (Google Transport Security);
+        Sun, 28 May 2017 10:37:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170528081541.GE22193@infradead.org>
+References: <1495829844-69341-1-git-send-email-keescook@chromium.org>
+ <1495829844-69341-9-git-send-email-keescook@chromium.org> <20170528081541.GE22193@infradead.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Sun, 28 May 2017 10:37:26 -0700
+Message-ID: <CAGXu5jKYHVWUnLpMn4Ef9S=0hCX-hh0h_UGuV7+a_jz5v68mFQ@mail.gmail.com>
+Subject: Re: [PATCH v2 08/20] randstruct: Whitelist NIU struct page overloading
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: X86 ML <x86@kernel.org>
-Cc: Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>, Michal Hocko <mhocko@suse.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Christoph Hellwig <hch@infradead.org>, Linux-MM <linux-mm@kvack.org>, Network Development <netdev@vger.kernel.org>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "David S . Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-When PCID is enabled, CR3's PCID bits can change during context
-switches, so KVM won't be able to treat CR3 as a per-mm constant any
-more.
+[trying again with correct linux-mm address...]
 
-I structured this like the existing CR4 handling.  Under ordinary
-circumstances (PCID disabled or if the current PCID and the value
-that's already in the VMCS match), then we won't do an extra VMCS
-write, and we'll never do an extra direct CR3 read.  The overhead
-should be minimal.
+On Sun, May 28, 2017 at 1:15 AM, Christoph Hellwig <hch@infradead.org> wrot=
+e:
+> On Fri, May 26, 2017 at 01:17:12PM -0700, Kees Cook wrote:
+>> The NIU ethernet driver intentionally stores a page struct pointer on
+>> top of the "mapping" field. Whitelist this case:
+>>
+>> drivers/net/ethernet/sun/niu.c: In function =E2=80=98niu_rx_pkt_ignore=
+=E2=80=99:
+>> drivers/net/ethernet/sun/niu.c:3402:10: note: found mismatched ssa struc=
+t pointer types: =E2=80=98struct page=E2=80=99 and =E2=80=98struct address_=
+space=E2=80=99
+>>
+>>     *link =3D (struct page *) page->mapping;
+>>     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>>
+>> Cc: David S. Miller <davem@davemloft.net>
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>
+> The driver really needs to stop doing this anyway.  It would be good
+> to send this out to linux-mm and netdev to come up with a better scheme.
 
-I disallowed using the new helper in non-atomic context because
-PCID support will cause CR3 to stop being constant in non-atomic
-process context.
+Added to To. :) I couldn't understand why it was doing what it was
+doing, hence the whitelist entry.
 
-(Frankly, it also scares me a bit that KVM ever treated CR3 as
-constant, but it looks like it was okay before.)
+-Kees
 
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-Cc: kvm@vger.kernel.org
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Nadav Amit <namit@vmware.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- arch/x86/include/asm/mmu_context.h | 19 +++++++++++++++++++
- arch/x86/kvm/vmx.c                 | 21 ++++++++++++++++++---
- 2 files changed, 37 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 187c39470a0b..f20d7ea47095 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -266,4 +266,23 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
- 	return __pkru_allows_pkey(vma_pkey(vma), write);
- }
- 
-+
-+/*
-+ * This can be used from process context to figure out what the value of
-+ * CR3 is without needing to do a (slow) read_cr3().
-+ *
-+ * It's intended to be used for code like KVM that sneakily changes CR3
-+ * and needs to restore it.  It needs to be used very carefully.
-+ */
-+static inline unsigned long __get_current_cr3_fast(void)
-+{
-+	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
-+
-+	/* For now, be very restrictive about when this can be called. */
-+	VM_WARN_ON(in_nmi() || !in_atomic());
-+
-+	VM_BUG_ON(cr3 != read_cr3());
-+	return cr3;
-+}
-+
- #endif /* _ASM_X86_MMU_CONTEXT_H */
-diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index 72f78396bc09..b7b36c9ffa3d 100644
---- a/arch/x86/kvm/vmx.c
-+++ b/arch/x86/kvm/vmx.c
-@@ -48,6 +48,7 @@
- #include <asm/kexec.h>
- #include <asm/apic.h>
- #include <asm/irq_remapping.h>
-+#include <asm/mmu_context.h>
- 
- #include "trace.h"
- #include "pmu.h"
-@@ -596,6 +597,7 @@ struct vcpu_vmx {
- 		int           gs_ldt_reload_needed;
- 		int           fs_reload_needed;
- 		u64           msr_host_bndcfgs;
-+		unsigned long vmcs_host_cr3;	/* May not match real cr3 */
- 		unsigned long vmcs_host_cr4;	/* May not match real cr4 */
- 	} host_state;
- 	struct {
-@@ -5012,12 +5014,19 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
- 	u32 low32, high32;
- 	unsigned long tmpl;
- 	struct desc_ptr dt;
--	unsigned long cr0, cr4;
-+	unsigned long cr0, cr3, cr4;
- 
- 	cr0 = read_cr0();
- 	WARN_ON(cr0 & X86_CR0_TS);
- 	vmcs_writel(HOST_CR0, cr0);  /* 22.2.3 */
--	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
-+
-+	/*
-+	 * Save the most likely value for this task's CR3 in the VMCS.
-+	 * We can't use __get_current_cr3_fast() because we're not atomic.
-+	 */
-+	cr3 = read_cr3();
-+	vmcs_writel(HOST_CR3, cr3);		/* 22.2.3  FIXME: shadow tables */
-+	vmx->host_state.vmcs_host_cr3 = cr3;
- 
- 	/* Save the most likely value for this task's CR4 in the VMCS. */
- 	cr4 = cr4_read_shadow();
-@@ -8843,7 +8852,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
- static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
- {
- 	struct vcpu_vmx *vmx = to_vmx(vcpu);
--	unsigned long debugctlmsr, cr4;
-+	unsigned long debugctlmsr, cr3, cr4;
- 
- 	/* Don't enter VMX if guest state is invalid, let the exit handler
- 	   start emulation until we arrive back to a valid state */
-@@ -8865,6 +8874,12 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
- 	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
- 		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
- 
-+	cr3 = __get_current_cr3_fast();
-+	if (unlikely(cr3 != vmx->host_state.vmcs_host_cr3)) {
-+		vmcs_writel(HOST_CR3, cr3);
-+		vmx->host_state.vmcs_host_cr3 = cr3;
-+	}
-+
- 	cr4 = cr4_read_shadow();
- 	if (unlikely(cr4 != vmx->host_state.vmcs_host_cr4)) {
- 		vmcs_writel(HOST_CR4, cr4);
--- 
-2.9.3
+--=20
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
