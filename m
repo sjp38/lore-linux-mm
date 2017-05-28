@@ -1,413 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CFCB6B0292
-	for <linux-mm@kvack.org>; Sat, 27 May 2017 19:15:29 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n75so43665980pfh.0
-        for <linux-mm@kvack.org>; Sat, 27 May 2017 16:15:29 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
-        by mx.google.com with ESMTPS id e4si5442418pgc.317.2017.05.27.16.15.27
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 48B836B0279
+	for <linux-mm@kvack.org>; Sun, 28 May 2017 03:01:08 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l78so26430868iod.4
+        for <linux-mm@kvack.org>; Sun, 28 May 2017 00:01:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id o3si7281083ite.25.2017.05.28.00.01.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 May 2017 16:15:28 -0700 (PDT)
-Date: Sat, 27 May 2017 16:02:31 -0700
-In-Reply-To: <3758f3da9de01b1a082c4e1f44ba3b48f7a840ea.1495825151.git.dvyukov@google.com>
-References: <cover.1495825151.git.dvyukov@google.com><cover.1495825151.git.dvyukov@google.com> <3758f3da9de01b1a082c4e1f44ba3b48f7a840ea.1495825151.git.dvyukov@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH v2 2/7] x86: use long long for 64-bit atomic ops
-From: hpa@zytor.com
-Message-ID: <683DBA00-B29A-4A05-A8DD-23E7C936C38E@zytor.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 28 May 2017 00:01:07 -0700 (PDT)
+Subject: Re: [PATCH v9] mm: Add memory allocation watchdog kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1495331504-12480-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1495331504-12480-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201705281601.BBE81220.HFLOtSFFOJVQMO@I-love.SAKURA.ne.jp>
+Date: Sun, 28 May 2017 16:01:02 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com
-Cc: akpm@linux-foundation.org, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, x86@kernel.org, tglx@linutronix.de, willy@infradead.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On May 26, 2017 12:09:04 PM PDT, Dmitry Vyukov <dvyukov@google=2Ecom> wrote=
-:
->Some 64-bit atomic operations use 'long long' as operand/return type
->(e=2Eg=2E asm-generic/atomic64=2Eh, arch/x86/include/asm/atomic64_32=2Eh)=
-;
->while others use 'long' (e=2Eg=2E arch/x86/include/asm/atomic64_64=2Eh)=
-=2E
->This makes it impossible to write portable code=2E
->For example, there is no format specifier that prints result of
->atomic64_read() without warnings=2E atomic64_try_cmpxchg() is almost
->impossible to use in portable fashion because it requires either
->'long *' or 'long long *' as argument depending on arch=2E
->
->Switch arch/x86/include/asm/atomic64_64=2Eh to 'long long'=2E
->
->Signed-off-by: Dmitry Vyukov <dvyukov@google=2Ecom>
->Cc: Mark Rutland <mark=2Erutland@arm=2Ecom>
->Cc: Peter Zijlstra <peterz@infradead=2Eorg>
->Cc: Will Deacon <will=2Edeacon@arm=2Ecom>
->Cc: Andrew Morton <akpm@linux-foundation=2Eorg>
->Cc: Andrey Ryabinin <aryabinin@virtuozzo=2Ecom>
->Cc: Ingo Molnar <mingo@redhat=2Ecom>
->Cc: kasan-dev@googlegroups=2Ecom
->Cc: linux-mm@kvack=2Eorg
->Cc: linux-kernel@vger=2Ekernel=2Eorg
->Cc: x86@kernel=2Eorg
->
->---
->Changes since v1:
-> - reverted stray s/long/long long/ replace in comment
-> - added arch/s390 changes to fix build errors/warnings
->---
-> arch/s390/include/asm/atomic_ops=2Eh | 14 +++++-----
-> arch/s390/include/asm/bitops=2Eh     | 12 ++++-----
->arch/x86/include/asm/atomic64_64=2Eh | 52
->+++++++++++++++++++-------------------
-> include/linux/types=2Eh              |  2 +-
-> 4 files changed, 40 insertions(+), 40 deletions(-)
->
->diff --git a/arch/s390/include/asm/atomic_ops=2Eh
->b/arch/s390/include/asm/atomic_ops=2Eh
->index ac9e2b939d04=2E=2E055a9083e52d 100644
->--- a/arch/s390/include/asm/atomic_ops=2Eh
->+++ b/arch/s390/include/asm/atomic_ops=2Eh
->@@ -31,10 +31,10 @@ __ATOMIC_OPS(__atomic_and, int, "lan")
-> __ATOMIC_OPS(__atomic_or,  int, "lao")
-> __ATOMIC_OPS(__atomic_xor, int, "lax")
->=20
->-__ATOMIC_OPS(__atomic64_add, long, "laag")
->-__ATOMIC_OPS(__atomic64_and, long, "lang")
->-__ATOMIC_OPS(__atomic64_or,  long, "laog")
->-__ATOMIC_OPS(__atomic64_xor, long, "laxg")
->+__ATOMIC_OPS(__atomic64_add, long long, "laag")
->+__ATOMIC_OPS(__atomic64_and, long long, "lang")
->+__ATOMIC_OPS(__atomic64_or,  long long, "laog")
->+__ATOMIC_OPS(__atomic64_xor, long long, "laxg")
->=20
-> #undef __ATOMIC_OPS
-> #undef __ATOMIC_OP
->@@ -46,7 +46,7 @@ static inline void __atomic_add_const(int val, int
->*ptr)
-> 		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc");
-> }
->=20
->-static inline void __atomic64_add_const(long val, long *ptr)
->+static inline void __atomic64_add_const(long val, long long *ptr)
-> {
-> 	asm volatile(
-> 		"	agsi	%[ptr],%[val]\n"
->@@ -82,7 +82,7 @@ __ATOMIC_OPS(__atomic_xor, "xr")
-> #undef __ATOMIC_OPS
->=20
-> #define __ATOMIC64_OP(op_name, op_string)				\
->-static inline long op_name(long val, long *ptr)				\
->+static inline long op_name(long val, long long *ptr)			\
-> {									\
-> 	long old, new;							\
-> 									\
->@@ -118,7 +118,7 @@ static inline int __atomic_cmpxchg(int *ptr, int
->old, int new)
-> 	return old;
-> }
->=20
->-static inline long __atomic64_cmpxchg(long *ptr, long old, long new)
->+static inline long __atomic64_cmpxchg(long long *ptr, long old, long
->new)
-> {
-> 	asm volatile(
-> 		"	csg	%[old],%[new],%[ptr]"
->diff --git a/arch/s390/include/asm/bitops=2Eh
->b/arch/s390/include/asm/bitops=2Eh
->index d92047da5ccb=2E=2E8912f52bca5d 100644
->--- a/arch/s390/include/asm/bitops=2Eh
->+++ b/arch/s390/include/asm/bitops=2Eh
->@@ -80,7 +80,7 @@ static inline void set_bit(unsigned long nr, volatile
->unsigned long *ptr)
-> 	}
-> #endif
-> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
->-	__atomic64_or(mask, addr);
->+	__atomic64_or(mask, (long long *)addr);
-> }
->=20
->static inline void clear_bit(unsigned long nr, volatile unsigned long
->*ptr)
->@@ -101,7 +101,7 @@ static inline void clear_bit(unsigned long nr,
->volatile unsigned long *ptr)
-> 	}
-> #endif
-> 	mask =3D ~(1UL << (nr & (BITS_PER_LONG - 1)));
->-	__atomic64_and(mask, addr);
->+	__atomic64_and(mask, (long long *)addr);
-> }
->=20
->static inline void change_bit(unsigned long nr, volatile unsigned long
->*ptr)
->@@ -122,7 +122,7 @@ static inline void change_bit(unsigned long nr,
->volatile unsigned long *ptr)
-> 	}
-> #endif
-> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
->-	__atomic64_xor(mask, addr);
->+	__atomic64_xor(mask, (long long *)addr);
-> }
->=20
-> static inline int
->@@ -132,7 +132,7 @@ test_and_set_bit(unsigned long nr, volatile
->unsigned long *ptr)
-> 	unsigned long old, mask;
->=20
-> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
->-	old =3D __atomic64_or_barrier(mask, addr);
->+	old =3D __atomic64_or_barrier(mask, (long long *)addr);
-> 	return (old & mask) !=3D 0;
-> }
->=20
->@@ -143,7 +143,7 @@ test_and_clear_bit(unsigned long nr, volatile
->unsigned long *ptr)
-> 	unsigned long old, mask;
->=20
-> 	mask =3D ~(1UL << (nr & (BITS_PER_LONG - 1)));
->-	old =3D __atomic64_and_barrier(mask, addr);
->+	old =3D __atomic64_and_barrier(mask, (long long *)addr);
-> 	return (old & ~mask) !=3D 0;
-> }
->=20
->@@ -154,7 +154,7 @@ test_and_change_bit(unsigned long nr, volatile
->unsigned long *ptr)
-> 	unsigned long old, mask;
->=20
-> 	mask =3D 1UL << (nr & (BITS_PER_LONG - 1));
->-	old =3D __atomic64_xor_barrier(mask, addr);
->+	old =3D __atomic64_xor_barrier(mask, (long long *)addr);
-> 	return (old & mask) !=3D 0;
-> }
->=20
->diff --git a/arch/x86/include/asm/atomic64_64=2Eh
->b/arch/x86/include/asm/atomic64_64=2Eh
->index 8db8879a6d8c=2E=2E8555cd19a916 100644
->--- a/arch/x86/include/asm/atomic64_64=2Eh
->+++ b/arch/x86/include/asm/atomic64_64=2Eh
->@@ -16,7 +16,7 @@
->  * Atomically reads the value of @v=2E
->  * Doesn't imply a read memory barrier=2E
->  */
->-static inline long atomic64_read(const atomic64_t *v)
->+static inline long long atomic64_read(const atomic64_t *v)
-> {
-> 	return READ_ONCE((v)->counter);
-> }
->@@ -28,7 +28,7 @@ static inline long atomic64_read(const atomic64_t *v)
->  *
->  * Atomically sets the value of @v to @i=2E
->  */
->-static inline void atomic64_set(atomic64_t *v, long i)
->+static inline void atomic64_set(atomic64_t *v, long long i)
-> {
-> 	WRITE_ONCE(v->counter, i);
-> }
->@@ -40,7 +40,7 @@ static inline void atomic64_set(atomic64_t *v, long
->i)
->  *
->  * Atomically adds @i to @v=2E
->  */
->-static __always_inline void atomic64_add(long i, atomic64_t *v)
->+static __always_inline void atomic64_add(long long i, atomic64_t *v)
-> {
-> 	asm volatile(LOCK_PREFIX "addq %1,%0"
-> 		     : "=3Dm" (v->counter)
->@@ -54,7 +54,7 @@ static __always_inline void atomic64_add(long i,
->atomic64_t *v)
->  *
->  * Atomically subtracts @i from @v=2E
->  */
->-static inline void atomic64_sub(long i, atomic64_t *v)
->+static inline void atomic64_sub(long long i, atomic64_t *v)
-> {
-> 	asm volatile(LOCK_PREFIX "subq %1,%0"
-> 		     : "=3Dm" (v->counter)
->@@ -70,7 +70,7 @@ static inline void atomic64_sub(long i, atomic64_t
->*v)
->  * true if the result is zero, or false for all
->  * other cases=2E
->  */
->-static inline bool atomic64_sub_and_test(long i, atomic64_t *v)
->+static inline bool atomic64_sub_and_test(long long i, atomic64_t *v)
-> {
-> 	GEN_BINARY_RMWcc(LOCK_PREFIX "subq", v->counter, "er", i, "%0", e);
-> }
->@@ -136,7 +136,7 @@ static inline bool atomic64_inc_and_test(atomic64_t
->*v)
->  * if the result is negative, or false when
->  * result is greater than or equal to zero=2E
->  */
->-static inline bool atomic64_add_negative(long i, atomic64_t *v)
->+static inline bool atomic64_add_negative(long long i, atomic64_t *v)
-> {
-> 	GEN_BINARY_RMWcc(LOCK_PREFIX "addq", v->counter, "er", i, "%0", s);
-> }
->@@ -148,22 +148,22 @@ static inline bool atomic64_add_negative(long i,
->atomic64_t *v)
->  *
->  * Atomically adds @i to @v and returns @i + @v
->  */
->-static __always_inline long atomic64_add_return(long i, atomic64_t *v)
->+static __always_inline long long atomic64_add_return(long long i,
->atomic64_t *v)
-> {
-> 	return i + xadd(&v->counter, i);
-> }
->=20
->-static inline long atomic64_sub_return(long i, atomic64_t *v)
->+static inline long long atomic64_sub_return(long long i, atomic64_t
->*v)
-> {
-> 	return atomic64_add_return(-i, v);
-> }
->=20
->-static inline long atomic64_fetch_add(long i, atomic64_t *v)
->+static inline long long atomic64_fetch_add(long long i, atomic64_t *v)
-> {
-> 	return xadd(&v->counter, i);
-> }
->=20
->-static inline long atomic64_fetch_sub(long i, atomic64_t *v)
->+static inline long long atomic64_fetch_sub(long long i, atomic64_t *v)
-> {
-> 	return xadd(&v->counter, -i);
-> }
->@@ -171,18 +171,18 @@ static inline long atomic64_fetch_sub(long i,
->atomic64_t *v)
-> #define atomic64_inc_return(v)  (atomic64_add_return(1, (v)))
-> #define atomic64_dec_return(v)  (atomic64_sub_return(1, (v)))
->=20
->-static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
->+static inline long long atomic64_cmpxchg(atomic64_t *v, long long old,
->long long new)
-> {
-> 	return cmpxchg(&v->counter, old, new);
-> }
->=20
-> #define atomic64_try_cmpxchg atomic64_try_cmpxchg
->-static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long
->*old, long new)
->+static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long
->long *old, long long new)
-> {
-> 	return try_cmpxchg(&v->counter, old, new);
-> }
->=20
->-static inline long atomic64_xchg(atomic64_t *v, long new)
->+static inline long long atomic64_xchg(atomic64_t *v, long long new)
-> {
-> 	return xchg(&v->counter, new);
-> }
->@@ -196,9 +196,9 @@ static inline long atomic64_xchg(atomic64_t *v,
->long new)
->  * Atomically adds @a to @v, so long as it was not @u=2E
->  * Returns the old value of @v=2E
->  */
->-static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
->+static inline bool atomic64_add_unless(atomic64_t *v, long long a,
->long long u)
-> {
->-	long c =3D atomic64_read(v);
->+	long long c =3D atomic64_read(v);
-> 	do {
-> 		if (unlikely(c =3D=3D u))
-> 			return false;
->@@ -215,9 +215,9 @@ static inline bool atomic64_add_unless(atomic64_t
->*v, long a, long u)
->  * The function returns the old value of *v minus 1, even if
->  * the atomic variable, v, was not decremented=2E
->  */
->-static inline long atomic64_dec_if_positive(atomic64_t *v)
->+static inline long long atomic64_dec_if_positive(atomic64_t *v)
-> {
->-	long dec, c =3D atomic64_read(v);
->+	long long dec, c =3D atomic64_read(v);
-> 	do {
-> 		dec =3D c - 1;
-> 		if (unlikely(dec < 0))
->@@ -226,7 +226,7 @@ static inline long
->atomic64_dec_if_positive(atomic64_t *v)
-> 	return dec;
-> }
->=20
->-static inline void atomic64_and(long i, atomic64_t *v)
->+static inline void atomic64_and(long long i, atomic64_t *v)
-> {
-> 	asm volatile(LOCK_PREFIX "andq %1,%0"
-> 			: "+m" (v->counter)
->@@ -234,16 +234,16 @@ static inline void atomic64_and(long i,
->atomic64_t *v)
-> 			: "memory");
-> }
->=20
->-static inline long atomic64_fetch_and(long i, atomic64_t *v)
->+static inline long long atomic64_fetch_and(long long i, atomic64_t *v)
-> {
->-	long val =3D atomic64_read(v);
->+	long long val =3D atomic64_read(v);
->=20
-> 	do {
-> 	} while (!atomic64_try_cmpxchg(v, &val, val & i));
-> 	return val;
-> }
->=20
->-static inline void atomic64_or(long i, atomic64_t *v)
->+static inline void atomic64_or(long long i, atomic64_t *v)
-> {
-> 	asm volatile(LOCK_PREFIX "orq %1,%0"
-> 			: "+m" (v->counter)
->@@ -251,16 +251,16 @@ static inline void atomic64_or(long i, atomic64_t
->*v)
-> 			: "memory");
-> }
->=20
->-static inline long atomic64_fetch_or(long i, atomic64_t *v)
->+static inline long long atomic64_fetch_or(long long i, atomic64_t *v)
-> {
->-	long val =3D atomic64_read(v);
->+	long long val =3D atomic64_read(v);
->=20
-> 	do {
-> 	} while (!atomic64_try_cmpxchg(v, &val, val | i));
-> 	return val;
-> }
->=20
->-static inline void atomic64_xor(long i, atomic64_t *v)
->+static inline void atomic64_xor(long long i, atomic64_t *v)
-> {
-> 	asm volatile(LOCK_PREFIX "xorq %1,%0"
-> 			: "+m" (v->counter)
->@@ -268,9 +268,9 @@ static inline void atomic64_xor(long i, atomic64_t
->*v)
-> 			: "memory");
-> }
->=20
->-static inline long atomic64_fetch_xor(long i, atomic64_t *v)
->+static inline long long atomic64_fetch_xor(long long i, atomic64_t *v)
-> {
->-	long val =3D atomic64_read(v);
->+	long long val =3D atomic64_read(v);
->=20
-> 	do {
-> 	} while (!atomic64_try_cmpxchg(v, &val, val ^ i));
->diff --git a/include/linux/types=2Eh b/include/linux/types=2Eh
->index 1e7bd24848fc=2E=2E569fc6db1bd5 100644
->--- a/include/linux/types=2Eh
->+++ b/include/linux/types=2Eh
->@@ -177,7 +177,7 @@ typedef struct {
->=20
-> #ifdef CONFIG_64BIT
-> typedef struct {
->-	long counter;
->+	long long counter;
-> } atomic64_t;
-> #endif
->=20
+Tetsuo Handa wrote:
+> Changes from v7 [11]:
+> 
+>   (1) Reflect review comments from Andrew Morton. (Convert "u8 type" to
+>       "bool report", use CPUHP_PAGE_ALLOC_DEAD event and replace
+>       for_each_possible_cpu() with for_each_online_cpu(), reuse existing
+>       rcu_lock_break() and hung_timeout_jiffies() for now, update comments).
+> 
+> Changes from v8 [12]:
+> 
+>   (1) Check mempool_alloc() as well, for mempool_alloc() is a sort of
+>       open-coded __GFP_NOFAIL allocation request where warn_alloc() cannot
+>       detect stalls due to __GFP_NORETRY, and actually I found a case where
+>       kswapd was unable to get memory for bio from mempool at
+>       bio_alloc_bioset(GFP_NOFS) [13], and I believe there are similar bugs.
 
-NAK - this is what u64/s64 is for=2E
---=20
-Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
+
+Andrew, I believe it is time to start testing at linux-next.
+
+Nobody shows interests in detecting/analyzing OOM livelock but there are
+still unsolved suspicious cases
+
+  http://lkml.kernel.org/r/da13c3c7-b514-67b0-2eb9-6d6af277901b@wiesinger.com
+  http://lkml.kernel.org/r/20170502141544.rufykv6blliqzqfd@merlins.org
+  http://lkml.kernel.org/r/CAM_iQpWuPVGc2ky8M-9yukECtS+zKjiDasNymX7rMcBjBFyM_A@mail.gmail.com
+
+where this patch might have given some clues if this patch were available.
+There is no reason not to allow users to try this debugging aid.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
