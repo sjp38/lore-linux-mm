@@ -1,92 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B756B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 02:04:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j28so59226106pfk.14
-        for <linux-mm@kvack.org>; Sun, 28 May 2017 23:04:12 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id 88si22822988pla.220.2017.05.28.23.04.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AE4F6B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 03:28:34 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i77so11724454wmh.10
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 00:28:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t20si9542434edi.172.2017.05.29.00.28.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 May 2017 23:04:11 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id 9so43290012pfj.1
-        for <linux-mm@kvack.org>; Sun, 28 May 2017 23:04:11 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 May 2017 00:28:33 -0700 (PDT)
+Date: Mon, 29 May 2017 09:28:31 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v2] mm: fix mlock incorrent event account
+Message-ID: <20170529072830.GB19725@dhcp22.suse.cz>
+References: <1495770854-13920-1-git-send-email-zhongjiang@huawei.com>
+ <e30ea010-1cee-a1d9-9136-249372ea1640@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j++h=a57hNAR-23NMcjXeysqbtHmc1P=K94-D4VNgVSYg@mail.gmail.com>
-References: <20170519103811.2183-1-igor.stoppa@huawei.com> <20170519103811.2183-2-igor.stoppa@huawei.com>
- <CAGXu5j+3-CZpZ4Vj2fHH+0UPAa_jOdJQxHtrQ=F_FvvzWvE00Q@mail.gmail.com>
- <656b6465-16cd-ab0a-b439-ab5bea42006d@huawei.com> <CAGXu5jK25XvX4vSODg7rkdBPj_FzveUSODFUKu1=KatmKhFVzg@mail.gmail.com>
- <138740ab-ba0b-053c-d5b9-a71d6a5c7187@huawei.com> <CAGXu5jKEmEzAFssmBu2=kJvXikTZ12CF4f8gQy+7UBh8F24PAw@mail.gmail.com>
- <CAFUG7Cen=g4PbDHmkNOqDdTOWWDEx_UTS2gk75_ub=63DQqpJA@mail.gmail.com> <CAGXu5j++h=a57hNAR-23NMcjXeysqbtHmc1P=K94-D4VNgVSYg@mail.gmail.com>
-From: Boris Lukashev <blukashev@sempervictus.com>
-Date: Mon, 29 May 2017 02:04:10 -0400
-Message-ID: <CAFUG7Ce1t2upf4ZnOhSksjJQ_36WCF_wS8M=rcaY+DpBBKpWqA@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH 1/1] Sealable memory support
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e30ea010-1cee-a1d9-9136-249372ea1640@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@google.com>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Casey Schaufler <casey@schaufler-ca.com>, Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Daniel Micay <danielmicay@gmail.com>, Greg KH <gregkh@linuxfoundation.org>, James Morris <james.l.morris@oracle.com>, Stephen Smalley <sds@tycho.nsa.gov>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: zhongjiang <zhongjiang@huawei.com>, akpm@linux-foundation.org, qiuxishi@huawei.com, linux-mm@kvack.org
 
-If i understand the current direction for smalloc, its to implement it
-without the ability to "unseal," which has implications on how LSM
-implementations and other users of these dynamic allocations handle
-things. If its implemented without a writeable interface for modules
-which need it, then switched to a CoW (or other
-controlled/isolated/hardened) mechanism for creating writeable
-segments in dynamic allocations, that would create another set of
-breaking changes for the consumers adapting to the first set. In the
-spirit of adopting things faster/smoother, maybe it makes sense to
-permit the smalloc re-writing method suggested in the first
-implementation; with an API which consumers can later use for a more
-secure approach that reduces the attack surface without breaking
-consumer interfaces (or internal semantics). A sysctl affecting the
-behavior as ro-only or ro-and-sometimes-rw would give users the
-flexibility to tune their environment per their needs, which should
-also reduce potential conflict/complaints.
+On Fri 26-05-17 11:06:31, Vlastimil Babka wrote:
+> On 05/26/2017 05:54 AM, zhongjiang wrote:
+> > From: zhong jiang <zhongjiang@huawei.com>
+> > 
+> > Recently, when I address in the issue, Subject "mlock: fix mlock count
+> > can not decrease in race condition" had been take over, I review
+> > the code and find the potential issue. it will result in the incorrect
+> > account, it will make us misunderstand straightforward.
+> > 
+> > The following testcase can prove the issue.
+> > 
+> > int main(void)
+> > {
+> >     char *map;
+> >     int fd;
+> > 
+> >     fd = open("test", O_CREAT|O_RDWR);
+> >     unlink("test");
+> >     ftruncate(fd, 4096);
+> >     map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
+> >     map[0] = 11;
+> >     mlock(map, 4096);
+> >     ftruncate(fd, 0);
+> >     close(fd);
+> >     munlock(map, 4096);
+> >     munmap(map, 4096);
+> > 
+> >     return 0;
+> > }
+> > 
+> > before:
+> > unevictable_pgs_mlocked 10589
+> > unevictable_pgs_munlocked 10588
+> > unevictable_pgs_cleared 1
+> > 
+> > apply the patch;
+> > after:
+> > unevictable_pgs_mlocked 9497
+> > unevictable_pgs_munlocked 9497
+> > unevictable_pgs_cleared 1
+> > 
+> > unmap_mapping_range unmap them,  page_remove_rmap will deal with
+> > clear_page_mlock situation.  we clear page Mlock flag and successful
+> > isolate the page,  the page will putback the evictable list. but it is not
+> > record the munlock event.
+> > 
+> > The patch add the event account when successful page isolation.
+> > 
+> > Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> 
+> Hi,
+> 
+> I think this is by design. UNEVICTABLE_PGMUNLOCKED is supposed for explicit
+> munlock() actions from userspace. Truncation etc is counted by
+> UNEVICTABLE_PGCLEARED.
 
-On Sun, May 28, 2017 at 5:32 PM, Kees Cook <keescook@google.com> wrote:
-> On Sun, May 28, 2017 at 11:56 AM, Boris Lukashev
-> <blukashev@sempervictus.com> wrote:
->> So what about a middle ground where CoW semantics are used to enforce
->> the state of these allocations as RO, but provide a strictly
->> controlled pathway to read the RO data, copy and modify it, then write
->> and seal into a new allocation. Successful return from this process
->> should permit the page table to change the pointer to where the object
->> now resides, and initiate freeing of the original memory so long as a
->> refcount is kept for accesses. That way, sealable memory is sealed,
->> and any consumers reading it will be using the original ptr to the
->> original smalloc region. Attackers who do manage to change the
->
-> This could be another way to do it, yeah, and it helps that smalloc()
-> is built on vmalloc(). It'd require some careful design, but it could
-> be a way forward after this initial sealed-after-init version goes in.
->
->> Lastly, my meager understanding is that PAX set the entire kernel as
->> RO, and implemented writeable access via pax_open/close. How were they
->> fighting against race conditions, and what is the benefit of specific
->> regions being allocated this way as opposed to the RO-all-the-things
->> approach which makes writes a specialized set of operations?
->
-> My understanding is that PaX's KERNEXEC with the constification plugin
-> moves a substantial portion of the kernel's .data section
-> (effectively) into the .rodata section. It's not the "entire" kernel.
-> (Well, depending on how you count. The .text section is already
-> read-only upstream.) PaX, as far as I know, provided no dynamic memory
-> allocation protections, like smalloc() would provide.
->
-> -Kees
->
-> --
-> Kees Cook
-> Pixel Security
+I guess we really need to change
+$ git grep UNEVICTABLE_PGCLEARED -- Documentation/
+$
 
-
-
+into something more comprehensive
 -- 
-Boris Lukashev
-Systems Architect
-Semper Victus
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
