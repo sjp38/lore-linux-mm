@@ -1,114 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CDDC6B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 04:15:28 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id m5so61019613pfc.1
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 01:15:28 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 5si8192157plx.25.2017.05.29.01.15.26
-        for <linux-mm@kvack.org>;
-        Mon, 29 May 2017 01:15:27 -0700 (PDT)
-Date: Mon, 29 May 2017 17:15:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: add counters for different page fault types
-Message-ID: <20170529081525.GA8311@bbox>
-References: <20170524194126.18040-1-semenzato@chromium.org>
- <20170525001915.GA14999@bbox>
- <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
- <20170526040622.GB17837@bbox>
- <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 243E06B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 04:52:34 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r203so12159943wmb.2
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 01:52:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x27si9631246eda.67.2017.05.29.01.52.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 May 2017 01:52:32 -0700 (PDT)
+Date: Mon, 29 May 2017 10:52:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [-next] memory hotplug regression
+Message-ID: <20170529085231.GE19725@dhcp22.suse.cz>
+References: <20170524082022.GC5427@osiris>
+ <20170524083956.GC14733@dhcp22.suse.cz>
+ <20170526122509.GB14849@osiris>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
+In-Reply-To: <20170526122509.GB14849@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Luigi,
+On Fri 26-05-17 14:25:09, Heiko Carstens wrote:
+> On Wed, May 24, 2017 at 10:39:57AM +0200, Michal Hocko wrote:
+> > On Wed 24-05-17 10:20:22, Heiko Carstens wrote:
+> > > Having the ZONE_MOVABLE default was actually the only point why s390's
+> > > arch_add_memory() was rather complex compared to other architectures.
+> > > 
+> > > We always had this behaviour, since we always wanted to be able to offline
+> > > memory after it was brought online. Given that back then "online_movable"
+> > > did not exist, the initial s390 memory hotplug support simply added all
+> > > additional memory to ZONE_MOVABLE.
+> > > 
+> > > Keeping the default the same would be quite important.
+> > 
+> > Hmm, that is really unfortunate because I would _really_ like to get rid
+> > of the previous semantic which was really awkward. The whole point of
+> > the rework is to get rid of the nasty zone shifting.
+> > 
+> > Is it an option to use `online_movable' rather than `online' in your setup?
+> > Btw. my long term plan is to remove the zone range constrains altogether
+> > so you could online each memblock to the type you want. Would that be
+> > sufficient for you in general?
+> 
+> Why is it a problem to change the default for 'online'? As far as I can see
+> that doesn't have too much to do with the order of zones, no?
 
-On Fri, May 26, 2017 at 11:43:48AM -0700, Luigi Semenzato wrote:
-> Many thanks Minchan.
-> 
-> On Thu, May 25, 2017 at 9:06 PM, Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > If it is swap cache hit, it's not a major fault which causes IO
-> > so VM count it as minor fault, not major.
-> 
-> Cool---but see below.
-> 
-> > Yub, I expected you guys used zram with readahead off so it shouldn't
-> > be a big problem.
-> 
-> By the way, I was referring to page clustering.  We do this in sysctl.conf:
+`online' (aka MMOP_ONLINE_KEEP) should always inherit its current zone.
+The previous implementation made an exception to allow to shift to
+another zone if it is on the border of two zones. This is what I wanted
+to get rid of because it is just too ugly to live.
 
-It's readahead of swap.
-I meant it exactly. :)
+But now I am not really sure what is the usecase here. I assume you know
+how to online the memoery. That's why you had to play tricks with the
+zones previously. All you need now is to use the proper MMOP_ONLINE*
 
+> By the way: we played around a bit with the changes wrt memory
+> hotplug. There are a two odd things:
 > 
-> # Disable swap read-ahead
-> vm.page-cluster = 0
+> 1) With the new code I can generate overlapping zones for ZONE_DMA and
+> ZONE_NORMAL:
 > 
-> I figured that the readahead from the disk device
-> (/sys/block/zram0/queue/read_ahead_kb) is not meaningful---am I
-> correct?
+> --- new code:
+> 
+> DMA      [mem 0x0000000000000000-0x000000007fffffff]
+> Normal   [mem 0x0000000080000000-0x000000017fffffff]
+> 
+> # cat /sys/devices/system/memory/block_size_bytes
+> 10000000
+> # cat /sys/devices/system/memory/memory5/valid_zones
+> DMA
+> # echo 0 > /sys/devices/system/memory/memory5/online
+> # cat /sys/devices/system/memory/memory5/valid_zones
+> Normal
+> # echo 1 > /sys/devices/system/memory/memory5/online
+> Normal
 
-Yub.
+OK, interesting. I will double check the code.
 
+> # cat /proc/zoneinfo
+> Node 0, zone      DMA
+> spanned  524288        <-----
+> present  458752
+> managed  455078
+> start_pfn:           0 <-----
 > 
-> These numbers are from a Chromebook with a few dozen Chrome tabs and a
-> couple of Android apps, and pretty heavy use of zram.
+> Node 0, zone   Normal
+> spanned  720896
+> present  589824
+> managed  571648
+> start_pfn:           327680 <-----
 > 
-> pgpgin 4688863
-> pgpgout 442052
-> pswpin 353675
-> pswpout 1072021
-> ...
-> pgfault 5564247
-> pgmajfault 355758
-> pgmajfault_s 6297
-> pgmajfault_a 317645
-> pgmajfault_f 31816
-> pgmajfault_ax 8494
-> pgmajfault_fx 13201
+> So ZONE_DMA ends within ZONE_NORMAL. This shouldn't be possible, unless
+> this restriction is gone?
+>
+> --- old code:
 > 
-> where _s, _a, and _f are for shmem, anon, and file pages.
-> (ax and fx are for the subset of executable pages---I was curious about that)
+> # echo 0 > /sys/devices/system/memory/memory5/online
+> # cat /sys/devices/system/memory/memory5/valid_zones
+> DMA
+> # echo online_movable > /sys/devices/system/memory/memory5/state
+> -bash: echo: write error: Invalid argument
+> # echo online_kernel > /sys/devices/system/memory/memory5/state
+> -bash: echo: write error: Invalid argument
+> # echo online > /sys/devices/system/memory/memory5/state
+> # cat /sys/devices/system/memory/memory5/valid_zones
+> DMA
 > 
-> So the numbers don't completely match:
-> anon faults = 318,000
-> swap ins = 354,000
 > 
-> Any idea of what might explain the difference?
+> 2) Another oddity is that after a memory block was brought online it's
+> association to ZONE_NORMAL or ZONE_MOVABLE seems to be fixed. Even if it
+> is brought offline afterwards:
 
-Some of application call madvise(MADV_WILLNEED) for shmem or anon?
-
-> 
-> > About auto resetting readahead with zram, I agree with you.
-> > But there are some reasons I postpone the work. No want to discuss
-> > it in this thread/moment. ;)
-> 
-> Yes, I wasn't even thinking of auto-resetting, just log a warning.
-> 
-> >> Incidentally, I understand anon and file faults, but what's a shmem fault?
-> >
-> > For me, it was out of my interest but if you want to count shmem fault,
-> > maybe, we need to introdue new stat(e.g., PSWPIN_SHM) in shmem_swapin
-> > but there are concrete reasons to justify in changelog. :)
-> 
-> Actually mine was a simpler question---I have no idea what a major
-> shmem fault is.   And for this experiment it's a relatively small
-> number, but a similar order of magnitude to the (expensive) file
-> faults, so I don't want to completely ignore it.
-
-Yes, it's doable but a thing we need to merge new stat is concrete
-justification rather than "Having, Better. Why not?" approach.
-In my testing, I just wanted to know just file vs anon LRU balancing
-so it was out of my interest but you might have a reason to know it.
-Then, you can send a patch with detailed changelog. :)
-
-Thanks.
+This is intended behavior because I got rid of the tricky&ugly zone
+shifting code. Ultimately I would like to allow for overlapping zones
+so the explicit online_{movable,kernel} will _always_ work.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
