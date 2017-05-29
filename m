@@ -1,90 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D926B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:44:00 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h76so62734605pfh.15
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:44:00 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0116.outbound.protection.outlook.com. [104.47.0.116])
-        by mx.google.com with ESMTPS id g29si10236657pfa.26.2017.05.29.04.43.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DC906B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:54:04 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 10so12995161wml.4
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:54:04 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i30si9286956edc.234.2017.05.29.04.54.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 May 2017 04:44:00 -0700 (PDT)
-Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <20170525203334.867-8-kirill.shutemov@linux.intel.com>
- <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
- <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
- <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
- <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
-Date: Mon, 29 May 2017 14:45:51 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 May 2017 04:54:03 -0700 (PDT)
+Date: Mon, 29 May 2017 13:53:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+Message-ID: <20170529115358.GJ19725@dhcp22.suse.cz>
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170509181234.GA4397@dhcp22.suse.cz>
+ <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+ <20170515193817.GC7551@dhcp22.suse.cz>
+ <9b3d68aa-d2b6-2b02-4e75-f8372cbeb041@oracle.com>
+ <20170516083601.GB2481@dhcp22.suse.cz>
+ <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-
-
-On 05/29/2017 02:19 PM, Dmitry Vyukov wrote:
-> On Mon, May 29, 2017 at 1:18 PM, Andrey Ryabinin
-> <aryabinin@virtuozzo.com> wrote:
->>
->>
->> On 05/29/2017 01:02 PM, Dmitry Vyukov wrote:
->>> On Sat, May 27, 2017 at 12:10 AM, Kirill A. Shutemov
->>> <kirill@shutemov.name> wrote:
->>>> On Thu, May 25, 2017 at 11:33:33PM +0300, Kirill A. Shutemov wrote:
->>>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->>>>> index 0bf81e837cbf..c795207d8a3c 100644
->>>>> --- a/arch/x86/Kconfig
->>>>> +++ b/arch/x86/Kconfig
->>>>> @@ -100,7 +100,7 @@ config X86
->>>>>       select HAVE_ARCH_AUDITSYSCALL
->>>>>       select HAVE_ARCH_HUGE_VMAP              if X86_64 || X86_PAE
->>>>>       select HAVE_ARCH_JUMP_LABEL
->>>>> -     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
->>>>> +     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP && !X86_5LEVEL
->>>>>       select HAVE_ARCH_KGDB
->>>>>       select HAVE_ARCH_KMEMCHECK
->>>>>       select HAVE_ARCH_MMAP_RND_BITS          if MMU
->>>>
->>>> Looks like KASAN will be a problem for boot-time paging mode switching.
->>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
->>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
->>>>
->>>> I don't see how to solve it. Folks, any ideas?
->>>
->>> +kasan-dev
->>>
->>> I wonder if we can use the same offset for both modes. If we use
->>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
->>> offset that we use for 4 levels (0xdffffc0000000000) will also work
->>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
->>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
->>> extends towards lower addresses. The current 5 level start of shadow
->>> is actually close -- 0xffd8000000000000 and it seems that the required
->>> space after it is unused at the moment (at least looking at mm.txt).
->>> So just try to move it to 0xFFDFFC0000000000?
->>>
->>
->> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
->> assumes that kasan shadow stars and ends on the PGDIR aligned address.
->> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
->> of the shadow.
+On Fri 26-05-17 12:45:55, Pasha Tatashin wrote:
+> Hi Michal,
 > 
-> I think we can extend the shadow backwards (to the current address),
-> provided that it does not affect shadow offset that we pass to
-> compiler.
+> I have considered your proposals:
+> 
+> 1. Making memset(0) unconditional inside __init_single_page() is not going
+> to work because it slows down SPARC, and ppc64. On SPARC even the BSTI
+> optimization that I have proposed earlier won't work, because after
+> consulting with other engineers I was told that stores (without loads!)
+> after BSTI without membar are unsafe
 
-I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
-round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
-So we still need at least one more page to cover unaligned end.
+Could you be more specific? E.g. how are other stores done in
+__init_single_page safe then? I am sorry to be dense here but how does
+the full 64B store differ from other stores done in the same function.
+
+[...]
+> So, at the moment I cannot really find a better solution compared to what I
+> have proposed: do memset() inside __init_single_page() only when deferred
+> initialization is enabled.
+
+As I've already said I am not going to block your approach I was just
+hoping for something that doesn't depend on the deferred initialization.
+Especially when the struct page is a small objects and it makes sense to
+initialize it completely at a single page. Writing to a single cache
+line should simply not add memory traffic for exclusive cache line and
+struct pages are very likely to exclusive at that stage.
+
+If that doesn't fly then be it but I have to confess I still do not
+understand why that is not the case.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
