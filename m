@@ -1,140 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C73F6B02F3
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:41:53 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a77so12955965wma.12
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:41:53 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id i141si11757426wmf.141.2017.05.29.04.41.51
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D926B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:44:00 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h76so62734605pfh.15
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:44:00 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0116.outbound.protection.outlook.com. [104.47.0.116])
+        by mx.google.com with ESMTPS id g29si10236657pfa.26.2017.05.29.04.43.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 May 2017 04:41:51 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id d127so17077256wmf.1
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:41:51 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/3] mm, memory_hotplug: move movable_node to the hotplug proper
-Date: Mon, 29 May 2017 13:41:41 +0200
-Message-Id: <20170529114141.536-4-mhocko@kernel.org>
-In-Reply-To: <20170529114141.536-1-mhocko@kernel.org>
-References: <20170529114141.536-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 29 May 2017 04:44:00 -0700 (PDT)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
+ <20170525203334.867-8-kirill.shutemov@linux.intel.com>
+ <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
+ <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+ <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
+ <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
+Date: Mon, 29 May 2017 14:45:51 +0300
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-From: Michal Hocko <mhocko@suse.com>
 
-movable_node_is_enabled is defined in memblock proper while it
-is initialized from the memory hotplug proper. This is quite messy
-and it makes a dependency between the two so move movable_node along
-with the helper functions to memory_hotplug.
 
-To make it more entertaining the kernel parameter is ignored unless
-CONFIG_HAVE_MEMBLOCK_NODE_MAP=y because we do not have the node
-information for each memblock otherwise. So let's warn when the option
-is disabled.
+On 05/29/2017 02:19 PM, Dmitry Vyukov wrote:
+> On Mon, May 29, 2017 at 1:18 PM, Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>>
+>>
+>> On 05/29/2017 01:02 PM, Dmitry Vyukov wrote:
+>>> On Sat, May 27, 2017 at 12:10 AM, Kirill A. Shutemov
+>>> <kirill@shutemov.name> wrote:
+>>>> On Thu, May 25, 2017 at 11:33:33PM +0300, Kirill A. Shutemov wrote:
+>>>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>>>>> index 0bf81e837cbf..c795207d8a3c 100644
+>>>>> --- a/arch/x86/Kconfig
+>>>>> +++ b/arch/x86/Kconfig
+>>>>> @@ -100,7 +100,7 @@ config X86
+>>>>>       select HAVE_ARCH_AUDITSYSCALL
+>>>>>       select HAVE_ARCH_HUGE_VMAP              if X86_64 || X86_PAE
+>>>>>       select HAVE_ARCH_JUMP_LABEL
+>>>>> -     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
+>>>>> +     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP && !X86_5LEVEL
+>>>>>       select HAVE_ARCH_KGDB
+>>>>>       select HAVE_ARCH_KMEMCHECK
+>>>>>       select HAVE_ARCH_MMAP_RND_BITS          if MMU
+>>>>
+>>>> Looks like KASAN will be a problem for boot-time paging mode switching.
+>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
+>>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
+>>>>
+>>>> I don't see how to solve it. Folks, any ideas?
+>>>
+>>> +kasan-dev
+>>>
+>>> I wonder if we can use the same offset for both modes. If we use
+>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+>>> offset that we use for 4 levels (0xdffffc0000000000) will also work
+>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
+>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
+>>> extends towards lower addresses. The current 5 level start of shadow
+>>> is actually close -- 0xffd8000000000000 and it seems that the required
+>>> space after it is unused at the moment (at least looking at mm.txt).
+>>> So just try to move it to 0xFFDFFC0000000000?
+>>>
+>>
+>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
+>> assumes that kasan shadow stars and ends on the PGDIR aligned address.
+>> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
+>> of the shadow.
+> 
+> I think we can extend the shadow backwards (to the current address),
+> provided that it does not affect shadow offset that we pass to
+> compiler.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/memblock.h       |  7 -------
- include/linux/memory_hotplug.h | 10 ++++++++++
- mm/memblock.c                  |  1 -
- mm/memory_hotplug.c            |  6 ++++++
- 4 files changed, 16 insertions(+), 8 deletions(-)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 9622fb8c101b..071692894254 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -57,8 +57,6 @@ struct memblock {
- 
- extern struct memblock memblock;
- extern int memblock_debug;
--/* If movable_node boot option specified */
--extern bool movable_node_enabled;
- 
- #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
- #define __init_memblock __meminit
-@@ -171,11 +169,6 @@ static inline bool memblock_is_hotpluggable(struct memblock_region *m)
- 	return m->flags & MEMBLOCK_HOTPLUG;
- }
- 
--static inline bool __init_memblock movable_node_is_enabled(void)
--{
--	return movable_node_enabled;
--}
--
- static inline bool memblock_is_mirror(struct memblock_region *m)
- {
- 	return m->flags & MEMBLOCK_MIRROR;
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 9e0249d0f5e4..d6e5e63b31d5 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -115,6 +115,12 @@ extern void __online_page_free(struct page *page);
- extern int try_online_node(int nid);
- 
- extern bool memhp_auto_online;
-+/* If movable_node boot option specified */
-+extern bool movable_node_enabled;
-+static inline bool movable_node_is_enabled(void)
-+{
-+	return movable_node_enabled;
-+}
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern bool is_pageblock_removable_nolock(struct page *page);
-@@ -266,6 +272,10 @@ static inline void put_online_mems(void) {}
- static inline void mem_hotplug_begin(void) {}
- static inline void mem_hotplug_done(void) {}
- 
-+static inline bool movable_node_is_enabled(void)
-+{
-+	return false;
-+}
- #endif /* ! CONFIG_MEMORY_HOTPLUG */
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 4895f5a6cf7e..8c52fb11510c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -54,7 +54,6 @@ struct memblock memblock __initdata_memblock = {
- };
- 
- int memblock_debug __initdata_memblock;
--bool movable_node_enabled __initdata_memblock = false;
- static bool system_has_some_mirror __initdata_memblock = false;
- static int memblock_can_resize __initdata_memblock;
- static int memblock_memory_in_slab __initdata_memblock = 0;
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 2a14f8c18a22..1a148b35e8a3 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -79,6 +79,8 @@ static struct {
- #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
- #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
- 
-+bool movable_node_enabled = false;
-+
- #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
- bool memhp_auto_online;
- #else
-@@ -1561,7 +1563,11 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- 
- static int __init cmdline_parse_movable_node(char *p)
- {
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	movable_node_enabled = true;
-+#else
-+	pr_warn("movable_node parameter depends on CONFIG_HAVE_MEMBLOCK_NODE_MAP to work properly\n");
-+#endif
- 	return 0;
- }
- early_param("movable_node", cmdline_parse_movable_node);
--- 
-2.11.0
+I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
+round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
+So we still need at least one more page to cover unaligned end.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
