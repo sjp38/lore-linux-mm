@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6376B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 06:02:40 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id o93so17565110uao.2
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 03:02:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y72sor1202279vky.30.2017.05.29.03.02.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 93B236B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 06:11:37 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d127so12501568wmf.15
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 03:11:37 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z24si10130211edc.188.2017.05.29.03.11.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 May 2017 03:02:39 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 May 2017 03:11:36 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4TA8pom053439
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 06:11:34 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2arha48thm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 06:11:34 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Mon, 29 May 2017 11:11:32 +0100
+Date: Mon, 29 May 2017 12:11:28 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [-next] memory hotplug regression
+References: <20170524082022.GC5427@osiris>
+ <20170524083956.GC14733@dhcp22.suse.cz>
+ <20170526122509.GB14849@osiris>
+ <20170529085231.GE19725@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <20170525203334.867-8-kirill.shutemov@linux.intel.com> <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 29 May 2017 12:02:18 +0200
-Message-ID: <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
-Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170529085231.GE19725@dhcp22.suse.cz>
+Message-Id: <20170529101128.GA12975@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, May 27, 2017 at 12:10 AM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Thu, May 25, 2017 at 11:33:33PM +0300, Kirill A. Shutemov wrote:
->> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->> index 0bf81e837cbf..c795207d8a3c 100644
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -100,7 +100,7 @@ config X86
->>       select HAVE_ARCH_AUDITSYSCALL
->>       select HAVE_ARCH_HUGE_VMAP              if X86_64 || X86_PAE
->>       select HAVE_ARCH_JUMP_LABEL
->> -     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
->> +     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP && !X86_5LEVEL
->>       select HAVE_ARCH_KGDB
->>       select HAVE_ARCH_KMEMCHECK
->>       select HAVE_ARCH_MMAP_RND_BITS          if MMU
->
-> Looks like KASAN will be a problem for boot-time paging mode switching.
-> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
-> gcc -fasan-shadow-offset=. But this value varies between paging modes...
->
-> I don't see how to solve it. Folks, any ideas?
+On Mon, May 29, 2017 at 10:52:31AM +0200, Michal Hocko wrote:
+> > Why is it a problem to change the default for 'online'? As far as I can see
+> > that doesn't have too much to do with the order of zones, no?
+> 
+> `online' (aka MMOP_ONLINE_KEEP) should always inherit its current zone.
+> The previous implementation made an exception to allow to shift to
+> another zone if it is on the border of two zones. This is what I wanted
+> to get rid of because it is just too ugly to live.
+> 
+> But now I am not really sure what is the usecase here. I assume you know
+> how to online the memoery. That's why you had to play tricks with the
+> zones previously. All you need now is to use the proper MMOP_ONLINE*
 
-+kasan-dev
+Yes, however that implies that existing user space has to be changed to
+achieve the same semantics as before. That's the usecase I'm talking about.
 
-I wonder if we can use the same offset for both modes. If we use
-0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
-offset that we use for 4 levels (0xdffffc0000000000) will also work
-for 5 levels. Namely, ending of 5 level shadow will overlap with 4
-level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
-extends towards lower addresses. The current 5 level start of shadow
-is actually close -- 0xffd8000000000000 and it seems that the required
-space after it is unused at the moment (at least looking at mm.txt).
-So just try to move it to 0xFFDFFC0000000000?
+On the other hand this change would finally make s390 behave like all other
+architectures, which is certainly not a bad thing. So, while thinking again
+I think you convinced me to agree with this change.
+
+> > 2) Another oddity is that after a memory block was brought online it's
+> > association to ZONE_NORMAL or ZONE_MOVABLE seems to be fixed. Even if it
+> > is brought offline afterwards:
+> 
+> This is intended behavior because I got rid of the tricky&ugly zone
+> shifting code. Ultimately I would like to allow for overlapping zones
+> so the explicit online_{movable,kernel} will _always_ work.
+
+Ok, I see. This change (fixed memory block to zone mapping after first
+online) is a bit surprising. On the other hand I can't think of a sane
+usecase why one wants to change the zone a memory block belongs to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
