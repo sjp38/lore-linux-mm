@@ -1,131 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1EA76B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 04:07:42 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x184so11904736wmf.14
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 01:07:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si8612481edh.332.2017.05.29.01.07.41
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 May 2017 01:07:41 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: fix mlock incorrent event account
-References: <1495770854-13920-1-git-send-email-zhongjiang@huawei.com>
- <e30ea010-1cee-a1d9-9136-249372ea1640@suse.cz> <59280BE3.9010302@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <fccd66ed-e641-f251-ca08-62f3b9b2b2c8@suse.cz>
-Date: Mon, 29 May 2017 10:07:40 +0200
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CDDC6B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 04:15:28 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id m5so61019613pfc.1
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 01:15:28 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 5si8192157plx.25.2017.05.29.01.15.26
+        for <linux-mm@kvack.org>;
+        Mon, 29 May 2017 01:15:27 -0700 (PDT)
+Date: Mon, 29 May 2017 17:15:25 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: add counters for different page fault types
+Message-ID: <20170529081525.GA8311@bbox>
+References: <20170524194126.18040-1-semenzato@chromium.org>
+ <20170525001915.GA14999@bbox>
+ <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
+ <20170526040622.GB17837@bbox>
+ <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <59280BE3.9010302@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.cz, qiuxishi@huawei.com, linux-mm@kvack.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
 
-On 05/26/2017 01:05 PM, zhong jiang wrote:
-> On 2017/5/26 17:06, Vlastimil Babka wrote:
->> On 05/26/2017 05:54 AM, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> Recently, when I address in the issue, Subject "mlock: fix mlock count
->>> can not decrease in race condition" had been take over, I review
->>> the code and find the potential issue. it will result in the incorrect
->>> account, it will make us misunderstand straightforward.
->>>
->>> The following testcase can prove the issue.
->>>
->>> int main(void)
->>> {
->>>     char *map;
->>>     int fd;
->>>
->>>     fd = open("test", O_CREAT|O_RDWR);
->>>     unlink("test");
->>>     ftruncate(fd, 4096);
->>>     map = mmap(NULL, 4096, PROT_WRITE, MAP_PRIVATE, fd, 0);
->>>     map[0] = 11;
->>>     mlock(map, 4096);
->>>     ftruncate(fd, 0);
->>>     close(fd);
->>>     munlock(map, 4096);
->>>     munmap(map, 4096);
->>>
->>>     return 0;
->>> }
->>>
->>> before:
->>> unevictable_pgs_mlocked 10589
->>> unevictable_pgs_munlocked 10588
->>> unevictable_pgs_cleared 1
->>>
->>> apply the patch;
->>> after:
->>> unevictable_pgs_mlocked 9497
->>> unevictable_pgs_munlocked 9497
->>> unevictable_pgs_cleared 1
->>>
->>> unmap_mapping_range unmap them,  page_remove_rmap will deal with
->>> clear_page_mlock situation.  we clear page Mlock flag and successful
->>> isolate the page,  the page will putback the evictable list. but it is not
->>> record the munlock event.
->>>
->>> The patch add the event account when successful page isolation.
->>>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> Hi,
->>
->> I think this is by design. UNEVICTABLE_PGMUNLOCKED is supposed for explicit
->> munlock() actions from userspace. Truncation etc is counted by
->> UNEVICTABLE_PGCLEARED.
->>
->> Vlastimil
->  it seems make sense. but the we just mmap the specified ragne and mlock it.
->  when the process drop out, exit_mmap will call munlock_vma_pages_all to
->  unmap the mlock range and make the event normal.
+Hi Luigi,
 
-Uh, so it seems exit counts as explicit munlock.
-
-As Michal suggest, it would be useful to first document the counters
-thoroughly before we can debate whether the semantics is inappropriate
-and needs some overhaul. It looks like nobody cared much until now.
-
-Vlastimil
-
->  Do you think?
+On Fri, May 26, 2017 at 11:43:48AM -0700, Luigi Semenzato wrote:
+> Many thanks Minchan.
 > 
->  Thanks
-> zhongjinag
->>> ---
->>>  mm/mlock.c | 1 +
->>>  1 file changed, 1 insertion(+)
->>>
->>> diff --git a/mm/mlock.c b/mm/mlock.c
->>> index c483c5c..941930b 100644
->>> --- a/mm/mlock.c
->>> +++ b/mm/mlock.c
->>> @@ -64,6 +64,7 @@ void clear_page_mlock(struct page *page)
->>>  			    -hpage_nr_pages(page));
->>>  	count_vm_event(UNEVICTABLE_PGCLEARED);
->>>  	if (!isolate_lru_page(page)) {
->>> +		count_vm_event(UNEVICTABLE_PGMUNLOCKED);
->>>  		putback_lru_page(page);
->>>  	} else {
->>>  		/*
->>>
->>
->> .
->>
+> On Thu, May 25, 2017 at 9:06 PM, Minchan Kim <minchan@kernel.org> wrote:
 > 
+> > If it is swap cache hit, it's not a major fault which causes IO
+> > so VM count it as minor fault, not major.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Cool---but see below.
 > 
+> > Yub, I expected you guys used zram with readahead off so it shouldn't
+> > be a big problem.
+> 
+> By the way, I was referring to page clustering.  We do this in sysctl.conf:
+
+It's readahead of swap.
+I meant it exactly. :)
+
+> 
+> # Disable swap read-ahead
+> vm.page-cluster = 0
+> 
+> I figured that the readahead from the disk device
+> (/sys/block/zram0/queue/read_ahead_kb) is not meaningful---am I
+> correct?
+
+Yub.
+
+> 
+> These numbers are from a Chromebook with a few dozen Chrome tabs and a
+> couple of Android apps, and pretty heavy use of zram.
+> 
+> pgpgin 4688863
+> pgpgout 442052
+> pswpin 353675
+> pswpout 1072021
+> ...
+> pgfault 5564247
+> pgmajfault 355758
+> pgmajfault_s 6297
+> pgmajfault_a 317645
+> pgmajfault_f 31816
+> pgmajfault_ax 8494
+> pgmajfault_fx 13201
+> 
+> where _s, _a, and _f are for shmem, anon, and file pages.
+> (ax and fx are for the subset of executable pages---I was curious about that)
+> 
+> So the numbers don't completely match:
+> anon faults = 318,000
+> swap ins = 354,000
+> 
+> Any idea of what might explain the difference?
+
+Some of application call madvise(MADV_WILLNEED) for shmem or anon?
+
+> 
+> > About auto resetting readahead with zram, I agree with you.
+> > But there are some reasons I postpone the work. No want to discuss
+> > it in this thread/moment. ;)
+> 
+> Yes, I wasn't even thinking of auto-resetting, just log a warning.
+> 
+> >> Incidentally, I understand anon and file faults, but what's a shmem fault?
+> >
+> > For me, it was out of my interest but if you want to count shmem fault,
+> > maybe, we need to introdue new stat(e.g., PSWPIN_SHM) in shmem_swapin
+> > but there are concrete reasons to justify in changelog. :)
+> 
+> Actually mine was a simpler question---I have no idea what a major
+> shmem fault is.   And for this experiment it's a relatively small
+> number, but a similar order of magnitude to the (expensive) file
+> faults, so I don't want to completely ignore it.
+
+Yes, it's doable but a thing we need to merge new stat is concrete
+justification rather than "Having, Better. Why not?" approach.
+In my testing, I just wanted to know just file vs anon LRU balancing
+so it was out of my interest but you might have a reason to know it.
+Then, you can send a patch with detailed changelog. :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
