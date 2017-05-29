@@ -1,78 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A96ED6B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:20:21 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id h12so17658929uaa.4
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:20:21 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 80sor1498971uai.11.2017.05.29.04.20.20
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 016A86B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:41:50 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a77so12955744wma.12
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:41:49 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id m133si11664898wma.86.2017.05.29.04.41.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 May 2017 04:20:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <20170525203334.867-8-kirill.shutemov@linux.intel.com> <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
- <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com> <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 29 May 2017 13:19:59 +0200
-Message-ID: <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
-Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 May 2017 04:41:48 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id d127so17076917wmf.1
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:41:48 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] remove CONFIG_MOVABLE_NODE
+Date: Mon, 29 May 2017 13:41:38 +0200
+Message-Id: <20170529114141.536-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 29, 2017 at 1:18 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 05/29/2017 01:02 PM, Dmitry Vyukov wrote:
->> On Sat, May 27, 2017 at 12:10 AM, Kirill A. Shutemov
->> <kirill@shutemov.name> wrote:
->>> On Thu, May 25, 2017 at 11:33:33PM +0300, Kirill A. Shutemov wrote:
->>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->>>> index 0bf81e837cbf..c795207d8a3c 100644
->>>> --- a/arch/x86/Kconfig
->>>> +++ b/arch/x86/Kconfig
->>>> @@ -100,7 +100,7 @@ config X86
->>>>       select HAVE_ARCH_AUDITSYSCALL
->>>>       select HAVE_ARCH_HUGE_VMAP              if X86_64 || X86_PAE
->>>>       select HAVE_ARCH_JUMP_LABEL
->>>> -     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
->>>> +     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP && !X86_5LEVEL
->>>>       select HAVE_ARCH_KGDB
->>>>       select HAVE_ARCH_KMEMCHECK
->>>>       select HAVE_ARCH_MMAP_RND_BITS          if MMU
->>>
->>> Looks like KASAN will be a problem for boot-time paging mode switching.
->>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
->>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
->>>
->>> I don't see how to solve it. Folks, any ideas?
->>
->> +kasan-dev
->>
->> I wonder if we can use the same offset for both modes. If we use
->> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
->> offset that we use for 4 levels (0xdffffc0000000000) will also work
->> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
->> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
->> extends towards lower addresses. The current 5 level start of shadow
->> is actually close -- 0xffd8000000000000 and it seems that the required
->> space after it is unused at the moment (at least looking at mm.txt).
->> So just try to move it to 0xFFDFFC0000000000?
->>
->
-> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
-> assumes that kasan shadow stars and ends on the PGDIR aligned address.
-> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
-> of the shadow.
+Hi,
+this has been previously posted as an RFC [1]. As it hasn't met any
+disagreement, I have integrated the feedback and resending it without
+RFC and hope for a soon merging (ideally along with other memory hotplug
+pile).
 
-I think we can extend the shadow backwards (to the current address),
-provided that it does not affect shadow offset that we pass to
-compiler.
+I am continuing to cleanup the memory hotplug code and
+CONFIG_MOVABLE_NODE seems dubious at best. The following two patches
+simply removes the flag and make it de-facto always enabled.
+
+The current semantic of the config option is twofold 1) it automatically
+binds hotplugable nodes to have memory in zone_movable by default when
+movable_node is enabled 2) forbids memory hotplug to online all the memory
+as movable when !CONFIG_MOVABLE_NODE.
+
+The later restriction is quite dubious because there is no clear cut of
+how much normal memory do we need for a reasonable system operation. A
+single memory block which is sufficient to allow further movable
+onlines is far from sufficient (e.g a node with >2GB and memblocks
+128MB will fill up this zone with struct pages leaving nothing for
+other allocations). Removing the config option will not only reduce the
+configuration space it also removes quite some code.
+
+The semantic of the movable_node command line parameter is preserved.
+
+The first patch removes the restriction mentioned above and the second
+one simply removes all the CONFIG_MOVABLE_NODE related stuff. The last
+patch moves movable_node flag handling to memory_hotplug proper where
+it belongs.
+
+[1] http://lkml.kernel.org/r/20170524122411.25212-1-mhocko@kernel.org
+
+Shortlog
+Michal Hocko (3):
+      mm, memory_hotplug: drop artificial restriction on online/offline
+      mm, memory_hotplug: drop CONFIG_MOVABLE_NODE
+      mm, memory_hotplug: move movable_node to the hotplug proper
+
+Diffstat:
+ Documentation/admin-guide/kernel-parameters.txt |  7 ++-
+ drivers/base/node.c                             |  4 --
+ include/linux/memblock.h                        | 25 ----------
+ include/linux/memory_hotplug.h                  | 10 ++++
+ include/linux/nodemask.h                        |  4 --
+ mm/Kconfig                                      | 26 ----------
+ mm/memblock.c                                   |  3 --
+ mm/memory_hotplug.c                             | 64 ++-----------------------
+ mm/page_alloc.c                                 |  2 -
+ 9 files changed, 19 insertions(+), 126 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
