@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 61A2B6B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:07:13 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e79so37771812ioi.6
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:07:13 -0700 (PDT)
-Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
-        by mx.google.com with ESMTPS id 127si8981486ion.129.2017.05.29.04.07.12
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6FB6B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 07:17:08 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y65so62777720pff.13
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:17:08 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0099.outbound.protection.outlook.com. [104.47.2.99])
+        by mx.google.com with ESMTPS id m17si10447229pge.5.2017.05.29.04.17.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 May 2017 04:07:12 -0700 (PDT)
-Received: by mail-io0-x241.google.com with SMTP id 12so6578422iol.1
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 04:07:12 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 29 May 2017 04:17:08 -0700 (PDT)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
+ <20170525203334.867-8-kirill.shutemov@linux.intel.com>
+ <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
+ <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
+Date: Mon, 29 May 2017 14:18:52 +0300
 MIME-Version: 1.0
-In-Reply-To: <7f85724c-6fc1-bb51-11e4-15fc2f89372b@linux.vnet.ibm.com>
-References: <20170522111742.29433-1-khandual@linux.vnet.ibm.com>
- <20170522141149.9ef84bb0713769f4af0383f0@linux-foundation.org>
- <20170523070227.GA27864@infradead.org> <09a6bafa-5743-425e-8def-bd9219cd756c@suse.cz>
- <161638da-3b2b-7912-2ae2-3b2936ca1537@linux.vnet.ibm.com> <7f85724c-6fc1-bb51-11e4-15fc2f89372b@linux.vnet.ibm.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Mon, 29 May 2017 13:07:10 +0200
-Message-ID: <CAMuHMdVHyd8LV4_LhFLqHBr0qOUZCKY973edWs5jzv5U6qcgOw@mail.gmail.com>
-Subject: Re: [PATCH] mm: Define KB, MB, GB, TB in core VM
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-Hi Anshuman,
 
-On Wed, May 24, 2017 at 8:40 AM, Anshuman Khandual
-<khandual@linux.vnet.ibm.com> wrote:
-> On 05/23/2017 04:49 PM, Anshuman Khandual wrote:
->> On 05/23/2017 02:08 PM, Vlastimil Babka wrote:
->>> On 05/23/2017 09:02 AM, Christoph Hellwig wrote:
->>>> On Mon, May 22, 2017 at 02:11:49PM -0700, Andrew Morton wrote:
->>>>> On Mon, 22 May 2017 16:47:42 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
->>>>>> There are many places where we define size either left shifting integers
->>>>>> or multiplying 1024s without any generic definition to fall back on. But
->>>>>> there are couples of (powerpc and lz4) attempts to define these standard
->>>>>> memory sizes. Lets move these definitions to core VM to make sure that
->>>>>> all new usage come from these definitions eventually standardizing it
->>>>>> across all places.
->>>>> Grep further - there are many more definitions and some may now
->>>>> generate warnings.
->>>>>
->>>>> Newly including mm.h for these things seems a bit heavyweight.  I can't
->>>>> immediately think of a more appropriate place.  Maybe printk.h or
->>>>> kernel.h.
->>>> IFF we do these kernel.h is the right place.  And please also add the
->>>> MiB & co variants for the binary versions right next to the decimal
->>>> ones.
->>> Those defined in the patch are binary, not decimal. Do we even need
->>> decimal ones?
+
+On 05/29/2017 01:02 PM, Dmitry Vyukov wrote:
+> On Sat, May 27, 2017 at 12:10 AM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+>> On Thu, May 25, 2017 at 11:33:33PM +0300, Kirill A. Shutemov wrote:
+>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>>> index 0bf81e837cbf..c795207d8a3c 100644
+>>> --- a/arch/x86/Kconfig
+>>> +++ b/arch/x86/Kconfig
+>>> @@ -100,7 +100,7 @@ config X86
+>>>       select HAVE_ARCH_AUDITSYSCALL
+>>>       select HAVE_ARCH_HUGE_VMAP              if X86_64 || X86_PAE
+>>>       select HAVE_ARCH_JUMP_LABEL
+>>> -     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP
+>>> +     select HAVE_ARCH_KASAN                  if X86_64 && SPARSEMEM_VMEMMAP && !X86_5LEVEL
+>>>       select HAVE_ARCH_KGDB
+>>>       select HAVE_ARCH_KMEMCHECK
+>>>       select HAVE_ARCH_MMAP_RND_BITS          if MMU
 >>
->> I can define KiB, MiB, .... with the same values as binary.
->> Did not get about the decimal ones, we need different names
->> for them holding values which are multiple of 1024 ?
->
-> Now it seems little bit complicated than I initially thought.
-> There are three different kind of definitions scattered across
-> the tree.
->
-> (1) Constant defines like these which can be unified across
->     with little effort.
->
-> +#define KB (1UL << 10)
-> +#define MB (1UL << 20)
-> +#define GB (1UL << 30)
-> +#define TB (1UL << 40)
+>> Looks like KASAN will be a problem for boot-time paging mode switching.
+>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
+>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
+>>
+>> I don't see how to solve it. Folks, any ideas?
+> 
+> +kasan-dev
+> 
+> I wonder if we can use the same offset for both modes. If we use
+> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+> offset that we use for 4 levels (0xdffffc0000000000) will also work
+> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
+> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
+> extends towards lower addresses. The current 5 level start of shadow
+> is actually close -- 0xffd8000000000000 and it seems that the required
+> space after it is unused at the moment (at least looking at mm.txt).
+> So just try to move it to 0xFFDFFC0000000000?
+> 
 
-Please don't add more/generalize (ab)users of decimal prefixes where
-binary prefixes are needed/intended.
-
-https://en.wikipedia.org/wiki/Binary_prefix
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
+assumes that kasan shadow stars and ends on the PGDIR aligned address.
+Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
+of the shadow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
