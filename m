@@ -1,113 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 063336B0292
-	for <linux-mm@kvack.org>; Mon, 29 May 2017 08:17:53 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w79so13143193wme.7
-        for <linux-mm@kvack.org>; Mon, 29 May 2017 05:17:52 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v27si9747751edi.164.2017.05.29.05.17.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C531D6B0292
+	for <linux-mm@kvack.org>; Mon, 29 May 2017 08:44:58 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p74so63673713pfd.11
+        for <linux-mm@kvack.org>; Mon, 29 May 2017 05:44:58 -0700 (PDT)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30131.outbound.protection.outlook.com. [40.107.3.131])
+        by mx.google.com with ESMTPS id 12si10272073pfn.27.2017.05.29.05.44.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 May 2017 05:17:50 -0700 (PDT)
-Date: Mon, 29 May 2017 14:17:47 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] dax: improve fix for colliding PMD & PTE entries
-Message-ID: <20170529121747.GH3608@quack2.suse.cz>
-References: <20170522215749.23516-2-ross.zwisler@linux.intel.com>
- <20170526195932.32178-1-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 29 May 2017 05:44:58 -0700 (PDT)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
+ <20170525203334.867-8-kirill.shutemov@linux.intel.com>
+ <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
+ <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+ <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
+ <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
+ <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
+Date: Mon, 29 May 2017 15:46:47 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170526195932.32178-1-ross.zwisler@linux.intel.com>
+In-Reply-To: <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Pawel Lebioda <pawel.lebioda@intel.com>, Dave Jiang <dave.jiang@intel.com>, Xiong Zhou <xzhou@redhat.com>, Eryu Guan <eguan@redhat.com>, stable@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Fri 26-05-17 13:59:32, Ross Zwisler wrote:
-> This commit, which has not yet made it upstream but is in the -mm tree:
+On 05/29/2017 02:45 PM, Andrey Ryabinin wrote:
+>>>>> Looks like KASAN will be a problem for boot-time paging mode switching.
+>>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
+>>>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
+>>>>>
+>>>>> I don't see how to solve it. Folks, any ideas?
+>>>>
+>>>> +kasan-dev
+>>>>
+>>>> I wonder if we can use the same offset for both modes. If we use
+>>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+>>>> offset that we use for 4 levels (0xdffffc0000000000) will also work
+>>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
+>>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
+>>>> extends towards lower addresses. The current 5 level start of shadow
+>>>> is actually close -- 0xffd8000000000000 and it seems that the required
+>>>> space after it is unused at the moment (at least looking at mm.txt).
+>>>> So just try to move it to 0xFFDFFC0000000000?
+>>>>
+>>>
+>>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
+>>> assumes that kasan shadow stars and ends on the PGDIR aligned address.
+>>> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
+>>> of the shadow.
+>>
+>> I think we can extend the shadow backwards (to the current address),
+>> provided that it does not affect shadow offset that we pass to
+>> compiler.
 > 
->     dax: Fix race between colliding PMD & PTE entries
-> 
-> fixed a pair of race conditions where racing DAX PTE and PMD faults could
-> corrupt page tables.  This fix had two shortcomings which are addressed by
-> this patch:
-> 
-> 1) In the PTE fault handler we only checked for a collision using
-> pmd_devmap().  The pmd_devmap() check will trigger when we have raced with
-> a PMD that has real DAX storage, but to account for the case where we
-> collide with a huge zero page entry we also need to check for
-> pmd_trans_huge().
-> 
-> 2) In the PMD fault handler we only continued with the fault if no PMD at
-> all was present (pmd_none()).  This is the case when we are faulting in a
-> PMD for the first time, but there are two other cases to consider.  The
-> first is that we are servicing a write fault over a PMD huge zero page,
-> which we detect with pmd_trans_huge().  The second is that we are servicing
-> a write fault over a DAX PMD with real storage, which we address with
-> pmd_devmap().
-> 
-> Fix both of these, and instead of manually triggering a fallback in the PMD
-> collision case instead be consistent with the other collision detection
-> code in the fault handlers and just retry.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: stable@vger.kernel.org
+> I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
+> round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
+> So we still need at least one more page to cover unaligned end.
 
-Ugh, right. I forgot zero page in page tables will not pass the devmap
-check... You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
-> 
-> For both the -mm tree and for stable, feel free to squash this with the
-> original commit if you think that is appropriate.
-> 
-> This has passed targeted testing and an xfstests run.
-> ---
->  fs/dax.c | 11 +++++++----
->  1 file changed, 7 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index fc62f36..2a6889b 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1160,7 +1160,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
->  	 * the PTE we need to set up.  If so just return and the fault will be
->  	 * retried.
->  	 */
-> -	if (pmd_devmap(*vmf->pmd)) {
-> +	if (pmd_trans_huge(*vmf->pmd) || pmd_devmap(*vmf->pmd)) {
->  		vmf_ret = VM_FAULT_NOPAGE;
->  		goto unlock_entry;
->  	}
-> @@ -1411,11 +1411,14 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
->  	/*
->  	 * It is possible, particularly with mixed reads & writes to private
->  	 * mappings, that we have raced with a PTE fault that overlaps with
-> -	 * the PMD we need to set up.  If so we just fall back to a PTE fault
-> -	 * ourselves.
-> +	 * the PMD we need to set up.  If so just return and the fault will be
-> +	 * retried.
->  	 */
-> -	if (!pmd_none(*vmf->pmd))
-> +	if (!pmd_none(*vmf->pmd) && !pmd_trans_huge(*vmf->pmd) &&
-> +			!pmd_devmap(*vmf->pmd)) {
-> +		result = 0;
->  		goto unlock_entry;
-> +	}
->  
->  	/*
->  	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
-> -- 
-> 2.9.4
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Actually, I'm wrong here. I assumed that we would need an additional page to store p4d entries,
+but in fact we don't need it, as such page should already exist. It's the same last pgd where kernel image
+is mapped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
