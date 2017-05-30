@@ -1,83 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DFB996B02C3
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 08:18:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g13so19384996wmd.9
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 05:18:09 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC7B6B02F4
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 08:24:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b84so19415715wmh.0
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 05:24:40 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z3si13587489eda.205.2017.05.30.05.18.08
+        by mx.google.com with ESMTPS id w21si11626314eda.13.2017.05.30.05.24.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 05:18:08 -0700 (PDT)
-Date: Tue, 30 May 2017 14:18:06 +0200
+        Tue, 30 May 2017 05:24:39 -0700 (PDT)
+Date: Tue, 30 May 2017 14:24:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [-next] memory hotplug regression
-Message-ID: <20170530121806.GD7969@dhcp22.suse.cz>
-References: <20170524082022.GC5427@osiris>
- <20170524083956.GC14733@dhcp22.suse.cz>
- <20170526122509.GB14849@osiris>
+Subject: Re: [PATCH] mm: bump PGSTEAL*/PGSCAN*/ALLOCSTALL counters in memcg
+ reclaim
+Message-ID: <20170530122436.GE7969@dhcp22.suse.cz>
+References: <1496062901-21456-1-git-send-email-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170526122509.GB14849@osiris>
+In-Reply-To: <1496062901-21456-1-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 26-05-17 14:25:09, Heiko Carstens wrote:
-[...]
-> 1) With the new code I can generate overlapping zones for ZONE_DMA and
-> ZONE_NORMAL:
+On Mon 29-05-17 14:01:41, Roman Gushchin wrote:
+> Historically, PGSTEAL*/PGSCAN*/ALLOCSTALL counters were used to
+> account only for global reclaim events, memory cgroup targeted reclaim
+> was ignored.
 > 
-> --- new code:
-> 
-> DMA      [mem 0x0000000000000000-0x000000007fffffff]
-> Normal   [mem 0x0000000080000000-0x000000017fffffff]
-> 
-> # cat /sys/devices/system/memory/block_size_bytes
-> 10000000
-> # cat /sys/devices/system/memory/memory5/valid_zones
-> DMA
-> # echo 0 > /sys/devices/system/memory/memory5/online
-> # cat /sys/devices/system/memory/memory5/valid_zones
-> Normal
-> # echo 1 > /sys/devices/system/memory/memory5/online
-> Normal
-> 
-> # cat /proc/zoneinfo
-> Node 0, zone      DMA
-> spanned  524288        <-----
-> present  458752
-> managed  455078
-> start_pfn:           0 <-----
-> 
-> Node 0, zone   Normal
-> spanned  720896
-> present  589824
-> managed  571648
-> start_pfn:           327680 <-----
-> 
-> So ZONE_DMA ends within ZONE_NORMAL. This shouldn't be possible, unless
-> this restriction is gone?
+> It doesn't make sense anymore, because the whole reclaim path
+> is designed around cgroups. Also, per-cgroup counters can exceed the
+> corresponding global counters, what can be confusing.
 
-The patch below should help.
+The whole reclaim is designed around cgroups but the source of the
+memory pressure is different. I agree that checking global_reclaim()
+for PGSTEAL_KSWAPD doesn't make much sense because we are _always_ in
+the global reclaim context but counting ALLOCSTALL even for targetted
+memcg reclaim is more confusing than helpful. We usually consider this
+counter to see whether the kswapd catches up with the memory demand
+and the global direct reclaim is indicator it doesn't. The similar
+applies to other counters as well.
 
-> --- old code:
+So I do not think this is correct. What is the problem you are trying to
+solve here anyway.
+
+> So, make PGSTEAL*/PGSCAN*/ALLOCSTALL counters reflect sum of any
+> reclaim activity in the system.
 > 
-> # echo 0 > /sys/devices/system/memory/memory5/online
-> # cat /sys/devices/system/memory/memory5/valid_zones
-> DMA
-> # echo online_movable > /sys/devices/system/memory/memory5/state
-> -bash: echo: write error: Invalid argument
-> # echo online_kernel > /sys/devices/system/memory/memory5/state
-> -bash: echo: write error: Invalid argument
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: kernel-team@fb.com
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  mm/vmscan.c | 15 +++++----------
+>  1 file changed, 5 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7c2a36b..77253b1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1765,13 +1765,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	reclaim_stat->recent_scanned[file] += nr_taken;
+>  
+>  	if (current_is_kswapd()) {
+> -		if (global_reclaim(sc))
+> -			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
+> +		__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
+>  		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
+>  				   nr_scanned);
+>  	} else {
+> -		if (global_reclaim(sc))
+> -			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
+> +		__count_vm_events(PGSCAN_DIRECT, nr_scanned);
+>  		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
+>  				   nr_scanned);
+>  	}
+> @@ -1786,13 +1784,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	spin_lock_irq(&pgdat->lru_lock);
+>  
+>  	if (current_is_kswapd()) {
+> -		if (global_reclaim(sc))
+> -			__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
+> +		__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
+>  		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD,
+>  				   nr_reclaimed);
+>  	} else {
+> -		if (global_reclaim(sc))
+> -			__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
+> +		__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
+>  		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_DIRECT,
+>  				   nr_reclaimed);
+>  	}
+> @@ -2828,8 +2824,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  retry:
+>  	delayacct_freepages_start();
+>  
+> -	if (global_reclaim(sc))
+> -		__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+> +	__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+>  
+>  	do {
+>  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+> -- 
+> 2.7.4
+> 
 
-this error doesn't make any sense. Because we we want to online kernel
-memory and DMA is pretty much the kernel memory
+-- 
+Michal Hocko
+SUSE Labs
 
-> # echo online > /sys/devices/system/memory/memory5/state
-> # cat /sys/devices/system/memory/memory5/valid_zones
-> DMA
-
---- 
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
