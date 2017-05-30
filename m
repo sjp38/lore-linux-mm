@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6B46B02C3
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 19:20:15 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id o139so51576lfe.15
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 16:20:15 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0A06B02F3
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 19:20:42 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id r14so111417lfi.8
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 16:20:42 -0700 (PDT)
 Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id y24si8541261ljd.79.2017.05.30.16.20.13
+        by mx.google.com with ESMTPS id g83si9417208ljg.237.2017.05.30.16.20.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 16:20:13 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id m18so33948lfj.0
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 16:20:13 -0700 (PDT)
+        Tue, 30 May 2017 16:20:41 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id m18so34304lfj.0
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 16:20:41 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <19f9da22-092b-f867-bdf6-f4dbad7ccf1f@users.sourceforge.net>
-References: <05101843-91f6-3243-18ea-acac8e8ef6af@users.sourceforge.net> <19f9da22-092b-f867-bdf6-f4dbad7ccf1f@users.sourceforge.net>
+In-Reply-To: <bae25b04-2ce2-7137-a71c-50d7b4f06431@users.sourceforge.net>
+References: <05101843-91f6-3243-18ea-acac8e8ef6af@users.sourceforge.net> <bae25b04-2ce2-7137-a71c-50d7b4f06431@users.sourceforge.net>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 30 May 2017 19:19:33 -0400
-Message-ID: <CALZtOND7iFpCHQJPGpH21p+N5dcHiVM29ij=DTvJC33U9176=w@mail.gmail.com>
-Subject: Re: [PATCH 2/3] zswap: Improve a size determination in zswap_frontswap_init()
+Date: Tue, 30 May 2017 19:20:00 -0400
+Message-ID: <CALZtONA5gyeqioF=F4BWpJ8T8-kc-BNsuas0gK4555GS-GkApQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] zswap: Delete an error message for a failed memory
+ allocation in zswap_dstmem_prepare()
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: SF Markus Elfring <elfring@users.sourceforge.net>
 Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
 
-On Sun, May 21, 2017 at 4:26 AM, SF Markus Elfring
+On Sun, May 21, 2017 at 4:27 AM, SF Markus Elfring
 <elfring@users.sourceforge.net> wrote:
 > From: Markus Elfring <elfring@users.sourceforge.net>
-> Date: Sat, 20 May 2017 22:44:03 +0200
+> Date: Sun, 21 May 2017 09:29:25 +0200
 >
-> Replace the specification of a data structure by a pointer dereference
-> as the parameter for the operator "sizeof" to make the corresponding size
-> determination a bit safer according to the Linux coding style convention.
+> Omit an extra message for a memory allocation failure in this function.
 >
+> This issue was detected by using the Coccinelle software.
+>
+> Link: http://events.linuxfoundation.org/sites/events/files/slides/LCJ16-Refactor_Strings-WSang_0.pdf
 > Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 
 Acked-by: Dan Streetman <ddstreet@ieee.org>
 
 > ---
->  mm/zswap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  mm/zswap.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 >
 > diff --git a/mm/zswap.c b/mm/zswap.c
-> index 18d8e87119a6..a6e67633be03 100644
+> index 3f0a9a1daef4..ed7312291df9 100644
 > --- a/mm/zswap.c
 > +++ b/mm/zswap.c
-> @@ -1156,5 +1156,5 @@ static void zswap_frontswap_init(unsigned type)
->  {
->         struct zswap_tree *tree;
->
-> -       tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
-> +       tree = kzalloc(sizeof(*tree), GFP_KERNEL);
->         if (!tree) {
+> @@ -374,7 +374,6 @@ static int zswap_dstmem_prepare(unsigned int cpu)
+> -       if (!dst) {
+> -               pr_err("can't allocate compressor buffer\n");
+> +       if (!dst)
+>                 return -ENOMEM;
+> -       }
+> +
+>         per_cpu(zswap_dstmem, cpu) = dst;
+>         return 0;
+>  }
 > --
 > 2.13.0
 >
