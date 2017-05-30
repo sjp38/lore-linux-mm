@@ -1,136 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CE356B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 05:54:39 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e7so88306220pfk.9
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 02:54:39 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a6si13254262pfb.310.2017.05.30.02.54.37
-        for <linux-mm@kvack.org>;
-        Tue, 30 May 2017 02:54:38 -0700 (PDT)
-Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
- reduce memory consumption
-References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170524074539.GA9697@js1304-desktop>
- <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
- <20170525004104.GA21336@js1304-desktop>
- <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
- <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
- <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com>
- <1131ff71-eb7a-8396-9a72-211f7077e5ec@arm.com>
- <CACT4Y+b-EB19HU+=Uj=EXx5-S9sBAnqRKcCDk+TVYEkKcH6Tfw@mail.gmail.com>
- <b6a95df3-902c-befa-808b-bdbd1d33175c@arm.com>
- <2d35bbe9-e833-1bf3-ecd0-a02da63b381a@arm.com>
- <CACT4Y+YkEMPe3uZmPO+HmpAk6JckdiGhxWq=7i8t2WG2efZgZw@mail.gmail.com>
- <35288874-d800-f534-13bf-4261167ff1bd@arm.com>
- <CACT4Y+b4x47HZJUPqeGeVHpZcDie1zgC71mbZKd-y+k0Znb3Xg@mail.gmail.com>
- <b49b470e-43da-08bd-ea84-fef8be9c0b71@arm.com>
- <CACT4Y+Z6-8gK0t9ZgPP3tNqdCTx6eekP9OXrkDJdhSawdyks8g@mail.gmail.com>
-From: Vladimir Murzin <vladimir.murzin@arm.com>
-Message-ID: <f61457b3-b54b-84be-47ec-b9e5bc888db0@arm.com>
-Date: Tue, 30 May 2017 10:54:32 +0100
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63E5B6B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 06:19:36 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p74so89331607pfd.11
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 03:19:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m2si13140429pga.313.2017.05.30.03.19.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 May 2017 03:19:35 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4UAIXRH074313
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 06:19:35 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2as4dbe9yt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 06:19:34 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 30 May 2017 11:19:31 +0100
+Date: Tue, 30 May 2017 13:19:22 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+References: <20170522133559.GE27382@rapoport-lnx>
+ <20170522135548.GA8514@dhcp22.suse.cz>
+ <20170522142927.GG27382@rapoport-lnx>
+ <a9e74c22-1a07-f49a-42b5-497fee85e9c9@suse.cz>
+ <20170524075043.GB3063@rapoport-lnx>
+ <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
+ <20170524103947.GC3063@rapoport-lnx>
+ <20170524111800.GD14733@dhcp22.suse.cz>
+ <20170524142735.GF3063@rapoport-lnx>
+ <20170530074408.GA7969@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+Z6-8gK0t9ZgPP3tNqdCTx6eekP9OXrkDJdhSawdyks8g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170530074408.GA7969@dhcp22.suse.cz>
+Message-Id: <20170530101921.GA25738@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 30/05/17 10:45, Dmitry Vyukov wrote:
-> On Tue, May 30, 2017 at 11:39 AM, Vladimir Murzin
-> <vladimir.murzin@arm.com> wrote:
->>
->> On 30/05/17 10:26, Dmitry Vyukov wrote:
->>> On Tue, May 30, 2017 at 11:08 AM, Vladimir Murzin
->>> <vladimir.murzin@arm.com> wrote:
->>>>> <vladimir.murzin@arm.com> wrote:
->>>>>> On 30/05/17 09:31, Vladimir Murzin wrote:
->>>>>>> [This sender failed our fraud detection checks and may not be who they appear to be. Learn about spoofing at http://aka.ms/LearnAboutSpoofing]
->>>>>>>
->>>>>>> On 30/05/17 09:15, Dmitry Vyukov wrote:
->>>>>>>> On Tue, May 30, 2017 at 9:58 AM, Vladimir Murzin
->>>>>>>> <vladimir.murzin@arm.com> wrote:
->>>>>>>>> On 29/05/17 16:29, Dmitry Vyukov wrote:
->>>>>>>>>> I have an alternative proposal. It should be conceptually simpler and
->>>>>>>>>> also less arch-dependent. But I don't know if I miss something
->>>>>>>>>> important that will render it non working.
->>>>>>>>>> Namely, we add a pointer to shadow to the page struct. Then, create a
->>>>>>>>>> slab allocator for 512B shadow blocks. Then, attach/detach these
->>>>>>>>>> shadow blocks to page structs as necessary. It should lead to even
->>>>>>>>>> smaller memory consumption because we won't need a whole shadow page
->>>>>>>>>> when only 1 out of 8 corresponding kernel pages are used (we will need
->>>>>>>>>> just a single 512B block). I guess with some fragmentation we need
->>>>>>>>>> lots of excessive shadow with the current proposed patch.
->>>>>>>>>> This does not depend on TLB in any way and does not require hooking
->>>>>>>>>> into buddy allocator.
->>>>>>>>>> The main downside is that we will need to be careful to not assume
->>>>>>>>>> that shadow is continuous. In particular this means that this mode
->>>>>>>>>> will work only with outline instrumentation and will need some ifdefs.
->>>>>>>>>> Also it will be slower due to the additional indirection when
->>>>>>>>>> accessing shadow, but that's meant as "small but slow" mode as far as
->>>>>>>>>> I understand.
->>>>>>>>>>
->>>>>>>>>> But the main win as I see it is that that's basically complete support
->>>>>>>>>> for 32-bit arches. People do ask about arm32 support:
->>>>>>>>>> https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ
->>>>>>>>>> https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ
->>>>>>>>>> and probably mips32 is relevant as well.
->>>>>>>>>> Such mode does not require a huge continuous address space range, has
->>>>>>>>>> minimal memory consumption and requires minimal arch-dependent code.
->>>>>>>>>> Works only with outline instrumentation, but I think that's a
->>>>>>>>>> reasonable compromise.
->>>>>>>>>
->>>>>>>>> .. or you can just keep shadow in page extension. It was suggested back in
->>>>>>>>> 2015 [1], but seems that lack of stack instrumentation was "no-way"...
->>>>>>>>>
->>>>>>>>> [1] https://lkml.org/lkml/2015/8/24/573
->>>>>>>>
->>>>>>>> Right. It describes basically the same idea.
->>>>>>>>
->>>>>>>> How is page_ext better than adding data page struct?
->>>>>>>
->>>>>>> page_ext is already here along with some other debug options ;)
->>>>>
->>>>>
->>>>> But page struct is also here. What am I missing?
->>>>>
->>>>
->>>> Probably, free room in page struct? I guess most of the page_ext stuff would
->>>> love to live in page struct, but... for instance, look at page idle tracking
->>>> which has to live in page_ext only for 32-bit.
->>>
->>>
->>> Sorry for my ignorance. What's the fundamental problem with just
->>> pushing everything into page struct?
->>
->> I think [1] has an answer for your question ;)
+On Tue, May 30, 2017 at 09:44:08AM +0200, Michal Hocko wrote:
+> On Wed 24-05-17 17:27:36, Mike Rapoport wrote:
+> > On Wed, May 24, 2017 at 01:18:00PM +0200, Michal Hocko wrote:
+> [...]
+> > > Why cannot khugepaged simply skip over all VMAs which have userfault
+> > > regions registered? This would sound like a less error prone approach to
+> > > me.
+> > 
+> > khugepaged does skip over VMAs which have userfault. We could register the
+> > regions with userfault before populating them to avoid collapses in the
+> > transition period.
 > 
-> It also has an answer for why we should put it into page struct :)
+> Why cannot you register only post-copy regions and "manually" copy the
+> pre-copy parts?
 
-Glad you find it useful ;) I'd be glad to see it lands into 32-bit world :)
+We can register only post-copy regions, but this will cause VMA
+fragmentation. Now we register the entire VMA with userfaultfd, no matter
+how many pages were dirtied there since the pre-dump. If we register only
+post-copy regions, we will split out the VMAs for those regions.
+ 
+> > But then we'll have to populate these regions with
+> > UFFDIO_COPY which adds quite an overhead.
+> 
+> How big is the performance impact?
 
-Cheers
-Vladimir
+I don't have the numbers handy, but for each post-copy range it means that
+instead of memcpy() we will use ioctl(UFFDIO_COPY).
 
-> 
-> 
->>
->>>
->>> I don't see anything relevant in page struct comment. Nor I see "idle"
->>> nor "tracking" page struct. I see only 2 mentions of CONFIG_64BIT, but
->>> both declare the same fields just with different types (int vs short).
->>
->> Right, it is because implementation is based on page flags [1]:
->>
->> Note, since there is no room for extra page flags on 32 bit, this feature
->> uses extended page flags when compiled on 32 bit.
->>
->>
->> [1] https://lwn.net/Articles/565097/
->> [2] 33c3fc7 ("mm: introduce idle page tracking")
-> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+ 
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
