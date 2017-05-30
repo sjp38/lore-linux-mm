@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B41C26B02F3
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 14:17:42 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w79so20641533wme.7
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 11:17:42 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q7si14289157eda.82.2017.05.30.11.17.41
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B2F6B02F4
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 14:17:44 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t133so100658000oif.9
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 11:17:44 -0700 (PDT)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id y10si5657940oia.48.2017.05.30.11.17.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 30 May 2017 11:17:41 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 1/6] mm: vmscan: delete unused pgdat_reclaimable_pages()
-Date: Tue, 30 May 2017 14:17:19 -0400
-Message-Id: <20170530181724.27197-2-hannes@cmpxchg.org>
-In-Reply-To: <20170530181724.27197-1-hannes@cmpxchg.org>
-References: <20170530181724.27197-1-hannes@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 May 2017 11:17:43 -0700 (PDT)
+Date: Tue, 30 May 2017 13:17:41 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
+ configuration
+In-Reply-To: <20170526190926.GA8974@amt.cnet>
+Message-ID: <alpine.DEB.2.20.1705301310100.7195@east.gentwo.org>
+References: <alpine.DEB.2.20.1705121103120.22831@east.gentwo.org> <20170512161915.GA4185@amt.cnet> <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org> <20170515191531.GA31483@amt.cnet> <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
+ <20170519143407.GA19282@amt.cnet> <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org> <20170519134934.0c298882@redhat.com> <20170525193508.GA30252@amt.cnet> <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org> <20170526190926.GA8974@amt.cnet>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/swap.h |  1 -
- mm/vmscan.c          | 16 ----------------
- 2 files changed, 17 deletions(-)
+On Fri, 26 May 2017, Marcelo Tosatti wrote:
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ba5882419a7d..6e3d1d0a7f48 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -289,7 +289,6 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
- 
- /* linux/mm/vmscan.c */
- extern unsigned long zone_reclaimable_pages(struct zone *zone);
--extern unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat);
- extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 					gfp_t gfp_mask, nodemask_t *mask);
- extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8ad39bbc79e6..c5f9d1673392 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -219,22 +219,6 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
- 	return nr;
- }
- 
--unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat)
--{
--	unsigned long nr;
--
--	nr = node_page_state_snapshot(pgdat, NR_ACTIVE_FILE) +
--	     node_page_state_snapshot(pgdat, NR_INACTIVE_FILE) +
--	     node_page_state_snapshot(pgdat, NR_ISOLATED_FILE);
--
--	if (get_nr_swap_pages() > 0)
--		nr += node_page_state_snapshot(pgdat, NR_ACTIVE_ANON) +
--		      node_page_state_snapshot(pgdat, NR_INACTIVE_ANON) +
--		      node_page_state_snapshot(pgdat, NR_ISOLATED_ANON);
--
--	return nr;
--}
--
- /**
-  * lruvec_lru_size -  Returns the number of pages on the given LRU list.
-  * @lruvec: lru vector
--- 
-2.12.2
+> > interrupts and scheduler ticks. But what does this have to do with vmstat?
+> >
+> > Show me your dpdk code running and trace the tick on / off events  as well
+> > as the vmstat invocations. Also show all system calls occurring on the cpu
+> > that runs dpdk. That is necessary to see what triggers vmstat and how the
+> > system reacts to the changes to the differentials.
+>
+> Sure, i can get that to you. The question remains: Are you arguing
+> its not valid for a realtime application to use any system call
+> which changes a vmstat counter?
+
+A true realtime app would be conscientious of its use of the OS services
+because the use of the services may cause additional latencies and also
+cause timers etc to fire later. A realtime app that is willing to use
+these services is therefore willing to tolerate larger latencies. A
+realtime app that is using OS service may cause the timer tick to be
+enabled which also causes additional latencies.
+
+I have seen completely OS noise free processing for extended time period
+when not using OS services and using RDMA for I/O. This fits my use case
+well.
+
+If there are really these high latencies because of kworker processing for
+vmstat then maybe we need a different mechanism there (bh? or other
+triggers) and maybe we are using far too many counters so that the
+processing becomes a heavy user of resources.
+
+> Because if they are allowed, then its obvious something like
+> this is needed.
+
+I am still wondering what benefit there is. Lets get clear on the test
+load and see if this actually makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
