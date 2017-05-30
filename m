@@ -1,124 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CCE826B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 05:46:04 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id w26so23476726uae.15
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 02:46:04 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l143sor1638052vke.47.2017.05.30.02.46.03
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 May 2017 02:46:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <b49b470e-43da-08bd-ea84-fef8be9c0b71@arm.com>
-References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170516062318.GC16015@js1304-desktop> <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
- <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
- <20170524074539.GA9697@js1304-desktop> <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
- <20170525004104.GA21336@js1304-desktop> <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
- <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
- <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com>
- <1131ff71-eb7a-8396-9a72-211f7077e5ec@arm.com> <CACT4Y+b-EB19HU+=Uj=EXx5-S9sBAnqRKcCDk+TVYEkKcH6Tfw@mail.gmail.com>
- <b6a95df3-902c-befa-808b-bdbd1d33175c@arm.com> <2d35bbe9-e833-1bf3-ecd0-a02da63b381a@arm.com>
- <CACT4Y+YkEMPe3uZmPO+HmpAk6JckdiGhxWq=7i8t2WG2efZgZw@mail.gmail.com>
- <35288874-d800-f534-13bf-4261167ff1bd@arm.com> <CACT4Y+b4x47HZJUPqeGeVHpZcDie1zgC71mbZKd-y+k0Znb3Xg@mail.gmail.com>
- <b49b470e-43da-08bd-ea84-fef8be9c0b71@arm.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 30 May 2017 11:45:42 +0200
-Message-ID: <CACT4Y+Z6-8gK0t9ZgPP3tNqdCTx6eekP9OXrkDJdhSawdyks8g@mail.gmail.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CE356B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 05:54:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e7so88306220pfk.9
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 02:54:39 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a6si13254262pfb.310.2017.05.30.02.54.37
+        for <linux-mm@kvack.org>;
+        Tue, 30 May 2017 02:54:38 -0700 (PDT)
 Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
  reduce memory consumption
-Content-Type: text/plain; charset="UTF-8"
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170524074539.GA9697@js1304-desktop>
+ <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
+ <20170525004104.GA21336@js1304-desktop>
+ <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
+ <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
+ <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com>
+ <1131ff71-eb7a-8396-9a72-211f7077e5ec@arm.com>
+ <CACT4Y+b-EB19HU+=Uj=EXx5-S9sBAnqRKcCDk+TVYEkKcH6Tfw@mail.gmail.com>
+ <b6a95df3-902c-befa-808b-bdbd1d33175c@arm.com>
+ <2d35bbe9-e833-1bf3-ecd0-a02da63b381a@arm.com>
+ <CACT4Y+YkEMPe3uZmPO+HmpAk6JckdiGhxWq=7i8t2WG2efZgZw@mail.gmail.com>
+ <35288874-d800-f534-13bf-4261167ff1bd@arm.com>
+ <CACT4Y+b4x47HZJUPqeGeVHpZcDie1zgC71mbZKd-y+k0Znb3Xg@mail.gmail.com>
+ <b49b470e-43da-08bd-ea84-fef8be9c0b71@arm.com>
+ <CACT4Y+Z6-8gK0t9ZgPP3tNqdCTx6eekP9OXrkDJdhSawdyks8g@mail.gmail.com>
+From: Vladimir Murzin <vladimir.murzin@arm.com>
+Message-ID: <f61457b3-b54b-84be-47ec-b9e5bc888db0@arm.com>
+Date: Tue, 30 May 2017 10:54:32 +0100
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+Z6-8gK0t9ZgPP3tNqdCTx6eekP9OXrkDJdhSawdyks8g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>
+To: Dmitry Vyukov <dvyukov@google.com>
 Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On Tue, May 30, 2017 at 11:39 AM, Vladimir Murzin
-<vladimir.murzin@arm.com> wrote:
->
-> On 30/05/17 10:26, Dmitry Vyukov wrote:
-> > On Tue, May 30, 2017 at 11:08 AM, Vladimir Murzin
-> > <vladimir.murzin@arm.com> wrote:
-> >>> <vladimir.murzin@arm.com> wrote:
-> >>>> On 30/05/17 09:31, Vladimir Murzin wrote:
-> >>>>> [This sender failed our fraud detection checks and may not be who they appear to be. Learn about spoofing at http://aka.ms/LearnAboutSpoofing]
-> >>>>>
-> >>>>> On 30/05/17 09:15, Dmitry Vyukov wrote:
-> >>>>>> On Tue, May 30, 2017 at 9:58 AM, Vladimir Murzin
-> >>>>>> <vladimir.murzin@arm.com> wrote:
-> >>>>>>> On 29/05/17 16:29, Dmitry Vyukov wrote:
-> >>>>>>>> I have an alternative proposal. It should be conceptually simpler and
-> >>>>>>>> also less arch-dependent. But I don't know if I miss something
-> >>>>>>>> important that will render it non working.
-> >>>>>>>> Namely, we add a pointer to shadow to the page struct. Then, create a
-> >>>>>>>> slab allocator for 512B shadow blocks. Then, attach/detach these
-> >>>>>>>> shadow blocks to page structs as necessary. It should lead to even
-> >>>>>>>> smaller memory consumption because we won't need a whole shadow page
-> >>>>>>>> when only 1 out of 8 corresponding kernel pages are used (we will need
-> >>>>>>>> just a single 512B block). I guess with some fragmentation we need
-> >>>>>>>> lots of excessive shadow with the current proposed patch.
-> >>>>>>>> This does not depend on TLB in any way and does not require hooking
-> >>>>>>>> into buddy allocator.
-> >>>>>>>> The main downside is that we will need to be careful to not assume
-> >>>>>>>> that shadow is continuous. In particular this means that this mode
-> >>>>>>>> will work only with outline instrumentation and will need some ifdefs.
-> >>>>>>>> Also it will be slower due to the additional indirection when
-> >>>>>>>> accessing shadow, but that's meant as "small but slow" mode as far as
-> >>>>>>>> I understand.
-> >>>>>>>>
-> >>>>>>>> But the main win as I see it is that that's basically complete support
-> >>>>>>>> for 32-bit arches. People do ask about arm32 support:
-> >>>>>>>> https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ
-> >>>>>>>> https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ
-> >>>>>>>> and probably mips32 is relevant as well.
-> >>>>>>>> Such mode does not require a huge continuous address space range, has
-> >>>>>>>> minimal memory consumption and requires minimal arch-dependent code.
-> >>>>>>>> Works only with outline instrumentation, but I think that's a
-> >>>>>>>> reasonable compromise.
-> >>>>>>>
-> >>>>>>> .. or you can just keep shadow in page extension. It was suggested back in
-> >>>>>>> 2015 [1], but seems that lack of stack instrumentation was "no-way"...
-> >>>>>>>
-> >>>>>>> [1] https://lkml.org/lkml/2015/8/24/573
-> >>>>>>
-> >>>>>> Right. It describes basically the same idea.
-> >>>>>>
-> >>>>>> How is page_ext better than adding data page struct?
-> >>>>>
-> >>>>> page_ext is already here along with some other debug options ;)
-> >>>
-> >>>
-> >>> But page struct is also here. What am I missing?
-> >>>
-> >>
-> >> Probably, free room in page struct? I guess most of the page_ext stuff would
-> >> love to live in page struct, but... for instance, look at page idle tracking
-> >> which has to live in page_ext only for 32-bit.
-> >
-> >
-> > Sorry for my ignorance. What's the fundamental problem with just
-> > pushing everything into page struct?
->
-> I think [1] has an answer for your question ;)
+On 30/05/17 10:45, Dmitry Vyukov wrote:
+> On Tue, May 30, 2017 at 11:39 AM, Vladimir Murzin
+> <vladimir.murzin@arm.com> wrote:
+>>
+>> On 30/05/17 10:26, Dmitry Vyukov wrote:
+>>> On Tue, May 30, 2017 at 11:08 AM, Vladimir Murzin
+>>> <vladimir.murzin@arm.com> wrote:
+>>>>> <vladimir.murzin@arm.com> wrote:
+>>>>>> On 30/05/17 09:31, Vladimir Murzin wrote:
+>>>>>>> [This sender failed our fraud detection checks and may not be who they appear to be. Learn about spoofing at http://aka.ms/LearnAboutSpoofing]
+>>>>>>>
+>>>>>>> On 30/05/17 09:15, Dmitry Vyukov wrote:
+>>>>>>>> On Tue, May 30, 2017 at 9:58 AM, Vladimir Murzin
+>>>>>>>> <vladimir.murzin@arm.com> wrote:
+>>>>>>>>> On 29/05/17 16:29, Dmitry Vyukov wrote:
+>>>>>>>>>> I have an alternative proposal. It should be conceptually simpler and
+>>>>>>>>>> also less arch-dependent. But I don't know if I miss something
+>>>>>>>>>> important that will render it non working.
+>>>>>>>>>> Namely, we add a pointer to shadow to the page struct. Then, create a
+>>>>>>>>>> slab allocator for 512B shadow blocks. Then, attach/detach these
+>>>>>>>>>> shadow blocks to page structs as necessary. It should lead to even
+>>>>>>>>>> smaller memory consumption because we won't need a whole shadow page
+>>>>>>>>>> when only 1 out of 8 corresponding kernel pages are used (we will need
+>>>>>>>>>> just a single 512B block). I guess with some fragmentation we need
+>>>>>>>>>> lots of excessive shadow with the current proposed patch.
+>>>>>>>>>> This does not depend on TLB in any way and does not require hooking
+>>>>>>>>>> into buddy allocator.
+>>>>>>>>>> The main downside is that we will need to be careful to not assume
+>>>>>>>>>> that shadow is continuous. In particular this means that this mode
+>>>>>>>>>> will work only with outline instrumentation and will need some ifdefs.
+>>>>>>>>>> Also it will be slower due to the additional indirection when
+>>>>>>>>>> accessing shadow, but that's meant as "small but slow" mode as far as
+>>>>>>>>>> I understand.
+>>>>>>>>>>
+>>>>>>>>>> But the main win as I see it is that that's basically complete support
+>>>>>>>>>> for 32-bit arches. People do ask about arm32 support:
+>>>>>>>>>> https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ
+>>>>>>>>>> https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ
+>>>>>>>>>> and probably mips32 is relevant as well.
+>>>>>>>>>> Such mode does not require a huge continuous address space range, has
+>>>>>>>>>> minimal memory consumption and requires minimal arch-dependent code.
+>>>>>>>>>> Works only with outline instrumentation, but I think that's a
+>>>>>>>>>> reasonable compromise.
+>>>>>>>>>
+>>>>>>>>> .. or you can just keep shadow in page extension. It was suggested back in
+>>>>>>>>> 2015 [1], but seems that lack of stack instrumentation was "no-way"...
+>>>>>>>>>
+>>>>>>>>> [1] https://lkml.org/lkml/2015/8/24/573
+>>>>>>>>
+>>>>>>>> Right. It describes basically the same idea.
+>>>>>>>>
+>>>>>>>> How is page_ext better than adding data page struct?
+>>>>>>>
+>>>>>>> page_ext is already here along with some other debug options ;)
+>>>>>
+>>>>>
+>>>>> But page struct is also here. What am I missing?
+>>>>>
+>>>>
+>>>> Probably, free room in page struct? I guess most of the page_ext stuff would
+>>>> love to live in page struct, but... for instance, look at page idle tracking
+>>>> which has to live in page_ext only for 32-bit.
+>>>
+>>>
+>>> Sorry for my ignorance. What's the fundamental problem with just
+>>> pushing everything into page struct?
+>>
+>> I think [1] has an answer for your question ;)
+> 
+> It also has an answer for why we should put it into page struct :)
 
-It also has an answer for why we should put it into page struct :)
+Glad you find it useful ;) I'd be glad to see it lands into 32-bit world :)
 
+Cheers
+Vladimir
 
->
-> >
-> > I don't see anything relevant in page struct comment. Nor I see "idle"
-> > nor "tracking" page struct. I see only 2 mentions of CONFIG_64BIT, but
-> > both declare the same fields just with different types (int vs short).
->
-> Right, it is because implementation is based on page flags [1]:
->
-> Note, since there is no room for extra page flags on 32 bit, this feature
-> uses extended page flags when compiled on 32 bit.
->
->
-> [1] https://lwn.net/Articles/565097/
-> [2] 33c3fc7 ("mm: introduce idle page tracking")
+> 
+> 
+>>
+>>>
+>>> I don't see anything relevant in page struct comment. Nor I see "idle"
+>>> nor "tracking" page struct. I see only 2 mentions of CONFIG_64BIT, but
+>>> both declare the same fields just with different types (int vs short).
+>>
+>> Right, it is because implementation is based on page flags [1]:
+>>
+>> Note, since there is no room for extra page flags on 32 bit, this feature
+>> uses extended page flags when compiled on 32 bit.
+>>
+>>
+>> [1] https://lwn.net/Articles/565097/
+>> [2] 33c3fc7 ("mm: introduce idle page tracking")
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
