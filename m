@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2573A6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 06:39:34 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g13so18808503wmd.9
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 03:39:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t45si13005421edb.28.2017.05.30.03.39.32
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3CD6B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 07:10:50 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id a46so28713176qte.3
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 04:10:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e184si12401782qkd.126.2017.05.30.04.10.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 03:39:33 -0700 (PDT)
-Date: Tue, 30 May 2017 12:39:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170530103930.GB7969@dhcp22.suse.cz>
-References: <20170522135548.GA8514@dhcp22.suse.cz>
- <20170522142927.GG27382@rapoport-lnx>
- <a9e74c22-1a07-f49a-42b5-497fee85e9c9@suse.cz>
- <20170524075043.GB3063@rapoport-lnx>
- <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
- <20170524103947.GC3063@rapoport-lnx>
- <20170524111800.GD14733@dhcp22.suse.cz>
- <20170524142735.GF3063@rapoport-lnx>
- <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170530101921.GA25738@rapoport-lnx>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 May 2017 04:10:49 -0700 (PDT)
+From: Jeff Layton <jlayton@redhat.com>
+Subject: [PATCH 0/2] record errors in mapping when writeback fails on DAX
+Date: Tue, 30 May 2017 07:10:44 -0400
+Message-Id: <20170530111046.8069-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, NeilBrown <neilb@suse.com>, willy@infradead.org, Al Viro <viro@ZenIV.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 30-05-17 13:19:22, Mike Rapoport wrote:
-> On Tue, May 30, 2017 at 09:44:08AM +0200, Michal Hocko wrote:
-> > On Wed 24-05-17 17:27:36, Mike Rapoport wrote:
-> > > On Wed, May 24, 2017 at 01:18:00PM +0200, Michal Hocko wrote:
-> > [...]
-> > > > Why cannot khugepaged simply skip over all VMAs which have userfault
-> > > > regions registered? This would sound like a less error prone approach to
-> > > > me.
-> > > 
-> > > khugepaged does skip over VMAs which have userfault. We could register the
-> > > regions with userfault before populating them to avoid collapses in the
-> > > transition period.
-> > 
-> > Why cannot you register only post-copy regions and "manually" copy the
-> > pre-copy parts?
-> 
-> We can register only post-copy regions, but this will cause VMA
-> fragmentation. Now we register the entire VMA with userfaultfd, no matter
-> how many pages were dirtied there since the pre-dump. If we register only
-> post-copy regions, we will split out the VMAs for those regions.
+This is part of the preparatory set of patches to pave the way for
+improved writeback error reporting. In order to do this correctly, we
+need to ensure that DAX marks the mapping with an error when writeback
+fails.
 
-Is this really a problem, though?
+I sent the second patch in this series to Ross last week, but he pointed
+out that it makes fsync error out more than it should, since we don't
+currently clear errors in filemap_write_and_wait and
+filemap_write_and_wait_range.
 
-> > > But then we'll have to populate these regions with
-> > > UFFDIO_COPY which adds quite an overhead.
-> > 
-> > How big is the performance impact?
-> 
-> I don't have the numbers handy, but for each post-copy range it means that
-> instead of memcpy() we will use ioctl(UFFDIO_COPY).
+In order to fix that, I think we need the first patch in this set. There
+is a some danger that this could end up causing error flags to be
+cleared earlier than they were before when write initiation fails in
+other filesystems.
 
-It would be good to measure that though. You are proposing a new user
-API and the THP api is quite convoluted already so there better be a
-very good reason to add a new API. So far I can only see that it would
-be more convinient to add another madvise command and that is rather
-insufficient justification IMHO. Also do you expect somebody else would
-use new madvise? What would be the usecase?
+Given how racy all of the AS_* flag handling is though, I'm inclined to
+just go ahead and merge both of these into linux-next and deal with any
+fallout as it arises.
+
+Does that seem like a reasonable plan? If so, Andrew, would you be
+willing to take both of these in for linux-next, with an eye toward
+merging into v4.13?
+
+Thanks in advance,
+
+Jeff Layton (2):
+  mm: clear any AS_* errors when returning from
+    filemap_write_and_wait{_range}
+  dax: set errors in mapping when writeback fails
+
+ fs/dax.c     | 4 +++-
+ mm/filemap.c | 8 ++++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
