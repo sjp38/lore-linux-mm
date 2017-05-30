@@ -1,108 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9368C6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 12:43:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c6so103711287pfj.5
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 09:43:57 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id e11si45287002pln.291.2017.05.30.09.43.56
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7FE6B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 12:47:15 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id m5so103999751pfc.1
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 09:47:15 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0071.outbound.protection.outlook.com. [104.47.32.71])
+        by mx.google.com with ESMTPS id t1si14521886pge.361.2017.05.30.09.47.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 09:43:56 -0700 (PDT)
-Date: Tue, 30 May 2017 10:43:55 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [HMM 07/15] mm/ZONE_DEVICE: new type of ZONE_DEVICE for
- unaddressable memory v3
-Message-ID: <20170530164355.GA25891@linux.intel.com>
-References: <20170524172024.30810-1-jglisse@redhat.com>
- <20170524172024.30810-8-jglisse@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 May 2017 09:47:14 -0700 (PDT)
+Subject: Re: [PATCH v5 17/32] x86/mm: Add support to access boot related data
+ in the clear
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418211921.10190.1537.stgit@tlendack-t1.amdoffice.net>
+ <20170515183517.mb4k2gp2qobbuvtm@pd.tnic>
+ <4845df29-bae7-9b78-0428-ff96dbef2128@amd.com>
+ <20170518090212.kebstmnjv4h3cjf2@pd.tnic>
+ <c0cb8a50-e860-169b-ee0c-7eb4db7c3fda@amd.com>
+ <20170521071650.pwwmw4agggaazfrh@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <754886ff-b502-3f68-3c32-5355d4176829@amd.com>
+Date: Tue, 30 May 2017 11:46:52 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170524172024.30810-8-jglisse@redhat.com>
+In-Reply-To: <20170521071650.pwwmw4agggaazfrh@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, May 24, 2017 at 01:20:16PM -0400, Jerome Glisse wrote:
-> HMM (heterogeneous memory management) need struct page to support migration
-> from system main memory to device memory.  Reasons for HMM and migration to
-> device memory is explained with HMM core patch.
+On 5/21/2017 2:16 AM, Borislav Petkov wrote:
+> On Fri, May 19, 2017 at 03:50:32PM -0500, Tom Lendacky wrote:
+>> The "worker" function would be doing the loop through the setup data,
+>> but since the setup data is mapped inside the loop I can't do the __init
+>> calling the non-init function and still hope to consolidate the code.
+>> Maybe I'm missing something here...
 > 
-> This patch deals with device memory that is un-addressable memory (ie CPU
-> can not access it). Hence we do not want those struct page to be manage
-> like regular memory. That is why we extend ZONE_DEVICE to support different
-> types of memory.
+> Hmm, I see what you mean. But the below change ontop doesn't fire any
+> warnings here. Maybe your .config has something set which I don't...
+
+Check if you have CONFIG_DEBUG_SECTION_MISMATCH=y
+
+Thanks,
+Tom
+
 > 
-> A persistent memory type is define for existing user of ZONE_DEVICE and a
-> new device un-addressable type is added for the un-addressable memory type.
-> There is a clear separation between what is expected from each memory type
-> and existing user of ZONE_DEVICE are un-affected by new requirement and new
-> use of the un-addressable type. All specific code path are protect with
-> test against the memory type.
-> 
-> Because memory is un-addressable we use a new special swap type for when
-> a page is migrated to device memory (this reduces the number of maximum
-> swap file).
-> 
-> The main two additions beside memory type to ZONE_DEVICE is two callbacks.
-> First one, page_free() is call whenever page refcount reach 1 (which means
-> the page is free as ZONE_DEVICE page never reach a refcount of 0). This
-> allow device driver to manage its memory and associated struct page.
-> 
-> The second callback page_fault() happens when there is a CPU access to
-> an address that is back by a device page (which are un-addressable by the
-> CPU). This callback is responsible to migrate the page back to system
-> main memory. Device driver can not block migration back to system memory,
-> HMM make sure that such page can not be pin into device memory.
-> 
-> If device is in some error condition and can not migrate memory back then
-> a CPU page fault to device memory should end with SIGBUS.
-> 
-> Changed since v2:
->   - s/DEVICE_UNADDRESSABLE/DEVICE_PRIVATE
-> Changed since v1:
->   - rename to device private memory (from device unaddressable)
-> 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Acked-by: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 > ---
-<>
-> @@ -35,18 +37,88 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
->  }
->  #endif
->  
-> +/*
-> + * Specialize ZONE_DEVICE memory into multiple types each having differents
-> + * usage.
-> + *
-> + * MEMORY_DEVICE_PUBLIC:
-> + * Persistent device memory (pmem): struct page might be allocated in different
-> + * memory and architecture might want to perform special actions. It is similar
-> + * to regular memory, in that the CPU can access it transparently. However,
-> + * it is likely to have different bandwidth and latency than regular memory.
-> + * See Documentation/nvdimm/nvdimm.txt for more information.
-> + *
-> + * MEMORY_DEVICE_PRIVATE:
-> + * Device memory that is not directly addressable by the CPU: CPU can neither
-> + * read nor write _UNADDRESSABLE memory. In this case, we do still have struct
-		     _PRIVATE
-
-Just noticed that one holdover from the DEVICE_UNADDRESSABLE naming.
-
-> + * pages backing the device memory. Doing so simplifies the implementation, but
-> + * it is important to remember that there are certain points at which the struct
-> + * page must be treated as an opaque object, rather than a "normal" struct page.
-> + * A more complete discussion of unaddressable memory may be found in
-> + * include/linux/hmm.h and Documentation/vm/hmm.txt.
-> + */
-> +enum memory_type {
-> +	MEMORY_DEVICE_PUBLIC = 0,
-> +	MEMORY_DEVICE_PRIVATE,
-> +};
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 55317ba3b6dc..199c983192ae 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -515,71 +515,50 @@ static bool memremap_is_efi_data(resource_size_t phys_addr,
+>    * Examine the physical address to determine if it is boot data by checking
+>    * it against the boot params setup_data chain.
+>    */
+> -static bool memremap_is_setup_data(resource_size_t phys_addr,
+> -				   unsigned long size)
+> +static bool
+> +__memremap_is_setup_data(resource_size_t phys_addr, unsigned long size, bool early)
+>   {
+>   	struct setup_data *data;
+>   	u64 paddr, paddr_next;
+> +	u32 len;
+>   
+>   	paddr = boot_params.hdr.setup_data;
+>   	while (paddr) {
+> -		bool is_setup_data = false;
+>   
+>   		if (phys_addr == paddr)
+>   			return true;
+>   
+> -		data = memremap(paddr, sizeof(*data),
+> -				MEMREMAP_WB | MEMREMAP_DEC);
+> +		if (early)
+> +			data = early_memremap_decrypted(paddr, sizeof(*data));
+> +		else
+> +			data = memremap(paddr, sizeof(*data), MEMREMAP_WB | MEMREMAP_DEC);
+>   
+>   		paddr_next = data->next;
+> +		len = data->len;
+>   
+> -		if ((phys_addr > paddr) && (phys_addr < (paddr + data->len)))
+> -			is_setup_data = true;
+> +		if (early)
+> +			early_memunmap(data, sizeof(*data));
+> +		else
+> +			memunmap(data);
+>   
+> -		memunmap(data);
+>   
+> -		if (is_setup_data)
+> +		if ((phys_addr > paddr) && (phys_addr < (paddr + data->len)))
+>   			return true;
+>   
+>   		paddr = paddr_next;
+>   	}
+> -
+>   	return false;
+>   }
+>   
+> -/*
+> - * Examine the physical address to determine if it is boot data by checking
+> - * it against the boot params setup_data chain (early boot version).
+> - */
+>   static bool __init early_memremap_is_setup_data(resource_size_t phys_addr,
+>   						unsigned long size)
+>   {
+> -	struct setup_data *data;
+> -	u64 paddr, paddr_next;
+> -
+> -	paddr = boot_params.hdr.setup_data;
+> -	while (paddr) {
+> -		bool is_setup_data = false;
+> -
+> -		if (phys_addr == paddr)
+> -			return true;
+> -
+> -		data = early_memremap_decrypted(paddr, sizeof(*data));
+> -
+> -		paddr_next = data->next;
+> -
+> -		if ((phys_addr > paddr) && (phys_addr < (paddr + data->len)))
+> -			is_setup_data = true;
+> -
+> -		early_memunmap(data, sizeof(*data));
+> -
+> -		if (is_setup_data)
+> -			return true;
+> -
+> -		paddr = paddr_next;
+> -	}
+> +	return __memremap_is_setup_data(phys_addr, size, true);
+> +}
+>   
+> -	return false;
+> +static bool memremap_is_setup_data(resource_size_t phys_addr, unsigned long size)
+> +{
+> +	return __memremap_is_setup_data(phys_addr, size, false);
+>   }
+>   
+>   /*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
