@@ -1,79 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 54EEB6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:33:01 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y43so6966209wrc.11
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 07:33:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x26si12412994edx.74.2017.05.30.07.32.59
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D226B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:39:06 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h76so98198062pfh.15
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 07:39:06 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0077.outbound.protection.outlook.com. [104.47.40.77])
+        by mx.google.com with ESMTPS id u22si45968185plk.91.2017.05.30.07.39.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 07:33:00 -0700 (PDT)
-Date: Tue, 30 May 2017 16:32:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [-next] memory hotplug regression
-Message-ID: <20170530143246.GJ7969@dhcp22.suse.cz>
-References: <20170524082022.GC5427@osiris>
- <20170524083956.GC14733@dhcp22.suse.cz>
- <20170526122509.GB14849@osiris>
- <20170530121806.GD7969@dhcp22.suse.cz>
- <20170530123724.GC4874@osiris>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 May 2017 07:39:05 -0700 (PDT)
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure Memory
+ Encryption
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+ <20170519112703.voajtn4t7uy6nwa3@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <7c522f65-c5c8-9362-e1eb-d0765e3ea6c9@amd.com>
+Date: Tue, 30 May 2017 09:38:36 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170530123724.GC4874@osiris>
+In-Reply-To: <20170519112703.voajtn4t7uy6nwa3@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue 30-05-17 14:37:24, Heiko Carstens wrote:
-> On Tue, May 30, 2017 at 02:18:06PM +0200, Michal Hocko wrote:
-> > > So ZONE_DMA ends within ZONE_NORMAL. This shouldn't be possible, unless
-> > > this restriction is gone?
-> > 
-> > The patch below should help.
+On 5/19/2017 6:27 AM, Borislav Petkov wrote:
+> On Tue, Apr 18, 2017 at 04:22:23PM -0500, Tom Lendacky wrote:
+>> Add support to check if SME has been enabled and if memory encryption
+>> should be activated (checking of command line option based on the
+>> configuration of the default state).  If memory encryption is to be
+>> activated, then the encryption mask is set and the kernel is encrypted
+>> "in place."
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/kernel/head_64.S |    1 +
+>>   arch/x86/mm/mem_encrypt.c |   83 +++++++++++++++++++++++++++++++++++++++++++--
+>>   2 files changed, 80 insertions(+), 4 deletions(-)
 > 
-> It does fix this specific problem, but introduces a new one:
+> ...
 > 
-> # echo online_movable > /sys/devices/system/memory/memory16/state
-> # cat /sys/devices/system/memory/memory16/valid_zones
-> Movable
-> # echo offline > /sys/devices/system/memory/memory16/state
-> # cat /sys/devices/system/memory/memory16/valid_zones
->           <--- no output
+>> +unsigned long __init sme_enable(struct boot_params *bp)
+>>   {
+>> +	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
+>> +	unsigned int eax, ebx, ecx, edx;
+>> +	unsigned long me_mask;
+>> +	bool active_by_default;
+>> +	char buffer[16];
+>> +	u64 msr;
+>> +
+>> +	/* Check for the SME support leaf */
+>> +	eax = 0x80000000;
+>> +	ecx = 0;
+>> +	native_cpuid(&eax, &ebx, &ecx, &edx);
+>> +	if (eax < 0x8000001f)
+>> +		goto out;
+>> +
+>> +	/*
+>> +	 * Check for the SME feature:
+>> +	 *   CPUID Fn8000_001F[EAX] - Bit 0
+>> +	 *     Secure Memory Encryption support
+>> +	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
+>> +	 *     Pagetable bit position used to indicate encryption
+>> +	 */
+>> +	eax = 0x8000001f;
+>> +	ecx = 0;
+>> +	native_cpuid(&eax, &ebx, &ecx, &edx);
+>> +	if (!(eax & 1))
+>> +		goto out;
 > 
-> Memory block 16 is the only one I onlined and offlineto ZONE_MOVABLE.
+> <---- newline here.
+> 
+>> +	me_mask = 1UL << (ebx & 0x3f);
+>> +
+>> +	/* Check if SME is enabled */
+>> +	msr = __rdmsr(MSR_K8_SYSCFG);
+>> +	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+>> +		goto out;
+>> +
+>> +	/*
+>> +	 * Fixups have not been applied to phys_base yet, so we must obtain
+>> +	 * the address to the SME command line option data in the following
+>> +	 * way.
+>> +	 */
+>> +	asm ("lea sme_cmdline_arg(%%rip), %0"
+>> +	     : "=r" (cmdline_arg)
+>> +	     : "p" (sme_cmdline_arg));
+>> +	asm ("lea sme_cmdline_on(%%rip), %0"
+>> +	     : "=r" (cmdline_on)
+>> +	     : "p" (sme_cmdline_on));
+>> +	asm ("lea sme_cmdline_off(%%rip), %0"
+>> +	     : "=r" (cmdline_off)
+>> +	     : "p" (sme_cmdline_off));
+>> +
+>> +	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT))
+>> +		active_by_default = true;
+>> +	else
+>> +		active_by_default = false;
+>> +
+>> +	cmdline_ptr = (const char *)((u64)bp->hdr.cmd_line_ptr |
+>> +				     ((u64)bp->ext_cmd_line_ptr << 32));
+>> +
+>> +	cmdline_find_option(cmdline_ptr, cmdline_arg, buffer, sizeof(buffer));
+>> +
+>> +	if (strncmp(buffer, cmdline_on, sizeof(buffer)) == 0)
+>> +		sme_me_mask = me_mask;
+> 
+> Why doesn't simply
+> 
+> 	if (!strncmp(buffer, "on", 2))
+> 		...
+> 
+> work?
 
-Could you test the this on top please?
----
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 792c098e0e5f..a26f9f8e6365 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -937,13 +937,18 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
- 	set_zone_contiguous(zone);
- }
- 
-+/*
-+ * Returns a default kernel memory zone for the given pfn range.
-+ * If no kernel zone covers this pfn range it will automatically go
-+ * to the ZONE_NORMAL.
-+ */
- struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
- 		unsigned long nr_pages)
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	int zid;
- 
--	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
- 		struct zone *zone = &pgdat->node_zones[zid];
- 
- 		if (zone_intersects(zone, start_pfn, nr_pages))
--- 
-Michal Hocko
-SUSE Labs
+In this case we're running identity mapped and the "on" constant ends up
+as kernel address (0xffffffff81...) which results in a segfault.
+
+Thanks,
+Tom
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
