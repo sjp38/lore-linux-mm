@@ -1,62 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A92D6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:56:37 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 10so20025211wml.4
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 07:56:37 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 23CDC6B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 11:04:25 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id g13so20053308wmd.9
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 08:04:25 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c14si14565027edf.153.2017.05.30.07.56.35
+        by mx.google.com with ESMTPS id e11si10484793eda.49.2017.05.30.08.04.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 07:56:35 -0700 (PDT)
-Date: Tue, 30 May 2017 16:56:33 +0200
+        Tue, 30 May 2017 08:04:23 -0700 (PDT)
+Date: Tue, 30 May 2017 17:04:21 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170530145632.GL7969@dhcp22.suse.cz>
-References: <20170524075043.GB3063@rapoport-lnx>
- <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
- <20170524103947.GC3063@rapoport-lnx>
- <20170524111800.GD14733@dhcp22.suse.cz>
- <20170524142735.GF3063@rapoport-lnx>
- <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
- <20170530103930.GB7969@dhcp22.suse.cz>
- <20170530140456.GA8412@redhat.com>
- <20170530143941.GK7969@dhcp22.suse.cz>
+Subject: Re: [-next] memory hotplug regression
+Message-ID: <20170530150421.GM7969@dhcp22.suse.cz>
+References: <20170524082022.GC5427@osiris>
+ <20170524083956.GC14733@dhcp22.suse.cz>
+ <20170526122509.GB14849@osiris>
+ <20170530121806.GD7969@dhcp22.suse.cz>
+ <20170530123724.GC4874@osiris>
+ <20170530143246.GJ7969@dhcp22.suse.cz>
+ <20170530145501.GD4874@osiris>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170530143941.GK7969@dhcp22.suse.cz>
+In-Reply-To: <20170530145501.GD4874@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 30-05-17 16:39:41, Michal Hocko wrote:
-> On Tue 30-05-17 16:04:56, Andrea Arcangeli wrote:
-[...]
-> > About the proposed madvise, it just clear bits, but it doesn't change
-> > at all how those bits are computed in THP code. So I don't see it as
-> > convoluted.
+On Tue 30-05-17 16:55:01, Heiko Carstens wrote:
+> On Tue, May 30, 2017 at 04:32:47PM +0200, Michal Hocko wrote:
+> > On Tue 30-05-17 14:37:24, Heiko Carstens wrote:
+> > > On Tue, May 30, 2017 at 02:18:06PM +0200, Michal Hocko wrote:
+> > > > > So ZONE_DMA ends within ZONE_NORMAL. This shouldn't be possible, unless
+> > > > > this restriction is gone?
+> > > > 
+> > > > The patch below should help.
+> > > 
+> > > It does fix this specific problem, but introduces a new one:
+> > > 
+> > > # echo online_movable > /sys/devices/system/memory/memory16/state
+> > > # cat /sys/devices/system/memory/memory16/valid_zones
+> > > Movable
+> > > # echo offline > /sys/devices/system/memory/memory16/state
+> > > # cat /sys/devices/system/memory/memory16/valid_zones
+> > >           <--- no output
+> > > 
+> > > Memory block 16 is the only one I onlined and offlineto ZONE_MOVABLE.
+> > 
+> > Could you test the this on top please?
+> > ---
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 792c098e0e5f..a26f9f8e6365 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -937,13 +937,18 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+> >  	set_zone_contiguous(zone);
+> >  }
+> > 
+> > +/*
+> > + * Returns a default kernel memory zone for the given pfn range.
+> > + * If no kernel zone covers this pfn range it will automatically go
+> > + * to the ZONE_NORMAL.
+> > + */
+> >  struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+> >  		unsigned long nr_pages)
+> >  {
+> >  	struct pglist_data *pgdat = NODE_DATA(nid);
+> >  	int zid;
+> > 
+> > -	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> > +	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
+> >  		struct zone *zone = &pgdat->node_zones[zid];
+> > 
+> >  		if (zone_intersects(zone, start_pfn, nr_pages))
 > 
-> But we already have MADV_HUGEPAGE, MADV_NOHUGEPAGE and prctl to
-> enable/disable thp. Doesn't that sound little bit too much for a single
-> feature to you?
+> Still broken, but in different way(s):
+> 
+> # cat /sys/devices/system/memory/memory16/valid_zones
+> Normal Movable
+> # echo online_movable > /sys/devices/system/memory/memory16/state
+> # cat /sys/devices/system/memory/memory16/valid_zones
+> Movable
+> # cat /sys/devices/system/memory/memory18/valid_zones
+> Movable
+> # echo online > /sys/devices/system/memory/memory18/state
+> # cat /sys/devices/system/memory/memory18/valid_zones
+> Normal    <--- should be Movable
+> # cat /sys/devices/system/memory/memory17/valid_zones
+>           <--- no output
 
-And also I would argue that the prctl should be usable for this specific
-usecase. The man page says
-"
-Setting this flag provides a method for disabling transparent huge pages
-for jobs where the code cannot be modified
-"
-
-and that fits into the described case AFAIU. The thing that the current
-implementation doesn't work is a mere detail. I would even argue that
-it is non-intuitive if not buggy right away. Whoever calls this prctl
-later in the process life time will simply not stop THP from creating.
-
-So again, why cannot we fix that? There was some handwaving about
-potential overhead but has anybody actually measured that?
+OK, I will sit on this tomorrow with a clean head without doing 10
+things at the same time. Sorry about your wasted time!
 -- 
 Michal Hocko
 SUSE Labs
