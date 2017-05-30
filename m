@@ -1,84 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9FB6B0292
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 11:43:30 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id g55so31029572qtc.8
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 08:43:30 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k38si13418570qtf.53.2017.05.30.08.43.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 550DA6B0292
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 11:46:35 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e131so100807473pfh.7
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 08:46:35 -0700 (PDT)
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0084.outbound.protection.outlook.com. [104.47.36.84])
+        by mx.google.com with ESMTPS id p23si44782887pli.56.2017.05.30.08.46.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 08:43:29 -0700 (PDT)
-Date: Tue, 30 May 2017 17:43:26 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170530154326.GB8412@redhat.com>
-References: <20170524075043.GB3063@rapoport-lnx>
- <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
- <20170524103947.GC3063@rapoport-lnx>
- <20170524111800.GD14733@dhcp22.suse.cz>
- <20170524142735.GF3063@rapoport-lnx>
- <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
- <20170530103930.GB7969@dhcp22.suse.cz>
- <20170530140456.GA8412@redhat.com>
- <20170530143941.GK7969@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 May 2017 08:46:34 -0700 (PDT)
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure Memory
+ Encryption
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+ <c29edaff-24f2-ee9b-4142-bdbf8c42083f@amd.com>
+ <20170519113005.3f5kwzg4pgh7j6a5@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <097e89ec-45a4-3a54-d005-9e7dc436436e@amd.com>
+Date: Tue, 30 May 2017 10:46:22 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170530143941.GK7969@dhcp22.suse.cz>
+In-Reply-To: <20170519113005.3f5kwzg4pgh7j6a5@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue, May 30, 2017 at 04:39:41PM +0200, Michal Hocko wrote:
-> I sysctl for the mapcount can be increased, right? I also assume that
-> those vmas will get merged after the post copy is done.
+On 5/19/2017 6:30 AM, Borislav Petkov wrote:
+> On Fri, Apr 21, 2017 at 01:56:13PM -0500, Tom Lendacky wrote:
+>> On 4/18/2017 4:22 PM, Tom Lendacky wrote:
+>>> Add support to check if SME has been enabled and if memory encryption
+>>> should be activated (checking of command line option based on the
+>>> configuration of the default state).  If memory encryption is to be
+>>> activated, then the encryption mask is set and the kernel is encrypted
+>>> "in place."
+>>>
+>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>>> ---
+>>>   arch/x86/kernel/head_64.S |    1 +
+>>>   arch/x86/mm/mem_encrypt.c |   83 +++++++++++++++++++++++++++++++++++++++++++--
+>>>   2 files changed, 80 insertions(+), 4 deletions(-)
+>>>
+>>
+>> ...
+>>
+>>>
+>>> -unsigned long __init sme_enable(void)
+>>> +unsigned long __init sme_enable(struct boot_params *bp)
+>>>   {
+>>> +	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
+>>> +	unsigned int eax, ebx, ecx, edx;
+>>> +	unsigned long me_mask;
+>>> +	bool active_by_default;
+>>> +	char buffer[16];
+>>
+>> So it turns out that when KASLR is enabled (CONFIG_RAMDOMIZE_BASE=y)
+>> the stack-protector support causes issues with this function because
+> 
+> What issues?
 
-Assuming you enlarge the sysctl to the worst possible case, with 64bit
-address space you can have billions of VMAs if you're migrating 4T of
-RAM and you're unlucky and the address space gets fragmented. The
-unswappable kernel memory overhead would be relatively large
-(i.e. dozen gigabytes of RAM in vm_area_struct slab), and each
-find_vma operation would need to walk ~40 steps across that large vma
-rbtree. There's a reason the sysctl exist. Not to tell all those
-unnecessary vma mangling operations would be protected by the mmap_sem
-for writing.
+The stack protection support makes use of the gs segment register and
+at this point not everything is setup properly to allow it to work,
+so it segfaults.
 
-Not creating a ton of vmas and enabling vma-less pte mangling with a
-single large vma and only using mmap_sem for reading during all the
-pte mangling, is one of the primary design motivations for
-userfaultfd.
+Thanks,
+Tom
 
-> I understand that part but it sounds awfully one purpose thing to me.
-> Are we going to add other MADVISE_RESET_$FOO to clear other flags just
-> because we can race in this specific use case?
-
-Those already exists, see for example MADV_NORMAL, clearing
-~VM_RAND_READ & ~VM_SEQ_READ after calling MADV_SEQUENTIAL or
-MADV_RANDOM.
-
-Or MADV_DOFORK after MADV_DONTFORK. MADV_DONTDUMP after MADV_DODUMP. Etc..
-
-> But we already have MADV_HUGEPAGE, MADV_NOHUGEPAGE and prctl to
-> enable/disable thp. Doesn't that sound little bit too much for a single
-> feature to you?
-
-MADV_NOHUGEPAGE doesn't mean clearing the flag set with
-MADV_HUGEPAGE. MADV_NOHUGEPAGE disables THP on the region if the
-global sysfs "enabled" tune is set to "always". MADV_HUGEPAGE enables
-THP if the global "enabled" sysfs tune is set to "madvise". The two
-MADV_NOHUGEPAGE and MADV_HUGEPAGE are needed to leverage the three-way
-setting of "never" "madvise" "always" of the global tune.
-
-The "madvise" global tune exists if you want to save RAM and you don't
-care much about performance but still allowing apps like QEMU where no
-memory is lost by enabling THP, to use THP.
-
-There's no way to clear either of those two flags and bring back the
-default behavior of the global sysfs tune, so it's not redundant at
-the very least.
+> 
+>> it is called so early. I can get past it by adding:
+>>
+>> CFLAGS_mem_encrypt.o := $(nostackp)
+>>
+>> in the arch/x86/mm/Makefile, but that obviously eliminates the support
+>> for the whole file.  Would it be better to split out the sme_enable()
+>> and other boot routines into a separate file or just apply the
+>> $(nostackp) to the whole file?
+> 
+> Josh might have a better idea here... CCed.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
