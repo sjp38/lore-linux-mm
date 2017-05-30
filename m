@@ -1,92 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF34C6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 15:44:10 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h76so110117453pfh.15
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 12:44:10 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id u13si45284768plm.229.2017.05.30.12.44.09
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1E36B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 16:07:28 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id j66so103344987oib.2
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 13:07:28 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0085.outbound.protection.outlook.com. [104.47.42.85])
+        by mx.google.com with ESMTPS id s62si5897427oih.129.2017.05.30.13.07.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 12:44:09 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id e193so81351668pfh.0
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 12:44:09 -0700 (PDT)
-Date: Tue, 30 May 2017 12:43:59 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: 4.12-rc ppc64 4k-page needs costly allocations
-Message-ID: <alpine.LSU.2.11.1705301151090.2133@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 May 2017 13:07:27 -0700 (PDT)
+Subject: Re: [PATCH v5 26/32] x86, drm, fbdev: Do not specify encrypted memory
+ for video mappings
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212056.10190.25468.stgit@tlendack-t1.amdoffice.net>
+ <20170516173541.q2rbh5dhkluzsjae@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <766ddfd1-d1fe-213f-1720-5e10356398f0@amd.com>
+Date: Tue, 30 May 2017 15:07:05 -0500
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170516173541.q2rbh5dhkluzsjae@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Since f6eedbba7a26 ("powerpc/mm/hash: Increase VA range to 128TB")
-I find that swapping loads on ppc64 on G5 with 4k pages are failing:
+On 5/16/2017 12:35 PM, Borislav Petkov wrote:
+> On Tue, Apr 18, 2017 at 04:20:56PM -0500, Tom Lendacky wrote:
+>> Since video memory needs to be accessed decrypted, be sure that the
+>> memory encryption mask is not set for the video ranges.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/include/asm/vga.h       |   13 +++++++++++++
+>>   arch/x86/mm/pageattr.c           |    2 ++
+>>   drivers/gpu/drm/drm_gem.c        |    2 ++
+>>   drivers/gpu/drm/drm_vm.c         |    4 ++++
+>>   drivers/gpu/drm/ttm/ttm_bo_vm.c  |    7 +++++--
+>>   drivers/gpu/drm/udl/udl_fb.c     |    4 ++++
+>>   drivers/video/fbdev/core/fbmem.c |   12 ++++++++++++
+>>   7 files changed, 42 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/x86/include/asm/vga.h b/arch/x86/include/asm/vga.h
+>> index c4b9dc2..5c7567a 100644
+>> --- a/arch/x86/include/asm/vga.h
+>> +++ b/arch/x86/include/asm/vga.h
+>> @@ -7,12 +7,25 @@
+>>   #ifndef _ASM_X86_VGA_H
+>>   #define _ASM_X86_VGA_H
+>>   
+>> +#include <asm/cacheflush.h>
+>> +
+>>   /*
+>>    *	On the PC, we can just recalculate addresses and then
+>>    *	access the videoram directly without any black magic.
+>> + *	To support memory encryption however, we need to access
+>> + *	the videoram as decrypted memory.
+>>    */
+>>   
+>> +#ifdef CONFIG_AMD_MEM_ENCRYPT
+>> +#define VGA_MAP_MEM(x, s)					\
+>> +({								\
+>> +	unsigned long start = (unsigned long)phys_to_virt(x);	\
+>> +	set_memory_decrypted(start, (s) >> PAGE_SHIFT);		\
+>> +	start;							\
+>> +})
+>> +#else
+>>   #define VGA_MAP_MEM(x, s) (unsigned long)phys_to_virt(x)
+>> +#endif
+> 
+> Can we push the check in and save us the ifdeffery?
+> 
+> #define VGA_MAP_MEM(x, s)                                       \
+> ({                                                              \
+>          unsigned long start = (unsigned long)phys_to_virt(x);   \
+>                                                                  \
+>          if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT))                 \
+>                  set_memory_decrypted(start, (s) >> PAGE_SHIFT); \
+>                                                                  \
+>          start;                                                  \
+> })
+> 
+> It does build here. :)
+> 
 
-SLUB: Unable to allocate memory on node -1, gfp=0x14000c0(GFP_KERNEL)
-  cache: pgtable-2^12, object size: 32768, buffer size: 65536, default order: 4, min order: 4
-  pgtable-2^12 debugging increased min order, use slub_debug=O to disable.
-  node 0: slabs: 209, objs: 209, free: 8
-gcc: page allocation failure: order:4, mode:0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=(null)
-CPU: 1 PID: 6225 Comm: gcc Not tainted 4.12.0-rc2 #1
-Call Trace:
-[c00000000090b5c0] [c0000000004f8478] .dump_stack+0xa0/0xcc (unreliable)
-[c00000000090b650] [c0000000000eb194] .warn_alloc+0xf0/0x178
-[c00000000090b710] [c0000000000ebc9c] .__alloc_pages_nodemask+0xa04/0xb00
-[c00000000090b8b0] [c00000000013921c] .new_slab+0x234/0x608
-[c00000000090b980] [c00000000013b59c] .___slab_alloc.constprop.64+0x3dc/0x564
-[c00000000090bad0] [c0000000004f5a84] .__slab_alloc.isra.61.constprop.63+0x54/0x70
-[c00000000090bb70] [c00000000013b864] .kmem_cache_alloc+0x140/0x288
-[c00000000090bc30] [c00000000004d934] .mm_init.isra.65+0x128/0x1c0
-[c00000000090bcc0] [c000000000157810] .do_execveat_common.isra.39+0x294/0x690
-[c00000000090bdb0] [c000000000157e70] .SyS_execve+0x28/0x38
-[c00000000090be30] [c00000000000a118] system_call+0x38/0xfc
+That works for me and it's a lot cleaner.  I'll make the change.
 
-I did try booting with slub_debug=O as the message suggested, but that
-made no difference: it still hoped for but failed on order:4 allocations.
-
-I wanted to try removing CONFIG_SLUB_DEBUG, but didn't succeed in that:
-it seemed to be a hard requirement for something, but I didn't find what.
-
-I did try CONFIG_SLAB=y instead of SLUB: that lowers these allocations to
-the expected order:3, which then results in OOM-killing rather than direct
-allocation failure, because of the PAGE_ALLOC_COSTLY_ORDER 3 cutoff.  But
-makes no real difference to the outcome: swapping loads still abort early.
-
-Relying on order:3 or order:4 allocations is just too optimistic: ppc64
-with 4k pages would do better not to expect to support a 128TB userspace.
-
-I tried the obvious partial revert below, but it's not good enough:
-the system did not boot beyond
-
-Starting init: /sbin/init exists but couldn't execute it (error -7)
-Starting init: /bin/sh exists but couldn't execute it (error -7)
-Kernel panic - not syncing: No working init found. ...
-
---- 4.12-rc2/arch/powerpc/include/asm/book3s/64/hash-4k.h
-+++ linux/arch/powerpc/include/asm/book3s/64/hash-4k.h
-@@ -8,7 +8,7 @@
- #define H_PTE_INDEX_SIZE  9
- #define H_PMD_INDEX_SIZE  7
- #define H_PUD_INDEX_SIZE  9
--#define H_PGD_INDEX_SIZE  12
-+#define H_PGD_INDEX_SIZE  9
- 
- #ifndef __ASSEMBLY__
- #define H_PTE_TABLE_SIZE	(sizeof(pte_t) << H_PTE_INDEX_SIZE)
---- 4.12-rc2/arch/powerpc/include/asm/processor.h
-+++ linux/arch/powerpc/include/asm/processor.h
-@@ -110,7 +110,7 @@ void release_thread(struct task_struct *
- #define TASK_SIZE_128TB (0x0000800000000000UL)
- #define TASK_SIZE_512TB (0x0002000000000000UL)
- 
--#ifdef CONFIG_PPC_BOOK3S_64
-+#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_64K_PAGES)
- /*
-  * Max value currently used:
-  */
+Thanks,
+Tom
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
