@@ -1,108 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C71836B02B4
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:39:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id j27so397066wre.1
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 07:39:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y59si11949603eda.212.2017.05.30.07.39.49
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BDA66B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:55:12 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p62so7025803wrc.13
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 07:55:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z142si14995340wmc.38.2017.05.30.07.55.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 07:39:49 -0700 (PDT)
-Date: Tue, 30 May 2017 16:39:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170530143941.GK7969@dhcp22.suse.cz>
-References: <a9e74c22-1a07-f49a-42b5-497fee85e9c9@suse.cz>
- <20170524075043.GB3063@rapoport-lnx>
- <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
- <20170524103947.GC3063@rapoport-lnx>
- <20170524111800.GD14733@dhcp22.suse.cz>
- <20170524142735.GF3063@rapoport-lnx>
- <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
- <20170530103930.GB7969@dhcp22.suse.cz>
- <20170530140456.GA8412@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 May 2017 07:55:09 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4UErZwF025428
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:55:08 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2as03rtkh0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 10:55:07 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Tue, 30 May 2017 15:55:06 +0100
+Date: Tue, 30 May 2017 16:55:01 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [-next] memory hotplug regression
+References: <20170524082022.GC5427@osiris>
+ <20170524083956.GC14733@dhcp22.suse.cz>
+ <20170526122509.GB14849@osiris>
+ <20170530121806.GD7969@dhcp22.suse.cz>
+ <20170530123724.GC4874@osiris>
+ <20170530143246.GJ7969@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170530140456.GA8412@redhat.com>
+In-Reply-To: <20170530143246.GJ7969@dhcp22.suse.cz>
+Message-Id: <20170530145501.GD4874@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 30-05-17 16:04:56, Andrea Arcangeli wrote:
-> On Tue, May 30, 2017 at 12:39:30PM +0200, Michal Hocko wrote:
-> > On Tue 30-05-17 13:19:22, Mike Rapoport wrote:
-> > > On Tue, May 30, 2017 at 09:44:08AM +0200, Michal Hocko wrote:
-> > > > On Wed 24-05-17 17:27:36, Mike Rapoport wrote:
-> > > > > On Wed, May 24, 2017 at 01:18:00PM +0200, Michal Hocko wrote:
-> > > > [...]
-> > > > > > Why cannot khugepaged simply skip over all VMAs which have userfault
-> > > > > > regions registered? This would sound like a less error prone approach to
-> > > > > > me.
-> > > > > 
-> > > > > khugepaged does skip over VMAs which have userfault. We could register the
-> > > > > regions with userfault before populating them to avoid collapses in the
-> > > > > transition period.
-> > > > 
-> > > > Why cannot you register only post-copy regions and "manually" copy the
-> > > > pre-copy parts?
+On Tue, May 30, 2017 at 04:32:47PM +0200, Michal Hocko wrote:
+> On Tue 30-05-17 14:37:24, Heiko Carstens wrote:
+> > On Tue, May 30, 2017 at 02:18:06PM +0200, Michal Hocko wrote:
+> > > > So ZONE_DMA ends within ZONE_NORMAL. This shouldn't be possible, unless
+> > > > this restriction is gone?
 > > > 
-> > > We can register only post-copy regions, but this will cause VMA
-> > > fragmentation. Now we register the entire VMA with userfaultfd, no matter
-> > > how many pages were dirtied there since the pre-dump. If we register only
-> > > post-copy regions, we will split out the VMAs for those regions.
+> > > The patch below should help.
 > > 
-> > Is this really a problem, though?
+> > It does fix this specific problem, but introduces a new one:
+> > 
+> > # echo online_movable > /sys/devices/system/memory/memory16/state
+> > # cat /sys/devices/system/memory/memory16/valid_zones
+> > Movable
+> > # echo offline > /sys/devices/system/memory/memory16/state
+> > # cat /sys/devices/system/memory/memory16/valid_zones
+> >           <--- no output
+> > 
+> > Memory block 16 is the only one I onlined and offlineto ZONE_MOVABLE.
 > 
-> It would eventually get -ENOMEM or at best create lots of unnecessary
-> vmas (at least UFFDIO_COPY would never risk to trigger -ENOMEM).
-
-I sysctl for the mapcount can be increased, right? I also assume that
-those vmas will get merged after the post copy is done.
-
-> The only attractive alternative is to use UFFDIO_COPY for precopy too
-> after pre-registering the whole range in uffd (which would happen
-> later anyway to start postcopy).
+> Could you test the this on top please?
+> ---
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 792c098e0e5f..a26f9f8e6365 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -937,13 +937,18 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+>  	set_zone_contiguous(zone);
+>  }
 > 
-> > It would be good to measure that though. You are proposing a new user
-> > API and the THP api is quite convoluted already so there better be a
-> > very good reason to add a new API. So far I can only see that it would
-> > be more convinient to add another madvise command and that is rather
-> > insufficient justification IMHO. Also do you expect somebody else would
-> > use new madvise? What would be the usecase?
+> +/*
+> + * Returns a default kernel memory zone for the given pfn range.
+> + * If no kernel zone covers this pfn range it will automatically go
+> + * to the ZONE_NORMAL.
+> + */
+>  struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+>  		unsigned long nr_pages)
+>  {
+>  	struct pglist_data *pgdat = NODE_DATA(nid);
+>  	int zid;
 > 
-> UFFDIO_COPY while not being a major slowdown for sure, it's likely
-> measurable at the microbenchmark level because it would add a
-> enter/exit kernel to every 4k memcpy. It's not hard to imagine that as
-> measurable. How that impacts the total precopy time I don't know, it
-> would need to be benchmarked to be sure.
+> -	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> +	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
+>  		struct zone *zone = &pgdat->node_zones[zid];
+> 
+>  		if (zone_intersects(zone, start_pfn, nr_pages))
 
-Yes, please!
+Still broken, but in different way(s):
 
-> The main benefit of this
-> madvise is precisely to skip those enter/exit kernel that UFFDIO_COPY
-> would add. Even if the impact on the total precopy time wouldn't be
-> measurable (i.e. if it's network bound load), the madvise that allows
-> using memcpy after setting VM_NOHUGEPAGE, would free up some CPU
-> cycles in the destination that could be used by other processes.
-
-I understand that part but it sounds awfully one purpose thing to me.
-Are we going to add other MADVISE_RESET_$FOO to clear other flags just
-because we can race in this specific use case?
-
-> About the proposed madvise, it just clear bits, but it doesn't change
-> at all how those bits are computed in THP code. So I don't see it as
-> convoluted.
-
-But we already have MADV_HUGEPAGE, MADV_NOHUGEPAGE and prctl to
-enable/disable thp. Doesn't that sound little bit too much for a single
-feature to you?
--- 
-Michal Hocko
-SUSE Labs
+# cat /sys/devices/system/memory/memory16/valid_zones
+Normal Movable
+# echo online_movable > /sys/devices/system/memory/memory16/state
+# cat /sys/devices/system/memory/memory16/valid_zones
+Movable
+# cat /sys/devices/system/memory/memory18/valid_zones
+Movable
+# echo online > /sys/devices/system/memory/memory18/state
+# cat /sys/devices/system/memory/memory18/valid_zones
+Normal    <--- should be Movable
+# cat /sys/devices/system/memory/memory17/valid_zones
+          <--- no output
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
