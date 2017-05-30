@@ -1,111 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ACC7B6B02F4
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 08:24:40 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b84so19415715wmh.0
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 05:24:40 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AF93E6B02FD
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 08:34:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r203so19533801wmb.2
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 05:34:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w21si11626314eda.13.2017.05.30.05.24.39
+        by mx.google.com with ESMTPS id g18si12593316edf.207.2017.05.30.05.34.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 May 2017 05:24:39 -0700 (PDT)
-Date: Tue, 30 May 2017 14:24:36 +0200
+        Tue, 30 May 2017 05:34:20 -0700 (PDT)
+Date: Tue, 30 May 2017 14:34:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: bump PGSTEAL*/PGSCAN*/ALLOCSTALL counters in memcg
- reclaim
-Message-ID: <20170530122436.GE7969@dhcp22.suse.cz>
-References: <1496062901-21456-1-git-send-email-guro@fb.com>
+Subject: Re: [PATCH] mm,oom: add tracepoints for oom reaper-related events
+Message-ID: <20170530123415.GF7969@dhcp22.suse.cz>
+References: <1496145932-18636-1-git-send-email-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1496062901-21456-1-git-send-email-guro@fb.com>
+In-Reply-To: <1496145932-18636-1-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 29-05-17 14:01:41, Roman Gushchin wrote:
-> Historically, PGSTEAL*/PGSCAN*/ALLOCSTALL counters were used to
-> account only for global reclaim events, memory cgroup targeted reclaim
-> was ignored.
+On Tue 30-05-17 13:05:32, Roman Gushchin wrote:
+> Add tracepoints to simplify the debugging of the oom reaper code.
 > 
-> It doesn't make sense anymore, because the whole reclaim path
-> is designed around cgroups. Also, per-cgroup counters can exceed the
-> corresponding global counters, what can be confusing.
+> Trace the following events:
+> 1) a process is marked as an oom victim,
+> 2) a process is added to the oom reaper list,
+> 3) the oom reaper starts reaping process's mm,
+> 4) the oom reaper finished reaping,
+> 5) the oom reaper skips reaping.
 
-The whole reclaim is designed around cgroups but the source of the
-memory pressure is different. I agree that checking global_reclaim()
-for PGSTEAL_KSWAPD doesn't make much sense because we are _always_ in
-the global reclaim context but counting ALLOCSTALL even for targetted
-memcg reclaim is more confusing than helpful. We usually consider this
-counter to see whether the kswapd catches up with the memory demand
-and the global direct reclaim is indicator it doesn't. The similar
-applies to other counters as well.
+I am not against but could you explain why the current printks are not
+sufficient? We do not have any explicit printk for the 2) and 3) but
+are those really necessary?
 
-So I do not think this is correct. What is the problem you are trying to
-solve here anyway.
+In other words could you describe the situation when you found these
+tracepoints more useful than what the kernel log offers already?
 
-> So, make PGSTEAL*/PGSCAN*/ALLOCSTALL counters reflect sum of any
-> reclaim activity in the system.
-> 
 > Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Balbir Singh <bsingharora@gmail.com>
 > Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
 > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 > Cc: kernel-team@fb.com
-> Cc: linux-mm@kvack.org
 > Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
 > ---
->  mm/vmscan.c | 15 +++++----------
->  1 file changed, 5 insertions(+), 10 deletions(-)
+>  include/trace/events/oom.h | 80 ++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/oom_kill.c              |  7 ++++
+>  2 files changed, 87 insertions(+)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7c2a36b..77253b1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1765,13 +1765,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	reclaim_stat->recent_scanned[file] += nr_taken;
+> diff --git a/include/trace/events/oom.h b/include/trace/events/oom.h
+> index 38baeb2..c3c19d4 100644
+> --- a/include/trace/events/oom.h
+> +++ b/include/trace/events/oom.h
+> @@ -70,6 +70,86 @@ TRACE_EVENT(reclaim_retry_zone,
+>  			__entry->wmark_check)
+>  );
 >  
->  	if (current_is_kswapd()) {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
-> +		__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
->  		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
->  				   nr_scanned);
->  	} else {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
-> +		__count_vm_events(PGSCAN_DIRECT, nr_scanned);
->  		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
->  				   nr_scanned);
+> +TRACE_EVENT(mark_victim,
+> +	TP_PROTO(int pid),
+> +
+> +	TP_ARGS(pid),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, pid)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = pid;
+> +	),
+> +
+> +	TP_printk("pid=%d", __entry->pid)
+> +);
+> +
+> +TRACE_EVENT(wake_reaper,
+> +	TP_PROTO(int pid),
+> +
+> +	TP_ARGS(pid),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, pid)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = pid;
+> +	),
+> +
+> +	TP_printk("pid=%d", __entry->pid)
+> +);
+> +
+> +TRACE_EVENT(start_task_reaping,
+> +	TP_PROTO(int pid),
+> +
+> +	TP_ARGS(pid),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, pid)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = pid;
+> +	),
+> +
+> +	TP_printk("pid=%d", __entry->pid)
+> +);
+> +
+> +TRACE_EVENT(finish_task_reaping,
+> +	TP_PROTO(int pid),
+> +
+> +	TP_ARGS(pid),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, pid)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = pid;
+> +	),
+> +
+> +	TP_printk("pid=%d", __entry->pid)
+> +);
+> +
+> +TRACE_EVENT(skip_task_reaping,
+> +	TP_PROTO(int pid),
+> +
+> +	TP_ARGS(pid),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, pid)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pid = pid;
+> +	),
+> +
+> +	TP_printk("pid=%d", __entry->pid)
+> +);
+> +
+>  #ifdef CONFIG_COMPACTION
+>  TRACE_EVENT(compact_retry,
+>  
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 04c9143..409b685 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -490,6 +490,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  
+>  	if (!down_read_trylock(&mm->mmap_sem)) {
+>  		ret = false;
+> +		trace_skip_task_reaping(tsk->pid);
+>  		goto unlock_oom;
 >  	}
-> @@ -1786,13 +1784,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	spin_lock_irq(&pgdat->lru_lock);
 >  
->  	if (current_is_kswapd()) {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
-> +		__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
->  		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD,
->  				   nr_reclaimed);
->  	} else {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
-> +		__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
->  		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_DIRECT,
->  				   nr_reclaimed);
+> @@ -500,9 +501,12 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	 */
+>  	if (!mmget_not_zero(mm)) {
+>  		up_read(&mm->mmap_sem);
+> +		trace_skip_task_reaping(tsk->pid);
+>  		goto unlock_oom;
 >  	}
-> @@ -2828,8 +2824,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  retry:
->  	delayacct_freepages_start();
 >  
-> -	if (global_reclaim(sc))
-> -		__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
-> +	__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+> +	trace_start_task_reaping(tsk->pid);
+> +
+>  	/*
+>  	 * Tell all users of get_user/copy_from_user etc... that the content
+>  	 * is no longer stable. No barriers really needed because unmapping
+> @@ -544,6 +548,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	 * put the oom_reaper out of the way.
+>  	 */
+>  	mmput_async(mm);
+> +	trace_finish_task_reaping(tsk->pid);
+>  unlock_oom:
+>  	mutex_unlock(&oom_lock);
+>  	return ret;
+> @@ -615,6 +620,7 @@ static void wake_oom_reaper(struct task_struct *tsk)
+>  	tsk->oom_reaper_list = oom_reaper_list;
+>  	oom_reaper_list = tsk;
+>  	spin_unlock(&oom_reaper_lock);
+> +	trace_wake_reaper(tsk->pid);
+>  	wake_up(&oom_reaper_wait);
+>  }
 >  
->  	do {
->  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+> @@ -666,6 +672,7 @@ static void mark_oom_victim(struct task_struct *tsk)
+>  	 */
+>  	__thaw_task(tsk);
+>  	atomic_inc(&oom_victims);
+> +	trace_mark_victim(tsk->pid);
+>  }
+>  
+>  /**
 > -- 
 > 2.7.4
 > 
