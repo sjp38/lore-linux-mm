@@ -1,140 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C1F9D6B02B4
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 08:39:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id m5so14041216pfc.1
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 05:39:37 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p7si16281986pgn.150.2017.05.31.05.39.36
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 383746B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 09:13:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j28so14258613pfk.14
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 06:13:06 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0047.outbound.protection.outlook.com. [104.47.40.47])
+        by mx.google.com with ESMTPS id f34si25028576ple.151.2017.05.31.06.13.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 05:39:36 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4VCdQCn041656
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 08:39:35 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2asj42wba9-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 08:39:34 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 31 May 2017 13:39:29 +0100
-Date: Wed, 31 May 2017 15:39:22 +0300
-In-Reply-To: <20170531120822.GL27783@dhcp22.suse.cz>
-References: <c59a0893-d370-130b-5c33-d567a4621903@suse.cz> <20170524103947.GC3063@rapoport-lnx> <20170524111800.GD14733@dhcp22.suse.cz> <20170524142735.GF3063@rapoport-lnx> <20170530074408.GA7969@dhcp22.suse.cz> <20170530101921.GA25738@rapoport-lnx> <20170530103930.GB7969@dhcp22.suse.cz> <20170530140456.GA8412@redhat.com> <20170530143941.GK7969@dhcp22.suse.cz> <20170530154326.GB8412@redhat.com> <20170531120822.GL27783@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 May 2017 06:13:05 -0700 (PDT)
+Subject: Re: [PATCH v5 29/32] x86/mm: Add support to encrypt the kernel
+ in-place
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212149.10190.70894.stgit@tlendack-t1.amdoffice.net>
+ <20170518124626.hqyqqbjpy7hmlpqc@pd.tnic>
+ <7e2ae014-525c-76f2-9fce-2124596db2d2@amd.com>
+ <20170526162522.p7prrqqalx2ivfxl@pd.tnic>
+ <33c075b1-71f6-b5d0-b1fa-d742d0659d38@amd.com>
+ <20170531095148.pba6ju6im4qxbwfg@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <17394b27-d693-4ff9-9dbd-11b5237fcf6a@amd.com>
+Date: Wed, 31 May 2017 08:12:56 -0500
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <8FA5E4C2-D289-4AF5-AA09-6C199E58F9A5@linux.vnet.ibm.com>
+In-Reply-To: <20170531095148.pba6ju6im4qxbwfg@pd.tnic>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S.
+ Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-
-
-On May 31, 2017 3:08:22 PM GMT+03:00, Michal Hocko <mhocko@kernel=2Eorg> w=
-rote:
->On Tue 30-05-17 17:43:26, Andrea Arcangeli wrote:
->> On Tue, May 30, 2017 at 04:39:41PM +0200, Michal Hocko wrote:
->> > I sysctl for the mapcount can be increased, right? I also assume
->that
->> > those vmas will get merged after the post copy is done=2E
->>=20
->> Assuming you enlarge the sysctl to the worst possible case, with
->64bit
->> address space you can have billions of VMAs if you're migrating 4T of
->> RAM and you're unlucky and the address space gets fragmented=2E The
->> unswappable kernel memory overhead would be relatively large
->> (i=2Ee=2E dozen gigabytes of RAM in vm_area_struct slab), and each
->> find_vma operation would need to walk ~40 steps across that large vma
->> rbtree=2E There's a reason the sysctl exist=2E Not to tell all those
->> unnecessary vma mangling operations would be protected by the
->mmap_sem
->> for writing=2E
->>=20
->> Not creating a ton of vmas and enabling vma-less pte mangling with a
->> single large vma and only using mmap_sem for reading during all the
->> pte mangling, is one of the primary design motivations for
->> userfaultfd=2E
->
->Yes, I am aware of fallouts of too many vmas=2E I was asking merely to
->learn whether this will really happen under the the specific usecase
->Mike is after=2E
-
-That depends on the application access pattern in the period between the p=
-re-dump is finished and the application is frozen=2E If the accesses are ra=
-ndom enough, the dirty pages that would be post copied could get spread all=
- over the address space=2E
-
->> > I understand that part but it sounds awfully one purpose thing to
->me=2E
->> > Are we going to add other MADVISE_RESET_$FOO to clear other flags
->just
->> > because we can race in this specific use case?
->>=20
->> Those already exists, see for example MADV_NORMAL, clearing
->> ~VM_RAND_READ & ~VM_SEQ_READ after calling MADV_SEQUENTIAL or
->> MADV_RANDOM=2E
->
->I would argue that MADV_NORMAL is everything but a clear madvise
->command=2E Why doesn't it clear all the sticky MADV* flags?
-
-That would be helpful :)
-Still, the problem here is more with the naming that with the action=2E If=
- it was called MADV_DEFAULT_READ or something, it would be fine, wouldn't i=
-t?
-
->> Or MADV_DOFORK after MADV_DONTFORK=2E MADV_DONTDUMP after MADV_DODUMP=
-=2E
->Etc=2E=2E
+On 5/31/2017 4:51 AM, Borislav Petkov wrote:
+> On Tue, May 30, 2017 at 11:39:07AM -0500, Tom Lendacky wrote:
+>> Yes, it's from objtool:
 >>
->> > But we already have MADV_HUGEPAGE, MADV_NOHUGEPAGE and prctl to
->> > enable/disable thp=2E Doesn't that sound little bit too much for a
->single
->> > feature to you?
->>=20
->> MADV_NOHUGEPAGE doesn't mean clearing the flag set with
->> MADV_HUGEPAGE=2E MADV_NOHUGEPAGE disables THP on the region if the
->> global sysfs "enabled" tune is set to "always"=2E MADV_HUGEPAGE enables
->> THP if the global "enabled" sysfs tune is set to "madvise"=2E The two
->> MADV_NOHUGEPAGE and MADV_HUGEPAGE are needed to leverage the
->three-way
->> setting of "never" "madvise" "always" of the global tune=2E
->>=20
->> The "madvise" global tune exists if you want to save RAM and you
->don't
->> care much about performance but still allowing apps like QEMU where
->no
->> memory is lost by enabling THP, to use THP=2E
->>=20
->> There's no way to clear either of those two flags and bring back the
->> default behavior of the global sysfs tune, so it's not redundant at
->> the very least=2E
->
->Yes I am not a huge fan of the current MADV*HUGEPAGE semantic but I
->would really like to see a strong usecase for adding another command on
->top=2E=20
+>> arch/x86/mm/mem_encrypt_boot.o: warning: objtool: .text+0xd2: return
+>> instruction outside of a callable function
+> 
+> Oh, well, let's make it a global symbol then. Who knows, we might have
+> to live-patch it someday :-)
 
-Well, another command makes the semantic a bit better, IMHO=2E=2E=2E
+Can do.
 
-> From what Mike said a global disable THP for the whole process
->while the post-copy is in progress is a better solution anyway=2E
+Thanks,
+Tom
 
-For the CRIU usecase, disabling THP for a while and re-enabling it back wi=
-ll do the trick, provided VMAs flags are not affected, like in the patch yo=
-u've sent=2E
-Moreover, we may even get away with ioctl(UFFDIO_COPY) if it's overhead sh=
-ows to be negligible=E2=80=8B=2E
-Still, I believe that MADV_RESET_HUGEPAGE (or some better named) command h=
-as the value on its own=2E
---
-Sincerely yours,
-Mike=2E
+> 
+> ---
+> diff --git a/arch/x86/mm/mem_encrypt_boot.S b/arch/x86/mm/mem_encrypt_boot.S
+> index fb58f9f953e3..7720b0050840 100644
+> --- a/arch/x86/mm/mem_encrypt_boot.S
+> +++ b/arch/x86/mm/mem_encrypt_boot.S
+> @@ -47,9 +47,9 @@ ENTRY(sme_encrypt_execute)
+>   	movq	%rdx, %r12		/* Kernel length */
+>   
+>   	/* Copy encryption routine into the workarea */
+> -	movq	%rax, %rdi		/* Workarea encryption routine */
+> -	leaq	.Lenc_start(%rip), %rsi	/* Encryption routine */
+> -	movq	$(.Lenc_stop - .Lenc_start), %rcx	/* Encryption routine length */
+> +	movq	%rax, %rdi				/* Workarea encryption routine */
+> +	leaq	__enc_copy(%rip), %rsi			/* Encryption routine */
+> +	movq	$(.L__enc_copy_end - __enc_copy), %rcx	/* Encryption routine length */
+>   	rep	movsb
+>   
+>   	/* Setup registers for call */
+> @@ -70,8 +70,7 @@ ENTRY(sme_encrypt_execute)
+>   	ret
+>   ENDPROC(sme_encrypt_execute)
+>   
+> -.Lenc_start:
+> -ENTRY(sme_enc_routine)
+> +ENTRY(__enc_copy)
+>   /*
+>    * Routine used to encrypt kernel.
+>    *   This routine must be run outside of the kernel proper since
+> @@ -147,5 +146,5 @@ ENTRY(sme_enc_routine)
+>   	wrmsr
+>   
+>   	ret
+> -ENDPROC(sme_enc_routine)
+> -.Lenc_stop:
+> +.L__enc_copy_end:
+> +ENDPROC(__enc_copy)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
