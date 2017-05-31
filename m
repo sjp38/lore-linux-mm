@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B746B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:39:23 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id j22so3491264qtj.15
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:39:23 -0700 (PDT)
-Received: from mail-qt0-x230.google.com (mail-qt0-x230.google.com. [2607:f8b0:400d:c0d::230])
-        by mx.google.com with ESMTPS id f2si15789695qtd.210.2017.05.31.01.39.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 01:39:22 -0700 (PDT)
-Received: by mail-qt0-x230.google.com with SMTP id v27so6718818qtg.2
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:39:22 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BAEA46B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:49:31 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y43so1333931wrc.11
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:49:31 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id u66si944787wrb.292.2017.05.31.01.49.30
+        for <linux-mm@kvack.org>;
+        Wed, 31 May 2017 01:49:30 -0700 (PDT)
+Date: Wed, 31 May 2017 10:49:23 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure
+ Memory Encryption
+Message-ID: <20170531084923.mmlpefxfx53f3okp@pd.tnic>
+References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+ <20170519112703.voajtn4t7uy6nwa3@pd.tnic>
+ <7c522f65-c5c8-9362-e1eb-d0765e3ea6c9@amd.com>
+ <20170530145459.tyuy6veqxnrqkhgw@pd.tnic>
+ <115ca39d-6ae7-f603-a415-ead7c4e8193d@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <20170531140904.5c956b9a@firefly.ozlabs.ibm.com>
-References: <20170524172024.30810-1-jglisse@redhat.com> <20170524172024.30810-15-jglisse@redhat.com>
- <20170531140904.5c956b9a@firefly.ozlabs.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Wed, 31 May 2017 18:39:21 +1000
-Message-ID: <CAKTCnznqst35DRGWHW5ryOevV8fU=8MTev9=mFUwQCWrU-CO=A@mail.gmail.com>
-Subject: Re: [HMM 14/15] mm/migrate: support un-addressable ZONE_DEVICE page
- in migration v2
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <115ca39d-6ae7-f603-a415-ead7c4e8193d@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, May 31, 2017 at 2:09 PM, Balbir Singh <bsingharora@gmail.com> wrote=
-:
-> On Wed, 24 May 2017 13:20:23 -0400
-> J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
->
->> Allow to unmap and restore special swap entry of un-addressable
->> ZONE_DEVICE memory.
->>
->> Changed since v1:
->>   - s/device unaddressable/device private/
->>
->> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> ---
+On Tue, May 30, 2017 at 10:37:03AM -0500, Tom Lendacky wrote:
+> I can define the command line option and the "on" and "off" values as
+> character buffers in the function and initialize them on a per character
+> basis (using a static string causes the same issues as referencing a
+> string constant), i.e.:
+> 
+> char cmdline_arg[] = {'m', 'e', 'm', '_', 'e', 'n', 'c', 'r', 'y', 'p', 't', '\0'};
+> char cmdline_off[] = {'o', 'f', 'f', '\0'};
+> char cmdline_on[] = {'o', 'n', '\0'};
+> 
+> It doesn't look the greatest, but it works and removes the need for the
+> rip-relative addressing.
 
-Sorry! Please ignore my comments, this is only for un-addressable memory
+Well, I'm not thrilled about this one either. It's like being between a
+rock and a hard place. :-\
 
+On the one hand, we need the encryption mask before we do the fixups and
+OTOH we need to do the fixups in order to access the strings properly.
+Yuck.
 
-Balbir
+Well, the only thing I can think of right now is maybe define
+"mem_encrypt=" at the end of head_64.S and pass it in from asm to
+sme_enable() and then do the "on"/"off" comparsion with local char
+buffers. That could make it less ugly...
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
