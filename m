@@ -1,69 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C1386B02B4
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 14:26:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c6so21005892pfj.5
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 11:26:30 -0700 (PDT)
-Received: from mezzanine.sirena.org.uk (mezzanine.sirena.org.uk. [2400:8900::f03c:91ff:fedb:4f4])
-        by mx.google.com with ESMTPS id m5si48008967pln.48.2017.05.31.11.26.29
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B4B26B02B4
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 14:45:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id n75so21873686pfh.0
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 11:45:01 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id s22si21432819plk.185.2017.05.31.11.45.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 11:26:29 -0700 (PDT)
-Date: Wed, 31 May 2017 19:26:13 +0100
-From: Mark Brown <broonie@kernel.org>
-Message-ID: <20170531182613.sagvoniu53nehath@sirena.org.uk>
-References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com>
- <20170524212229.GR141096@google.com>
- <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org>
- <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
- <alpine.DEB.2.10.1705301704370.10695@chino.kir.corp.google.com>
- <CAD=FV=Xi7NjDjsdwGP=GGS9p=uUpqZa7S=irNOFmhfD1F3kWZQ@mail.gmail.com>
+        Wed, 31 May 2017 11:45:00 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id e193so14917365pfh.0
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 11:45:00 -0700 (PDT)
+Date: Wed, 31 May 2017 11:44:52 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 4.12-rc ppc64 4k-page needs costly allocations
+In-Reply-To: <alpine.DEB.2.20.1705310906570.14920@east.gentwo.org>
+Message-ID: <alpine.LSU.2.11.1705311112290.1839@eggly.anvils>
+References: <alpine.LSU.2.11.1705301151090.2133@eggly.anvils> <87h9014j7t.fsf@concordia.ellerman.id.au> <alpine.DEB.2.20.1705310906570.14920@east.gentwo.org>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="3wa3rjd5clmu4ver"
-Content-Disposition: inline
-In-Reply-To: <CAD=FV=Xi7NjDjsdwGP=GGS9p=uUpqZa7S=irNOFmhfD1F3kWZQ@mail.gmail.com>
-Subject: Re: [patch] compiler, clang: suppress warning for unused static
- inline functions
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Doug Anderson <dianders@chromium.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Matthias Kaehlcke <mka@chromium.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, David Miller <davem@davemloft.net>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Hugh Dickins <hughd@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
+[ Merging two mails into one response ]
 
---3wa3rjd5clmu4ver
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On Wed, 31 May 2017, Christoph Lameter wrote:
+> On Tue, 30 May 2017, Hugh Dickins wrote:
+> > SLUB: Unable to allocate memory on node -1, gfp=0x14000c0(GFP_KERNEL)
+> >   cache: pgtable-2^12, object size: 32768, buffer size: 65536, default order: 4, min order: 4
+> >   pgtable-2^12 debugging increased min order, use slub_debug=O to disable.
+> 
+> > I did try booting with slub_debug=O as the message suggested, but that
+> > made no difference: it still hoped for but failed on order:4 allocations.
+> 
+> I am curious as to what is going on there. Do you have the output from
+> these failed allocations?
 
-On Wed, May 31, 2017 at 08:53:40AM -0700, Doug Anderson wrote:
+I thought the relevant output was in my mail.  I did skip the Mem-Info
+dump, since that just seemed noise in this case: we know memory can get
+fragmented.  What more output are you looking for?
 
-> It is certainly possible that something like this could be done (I
-> think Coverity works something like this), but I'm not sure there are
-> any volunteers.  Doing this would require a person to setup and
-> monitor a clang builder and then setup a list of false positives.  For
-> each new warning this person would need to analyze the warning and
-> either send a patch or add it to the list of false positives.
+> 
+> > I wanted to try removing CONFIG_SLUB_DEBUG, but didn't succeed in that:
+> > it seemed to be a hard requirement for something, but I didn't find what.
+> 
+> CONFIG_SLUB_DEBUG does not enable debugging. It only includes the code to
+> be able to enable it at runtime.
 
-It also means setting up some mechanism for distributing the blacklist
-or that that every individual person or group doing clang stuff would
-need to replicate the work.
+Yes, I thought so.
 
---3wa3rjd5clmu4ver
-Content-Type: application/pgp-signature; name="signature.asc"
+> 
+> > I did try CONFIG_SLAB=y instead of SLUB: that lowers these allocations to
+> > the expected order:3, which then results in OOM-killing rather than direct
+> > allocation failure, because of the PAGE_ALLOC_COSTLY_ORDER 3 cutoff.  But
+> > makes no real difference to the outcome: swapping loads still abort early.
+> 
+> SLAB uses order 3 and SLUB order 4??? That needs to be tracked down.
+> 
+> Ahh. Ok debugging increased the object size to an order 4. This should be
+> order 3 without debugging.
 
------BEGIN PGP SIGNATURE-----
+But it was still order 4 when booted with slub_debug=O, which surprised me.
+And that surprises you too?  If so, then we ought to dig into it further.
 
-iQEzBAABCAAdFiEEreZoqmdXGLWf4p/qJNaLcl1Uh9AFAlkvCsQACgkQJNaLcl1U
-h9CyXQf+Miqtli5gWrZ7JkYinD2igBpzMPjpA7FJbw2bQ+O6pi1tNwBTsP3g0qw1
-Wbzw7OAM9f/pmA+qrI7SY5L9hRwf+R7bbyNPJatZfKy+pz54OWLgznf9J+OW6s1g
-zhcnbnGkPiuFQdzh+HYfLdRnbmQovGdXKeJJurWVaW4qoBlfJx7IKwMzdnIrB0H/
-yBFCgxm5OP/lXrsIyr6U4/G+ymuWwzbdMLGkm/t26mhFGB2OYoT6Kw/FJ3est1xe
-6Td1JienqGboVCdjC3cFqPAgc0UBA6L+i0amzE/QJc1kJPdmHWo4LKWGC2EWfRx2
-jOTYXx1Zz21xwfeDc+AuZRr0T/9INw==
-=+glf
------END PGP SIGNATURE-----
+> 
+> Why are the slab allocators used to create slab caches for large object
+> sizes?
 
---3wa3rjd5clmu4ver--
+There may be more optimal ways to allocate, but I expect that when
+the ppc guys are writing the code to handle both 4k and 64k page sizes,
+kmem caches offer the best span of possibility without complication.
+
+> 
+> > Relying on order:3 or order:4 allocations is just too optimistic: ppc64
+> > with 4k pages would do better not to expect to support a 128TB userspace.
+> 
+> I thought you had these huge 64k page sizes?
+
+ppc64 does support 64k page sizes, and they've been the default for years;
+but since 4k pages are still supported, I choose to use those (I doubt
+I could ever get the same load going with 64k pages).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
