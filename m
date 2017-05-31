@@ -1,46 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 541D06B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:49:03 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i77so3762171wmh.10
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:49:03 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id l33si4220460wrc.111.2017.05.31.08.49.01
-        for <linux-mm@kvack.org>;
-        Wed, 31 May 2017 08:49:02 -0700 (PDT)
-Date: Wed, 31 May 2017 17:48:54 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v5 28/32] x86/mm, kexec: Allow kexec to be used with SME
-Message-ID: <20170531154854.4tf4rmivgmixc275@pd.tnic>
-References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212121.10190.94885.stgit@tlendack-t1.amdoffice.net>
- <5927AC6E.8080209@redhat.com>
- <de4d2efc-6636-4120-98d9-7fdf4707f68d@amd.com>
- <592EDB58.4090903@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <592EDB58.4090903@redhat.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD776B02B4
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:51:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q27so17639922pfi.8
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:51:57 -0700 (PDT)
+Received: from mail-pg0-f68.google.com (mail-pg0-f68.google.com. [74.125.83.68])
+        by mx.google.com with ESMTPS id t78si17412482pfi.321.2017.05.31.08.51.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 May 2017 08:51:57 -0700 (PDT)
+Received: by mail-pg0-f68.google.com with SMTP id u13so77839pgb.1
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:51:57 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/3] replace few other kvmalloc open coded variants
+Date: Wed, 31 May 2017 17:51:42 +0200
+Message-Id: <20170531155145.17111-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xlpang@redhat.com, Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Florian Westphal <fw@strlen.de>, Herbert Xu <herbert@gondor.apana.org.au>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Michal Hocko <mhocko@suse.com>, Pablo Neira Ayuso <pablo@netfilter.org>, Thomas Graf <tgraf@suug.ch>
 
-On Wed, May 31, 2017 at 11:03:52PM +0800, Xunlei Pang wrote:
-> For kdump case, it will be put in some reserved crash memory allocated
-> by kexec-tools, and passed the corresponding start address of the
-> allocated reserved crash memory to kdump kernel via "elfcorehdr=",
-> please see kernel functions setup_elfcorehdr() and vmcore_init() for
-> how it is parsed by kdump kernel.
+Hi,
+while doing something unrelated I've noticed these few open coded
+kvmalloc variants so let's replace them with the library function. Each
+patch can be merged separately so I hope I've CCed proper people. This
+is based on the current linux-next.
 
-... which could be a great way to pass the SME status to the second
-kernel without any funky sysfs games.
+Shortlog
+Michal Hocko (3):
+      fs/file: replace alloc_fdmem with kvmalloc alternative
+      lib/rhashtable.c: use kvzalloc in bucket_table_alloc when possible
+      netfilter: use kvmalloc xt_alloc_table_info
 
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Diffstat
+ fs/file.c                | 22 ++++------------------
+ lib/rhashtable.c         |  7 +++----
+ net/netfilter/x_tables.c | 12 ++++--------
+ 3 files changed, 11 insertions(+), 30 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
