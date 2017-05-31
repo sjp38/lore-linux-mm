@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B977D6B02F3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:52:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id m5so17796005pfc.1
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:52:01 -0700 (PDT)
-Received: from mail-pf0-f196.google.com (mail-pf0-f196.google.com. [209.85.192.196])
-        by mx.google.com with ESMTPS id r11si17257279pfk.91.2017.05.31.08.52.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DB52A6B02F4
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:52:03 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j28so17321290pfk.14
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:52:03 -0700 (PDT)
+Received: from mail-pg0-f67.google.com (mail-pg0-f67.google.com. [74.125.83.67])
+        by mx.google.com with ESMTPS id l36si46631795plg.314.2017.05.31.08.52.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 08:52:00 -0700 (PDT)
-Received: by mail-pf0-f196.google.com with SMTP id u26so2974664pfd.2
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:52:00 -0700 (PDT)
+        Wed, 31 May 2017 08:52:03 -0700 (PDT)
+Received: by mail-pg0-f67.google.com with SMTP id s62so2339237pgc.0
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:52:03 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/3] lib/rhashtable.c: use kvzalloc in bucket_table_alloc when possible
-Date: Wed, 31 May 2017 17:51:44 +0200
-Message-Id: <20170531155145.17111-3-mhocko@kernel.org>
+Subject: [PATCH 3/3] netfilter: use kvmalloc xt_alloc_table_info
+Date: Wed, 31 May 2017 17:51:45 +0200
+Message-Id: <20170531155145.17111-4-mhocko@kernel.org>
 In-Reply-To: <20170531155145.17111-1-mhocko@kernel.org>
 References: <20170531155145.17111-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Herbert Xu <herbert@gondor.apana.org.au>, Thomas Graf <tgraf@suug.ch>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Florian Westphal <fw@strlen.de>, Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>, Pablo Neira Ayuso <pablo@netfilter.org>
 
 From: Michal Hocko <mhocko@suse.com>
 
-bucket_table_alloc can be currently called with GFP_KERNEL or
-GFP_ATOMIC. For the former we basically have an open coded kvzalloc
-while the later only uses kzalloc. Let's simplify the code a bit by
-the dropping the open coded path and replace it with kvzalloc
+xt_alloc_table_info basically opencodes kvmalloc so use the library
+function instead.
 
-Cc: Thomas Graf <tgraf@suug.ch>
-Cc: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: netdev@vger.kernel.org
+Cc: Pablo Neira Ayuso <pablo@netfilter.org>
+Cc: Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+Cc: Florian Westphal <fw@strlen.de>
+Cc: netfilter-devel@vger.kernel.org
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- lib/rhashtable.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ net/netfilter/x_tables.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
 
-diff --git a/lib/rhashtable.c b/lib/rhashtable.c
-index d9e7274a04cd..42466c167257 100644
---- a/lib/rhashtable.c
-+++ b/lib/rhashtable.c
-@@ -211,11 +211,10 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
- 	int i;
+diff --git a/net/netfilter/x_tables.c b/net/netfilter/x_tables.c
+index 1770c1d9b37f..e1648238a9c9 100644
+--- a/net/netfilter/x_tables.c
++++ b/net/netfilter/x_tables.c
+@@ -1003,14 +1003,10 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
+ 	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > totalram_pages)
+ 		return NULL;
  
- 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
--	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER) ||
--	    gfp != GFP_KERNEL)
-+	if (gfp != GFP_KERNEL)
- 		tbl = kzalloc(size, gfp | __GFP_NOWARN | __GFP_NORETRY);
--	if (tbl == NULL && gfp == GFP_KERNEL)
--		tbl = vzalloc(size);
-+	else
-+		tbl = kvzalloc(size, gfp);
- 
- 	size = nbuckets;
- 
+-	if (sz <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+-		info = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+-	if (!info) {
+-		info = __vmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY,
+-				 PAGE_KERNEL);
+-		if (!info)
+-			return NULL;
+-	}
++	info = kvmalloc(sz, GFP_KERNEL);
++	if (!info)
++		return NULL;
++
+ 	memset(info, 0, sizeof(*info));
+ 	info->size = size;
+ 	return info;
 -- 
 2.11.0
 
