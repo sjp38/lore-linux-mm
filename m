@@ -1,413 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D18E76B02C3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 00:09:16 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e8so6728136pfl.4
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 21:09:16 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id g29si15771544pfg.174.2017.05.30.21.09.15
+	by kanga.kvack.org (Postfix) with ESMTP id A13B86B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 00:39:23 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e8so7085791pfl.4
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 21:39:23 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id l7si25334095pli.250.2017.05.30.21.39.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 21:09:15 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id w69so985791pfk.1
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 21:09:15 -0700 (PDT)
-Date: Wed, 31 May 2017 14:09:04 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [HMM 14/15] mm/migrate: support un-addressable ZONE_DEVICE page
- in migration v2
-Message-ID: <20170531140904.5c956b9a@firefly.ozlabs.ibm.com>
-In-Reply-To: <20170524172024.30810-15-jglisse@redhat.com>
-References: <20170524172024.30810-1-jglisse@redhat.com>
-	<20170524172024.30810-15-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 30 May 2017 21:39:22 -0700 (PDT)
+Subject: Re: [RFC PATCH] vmalloc: show more detail info in vmallocinfo for
+ clarify
+References: <1495262861-37649-1-git-send-email-xieyisheng1@huawei.com>
+ <857f6900-8a28-6ac6-64ac-d4867ef01ee5@linux.intel.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <25eb2159-5398-856d-abcf-457cac84771b@huawei.com>
+Date: Wed, 31 May 2017 12:35:24 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <857f6900-8a28-6ac6-64ac-d4867ef01ee5@linux.intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>, akpm@linux-foundation.org, mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
 
-On Wed, 24 May 2017 13:20:23 -0400
-J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
+Hi Tim,
 
-> Allow to unmap and restore special swap entry of un-addressable
-> ZONE_DEVICE memory.
->=20
-> Changed since v1:
->   - s/device unaddressable/device private/
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  include/linux/migrate.h |  10 +++-
->  mm/migrate.c            | 134 ++++++++++++++++++++++++++++++++++++++----=
-------
->  mm/page_vma_mapped.c    |  10 ++++
->  mm/rmap.c               |  25 +++++++++
->  4 files changed, 150 insertions(+), 29 deletions(-)
->=20
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index 576b3f5..7dd875a 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -130,12 +130,18 @@ static inline int migrate_misplaced_transhuge_page(=
-struct mm_struct *mm,
-> =20
->  #ifdef CONFIG_MIGRATION
-> =20
-> +/*
-> + * Watch out for PAE architecture, which has an unsigned long, and might=
- not
-> + * have enough bits to store all physical address and flags. So far we h=
-ave
-> + * enough room for all our flags.
-> + */
->  #define MIGRATE_PFN_VALID	(1UL << 0)
->  #define MIGRATE_PFN_MIGRATE	(1UL << 1)
->  #define MIGRATE_PFN_LOCKED	(1UL << 2)
->  #define MIGRATE_PFN_WRITE	(1UL << 3)
-> -#define MIGRATE_PFN_ERROR	(1UL << 4)
-> -#define MIGRATE_PFN_SHIFT	5
-> +#define MIGRATE_PFN_DEVICE	(1UL << 4)
-> +#define MIGRATE_PFN_ERROR	(1UL << 5)
-> +#define MIGRATE_PFN_SHIFT	6
-> =20
->  static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
->  {
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 1f2bc61..9e68399 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -36,6 +36,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/hugetlb_cgroup.h>
->  #include <linux/gfp.h>
-> +#include <linux/memremap.h>
->  #include <linux/balloon_compaction.h>
->  #include <linux/mmu_notifier.h>
->  #include <linux/page_idle.h>
-> @@ -227,7 +228,15 @@ static bool remove_migration_pte(struct page *page, =
-struct vm_area_struct *vma,
->  		if (is_write_migration_entry(entry))
->  			pte =3D maybe_mkwrite(pte, vma);
-> =20
-> -		flush_dcache_page(new);
-> +		if (unlikely(is_zone_device_page(new)) &&
-> +		    is_device_private_page(new)) {
+Thanks for comment!
+On 2017/5/31 8:56, Tim Chen wrote:
+> On 05/19/2017 11:47 PM, Yisheng Xie wrote:
+>> When ioremap a 67112960 bytes vm_area with the vmallocinfo:
+>>  [..]
+>>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+>>
+>> we get result:
+>>  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
+>>
+>> For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
+>> 	if (flags & VM_IOREMAP)
+>> 		align = 1ul << clamp_t(int, get_count_order_long(size),
+>> 			PAGE_SHIFT, IOREMAP_MAX_ORDER);
+>>
+>> So it makes idiot like me a litter puzzle why jump the vm_area from
+>> 0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
+>> 0xed000000-0xf1000000 as a big hole.
+>>
+>> This is to show all of vm_area, including which is freeing but still in
+>> vmap_area_list, to make it more clear about why we will get
+>> 0xf1000000-0xf5001000 int the above case. And we will get the
+>> vmallocinfo like:
+>>  [..]
+>>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+>>  [..]
+>>  0xece7c000-0xece7e000    8192 freeing vm_area
+>>  0xece7e000-0xece83000   20480 vm_map_ram
+>>  0xf0099000-0xf00aa000   69632 vm_map_ram
+>>  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
+>> after apply this patch.
+>>
+>> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+>> ---
+>>  mm/vmalloc.c | 10 +++++++++-
+>>  1 file changed, 9 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index b52aeed..dbb24fc 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -314,6 +314,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+>>  
+>>  /*** Global kva allocator ***/
+>>  
+>> +#define VM_LAZY_FREE	0x02
+>>  #define VM_VM_AREA	0x04
+>>  
+>>  static DEFINE_SPINLOCK(vmap_area_lock);
+>> @@ -1486,6 +1487,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+>>  		spin_lock(&vmap_area_lock);
+>>  		va->vm = NULL;
+>>  		va->flags &= ~VM_VM_AREA;
+>> +		va->flags |= VM_LAZY_FREE;
+>>  		spin_unlock(&vmap_area_lock);
+>>  
+>>  		vmap_debug_free_range(va->va_start, va->va_end);
+>> @@ -2684,8 +2686,14 @@ static int s_show(struct seq_file *m, void *p)
+>>  	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+>>  	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+>>  	 */
+>> -	if (!(va->flags & VM_VM_AREA))
+>> +	if (!(va->flags & VM_VM_AREA)) {
+>> +		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
+>> +			(void *)va->va_start, (void *)va->va_end,
+>> +			va->va_end - va->va_start,
+>> +			va->flags & VM_LAZY_FREE ? "freeing vm_area" : "vm_map_ram");
+> 
+> Will be clearer to say "unpurged vm_area" instead of "freeing vm_area".
 
-I would expect HMM-CDM to never hit this pattern, given that
-we should not be creating migration entries for CDM memory.
-Is that a fair assumption?
+Yes, I will change it in next version.
 
-> +			entry =3D make_device_private_entry(new, pte_write(pte));
-> +			pte =3D swp_entry_to_pte(entry);
-> +			if (pte_swp_soft_dirty(*pvmw.pte))
-> +				pte =3D pte_mksoft_dirty(pte);
-> +		} else
-> +			flush_dcache_page(new);
-> +
->  #ifdef CONFIG_HUGETLB_PAGE
->  		if (PageHuge(new)) {
->  			pte =3D pte_mkhuge(pte);
-> @@ -2140,17 +2149,40 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  		pte =3D *ptep;
->  		pfn =3D pte_pfn(pte);
-> =20
-> -		if (!pte_present(pte)) {
-> +		if (pte_none(pte)) {
->  			mpfn =3D pfn =3D 0;
->  			goto next;
->  		}
-> =20
-> +		if (!pte_present(pte)) {
-> +			mpfn =3D pfn =3D 0;
-> +
-> +			/*
-> +			 * Only care about unaddressable device page special
-> +			 * page table entry. Other special swap entries are not
-> +			 * migratable, and we ignore regular swapped page.
-> +			 */
-> +			entry =3D pte_to_swp_entry(pte);
-> +			if (!is_device_private_entry(entry))
-> +				goto next;
-> +
-> +			page =3D device_private_entry_to_page(entry);
-> +			mpfn =3D migrate_pfn(page_to_pfn(page))|
-> +				MIGRATE_PFN_DEVICE | MIGRATE_PFN_MIGRATE;
-> +			if (is_write_device_private_entry(entry))
-> +				mpfn |=3D MIGRATE_PFN_WRITE;
-> +		} else {
-> +			page =3D vm_normal_page(migrate->vma, addr, pte);
-> +			mpfn =3D migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
-> +			mpfn |=3D pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
-> +		}
-> +
->  		/* FIXME support THP */
-> -		page =3D vm_normal_page(migrate->vma, addr, pte);
->  		if (!page || !page->mapping || PageTransCompound(page)) {
->  			mpfn =3D pfn =3D 0;
->  			goto next;
->  		}
-> +		pfn =3D page_to_pfn(page);
-> =20
->  		/*
->  		 * By getting a reference on the page we pin it and that blocks
-> @@ -2163,8 +2195,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  		 */
->  		get_page(page);
->  		migrate->cpages++;
-> -		mpfn =3D migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
-> -		mpfn |=3D pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
-> =20
->  		/*
->  		 * Optimize for the common case where page is only mapped once
-> @@ -2195,6 +2225,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  		}
-> =20
->  next:
-> +		migrate->dst[migrate->npages] =3D 0;
->  		migrate->src[migrate->npages++] =3D mpfn;
->  	}
->  	arch_leave_lazy_mmu_mode();
-> @@ -2264,6 +2295,15 @@ static bool migrate_vma_check_page(struct page *pa=
-ge)
->  	if (PageCompound(page))
->  		return false;
-> =20
-> +	/* Page from ZONE_DEVICE have one extra reference */
-> +	if (is_zone_device_page(page)) {
-> +		if (is_device_private_page(page)) {
-> +			extra++;
-> +		} else
-> +			/* Other ZONE_DEVICE memory type are not supported */
-> +			return false;
-> +	}
-> +
->  	if ((page_count(page) - extra) > page_mapcount(page))
->  		return false;
-> =20
-> @@ -2301,24 +2341,30 @@ static void migrate_vma_prepare(struct migrate_vm=
-a *migrate)
->  			migrate->src[i] |=3D MIGRATE_PFN_LOCKED;
->  		}
-> =20
-> -		if (!PageLRU(page) && allow_drain) {
-> -			/* Drain CPU's pagevec */
-> -			lru_add_drain_all();
-> -			allow_drain =3D false;
-> -		}
-> +		/* ZONE_DEVICE pages are not on LRU */
-> +		if (!is_zone_device_page(page)) {
-> +			if (!PageLRU(page) && allow_drain) {
-> +				/* Drain CPU's pagevec */
-> +				lru_add_drain_all();
-> +				allow_drain =3D false;
-> +			}
-> =20
-> -		if (isolate_lru_page(page)) {
-> -			if (remap) {
-> -				migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
-> -				migrate->cpages--;
-> -				restore++;
-> -			} else {
-> -				migrate->src[i] =3D 0;
-> -				unlock_page(page);
-> -				migrate->cpages--;
-> -				put_page(page);
-> +			if (isolate_lru_page(page)) {
-> +				if (remap) {
-> +					migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
-> +					migrate->cpages--;
-> +					restore++;
-> +				} else {
-> +					migrate->src[i] =3D 0;
-> +					unlock_page(page);
-> +					migrate->cpages--;
-> +					put_page(page);
-> +				}
-> +				continue;
->  			}
-> -			continue;
-> +
-> +			/* Drop the reference we took in collect */
-> +			put_page(page);
->  		}
-> =20
->  		if (!migrate_vma_check_page(page)) {
-> @@ -2327,14 +2373,19 @@ static void migrate_vma_prepare(struct migrate_vm=
-a *migrate)
->  				migrate->cpages--;
->  				restore++;
-> =20
-> -				get_page(page);
-> -				putback_lru_page(page);
-> +				if (!is_zone_device_page(page)) {
-> +					get_page(page);
-> +					putback_lru_page(page);
-> +				}
->  			} else {
->  				migrate->src[i] =3D 0;
->  				unlock_page(page);
->  				migrate->cpages--;
-> =20
-> -				putback_lru_page(page);
-> +				if (!is_zone_device_page(page))
-> +					putback_lru_page(page);
-> +				else
-> +					put_page(page);
->  			}
->  		}
->  	}
-> @@ -2405,7 +2456,10 @@ static void migrate_vma_unmap(struct migrate_vma *=
-migrate)
->  		unlock_page(page);
->  		restore--;
-> =20
-> -		putback_lru_page(page);
-> +		if (is_zone_device_page(page))
-> +			put_page(page);
-> +		else
-> +			putback_lru_page(page);
->  	}
->  }
-> =20
-> @@ -2436,6 +2490,26 @@ static void migrate_vma_pages(struct migrate_vma *=
-migrate)
-> =20
->  		mapping =3D page_mapping(page);
-> =20
-> +		if (is_zone_device_page(newpage)) {
-> +			if (is_device_private_page(newpage)) {
-> +				/*
-> +				 * For now only support private anonymous when
-> +				 * migrating to un-addressable device memory.
-> +				 */
-> +				if (mapping) {
-> +					migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
-> +					continue;
-> +				}
-> +			} else {
-> +				/*
-> +				 * Other types of ZONE_DEVICE page are not
-> +				 * supported.
-> +				 */
-> +				migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
-> +				continue;
-> +			}
-> +		}
-> +
->  		r =3D migrate_page(mapping, newpage, page, MIGRATE_SYNC_NO_COPY);
->  		if (r !=3D MIGRATEPAGE_SUCCESS)
->  			migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
-> @@ -2476,11 +2550,17 @@ static void migrate_vma_finalize(struct migrate_v=
-ma *migrate)
->  		unlock_page(page);
->  		migrate->cpages--;
-> =20
-> -		putback_lru_page(page);
-> +		if (is_zone_device_page(page))
-> +			put_page(page);
-> +		else
-> +			putback_lru_page(page);
-> =20
->  		if (newpage !=3D page) {
->  			unlock_page(newpage);
-> -			putback_lru_page(newpage);
-> +			if (is_zone_device_page(newpage))
-> +				put_page(newpage);
-> +			else
-> +				putback_lru_page(newpage);
->  		}
->  	}
->  }
-> diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-> index de9c40d..f95765c 100644
-> --- a/mm/page_vma_mapped.c
-> +++ b/mm/page_vma_mapped.c
-> @@ -48,6 +48,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
->  		if (!is_swap_pte(*pvmw->pte))
->  			return false;
->  		entry =3D pte_to_swp_entry(*pvmw->pte);
-> +
->  		if (!is_migration_entry(entry))
->  			return false;
->  		if (migration_entry_to_page(entry) - pvmw->page >=3D
-> @@ -60,6 +61,15 @@ static bool check_pte(struct page_vma_mapped_walk *pvm=
-w)
->  		WARN_ON_ONCE(1);
->  #endif
->  	} else {
-> +		if (is_swap_pte(*pvmw->pte)) {
-> +			swp_entry_t entry;
-> +
-> +			entry =3D pte_to_swp_entry(*pvmw->pte);
-> +			if (is_device_private_entry(entry) &&
-> +			    device_private_entry_to_page(entry) =3D=3D pvmw->page)
-> +				return true;
-> +		}
-> +
->  		if (!pte_present(*pvmw->pte))
->  			return false;
-> =20
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index d405f0e..515cea6 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -63,6 +63,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/backing-dev.h>
->  #include <linux/page_idle.h>
-> +#include <linux/memremap.h>
-> =20
->  #include <asm/tlbflush.h>
-> =20
-> @@ -1308,6 +1309,10 @@ static bool try_to_unmap_one(struct page *page, st=
-ruct vm_area_struct *vma,
->  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
->  		return true;
-> =20
-> +	if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION) &&
-> +	    is_zone_device_page(page) && !is_device_private_page(page))
-> +		return true;
-> +
+Thanks
+Yisheng Xie
 
-I wonder how CDM would ever work with this?
-
->  	if (flags & TTU_SPLIT_HUGE_PMD) {
->  		split_huge_pmd_address(vma, address,
->  				flags & TTU_MIGRATION, page);
-> @@ -1343,6 +1348,26 @@ static bool try_to_unmap_one(struct page *page, st=
-ruct vm_area_struct *vma,
->  		subpage =3D page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
->  		address =3D pvmw.address;
-> =20
-> +		if (IS_ENABLED(CONFIG_MIGRATION) &&
-> +		    (flags & TTU_MIGRATION) &&
-> +		    is_zone_device_page(page)) {
-> +			swp_entry_t entry;
-> +			pte_t swp_pte;
-> +
-> +			pteval =3D ptep_get_and_clear(mm, address, pvmw.pte);
-> +
-> +			/*
-> +			 * Store the pfn of the page in a special migration
-> +			 * pte. do_swap_page() will wait until the migration
-> +			 * pte is removed and then restart fault handling.
-> +			 */
-> +			entry =3D make_migration_entry(page, 0);
-> +			swp_pte =3D swp_entry_to_pte(entry);
-> +			if (pte_soft_dirty(pteval))
-> +				swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
-> +			set_pte_at(mm, address, pvmw.pte, swp_pte);
-> +			goto discard;
-> +		}
-> =20
->  		if (!(flags & TTU_IGNORE_ACCESS)) {
->  			if (ptep_clear_flush_young_notify(vma, address,
-
-
-Balbir Singh
+> 
+> Thanks.
+> 
+> Tim
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
