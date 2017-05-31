@@ -1,137 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CCE26B0292
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 21:31:58 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id x25so419609pgc.10
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 18:31:58 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 3si47195368plt.318.2017.05.30.18.31.56
-        for <linux-mm@kvack.org>;
-        Tue, 30 May 2017 18:31:57 -0700 (PDT)
-Date: Wed, 31 May 2017 10:31:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: add counters for different page fault types
-Message-ID: <20170531013153.GA6422@bbox>
-References: <20170524194126.18040-1-semenzato@chromium.org>
- <20170525001915.GA14999@bbox>
- <CAA25o9SH=LSeeRAfHfMK0JyPuDfzLMMOvyXz5RZJ5taa3hybhw@mail.gmail.com>
- <20170526040622.GB17837@bbox>
- <CAA25o9QG=Juynu-8wAYvdY1t7YNGVtE10fav2u3S-DikuU=aMQ@mail.gmail.com>
- <20170529081525.GA8311@bbox>
- <CAA25o9Q0ewQyRe=VYOvx2M6FmOxwoRbLqOSmgxfDuJGuExCkQg@mail.gmail.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B5C96B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 21:53:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a66so4913559pfl.6
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 18:53:27 -0700 (PDT)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id i24si15421744pfa.92.2017.05.30.18.53.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 May 2017 18:53:26 -0700 (PDT)
+Received: by mail-pf0-x22a.google.com with SMTP id n23so2786888pfb.2
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 18:53:26 -0700 (PDT)
+Date: Tue, 30 May 2017 18:53:24 -0700
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: Re: [patch] compiler, clang: suppress warning for unused static
+ inline functions
+Message-ID: <20170531015324.GW141096@google.com>
+References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com>
+ <20170524212229.GR141096@google.com>
+ <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org>
+ <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
+ <alpine.DEB.2.10.1705301704370.10695@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAA25o9Q0ewQyRe=VYOvx2M6FmOxwoRbLqOSmgxfDuJGuExCkQg@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1705301704370.10695@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Douglas Anderson <dianders@google.com>, Dmitry Torokhov <dtor@google.com>, Sonny Rao <sonnyrao@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Doug Anderson <dianders@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mark Brown <broonie@kernel.org>, Ingo Molnar <mingo@kernel.org>, David Miller <davem@davemloft.net>
 
-Hello Luigi,
+El Tue, May 30, 2017 at 05:10:10PM -0700 David Rientjes ha dit:
 
-On Tue, May 30, 2017 at 11:41:37AM -0700, Luigi Semenzato wrote:
-> On Mon, May 29, 2017 at 1:15 AM, Minchan Kim <minchan@kernel.org> wrote:
+> On Wed, 24 May 2017, Doug Anderson wrote:
 > 
-> >> These numbers are from a Chromebook with a few dozen Chrome tabs and a
-> >> couple of Android apps, and pretty heavy use of zram.
-> >>
-> >> pgpgin 4688863
-> >> pgpgout 442052
-> >> pswpin 353675
-> >> pswpout 1072021
-> >> ...
-> >> pgfault 5564247
-> >> pgmajfault 355758
-> >> pgmajfault_s 6297
-> >> pgmajfault_a 317645
-> >> pgmajfault_f 31816
-> >> pgmajfault_ax 8494
-> >> pgmajfault_fx 13201
-> >>
-> >> where _s, _a, and _f are for shmem, anon, and file pages.
-> >> (ax and fx are for the subset of executable pages---I was curious about that)
-> >>
-> >> So the numbers don't completely match:
-> >> anon faults = 318,000
-> >> swap ins = 354,000
-> >>
-> >> Any idea of what might explain the difference?
-> >
-> > Some of application call madvise(MADV_WILLNEED) for shmem or anon?
+> > * Matthias has been sending out individual patches that take each
+> > particular case into account to try to remove the warnings.  In some
+> > cases this removes totally dead code.  In other cases this adds
+> > __maybe_unused.  ...and as a last resort it uses #ifdef.  In each of
+> > these individual patches we wouldn't want a list of all other patches,
+> > I think.
+> > 
 > 
-> Thank you for the suggestion.  Nevertheless, the problem is that
-> pgmajfault - pswpin is 2,000, which is far from the 32,000 major file
-> faults, and figuring out where the difference comes from is not
-> simple.  (Or is it, and I am just too lazy?  Often it's hard to tell
-> :)
+> Again, I defer to maintainers like Andrew and Ingo who have to deal with 
+> an enormous amount of patches on how they would like to handle it; I don't 
+> think myself or anybody else who doesn't deal with a large number of 
+> patches should be mandating how it's handled.
 
-What's the your kernel version? IOW, What kernel version against
-this patch? It helps to look at code more detail with your patch.
+Nobody is mandating anything, Doug and I are merely expressing our
+POVs, trying to convince maintainers about the benefits of keeping the
+warning enabled. If the final outcome is to suppress the warning, so
+be it.
 
-A possibility is shared memory(e.g., between parent and child by forking)
-with concurrent page faulting.
+> For reference, the patchset that this patch originated from added 8 lines 
+> and removed 1, so I disagree that this cleans anything up; in reality, it 
+> obfuscates the code and makes the #ifdef nesting more complex.
 
-do_swap_page
-        page = lookup_swap_cache <- first swapcache miss
-        if (!page) {
-                page = swapin_readahead
-                        read_swap_cache_async
-                          return find_get_page(swapper_space,
-                                          swp_offset(entry)); <- second hit
-        }
+On the risk of sounding like a broken record: In almost all cases
+the use of #ifdef is an option and __maybe_unused can be used
+instead. I got feedback from some maintainers that they preferred
+using #ifdef, so I used it in instances where it seemed reasonable.
 
-In above case, it should be minor fault if it found the page in swapcache
-but VM counts it as major fault. If you verify it's the problem,
-we can fix it but 2000 is under 1% in your anon faults so I'm not sure
-how it's significant if we consider lots of kernel stat is inaccurate
-within noise level.
+> > If you just want a list of things in response to this thread...
+> > 
+> > Clang's behavior has found some dead code, as shown by:
+> > 
+> > * https://patchwork.kernel.org/patch/9732161/
+> >   ring-buffer: Remove unused function __rb_data_page_index()
+> > * https://patchwork.kernel.org/patch/9735027/
+> >   r8152: Remove unused function usb_ocp_read()
+> > * https://patchwork.kernel.org/patch/9735053/
+> >   net1080: Remove unused function nc_dump_ttl()
+> > * https://patchwork.kernel.org/patch/9741513/
+> >   crypto: rng: Remove unused function __crypto_rng_cast()
+> > * https://patchwork.kernel.org/patch/9741539/
+> >   x86/ioapic: Remove unused function IO_APIC_irq_trigger()
+> > * https://patchwork.kernel.org/patch/9741549/
+> >   ASoC: Intel: sst: Remove unused function sst_restore_shim64()
+> > * https://patchwork.kernel.org/patch/9743225/
+> >   ASoC: cht_bsw_max98090_ti: Remove unused function cht_get_codec_dai()
+> > 
+> > ...plus more examples...
+> > 
+> 
+> Let us please not confuse the matter by suggesting that you cannot 
+> continue to do this work by simply removing the __attribute__((unused)) 
+> and emailing kernel-janitors to cleanup unused code (which should already 
+> be significantly small by the sheer fact that it is inlined).
 
-> 
-> > Yes, it's doable but a thing we need to merge new stat is concrete
-> > justification rather than "Having, Better. Why not?" approach.
-> > In my testing, I just wanted to know just file vs anon LRU balancing
-> > so it was out of my interest but you might have a reason to know it.
-> > Then, you can send a patch with detailed changelog. :)
-> 
-> Yes I agree, I don't like adding random stats either "just in case
-> they are useful".
-> 
-> For this stat, we too are interested in the balance between FILE and
-> ANON faults, because a zram page fault costs us about 10us, but the
-> latency from disk read to service the FILE fault is about 300us.  So
-> we want to ensure we're tuning swappiness correctly (and by the way,
-> we also apply another patch which allows swappiness values up to 200
-> instead of the obsolete 100 limit).  We run experiments, but we're
-> also collecting stats from the field (for the users that permit it),
-> so we have applied this patch to all our kernels.
-> 
-> This is as full an explanation as I can give concisely, would this be enough?
+The cleanup of current dead code isn't the primary goal here, the
+warning could help to prevent more unused code (and stupid errors as
+outlined by Doug) to creep in the kernel. Ideally these would be caught
+by automated builds like http://kerneltests.org/.
 
-That's one I had interested and for me, it was enough just PGMAJFAULT
-- PSWPIN. With that, we can know file-backed page's major fault vs.
-zram-swap backed page fault ratio. That was all I wanted to know and
-no need to know how many portion was shmem : anonymous from zram-swap.
+> > However, clang's behavior has also led to patches that add a
+> > "__maybe_unused" attribute (usually no increase in LOC unless it
+> > causes word wrap) and also added a handful of #ifdefs, as you've
+> > pointed out.  The example we already talked about was:
+> > 
+> 
+> The good work to remove truly dead code may easily continue while not 
+> adding more and more LOC to suppress these warnings for a compiler that is 
+> very heavily in the minority.
 
-So, I think we need following justification to merge this stat.
+The LOC argument in its literal sense does not apply in many cases,
+where adding __maybe_unused doesn't introduce a line wrap.
 
-1. Why PGMAJFAULT - PSWPIN is not enough for your interest?
-2. Why do you need to identify shmem's fault in anon major fault?
-
-> 
-> So there is benefit for us in getting this level of detail from
-> vmstat.  Of course it's not clear that the benefit extends to the
-> greater community.  If it is deemed to not be sufficiently important
-> to add those vmstat fields (3 more fields added to about 100, although
-> we could just add 2 since pgmajfault = sum(pjmajfault_{a,f,s}) then we
-> can maintain them separately for Chrome OS, and that will be fine.
-> 
-> Thanks!
-> 
-> 
-> 
-> >
-> > Thanks.
+Again, it's not so much a question of suppressing warnings for a
+minority compiler, but keeping a useful tool at a seemingly reasonable
+cost.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
