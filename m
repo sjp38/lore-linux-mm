@@ -1,153 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 069FD6B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 18:20:33 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a77so5962405wma.12
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 15:20:32 -0700 (PDT)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id x15si18108242wmf.110.2017.05.31.15.20.31
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4120C6B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 18:31:29 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 139so5985673wmf.5
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 15:31:29 -0700 (PDT)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id j24si132408wrd.187.2017.05.31.15.31.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 15:20:31 -0700 (PDT)
-Received: by mail-wm0-x236.google.com with SMTP id d127so37391651wmf.0
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 15:20:31 -0700 (PDT)
+        Wed, 31 May 2017 15:31:28 -0700 (PDT)
+Received: by mail-wm0-x22d.google.com with SMTP id 7so135712063wmo.1
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 15:31:27 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <9e610b16-86fc-e5a0-ea6b-19007348a6c3@I-love.SAKURA.ne.jp>
-References: <CAM_iQpWuPVGc2ky8M-9yukECtS+zKjiDasNymX7rMcBjBFyM_A@mail.gmail.com>
- <9e610b16-86fc-e5a0-ea6b-19007348a6c3@I-love.SAKURA.ne.jp>
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Date: Wed, 31 May 2017 15:20:10 -0700
-Message-ID: <CAM_iQpUNq7L-LQS673T-sOHXNMKw8yEzdwdHwkPb6bM32a=U9g@mail.gmail.com>
-Subject: Re: Yet another page allocation stall on 4.9
+In-Reply-To: <alpine.DEB.2.10.1705311436490.82977@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com>
+ <20170524212229.GR141096@google.com> <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org>
+ <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
+ <alpine.DEB.2.10.1705301704370.10695@chino.kir.corp.google.com>
+ <CAD=FV=Xi7NjDjsdwGP=GGS9p=uUpqZa7S=irNOFmhfD1F3kWZQ@mail.gmail.com> <alpine.DEB.2.10.1705311436490.82977@chino.kir.corp.google.com>
+From: Doug Anderson <dianders@chromium.org>
+Date: Wed, 31 May 2017 15:31:26 -0700
+Message-ID: <CAD=FV=WUGP9zw3Tw3dBm3v88zccUUkw7Uj-PjEaBUG9mQ7-7iw@mail.gmail.com>
+Subject: Re: [patch] compiler, clang: suppress warning for unused static
+ inline functions
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthias Kaehlcke <mka@chromium.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mark Brown <broonie@kernel.org>, Ingo Molnar <mingo@kernel.org>, David Miller <davem@davemloft.net>
 
-(Sorry for the delay)
+Hi,
 
-On Thu, May 25, 2017 at 4:17 AM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
-> Cong Wang wrote:
->> Below is the one we got when running LTP memcg_stress test with 150
->> memcg groups each with 0.5g memory on a 64G memory host. So far, this
->> is not reproducible at all.
+On Wed, May 31, 2017 at 2:45 PM, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 31 May 2017, Doug Anderson wrote:
 >
-> Since 150 * 0.5G > 64G, I assume that non-memcg OOM is possible.
+>> > Again, I defer to maintainers like Andrew and Ingo who have to deal with
+>> > an enormous amount of patches on how they would like to handle it; I don't
+>> > think myself or anybody else who doesn't deal with a large number of
+>> > patches should be mandating how it's handled.
+>> >
+>> > For reference, the patchset that this patch originated from added 8 lines
+>> > and removed 1, so I disagree that this cleans anything up; in reality, it
+>> > obfuscates the code and makes the #ifdef nesting more complex.
+>>
+>> As Matthias said, let's not argue about ifdeffs and instead talk about
+>> adding "maybe unused".  100% of these cases _can_ be solved by adding
+>> "maybe unused".  Then, if a maintainer thinks that an ifdef is cleaner
+>> / better in a particular case, we can use an ifdef in that case.
+>>
+>> Do you believe that adding "maybe unused" tags significantly uglifies
+>> the code?  I personally find them documenting.
+>>
 >
-> Since Node 1 Normal free is below min watermark, I assume that stalling
-> threads are trying to allocate from Node 1 Normal. And Node 1 is marked a=
-s
-> all_unreclaimable =3D=3D yes.
->
-> [16212.217051] Node 1 active_anon:32559600kB inactive_anon:13516kB active=
-_file:216kB inactive_file:212kB unevictable:0kB isolated(anon):0kB isolated=
-(file):0kB mapped:14208kB dirty:0kB writeback:0kB shmem:16628kB shmem_thp: =
-0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB unstable:0kB pages=
-_scanned:683486 all_unreclaimable? yes
-> [16212.217074] Node 1 Normal free:44744kB min:45108kB low:78068kB high:11=
-1028kB active_anon:32559600kB inactive_anon:13516kB active_file:216kB inact=
-ive_file:212kB unevictable:0kB writepending:0kB present:33554432kB managed:=
-32962516kB mlocked:0kB slab_reclaimable:39540kB slab_unreclaimable:144280kB=
- kernel_stack:5208kB pagetables:70388kB bounce:0kB free_pcp:1112kB local_pc=
-p:0kB free_cma:0kB
->
-> Since "page allocation stalls for" messages are printed for allocation re=
-quests
-> which can invoke the OOM killer, something is preventing them from callin=
-g out_of_memory().
-> There are no OOM killer messages around these stalls, aren't there?
+> But then you've eliminated the possibility of finding dead code again,
+> which is the only point to the warning :)  So now we have patches going to
+> swamped maintainers to add #ifdef's, more LOC, and now patches to sprinkle
+> __maybe_unused throughout the code to not increase LOC in select areas but
+> then we can't find dead code again.
 
-I didn't see any OOM message in our (partial) kernel log.
+True, once code is marked __maybe_unused once then it can no longer be
+found later, even if it becomes completely dead.  ...but this is also
+no different for __maybe_unused code that is _not_ marked as "static
+inline".
+
+Basically, my argument here is that "static inline" functions in ".c"
+files should not be treated differently than "static" functions in
+".c" files.  We have always agreed to add __maybe_unused for "static"
+functions.
+
+Also: allowing us to leave the warning turned on (and have no false
+positives reported) mean that, as new code is added we'll be able to
+find problems in the new code.  This is where it's most important.
 
 
->
-> [16216.520770] warn_alloc: 5 callbacks suppressed
-> [16216.520775] scribed: page allocation stalls for 35691ms, order:0, mode=
-:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-> [16216.631514] memcg_process_s: page allocation stalls for 31710ms, order=
-:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-> [16216.854787] scribed: page allocation stalls for 35977ms, order:0, mode=
-:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-> [16216.984835] scribed: page allocation stalls for 36056ms, order:0, mode=
-:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
-> [16217.075797] memcg_process_s: page allocation stalls for 32206ms, order=
-:0, mode:0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD)
->
-> One of possibilities that can prevent them from calling out_of_memory() i=
-s that
-> should_reclaim_retry() continues returning true for some reason. If that =
-is the
-> case, at least did_some_progress > 0 was true when should_reclaim_retry()=
- is
-> called, otherwise should_reclaim_retry() will eventually return false due=
- to
-> MAX_RECLAIM_RETRIES check. This means that try_to_free_pages() is returni=
-ng
-> non-zero value via __alloc_pages_direct_reclaim(). Then, something is set=
-ting
-> sc->nr_reclaimed to non-zero? mem_cgroup_soft_limit_reclaim() in shrink_z=
-ones() ?
-> But how? Let's wait for comments from mm experts...
->
+> My suggestion is to match gcc behavior and if anybody is in the business
+> of cleaning up truly dead code, send patches.  Tools exist to do this
+> outside of relying on a minority compiler during compilation.  Otherwise,
+> this is simply adding more burden to already swamped maintainers to
+> annotate every single static inline function that clang complains about.
+> I'd prefer to let them decide and this will be the extent of my
+> participation in this thread.
 
-Yeah, I am not familiar with that code at all, especially after OOM killer
-is written recently.
+Maybe Matthias can give actual stats here, but I think "every single"
+overstates the issue a bit.  I get the impression we're talking
+something like ~30-40 patches that don't actually delete dead code and
+just add "maybe unused".  Given that nobody has ever looked for these
+functions before, I'd expect that new code is unlikely to cause a new
+deluge of patches.
 
+Note also that Matthias started a bigger thread to discuss this
+(subject: [RFC] clang: 'unused-function' warning on static inline
+functions).  Maybe we should move the discussion there so it's not so
+scattered?
 
->
->
->> Please let me know if I can provide any other information you need.
->
-> Did these stalls last forever until you take actions like SysRq-i ?
-
-
-Seem so, machine was rebooted after that.
-
-
-> I suspect it might not a lockup but slow down due to over-stressing.
->
-> I wonder why soft lockup warnings are there.
-
-I guess the kernel watchdog detects the same stall, but I also see
-there is cond_resched() in that code but it was never called for some
-reason.
-
-
->
-> [16212.217026] CPU: 4 PID: 3872 Comm: scribed Not tainted 4.9.23.el7.twit=
-ter.x86_64 #1
-> [16213.505627] NMI watchdog: BUG: soft lockup - CPU#5 stuck for 23s!
-> [16213.505713] CPU: 5 PID: 7598 Comm: cleanup Not tainted 4.9.23.el7.twit=
-ter.x86_64 #1
-> [16214.250659] NMI watchdog: BUG: soft lockup - CPU#17 stuck for 22s!
-> [16214.250765] CPU: 17 PID: 3905 Comm: scribed Tainted: G             L 4=
-.9.23.el7.twitter.x86_64 #1
-> [16215.357554] CPU: 20 PID: 7812 Comm: proxymap Tainted: G             L =
-4.9.23.el7.twitter.x86_64 #1
-> [16217.047932] CPU: 8 PID: 827 Comm: crond Tainted: G             L 4.9.2=
-3.el7.twitter.x86_64 #1
->
-> But these stalls and first time of soft lockup ('L' bit set to tainted_ma=
-sk variable) seems to
-> occurred roughly at the same time. The first time of soft lockup began ar=
-ound uptime =3D 16190.
-> Assuming "warn_alloc: 5 callbacks suppressed" is due to allocation stalls=
-, when was the
-> first time page allocation stall began? If it began around uptime =3D 161=
-80, these soft lockup
-> warnings might be caused by trying to print too much messages via warn_al=
-loc() to slow consoles.
->
-
-The log I sent is partial, but that is already all what we captured,
-I can't find more in kern.log due to log rotation.
-
-Please let me know if I can provide any other information.
-
-Thanks for looking into it!
+-Doug
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
