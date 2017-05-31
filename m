@@ -1,94 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C8806B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 07:39:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a77so1977389wma.12
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 04:39:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r17si15315988edc.177.2017.05.31.04.39.08
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB686B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 07:42:41 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w79so1992013wme.7
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 04:42:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u22si2103971wrb.323.2017.05.31.04.42.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 04:39:09 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v4VBcxrg078647
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 07:39:07 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2asvvurmu4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 07:39:07 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Wed, 31 May 2017 12:39:05 +0100
-Date: Wed, 31 May 2017 13:39:00 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 2/6] mm: vmstat: move slab statistics from zone to node
- counters
-References: <20170530181724.27197-1-hannes@cmpxchg.org>
- <20170530181724.27197-3-hannes@cmpxchg.org>
- <20170531091256.GA5914@osiris>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 May 2017 04:42:39 -0700 (PDT)
+Date: Wed, 31 May 2017 13:42:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/4] mm, tree wide: replace __GFP_REPEAT by
+ __GFP_RETRY_MAYFAIL with more useful semantic
+Message-ID: <20170531114236.GJ27783@dhcp22.suse.cz>
+References: <20170307154843.32516-1-mhocko@kernel.org>
+ <20170307154843.32516-3-mhocko@kernel.org>
+ <87a861ivem.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170531091256.GA5914@osiris>
-Message-Id: <20170531113900.GB5914@osiris>
+In-Reply-To: <87a861ivem.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Josef Bacik <josef@toxicpanda.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-s390@vger.kernel.org
+To: NeilBrown <neilb@suse.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 31, 2017 at 11:12:56AM +0200, Heiko Carstens wrote:
-> On Tue, May 30, 2017 at 02:17:20PM -0400, Johannes Weiner wrote:
-> > To re-implement slab cache vs. page cache balancing, we'll need the
-> > slab counters at the lruvec level, which, ever since lru reclaim was
-> > moved from the zone to the node, is the intersection of the node, not
-> > the zone, and the memcg.
-> > 
-> > We could retain the per-zone counters for when the page allocator
-> > dumps its memory information on failures, and have counters on both
-> > levels - which on all but NUMA node 0 is usually redundant. But let's
-> > keep it simple for now and just move them. If anybody complains we can
-> > restore the per-zone counters.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> This patch causes an early boot crash on s390 (linux-next as of today).
-> CONFIG_NUMA on/off doesn't make any difference. I haven't looked any
-> further into this yet, maybe you have an idea?
-> 
-> Kernel BUG at 00000000002b0362 [verbose debug info unavailable]
-> addressing exception: 0005 ilc:3 [#1] SMP
-> Modules linked in:
-> CPU: 0 PID: 0 Comm: swapper Not tainted 4.12.0-rc3-00153-gb6bc6724488a #16
-> Hardware name: IBM 2964 N96 702 (z/VM 6.4.0)
-> task: 0000000000d75d00 task.stack: 0000000000d60000
-> Krnl PSW : 0404200180000000 00000000002b0362 (mod_node_page_state+0x62/0x158)
->            R:0 T:1 IO:0 EX:0 Key:0 M:1 W:0 P:0 AS:0 CC:2 PM:0 RI:0 EA:3
-> Krnl GPRS: 0000000000000001 000000003d81f000 0000000000000000 0000000000000006
->            0000000000000001 0000000000f29b52 0000000000000041 0000000000000000
->            0000000000000007 0000000000000040 000000003fe81000 000003d100ffa000
->            0000000000ee1cd0 0000000000979040 0000000000300abc 0000000000d63c90
-> Krnl Code: 00000000002b0350: e31003900004 lg %r1,912
->            00000000002b0356: e320f0a80004 lg %r2,168(%r15)
->           #00000000002b035c: e31120000090 llgc %r1,0(%r1,%r2)
->           >00000000002b0362: b9060011  lgbr %r1,%r1
->            00000000002b0366: e32003900004 lg %r2,912
->            00000000002b036c: e3c280000090 llgc %r12,0(%r2,%r8)
->            00000000002b0372: b90600ac  lgbr %r10,%r12
->            00000000002b0376: b904002a  lgr %r2,%r10
-> Call Trace:
-> ([<0000000000000000>]           (null))
->  [<0000000000300abc>] new_slab+0x35c/0x628
->  [<000000000030740c>] __kmem_cache_create+0x33c/0x638
->  [<0000000000e99c0e>] create_boot_cache+0xae/0xe0
->  [<0000000000e9e12c>] kmem_cache_init+0x5c/0x138
->  [<0000000000e7999c>] start_kernel+0x24c/0x440
->  [<0000000000100020>] _stext+0x20/0x80
-> Last Breaking-Event-Address:
->  [<0000000000300ab6>] new_slab+0x356/0x628
+[I am sorry but I didn't get to this earlier]
 
-FWIW, it looks like your patch only triggers a bug that was introduced with
-a different change that somehow messes around with the pages used to setup
-the kernel page tables. I'll look into this.
+On Thu 25-05-17 11:21:05, NeilBrown wrote:
+> On Tue, Mar 07 2017, Michal Hocko wrote:
+> 
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index 2bfcfd33e476..60af7937c6f2 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -25,7 +25,7 @@ struct vm_area_struct;
+> >  #define ___GFP_FS		0x80u
+> >  #define ___GFP_COLD		0x100u
+> >  #define ___GFP_NOWARN		0x200u
+> > -#define ___GFP_REPEAT		0x400u
+> > +#define ___GFP_RETRY_MAYFAIL		0x400u
+> >  #define ___GFP_NOFAIL		0x800u
+> >  #define ___GFP_NORETRY		0x1000u
+> >  #define ___GFP_MEMALLOC		0x2000u
+> > @@ -136,26 +136,38 @@ struct vm_area_struct;
+> >   *
+> >   * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
+> >   *
+> > - * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+> > - *   _might_ fail.  This depends upon the particular VM implementation.
+> > + * The default allocator behavior depends on the request size. We have a concept
+> > + * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
+> 
+> Boundary conditions is one of my pet peeves....
+> The description here suggests that an allocation of
+> "1<<PAGE_ALLOC_COSTLY_ORDER" pages is not "costly", which is
+> inconsistent with how those words would normally be interpreted.
+> 
+> Looking at the code I see comparisons like:
+> 
+>    order < PAGE_ALLOC_COSTLY_ORDER
+> or
+>    order >= PAGE_ALLOC_COSTLY_ORDER
+> 
+> which supports the documented (but incoherent) meaning.
+> 
+> But I also see:
+> 
+>   order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
+
+this smells fishy. Very similarly to other PAGE_ALLOC_COSTLY_ORDER usage
+out of the mm proper. Many of them can be simply changed to use
+kvmalloc. I will put this on my todo list for a later cleanup. There
+shouldn't be any real need to care about PAGE_ALLOC_COSTLY_ORDER.
+
+> which looks like it is trying to perform the largest non-costly
+> allocation, but is making a smaller allocation than necessary.
+> 
+> I would *really* like it if the constant actually meant what its name
+> implied.
+> 
+>  PAGE_ALLOC_MAX_NON_COSTLY
+> ??
+
+Yeah, I can see how this can be confusing. Maybe this is worth a
+separate cleanup? I wouldn't like to conflate it with this patch.
+ 
+> > + * !costly allocations are too essential to fail so they are implicitly
+> > + * non-failing (with some exceptions like OOM victims might fail) by default while
+> > + * costly requests try to be not disruptive and back off even without invoking
+> > + * the OOM killer. The following three modifiers might be used to override some of
+> > + * these implicit rules
+> > + *
+> > + * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
+> > + *   return NULL when direct reclaim and memory compaction have failed to allow
+> > + *   the allocation to succeed.  The OOM killer is not called with the current
+> > + *   implementation. This is a default mode for costly allocations.
+> 
+> The name here is "NORETRY", but the text says "not retry indefinitely".
+> So does it retry or not?
+> I would assuming it "tried" once, and only once.
+> However it could be that a "try" is not a simple well defined task.
+
+This is the case unfortunatelly. E.g. we have that node_reclaim thing
+which will try to reclaim a local node before falling back to other
+nodes. And that counts as a direct reclaim attempt and that happens in
+the allocator fast path. We do get to the allocator slow path where we
+do the full direct reclaim attempt and give up only if that fails.
+Confusing? I can see how...
+
+> Maybe some escalation happens on the 2nd or 3rd "try", so they are really
+> trying different things?
+> 
+> The word "indefinitely" implies there is a definite limit.  It might
+> help to say what that is, or at least say that it is small.
+
+OK.
+ 
+> Also, this documentation is phrased to tell the VM implementor what is,
+> or is not, allowed.  Most readers will be more interested is the
+> responsibilities of the caller.
+> 
+>   __GFP_NORETRY: The VM implementation will not retry after all
+>      reasonable avenues for finding free memory have been pursued.  The
+>      implementation may sleep (i.e. call 'schedule()'), but only while
+>      waiting for another task to perform some specific action.
+>      The caller must handle failure.  This flag is suitable when failure can
+>      easily be handled at small cost, such as reduced throughput.
+
+The above is not precise. What about the following?
+
+__GFP_NORETRY: The VM implementation will not try only very lightweight
+memory direct reclaim to get some memory under memory pressure (thus
+it can sleep). It will avoid disruptive actions like OOM killer. The
+caller must handle the failure which is quite likely to happen under
+heavy memory pressure. The flag is suitable when failure can easily be
+handled at small cost, such as reduced throughput
+
+
+> > + *
+> > + * __GFP_RETRY_MAYFAIL: Try hard to allocate the memory, but the allocation attempt
+> > + *   _might_ fail. All viable forms of memory reclaim are tried before the fail.
+> > + *   The OOM killer is excluded because this would be too disruptive. This can be
+> > + *   used to override non-failing default behavior for !costly requests as well as
+> > + *   fortify costly requests.
+> 
+> What does "Try hard" mean?
+> In part, it means "retry everything a few more times", I guess in the
+> hope that something happened in the mean time.
+> It also seems to mean waiting for compaction to happen, which I
+> guess is only relevant for >PAGE_SIZE allocations?
+> Maybe it also means waiting for page-out to complete.
+> So the summary would be that it waits for a little while, hoping for a
+> miracle.
+> 
+>    __GFP_RETRY_MAYFAIL:  The VM implementation will retry memory reclaim
+>      procedures that have previously failed if there is some indication
+>      that progress has been made else where.  It can wait for other
+>      tasks to attempt high level approaches to freeing memory such as
+>      compaction (which removed fragmentation) and page-out.
+>      There is still a definite limit to the number of retries, but it is
+>      a larger limit than with __GFP_NORERY.
+>      Allocations with this flag may fail, but only when there is
+>      genuinely little unused memory. While these allocations do not
+>      directly trigger the OOM killer, their failure indicates that the
+>      system is likely to need to use the OOM killer soon.
+>      The caller must handle failure, but can reasonably do so by failing
+>      a higher-level request, or completing it only in a much less
+>      efficient manner.
+>      If the allocation does fail, and the caller is in a position to
+>      free some non-essential memory, doing so could benefit the system
+>      as a whole.
+
+OK
+
+> >   *
+> >   * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
+> >   *   cannot handle allocation failures. New users should be evaluated carefully
+> >   *   (and the flag should be used only when there is no reasonable failure
+> >   *   policy) but it is definitely preferable to use the flag rather than
+> > - *   opencode endless loop around allocator.
+> > - *
+> > - * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
+> > - *   return NULL when direct reclaim and memory compaction have failed to allow
+> > - *   the allocation to succeed.  The OOM killer is not called with the current
+> > - *   implementation.
+> > + *   opencode endless loop around allocator. Using this flag for costly allocations
+> > + *   is _highly_ discouraged.
+> 
+> Should this explicitly say that the OOM killer might be invoked in an attempt
+> to satisfy this allocation?
+
+Well that depends. Normally it does but E.g. __GFP_NOFAIL | GFP_NOFS
+will not trigger the OOM killer because we never trigger OOM killer for
+NOFS requests as a lot of metadata might be pinned under the current fs
+context.
+
+> Is the OOM killer *only* invoked from
+> allocations with __GFP_NOFAIL ?
+
+No. Most !costly allocation requests with __GFP_DIRECT_RECLAIM are
+allowed to trigger the OOM killer. There are some exceptions described
+in  __alloc_pages_may_oom. I am not sure we want to docment those in the
+high level documentation. 
+
+> Maybe be extra explicit "The allocation could block indefinitely but
+> will never return with failure.  Testing for failure is pointless.".
+
+OK
+
+> I've probably got several specifics wrong.  I've tried to answer the
+> questions that I would like to see answered by the documentation.   If
+> you can fix it up so that those questions are answered correctly, that
+> would be great.
+
+This is what I will fold into the patch:
+---
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 60af7937c6f2..9c96c739d726 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -144,23 +144,40 @@ struct vm_area_struct;
+  * the OOM killer. The following three modifiers might be used to override some of
+  * these implicit rules
+  *
+- * __GFP_NORETRY: The VM implementation must not retry indefinitely and will
+- *   return NULL when direct reclaim and memory compaction have failed to allow
+- *   the allocation to succeed.  The OOM killer is not called with the current
+- *   implementation. This is a default mode for costly allocations.
+- *
+- * __GFP_RETRY_MAYFAIL: Try hard to allocate the memory, but the allocation attempt
+- *   _might_ fail. All viable forms of memory reclaim are tried before the fail.
+- *   The OOM killer is excluded because this would be too disruptive. This can be
+- *   used to override non-failing default behavior for !costly requests as well as
+- *   fortify costly requests.
++ * __GFP_NORETRY: The VM implementation will not try only very lightweight
++ *   memory direct reclaim to get some memory under memory pressure (thus
++ *   it can sleep). It will avoid disruptive actions like OOM killer. The
++ *   caller must handle the failure which is quite likely to happen under
++ *   heavy memory pressure. The flag is suitable when failure can easily be
++ *   handled at small cost, such as reduced throughput
++ *
++ * __GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
++ *   procedures that have previously failed if there is some indication
++ *   that progress has been made else where.  It can wait for other
++ *   tasks to attempt high level approaches to freeing memory such as
++ *   compaction (which removed fragmentation) and page-out.
++ *   There is still a definite limit to the number of retries, but it is
++ *   a larger limit than with __GFP_NORERY.
++ *   Allocations with this flag may fail, but only when there is
++ *   genuinely little unused memory. While these allocations do not
++ *   directly trigger the OOM killer, their failure indicates that
++ *   the system is likely to need to use the OOM killer soon.  The
++ *   caller must handle failure, but can reasonably do so by failing
++ *   a higher-level request, or completing it only in a much less
++ *   efficient manner.
++ *   If the allocation does fail, and the caller is in a position to
++ *   free some non-essential memory, doing so could benefit the system
++ *   as a whole.
+  *
+  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
+- *   cannot handle allocation failures. New users should be evaluated carefully
+- *   (and the flag should be used only when there is no reasonable failure
+- *   policy) but it is definitely preferable to use the flag rather than
+- *   opencode endless loop around allocator. Using this flag for costly allocations
+- *   is _highly_ discouraged.
++ *   cannot handle allocation failures. The allocation could block
++ *   indefinitely but will never return with failure. Testing for
++ *   failure is pointless.
++ *   New users should be evaluated carefully (and the flag should be
++ *   used only when there is no reasonable failure policy) but it is
++ *   definitely preferable to use the flag rather than opencode endless
++ *   loop around allocator.
++ *   Using this flag for costly allocations is _highly_ discouraged.
+  */
+ #define __GFP_IO	((__force gfp_t)___GFP_IO)
+ #define __GFP_FS	((__force gfp_t)___GFP_FS)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
