@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0AB6B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:09:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 204so3531952wmy.1
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:09:31 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 359466B02F3
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:20:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d127so3548548wmf.15
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:20:11 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 136si31206223wmy.80.2017.05.31.08.09.30
+        by mx.google.com with ESMTPS id o3si13814891wmi.82.2017.05.31.08.20.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 May 2017 08:09:30 -0700 (PDT)
-Date: Wed, 31 May 2017 17:09:23 +0200
+        Wed, 31 May 2017 08:20:09 -0700 (PDT)
+Date: Wed, 31 May 2017 17:20:07 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: add NULL check to avoid potential NULL pointer
- dereference
-Message-ID: <20170531150922.GA28694@dhcp22.suse.cz>
-References: <20170530212436.GA6195@embeddedgus>
+Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
+ is low
+Message-ID: <20170531152007.GS27783@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+ <20170418013659.GD21354@bbox>
+ <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
+ <20170419001405.GA13364@bbox>
+ <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+ <20170420060904.GA3720@bbox>
+ <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170530212436.GA6195@embeddedgus>
+In-Reply-To: <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Gustavo A. R. Silva" <garsilva@embeddedor.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 30-05-17 16:24:36, Gustavo A. R. Silva wrote:
-> NULL check at line 1226: if (!pgdat), implies that pointer pgdat
-> might be NULL.
-> Function rollback_node_hotadd() dereference this pointer.
-> Add NULL check to avoid a potential NULL pointer dereference.
+Andrew,
+it seems that this patch fallen through cracks. I am sorry if this was
+due to my review feedback because it turned out that I missed the point
+and later added my Acked-by. Sorry about that
 
-The changelog is quite cryptic to be honest. Well the code is as well
-but what do you say about the following replacement.
-
-"
-If a new pgdat has to be allocated in add_memory_resource
-and the initialization fails for some reason we have to
-rollback_node_hotadd. This, however, assumes that pgdat allocation
-itself is successful which cannot be assumed. Add a check for pgdat
-to cover that case and skip rollback_node_hotadd altogether because
-there is nothing to roll back.
-
-This has been pointed out by coverity.
-"
+On Mon 01-05-17 14:34:21, David Rientjes wrote:
+> The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+> not swap anon pages just because free+file is low'") reintroduces is to
+> prefer swapping anonymous memory rather than trashing the file lru.
 > 
-> Addresses-Coverity-ID: 1369133
-> Signed-off-by: Gustavo A. R. Silva <garsilva@embeddedor.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> If the anonymous inactive lru for the set of eligible zones is considered
+> low, however, or the length of the list for the given reclaim priority
+> does not allow for effective anonymous-only reclaiming, then avoid
+> forcing SCAN_ANON.  Forcing SCAN_ANON will end up thrashing the small
+> list and leave unreclaimed memory on the file lrus.
+> 
+> If the inactive list is insufficient, fallback to balanced reclaim so the
+> file lru doesn't remain untouched.
+> 
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 > ---
->  mm/memory_hotplug.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  to akpm: this issue has been possible since at least 3.15, so it's
+>  probably not high priority for 4.12 but applies cleanly if it can sneak
+>  in
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 599c675..ea3bc3e 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1273,7 +1273,7 @@ int __ref add_memory_resource(int nid, struct resource *res, bool online)
+>  mm/vmscan.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2204,8 +2204,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>  		}
 >  
->  error:
->  	/* rollback pgdat allocation and others */
-> -	if (new_pgdat)
-> +	if (new_pgdat && pgdat)
->  		rollback_node_hotadd(nid, pgdat);
->  	memblock_remove(start, size);
+>  		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
+> -			scan_balance = SCAN_ANON;
+> -			goto out;
+> +			/*
+> +			 * Force SCAN_ANON if there are enough inactive
+> +			 * anonymous pages on the LRU in eligible zones.
+> +			 * Otherwise, the small LRU gets thrashed.
+> +			 */
+> +			if (!inactive_list_is_low(lruvec, false, sc, false) &&
+> +			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+> +					>> sc->priority) {
+> +				scan_balance = SCAN_ANON;
+> +				goto out;
+> +			}
+>  		}
+>  	}
 >  
-> -- 
-> 2.5.0
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
