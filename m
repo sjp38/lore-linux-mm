@@ -1,375 +1,739 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E73D6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 22:36:59 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s62so1303114pgc.2
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 19:36:59 -0700 (PDT)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id p28si46649061pli.167.2017.05.30.19.36.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8C36B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 00:00:15 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s62so2377473pgc.2
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 21:00:15 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id 92si32235037pli.34.2017.05.30.21.00.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 19:36:58 -0700 (PDT)
-Received: by mail-pg0-x234.google.com with SMTP id 8so880128pgc.2
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 19:36:57 -0700 (PDT)
-Date: Tue, 30 May 2017 19:36:47 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: 4.12-rc jbd2 cpu_hotplug RECLAIM_FS lockdep splat
-Message-ID: <alpine.LSU.2.11.1705301933510.11809@eggly.anvils>
+        Tue, 30 May 2017 21:00:14 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id h64so410761pge.3
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 21:00:14 -0700 (PDT)
+Date: Wed, 31 May 2017 13:59:54 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use
+ with device memory v4
+Message-ID: <20170531135954.1d67ca31@firefly.ozlabs.ibm.com>
+In-Reply-To: <20170524172024.30810-13-jglisse@redhat.com>
+References: <20170524172024.30810-1-jglisse@redhat.com>
+	<20170524172024.30810-13-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-I don't get this at all easily, but memcg reclaim on 4.12-rc does
-eventually give me a lockdep splat, implicating jbd2 and cpu hotplug
-and RECLAIM_FS - which sound like Michal territory to me, though of
-course I can barely understand a word of the report: hope you can!
+On Wed, 24 May 2017 13:20:21 -0400
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
 
-Hugh
+> This patch add a new memory migration helpers, which migrate memory
+> backing a range of virtual address of a process to different memory
+> (which can be allocated through special allocator). It differs from
+> numa migration by working on a range of virtual address and thus by
+> doing migration in chunk that can be large enough to use DMA engine
+> or special copy offloading engine.
+>=20
+> Expected users are any one with heterogeneous memory where different
+> memory have different characteristics (latency, bandwidth, ...). As
+> an example IBM platform with CAPI bus can make use of this feature
+> to migrate between regular memory and CAPI device memory. New CPU
+> architecture with a pool of high performance memory not manage as
+> cache but presented as regular memory (while being faster and with
+> lower latency than DDR) will also be prime user of this patch.
+>=20
+> Migration to private device memory will be useful for device that
+> have large pool of such like GPU, NVidia plans to use HMM for that.
+>=20
 
-[18874.045075] =====================================================
-[18874.046735] WARNING: RECLAIM_FS-safe -> RECLAIM_FS-unsafe lock order detected
-[18874.048443] 4.12.0-rc3 #2 Not tainted
-[18874.050101] -----------------------------------------------------
-[18874.051892] cc1/16472 [HC0[0]:SC0[0]:HE1:SE1] is trying to acquire:
-[18874.053681]  (cpu_hotplug.dep_map){++++++}, at: [<ffffffff8109ff21>] get_online_cpus+0x29/0x71
-[18874.055390] 
-and this task is already holding:
-[18874.058697]  (jbd2_handle){++++-.}, at: [<ffffffff81252744>] start_this_handle+0x328/0x3c0
-[18874.060388] which would create a new lock dependency:
-[18874.062066]  (jbd2_handle){++++-.} -> (cpu_hotplug.dep_map){++++++}
-[18874.063824] 
-but this new dependency connects a RECLAIM_FS-irq-safe lock:
-[18874.067242]  (jbd2_handle){++++-.}
-[18874.067246] 
-... which became RECLAIM_FS-irq-safe at:
-[18874.072517]   __lock_acquire+0x3f8/0x1526
-[18874.074306]   lock_acquire+0x51/0x6c
-[18874.076071]   jbd2_log_wait_commit+0x73/0x14b
-[18874.077805]   jbd2_complete_transaction+0x8b/0x94
-[18874.079384]   ext4_evict_inode+0xc5/0x3bc
-[18874.080948]   evict+0xc4/0x179
-[18874.082516]   dispose_list+0x42/0x65
-[18874.084326]   prune_icache_sb+0x45/0x50
-[18874.086010]   super_cache_scan+0x129/0x16e
-[18874.087609]   shrink_slab+0x1e2/0x29c
-[18874.089180]   shrink_node+0xfc/0x2cb
-[18874.090793]   kswapd+0x4ac/0x600
-[18874.092361]   kthread+0x12e/0x136
-[18874.093998]   ret_from_fork+0x27/0x40
-[18874.095567] 
-to a RECLAIM_FS-irq-unsafe lock:
-[18874.098728]  (cpu_hotplug.dep_map){++++++}
-[18874.098732] 
-... which became RECLAIM_FS-irq-unsafe at:
-[18874.103495] ...
-[18874.103501]   mark_held_locks+0x50/0x6e
-[18874.106592]   lockdep_trace_alloc+0xc2/0xe5
-[18874.108142]   kmem_cache_alloc_node+0x41/0x1b8
-[18874.109701]   __smpboot_create_thread+0x53/0xe6
-[18874.111315]   smpboot_create_threads+0x32/0x64
-[18874.112859]   cpuhp_invoke_callback+0x4a/0xe6
-[18874.114450]   cpuhp_up_callbacks+0x2e/0x7d
-[18874.116085]   _cpu_up+0x87/0xb3
-[18874.117470]   do_cpu_up+0x54/0x65
-[18874.118934]   cpu_up+0xe/0x10
-[18874.120374]   smp_init+0x4d/0xd3
-[18874.121805]   kernel_init_freeable+0x7e/0x1a0
-[18874.123205]   kernel_init+0x9/0xf3
-[18874.124529]   ret_from_fork+0x27/0x40
-[18874.125883] 
-other info that might help us debug this:
+It is helpful, for HMM-CDM however we would like to avoid the downsides
+of MIGRATE_SYNC_NOCOPY
 
-[18874.130192]  Possible interrupt unsafe locking scenario:
+> Changes since v3:
+>   - Rebase
+>=20
+> Changes since v2:
+>   - droped HMM prefix and HMM specific code
+> Changes since v1:
+>   - typos fix
+>   - split early unmap optimization for page with single mapping
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+> ---
+>  include/linux/migrate.h | 104 ++++++++++++
+>  mm/migrate.c            | 444 ++++++++++++++++++++++++++++++++++++++++++=
+++++++
+>  2 files changed, 548 insertions(+)
+>=20
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 78a0fdc..576b3f5 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -127,4 +127,108 @@ static inline int migrate_misplaced_transhuge_page(=
+struct mm_struct *mm,
+>  }
+>  #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
+> =20
+> +
+> +#ifdef CONFIG_MIGRATION
+> +
+> +#define MIGRATE_PFN_VALID	(1UL << 0)
+> +#define MIGRATE_PFN_MIGRATE	(1UL << 1)
+> +#define MIGRATE_PFN_LOCKED	(1UL << 2)
+> +#define MIGRATE_PFN_WRITE	(1UL << 3)
+> +#define MIGRATE_PFN_ERROR	(1UL << 4)
+> +#define MIGRATE_PFN_SHIFT	5
+> +
+> +static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
+> +{
+> +	if (!(mpfn & MIGRATE_PFN_VALID))
+> +		return NULL;
+> +	return pfn_to_page(mpfn >> MIGRATE_PFN_SHIFT);
+> +}
+> +
+> +static inline unsigned long migrate_pfn(unsigned long pfn)
+> +{
+> +	return (pfn << MIGRATE_PFN_SHIFT) | MIGRATE_PFN_VALID;
+> +}
+> +
+> +/*
+> + * struct migrate_vma_ops - migrate operation callback
+> + *
+> + * @alloc_and_copy: alloc destination memory and copy source memory to it
+> + * @finalize_and_map: allow caller to map the successfully migrated pages
+> + *
+> + *
+> + * The alloc_and_copy() callback happens once all source pages have been=
+ locked,
+> + * unmapped and checked (checked whether pinned or not). All pages that =
+can be
+> + * migrated will have an entry in the src array set with the pfn value o=
+f the
+> + * page and with the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set =
+(other
+> + * flags might be set but should be ignored by the callback).
+> + *
+> + * The alloc_and_copy() callback can then allocate destination memory an=
+d copy
+> + * source memory to it for all those entries (ie with MIGRATE_PFN_VALID =
+and
+> + * MIGRATE_PFN_MIGRATE flag set). Once these are allocated and copied, t=
+he
+> + * callback must update each corresponding entry in the dst array with t=
+he pfn
+> + * value of the destination page and with the MIGRATE_PFN_VALID and
+> + * MIGRATE_PFN_LOCKED flags set (destination pages must have their struc=
+t pages
+> + * locked, via lock_page()).
+> + *
+> + * At this point the alloc_and_copy() callback is done and returns.
+> + *
+> + * Note that the callback does not have to migrate all the pages that are
+> + * marked with MIGRATE_PFN_MIGRATE flag in src array unless this is a mi=
+gration
+> + * from device memory to system memory (ie the MIGRATE_PFN_DEVICE flag i=
+s also
+> + * set in the src array entry). If the device driver cannot migrate a de=
+vice
+> + * page back to system memory, then it must set the corresponding dst ar=
+ray
+> + * entry to MIGRATE_PFN_ERROR. This will trigger a SIGBUS if CPU tries to
+> + * access any of the virtual addresses originally backed by this page. B=
+ecause
+> + * a SIGBUS is such a severe result for the userspace process, the device
+> + * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in =
+an
+> + * unrecoverable state.
+> + *
+> + * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY EN=
+TRIES
+> + * OR BAD THINGS WILL HAPPEN !
+> + *
+> + *
+> + * The finalize_and_map() callback happens after struct page migration f=
+rom
+> + * source to destination (destination struct pages are the struct pages =
+for the
+> + * memory allocated by the alloc_and_copy() callback).  Migration can fa=
+il, and
+> + * thus the finalize_and_map() allows the driver to inspect which pages =
+were
+> + * successfully migrated, and which were not. Successfully migrated page=
+s will
+> + * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
+> + *
+> + * It is safe to update device page table from within the finalize_and_m=
+ap()
+> + * callback because both destination and source page are still locked, a=
+nd the
+> + * mmap_sem is held in read mode (hence no one can unmap the range being
+> + * migrated).
+> + *
+> + * Once callback is done cleaning up things and updating its page table =
+(if it
+> + * chose to do so, this is not an obligation) then it returns. At this p=
+oint,
+> + * the HMM core will finish up the final steps, and the migration is com=
+plete.
+> + *
+> + * THE finalize_and_map() CALLBACK MUST NOT CHANGE ANY OF THE SRC OR DST=
+ ARRAY
+> + * ENTRIES OR BAD THINGS WILL HAPPEN !
+> + */
+> +struct migrate_vma_ops {
+> +	void (*alloc_and_copy)(struct vm_area_struct *vma,
+> +			       const unsigned long *src,
+> +			       unsigned long *dst,
+> +			       unsigned long start,
+> +			       unsigned long end,
+> +			       void *private);
+> +	void (*finalize_and_map)(struct vm_area_struct *vma,
+> +				 const unsigned long *src,
+> +				 const unsigned long *dst,
+> +				 unsigned long start,
+> +				 unsigned long end,
+> +				 void *private);
+> +};
+> +
+> +int migrate_vma(const struct migrate_vma_ops *ops,
+> +		struct vm_area_struct *vma,
+> +		unsigned long start,
+> +		unsigned long end,
+> +		unsigned long *src,
+> +		unsigned long *dst,
+> +		void *private);
+> +
+> +#endif /* CONFIG_MIGRATION */
+> +
+>  #endif /* _LINUX_MIGRATE_H */
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 66410fc..12063f3 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -397,6 +397,14 @@ int migrate_page_move_mapping(struct address_space *=
+mapping,
+>  	int expected_count =3D 1 + extra_count;
+>  	void **pslot;
+> =20
+> +	/*
+> +	 * ZONE_DEVICE pages have 1 refcount always held by their device
+> +	 *
+> +	 * Note that DAX memory will never reach that point as it does not have
+> +	 * the MEMORY_DEVICE_ALLOW_MIGRATE flag set (see memory_hotplug.h).
 
-[18874.133168]        CPU0                    CPU1
-[18874.134597]        ----                    ----
-[18874.136033]   lock(cpu_hotplug.dep_map);
-[18874.137431]                                local_irq_disable();
-[18874.138879]                                lock(jbd2_handle);
-[18874.140353]                                lock(cpu_hotplug.dep_map);
-[18874.141840]   <Interrupt>
-[18874.143137]     lock(jbd2_handle);
-[18874.144543] 
- *** DEADLOCK ***
+I couldn't find this flag in memory_hotplug.h? stale comment?
 
-[18874.148439] 3 locks held by cc1/16472:
-[18874.149711]  #0:  (sb_writers#3){.+.+.+}, at: [<ffffffff811cb4b8>] touch_atime+0x36/0x9c
-[18874.150936]  #1:  (jbd2_handle){++++-.}, at: [<ffffffff81252744>] start_this_handle+0x328/0x3c0
-[18874.152214]  #2:  (percpu_charge_mutex){+.+...}, at: [<ffffffff811a08cd>] drain_all_stock+0x1c/0x137
-[18874.153496] 
-the dependencies between RECLAIM_FS-irq-safe lock and the holding lock:
-[18874.156099] -> (jbd2_handle){++++-.} ops: 18040307 {
-[18874.157531]    HARDIRQ-ON-W at:
-[18874.158843]                     __lock_acquire+0x3a7/0x1526
-[18874.160180]                     lock_acquire+0x51/0x6c
-[18874.161487]                     jbd2_log_wait_commit+0x73/0x14b
-[18874.162785]                     jbd2_complete_transaction+0x8b/0x94
-[18874.164117]                     ext4_sync_file+0x22e/0x268
-[18874.165479]                     vfs_fsync_range+0x82/0x94
-[18874.166830]                     vfs_fsync+0x17/0x19
-[18874.168221]                     do_fsync+0x28/0x49
-[18874.169777]                     SyS_fsync+0xb/0xf
-[18874.171088]                     entry_SYSCALL_64_fastpath+0x18/0xad
-[18874.172377]    HARDIRQ-ON-R at:
-[18874.173640]                     __lock_acquire+0x37e/0x1526
-[18874.174989]                     lock_acquire+0x51/0x6c
-[18874.176345]                     start_this_handle+0x386/0x3c0
-[18874.177588]                     jbd2__journal_start+0xbe/0x14c
-[18874.178498]                     __ext4_journal_start_sb+0x5a/0x65
-[18874.179803]                     ext4_file_open+0xaa/0x1fa
-[18874.181222]                     do_dentry_open.isra.19+0x17f/0x289
-[18874.182501]                     vfs_open+0x54/0x5b
-[18874.183484]                     path_openat+0x5ef/0x757
-[18874.184602]                     do_filp_open+0x4a/0xa2
-[18874.185942]                     do_sys_open+0x13b/0x1c8
-[18874.187157]                     SyS_open+0x19/0x1b
-[18874.188529]                     entry_SYSCALL_64_fastpath+0x18/0xad
-[18874.189785]    SOFTIRQ-ON-W at:
-[18874.191097]                     __lock_acquire+0x3c9/0x1526
-[18874.192505]                     lock_acquire+0x51/0x6c
-[18874.193879]                     jbd2_log_wait_commit+0x73/0x14b
-[18874.195367]                     jbd2_complete_transaction+0x8b/0x94
-[18874.196784]                     ext4_sync_file+0x22e/0x268
-[18874.198246]                     vfs_fsync_range+0x82/0x94
-[18874.199648]                     vfs_fsync+0x17/0x19
-[18874.201100]                     do_fsync+0x28/0x49
-[18874.202508]                     SyS_fsync+0xb/0xf
-[18874.203917]                     entry_SYSCALL_64_fastpath+0x18/0xad
-[18874.205347]    SOFTIRQ-ON-R at:
-[18874.206772]                     __lock_acquire+0x3c9/0x1526
-[18874.208216]                     lock_acquire+0x51/0x6c
-[18874.209637]                     start_this_handle+0x386/0x3c0
-[18874.211101]                     jbd2__journal_start+0xbe/0x14c
-[18874.212569]                     __ext4_journal_start_sb+0x5a/0x65
-[18874.214006]                     ext4_file_open+0xaa/0x1fa
-[18874.215395]                     do_dentry_open.isra.19+0x17f/0x289
-[18874.216772]                     vfs_open+0x54/0x5b
-[18874.218160]                     path_openat+0x5ef/0x757
-[18874.219486]                     do_filp_open+0x4a/0xa2
-[18874.220917]                     do_sys_open+0x13b/0x1c8
-[18874.222275]                     SyS_open+0x19/0x1b
-[18874.223706]                     entry_SYSCALL_64_fastpath+0x18/0xad
-[18874.225103]    IN-RECLAIM_FS-W at:
-[18874.226499]                        __lock_acquire+0x3f8/0x1526
-[18874.227833]                        lock_acquire+0x51/0x6c
-[18874.229162]                        jbd2_log_wait_commit+0x73/0x14b
-[18874.230524]                        jbd2_complete_transaction+0x8b/0x94
-[18874.231842]                        ext4_evict_inode+0xc5/0x3bc
-[18874.233149]                        evict+0xc4/0x179
-[18874.234332]                        dispose_list+0x42/0x65
-[18874.235640]                        prune_icache_sb+0x45/0x50
-[18874.236913]                        super_cache_scan+0x129/0x16e
-[18874.238009]                        shrink_slab+0x1e2/0x29c
-[18874.239295]                        shrink_node+0xfc/0x2cb
-[18874.240316]                        kswapd+0x4ac/0x600
-[18874.241379]                        kthread+0x12e/0x136
-[18874.242516]                        ret_from_fork+0x27/0x40
-[18874.243805]    INITIAL USE at:
-[18874.245132]                    __lock_acquire+0x410/0x1526
-[18874.246437]                    lock_acquire+0x51/0x6c
-[18874.247484]                    start_this_handle+0x386/0x3c0
-[18874.248581]                    jbd2__journal_start+0xbe/0x14c
-[18874.249871]                    __ext4_journal_start_sb+0x5a/0x65
-[18874.251185]                    ext4_file_open+0xaa/0x1fa
-[18874.252207]                    do_dentry_open.isra.19+0x17f/0x289
-[18874.253113]                    vfs_open+0x54/0x5b
-[18874.254186]                    path_openat+0x5ef/0x757
-[18874.255499]                    do_filp_open+0x4a/0xa2
-[18874.256805]                    do_sys_open+0x13b/0x1c8
-[18874.258117]                    SyS_open+0x19/0x1b
-[18874.259553]                    entry_SYSCALL_64_fastpath+0x18/0xad
-[18874.260941]  }
-[18874.262313]  ... key      at: [<ffffffff82a5cd48>] jbd2_trans_commit_key.37604+0x0/0x8
-[18874.263715]  ... acquired at:
-[18874.265121]    check_irq_usage+0x54/0xa8
-[18874.266436]    __lock_acquire+0xef3/0x1526
-[18874.267887]    lock_acquire+0x51/0x6c
-[18874.269435]    get_online_cpus+0x4c/0x71
-[18874.270961]    drain_all_stock+0x29/0x137
-[18874.272279]    try_charge+0x276/0x8e9
-[18874.273598]    mem_cgroup_try_charge+0x2d5/0x41f
-[18874.275036]    __add_to_page_cache_locked+0xb2/0x1e4
-[18874.275917]    add_to_page_cache_lru+0x4e/0xde
-[18874.276791]    pagecache_get_page+0x1cb/0x264
-[18874.277664]    __getblk_gfp+0x142/0x2cf
-[18874.278636]    __breadahead+0xf/0x3d
-[18874.279940]    __ext4_get_inode_loc+0x2c3/0x394
-[18874.281277]    ext4_get_inode_loc+0x1b/0x1d
-[18874.282530]    ext4_reserve_inode_write+0x35/0x9c
-[18874.283848]    ext4_mark_inode_dirty+0x40/0x173
-[18874.285208]    ext4_dirty_inode+0x43/0x5c
-[18874.286476]    __mark_inode_dirty+0x2e/0x205
-[18874.287778]    generic_update_time+0xa5/0xb4
-[18874.289090]    touch_atime+0x7d/0x9c
-[18874.290399]    do_generic_file_read+0x5a6/0x71f
-[18874.291735]    generic_file_read_iter+0xcb/0xda
-[18874.293168]    ext4_file_read_iter+0x2f/0x3e
-[18874.294448]    __vfs_read+0xbf/0xe3
-[18874.295762]    vfs_read+0x9b/0x11c
-[18874.297087]    SyS_read+0x45/0x8b
-[18874.298384]    entry_SYSCALL_64_fastpath+0x18/0xad
+> +	 */
+> +	expected_count +=3D is_zone_device_page(page);
+> +
+>  	if (!mapping) {
+>  		/* Anonymous page without mapping */
+>  		if (page_count(page) !=3D expected_count)
+> @@ -2077,3 +2085,439 @@ int migrate_misplaced_transhuge_page(struct mm_st=
+ruct *mm,
+>  #endif /* CONFIG_NUMA_BALANCING */
+> =20
+>  #endif /* CONFIG_NUMA */
+> +
+> +
+> +struct migrate_vma {
+> +	struct vm_area_struct	*vma;
+> +	unsigned long		*dst;
+> +	unsigned long		*src;
+> +	unsigned long		cpages;
+> +	unsigned long		npages;
+> +	unsigned long		start;
+> +	unsigned long		end;
 
-[18874.300947] 
-the dependencies between the lock to be acquired
-[18874.300948]  and RECLAIM_FS-irq-unsafe lock:
-[18874.304806] -> (cpu_hotplug.dep_map){++++++} ops: 58002 {
-[18874.306105]    HARDIRQ-ON-W at:
-[18874.307416]                     __lock_acquire+0x3a7/0x1526
-[18874.308841]                     lock_acquire+0x51/0x6c
-[18874.310220]                     cpu_hotplug_begin+0x61/0xb4
-[18874.311530]                     _cpu_up+0x2e/0xb3
-[18874.312845]                     do_cpu_up+0x54/0x65
-[18874.314132]                     cpu_up+0xe/0x10
-[18874.315499]                     smp_init+0x4d/0xd3
-[18874.317004]                     kernel_init_freeable+0x7e/0x1a0
-[18874.318407]                     kernel_init+0x9/0xf3
-[18874.319661]                     ret_from_fork+0x27/0x40
-[18874.320964]    HARDIRQ-ON-R at:
-[18874.322321]                     __lock_acquire+0x37e/0x1526
-[18874.323605]                     lock_acquire+0x51/0x6c
-[18874.324918]                     get_online_cpus+0x4c/0x71
-[18874.326257]                     kmem_cache_create+0x27/0x1e3
-[18874.327522]                     numa_policy_init+0x2d/0x1e9
-[18874.328802]                     start_kernel+0x2e0/0x392
-[18874.330112]                     x86_64_start_reservations+0x2a/0x2c
-[18874.331419]                     x86_64_start_kernel+0xbb/0xbe
-[18874.332671]                     verify_cpu+0x0/0xf1
-[18874.333922]    SOFTIRQ-ON-W at:
-[18874.335091]                     __lock_acquire+0x3c9/0x1526
-[18874.336399]                     lock_acquire+0x51/0x6c
-[18874.337546]                     cpu_hotplug_begin+0x61/0xb4
-[18874.338912]                     _cpu_up+0x2e/0xb3
-[18874.340239]                     do_cpu_up+0x54/0x65
-[18874.341551]                     cpu_up+0xe/0x10
-[18874.342883]                     smp_init+0x4d/0xd3
-[18874.344122]                     kernel_init_freeable+0x7e/0x1a0
-[18874.345340]                     kernel_init+0x9/0xf3
-[18874.346578]                     ret_from_fork+0x27/0x40
-[18874.347750]    SOFTIRQ-ON-R at:
-[18874.348979]                     __lock_acquire+0x3c9/0x1526
-[18874.350247]                     lock_acquire+0x51/0x6c
-[18874.351436]                     get_online_cpus+0x4c/0x71
-[18874.352830]                     kmem_cache_create+0x27/0x1e3
-[18874.353993]                     numa_policy_init+0x2d/0x1e9
-[18874.355191]                     start_kernel+0x2e0/0x392
-[18874.356354]                     x86_64_start_reservations+0x2a/0x2c
-[18874.357532]                     x86_64_start_kernel+0xbb/0xbe
-[18874.358762]                     verify_cpu+0x0/0xf1
-[18874.359836]    RECLAIM_FS-ON-W at:
-[18874.360681]                        mark_held_locks+0x50/0x6e
-[18874.361549]                        lockdep_trace_alloc+0xc2/0xe5
-[18874.362548]                        kmem_cache_alloc_node+0x41/0x1b8
-[18874.363747]                        __smpboot_create_thread+0x53/0xe6
-[18874.364953]                        smpboot_create_threads+0x32/0x64
-[18874.366182]                        cpuhp_invoke_callback+0x4a/0xe6
-[18874.367607]                        cpuhp_up_callbacks+0x2e/0x7d
-[18874.368945]                        _cpu_up+0x87/0xb3
-[18874.370363]                        do_cpu_up+0x54/0x65
-[18874.371613]                        cpu_up+0xe/0x10
-[18874.372608]                        smp_init+0x4d/0xd3
-[18874.373456]                        kernel_init_freeable+0x7e/0x1a0
-[18874.374323]                        kernel_init+0x9/0xf3
-[18874.375147]                        ret_from_fork+0x27/0x40
-[18874.375962]    RECLAIM_FS-ON-R at:
-[18874.376774]                        mark_held_locks+0x50/0x6e
-[18874.377609]                        lockdep_trace_alloc+0xc2/0xe5
-[18874.378451]                        kmem_cache_alloc_node+0x41/0x1b8
-[18874.379669]                        allocate_shared_regs+0x2c/0x6e
-[18874.381030]                        intel_pmu_cpu_prepare+0x40/0x10f
-[18874.382313]                        x86_pmu_prepare_cpu+0x39/0x40
-[18874.383628]                        cpuhp_invoke_callback+0x4a/0xe6
-[18874.384498]                        cpuhp_issue_call+0xb9/0xcf
-[18874.385357]                        __cpuhp_setup_state+0xd3/0x169
-[18874.386220]                        init_hw_perf_events+0x432/0x521
-[18874.387456]                        do_one_initcall+0x8b/0x136
-[18874.388826]                        kernel_init_freeable+0x70/0x1a0
-[18874.390212]                        kernel_init+0x9/0xf3
-[18874.391739]                        ret_from_fork+0x27/0x40
-[18874.392584]    INITIAL USE at:
-[18874.393749]                    __lock_acquire+0x410/0x1526
-[18874.394613]                    lock_acquire+0x51/0x6c
-[18874.395464]                    get_online_cpus+0x4c/0x71
-[18874.396422]                    __cpuhp_setup_state+0x3f/0x169
-[18874.397777]                    page_alloc_init+0x23/0x2b
-[18874.399107]                    start_kernel+0x12b/0x392
-[18874.400321]                    x86_64_start_reservations+0x2a/0x2c
-[18874.401708]                    x86_64_start_kernel+0xbb/0xbe
-[18874.402947]                    verify_cpu+0x0/0xf1
-[18874.403784]  }
-[18874.404617]  ... key      at: [<ffffffff81c41db8>] cpu_hotplug+0xd8/0x100
-[18874.405480]  ... acquired at:
-[18874.406559]    check_irq_usage+0x54/0xa8
-[18874.407798]    __lock_acquire+0xef3/0x1526
-[18874.409036]    lock_acquire+0x51/0x6c
-[18874.410279]    get_online_cpus+0x4c/0x71
-[18874.411590]    drain_all_stock+0x29/0x137
-[18874.412831]    try_charge+0x276/0x8e9
-[18874.414121]    mem_cgroup_try_charge+0x2d5/0x41f
-[18874.415369]    __add_to_page_cache_locked+0xb2/0x1e4
-[18874.416701]    add_to_page_cache_lru+0x4e/0xde
-[18874.417940]    pagecache_get_page+0x1cb/0x264
-[18874.419177]    __getblk_gfp+0x142/0x2cf
-[18874.420432]    __breadahead+0xf/0x3d
-[18874.421707]    __ext4_get_inode_loc+0x2c3/0x394
-[18874.422933]    ext4_get_inode_loc+0x1b/0x1d
-[18874.424230]    ext4_reserve_inode_write+0x35/0x9c
-[18874.425489]    ext4_mark_inode_dirty+0x40/0x173
-[18874.426650]    ext4_dirty_inode+0x43/0x5c
-[18874.427819]    __mark_inode_dirty+0x2e/0x205
-[18874.428994]    generic_update_time+0xa5/0xb4
-[18874.430174]    touch_atime+0x7d/0x9c
-[18874.431420]    do_generic_file_read+0x5a6/0x71f
-[18874.432692]    generic_file_read_iter+0xcb/0xda
-[18874.434012]    ext4_file_read_iter+0x2f/0x3e
-[18874.435455]    __vfs_read+0xbf/0xe3
-[18874.436509]    vfs_read+0x9b/0x11c
-[18874.437338]    SyS_read+0x45/0x8b
-[18874.438162]    entry_SYSCALL_64_fastpath+0x18/0xad
+Could we add a flags that specify if the migration should be MIGRATE_SYNC_N=
+OCOPY or not?
+I think the generic routine is helpful outside of the specific HMM use case=
+ as well.
 
-[18874.439819] 
-stack backtrace:
-[18874.441421] CPU: 3 PID: 16472 Comm: cc1 Not tainted 4.12.0-rc3 #2
-[18874.442251] Hardware name: LENOVO 4174EH1/4174EH1, BIOS 8CET51WW (1.31 ) 11/29/2011
-[18874.443099] Call Trace:
-[18874.443926]  dump_stack+0x67/0x90
-[18874.444747]  check_usage+0x571/0x588
-[18874.445566]  ? vmpressure+0x63/0x10c
-[18874.446393]  check_irq_usage+0x54/0xa8
-[18874.447222]  ? check_irq_usage+0x54/0xa8
-[18874.448041]  __lock_acquire+0xef3/0x1526
-[18874.448863]  lock_acquire+0x51/0x6c
-[18874.449684]  ? lock_acquire+0x51/0x6c
-[18874.450519]  ? get_online_cpus+0x29/0x71
-[18874.451347]  get_online_cpus+0x4c/0x71
-[18874.452166]  ? get_online_cpus+0x29/0x71
-[18874.452986]  drain_all_stock+0x29/0x137
-[18874.453801]  try_charge+0x276/0x8e9
-[18874.454623]  ? get_mem_cgroup_from_mm+0xaa/0x268
-[18874.455448]  mem_cgroup_try_charge+0x2d5/0x41f
-[18874.456274]  __add_to_page_cache_locked+0xb2/0x1e4
-[18874.457101]  add_to_page_cache_lru+0x4e/0xde
-[18874.457919]  pagecache_get_page+0x1cb/0x264
-[18874.458752]  __getblk_gfp+0x142/0x2cf
-[18874.459583]  __breadahead+0xf/0x3d
-[18874.460406]  __ext4_get_inode_loc+0x2c3/0x394
-[18874.461230]  ext4_get_inode_loc+0x1b/0x1d
-[18874.462043]  ext4_reserve_inode_write+0x35/0x9c
-[18874.462863]  ext4_mark_inode_dirty+0x40/0x173
-[18874.463679]  ext4_dirty_inode+0x43/0x5c
-[18874.464511]  __mark_inode_dirty+0x2e/0x205
-[18874.465343]  generic_update_time+0xa5/0xb4
-[18874.466176]  touch_atime+0x7d/0x9c
-[18874.466997]  do_generic_file_read+0x5a6/0x71f
-[18874.467822]  ? __handle_mm_fault+0xc11/0xcd2
-[18874.468644]  generic_file_read_iter+0xcb/0xda
-[18874.469465]  ext4_file_read_iter+0x2f/0x3e
-[18874.470289]  __vfs_read+0xbf/0xe3
-[18874.471107]  vfs_read+0x9b/0x11c
-[18874.471917]  SyS_read+0x45/0x8b
-[18874.472705]  entry_SYSCALL_64_fastpath+0x18/0xad
+> +};
+> +
+> +static int migrate_vma_collect_hole(unsigned long start,
+> +				    unsigned long end,
+> +				    struct mm_walk *walk)
+> +{
+> +	struct migrate_vma *migrate =3D walk->private;
+> +	unsigned long addr, next;
+> +
+> +	for (addr =3D start & PAGE_MASK; addr < end; addr +=3D PAGE_SIZE) {
+> +		migrate->dst[migrate->npages] =3D 0;
+> +		migrate->src[migrate->npages++] =3D 0;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static int migrate_vma_collect_pmd(pmd_t *pmdp,
+> +				   unsigned long start,
+> +				   unsigned long end,
+> +				   struct mm_walk *walk)
+> +{
+> +	struct migrate_vma *migrate =3D walk->private;
+> +	struct mm_struct *mm =3D walk->vma->vm_mm;
+> +	unsigned long addr =3D start;
+> +	spinlock_t *ptl;
+> +	pte_t *ptep;
+> +
+> +	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {
+> +		/* FIXME support THP */
+> +		return migrate_vma_collect_hole(start, end, walk);
+> +	}
+> +
+> +	ptep =3D pte_offset_map_lock(mm, pmdp, addr, &ptl);
+> +	for (; addr < end; addr +=3D PAGE_SIZE, ptep++) {
+> +		unsigned long mpfn, pfn;
+> +		struct page *page;
+> +		pte_t pte;
+> +
+> +		pte =3D *ptep;
+> +		pfn =3D pte_pfn(pte);
+> +
+> +		if (!pte_present(pte)) {
+> +			mpfn =3D pfn =3D 0;
+> +			goto next;
+> +		}
+> +
+> +		/* FIXME support THP */
+> +		page =3D vm_normal_page(migrate->vma, addr, pte);
+> +		if (!page || !page->mapping || PageTransCompound(page)) {
+> +			mpfn =3D pfn =3D 0;
+> +			goto next;
+> +		}
+> +
+> +		/*
+> +		 * By getting a reference on the page we pin it and that blocks
+> +		 * any kind of migration. Side effect is that it "freezes" the
+> +		 * pte.
+> +		 *
+> +		 * We drop this reference after isolating the page from the lru
+> +		 * for non device page (device page are not on the lru and thus
+> +		 * can't be dropped from it).
+> +		 */
+> +		get_page(page);
+> +		migrate->cpages++;
+> +		mpfn =3D migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
+> +		mpfn |=3D pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
+> +
+> +next:
+> +		migrate->src[migrate->npages++] =3D mpfn;
+> +	}
+> +	pte_unmap_unlock(ptep - 1, ptl);
+> +
+> +	return 0;
+> +}
+> +
+> +/*
+> + * migrate_vma_collect() - collect pages over a range of virtual address=
+es
+> + * @migrate: migrate struct containing all migration information
+> + *
+> + * This will walk the CPU page table. For each virtual address backed by=
+ a
+> + * valid page, it updates the src array and takes a reference on the pag=
+e, in
+> + * order to pin the page until we lock it and unmap it.
+> + */
+> +static void migrate_vma_collect(struct migrate_vma *migrate)
+> +{
+> +	struct mm_walk mm_walk;
+> +
+> +	mm_walk.pmd_entry =3D migrate_vma_collect_pmd;
+> +	mm_walk.pte_entry =3D NULL;
+> +	mm_walk.pte_hole =3D migrate_vma_collect_hole;
+> +	mm_walk.hugetlb_entry =3D NULL;
+> +	mm_walk.test_walk =3D NULL;
+> +	mm_walk.vma =3D migrate->vma;
+> +	mm_walk.mm =3D migrate->vma->vm_mm;
+> +	mm_walk.private =3D migrate;
+> +
+> +	walk_page_range(migrate->start, migrate->end, &mm_walk);
+> +
+> +	migrate->end =3D migrate->start + (migrate->npages << PAGE_SHIFT);
+> +}
+> +
+> +/*
+> + * migrate_vma_check_page() - check if page is pinned or not
+> + * @page: struct page to check
+> + *
+> + * Pinned pages cannot be migrated. This is the same test as in
+> + * migrate_page_move_mapping(), except that here we allow migration of a
+> + * ZONE_DEVICE page.
+> + */
+> +static bool migrate_vma_check_page(struct page *page)
+> +{
+> +	/*
+> +	 * One extra ref because caller holds an extra reference, either from
+> +	 * isolate_lru_page() for a regular page, or migrate_vma_collect() for
+> +	 * a device page.
+> +	 */
+> +	int extra =3D 1;
+> +
+> +	/*
+> +	 * FIXME support THP (transparent huge page), it is bit more complex to
+> +	 * check them than regular pages, because they can be mapped with a pmd
+> +	 * or with a pte (split pte mapping).
+> +	 */
+> +	if (PageCompound(page))
+> +		return false;
+> +
+> +	if ((page_count(page) - extra) > page_mapcount(page))
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +/*
+> + * migrate_vma_prepare() - lock pages and isolate them from the lru
+> + * @migrate: migrate struct containing all migration information
+> + *
+> + * This locks pages that have been collected by migrate_vma_collect(). O=
+nce each
+> + * page is locked it is isolated from the lru (for non-device pages). Fi=
+nally,
+> + * the ref taken by migrate_vma_collect() is dropped, as locked pages ca=
+nnot be
+> + * migrated by concurrent kernel threads.
+> + */
+> +static void migrate_vma_prepare(struct migrate_vma *migrate)
+> +{
+> +	const unsigned long npages =3D migrate->npages;
+> +	const unsigned long start =3D migrate->start;
+> +	unsigned long addr, i, restore =3D 0;
+> +	bool allow_drain =3D true;
+> +
+> +	lru_add_drain();
+> +
+> +	for (i =3D 0; i < npages; i++) {
+> +		struct page *page =3D migrate_pfn_to_page(migrate->src[i]);
+> +
+> +		if (!page)
+> +			continue;
+> +
+> +		lock_page(page);
+> +		migrate->src[i] |=3D MIGRATE_PFN_LOCKED;
+> +
+> +		if (!PageLRU(page) && allow_drain) {
+> +			/* Drain CPU's pagevec */
+> +			lru_add_drain_all();
+> +			allow_drain =3D false;
+> +		}
+> +
+> +		if (isolate_lru_page(page)) {
+> +			migrate->src[i] =3D 0;
+> +			unlock_page(page);
+> +			migrate->cpages--;
+> +			put_page(page);
+> +			continue;
+> +		}
+> +
+> +		if (!migrate_vma_check_page(page)) {
+> +			migrate->src[i] =3D 0;
+> +			unlock_page(page);
+> +			migrate->cpages--;
+> +
+> +			putback_lru_page(page);
+> +		}
+> +	}
+> +}
+> +
+> +/*
+> + * migrate_vma_unmap() - replace page mapping with special migration pte=
+ entry
+> + * @migrate: migrate struct containing all migration information
+> + *
+> + * Replace page mapping (CPU page table pte) with a special migration pt=
+e entry
+> + * and check again if it has been pinned. Pinned pages are restored beca=
+use we
+> + * cannot migrate them.
+> + *
+> + * This is the last step before we call the device driver callback to al=
+locate
+> + * destination memory and copy contents of original page over to new pag=
+e.
+> + */
+> +static void migrate_vma_unmap(struct migrate_vma *migrate)
+> +{
+> +	int flags =3D TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
+> +	const unsigned long npages =3D migrate->npages;
+> +	const unsigned long start =3D migrate->start;
+> +	unsigned long addr, i, restore =3D 0;
+> +
+> +	for (i =3D 0; i < npages; i++) {
+> +		struct page *page =3D migrate_pfn_to_page(migrate->src[i]);
+> +
+> +		if (!page || !(migrate->src[i] & MIGRATE_PFN_MIGRATE))
+> +			continue;
+> +
+> +		try_to_unmap(page, flags);
+> +		if (page_mapped(page) || !migrate_vma_check_page(page)) {
+> +			migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
+> +			migrate->cpages--;
+> +			restore++;
+> +		}
+> +	}
+> +
+> +	for (addr =3D start, i =3D 0; i < npages && restore; addr +=3D PAGE_SIZ=
+E, i++) {
+> +		struct page *page =3D migrate_pfn_to_page(migrate->src[i]);
+> +
+> +		if (!page || (migrate->src[i] & MIGRATE_PFN_MIGRATE))
+> +			continue;
+> +
+> +		remove_migration_ptes(page, page, false);
+> +
+> +		migrate->src[i] =3D 0;
+> +		unlock_page(page);
+> +		restore--;
+> +
+> +		putback_lru_page(page);
+> +	}
+> +}
+> +
+> +/*
+> + * migrate_vma_pages() - migrate meta-data from src page to dst page
+> + * @migrate: migrate struct containing all migration information
+> + *
+> + * This migrates struct page meta-data from source struct page to destin=
+ation
+> + * struct page. This effectively finishes the migration from source page=
+ to the
+> + * destination page.
+> + */
+> +static void migrate_vma_pages(struct migrate_vma *migrate)
+> +{
+> +	const unsigned long npages =3D migrate->npages;
+> +	const unsigned long start =3D migrate->start;
+> +	unsigned long addr, i;
+> +
+> +	for (i =3D 0, addr =3D start; i < npages; addr +=3D PAGE_SIZE, i++) {
+> +		struct page *newpage =3D migrate_pfn_to_page(migrate->dst[i]);
+> +		struct page *page =3D migrate_pfn_to_page(migrate->src[i]);
+> +		struct address_space *mapping;
+> +		int r;
+> +
+> +		if (!page || !newpage)
+> +			continue;
+> +		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
+> +			continue;
+> +
+> +		mapping =3D page_mapping(page);
+> +
+> +		r =3D migrate_page(mapping, newpage, page, MIGRATE_SYNC_NO_COPY);
+
+Could we use a flags field to determine if we should use MIGRATE_SYNC_NO_CO=
+PY or not?
+
+> +		if (r !=3D MIGRATEPAGE_SUCCESS)
+> +			migrate->src[i] &=3D ~MIGRATE_PFN_MIGRATE;
+> +	}
+> +}
+> +
+> +/*
+> + * migrate_vma_finalize() - restore CPU page table entry
+> + * @migrate: migrate struct containing all migration information
+> + *
+> + * This replaces the special migration pte entry with either a mapping t=
+o the
+> + * new page if migration was successful for that page, or to the origina=
+l page
+> + * otherwise.
+> + *
+> + * This also unlocks the pages and puts them back on the lru, or drops t=
+he extra
+> + * refcount, for device pages.
+> + */
+> +static void migrate_vma_finalize(struct migrate_vma *migrate)
+> +{
+> +	const unsigned long npages =3D migrate->npages;
+> +	unsigned long i;
+> +
+> +	for (i =3D 0; i < npages; i++) {
+> +		struct page *newpage =3D migrate_pfn_to_page(migrate->dst[i]);
+> +		struct page *page =3D migrate_pfn_to_page(migrate->src[i]);
+> +
+> +		if (!page)
+> +			continue;
+> +		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
+> +			if (newpage) {
+> +				unlock_page(newpage);
+> +				put_page(newpage);
+> +			}
+> +			newpage =3D page;
+> +		}
+> +
+> +		remove_migration_ptes(page, newpage, false);
+> +		unlock_page(page);
+> +		migrate->cpages--;
+> +
+> +		putback_lru_page(page);
+> +
+> +		if (newpage !=3D page) {
+> +			unlock_page(newpage);
+> +			putback_lru_page(newpage);
+> +		}
+> +	}
+> +}
+> +
+> +/*
+> + * migrate_vma() - migrate a range of memory inside vma
+> + *
+> + * @ops: migration callback for allocating destination memory and copying
+> + * @vma: virtual memory area containing the range to be migrated
+> + * @start: start address of the range to migrate (inclusive)
+> + * @end: end address of the range to migrate (exclusive)
+> + * @src: array of hmm_pfn_t containing source pfns
+> + * @dst: array of hmm_pfn_t containing destination pfns
+> + * @private: pointer passed back to each of the callback
+> + * Returns: 0 on success, error code otherwise
+> + *
+> + * This function tries to migrate a range of memory virtual address rang=
+e, using
+> + * callbacks to allocate and copy memory from source to destination. Fir=
+st it
+> + * collects all the pages backing each virtual address in the range, sav=
+ing this
+> + * inside the src array. Then it locks those pages and unmaps them. Once=
+ the pages
+> + * are locked and unmapped, it checks whether each page is pinned or not=
+. Pages
+> + * that aren't pinned have the MIGRATE_PFN_MIGRATE flag set (by this fun=
+ction)
+> + * in the corresponding src array entry. It then restores any pages that=
+ are
+> + * pinned, by remapping and unlocking those pages.
+> + *
+> + * At this point it calls the alloc_and_copy() callback. For documentati=
+on on
+> + * what is expected from that callback, see struct migrate_vma_ops comme=
+nts in
+> + * include/linux/migrate.h
+> + *
+> + * After the alloc_and_copy() callback, this function goes over each ent=
+ry in
+> + * the src array that has the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE =
+flag
+> + * set. If the corresponding entry in dst array has MIGRATE_PFN_VALID fl=
+ag set,
+> + * then the function tries to migrate struct page information from the s=
+ource
+> + * struct page to the destination struct page. If it fails to migrate th=
+e struct
+> + * page information, then it clears the MIGRATE_PFN_MIGRATE flag in the =
+src
+> + * array.
+> + *
+> + * At this point all successfully migrated pages have an entry in the src
+> + * array with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set and the=
+ dst
+> + * array entry with MIGRATE_PFN_VALID flag set.
+> + *
+> + * It then calls the finalize_and_map() callback. See comments for "stru=
+ct
+> + * migrate_vma_ops", in include/linux/migrate.h for details about
+> + * finalize_and_map() behavior.
+> + *
+> + * After the finalize_and_map() callback, for successfully migrated page=
+s, this
+> + * function updates the CPU page table to point to new pages, otherwise =
+it
+> + * restores the CPU page table to point to the original source pages.
+> + *
+> + * Function returns 0 after the above steps, even if no pages were migra=
+ted
+> + * (The function only returns an error if any of the arguments are inval=
+id.)
+> + *
+> + * Both src and dst array must be big enough for (end - start) >> PAGE_S=
+HIFT
+> + * unsigned long entries.
+> + */
+> +int migrate_vma(const struct migrate_vma_ops *ops,
+> +		struct vm_area_struct *vma,
+> +		unsigned long start,
+> +		unsigned long end,
+> +		unsigned long *src,
+> +		unsigned long *dst,
+> +		void *private)
+> +{
+> +	struct migrate_vma migrate;
+> +
+> +	/* Sanity check the arguments */
+> +	start &=3D PAGE_MASK;
+> +	end &=3D PAGE_MASK;
+> +	if (!vma || is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
+> +		return -EINVAL;
+> +	if (start < vma->vm_start || start >=3D vma->vm_end)
+> +		return -EINVAL;
+> +	if (end <=3D vma->vm_start || end > vma->vm_end)
+> +		return -EINVAL;
+> +	if (!ops || !src || !dst || start >=3D end)
+> +		return -EINVAL;
+> +
+> +	memset(src, 0, sizeof(*src) * ((end - start) >> PAGE_SHIFT));
+> +	migrate.src =3D src;
+> +	migrate.dst =3D dst;
+> +	migrate.start =3D start;
+> +	migrate.npages =3D 0;
+> +	migrate.cpages =3D 0;
+> +	migrate.end =3D end;
+> +	migrate.vma =3D vma;
+> +
+> +	/* Collect, and try to unmap source pages */
+> +	migrate_vma_collect(&migrate);
+> +	if (!migrate.cpages)
+> +		return 0;
+> +
+> +	/* Lock and isolate page */
+> +	migrate_vma_prepare(&migrate);
+> +	if (!migrate.cpages)
+> +		return 0;
+> +
+> +	/* Unmap pages */
+> +	migrate_vma_unmap(&migrate);
+> +	if (!migrate.cpages)
+> +		return 0;
+> +
+> +	/*
+> +	 * At this point pages are locked and unmapped, and thus they have
+> +	 * stable content and can safely be copied to destination memory that
+> +	 * is allocated by the callback.
+> +	 *
+> +	 * Note that migration can fail in migrate_vma_struct_page() for each
+> +	 * individual page.
+> +	 */
+> +	ops->alloc_and_copy(vma, src, dst, start, end, private);
+> +
+> +	/* This does the real migration of struct page */
+> +	migrate_vma_pages(&migrate);
+> +
+> +	ops->finalize_and_map(vma, src, dst, start, end, private);
+> +
+> +	/* Unlock and remap pages */
+> +	migrate_vma_finalize(&migrate);
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(migrate_vma);
+
+In general, its helpful to have
+
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
