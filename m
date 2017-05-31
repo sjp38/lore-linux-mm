@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EA07F6B0279
-	for <linux-mm@kvack.org>; Tue, 30 May 2017 20:10:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j28so2245827pfk.14
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 17:10:12 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id m15si15173164pgs.246.2017.05.30.17.10.12
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AE286B0279
+	for <linux-mm@kvack.org>; Tue, 30 May 2017 20:56:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j28so3624768pfk.14
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 17:56:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f35si47626118plh.29.2017.05.30.17.56.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 17:10:12 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id m17so1323564pfg.3
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 17:10:12 -0700 (PDT)
-Date: Tue, 30 May 2017 17:10:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] compiler, clang: suppress warning for unused static
- inline functions
-In-Reply-To: <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1705301704370.10695@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1705241400510.49680@chino.kir.corp.google.com> <20170524212229.GR141096@google.com> <20170524143205.cae1a02ab2ad7348c1a59e0c@linux-foundation.org> <CAD=FV=XjC3M=EWC=rtcbTUR6e1F2cfuYvqL53F9H7tdMAOALNw@mail.gmail.com>
+        Tue, 30 May 2017 17:56:04 -0700 (PDT)
+Subject: Re: [RFC PATCH] vmalloc: show more detail info in vmallocinfo for
+ clarify
+References: <1495262861-37649-1-git-send-email-xieyisheng1@huawei.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <857f6900-8a28-6ac6-64ac-d4867ef01ee5@linux.intel.com>
+Date: Tue, 30 May 2017 17:56:03 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1495262861-37649-1-git-send-email-xieyisheng1@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Doug Anderson <dianders@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthias Kaehlcke <mka@chromium.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mark Brown <broonie@kernel.org>, Ingo Molnar <mingo@kernel.org>, David Miller <davem@davemloft.net>
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
 
-On Wed, 24 May 2017, Doug Anderson wrote:
-
-> * Matthias has been sending out individual patches that take each
-> particular case into account to try to remove the warnings.  In some
-> cases this removes totally dead code.  In other cases this adds
-> __maybe_unused.  ...and as a last resort it uses #ifdef.  In each of
-> these individual patches we wouldn't want a list of all other patches,
-> I think.
+On 05/19/2017 11:47 PM, Yisheng Xie wrote:
+> When ioremap a 67112960 bytes vm_area with the vmallocinfo:
+>  [..]
+>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
 > 
-
-Again, I defer to maintainers like Andrew and Ingo who have to deal with 
-an enormous amount of patches on how they would like to handle it; I don't 
-think myself or anybody else who doesn't deal with a large number of 
-patches should be mandating how it's handled.
-
-For reference, the patchset that this patch originated from added 8 lines 
-and removed 1, so I disagree that this cleans anything up; in reality, it 
-obfuscates the code and makes the #ifdef nesting more complex.
-
-> If you just want a list of things in response to this thread...
+> we get result:
+>  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
 > 
-> Clang's behavior has found some dead code, as shown by:
+> For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
+> 	if (flags & VM_IOREMAP)
+> 		align = 1ul << clamp_t(int, get_count_order_long(size),
+> 			PAGE_SHIFT, IOREMAP_MAX_ORDER);
 > 
-> * https://patchwork.kernel.org/patch/9732161/
->   ring-buffer: Remove unused function __rb_data_page_index()
-> * https://patchwork.kernel.org/patch/9735027/
->   r8152: Remove unused function usb_ocp_read()
-> * https://patchwork.kernel.org/patch/9735053/
->   net1080: Remove unused function nc_dump_ttl()
-> * https://patchwork.kernel.org/patch/9741513/
->   crypto: rng: Remove unused function __crypto_rng_cast()
-> * https://patchwork.kernel.org/patch/9741539/
->   x86/ioapic: Remove unused function IO_APIC_irq_trigger()
-> * https://patchwork.kernel.org/patch/9741549/
->   ASoC: Intel: sst: Remove unused function sst_restore_shim64()
-> * https://patchwork.kernel.org/patch/9743225/
->   ASoC: cht_bsw_max98090_ti: Remove unused function cht_get_codec_dai()
+> So it makes idiot like me a litter puzzle why jump the vm_area from
+> 0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
+> 0xed000000-0xf1000000 as a big hole.
 > 
-> ...plus more examples...
+> This is to show all of vm_area, including which is freeing but still in
+> vmap_area_list, to make it more clear about why we will get
+> 0xf1000000-0xf5001000 int the above case. And we will get the
+> vmallocinfo like:
+>  [..]
+>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+>  [..]
+>  0xece7c000-0xece7e000    8192 freeing vm_area
+>  0xece7e000-0xece83000   20480 vm_map_ram
+>  0xf0099000-0xf00aa000   69632 vm_map_ram
+>  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
+> after apply this patch.
 > 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> ---
+>  mm/vmalloc.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index b52aeed..dbb24fc 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -314,6 +314,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+>  
+>  /*** Global kva allocator ***/
+>  
+> +#define VM_LAZY_FREE	0x02
+>  #define VM_VM_AREA	0x04
+>  
+>  static DEFINE_SPINLOCK(vmap_area_lock);
+> @@ -1486,6 +1487,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+>  		spin_lock(&vmap_area_lock);
+>  		va->vm = NULL;
+>  		va->flags &= ~VM_VM_AREA;
+> +		va->flags |= VM_LAZY_FREE;
+>  		spin_unlock(&vmap_area_lock);
+>  
+>  		vmap_debug_free_range(va->va_start, va->va_end);
+> @@ -2684,8 +2686,14 @@ static int s_show(struct seq_file *m, void *p)
+>  	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+>  	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+>  	 */
+> -	if (!(va->flags & VM_VM_AREA))
+> +	if (!(va->flags & VM_VM_AREA)) {
+> +		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
+> +			(void *)va->va_start, (void *)va->va_end,
+> +			va->va_end - va->va_start,
+> +			va->flags & VM_LAZY_FREE ? "freeing vm_area" : "vm_map_ram");
 
-Let us please not confuse the matter by suggesting that you cannot 
-continue to do this work by simply removing the __attribute__((unused)) 
-and emailing kernel-janitors to cleanup unused code (which should already 
-be significantly small by the sheer fact that it is inlined).
+Will be clearer to say "unpurged vm_area" instead of "freeing vm_area".
 
-> However, clang's behavior has also led to patches that add a
-> "__maybe_unused" attribute (usually no increase in LOC unless it
-> causes word wrap) and also added a handful of #ifdefs, as you've
-> pointed out.  The example we already talked about was:
-> 
+Thanks.
 
-The good work to remove truly dead code may easily continue while not 
-adding more and more LOC to suppress these warnings for a compiler that is 
-very heavily in the minority.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
