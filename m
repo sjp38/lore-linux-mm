@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D2F156B02C3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:58:52 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id g13so3801507wmd.9
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:58:52 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6307B6B02F3
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 12:04:29 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g143so3882987wme.13
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 09:04:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g185si31355163wme.137.2017.05.31.08.58.51
+        by mx.google.com with ESMTPS id g200si19591002wmg.53.2017.05.31.09.04.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 May 2017 08:58:51 -0700 (PDT)
-Date: Wed, 31 May 2017 08:58:39 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: Re: [RFC v2 02/10] mm: Remove nest locking operation with mmap_sem
-Message-ID: <20170531155839.GB28615@linux-80c1.suse>
-References: <1495624801-8063-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1495624801-8063-3-git-send-email-ldufour@linux.vnet.ibm.com>
+        Wed, 31 May 2017 09:04:27 -0700 (PDT)
+Date: Wed, 31 May 2017 18:04:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: strange PAGE_ALLOC_COSTLY_ORDER usage in xgbe_map_rx_buffer
+Message-ID: <20170531160422.GW27783@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1495624801-8063-3-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, Andi Kleen <andi@firstfloor.org>, haren@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 24 May 2017, Laurent Dufour wrote:
+Hi Tom,
+I have stumbled over the following construct in xgbe_map_rx_buffer
+	order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
+which looks quite suspicious. Why does it PAGE_ALLOC_COSTLY_ORDER - 1?
+And why do you depend on PAGE_ALLOC_COSTLY_ORDER at all?
 
->The range locking framework doesn't yet provide nest locking
->operation.
->
->Once the range locking API while provide nested operation support,
->this patch will have to be reviewed.
-
-Please note that we already have range_write_lock_nest_lock().
-
-Thanks,
-Davidlohr
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
