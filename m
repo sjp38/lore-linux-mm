@@ -1,171 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E7766B02C3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:24:24 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e79so10020587ioi.6
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:24:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y24si14001858wmh.1.2017.05.31.01.24.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D3F16B02C3
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:31:48 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 139so1241752wmf.5
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:31:48 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id h14si15078410wrc.165.2017.05.31.01.31.46
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 May 2017 01:24:23 -0700 (PDT)
-Date: Wed, 31 May 2017 10:24:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170531082414.GB27783@dhcp22.suse.cz>
-References: <20170524111800.GD14733@dhcp22.suse.cz>
- <20170524142735.GF3063@rapoport-lnx>
- <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
- <20170530103930.GB7969@dhcp22.suse.cz>
- <20170530140456.GA8412@redhat.com>
- <20170530143941.GK7969@dhcp22.suse.cz>
- <20170530145632.GL7969@dhcp22.suse.cz>
- <20170530160610.GC8412@redhat.com>
- <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
+        Wed, 31 May 2017 01:31:47 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 82AD699618
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 08:31:46 +0000 (UTC)
+Date: Wed, 31 May 2017 09:31:45 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, page_alloc: fallback to smallest page when not
+ stealing whole pageblock
+Message-ID: <20170531083145.2s5pk5zhkf2kh4ga@techsingularity.net>
+References: <20170529093947.22618-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
+In-Reply-To: <20170529093947.22618-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>
 
-On Wed 31-05-17 08:30:08, Vlastimil Babka wrote:
-> On 05/30/2017 06:06 PM, Andrea Arcangeli wrote:
-> > 
-> > I'm not sure if it should be considered a bug, the prctl is intended
-> > to use normally by wrappers so it looks optimal as implemented this
-> > way: affecting future vmas only, which will all be created after
-> > execve executed by the wrapper.
-> > 
-> > What's the point of messing with the prctl so it mangles over the
-> > wrapper process own vmas before exec? Messing with those vmas is pure
-> > wasted CPUs for the wrapper use case which is what the prctl was
-> > created for.
-> > 
-> > Furthermore there would be the risk a program that uses the prctl not
-> > as a wrapper and then calls the prctl to clear VM_NOHUGEPAGE from
-> > def_flags assuming the current kABI. The program could assume those
-> > vmas that were instantiated before disabling the prctl are still with
-> > VM_NOHUGEPAGE set (they would not after the change you propose).
-> > 
-> > Adding a scan of all vmas to PR_SET_THP_DISABLE to clear VM_NOHUGEPAGE
-> > on existing vmas looks more complex too and less finegrined so
-> > probably more complex for userland to manage
+On Mon, May 29, 2017 at 11:39:47AM +0200, Vlastimil Babka wrote:
+> Since commit 3bc48f96cf11 ("mm, page_alloc: split smallest stolen page in
+> fallback") we pick the smallest (but sufficient) page of all that have been
+> stolen from a pageblock of different migratetype. However, there are cases when
+> we decide not to steal the whole pageblock. Practically in the current
+> implementation it means that we are trying to fallback for a MIGRATE_MOVABLE
+> allocation of order X, go through the freelists from MAX_ORDER-1 down to X, and
+> find free page of order Y. If Y is less than pageblock_order / 2, we decide not
+> to steal all pages from the pageblock. When Y > X, it means we are potentially
+> splitting a larger page than we need, as there might be other pages of order Z,
+> where X <= Z < Y. Since Y is already too small to steal whole pageblock,
+> picking smallest available Z will result in the same decision and we avoid
+> splitting a higher-order page in a MIGRATE_UNMOVABLE or MIGRATE_RECLAIMABLE
+> pageblock.
 > 
-> I would expect the prctl wouldn't iterate all vma's, nor would it modify
-> def_flags anymore. It would just set a flag somewhere in mm struct that
-> would be considered in addition to the per-vma flags when deciding
-> whether to use THP.
+> This patch therefore changes the fallback algorithm so that in the situation
+> described above, we switch the fallback search strategy to go from order X
+> upwards to find the smallest suitable fallback. In theory there shouldn't be
+> a downside of this change wrt fragmentation.
+> 
+> This has been tested with mmtests' stress-highalloc performing GFP_KERNEL
+> order-4 allocations, here is the relevant extfrag tracepoint statistics:
+> 
+>                                                       4.12.0-rc2      4.12.0-rc2
+>                                                        1-kernel4       2-kernel4
+> Page alloc extfrag event                                  25640976    69680977
+> Extfrag fragmenting                                       25621086    69661364
+> Extfrag fragmenting for unmovable                            74409       73204
+> Extfrag fragmenting unmovable placed with movable            69003       67684
+> Extfrag fragmenting unmovable placed with reclaim.            5406        5520
+> Extfrag fragmenting for reclaimable                           6398        8467
+> Extfrag fragmenting reclaimable placed with movable            869         884
+> Extfrag fragmenting reclaimable placed with unmov.            5529        7583
+> Extfrag fragmenting for movable                           25540279    69579693
+> 
+> Since we force movable allocations to steal the smallest available page (which
+> we then practially always split), we steal less per fallback, so the number of
+> fallbacks increases and steals potentially happen from different pageblocks.
+> This is however not an issue for movable pages that can be compacted.
+> 
 
-Exactly. Something like the below (not even compile tested).
+Way back I was worried that more fragmenting events for movable like
+this may lead to more unmovable fragmenting events and increase overall
+fragmentation. At the time, it was also the case that I was mostly testing
+32-bit and smaller memory sizes but that is now obviously different and the
+mix of high-order allocation sizes has also changed considerably. Also,
+while your data indicates there are more fragmenting events, there are
+fewer for unmovable allocations so the data supports your position. Hence,
+I can't backup by concerns other than with vague hand-waving about vague
+recollections from 10 years ago so
 
-> We could consider whether MADV_HUGEPAGE should be
-> able to override the prctl or not.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-This should be a master override to any per vma setting.
-
----
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index a3762d49ba39..9da053ced864 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -92,6 +92,7 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
- 	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
- 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
- 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
-+	 !test_bit(MMF_DISABLE_THP, &(__vma)->vm_mm->flags) &&		\
- 	 !is_vma_temporary_stack(__vma))
- #define transparent_hugepage_use_zero_page()				\
- 	(transparent_hugepage_flags &					\
-diff --git a/include/linux/khugepaged.h b/include/linux/khugepaged.h
-index 5d9a400af509..f0d7335336cd 100644
---- a/include/linux/khugepaged.h
-+++ b/include/linux/khugepaged.h
-@@ -48,7 +48,8 @@ static inline int khugepaged_enter(struct vm_area_struct *vma,
- 	if (!test_bit(MMF_VM_HUGEPAGE, &vma->vm_mm->flags))
- 		if ((khugepaged_always() ||
- 		     (khugepaged_req_madv() && (vm_flags & VM_HUGEPAGE))) &&
--		    !(vm_flags & VM_NOHUGEPAGE))
-+		    !(vm_flags & VM_NOHUGEPAGE) &&
-+		    !test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
- 			if (__khugepaged_enter(vma->vm_mm))
- 				return -ENOMEM;
- 	return 0;
-diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
-index 69eedcef8f03..2c07b244090a 100644
---- a/include/linux/sched/coredump.h
-+++ b/include/linux/sched/coredump.h
-@@ -68,6 +68,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
- #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
- #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
-+#define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
- 
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 8a94b4eabcaa..e48f0636c7fd 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -2266,7 +2266,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 	case PR_GET_THP_DISABLE:
- 		if (arg2 || arg3 || arg4 || arg5)
- 			return -EINVAL;
--		error = !!(me->mm->def_flags & VM_NOHUGEPAGE);
-+		error = !!test_bit(MMF_DISABLE_THP, &me->mm->flags);
- 		break;
- 	case PR_SET_THP_DISABLE:
- 		if (arg3 || arg4 || arg5)
-@@ -2274,9 +2274,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 		if (down_write_killable(&me->mm->mmap_sem))
- 			return -EINTR;
- 		if (arg2)
--			me->mm->def_flags |= VM_NOHUGEPAGE;
-+			set_bit(MMF_DISABLE_THP, &me->mm->flags);
- 		else
--			me->mm->def_flags &= ~VM_NOHUGEPAGE;
-+			clear_bit(MMF_DISABLE_THP, &me->mm->flags);
- 		up_write(&me->mm->mmap_sem);
- 		break;
- 	case PR_MPX_ENABLE_MANAGEMENT:
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index ce29e5cc7809..57e31f4752b3 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -818,7 +818,8 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
- static bool hugepage_vma_check(struct vm_area_struct *vma)
- {
- 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
--	    (vma->vm_flags & VM_NOHUGEPAGE))
-+	    (vma->vm_flags & VM_NOHUGEPAGE) ||
-+	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
- 		return false;
- 	if (shmem_file(vma->vm_file)) {
- 		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-diff --git a/mm/shmem.c b/mm/shmem.c
-index e67d6ba4e98e..27fe1bbf813b 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1977,10 +1977,11 @@ static int shmem_fault(struct vm_fault *vmf)
- 	}
- 
- 	sgp = SGP_CACHE;
--	if (vma->vm_flags & VM_HUGEPAGE)
--		sgp = SGP_HUGE;
--	else if (vma->vm_flags & VM_NOHUGEPAGE)
-+	
-+	if ((vma->vm_flags & VM_NOHUGEPAGE) || test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
- 		sgp = SGP_NOHUGE;
-+	else if (vma->vm_flags & VM_HUGEPAGE)
-+		sgp = SGP_HUGE;
- 
- 	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
- 				  gfp, vma, vmf, &ret);
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
