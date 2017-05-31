@@ -1,98 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 744926B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:01:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 91so594535wrl.13
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:01:41 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E7766B02C3
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 04:24:24 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id e79so10020587ioi.6
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 01:24:24 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v64si17562347wmd.14.2017.05.31.01.01.39
+        by mx.google.com with ESMTPS id y24si14001858wmh.1.2017.05.31.01.24.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 May 2017 01:01:39 -0700 (PDT)
-Date: Wed, 31 May 2017 09:01:36 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: consider memblock reservations for deferred memory
- initialization sizing
-Message-ID: <20170531080136.mczjttyijz6drdjl@suse.de>
-References: <20170531064227.5753-1-mhocko@kernel.org>
+        Wed, 31 May 2017 01:24:23 -0700 (PDT)
+Date: Wed, 31 May 2017 10:24:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+Message-ID: <20170531082414.GB27783@dhcp22.suse.cz>
+References: <20170524111800.GD14733@dhcp22.suse.cz>
+ <20170524142735.GF3063@rapoport-lnx>
+ <20170530074408.GA7969@dhcp22.suse.cz>
+ <20170530101921.GA25738@rapoport-lnx>
+ <20170530103930.GB7969@dhcp22.suse.cz>
+ <20170530140456.GA8412@redhat.com>
+ <20170530143941.GK7969@dhcp22.suse.cz>
+ <20170530145632.GL7969@dhcp22.suse.cz>
+ <20170530160610.GC8412@redhat.com>
+ <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170531064227.5753-1-mhocko@kernel.org>
+In-Reply-To: <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, May 31, 2017 at 08:42:27AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed 31-05-17 08:30:08, Vlastimil Babka wrote:
+> On 05/30/2017 06:06 PM, Andrea Arcangeli wrote:
+> > 
+> > I'm not sure if it should be considered a bug, the prctl is intended
+> > to use normally by wrappers so it looks optimal as implemented this
+> > way: affecting future vmas only, which will all be created after
+> > execve executed by the wrapper.
+> > 
+> > What's the point of messing with the prctl so it mangles over the
+> > wrapper process own vmas before exec? Messing with those vmas is pure
+> > wasted CPUs for the wrapper use case which is what the prctl was
+> > created for.
+> > 
+> > Furthermore there would be the risk a program that uses the prctl not
+> > as a wrapper and then calls the prctl to clear VM_NOHUGEPAGE from
+> > def_flags assuming the current kABI. The program could assume those
+> > vmas that were instantiated before disabling the prctl are still with
+> > VM_NOHUGEPAGE set (they would not after the change you propose).
+> > 
+> > Adding a scan of all vmas to PR_SET_THP_DISABLE to clear VM_NOHUGEPAGE
+> > on existing vmas looks more complex too and less finegrined so
+> > probably more complex for userland to manage
 > 
-> We have seen an early OOM killer invocation on ppc64 systems with
-> crashkernel=4096M
-> 	kthreadd invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=7, order=0, oom_score_adj=0
-> 	kthreadd cpuset=/ mems_allowed=7
-> 	CPU: 0 PID: 2 Comm: kthreadd Not tainted 4.4.68-1.gd7fe927-default #1
-> 	Call Trace:
-> 	[c0000000072fb7c0] [c00000000080830c] dump_stack+0xb0/0xf0 (unreliable)
-> 	[c0000000072fb800] [c0000000008032d4] dump_header+0xb0/0x258
-> 	[c0000000072fb8e0] [c00000000023dfc0] out_of_memory+0x5f0/0x640
-> 	[c0000000072fb990] [c00000000024459c] __alloc_pages_nodemask+0xa8c/0xc80
-> 	[c0000000072fbb10] [c0000000002b2504] kmem_getpages+0x84/0x1a0
-> 	[c0000000072fbb50] [c0000000002b5174] fallback_alloc+0x2a4/0x320
-> 	[c0000000072fbbc0] [c0000000002b4240] kmem_cache_alloc_node+0xc0/0x2e0
-> 	[c0000000072fbc30] [c0000000000b9a80] copy_process.isra.25+0x260/0x1b30
-> 	[c0000000072fbd10] [c0000000000bb514] _do_fork+0x94/0x470
-> 	[c0000000072fbd80] [c0000000000bb978] kernel_thread+0x48/0x60
-> 	[c0000000072fbda0] [c0000000000e9df4] kthreadd+0x264/0x330
-> 	[c0000000072fbe30] [c000000000009538] ret_from_kernel_thread+0x5c/0xa4
-> 	Mem-Info:
-> 	active_anon:0 inactive_anon:0 isolated_anon:0
-> 	 active_file:0 inactive_file:0 isolated_file:0
-> 	 unevictable:0 dirty:0 writeback:0 unstable:0
-> 	 slab_reclaimable:5 slab_unreclaimable:73
-> 	 mapped:0 shmem:0 pagetables:0 bounce:0
-> 	 free:0 free_pcp:0 free_cma:0
-> 	Node 7 DMA free:0kB min:0kB low:0kB high:0kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:52428800kB managed:110016kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:320kB slab_unreclaimable:4672kB kernel_stack:1152kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-> 	lowmem_reserve[]: 0 0 0 0
-> 	Node 7 DMA: 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB 0*8192kB 0*16384kB = 0kB
-> 	0 total pagecache pages
-> 	0 pages in swap cache
-> 	Swap cache stats: add 0, delete 0, find 0/0
-> 	Free swap  = 0kB
-> 	Total swap = 0kB
-> 	819200 pages RAM
-> 	0 pages HighMem/MovableOnly
-> 	817481 pages reserved
-> 	0 pages cma reserved
-> 	0 pages hwpoisoned
-> 
-> the reason is that the managed memory is too low (only 110MB) while the
-> rest of the the 50GB is still waiting for the deferred intialization to
-> be done. update_defer_init estimates the initial memoty to initialize to
-> 2GB at least but it doesn't consider any memory allocated in that range.
-> In this particular case we've had
-> 	Reserving 4096MB of memory at 128MB for crashkernel (System RAM: 51200MB)
-> so the low 2GB is mostly depleted.
-> 
-> Fix this by considering memblock allocations in the initial static
-> initialization estimation. Move the max_initialise to reset_deferred_meminit
-> and implement a simple memblock_reserved_memory helper which iterates all
-> reserved blocks and sums the size of all that start below the given address.
-> The cumulative size is than added on top of the initial estimation. This
-> is still not ideal because reset_deferred_meminit doesn't consider holes
-> and so reservation might be above the initial estimation whihch we
-> ignore but let's make the logic simpler until we really need to handle
-> more complicated cases.
-> 
-> Fixes: 3a80a7fa7989 ("mm: meminit: initialise a subset of struct pages if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set")
-> Cc: stable # 4.2+
-> Tested-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> I would expect the prctl wouldn't iterate all vma's, nor would it modify
+> def_flags anymore. It would just set a flag somewhere in mm struct that
+> would be considered in addition to the per-vma flags when deciding
+> whether to use THP.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Exactly. Something like the below (not even compile tested).
 
+> We could consider whether MADV_HUGEPAGE should be
+> able to override the prctl or not.
+
+This should be a master override to any per vma setting.
+
+---
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a3762d49ba39..9da053ced864 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -92,6 +92,7 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+ 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+ 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
++	 !test_bit(MMF_DISABLE_THP, &(__vma)->vm_mm->flags) &&		\
+ 	 !is_vma_temporary_stack(__vma))
+ #define transparent_hugepage_use_zero_page()				\
+ 	(transparent_hugepage_flags &					\
+diff --git a/include/linux/khugepaged.h b/include/linux/khugepaged.h
+index 5d9a400af509..f0d7335336cd 100644
+--- a/include/linux/khugepaged.h
++++ b/include/linux/khugepaged.h
+@@ -48,7 +48,8 @@ static inline int khugepaged_enter(struct vm_area_struct *vma,
+ 	if (!test_bit(MMF_VM_HUGEPAGE, &vma->vm_mm->flags))
+ 		if ((khugepaged_always() ||
+ 		     (khugepaged_req_madv() && (vm_flags & VM_HUGEPAGE))) &&
+-		    !(vm_flags & VM_NOHUGEPAGE))
++		    !(vm_flags & VM_NOHUGEPAGE) &&
++		    !test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+ 			if (__khugepaged_enter(vma->vm_mm))
+ 				return -ENOMEM;
+ 	return 0;
+diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
+index 69eedcef8f03..2c07b244090a 100644
+--- a/include/linux/sched/coredump.h
++++ b/include/linux/sched/coredump.h
+@@ -68,6 +68,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+ #define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
+ #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
+ #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
++#define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
+ 
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+ 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 8a94b4eabcaa..e48f0636c7fd 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2266,7 +2266,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 	case PR_GET_THP_DISABLE:
+ 		if (arg2 || arg3 || arg4 || arg5)
+ 			return -EINVAL;
+-		error = !!(me->mm->def_flags & VM_NOHUGEPAGE);
++		error = !!test_bit(MMF_DISABLE_THP, &me->mm->flags);
+ 		break;
+ 	case PR_SET_THP_DISABLE:
+ 		if (arg3 || arg4 || arg5)
+@@ -2274,9 +2274,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 		if (down_write_killable(&me->mm->mmap_sem))
+ 			return -EINTR;
+ 		if (arg2)
+-			me->mm->def_flags |= VM_NOHUGEPAGE;
++			set_bit(MMF_DISABLE_THP, &me->mm->flags);
+ 		else
+-			me->mm->def_flags &= ~VM_NOHUGEPAGE;
++			clear_bit(MMF_DISABLE_THP, &me->mm->flags);
+ 		up_write(&me->mm->mmap_sem);
+ 		break;
+ 	case PR_MPX_ENABLE_MANAGEMENT:
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index ce29e5cc7809..57e31f4752b3 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -818,7 +818,8 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
+ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ {
+ 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
+-	    (vma->vm_flags & VM_NOHUGEPAGE))
++	    (vma->vm_flags & VM_NOHUGEPAGE) ||
++	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+ 		return false;
+ 	if (shmem_file(vma->vm_file)) {
+ 		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e67d6ba4e98e..27fe1bbf813b 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1977,10 +1977,11 @@ static int shmem_fault(struct vm_fault *vmf)
+ 	}
+ 
+ 	sgp = SGP_CACHE;
+-	if (vma->vm_flags & VM_HUGEPAGE)
+-		sgp = SGP_HUGE;
+-	else if (vma->vm_flags & VM_NOHUGEPAGE)
++	
++	if ((vma->vm_flags & VM_NOHUGEPAGE) || test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
+ 		sgp = SGP_NOHUGE;
++	else if (vma->vm_flags & VM_HUGEPAGE)
++		sgp = SGP_HUGE;
+ 
+ 	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
+ 				  gfp, vma, vmf, &ret);
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
