@@ -1,158 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 664F06B02C3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 02:26:12 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k30so943422wrc.9
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 23:26:12 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id b7si18121403wrd.314.2017.05.30.23.26.11
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ACAC46B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 02:30:11 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k30so952214wrc.9
+        for <linux-mm@kvack.org>; Tue, 30 May 2017 23:30:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e5si16536738wrc.304.2017.05.30.23.30.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 May 2017 23:26:11 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id g15so1454610wmc.2
-        for <linux-mm@kvack.org>; Tue, 30 May 2017 23:26:11 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is default kernel zone
-Date: Wed, 31 May 2017 08:26:05 +0200
-Message-Id: <20170531062605.4347-1-mhocko@kernel.org>
-In-Reply-To: <20170531062439.GA3853@dhcp22.suse.cz>
-References: <20170531062439.GA3853@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 30 May 2017 23:30:10 -0700 (PDT)
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+References: <c59a0893-d370-130b-5c33-d567a4621903@suse.cz>
+ <20170524103947.GC3063@rapoport-lnx> <20170524111800.GD14733@dhcp22.suse.cz>
+ <20170524142735.GF3063@rapoport-lnx> <20170530074408.GA7969@dhcp22.suse.cz>
+ <20170530101921.GA25738@rapoport-lnx> <20170530103930.GB7969@dhcp22.suse.cz>
+ <20170530140456.GA8412@redhat.com> <20170530143941.GK7969@dhcp22.suse.cz>
+ <20170530145632.GL7969@dhcp22.suse.cz> <20170530160610.GC8412@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
+Date: Wed, 31 May 2017 08:30:08 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170530160610.GC8412@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 05/30/2017 06:06 PM, Andrea Arcangeli wrote:
+> 
+> I'm not sure if it should be considered a bug, the prctl is intended
+> to use normally by wrappers so it looks optimal as implemented this
+> way: affecting future vmas only, which will all be created after
+> execve executed by the wrapper.
+> 
+> What's the point of messing with the prctl so it mangles over the
+> wrapper process own vmas before exec? Messing with those vmas is pure
+> wasted CPUs for the wrapper use case which is what the prctl was
+> created for.
+> 
+> Furthermore there would be the risk a program that uses the prctl not
+> as a wrapper and then calls the prctl to clear VM_NOHUGEPAGE from
+> def_flags assuming the current kABI. The program could assume those
+> vmas that were instantiated before disabling the prctl are still with
+> VM_NOHUGEPAGE set (they would not after the change you propose).
+> 
+> Adding a scan of all vmas to PR_SET_THP_DISABLE to clear VM_NOHUGEPAGE
+> on existing vmas looks more complex too and less finegrined so
+> probably more complex for userland to manage
 
-Heiko Carstens has noticed that he can generate overlapping zones for
-ZONE_DMA and ZONE_NORMAL:
-DMA      [mem 0x0000000000000000-0x000000007fffffff]
-Normal   [mem 0x0000000080000000-0x000000017fffffff]
+I would expect the prctl wouldn't iterate all vma's, nor would it modify
+def_flags anymore. It would just set a flag somewhere in mm struct that
+would be considered in addition to the per-vma flags when deciding
+whether to use THP. We could consider whether MADV_HUGEPAGE should be
+able to override the prctl or not.
 
-$ cat /sys/devices/system/memory/block_size_bytes
-10000000
-$ cat /sys/devices/system/memory/memory5/valid_zones
-DMA
-$ echo 0 > /sys/devices/system/memory/memory5/online
-$ cat /sys/devices/system/memory/memory5/valid_zones
-Normal
-$ echo 1 > /sys/devices/system/memory/memory5/online
-Normal
-
-$ cat /proc/zoneinfo
-Node 0, zone      DMA
-spanned  524288        <-----
-present  458752
-managed  455078
-start_pfn:           0 <-----
-
-Node 0, zone   Normal
-spanned  720896
-present  589824
-managed  571648
-start_pfn:           327680 <-----
-
-The reason is that we assume that the default zone for kernel onlining
-is ZONE_NORMAL. This was a simplification introduced by the memory
-hotplug rework and it is easily fixable by checking the range overlap in
-the zone order and considering the first matching zone as the default
-one. If there is no such zone then assume ZONE_NORMAL as we have been
-doing so far.
-
-Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
-Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/base/memory.c          |  2 +-
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 27 ++++++++++++++++++++++++---
- 3 files changed, 27 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index b86fda30ce62..c7c4e0325cdb 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -419,7 +419,7 @@ static ssize_t show_valid_zones(struct device *dev,
- 
- 	nid = pfn_to_nid(start_pfn);
- 	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
--		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_NORMAL].name);
-+		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
- 		append = true;
- 	}
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 9e0249d0f5e4..ed167541e4fc 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -309,4 +309,6 @@ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
- 					  unsigned long pnum);
- extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 		int online_type);
-+extern struct zone *default_zone_for_pfn(int nid, unsigned long pfn,
-+		unsigned long nr_pages);
- #endif /* __LINUX_MEMORY_HOTPLUG_H */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b3895fd609f4..a0348de3e18c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -858,7 +858,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
--	struct zone *normal_zone =  &pgdat->node_zones[ZONE_NORMAL];
-+	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
- 
- 	/*
- 	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
-@@ -872,7 +872,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 			return true;
- 		return movable_zone->zone_start_pfn >= pfn + nr_pages;
- 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
--		return zone_end_pfn(normal_zone) <= pfn;
-+		return zone_end_pfn(default_zone) <= pfn;
- 	}
- 
- 	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
-@@ -938,6 +938,27 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
- }
- 
- /*
-+ * Returns a default kernel memory zone for the given pfn range.
-+ * If no kernel zone covers this pfn range it will automatically go
-+ * to the ZONE_NORMAL.
-+ */
-+struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-+		unsigned long nr_pages)
-+{
-+	struct pglist_data *pgdat = NODE_DATA(nid);
-+	int zid;
-+
-+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
-+		struct zone *zone = &pgdat->node_zones[zid];
-+
-+		if (zone_intersects(zone, start_pfn, nr_pages))
-+			return zone;
-+	}
-+
-+	return &pgdat->node_zones[ZONE_NORMAL];
-+}
-+
-+/*
-  * Associates the given pfn range with the given node and the zone appropriate
-  * for the given online type.
-  */
-@@ -945,7 +966,7 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
- 		unsigned long start_pfn, unsigned long nr_pages)
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
--	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
-+	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
- 
- 	if (online_type == MMOP_ONLINE_KEEP) {
- 		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
--- 
-2.11.0
+> but ignoring all above
+> considerations it would be a functional alternative for CRIU's
+> needs. However if you didn't like the complexity of the new madvise
+> which is functionally a one-liner equivalent to MADV_NORMAL, I
+> wouldn't expect you to prefer to make the prctl even more complex with
+> a loop over all vmas that despite being fairly simple it'll still be
+> more than a trivial one liner.
+> 
+> Thanks,
+> Andrea
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
