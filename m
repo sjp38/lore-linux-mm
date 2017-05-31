@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B868C6B02F3
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:21:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x184so3598791wmf.14
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:21:54 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 558006B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 11:40:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 204so3712876wmy.1
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 08:40:26 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o23si17353626wra.77.2017.05.31.08.21.53
+        by mx.google.com with ESMTPS id 30si146571wri.162.2017.05.31.08.40.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 May 2017 08:21:53 -0700 (PDT)
-Date: Wed, 31 May 2017 17:21:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Patch v2] mm/vmscan: fix unsequenced modification and access
- warning
-Message-ID: <20170531152151.GT27783@dhcp22.suse.cz>
-References: <20170510071511.GA31466@dhcp22.suse.cz>
- <20170510082734.2055-1-nick.desaulniers@gmail.com>
- <20170510083844.GG31466@dhcp22.suse.cz>
- <20170516082746.GA2481@dhcp22.suse.cz>
- <20170526044343.autu63rpfigbzhyi@lostoracle.net>
+        Wed, 31 May 2017 08:40:23 -0700 (PDT)
+Date: Wed, 31 May 2017 08:40:10 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [RFC v2 01/10] mm: Deactivate mmap_sem assert
+Message-ID: <20170531154010.GA28615@linux-80c1.suse>
+References: <1495624801-8063-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1495624801-8063-2-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20170526044343.autu63rpfigbzhyi@lostoracle.net>
+In-Reply-To: <1495624801-8063-2-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, Andi Kleen <andi@firstfloor.org>, haren@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
 
-On Thu 25-05-17 21:43:43, Nick Desaulniers wrote:
-> On Tue, May 16, 2017 at 10:27:46AM +0200, Michal Hocko wrote:
-> > I guess it is worth reporting this to clang bugzilla. Could you take
-> > care of that Nick?
-> 
-> >From https://bugs.llvm.org//show_bug.cgi?id=33065#c5
-> it seems that this is indeed a sequence bug in the previous version of
-> this code and not a compiler bug.  You can read that response for the
-> properly-cited wording but my TL;DR/understanding is for the given code:
-> 
-> struct foo bar = {
->   .a = (c = 0),
->   .b = c,
-> };
-> 
-> That the compiler is allowed to reorder the initializations of bar.a and
-> bar.b, so what the value of c here might not be what you expect.
+Hi Laurent!
 
-This is interesting because what I hear from our gcc people is something
-different. I am not in a possition to argue here, though.
--- 
-Michal Hocko
-SUSE Labs
+On Wed, 24 May 2017, Laurent Dufour wrote:
+
+>When mmap_sem will be moved to a range lock, some assertion done in
+>the code will have to be reviewed to work with the range locking as
+>well.
+>
+>This patch disables these assertions for the moment but it has be
+>reviewed later once the range locking API will provide the dedicated
+>services.
+
+Lets not do this; we should _at least_ provide the current checks
+we already have. The following should be a (slower) equivalent once
+we have the interval_tree_iter_first() optimization sorted out.
+
+int range_is_locked(struct range_lock_tree *tree, struct range_lock *lock)
+{
+	unsigned long flags;
+	struct interval_tree_node *node;
+
+	spin_lock_irqsave(&tree->lock, flags);
+	node = interval_tree_iter_first(&tree->root, lock->node.start,
+					lock->node.last);
+	spin_unlock_irqrestore(&tree->lock, flags);
+
+	return node != NULL;
+}
+EXPORT_SYMBOL_GPL(range_is_locked);
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
