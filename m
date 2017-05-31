@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 383746B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 09:13:06 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j28so14258613pfk.14
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 06:13:06 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0047.outbound.protection.outlook.com. [104.47.40.47])
-        by mx.google.com with ESMTPS id f34si25028576ple.151.2017.05.31.06.13.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 659746B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 09:38:00 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p29so11287950pgn.3
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 06:38:00 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0073.outbound.protection.outlook.com. [104.47.37.73])
+        by mx.google.com with ESMTPS id t61si48242728plb.200.2017.05.31.06.37.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 May 2017 06:13:05 -0700 (PDT)
-Subject: Re: [PATCH v5 29/32] x86/mm: Add support to encrypt the kernel
- in-place
+        Wed, 31 May 2017 06:37:59 -0700 (PDT)
+Subject: Re: [PATCH v5 32/32] x86/mm: Add support to make use of Secure Memory
+ Encryption
 References: <20170418211612.10190.82788.stgit@tlendack-t1.amdoffice.net>
- <20170418212149.10190.70894.stgit@tlendack-t1.amdoffice.net>
- <20170518124626.hqyqqbjpy7hmlpqc@pd.tnic>
- <7e2ae014-525c-76f2-9fce-2124596db2d2@amd.com>
- <20170526162522.p7prrqqalx2ivfxl@pd.tnic>
- <33c075b1-71f6-b5d0-b1fa-d742d0659d38@amd.com>
- <20170531095148.pba6ju6im4qxbwfg@pd.tnic>
+ <20170418212223.10190.85121.stgit@tlendack-t1.amdoffice.net>
+ <20170519112703.voajtn4t7uy6nwa3@pd.tnic>
+ <7c522f65-c5c8-9362-e1eb-d0765e3ea6c9@amd.com>
+ <20170530145459.tyuy6veqxnrqkhgw@pd.tnic>
+ <115ca39d-6ae7-f603-a415-ead7c4e8193d@amd.com>
+ <20170531084923.mmlpefxfx53f3okp@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <17394b27-d693-4ff9-9dbd-11b5237fcf6a@amd.com>
-Date: Wed, 31 May 2017 08:12:56 -0500
+Message-ID: <706d6ae0-bc4c-5ba7-529c-b0fc5e4ad464@amd.com>
+Date: Wed, 31 May 2017 08:37:50 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170531095148.pba6ju6im4qxbwfg@pd.tnic>
+In-Reply-To: <20170531084923.mmlpefxfx53f3okp@pd.tnic>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -33,58 +33,42 @@ Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, 
  Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 5/31/2017 4:51 AM, Borislav Petkov wrote:
-> On Tue, May 30, 2017 at 11:39:07AM -0500, Tom Lendacky wrote:
->> Yes, it's from objtool:
+On 5/31/2017 3:49 AM, Borislav Petkov wrote:
+> On Tue, May 30, 2017 at 10:37:03AM -0500, Tom Lendacky wrote:
+>> I can define the command line option and the "on" and "off" values as
+>> character buffers in the function and initialize them on a per character
+>> basis (using a static string causes the same issues as referencing a
+>> string constant), i.e.:
 >>
->> arch/x86/mm/mem_encrypt_boot.o: warning: objtool: .text+0xd2: return
->> instruction outside of a callable function
+>> char cmdline_arg[] = {'m', 'e', 'm', '_', 'e', 'n', 'c', 'r', 'y', 'p', 't', '\0'};
+>> char cmdline_off[] = {'o', 'f', 'f', '\0'};
+>> char cmdline_on[] = {'o', 'n', '\0'};
+>>
+>> It doesn't look the greatest, but it works and removes the need for the
+>> rip-relative addressing.
 > 
-> Oh, well, let's make it a global symbol then. Who knows, we might have
-> to live-patch it someday :-)
+> Well, I'm not thrilled about this one either. It's like being between a
+> rock and a hard place. :-\
+> 
+> On the one hand, we need the encryption mask before we do the fixups and
+> OTOH we need to do the fixups in order to access the strings properly.
+> Yuck.
+> 
+> Well, the only thing I can think of right now is maybe define
+> "mem_encrypt=" at the end of head_64.S and pass it in from asm to
+> sme_enable() and then do the "on"/"off" comparsion with local char
+> buffers. That could make it less ugly...
 
-Can do.
+I like keeping the command line option and the values together. It may
+not look the greatest but I like it more than defining the command line
+option in head_64.S and passing it in as an argument.
+
+OTOH, I don't think the rip-relative addressing was that bad, I can
+always go back to that...
 
 Thanks,
 Tom
 
-> 
-> ---
-> diff --git a/arch/x86/mm/mem_encrypt_boot.S b/arch/x86/mm/mem_encrypt_boot.S
-> index fb58f9f953e3..7720b0050840 100644
-> --- a/arch/x86/mm/mem_encrypt_boot.S
-> +++ b/arch/x86/mm/mem_encrypt_boot.S
-> @@ -47,9 +47,9 @@ ENTRY(sme_encrypt_execute)
->   	movq	%rdx, %r12		/* Kernel length */
->   
->   	/* Copy encryption routine into the workarea */
-> -	movq	%rax, %rdi		/* Workarea encryption routine */
-> -	leaq	.Lenc_start(%rip), %rsi	/* Encryption routine */
-> -	movq	$(.Lenc_stop - .Lenc_start), %rcx	/* Encryption routine length */
-> +	movq	%rax, %rdi				/* Workarea encryption routine */
-> +	leaq	__enc_copy(%rip), %rsi			/* Encryption routine */
-> +	movq	$(.L__enc_copy_end - __enc_copy), %rcx	/* Encryption routine length */
->   	rep	movsb
->   
->   	/* Setup registers for call */
-> @@ -70,8 +70,7 @@ ENTRY(sme_encrypt_execute)
->   	ret
->   ENDPROC(sme_encrypt_execute)
->   
-> -.Lenc_start:
-> -ENTRY(sme_enc_routine)
-> +ENTRY(__enc_copy)
->   /*
->    * Routine used to encrypt kernel.
->    *   This routine must be run outside of the kernel proper since
-> @@ -147,5 +146,5 @@ ENTRY(sme_enc_routine)
->   	wrmsr
->   
->   	ret
-> -ENDPROC(sme_enc_routine)
-> -.Lenc_stop:
-> +.L__enc_copy_end:
-> +ENDPROC(__enc_copy)
 > 
 
 --
