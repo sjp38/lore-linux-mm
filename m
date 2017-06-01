@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B724F6B02FD
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:35:31 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c206so17273329qkb.11
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:35:31 -0700 (PDT)
-Received: from mail-qt0-x232.google.com (mail-qt0-x232.google.com. [2607:f8b0:400d:c0d::232])
-        by mx.google.com with ESMTPS id f15si14335469qkf.265.2017.06.01.08.35.30
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E73D6B0311
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:35:52 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id j62so14463143uaj.12
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:35:52 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id q43si9582757uaf.71.2017.06.01.08.35.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 08:35:30 -0700 (PDT)
-Received: by mail-qt0-x232.google.com with SMTP id c13so39187382qtc.1
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:35:30 -0700 (PDT)
-Date: Thu, 1 Jun 2017 11:35:28 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-Message-ID: <20170601153528.GB3494@htj.duckdns.org>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-12-git-send-email-longman@redhat.com>
- <20170519202624.GA15279@wtj.duckdns.org>
- <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
- <20170524203616.GO24798@htj.duckdns.org>
- <9b147a7e-fec3-3b78-7587-3890efcd42f2@redhat.com>
- <20170524212745.GP24798@htj.duckdns.org>
- <20170601145042.GA3494@htj.duckdns.org>
- <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
+        Thu, 01 Jun 2017 08:35:51 -0700 (PDT)
+Date: Thu, 1 Jun 2017 10:31:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: 4.12-rc ppc64 4k-page needs costly allocations
+In-Reply-To: <alpine.LSU.2.11.1705311112290.1839@eggly.anvils>
+Message-ID: <alpine.DEB.2.20.1706011027310.8835@east.gentwo.org>
+References: <alpine.LSU.2.11.1705301151090.2133@eggly.anvils> <87h9014j7t.fsf@concordia.ellerman.id.au> <alpine.DEB.2.20.1705310906570.14920@east.gentwo.org> <alpine.LSU.2.11.1705311112290.1839@eggly.anvils>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Waiman Long <longman@redhat.com>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Hugh Dickins <hughd@google.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Hello, Peter.
 
-On Thu, Jun 01, 2017 at 05:10:45PM +0200, Peter Zijlstra wrote:
-> I've not had time to look at any of this. But the question I'm most
-> curious about is how cgroup-v2 preserves the container invariant.
-> 
-> That is, each container (namespace) should look like a 'real' machine.
-> So just like userns allows to have a uid-0 (aka root) for each container
-> and pidns allows a pid-1 for each container, cgroupns should provide a
-> root group for each container.
-> 
-> And cgroup-v2 has this 'exception' (aka wart) for the root group which
-> needs to be replicated for each namespace.
 
-The goal has never been that a container must be indistinguishible
-from a real machine.  For certain things, things simply don't have
-exact equivalents due to sharing (memory stats or journal writes for
-example) and those things are exactly why people prefer containers
-over VMs for certain use cases.  If one wants full replication, VM
-would be the way to go.
+> > I am curious as to what is going on there. Do you have the output from
+> > these failed allocations?
+>
+> I thought the relevant output was in my mail.  I did skip the Mem-Info
+> dump, since that just seemed noise in this case: we know memory can get
+> fragmented.  What more output are you looking for?
 
-The goal is allowing enough container invariant so that appropriate
-workloads can be contained and co-exist in useful ways.  This also
-means that the contained workload is usually either a bit illiterate
-w.r.t. to the system details (doesn't care) or makes some adjustments
-for running inside a container (most quasi-full-system ones already
-do).
+The output for the failing allocations when you disabling debugging. For
+that I would think that you need remove(!) the slub_debug statement on the kernel
+command line. You can verify that debug is off by inspecting the values in
+/sys/kernel/slab/<yourcache>/<debug option>
 
-System root is inherently different from all other nested roots.
-Making some exceptions for the root isn't about taking away from other
-roots but more reflecting the inherent differences - there are things
-which are inherently system / bare-metal.
+> But it was still order 4 when booted with slub_debug=O, which surprised me.
+> And that surprises you too?  If so, then we ought to dig into it further.
 
-Thanks.
-
--- 
-tejun
+No it does no longer. I dont think slub_debug=O does disable debugging
+(frankly I am not sure what it does). Please do not specify any debug options.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
