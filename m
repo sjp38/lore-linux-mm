@@ -1,184 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E036C6B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 13:46:10 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 23so8862451uaj.5
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 10:46:10 -0700 (PDT)
-Received: from mail-ua0-x232.google.com (mail-ua0-x232.google.com. [2607:f8b0:400c:c08::232])
-        by mx.google.com with ESMTPS id c8si9306087uaf.244.2017.06.01.10.46.09
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2446B0292
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 14:06:25 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id x47so15536122uab.14
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 11:06:25 -0700 (PDT)
+Received: from mail-vk0-x22e.google.com (mail-vk0-x22e.google.com. [2607:f8b0:400c:c05::22e])
+        by mx.google.com with ESMTPS id l7si9502421ual.202.2017.06.01.11.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 10:46:09 -0700 (PDT)
-Received: by mail-ua0-x232.google.com with SMTP id y4so31845177uay.2
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 10:46:09 -0700 (PDT)
+        Thu, 01 Jun 2017 11:06:24 -0700 (PDT)
+Received: by mail-vk0-x22e.google.com with SMTP id y190so29166614vkc.1
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 11:06:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170601162338.23540-1-aryabinin@virtuozzo.com>
-References: <20170601162338.23540-1-aryabinin@virtuozzo.com>
+In-Reply-To: <3a7664a9-e360-ab68-610a-1b697a4b00b5@virtuozzo.com>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+ <20170516062318.GC16015@js1304-desktop> <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+ <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
+ <20170524074539.GA9697@js1304-desktop> <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
+ <20170525004104.GA21336@js1304-desktop> <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
+ <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
+ <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com> <3a7664a9-e360-ab68-610a-1b697a4b00b5@virtuozzo.com>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 1 Jun 2017 19:45:48 +0200
-Message-ID: <CACT4Y+bFjAuMShPDzuSa9W6rYx2yKhdeh-UkfMyGpPxbH5yp6Q@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm/kasan: get rid of speculative shadow checks
+Date: Thu, 1 Jun 2017 20:06:02 +0200
+Message-ID: <CACT4Y+at_NESQ8qq4zouArnu5yySQHxC2oW+RuXzqX8hyspZ_g@mail.gmail.com>
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
 
-On Thu, Jun 1, 2017 at 6:23 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> For some unaligned memory accesses we have to check additional
-> byte of the shadow memory. Currently we load that byte speculatively
-> to have only single load + branch on the optimistic fast path.
+On Tue, May 30, 2017 at 4:16 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> On 05/29/2017 06:29 PM, Dmitry Vyukov wrote:
+>> Joonsoo,
+>>
+>> I guess mine (and Andrey's) main concern is the amount of additional
+>> complexity (I am still struggling to understand how it all works) and
+>> more arch-dependent code in exchange for moderate memory win.
+>>
+>> Joonsoo, Andrey,
+>>
+>> I have an alternative proposal. It should be conceptually simpler and
+>> also less arch-dependent. But I don't know if I miss something
+>> important that will render it non working.
+>> Namely, we add a pointer to shadow to the page struct. Then, create a
+>> slab allocator for 512B shadow blocks. Then, attach/detach these
+>> shadow blocks to page structs as necessary. It should lead to even
+>> smaller memory consumption because we won't need a whole shadow page
+>> when only 1 out of 8 corresponding kernel pages are used (we will need
+>> just a single 512B block). I guess with some fragmentation we need
+>> lots of excessive shadow with the current proposed patch.
+>> This does not depend on TLB in any way and does not require hooking
+>> into buddy allocator.
+>> The main downside is that we will need to be careful to not assume
+>> that shadow is continuous. In particular this means that this mode
+>> will work only with outline instrumentation and will need some ifdefs.
+>> Also it will be slower due to the additional indirection when
+>> accessing shadow, but that's meant as "small but slow" mode as far as
+>> I understand.
 >
-> However, this approach have some downsides:
->  - It's unaligned access, so this prevents porting KASAN on architectures
->     which doesn't support unaligned accesses.
->  - We have to map additional shadow page to prevent crash if
->     speculative load happens near the end of the mapped memory.
->     This would significantly complicate upcoming memory hotplug support.
+> It seems that you are forgetting about stack instrumentation.
+> You'll have to disable it completely, at least with current implementation of it in gcc.
 >
-> I wasn't able to notice any performance degradation with this patch.
-> So these speculative loads is just a pain with no gain, let's remove
-> them.
+>> But the main win as I see it is that that's basically complete support
+>> for 32-bit arches. People do ask about arm32 support:
+>> https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ
+>> https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ
+>> and probably mips32 is relevant as well.
 >
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> I don't see how above is relevant for 32-bit arches. Current design
+> is perfectly fine for 32-bit arches. I did some POC arm32 port couple years
+> ago - https://github.com/aryabinin/linux/commits/kasan/arm_v0_1
+> It has some ugly hacks and non-critical bugs. AFAIR it also super-slow because I (mistakenly)
+> made shadow memory uncached. But otherwise it works.
+>
+>> Such mode does not require a huge continuous address space range, has
+>> minimal memory consumption and requires minimal arch-dependent code.
+>> Works only with outline instrumentation, but I think that's a
+>> reasonable compromise.
+>>
+>> What do you think?
+>
+> I don't understand why we trying to invent some hacky/complex schemes when we already have
+> a simple one - scaling shadow to 1/32. It's easy to implement and should be more performant comparing
+> to suggested schemes.
 
 
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
-
-> ---
->  mm/kasan/kasan.c | 98 +++++++++-----------------------------------------------
->  1 file changed, 16 insertions(+), 82 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 85ee45b07615..e6fe07a98677 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -134,94 +134,30 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr)
->         return false;
->  }
->
-> -static __always_inline bool memory_is_poisoned_2(unsigned long addr)
-> +static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
-> +                                               unsigned long size)
->  {
-> -       u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-> -
-> -       if (unlikely(*shadow_addr)) {
-> -               if (memory_is_poisoned_1(addr + 1))
-> -                       return true;
-> -
-> -               /*
-> -                * If single shadow byte covers 2-byte access, we don't
-> -                * need to do anything more. Otherwise, test the first
-> -                * shadow byte.
-> -                */
-> -               if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
-> -                       return false;
-> -
-> -               return unlikely(*(u8 *)shadow_addr);
-> -       }
-> +       u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
->
-> -       return false;
-> -}
-> -
-> -static __always_inline bool memory_is_poisoned_4(unsigned long addr)
-> -{
-> -       u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-> -
-> -       if (unlikely(*shadow_addr)) {
-> -               if (memory_is_poisoned_1(addr + 3))
-> -                       return true;
-> -
-> -               /*
-> -                * If single shadow byte covers 4-byte access, we don't
-> -                * need to do anything more. Otherwise, test the first
-> -                * shadow byte.
-> -                */
-> -               if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
-> -                       return false;
-> -
-> -               return unlikely(*(u8 *)shadow_addr);
-> -       }
-> -
-> -       return false;
-> -}
-> -
-> -static __always_inline bool memory_is_poisoned_8(unsigned long addr)
-> -{
-> -       u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-> -
-> -       if (unlikely(*shadow_addr)) {
-> -               if (memory_is_poisoned_1(addr + 7))
-> -                       return true;
-> -
-> -               /*
-> -                * If single shadow byte covers 8-byte access, we don't
-> -                * need to do anything more. Otherwise, test the first
-> -                * shadow byte.
-> -                */
-> -               if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-> -                       return false;
-> -
-> -               return unlikely(*(u8 *)shadow_addr);
-> -       }
-> +       /*
-> +        * Access crosses 8(shadow size)-byte boundary. Such access maps
-> +        * into 2 shadow bytes, so we need to check them both.
-> +        */
-> +       if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1))
-> +               return *shadow_addr || memory_is_poisoned_1(addr + size - 1);
->
-> -       return false;
-> +       return memory_is_poisoned_1(addr + size - 1);
->  }
->
->  static __always_inline bool memory_is_poisoned_16(unsigned long addr)
->  {
-> -       u32 *shadow_addr = (u32 *)kasan_mem_to_shadow((void *)addr);
-> -
-> -       if (unlikely(*shadow_addr)) {
-> -               u16 shadow_first_bytes = *(u16 *)shadow_addr;
-> -
-> -               if (unlikely(shadow_first_bytes))
-> -                       return true;
-> -
-> -               /*
-> -                * If two shadow bytes covers 16-byte access, we don't
-> -                * need to do anything more. Otherwise, test the last
-> -                * shadow byte.
-> -                */
-> -               if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-> -                       return false;
-> +       u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
->
-> -               return memory_is_poisoned_1(addr + 15);
-> -       }
-> +       /* Unaligned 16-bytes access maps into 3 shadow bytes. */
-> +       if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-> +               return *shadow_addr || memory_is_poisoned_1(addr + 15);
->
-> -       return false;
-> +       return *shadow_addr;
->  }
->
->  static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
-> @@ -292,11 +228,9 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
->                 case 1:
->                         return memory_is_poisoned_1(addr);
->                 case 2:
-> -                       return memory_is_poisoned_2(addr);
->                 case 4:
-> -                       return memory_is_poisoned_4(addr);
->                 case 8:
-> -                       return memory_is_poisoned_8(addr);
-> +                       return memory_is_poisoned_2_4_8(addr, size);
->                 case 16:
->                         return memory_is_poisoned_16(addr);
->                 default:
-> --
-> 2.13.0
->
+If 32-bits work with the current approach, then I would also prefer to
+keep things simpler.
+FWIW clang supports settings shadow scale via a command line flag
+(-asan-mapping-scale).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
