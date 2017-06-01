@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D3276B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:40:26 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b86so9712129wmi.6
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:40:26 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DF866B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:57:35 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d127so9735547wmf.15
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:57:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j89si19533186edc.36.2017.06.01.05.40.25
+        by mx.google.com with ESMTPS id f55si18882713edd.78.2017.06.01.05.57.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 05:40:25 -0700 (PDT)
-Date: Thu, 1 Jun 2017 14:40:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: fix MMOP_ONLINE_KEEP behavior
-Message-ID: <20170601124022.GC9091@dhcp22.suse.cz>
+        Thu, 01 Jun 2017 05:57:33 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is
+ default kernel zone
 References: <20170601083746.4924-1-mhocko@kernel.org>
- <20170601083746.4924-2-mhocko@kernel.org>
- <ad200307-63d1-fe6f-cbc6-09c8cb431b8a@suse.cz>
+ <20170601083746.4924-3-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0885b6bd-3d29-efef-e31c-9797d0421fe8@suse.cz>
+Date: Thu, 1 Jun 2017 14:57:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ad200307-63d1-fe6f-cbc6-09c8cb431b8a@suse.cz>
+In-Reply-To: <20170601083746.4924-3-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 01-06-17 14:32:42, Vlastimil Babka wrote:
-> On 06/01/2017 10:37 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Heiko Carstens has noticed that the MMOP_ONLINE_KEEP is broken currently
-> > $ grep . memory3?/valid_zones
-> > memory34/valid_zones:Normal Movable
-> > memory35/valid_zones:Normal Movable
-> > memory36/valid_zones:Normal Movable
-> > memory37/valid_zones:Normal Movable
-> > 
-> > $ echo online_movable > memory34/state
-> > $ grep . memory3?/valid_zones
-> > memory34/valid_zones:Movable
-> > memory35/valid_zones:Movable
-> > memory36/valid_zones:Movable
-> > memory37/valid_zones:Movable
-> > 
-> > $ echo online > memory36/state
-> > $ grep . memory3?/valid_zones
-> > memory34/valid_zones:Movable
-> > memory36/valid_zones:Normal
-> > memory37/valid_zones:Movable
-> > 
-> > so we have effectivelly punched a hole into the movable zone. The
-> > problem is that move_pfn_range() check for MMOP_ONLINE_KEEP is wrong.
-> > It only checks whether the given range is already part of the movable
-> > zone which is not the case here as only memory34 is in the zone. Fix
-> > this by using allow_online_pfn_range(..., MMOP_ONLINE_KERNEL) if that
-> > is false then we can be sure that movable onlining is the right thing to
-> > do.
-> > 
-> > Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
+On 06/01/2017 10:37 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Just fold it there before sending to Linus, right?
-
-I do not have a strong preference. The changelog could still be helpful
-for reference. The original patch is quite large and details like this
-are likely to get lost there.
-
+> Heiko Carstens has noticed that he can generate overlapping zones for
+> ZONE_DMA and ZONE_NORMAL:
+> DMA      [mem 0x0000000000000000-0x000000007fffffff]
+> Normal   [mem 0x0000000080000000-0x000000017fffffff]
 > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> $ cat /sys/devices/system/memory/block_size_bytes
+> 10000000
+> $ cat /sys/devices/system/memory/memory5/valid_zones
+> DMA
+> $ echo 0 > /sys/devices/system/memory/memory5/online
+> $ cat /sys/devices/system/memory/memory5/valid_zones
+> Normal
+> $ echo 1 > /sys/devices/system/memory/memory5/online
+> Normal
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> $ cat /proc/zoneinfo
+> Node 0, zone      DMA
+> spanned  524288        <-----
+> present  458752
+> managed  455078
+> start_pfn:           0 <-----
+> 
+> Node 0, zone   Normal
+> spanned  720896
+> present  589824
+> managed  571648
+> start_pfn:           327680 <-----
+> 
+> The reason is that we assume that the default zone for kernel onlining
+> is ZONE_NORMAL. This was a simplification introduced by the memory
+> hotplug rework and it is easily fixable by checking the range overlap in
+> the zone order and considering the first matching zone as the default
+> one. If there is no such zone then assume ZONE_NORMAL as we have been
+> doing so far.
+> 
+> Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
+> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
