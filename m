@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FCE76B02F3
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:22:23 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id c71so51390936oig.1
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:22:23 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50099.outbound.protection.outlook.com. [40.107.5.99])
-        by mx.google.com with ESMTPS id o13si4331210oto.26.2017.06.01.09.22.22
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 206726B02F4
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:22:26 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f124so51139036oia.14
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:22:26 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50111.outbound.protection.outlook.com. [40.107.5.111])
+        by mx.google.com with ESMTPS id n130si8445866oib.181.2017.06.01.09.22.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 09:22:22 -0700 (PDT)
+        Thu, 01 Jun 2017 09:22:24 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 3/4] arm64/kasan: don't allocate extra shadow memory
-Date: Thu, 1 Jun 2017 19:23:37 +0300
-Message-ID: <20170601162338.23540-3-aryabinin@virtuozzo.com>
+Subject: [PATCH 4/4] mm/kasan: Add support for memory hotplug
+Date: Thu, 1 Jun 2017 19:23:38 +0300
+Message-ID: <20170601162338.23540-4-aryabinin@virtuozzo.com>
 In-Reply-To: <20170601162338.23540-1-aryabinin@virtuozzo.com>
 References: <20170601162338.23540-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
@@ -20,43 +20,91 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-We used to read several bytes of the shadow memory in advance.
-Therefore additional shadow memory mapped to prevent crash if
-speculative load would happen near the end of the mapped shadow memory.
+KASAN doesn't happen work with memory hotplug because hotplugged memory
+doesn't have any shadow memory. So any access to hotplugged memory
+would cause a crash on shadow check.
 
-Now we don't have such speculative loads, so we no longer need to map
-additional shadow memory.
+Use memory hotplug notifier to allocate and map shadow memory when the
+hotplugged memory is going online and free shadow after the memory
+offlined.
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: linux-arm-kernel@lists.infradead.org
 ---
- arch/arm64/mm/kasan_init.c | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ mm/Kconfig       |  1 -
+ mm/kasan/kasan.c | 40 +++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 35 insertions(+), 6 deletions(-)
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 687a358a3733..81f03959a4ab 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -191,14 +191,8 @@ void __init kasan_init(void)
- 		if (start >= end)
- 			break;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index f1fbde17d45d..c8df94059974 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -161,7 +161,6 @@ config MEMORY_HOTPLUG
+ 	bool "Allow for memory hot-add"
+ 	depends on SPARSEMEM || X86_64_ACPI_NUMA
+ 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+-	depends on COMPILE_TEST || !KASAN
  
--		/*
--		 * end + 1 here is intentional. We check several shadow bytes in
--		 * advance to slightly speed up fastpath. In some rare cases
--		 * we could cross boundary of mapped shadow, so we just map
--		 * some more here.
--		 */
- 		vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
--				(unsigned long)kasan_mem_to_shadow(end) + 1,
-+				(unsigned long)kasan_mem_to_shadow(end),
- 				pfn_to_nid(virt_to_pfn(start)));
- 	}
+ config MEMORY_HOTPLUG_SPARSE
+ 	def_bool y
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index e6fe07a98677..ca11bc4ce205 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -737,17 +737,47 @@ void __asan_unpoison_stack_memory(const void *addr, size_t size)
+ EXPORT_SYMBOL(__asan_unpoison_stack_memory);
  
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-static int kasan_mem_notifier(struct notifier_block *nb,
++static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+ 			unsigned long action, void *data)
+ {
+-	return (action == MEM_GOING_ONLINE) ? NOTIFY_BAD : NOTIFY_OK;
++	struct memory_notify *mem_data = data;
++	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
++	unsigned long shadow_end, shadow_size;
++
++	nr_shadow_pages = mem_data->nr_pages >> KASAN_SHADOW_SCALE_SHIFT;
++	start_kaddr = (unsigned long)pfn_to_kaddr(mem_data->start_pfn);
++	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start_kaddr);
++	shadow_size = nr_shadow_pages << PAGE_SHIFT;
++	shadow_end = shadow_start + shadow_size;
++
++	if (WARN_ON(mem_data->nr_pages % KASAN_SHADOW_SCALE_SIZE) ||
++		WARN_ON(start_kaddr % (KASAN_SHADOW_SCALE_SIZE << PAGE_SHIFT)))
++		return NOTIFY_BAD;
++
++	switch (action) {
++	case MEM_GOING_ONLINE: {
++		void *ret;
++
++		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
++					shadow_end, GFP_KERNEL,
++					PAGE_KERNEL, VM_NO_GUARD,
++					pfn_to_nid(mem_data->start_pfn),
++					__builtin_return_address(0));
++		if (!ret)
++			return NOTIFY_BAD;
++
++		kmemleak_ignore(ret);
++		return NOTIFY_OK;
++	}
++	case MEM_OFFLINE:
++		vfree((void *)shadow_start);
++	}
++
++	return NOTIFY_OK;
+ }
+ 
+ static int __init kasan_memhotplug_init(void)
+ {
+-	pr_info("WARNING: KASAN doesn't support memory hot-add\n");
+-	pr_info("Memory hot-add will be disabled\n");
+-
+ 	hotplug_memory_notifier(kasan_mem_notifier, 0);
+ 
+ 	return 0;
 -- 
 2.13.0
 
