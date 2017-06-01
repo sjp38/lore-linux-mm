@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB526B036A
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 05:33:17 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i77so8693333wmh.10
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 02:33:17 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 121586B033C
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 05:33:18 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id g15so8664963wmc.8
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 02:33:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 57si20204342wru.100.2017.06.01.02.33.16
+        by mx.google.com with ESMTPS id y16si2973357wry.133.2017.06.01.02.33.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 01 Jun 2017 02:33:16 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 23/35] mm: Use pagevec_lookup_range_tag() in __filemap_fdatawait_range()
-Date: Thu,  1 Jun 2017 11:32:33 +0200
-Message-Id: <20170601093245.29238-24-jack@suse.cz>
+Subject: [PATCH 31/35] shmem: Convert to pagevec_lookup_entries_range()
+Date: Thu,  1 Jun 2017 11:32:41 +0200
+Message-Id: <20170601093245.29238-32-jack@suse.cz>
 In-Reply-To: <20170601093245.29238-1-jack@suse.cz>
 References: <20170601093245.29238-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,40 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Hugh Dickins <hughd@google.com>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, tytso@mit.edu, linux-ext4@vger.kernel.org, Ilya Dryomov <idryomov@gmail.com>, "Yan, Zheng" <zyan@redhat.com>, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Jan Kara <jack@suse.cz>
 
-Use pagevec_lookup_range_tag() in __filemap_fdatawait_range() as it is
-interested only in pages from given range. Remove unnecessary code
-resulting from this.
+Convert radix tree scanners to use pagevec_lookup_entries_range() and
+find_get_entries_range() since they all want only entries from given
+range.
 
+CC: Hugh Dickins <hughd@google.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- mm/filemap.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ mm/shmem.c | 23 +++++++----------------
+ 1 file changed, 7 insertions(+), 16 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 56af68f6a375..8039b6bb9c27 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -390,18 +390,13 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index f9c4afbdd70c..e5ea044aae24 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -768,16 +768,12 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
  	pagevec_init(&pvec, 0);
- 	while ((index <= end) &&
--			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
--			PAGECACHE_TAG_WRITEBACK,
--			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
-+			(nr_pages = pagevec_lookup_range_tag(&pvec, mapping,
-+			&index, end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE))) {
- 		unsigned i;
- 
- 		for (i = 0; i < nr_pages; i++) {
+ 	index = start;
+ 	while (index < end) {
+-		if (!pagevec_lookup_entries(&pvec, mapping, &index,
+-				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-				indices))
++		if (!pagevec_lookup_entries_range(&pvec, mapping, &index,
++				end - 1, PAGEVEC_SIZE, indices))
+ 			break;
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
  			struct page *page = pvec.pages[i];
  
--			/* until radix tree lookup accepts end_index */
--			if (page->index > end)
--				continue;
+-			if (indices[i] >= end)
+-				break;
 -
- 			wait_on_page_writeback(page);
- 			if (TestClearPageError(page))
- 				ret = -EIO;
+ 			if (radix_tree_exceptional_entry(page)) {
+ 				if (unfalloc)
+ 					continue;
+@@ -860,9 +856,8 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 
+ 		cond_resched();
+ 
+-		if (!pagevec_lookup_entries(&pvec, mapping, &index,
+-				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-				indices)) {
++		if (!pagevec_lookup_entries_range(&pvec, mapping, &index,
++				end - 1, PAGEVEC_SIZE, indices)) {
+ 			/* If all gone or hole-punch or unfalloc, we're done */
+ 			if (lookup_start == start || end != -1)
+ 				break;
+@@ -873,9 +868,6 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+-			if (indices[i] >= end)
+-				break;
+-
+ 			if (radix_tree_exceptional_entry(page)) {
+ 				if (unfalloc)
+ 					continue;
+@@ -2494,9 +2486,9 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
+ 
+ 	pagevec_init(&pvec, 0);
+ 	pvec.nr = 1;		/* start small: we may be there already */
+-	while (!done) {
++	while (!done && index < end) {
+ 		last = index;
+-		pvec.nr = find_get_entries(mapping, &index,
++		pvec.nr = find_get_entries_range(mapping, &index, end - 1,
+ 					pvec.nr, pvec.pages, indices);
+ 		if (!pvec.nr) {
+ 			if (whence == SEEK_DATA)
+@@ -2516,8 +2508,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
+ 				if (!PageUptodate(page))
+ 					page = NULL;
+ 			}
+-			if (last >= end ||
+-			    (page && whence == SEEK_DATA) ||
++			if ((page && whence == SEEK_DATA) ||
+ 			    (!page && whence == SEEK_HOLE)) {
+ 				done = true;
+ 				break;
 -- 
 2.12.3
 
