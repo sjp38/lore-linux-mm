@@ -1,41 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFD386B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:37:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g143so8399642wme.13
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:53 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id m75si22174544wmc.42.2017.06.01.01.37.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A2856B0292
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:37:55 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id g13so8373670wmd.9
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:55 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id p10si19784327wrd.131.2017.06.01.01.37.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 01:37:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id g15so9377346wmc.2
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:52 -0700 (PDT)
+        Thu, 01 Jun 2017 01:37:53 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id k15so9396992wmh.3
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:53 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/2] memory hotplug follow up fixes
-Date: Thu,  1 Jun 2017 10:37:44 +0200
-Message-Id: <20170601083746.4924-1-mhocko@kernel.org>
+Subject: [PATCH 1/2] mm, memory_hotplug: fix MMOP_ONLINE_KEEP behavior
+Date: Thu,  1 Jun 2017 10:37:45 +0200
+Message-Id: <20170601083746.4924-2-mhocko@kernel.org>
+In-Reply-To: <20170601083746.4924-1-mhocko@kernel.org>
+References: <20170601083746.4924-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi Andrew,
-Heiko Carstens has noticed an unexpected memory online behavior for the
-default onlining (aka MMOP_ONLINE_KEEP) and also online_kernel to other
-kernel zones than ZONE_NORMAL. Both fixes are rather straightforward
-so could you add them to the memory hotplug rewrite pile please?
+From: Michal Hocko <mhocko@suse.com>
 
-Shortlog
-Michal Hocko (2):
-      mm, memory_hotplug: fix MMOP_ONLINE_KEEP behavior
-      mm, memory_hotplug: do not assume ZONE_NORMAL is default kernel zone
+Heiko Carstens has noticed that the MMOP_ONLINE_KEEP is broken currently
+$ grep . memory3?/valid_zones
+memory34/valid_zones:Normal Movable
+memory35/valid_zones:Normal Movable
+memory36/valid_zones:Normal Movable
+memory37/valid_zones:Normal Movable
 
-Diffstat
- drivers/base/memory.c          |  2 +-
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 36 +++++++++++++++++++++++++++++-------
- 3 files changed, 32 insertions(+), 8 deletions(-)
+$ echo online_movable > memory34/state
+$ grep . memory3?/valid_zones
+memory34/valid_zones:Movable
+memory35/valid_zones:Movable
+memory36/valid_zones:Movable
+memory37/valid_zones:Movable
+
+$ echo online > memory36/state
+$ grep . memory3?/valid_zones
+memory34/valid_zones:Movable
+memory36/valid_zones:Normal
+memory37/valid_zones:Movable
+
+so we have effectivelly punched a hole into the movable zone. The
+problem is that move_pfn_range() check for MMOP_ONLINE_KEEP is wrong.
+It only checks whether the given range is already part of the movable
+zone which is not the case here as only memory34 is in the zone. Fix
+this by using allow_online_pfn_range(..., MMOP_ONLINE_KERNEL) if that
+is false then we can be sure that movable onlining is the right thing to
+do.
+
+Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/memory_hotplug.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 0a895df2397e..b3895fd609f4 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -950,11 +950,12 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
+ 	if (online_type == MMOP_ONLINE_KEEP) {
+ 		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+ 		/*
+-		 * MMOP_ONLINE_KEEP inherits the current zone which is
+-		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
+-		 * already.
++		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
++		 * movable zone if that is not possible (e.g. we are within
++		 * or past the existing movable zone)
+ 		 */
+-		if (zone_intersects(movable_zone, start_pfn, nr_pages))
++		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
++					MMOP_ONLINE_KERNEL))
+ 			zone = movable_zone;
+ 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+ 		zone = &pgdat->node_zones[ZONE_MOVABLE];
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
