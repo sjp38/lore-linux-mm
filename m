@@ -1,57 +1,198 @@
-From: Xishi Qiu <qiuxishi@huawei.com>
-Subject: mm, we use rcu access task_struct in mm_match_cgroup(), but not use
- rcu free in free_task_struct()
-Date: Wed, 24 May 2017 09:40:55 +0800
-Message-ID: <5924E4A7.7000601@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "wencongyang (A)" <wencongyang2@huawei.com>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 583756B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 00:20:00 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id s94so23876104ioe.14
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 21:20:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i40si17036933ioo.203.2017.05.31.21.19.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 May 2017 21:19:59 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v514JMJu060706
+	for <linux-mm@kvack.org>; Thu, 1 Jun 2017 00:19:58 -0400
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2at9k8vxw0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Jun 2017 00:19:58 -0400
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 1 Jun 2017 14:19:55 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v514Jjaf59703338
+	for <linux-mm@kvack.org>; Thu, 1 Jun 2017 14:19:53 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v514JJgY011126
+	for <linux-mm@kvack.org>; Thu, 1 Jun 2017 14:19:19 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: 4.12-rc ppc64 4k-page needs costly allocations
+In-Reply-To: <alpine.LSU.2.11.1705301151090.2133@eggly.anvils>
+References: <alpine.LSU.2.11.1705301151090.2133@eggly.anvils>
+Date: Thu, 01 Jun 2017 09:49:02 +0530
+MIME-Version: 1.0
+Content-Type: text/plain
+Message-Id: <87wp8wpcg9.fsf@skywalker.in.ibm.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Hi, I find we use rcu access task_struct in mm_match_cgroup(), but not use
-rcu free in free_task_struct(), is it right?
+Hugh Dickins <hughd@google.com> writes:
 
-Here is the backtrace.
+> Since f6eedbba7a26 ("powerpc/mm/hash: Increase VA range to 128TB")
+> I find that swapping loads on ppc64 on G5 with 4k pages are failing:
+>
+> SLUB: Unable to allocate memory on node -1, gfp=0x14000c0(GFP_KERNEL)
+>   cache: pgtable-2^12, object size: 32768, buffer size: 65536, default order: 4, min order: 4
+>   pgtable-2^12 debugging increased min order, use slub_debug=O to disable.
+>   node 0: slabs: 209, objs: 209, free: 8
+> gcc: page allocation failure: order:4, mode:0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=(null)
+> CPU: 1 PID: 6225 Comm: gcc Not tainted 4.12.0-rc2 #1
+> Call Trace:
+> [c00000000090b5c0] [c0000000004f8478] .dump_stack+0xa0/0xcc (unreliable)
+> [c00000000090b650] [c0000000000eb194] .warn_alloc+0xf0/0x178
+> [c00000000090b710] [c0000000000ebc9c] .__alloc_pages_nodemask+0xa04/0xb00
+> [c00000000090b8b0] [c00000000013921c] .new_slab+0x234/0x608
+> [c00000000090b980] [c00000000013b59c] .___slab_alloc.constprop.64+0x3dc/0x564
+> [c00000000090bad0] [c0000000004f5a84] .__slab_alloc.isra.61.constprop.63+0x54/0x70
+> [c00000000090bb70] [c00000000013b864] .kmem_cache_alloc+0x140/0x288
+> [c00000000090bc30] [c00000000004d934] .mm_init.isra.65+0x128/0x1c0
+> [c00000000090bcc0] [c000000000157810] .do_execveat_common.isra.39+0x294/0x690
+> [c00000000090bdb0] [c000000000157e70] .SyS_execve+0x28/0x38
+> [c00000000090be30] [c00000000000a118] system_call+0x38/0xfc
+>
+> I did try booting with slub_debug=O as the message suggested, but that
+> made no difference: it still hoped for but failed on order:4 allocations.
+>
+> I wanted to try removing CONFIG_SLUB_DEBUG, but didn't succeed in that:
+> it seemed to be a hard requirement for something, but I didn't find what.
+>
+> I did try CONFIG_SLAB=y instead of SLUB: that lowers these allocations to
+> the expected order:3, which then results in OOM-killing rather than direct
+> allocation failure, because of the PAGE_ALLOC_COSTLY_ORDER 3 cutoff.  But
+> makes no real difference to the outcome: swapping loads still abort early.
+>
+> Relying on order:3 or order:4 allocations is just too optimistic: ppc64
+> with 4k pages would do better not to expect to support a 128TB userspace.
+>
+> I tried the obvious partial revert below, but it's not good enough:
+> the system did not boot beyond
+>
+> Starting init: /sbin/init exists but couldn't execute it (error -7)
+> Starting init: /bin/sh exists but couldn't execute it (error -7)
+> Kernel panic - not syncing: No working init found. ...
+>
 
-PID: 2133   TASK: ffff881fe3353300  CPU: 2   COMMAND: "CPU 15/KVM"
- #0 [ffff881fe276b528] machine_kexec at ffffffff8105280b
- #1 [ffff881fe276b588] crash_kexec at ffffffff810f5072
- #2 [ffff881fe276b658] panic at ffffffff8163e23b
- #3 [ffff881fe276b6d8] oops_end at ffffffff8164d61b
- #4 [ffff881fe276b700] die at ffffffff8101872b
- #5 [ffff881fe276b730] do_general_protection at ffffffff8164cefe
- #6 [ffff881fe276b760] general_protection at ffffffff8164c7a8
-    [exception RIP: mem_cgroup_from_task+22]
-    RIP: ffffffff811db536  RSP: ffff881fe276b810  RFLAGS: 00010286
-    RAX: 6b6b6b6b6b6b6b6b  RBX: ffffea007f988880  RCX: 0000000000020000
-    RDX: 00000007fa607d67  RSI: 00000007fa607d67  RDI: ffff880fe36d72c0
-    RBP: ffff881fe276b880   R8: 00000007fa607600   R9: a801fd67b3000000
-    R10: 57fdec98cc59ecc0  R11: ffff880fe2e8dbd0  R12: ffffc9001cb74000
-    R13: ffff881fdb8cfda0  R14: ffff881fe2581570  R15: 00000007fa607d67
-    ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0000
- #7 [ffff881fe276b810] page_referenced at ffffffff811a6b8a
- #8 [ffff881fe276b888] shrink_page_list at ffffffff81180994
- #9 [ffff881fe276b9c0] shrink_inactive_list at ffffffff8118166a
-#10 [ffff881fe276ba88] shrink_lruvec at ffffffff81182135
-#11 [ffff881fe276bb88] shrink_zone at ffffffff81182596
-#12 [ffff881fe276bbe0] do_try_to_free_pages at ffffffff81182a90
-#13 [ffff881fe276bc58] try_to_free_mem_cgroup_pages at ffffffff81182fea
-#14 [ffff881fe276bcf0] mem_cgroup_reclaim at ffffffff811dd8de
-#15 [ffff881fe276bd30] __mem_cgroup_try_charge at ffffffff811ddd9c
-#16 [ffff881fe276bdf0] __mem_cgroup_try_charge_swapin at ffffffff811df62b
-#17 [ffff881fe276be28] mem_cgroup_try_charge_swapin at ffffffff811e0537
-#18 [ffff881fe276be38] handle_mm_fault at ffffffff8119abdd
-#19 [ffff881fe276bec8] __do_page_fault at ffffffff816502d6
-#20 [ffff881fe276bf28] do_page_fault at ffffffff81650603
-#21 [ffff881fe276bf50] page_fault at ffffffff8164c808
-    RIP: 00007fdaba456500  RSP: 00007fdaaba6c978  RFLAGS: 00010246
-    RAX: ffffffffffffffff  RBX: 0000000000000000  RCX: fffffffffffffbd0
-    RDX: 0000000000000000  RSI: 000000000000ae80  RDI: 000000000000002c
-    RBP: 00007fdaaba6c9f0   R8: 0000000000840c70   R9: 00000000000000be
-    R10: 000000007fffffff  R11: 0000000000000246  R12: 0000000003622010
-    R13: 000000000000ae80  R14: 00000000008274e0  R15: 0000000003622010
-    ORIG_RAX: ffffffffffffffff  CS: 0033  SS: 002b
+Can you try this patch.
+
+commit fc55c0dc8b23446f937c1315aa61e74673de5ee6
+Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Date:   Thu Jun 1 08:06:40 2017 +0530
+
+    powerpc/mm/4k: Limit 4k page size to 64TB
+    
+    Supporting 512TB requires us to do a order 3 allocation for level 1 page
+    table(pgd). Limit 4k to 64TB for now.
+    
+    Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+diff --git a/arch/powerpc/include/asm/book3s/64/hash-4k.h b/arch/powerpc/include/asm/book3s/64/hash-4k.h
+index b4b5e6b671ca..0c4e470571ca 100644
+--- a/arch/powerpc/include/asm/book3s/64/hash-4k.h
++++ b/arch/powerpc/include/asm/book3s/64/hash-4k.h
+@@ -8,7 +8,7 @@
+ #define H_PTE_INDEX_SIZE  9
+ #define H_PMD_INDEX_SIZE  7
+ #define H_PUD_INDEX_SIZE  9
+-#define H_PGD_INDEX_SIZE  12
++#define H_PGD_INDEX_SIZE  9
+ 
+ #ifndef __ASSEMBLY__
+ #define H_PTE_TABLE_SIZE	(sizeof(pte_t) << H_PTE_INDEX_SIZE)
+diff --git a/arch/powerpc/include/asm/processor.h b/arch/powerpc/include/asm/processor.h
+index a2123f291ab0..5de3271026f1 100644
+--- a/arch/powerpc/include/asm/processor.h
++++ b/arch/powerpc/include/asm/processor.h
+@@ -110,13 +110,15 @@ void release_thread(struct task_struct *);
+ #define TASK_SIZE_128TB (0x0000800000000000UL)
+ #define TASK_SIZE_512TB (0x0002000000000000UL)
+ 
+-#ifdef CONFIG_PPC_BOOK3S_64
++#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_64K_PAGES)
+ /*
+  * Max value currently used:
+  */
+-#define TASK_SIZE_USER64	TASK_SIZE_512TB
++#define TASK_SIZE_USER64		TASK_SIZE_512TB
++#define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_128TB
+ #else
+-#define TASK_SIZE_USER64	TASK_SIZE_64TB
++#define TASK_SIZE_USER64		TASK_SIZE_64TB
++#define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_64TB
+ #endif
+ 
+ /*
+@@ -132,7 +134,7 @@ void release_thread(struct task_struct *);
+  * space during mmap's.
+  */
+ #define TASK_UNMAPPED_BASE_USER32 (PAGE_ALIGN(TASK_SIZE_USER32 / 4))
+-#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_128TB / 4))
++#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(DEFAULT_MAP_WINDOW_USER64 / 4))
+ 
+ #define TASK_UNMAPPED_BASE ((is_32bit_task()) ? \
+ 		TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64 )
+@@ -143,8 +145,8 @@ void release_thread(struct task_struct *);
+  * with 128TB and conditionally enable upto 512TB
+  */
+ #ifdef CONFIG_PPC_BOOK3S_64
+-#define DEFAULT_MAP_WINDOW	((is_32bit_task()) ? \
+-				 TASK_SIZE_USER32 : TASK_SIZE_128TB)
++#define DEFAULT_MAP_WINDOW	((is_32bit_task()) ?			\
++				 TASK_SIZE_USER32 : DEFAULT_MAP_WINDOW_USER64)
+ #else
+ #define DEFAULT_MAP_WINDOW	TASK_SIZE
+ #endif
+@@ -153,7 +155,7 @@ void release_thread(struct task_struct *);
+ 
+ #ifdef CONFIG_PPC_BOOK3S_64
+ /* Limit stack to 128TB */
+-#define STACK_TOP_USER64 TASK_SIZE_128TB
++#define STACK_TOP_USER64 DEFAULT_MAP_WINDOW_USER64
+ #else
+ #define STACK_TOP_USER64 TASK_SIZE_USER64
+ #endif
+diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
+index 8389ff5ac002..77062461c469 100644
+--- a/arch/powerpc/kernel/setup-common.c
++++ b/arch/powerpc/kernel/setup-common.c
+@@ -921,7 +921,7 @@ void __init setup_arch(char **cmdline_p)
+ 
+ #ifdef CONFIG_PPC_MM_SLICES
+ #ifdef CONFIG_PPC64
+-	init_mm.context.addr_limit = TASK_SIZE_128TB;
++	init_mm.context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+ #else
+ #error	"context.addr_limit not initialized."
+ #endif
+diff --git a/arch/powerpc/mm/mmu_context_book3s64.c b/arch/powerpc/mm/mmu_context_book3s64.c
+index c6dca2ae78ef..a3edf813d455 100644
+--- a/arch/powerpc/mm/mmu_context_book3s64.c
++++ b/arch/powerpc/mm/mmu_context_book3s64.c
+@@ -99,7 +99,7 @@ static int hash__init_new_context(struct mm_struct *mm)
+ 	 * mm->context.addr_limit. Default to max task size so that we copy the
+ 	 * default values to paca which will help us to handle slb miss early.
+ 	 */
+-	mm->context.addr_limit = TASK_SIZE_128TB;
++	mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+ 
+ 	/*
+ 	 * The old code would re-promote on fork, we don't do that when using
+ 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
