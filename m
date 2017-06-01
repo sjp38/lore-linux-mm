@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB186B02F3
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 59A3B6B0311
 	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 05:33:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id k15so8709297wmh.3
+Received: by mail-wm0-f72.google.com with SMTP id 8so8677444wms.11
         for <linux-mm@kvack.org>; Thu, 01 Jun 2017 02:33:17 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1si19989889wre.175.2017.06.01.02.33.15
+        by mx.google.com with ESMTPS id 20si31790308wmg.38.2017.06.01.02.33.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 01 Jun 2017 02:33:15 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 01/35] fscache: Remove unused ->now_uncached callback
-Date: Thu,  1 Jun 2017 11:32:11 +0200
-Message-Id: <20170601093245.29238-2-jack@suse.cz>
+Subject: [PATCH 08/35] fs: Fix performance regression in clean_bdev_aliases()
+Date: Thu,  1 Jun 2017 11:32:18 +0200
+Message-Id: <20170601093245.29238-9-jack@suse.cz>
 In-Reply-To: <20170601093245.29238-1-jack@suse.cz>
 References: <20170601093245.29238-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,318 +20,69 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Hugh Dickins <hughd@google.com>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, tytso@mit.edu, linux-ext4@vger.kernel.org, Ilya Dryomov <idryomov@gmail.com>, "Yan, Zheng" <zyan@redhat.com>, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Jan Kara <jack@suse.cz>
 
-The callback doesn't ever get called. Remove it.
+Commit e64855c6cfaa "fs: Add helper to clean bdev aliases under a bh and
+use it" added a wrapper for clean_bdev_aliases() that invalidates bdev
+aliases underlying a single buffer head. However this has caused a
+performance regression for bonnie++ benchmark on ext4 filesystem when
+delayed allocation is turned off (ext3 mode) - average of 3 runs:
 
+Hmean SeqOut Char  164787.55 (  0.00%) 107189.06 (-34.95%)
+Hmean SeqOut Block 219883.89 (  0.00%) 168870.32 (-23.20%)
+
+The reason for this regression is that clean_bdev_aliases() is slower
+when called for a single block because pagevec_lookup() it uses will end
+up iterating through the radix tree until it finds a page (which may
+take a while) but we are only interested whether there's a page at a
+particular index.
+
+Fix the problem by using pagevec_lookup_range() instead which avoids the
+needless iteration.
+
+Fixes: e64855c6cfaa0a80c1b71c5f647cb792dc436668
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- Documentation/filesystems/caching/netfs-api.txt |  2 --
- fs/9p/cache.c                                   | 29 -----------------
- fs/afs/cache.c                                  | 43 -------------------------
- fs/ceph/cache.c                                 | 31 ------------------
- fs/cifs/cache.c                                 | 31 ------------------
- fs/nfs/fscache-index.c                          | 40 -----------------------
- include/linux/fscache.h                         |  9 ------
- 7 files changed, 185 deletions(-)
+ fs/buffer.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/Documentation/filesystems/caching/netfs-api.txt b/Documentation/filesystems/caching/netfs-api.txt
-index aed6b94160b1..0eb31de3a2c1 100644
---- a/Documentation/filesystems/caching/netfs-api.txt
-+++ b/Documentation/filesystems/caching/netfs-api.txt
-@@ -151,8 +151,6 @@ To define an object, a structure of the following type should be filled out:
- 		void (*mark_pages_cached)(void *cookie_netfs_data,
- 					  struct address_space *mapping,
- 					  struct pagevec *cached_pvec);
--
--		void (*now_uncached)(void *cookie_netfs_data);
- 	};
+diff --git a/fs/buffer.c b/fs/buffer.c
+index fe0ee01c5a44..d63b22e50f38 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1632,19 +1632,18 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
+ 	struct pagevec pvec;
+ 	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+ 	pgoff_t end;
+-	int i;
++	int i, count;
+ 	struct buffer_head *bh;
+ 	struct buffer_head *head;
  
- This has the following fields:
-diff --git a/fs/9p/cache.c b/fs/9p/cache.c
-index 103ca5e1267b..64c58eb26159 100644
---- a/fs/9p/cache.c
-+++ b/fs/9p/cache.c
-@@ -151,34 +151,6 @@ fscache_checkaux v9fs_cache_inode_check_aux(void *cookie_netfs_data,
- 	return FSCACHE_CHECKAUX_OKAY;
+ 	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+ 	pagevec_init(&pvec, 0);
+-	while (index <= end && pagevec_lookup(&pvec, bd_mapping, &index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+-		for (i = 0; i < pagevec_count(&pvec); i++) {
++	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end,
++				    PAGEVEC_SIZE)) {
++		count = pagevec_count(&pvec);
++		for (i = 0; i < count; i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+-			if (page->index > end)
+-				break;
+ 			if (!page_has_buffers(page))
+ 				continue;
+ 			/*
+@@ -1674,6 +1673,9 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
+ 		}
+ 		pagevec_release(&pvec);
+ 		cond_resched();
++		/* End of range already reached? */
++		if (index > end || !index)
++			break;
+ 	}
  }
- 
--static void v9fs_cache_inode_now_uncached(void *cookie_netfs_data)
--{
--	struct v9fs_inode *v9inode = cookie_netfs_data;
--	struct pagevec pvec;
--	pgoff_t first;
--	int loop, nr_pages;
--
--	pagevec_init(&pvec, 0);
--	first = 0;
--
--	for (;;) {
--		nr_pages = pagevec_lookup(&pvec, v9inode->vfs_inode.i_mapping,
--					  first,
--					  PAGEVEC_SIZE - pagevec_count(&pvec));
--		if (!nr_pages)
--			break;
--
--		for (loop = 0; loop < nr_pages; loop++)
--			ClearPageFsCache(pvec.pages[loop]);
--
--		first = pvec.pages[nr_pages - 1]->index + 1;
--
--		pvec.nr = nr_pages;
--		pagevec_release(&pvec);
--		cond_resched();
--	}
--}
--
- const struct fscache_cookie_def v9fs_cache_inode_index_def = {
- 	.name		= "9p.inode",
- 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-@@ -186,7 +158,6 @@ const struct fscache_cookie_def v9fs_cache_inode_index_def = {
- 	.get_attr	= v9fs_cache_inode_get_attr,
- 	.get_aux	= v9fs_cache_inode_get_aux,
- 	.check_aux	= v9fs_cache_inode_check_aux,
--	.now_uncached	= v9fs_cache_inode_now_uncached,
- };
- 
- void v9fs_cache_inode_get_cookie(struct inode *inode)
-diff --git a/fs/afs/cache.c b/fs/afs/cache.c
-index 577763c3d88b..1fe855191261 100644
---- a/fs/afs/cache.c
-+++ b/fs/afs/cache.c
-@@ -39,7 +39,6 @@ static uint16_t afs_vnode_cache_get_aux(const void *cookie_netfs_data,
- static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
- 						       const void *buffer,
- 						       uint16_t buflen);
--static void afs_vnode_cache_now_uncached(void *cookie_netfs_data);
- 
- struct fscache_netfs afs_cache_netfs = {
- 	.name			= "afs",
-@@ -75,7 +74,6 @@ struct fscache_cookie_def afs_vnode_cache_index_def = {
- 	.get_attr		= afs_vnode_cache_get_attr,
- 	.get_aux		= afs_vnode_cache_get_aux,
- 	.check_aux		= afs_vnode_cache_check_aux,
--	.now_uncached		= afs_vnode_cache_now_uncached,
- };
- 
- /*
-@@ -359,44 +357,3 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
- 	_leave(" = SUCCESS");
- 	return FSCACHE_CHECKAUX_OKAY;
- }
--
--/*
-- * indication the cookie is no longer uncached
-- * - this function is called when the backing store currently caching a cookie
-- *   is removed
-- * - the netfs should use this to clean up any markers indicating cached pages
-- * - this is mandatory for any object that may have data
-- */
--static void afs_vnode_cache_now_uncached(void *cookie_netfs_data)
--{
--	struct afs_vnode *vnode = cookie_netfs_data;
--	struct pagevec pvec;
--	pgoff_t first;
--	int loop, nr_pages;
--
--	_enter("{%x,%x,%Lx}",
--	       vnode->fid.vnode, vnode->fid.unique, vnode->status.data_version);
--
--	pagevec_init(&pvec, 0);
--	first = 0;
--
--	for (;;) {
--		/* grab a bunch of pages to clean */
--		nr_pages = pagevec_lookup(&pvec, vnode->vfs_inode.i_mapping,
--					  first,
--					  PAGEVEC_SIZE - pagevec_count(&pvec));
--		if (!nr_pages)
--			break;
--
--		for (loop = 0; loop < nr_pages; loop++)
--			ClearPageFsCache(pvec.pages[loop]);
--
--		first = pvec.pages[nr_pages - 1]->index + 1;
--
--		pvec.nr = nr_pages;
--		pagevec_release(&pvec);
--		cond_resched();
--	}
--
--	_leave("");
--}
-diff --git a/fs/ceph/cache.c b/fs/ceph/cache.c
-index 4e7421caf380..edb86ac34051 100644
---- a/fs/ceph/cache.c
-+++ b/fs/ceph/cache.c
-@@ -137,36 +137,6 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
- 	return FSCACHE_CHECKAUX_OKAY;
- }
- 
--static void ceph_fscache_inode_now_uncached(void* cookie_netfs_data)
--{
--	struct ceph_inode_info* ci = cookie_netfs_data;
--	struct pagevec pvec;
--	pgoff_t first;
--	int loop, nr_pages;
--
--	pagevec_init(&pvec, 0);
--	first = 0;
--
--	dout("ceph inode 0x%p now uncached", ci);
--
--	while (1) {
--		nr_pages = pagevec_lookup(&pvec, ci->vfs_inode.i_mapping, first,
--					  PAGEVEC_SIZE - pagevec_count(&pvec));
--
--		if (!nr_pages)
--			break;
--
--		for (loop = 0; loop < nr_pages; loop++)
--			ClearPageFsCache(pvec.pages[loop]);
--
--		first = pvec.pages[nr_pages - 1]->index + 1;
--
--		pvec.nr = nr_pages;
--		pagevec_release(&pvec);
--		cond_resched();
--	}
--}
--
- static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
- 	.name		= "CEPH.inode",
- 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-@@ -174,7 +144,6 @@ static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
- 	.get_attr	= ceph_fscache_inode_get_attr,
- 	.get_aux	= ceph_fscache_inode_get_aux,
- 	.check_aux	= ceph_fscache_inode_check_aux,
--	.now_uncached	= ceph_fscache_inode_now_uncached,
- };
- 
- void ceph_fscache_register_inode_cookie(struct inode *inode)
-diff --git a/fs/cifs/cache.c b/fs/cifs/cache.c
-index 6c665bf4a27c..2c14020e5e1d 100644
---- a/fs/cifs/cache.c
-+++ b/fs/cifs/cache.c
-@@ -292,36 +292,6 @@ fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
- 	return FSCACHE_CHECKAUX_OKAY;
- }
- 
--static void cifs_fscache_inode_now_uncached(void *cookie_netfs_data)
--{
--	struct cifsInodeInfo *cifsi = cookie_netfs_data;
--	struct pagevec pvec;
--	pgoff_t first;
--	int loop, nr_pages;
--
--	pagevec_init(&pvec, 0);
--	first = 0;
--
--	cifs_dbg(FYI, "%s: cifs inode 0x%p now uncached\n", __func__, cifsi);
--
--	for (;;) {
--		nr_pages = pagevec_lookup(&pvec,
--					  cifsi->vfs_inode.i_mapping, first,
--					  PAGEVEC_SIZE - pagevec_count(&pvec));
--		if (!nr_pages)
--			break;
--
--		for (loop = 0; loop < nr_pages; loop++)
--			ClearPageFsCache(pvec.pages[loop]);
--
--		first = pvec.pages[nr_pages - 1]->index + 1;
--
--		pvec.nr = nr_pages;
--		pagevec_release(&pvec);
--		cond_resched();
--	}
--}
--
- const struct fscache_cookie_def cifs_fscache_inode_object_def = {
- 	.name		= "CIFS.uniqueid",
- 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-@@ -329,5 +299,4 @@ const struct fscache_cookie_def cifs_fscache_inode_object_def = {
- 	.get_attr	= cifs_fscache_inode_get_attr,
- 	.get_aux	= cifs_fscache_inode_get_aux,
- 	.check_aux	= cifs_fscache_inode_check_aux,
--	.now_uncached	= cifs_fscache_inode_now_uncached,
- };
-diff --git a/fs/nfs/fscache-index.c b/fs/nfs/fscache-index.c
-index 777b055063f6..3025fe8584a0 100644
---- a/fs/nfs/fscache-index.c
-+++ b/fs/nfs/fscache-index.c
-@@ -252,45 +252,6 @@ enum fscache_checkaux nfs_fscache_inode_check_aux(void *cookie_netfs_data,
- }
- 
- /*
-- * Indication from FS-Cache that the cookie is no longer cached
-- * - This function is called when the backing store currently caching a cookie
-- *   is removed
-- * - The netfs should use this to clean up any markers indicating cached pages
-- * - This is mandatory for any object that may have data
-- */
--static void nfs_fscache_inode_now_uncached(void *cookie_netfs_data)
--{
--	struct nfs_inode *nfsi = cookie_netfs_data;
--	struct pagevec pvec;
--	pgoff_t first;
--	int loop, nr_pages;
--
--	pagevec_init(&pvec, 0);
--	first = 0;
--
--	dprintk("NFS: nfs_inode_now_uncached: nfs_inode 0x%p\n", nfsi);
--
--	for (;;) {
--		/* grab a bunch of pages to unmark */
--		nr_pages = pagevec_lookup(&pvec,
--					  nfsi->vfs_inode.i_mapping,
--					  first,
--					  PAGEVEC_SIZE - pagevec_count(&pvec));
--		if (!nr_pages)
--			break;
--
--		for (loop = 0; loop < nr_pages; loop++)
--			ClearPageFsCache(pvec.pages[loop]);
--
--		first = pvec.pages[nr_pages - 1]->index + 1;
--
--		pvec.nr = nr_pages;
--		pagevec_release(&pvec);
--		cond_resched();
--	}
--}
--
--/*
-  * Get an extra reference on a read context.
-  * - This function can be absent if the completion function doesn't require a
-  *   context.
-@@ -330,7 +291,6 @@ const struct fscache_cookie_def nfs_fscache_inode_object_def = {
- 	.get_attr	= nfs_fscache_inode_get_attr,
- 	.get_aux	= nfs_fscache_inode_get_aux,
- 	.check_aux	= nfs_fscache_inode_check_aux,
--	.now_uncached	= nfs_fscache_inode_now_uncached,
- 	.get_context	= nfs_fh_get_context,
- 	.put_context	= nfs_fh_put_context,
- };
-diff --git a/include/linux/fscache.h b/include/linux/fscache.h
-index 115bb81912cc..f4ff47d4a893 100644
---- a/include/linux/fscache.h
-+++ b/include/linux/fscache.h
-@@ -143,15 +143,6 @@ struct fscache_cookie_def {
- 	void (*mark_page_cached)(void *cookie_netfs_data,
- 				 struct address_space *mapping,
- 				 struct page *page);
--
--	/* indicate the cookie is no longer cached
--	 * - this function is called when the backing store currently caching
--	 *   a cookie is removed
--	 * - the netfs should use this to clean up any markers indicating
--	 *   cached pages
--	 * - this is mandatory for any object that may have data
--	 */
--	void (*now_uncached)(void *cookie_netfs_data);
- };
- 
- /*
+ EXPORT_SYMBOL(clean_bdev_aliases);
 -- 
 2.12.3
 
