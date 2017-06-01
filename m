@@ -1,159 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C6956B02B4
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC9A6B0292
 	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 05:33:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r203so8693007wmb.2
+Received: by mail-wm0-f72.google.com with SMTP id 139so8672981wmf.5
         for <linux-mm@kvack.org>; Thu, 01 Jun 2017 02:33:17 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v49si18517323wrb.306.2017.06.01.02.33.14
+        by mx.google.com with ESMTPS id f7si33444172wmh.64.2017.06.01.02.33.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 02:33:14 -0700 (PDT)
+        Thu, 01 Jun 2017 02:33:15 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 02/35] ext4: Fix SEEK_HOLE
-Date: Thu,  1 Jun 2017 11:32:12 +0200
-Message-Id: <20170601093245.29238-3-jack@suse.cz>
+Subject: [PATCH 05/35] mm: Fix THP handling in invalidate_mapping_pages()
+Date: Thu,  1 Jun 2017 11:32:15 +0200
+Message-Id: <20170601093245.29238-6-jack@suse.cz>
 In-Reply-To: <20170601093245.29238-1-jack@suse.cz>
 References: <20170601093245.29238-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Hugh Dickins <hughd@google.com>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, tytso@mit.edu, linux-ext4@vger.kernel.org, Ilya Dryomov <idryomov@gmail.com>, "Yan, Zheng" <zyan@redhat.com>, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Jan Kara <jack@suse.cz>, stable@vger.kernel.org, Zheng Liu <wenqing.lz@taobao.com>
+Cc: Hugh Dickins <hughd@google.com>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, tytso@mit.edu, linux-ext4@vger.kernel.org, Ilya Dryomov <idryomov@gmail.com>, "Yan, Zheng" <zyan@redhat.com>, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Jan Kara <jack@suse.cz>
 
-Currently, SEEK_HOLE implementation in ext4 may both return that there's
-a hole at some offset although that offset already has data and skip
-some holes during a search for the next hole. The first problem is
-demostrated by:
+The condition checking for THP straddling end of invalidated range is
+wrong - it checks 'index' against 'end' but 'index' has been already
+advanced to point to the end of THP and thus the condition can never be
+true. As a result THP straddling 'end' has been fully invalidated. Given
+the nature of invalidate_mapping_pages(), this could be only performance
+issue. In fact, we are lucky the condition is wrong because if it was
+ever true, we'd leave locked page behind.
 
-xfs_io -c "falloc 0 256k" -c "pwrite 0 56k" -c "seek -h 0" file
-wrote 57344/57344 bytes at offset 0
-56 KiB, 14 ops; 0.0000 sec (2.054 GiB/sec and 538461.5385 ops/sec)
-Whence	Result
-HOLE	0
+Fix the condition checking for THP straddling 'end' and also properly
+unlock the page. Also update the comment before the condition to explain
+why we decide not to invalidate the page as it was not clear to me and I
+had to ask Kirill.
 
-Where we can see that SEEK_HOLE wrongly returned offset 0 as containing
-a hole although we have written data there. The second problem can be
-demonstrated by:
-
-xfs_io -c "falloc 0 256k" -c "pwrite 0 56k" -c "pwrite 128k 8k"
-       -c "seek -h 0" file
-
-wrote 57344/57344 bytes at offset 0
-56 KiB, 14 ops; 0.0000 sec (1.978 GiB/sec and 518518.5185 ops/sec)
-wrote 8192/8192 bytes at offset 131072
-8 KiB, 2 ops; 0.0000 sec (2 GiB/sec and 500000.0000 ops/sec)
-Whence	Result
-HOLE	139264
-
-Where we can see that hole at offsets 56k..128k has been ignored by the
-SEEK_HOLE call.
-
-The underlying problem is in the ext4_find_unwritten_pgoff() which is
-just buggy. In some cases it fails to update returned offset when it
-finds a hole (when no pages are found or when the first found page has
-higher index than expected), in some cases conditions for detecting hole
-are just missing (we fail to detect a situation where indices of
-returned pages are not contiguous).
-
-Fix ext4_find_unwritten_pgoff() to properly detect non-contiguous page
-indices and also handle all cases where we got less pages then expected
-in one place and handle it properly there.
-
-CC: stable@vger.kernel.org
-Fixes: c8c0df241cc2719b1262e627f999638411934f60
-CC: Zheng Liu <wenqing.lz@taobao.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/file.c | 50 ++++++++++++++------------------------------------
- 1 file changed, 14 insertions(+), 36 deletions(-)
+ mm/truncate.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 831fd6beebf0..bbea2dccd584 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -484,47 +484,27 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
- 		num = min_t(pgoff_t, end - index, PAGEVEC_SIZE);
- 		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index,
- 					  (pgoff_t)num);
--		if (nr_pages == 0) {
--			if (whence == SEEK_DATA)
--				break;
--
--			BUG_ON(whence != SEEK_HOLE);
--			/*
--			 * If this is the first time to go into the loop and
--			 * offset is not beyond the end offset, it will be a
--			 * hole at this offset
--			 */
--			if (lastoff == startoff || lastoff < endoff)
--				found = 1;
--			break;
--		}
--
--		/*
--		 * If this is the first time to go into the loop and
--		 * offset is smaller than the first page offset, it will be a
--		 * hole at this offset.
--		 */
--		if (lastoff == startoff && whence == SEEK_HOLE &&
--		    lastoff < page_offset(pvec.pages[0])) {
--			found = 1;
-+		if (nr_pages == 0)
- 			break;
--		}
- 
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
- 			struct buffer_head *bh, *head;
- 
- 			/*
--			 * If the current offset is not beyond the end of given
--			 * range, it will be a hole.
-+			 * If current offset is smaller than the page offset,
-+			 * there is a hole at this offset.
- 			 */
--			if (lastoff < endoff && whence == SEEK_HOLE &&
--			    page->index > end) {
-+			if (whence == SEEK_HOLE && lastoff < endoff &&
-+			    lastoff < page_offset(pvec.pages[i])) {
- 				found = 1;
- 				*offset = lastoff;
- 				goto out;
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 6479ed2afc53..2330223841fb 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -530,9 +530,15 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 			} else if (PageTransHuge(page)) {
+ 				index += HPAGE_PMD_NR - 1;
+ 				i += HPAGE_PMD_NR - 1;
+-				/* 'end' is in the middle of THP */
+-				if (index ==  round_down(end, HPAGE_PMD_NR))
++				/*
++				 * 'end' is in the middle of THP. Don't
++				 * invalidate the page as the part outside of
++				 * 'end' could be still useful.
++				 */
++				if (index > end) {
++					unlock_page(page);
+ 					continue;
++				}
  			}
  
-+			if (page->index > end)
-+				goto out;
-+
- 			lock_page(page);
- 
- 			if (unlikely(page->mapping != inode->i_mapping)) {
-@@ -564,20 +544,18 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
- 			unlock_page(page);
- 		}
- 
--		/*
--		 * The no. of pages is less than our desired, that would be a
--		 * hole in there.
--		 */
--		if (nr_pages < num && whence == SEEK_HOLE) {
--			found = 1;
--			*offset = lastoff;
-+		/* The no. of pages is less than our desired, we are done. */
-+		if (nr_pages < num)
- 			break;
--		}
- 
- 		index = pvec.pages[i - 1]->index + 1;
- 		pagevec_release(&pvec);
- 	} while (index <= end);
- 
-+	if (whence == SEEK_HOLE && lastoff < endoff) {
-+		found = 1;
-+		*offset = lastoff;
-+	}
- out:
- 	pagevec_release(&pvec);
- 	return found;
+ 			ret = invalidate_inode_page(page);
 -- 
 2.12.3
 
