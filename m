@@ -1,47 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 051426B02B4
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:14:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 139so11273676wmf.5
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:14:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g42si20723267edc.110.2017.06.01.09.14.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E0DCD6B02B4
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:22:22 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id a99so51177668oic.8
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:22:22 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50099.outbound.protection.outlook.com. [40.107.5.99])
+        by mx.google.com with ESMTPS id o13si4331210oto.26.2017.06.01.09.22.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 09:14:58 -0700 (PDT)
-Date: Thu, 1 Jun 2017 18:14:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, memory_hotplug: support movable_node for
- hotplugable nodes
-Message-ID: <20170601161453.GA12764@dhcp22.suse.cz>
-References: <20170601122004.32732-1-mhocko@kernel.org>
- <20170601160227.uioluvgvjtplesjr@arbab-laptop.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 01 Jun 2017 09:22:21 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH 1/4] mm/kasan: get rid of speculative shadow checks
+Date: Thu, 1 Jun 2017 19:23:35 +0300
+Message-ID: <20170601162338.23540-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170601160227.uioluvgvjtplesjr@arbab-laptop.localdomain>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Thu 01-06-17 11:02:28, Reza Arbab wrote:
-> On Thu, Jun 01, 2017 at 02:20:04PM +0200, Michal Hocko wrote:
-> >Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
-> >movable_node is enabled and the range doesn't overlap with the existing
-> >normal zone. This should provide a reasonable default onlining strategy.
-> 
-> I like it. If your distro has some auto-onlining udev rule like
-> 
-> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
-> 
-> You could get things onlined as movable just by putting movable_node in
-> the boot params, without changing/modifying the rule.
+For some unaligned memory accesses we have to check additional
+byte of the shadow memory. Currently we load that byte speculatively
+to have only single load + branch on the optimistic fast path.
 
-yes this is the primary point of the patch ;)
+However, this approach have some downsides:
+ - It's unaligned access, so this prevents porting KASAN on architectures
+    which doesn't support unaligned accesses.
+ - We have to map additional shadow page to prevent crash if
+    speculative load happens near the end of the mapped memory.
+    This would significantly complicate upcoming memory hotplug support.
+
+I wasn't able to notice any performance degradation with this patch.
+So these speculative loads is just a pain with no gain, let's remove
+them.
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+ mm/kasan/kasan.c | 98 +++++++++-----------------------------------------------
+ 1 file changed, 16 insertions(+), 82 deletions(-)
+
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 85ee45b07615..e6fe07a98677 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -134,94 +134,30 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr)
+ 	return false;
+ }
+ 
+-static __always_inline bool memory_is_poisoned_2(unsigned long addr)
++static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
++						unsigned long size)
+ {
+-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+-
+-	if (unlikely(*shadow_addr)) {
+-		if (memory_is_poisoned_1(addr + 1))
+-			return true;
+-
+-		/*
+-		 * If single shadow byte covers 2-byte access, we don't
+-		 * need to do anything more. Otherwise, test the first
+-		 * shadow byte.
+-		 */
+-		if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
+-			return false;
+-
+-		return unlikely(*(u8 *)shadow_addr);
+-	}
++	u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
+ 
+-	return false;
+-}
+-
+-static __always_inline bool memory_is_poisoned_4(unsigned long addr)
+-{
+-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+-
+-	if (unlikely(*shadow_addr)) {
+-		if (memory_is_poisoned_1(addr + 3))
+-			return true;
+-
+-		/*
+-		 * If single shadow byte covers 4-byte access, we don't
+-		 * need to do anything more. Otherwise, test the first
+-		 * shadow byte.
+-		 */
+-		if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
+-			return false;
+-
+-		return unlikely(*(u8 *)shadow_addr);
+-	}
+-
+-	return false;
+-}
+-
+-static __always_inline bool memory_is_poisoned_8(unsigned long addr)
+-{
+-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+-
+-	if (unlikely(*shadow_addr)) {
+-		if (memory_is_poisoned_1(addr + 7))
+-			return true;
+-
+-		/*
+-		 * If single shadow byte covers 8-byte access, we don't
+-		 * need to do anything more. Otherwise, test the first
+-		 * shadow byte.
+-		 */
+-		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
+-			return false;
+-
+-		return unlikely(*(u8 *)shadow_addr);
+-	}
++	/*
++	 * Access crosses 8(shadow size)-byte boundary. Such access maps
++	 * into 2 shadow bytes, so we need to check them both.
++	 */
++	if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1))
++		return *shadow_addr || memory_is_poisoned_1(addr + size - 1);
+ 
+-	return false;
++	return memory_is_poisoned_1(addr + size - 1);
+ }
+ 
+ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
+ {
+-	u32 *shadow_addr = (u32 *)kasan_mem_to_shadow((void *)addr);
+-
+-	if (unlikely(*shadow_addr)) {
+-		u16 shadow_first_bytes = *(u16 *)shadow_addr;
+-
+-		if (unlikely(shadow_first_bytes))
+-			return true;
+-
+-		/*
+-		 * If two shadow bytes covers 16-byte access, we don't
+-		 * need to do anything more. Otherwise, test the last
+-		 * shadow byte.
+-		 */
+-		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
+-			return false;
++	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+ 
+-		return memory_is_poisoned_1(addr + 15);
+-	}
++	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
++	if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
++		return *shadow_addr || memory_is_poisoned_1(addr + 15);
+ 
+-	return false;
++	return *shadow_addr;
+ }
+ 
+ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+@@ -292,11 +228,9 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
+ 		case 1:
+ 			return memory_is_poisoned_1(addr);
+ 		case 2:
+-			return memory_is_poisoned_2(addr);
+ 		case 4:
+-			return memory_is_poisoned_4(addr);
+ 		case 8:
+-			return memory_is_poisoned_8(addr);
++			return memory_is_poisoned_2_4_8(addr, size);
+ 		case 16:
+ 			return memory_is_poisoned_16(addr);
+ 		default:
 -- 
-Michal Hocko
-SUSE Labs
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
