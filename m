@@ -1,51 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 60D586B02B4
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:05:59 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g15so9500943wmc.8
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:05:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h2si7044533wrc.69.2017.06.01.05.05.58
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AC726B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:20:32 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 10so9608321wml.4
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:20:32 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id g18si4207829wrg.233.2017.06.01.05.20.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 05:05:58 -0700 (PDT)
-Date: Thu, 1 Jun 2017 14:05:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [Cluster-devel] [PATCH 00/35 v1] pagevec API cleanups
-Message-ID: <20170601120556.GD23077@quack2.suse.cz>
-References: <20170601093245.29238-1-jack@suse.cz>
- <20170601113604.GA10829@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170601113604.GA10829@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Jun 2017 05:20:31 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id k15so10896411wmh.3
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:20:30 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH] mm, memory_hotplug: support movable_node for hotplugable nodes
+Date: Thu,  1 Jun 2017 14:20:04 +0200
+Message-Id: <20170601122004.32732-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, cluster-devel@redhat.com, linux-nilfs@vger.kernel.org, tytso@mit.edu, linux-xfs@vger.kernel.org, "Yan, Zheng" <zyan@redhat.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Hugh Dickins <hughd@google.com>, linux-f2fs-devel@lists.sourceforge.net, David Howells <dhowells@redhat.com>, David Sterba <dsterba@suse.com>, ceph-devel@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, Jaegeuk Kim <jaegeuk@kernel.org>, Ilya Dryomov <idryomov@gmail.com>, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, linux-btrfs@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 01-06-17 04:36:04, Christoph Hellwig wrote:
-> On Thu, Jun 01, 2017 at 11:32:10AM +0200, Jan Kara wrote:
-> > * Implement ranged variants for pagevec_lookup and find_get_ functions. Lot
-> >   of callers actually want a ranged lookup and we unnecessarily opencode this
-> >   in lot of them.
-> 
-> How does this compare to Kents page cache iterators:
-> 
-> http://www.spinics.net/lists/linux-mm/msg104737.html
+From: Michal Hocko <mhocko@suse.com>
 
-Interesting. I didn't know about that work. I guess the tradeoff is pretty
-obvious - my patches are more conservative (changing less) and as a result
-the API is not as neat as Kent's one. That being said I was also thinking
-about something similar to what Kent did but what I didn't like about such
-iterator is that you still need to specially handle the cases where you
-break out of the loop (you need to do that with pagevecs too but there it
-is kind of obvious from the API).
+movable_node kernel parameter allows to make hotplugable NUMA
+nodes to put all the hotplugable memory into movable zone which
+allows more or less reliable memory hotremove.  At least this
+is the case for the NUMA nodes present during the boot (see
+find_zone_movable_pfns_for_nodes).
 
-								Honza
+This is not the case for the memory hotplug, though.
+
+	echo online > /sys/devices/system/memory/memoryXYZ/status
+
+will default to a kernel zone (usually ZONE_NORMAL) unless the
+particular memblock is already in the movable zone range which is not
+the case normally when onlining the memory from the udev rule context
+for a freshly hotadded NUMA node. The only option currently is to have a
+special udev rule to echo online_movable to all memblocks belonging to
+such a node which is rather clumsy. Not the mention this is inconsistent
+as well because what ended up in the movable zone during the boot will
+end up in a kernel zone after hotremove & hotadd without special care.
+
+It would be nice to reuse memblock_is_hotpluggable but the runtime
+hotplug doesn't have that information available because the boot and
+hotplug paths are not shared and it would be really non trivial to
+make them use the same code path because the runtime hotplug doesn't
+play with the memblock allocator at all.
+
+Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
+movable_node is enabled and the range doesn't overlap with the existing
+normal zone. This should provide a reasonable default onlining strategy.
+
+Strictly speaking the semantic is not identical with the boot time
+initialization because find_zone_movable_pfns_for_nodes covers only the
+hotplugable range as described by the BIOS/FW. From my experience this
+is usually a full node though (except for Node0 which is special and
+never goes away completely). If this turns out to be a problem in the
+real life we can tweak the code to store hotplug flag into memblocks
+but let's keep this simple now.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I am sending this as an RFC because this is a user visible change change
+of behavior, strictly speaking. I believe it is a desirable change of
+behavior, thought, and it an explicit opt-in (kernel parameter) is
+required to see the change so I do not expect any breakage. I would
+still like to hear what other people think about this shift. I have
+tested it on a memory hotplug capable HW where the whole numa node can
+be hotremove/added.
+
+Does anybody see any problem with the proposed semantic?
+
+ mm/memory_hotplug.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b98fb0b3ae11..74d75583736c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -943,6 +943,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+ 	return &pgdat->node_zones[ZONE_NORMAL];
+ }
+ 
++static inline bool movable_pfn_range(int nid, struct zone *default_zone,
++		unsigned long start_pfn, unsigned long nr_pages)
++{
++	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
++				MMOP_ONLINE_KERNEL))
++		return true;
++
++	if (!movable_node_is_enabled())
++		return false;
++
++	return !zone_intersects(default_zone, start_pfn, nr_pages);
++}
++
+ /*
+  * Associates the given pfn range with the given node and the zone appropriate
+  * for the given online type.
+@@ -958,10 +971,10 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
+ 		/*
+ 		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
+ 		 * movable zone if that is not possible (e.g. we are within
+-		 * or past the existing movable zone)
++		 * or past the existing movable zone). movable_node overrides
++		 * this default and defaults to movable zone
+ 		 */
+-		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+-					MMOP_ONLINE_KERNEL))
++		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
+ 			zone = movable_zone;
+ 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+ 		zone = &pgdat->node_zones[ZONE_MOVABLE];
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
