@@ -1,69 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A76016B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:17:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e135so31810898ita.8
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:06 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id o74si29895512ito.71.2017.06.01.01.17.05
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B1AEB6B0292
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:17:08 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id s131so31841747itd.6
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:08 -0700 (PDT)
+Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
+        by mx.google.com with ESMTPS id m7si1220178ite.18.2017.06.01.01.17.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 01:17:05 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id l145so4492336ita.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:05 -0700 (PDT)
+        Thu, 01 Jun 2017 01:17:08 -0700 (PDT)
+Received: by mail-it0-x244.google.com with SMTP id d68so4475626ita.1
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:07 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1 0/9] mm: hwpoison: fixlet for hugetlb migration
-Date: Thu,  1 Jun 2017 17:16:50 +0900
-Message-Id: <1496305019-5493-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1 1/9] mm: hugetlb: prevent reuse of hwpoisoned free hugepages
+Date: Thu,  1 Jun 2017 17:16:51 +0900
+Message-Id: <1496305019-5493-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1496305019-5493-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1496305019-5493-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Hi everyone,
+We no longer use MIGRATE_ISOLATE to prevent reuse of hwpoison hugepages
+as we did before. So current dequeue_huge_page_node() doesn't work as
+intended because it still uses is_migrate_isolate_page() for this check.
+This patch fixes it with PageHWPoison flag.
 
-I wrote the patchset updating hwpoison/hugetlb code to address
-the 2 reported issues.
-
-One is madvise(MADV_HWPOISON) failure reported by Intel's lkp robot
-(see http://lkml.kernel.org/r/20170417055948.GM31394@yexl-desktop.)
-First half was already fixed in mainline, and another half about hugetlb
-cases are solved in this series.
-
-Another issue is "narrow-down error affected region into a single 4kB
-page instead of a whole hugetlb page" issue, which was tried by Anshuman
-(http://lkml.kernel.org/r/20170420110627.12307-1-khandual@linux.vnet.ibm.com)
-and I updated it to apply it more widely.
-
-Hopefully it helps people who are interested in hugetlb migration for
-wider arch/setting.
-
-Thanks,
-Naoya Horiguchi
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
-Summary:
+ mm/hugetlb.c        | 3 +--
+ mm/memory-failure.c | 1 -
+ 2 files changed, 1 insertion(+), 3 deletions(-)
 
-Anshuman Khandual (1):
-      mm: hugetlb: soft-offline: dissolve source hugepage after successful migration
-
-Naoya Horiguchi (8):
-      mm: hugetlb: prevent reuse of hwpoisoned free hugepages
-      mm: hugetlb: return immediately for hugetlb page in __delete_from_page_cache()
-      mm: hwpoison: change PageHWPoison behavior on hugetlb pages
-      mm: soft-offline: dissolve free hugepage if soft-offlined
-      mm: hwpoison: introduce memory_failure_hugetlb()
-      mm: hwpoison: dissolve in-use hugepage in unrecoverable memory error
-      mm: hugetlb: delete dequeue_hwpoisoned_huge_page()
-      mm: hwpoison: introduce idenfity_page_state
-
- fs/hugetlbfs/inode.c    |  11 ++
- include/linux/hugetlb.h |   8 +-
- include/linux/swapops.h |   9 --
- mm/filemap.c            |   8 +-
- mm/hugetlb.c            |  47 ++-----
- mm/memory-failure.c     | 323 +++++++++++++++++++++++-------------------------
- mm/migrate.c            |   2 +
- 7 files changed, 184 insertions(+), 224 deletions(-)
+diff --git v4.12-rc3/mm/hugetlb.c v4.12-rc3_patched/mm/hugetlb.c
+index e582887..6d6c659 100644
+--- v4.12-rc3/mm/hugetlb.c
++++ v4.12-rc3_patched/mm/hugetlb.c
+@@ -22,7 +22,6 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+-#include <linux/page-isolation.h>
+ #include <linux/jhash.h>
+ 
+ #include <asm/page.h>
+@@ -872,7 +871,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+ 	struct page *page;
+ 
+ 	list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
+-		if (!is_migrate_isolate_page(page))
++		if (!PageHWPoison(page))
+ 			break;
+ 	/*
+ 	 * if 'non-isolated free hugepage' not found on the list,
+diff --git v4.12-rc3/mm/memory-failure.c v4.12-rc3_patched/mm/memory-failure.c
+index 2527dfed..6c1a7c9 100644
+--- v4.12-rc3/mm/memory-failure.c
++++ v4.12-rc3_patched/mm/memory-failure.c
+@@ -49,7 +49,6 @@
+ #include <linux/swap.h>
+ #include <linux/backing-dev.h>
+ #include <linux/migrate.h>
+-#include <linux/page-isolation.h>
+ #include <linux/suspend.h>
+ #include <linux/slab.h>
+ #include <linux/swapops.h>
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
