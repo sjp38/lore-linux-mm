@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 326146B0372
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48EAD6B0374
 	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 05:33:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 139so8673113wmf.5
+Received: by mail-wm0-f71.google.com with SMTP id 10so8699624wml.4
         for <linux-mm@kvack.org>; Thu, 01 Jun 2017 02:33:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j23si19891659wre.45.2017.06.01.02.33.16
+        by mx.google.com with ESMTPS id r20si22209734wmd.15.2017.06.01.02.33.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 02:33:16 -0700 (PDT)
+        Thu, 01 Jun 2017 02:33:17 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 27/35] shmem: Use pagevec_lookup() in shmem_unlock_mapping()
-Date: Thu,  1 Jun 2017 11:32:37 +0200
-Message-Id: <20170601093245.29238-28-jack@suse.cz>
+Subject: [PATCH 34/35] mm: Make find_get_entries_tag() update index
+Date: Thu,  1 Jun 2017 11:32:44 +0200
+Message-Id: <20170601093245.29238-35-jack@suse.cz>
 In-Reply-To: <20170601093245.29238-1-jack@suse.cz>
 References: <20170601093245.29238-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Hugh Dickins <hughd@google.com>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, tytso@mit.edu, linux-ext4@vger.kernel.org, Ilya Dryomov <idryomov@gmail.com>, "Yan, Zheng" <zyan@redhat.com>, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Jan Kara <jack@suse.cz>
 
-The comment about find_get_pages() returning if it finds a row of swap
-entries seems to be stale. Use pagevec_lookup() in
-shmem_unlock_mapping() to simplify the code.
+Make find_get_entries_tag() update 'start' to index the next page for
+iteration.
 
-CC: Hugh Dickins <hughd@google.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- mm/shmem.c | 14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+ fs/dax.c                | 3 +--
+ include/linux/pagemap.h | 2 +-
+ mm/filemap.c            | 8 ++++++--
+ 3 files changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index e67d6ba4e98e..a614a9cfb58c 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -729,24 +729,14 @@ unsigned long shmem_swap_usage(struct vm_area_struct *vma)
- void shmem_unlock_mapping(struct address_space *mapping)
- {
- 	struct pagevec pvec;
--	pgoff_t indices[PAGEVEC_SIZE];
- 	pgoff_t index = 0;
+diff --git a/fs/dax.c b/fs/dax.c
+index c204445a69b0..4b295c544fd4 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -841,7 +841,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
  
  	pagevec_init(&pvec, 0);
- 	/*
- 	 * Minor point, but we might as well stop if someone else SHM_LOCKs it.
- 	 */
--	while (!mapping_unevictable(mapping)) {
--		/*
--		 * Avoid pagevec_lookup(): find_get_pages() returns 0 as if it
--		 * has finished, if it hits a row of PAGEVEC_SIZE swap entries.
--		 */
--		pvec.nr = find_get_entries(mapping, index,
--					   PAGEVEC_SIZE, pvec.pages, indices);
--		if (!pvec.nr)
--			break;
--		index = indices[pvec.nr - 1] + 1;
--		pagevec_remove_exceptionals(&pvec);
-+	while (!mapping_unevictable(mapping) &&
-+			pagevec_lookup(&pvec, mapping, &index)) {
- 		check_move_unevictable_pages(pvec.pages, pvec.nr);
- 		pagevec_release(&pvec);
- 		cond_resched();
+ 	while (!done) {
+-		pvec.nr = find_get_entries_tag(mapping, start_index,
++		pvec.nr = find_get_entries_tag(mapping, &start_index,
+ 				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,
+ 				pvec.pages, indices);
+ 
+@@ -859,7 +859,6 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+ 			if (ret < 0)
+ 				goto out;
+ 		}
+-		start_index = indices[pvec.nr - 1] + 1;
+ 	}
+ out:
+ 	put_dax(dax_dev);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index df128a56f44b..1dc7e54ec32a 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -365,7 +365,7 @@ static inline unsigned find_get_pages_tag(struct address_space *mapping,
+ 	return find_get_pages_range_tag(mapping, index, (pgoff_t)-1, tag,
+ 					nr_pages, pages);
+ }
+-unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
++unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t *start,
+ 			int tag, unsigned int nr_entries,
+ 			struct page **entries, pgoff_t *indices);
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index e55100459710..3eb05c91c07a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1731,7 +1731,7 @@ EXPORT_SYMBOL(find_get_pages_range_tag);
+  * Like find_get_entries, except we only return entries which are tagged with
+  * @tag.
+  */
+-unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
++unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t *start,
+ 			int tag, unsigned int nr_entries,
+ 			struct page **entries, pgoff_t *indices)
+ {
+@@ -1744,7 +1744,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
+-				   &iter, start, tag) {
++				   &iter, *start, tag) {
+ 		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+@@ -1786,6 +1786,10 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+ 			break;
+ 	}
+ 	rcu_read_unlock();
++
++	if (ret)
++		*start = indices[ret - 1] + 1;
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL(find_get_entries_tag);
 -- 
 2.12.3
 
