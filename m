@@ -1,112 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 206726B02F4
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:22:26 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f124so51139036oia.14
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:22:26 -0700 (PDT)
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50111.outbound.protection.outlook.com. [40.107.5.111])
-        by mx.google.com with ESMTPS id n130si8445866oib.181.2017.06.01.09.22.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C82F16B0292
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:35:26 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q27so48214327pfi.8
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:35:26 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0064.outbound.protection.outlook.com. [104.47.2.64])
+        by mx.google.com with ESMTPS id 65si2296166pfi.240.2017.06.01.09.35.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 09:22:24 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 4/4] mm/kasan: Add support for memory hotplug
-Date: Thu, 1 Jun 2017 19:23:38 +0300
-Message-ID: <20170601162338.23540-4-aryabinin@virtuozzo.com>
-In-Reply-To: <20170601162338.23540-1-aryabinin@virtuozzo.com>
+        Thu, 01 Jun 2017 09:35:25 -0700 (PDT)
+Date: Thu, 1 Jun 2017 17:34:43 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH 3/4] arm64/kasan: don't allocate extra shadow memory
+Message-ID: <20170601163442.GC17711@leverpostej>
 References: <20170601162338.23540-1-aryabinin@virtuozzo.com>
+ <20170601162338.23540-3-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170601162338.23540-3-aryabinin@virtuozzo.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, linux-arm-kernel@lists.infradead.org, Dmitry Vyukov <dvyukov@google.com>
 
-KASAN doesn't happen work with memory hotplug because hotplugged memory
-doesn't have any shadow memory. So any access to hotplugged memory
-would cause a crash on shadow check.
+On Thu, Jun 01, 2017 at 07:23:37PM +0300, Andrey Ryabinin wrote:
+> We used to read several bytes of the shadow memory in advance.
+> Therefore additional shadow memory mapped to prevent crash if
+> speculative load would happen near the end of the mapped shadow memory.
+>
+> Now we don't have such speculative loads, so we no longer need to map
+> additional shadow memory.
 
-Use memory hotplug notifier to allocate and map shadow memory when the
-hotplugged memory is going online and free shadow after the memory
-offlined.
+I see that patch 1 fixed up the Linux helpers for outline
+instrumentation.
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/Kconfig       |  1 -
- mm/kasan/kasan.c | 40 +++++++++++++++++++++++++++++++++++-----
- 2 files changed, 35 insertions(+), 6 deletions(-)
+Just to check, is it also true that the inline instrumentation never
+performs unaligned accesses to the shadow memory?
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f1fbde17d45d..c8df94059974 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -161,7 +161,6 @@ config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
- 	depends on SPARSEMEM || X86_64_ACPI_NUMA
- 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
--	depends on COMPILE_TEST || !KASAN
- 
- config MEMORY_HOTPLUG_SPARSE
- 	def_bool y
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index e6fe07a98677..ca11bc4ce205 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -737,17 +737,47 @@ void __asan_unpoison_stack_memory(const void *addr, size_t size)
- EXPORT_SYMBOL(__asan_unpoison_stack_memory);
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
--static int kasan_mem_notifier(struct notifier_block *nb,
-+static int __meminit kasan_mem_notifier(struct notifier_block *nb,
- 			unsigned long action, void *data)
- {
--	return (action == MEM_GOING_ONLINE) ? NOTIFY_BAD : NOTIFY_OK;
-+	struct memory_notify *mem_data = data;
-+	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
-+	unsigned long shadow_end, shadow_size;
-+
-+	nr_shadow_pages = mem_data->nr_pages >> KASAN_SHADOW_SCALE_SHIFT;
-+	start_kaddr = (unsigned long)pfn_to_kaddr(mem_data->start_pfn);
-+	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start_kaddr);
-+	shadow_size = nr_shadow_pages << PAGE_SHIFT;
-+	shadow_end = shadow_start + shadow_size;
-+
-+	if (WARN_ON(mem_data->nr_pages % KASAN_SHADOW_SCALE_SIZE) ||
-+		WARN_ON(start_kaddr % (KASAN_SHADOW_SCALE_SIZE << PAGE_SHIFT)))
-+		return NOTIFY_BAD;
-+
-+	switch (action) {
-+	case MEM_GOING_ONLINE: {
-+		void *ret;
-+
-+		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
-+					shadow_end, GFP_KERNEL,
-+					PAGE_KERNEL, VM_NO_GUARD,
-+					pfn_to_nid(mem_data->start_pfn),
-+					__builtin_return_address(0));
-+		if (!ret)
-+			return NOTIFY_BAD;
-+
-+		kmemleak_ignore(ret);
-+		return NOTIFY_OK;
-+	}
-+	case MEM_OFFLINE:
-+		vfree((void *)shadow_start);
-+	}
-+
-+	return NOTIFY_OK;
- }
- 
- static int __init kasan_memhotplug_init(void)
- {
--	pr_info("WARNING: KASAN doesn't support memory hot-add\n");
--	pr_info("Memory hot-add will be disabled\n");
--
- 	hotplug_memory_notifier(kasan_mem_notifier, 0);
- 
- 	return 0;
--- 
-2.13.0
+If so, this looks good to me; it also avoids a potential fencepost issue
+when memory exists right at the end of the linear map. Assuming that
+holds:
+
+Acked-by: Mark Rutland <mark.rutland@arm.com>
+
+Thanks,
+Mark.
+
+>
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: linux-arm-kernel@lists.infradead.org
+> ---
+>  arch/arm64/mm/kasan_init.c | 8 +-------
+>  1 file changed, 1 insertion(+), 7 deletions(-)
+>
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> index 687a358a3733..81f03959a4ab 100644
+> --- a/arch/arm64/mm/kasan_init.c
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -191,14 +191,8 @@ void __init kasan_init(void)
+>               if (start >=3D end)
+>                       break;
+>
+> -             /*
+> -              * end + 1 here is intentional. We check several shadow byt=
+es in
+> -              * advance to slightly speed up fastpath. In some rare case=
+s
+> -              * we could cross boundary of mapped shadow, so we just map
+> -              * some more here.
+> -              */
+>               vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
+> -                             (unsigned long)kasan_mem_to_shadow(end) + 1=
+,
+> +                             (unsigned long)kasan_mem_to_shadow(end),
+>                               pfn_to_nid(virt_to_pfn(start)));
+>       }
+>
+> --
+> 2.13.0
+>
+>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+IMPORTANT NOTICE: The contents of this email and any attachments are confid=
+ential and may also be privileged. If you are not the intended recipient, p=
+lease notify the sender immediately and do not disclose the contents to any=
+ other person, use it for any purpose, or store or copy the information in =
+any medium. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
