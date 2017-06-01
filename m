@@ -1,74 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4BDE6B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 09:59:26 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id n13so41592596ita.7
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 06:59:26 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l26si28723811pli.24.2017.06.01.06.59.25
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A3F16B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 10:12:02 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x184so10411054wmf.14
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 07:12:02 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f5si20079373edd.72.2017.06.01.07.12.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 06:59:26 -0700 (PDT)
-Received: from mail-ua0-f182.google.com (mail-ua0-f182.google.com [209.85.217.182])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8EF3A2395B
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 13:59:25 +0000 (UTC)
-Received: by mail-ua0-f182.google.com with SMTP id x47so27939163uab.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 06:59:25 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Jun 2017 07:12:00 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, memory_hotplug: support movable_node for
+ hotplugable nodes
+References: <20170601122004.32732-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <820164f3-8bef-7761-0695-88db9e0ce7a7@suse.cz>
+Date: Thu, 1 Jun 2017 16:11:55 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170531150349.4816-1-jglisse@redhat.com>
-References: <20170531150349.4816-1-jglisse@redhat.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 1 Jun 2017 06:59:04 -0700
-Message-ID: <CALCETrVyY9zZz311i45Mh7284kf2vnoN0JTEvcPE1GOzosW_-Q@mail.gmail.com>
-Subject: Re: [PATCH] x86/mm: do not BUG_ON() on stall pgd entries
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170601122004.32732-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, May 31, 2017 at 8:03 AM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.co=
-m> wrote:
-> Since af2cf278ef4f ("Don't remove PGD entries in remove_pagetable()")
-> we no longer cleanup stall pgd entries and thus the BUG_ON() inside
-> sync_global_pgds() is wrong.
->
-> This patch remove the BUG_ON() and unconditionaly update stall pgd
-> entries.
->
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/mm/init_64.c | 7 +------
->  1 file changed, 1 insertion(+), 6 deletions(-)
->
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index ff95fe8..36b9020 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -123,12 +123,7 @@ void sync_global_pgds(unsigned long start, unsigned =
-long end)
->                         pgt_lock =3D &pgd_page_get_mm(page)->page_table_l=
-ock;
->                         spin_lock(pgt_lock);
->
-> -                       if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
-> -                               BUG_ON(p4d_page_vaddr(*p4d)
-> -                                      !=3D p4d_page_vaddr(*p4d_ref));
-> -
-> -                       if (p4d_none(*p4d))
-> -                               set_p4d(p4d, *p4d_ref);
-> +                       set_p4d(p4d, *p4d_ref);
+On 06/01/2017 02:20 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> movable_node kernel parameter allows to make hotplugable NUMA
+> nodes to put all the hotplugable memory into movable zone which
+> allows more or less reliable memory hotremove.  At least this
+> is the case for the NUMA nodes present during the boot (see
+> find_zone_movable_pfns_for_nodes).
+> 
+> This is not the case for the memory hotplug, though.
+> 
+> 	echo online > /sys/devices/system/memory/memoryXYZ/status
+> 
+> will default to a kernel zone (usually ZONE_NORMAL) unless the
+> particular memblock is already in the movable zone range which is not
+> the case normally when onlining the memory from the udev rule context
+> for a freshly hotadded NUMA node. The only option currently is to have a
+> special udev rule to echo online_movable to all memblocks belonging to
+> such a node which is rather clumsy. Not the mention this is inconsistent
+> as well because what ended up in the movable zone during the boot will
+> end up in a kernel zone after hotremove & hotadd without special care.
 
-If we have a mismatch in the vmalloc range, vmalloc_fault is going to
-screw up and we'll end up using incorrect page tables.
+Yeah, it would be better if movable_node worked consistently for both
+boot and runtime hotplug.
 
-What's causing the mismatch?  If you're hitting this BUG in practice,
-I suspect we have a bug elsewhere.
+> It would be nice to reuse memblock_is_hotpluggable but the runtime
+> hotplug doesn't have that information available because the boot and
+> hotplug paths are not shared and it would be really non trivial to
+> make them use the same code path because the runtime hotplug doesn't
+> play with the memblock allocator at all.
+> 
+> Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
+> movable_node is enabled and the range doesn't overlap with the existing
+> normal zone. This should provide a reasonable default onlining strategy.
+> 
+> Strictly speaking the semantic is not identical with the boot time
+> initialization because find_zone_movable_pfns_for_nodes covers only the
+> hotplugable range as described by the BIOS/FW. From my experience this
+> is usually a full node though (except for Node0 which is special and
+> never goes away completely). If this turns out to be a problem in the
+> real life we can tweak the code to store hotplug flag into memblocks
+> but let's keep this simple now.
+
+Simple should work, hopefully.
+- if memory is hotplugged, it's obviously hotplugable, so we don't have
+to rely on BIOS description.
+- there shouldn't be a reason to offline a non-removable (part of) node
+and online it back (which would move it from Normal to Movable after
+your patch?), right?
+
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
