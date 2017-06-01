@@ -1,87 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D6D66B02F3
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 14:41:39 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n75so53579563pfh.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 11:41:39 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i68si2544973pgc.281.2017.06.01.11.41.38
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 753456B02C3
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 14:44:52 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id g83so18973647qkb.14
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 11:44:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 96si13976777qkz.73.2017.06.01.11.44.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 11:41:38 -0700 (PDT)
-Date: Thu, 1 Jun 2017 19:41:13 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
-Message-ID: <20170601184113.GA31689@castle>
-References: <1496145932-18636-1-git-send-email-guro@fb.com>
- <20170530123415.GF7969@dhcp22.suse.cz>
- <20170530133335.GB28148@castle>
- <20170530134552.GI7969@dhcp22.suse.cz>
- <20170530185231.GA13412@castle>
- <20170531163928.GZ27783@dhcp22.suse.cz>
+        Thu, 01 Jun 2017 11:44:51 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-12-git-send-email-longman@redhat.com>
+ <20170519202624.GA15279@wtj.duckdns.org>
+ <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
+ <20170524203616.GO24798@htj.duckdns.org>
+ <9b147a7e-fec3-3b78-7587-3890efcd42f2@redhat.com>
+ <20170524212745.GP24798@htj.duckdns.org>
+ <20170601145042.GA3494@htj.duckdns.org>
+ <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <ffa991a3-074d-ffd5-7a6a-556d6cdd08fe@redhat.com>
+Date: Thu, 1 Jun 2017 14:44:48 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170531163928.GZ27783@dhcp22.suse.cz>
+In-Reply-To: <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>, Tejun Heo <tj@kernel.org>
+Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Wed, May 31, 2017 at 06:39:29PM +0200, Michal Hocko wrote:
-> On Tue 30-05-17 19:52:31, Roman Gushchin wrote:
-> > >From c57e3674efc609f8364f5e228a2c1309cfe99901 Mon Sep 17 00:00:00 2001
-> > From: Roman Gushchin <guro@fb.com>
-> > Date: Tue, 23 May 2017 17:37:55 +0100
-> > Subject: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
-> > 
-> > During the debugging of the problem described in
-> > https://lkml.org/lkml/2017/5/17/542 and fixed by Tetsuo Handa
-> > in https://lkml.org/lkml/2017/5/19/383 , I've found that
-> > the existing debug output is not really useful to understand
-> > issues related to the oom reaper.
-> > 
-> > So, I assume, that adding some tracepoints might help with
-> > debugging of similar issues.
-> > 
-> > Trace the following events:
-> > 1) a process is marked as an oom victim,
-> > 2) a process is added to the oom reaper list,
-> > 3) the oom reaper starts reaping process's mm,
-> > 4) the oom reaper finished reaping,
-> > 5) the oom reaper skips reaping.
-> > 
-> > How it works in practice? Below is an example which show
-> > how the problem mentioned above can be found: one process is added
-> > twice to the oom_reaper list:
-> > 
-> > $ cd /sys/kernel/debug/tracing
-> > $ echo "oom:mark_victim" > set_event
-> > $ echo "oom:wake_reaper" >> set_event
-> > $ echo "oom:skip_task_reaping" >> set_event
-> > $ echo "oom:start_task_reaping" >> set_event
-> > $ echo "oom:finish_task_reaping" >> set_event
-> > $ cat trace_pipe
-> >         allocate-502   [001] ....    91.836405: mark_victim: pid=502
-> >         allocate-502   [001] .N..    91.837356: wake_reaper: pid=502
-> >         allocate-502   [000] .N..    91.871149: wake_reaper: pid=502
-> >       oom_reaper-23    [000] ....    91.871177: start_task_reaping: pid=502
-> >       oom_reaper-23    [000] .N..    91.879511: finish_task_reaping: pid=502
-> >       oom_reaper-23    [000] ....    91.879580: skip_task_reaping: pid=502
-> 
-> OK, this is much better! The clue here would be that we got 2
-> wakeups for the same task, right?
-> Do you think it would make sense to put more context to those
-> tracepoints? E.g. skip_task_reaping can be due to lock contention or the
-> mm gone. wake_reaper is similar.
+On 06/01/2017 11:10 AM, Peter Zijlstra wrote:
+> On Thu, Jun 01, 2017 at 10:50:42AM -0400, Tejun Heo wrote:
+>> Hello, Waiman.
+>>
+>> A short update.  I tried making root special while keeping the
+>> existing threaded semantics but I didn't really like it because we
+>> have to couple controller enables/disables with threaded
+>> enables/disables.  I'm now trying a simpler, albeit a bit more
+>> tedious, approach which should leave things mostly symmetrical.  I'm
+>> hoping to be able to post mostly working patches this week.
+> I've not had time to look at any of this. But the question I'm most
+> curious about is how cgroup-v2 preserves the container invariant.
+>
+> That is, each container (namespace) should look like a 'real' machine.
+> So just like userns allows to have a uid-0 (aka root) for each container
+> and pidns allows a pid-1 for each container, cgroupns should provide a
+> root group for each container.
+>
+> And cgroup-v2 has this 'exception' (aka wart) for the root group which
+> needs to be replicated for each namespace.
 
-I agree, that some context might be useful under some circumstances,
-but I don't think we should add any additional fields until we will have some examples
-of where this data is actually useful. If we will need it, we can easily add it later.
+One of the changes that I proposed in my patches was to get rid of the
+no internal process constraint. I think that will solve a big part of
+the container invariant problem that we have with cgroup v2.
 
-Thanks!
-
-Roman
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
