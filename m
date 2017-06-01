@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5F96B02F3
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:17:13 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z125so31762828itc.12
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:13 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id c83si19225242itb.123.2017.06.01.01.17.12
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF6F06B02F4
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:17:15 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id q81so31851757itc.9
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:15 -0700 (PDT)
+Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
+        by mx.google.com with ESMTPS id v12si17970089iov.62.2017.06.01.01.17.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 01:17:12 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id o12so4179307iod.2
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:12 -0700 (PDT)
+        Thu, 01 Jun 2017 01:17:14 -0700 (PDT)
+Received: by mail-io0-x241.google.com with SMTP id o12so4179433iod.2
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:17:14 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1 3/9] mm: hwpoison: change PageHWPoison behavior on hugetlb pages
-Date: Thu,  1 Jun 2017 17:16:53 +0900
-Message-Id: <1496305019-5493-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1 4/9] mm: hugetlb: soft-offline: dissolve source hugepage after successful migration
+Date: Thu,  1 Jun 2017 17:16:54 +0900
+Message-Id: <1496305019-5493-5-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1496305019-5493-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1496305019-5493-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,235 +22,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-We'd like to narrow down the error region in memory error on hugetlb
-pages.  However, currently we set PageHWPoison flags on all subpages
-in the error hugepage and add # of subpages to num_hwpoison_pages,
-which doesn't fit our purpose.
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-So this patch changes the behavior and we only set PageHWPoison on
-the head page then increase num_hwpoison_pages only by 1. This is
-a preparation for narrow-down part which comes in later patches.
+Currently hugepage migrated by soft-offline (i.e. due to correctable
+memory errors) is contained as a hugepage, which means many non-error
+pages in it are unreusable, i.e. wasted.
 
+This patch solves this issue by dissolving source hugepages into buddy.
+As done in previous patch, PageHWPoison is set only on a head page of
+the error hugepage. Then in dissoliving we move the PageHWPoison flag to
+the raw error page so that all healthy subpages return back to buddy.
+
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- include/linux/swapops.h |  9 -----
- mm/memory-failure.c     | 87 ++++++++++++++-----------------------------------
- 2 files changed, 24 insertions(+), 72 deletions(-)
+ include/linux/hugetlb.h |  2 ++
+ mm/hugetlb.c            | 10 +++++++++-
+ mm/memory-failure.c     |  5 +----
+ mm/migrate.c            |  2 ++
+ 4 files changed, 14 insertions(+), 5 deletions(-)
 
-diff --git v4.12-rc3/include/linux/swapops.h v4.12-rc3_patched/include/linux/swapops.h
-index 5c3a5f3..c5ff7b2 100644
---- v4.12-rc3/include/linux/swapops.h
-+++ v4.12-rc3_patched/include/linux/swapops.h
-@@ -196,15 +196,6 @@ static inline void num_poisoned_pages_dec(void)
- 	atomic_long_dec(&num_poisoned_pages);
+diff --git v4.12-rc3/include/linux/hugetlb.h v4.12-rc3_patched/include/linux/hugetlb.h
+index b857fc8..89afe40 100644
+--- v4.12-rc3/include/linux/hugetlb.h
++++ v4.12-rc3_patched/include/linux/hugetlb.h
+@@ -461,6 +461,7 @@ static inline pgoff_t basepage_index(struct page *page)
+ 	return __basepage_index(page);
  }
  
--static inline void num_poisoned_pages_add(long num)
--{
--	atomic_long_add(num, &num_poisoned_pages);
--}
--
--static inline void num_poisoned_pages_sub(long num)
--{
--	atomic_long_sub(num, &num_poisoned_pages);
--}
- #else
++extern int dissolve_free_huge_page(struct page *page);
+ extern int dissolve_free_huge_pages(unsigned long start_pfn,
+ 				    unsigned long end_pfn);
+ static inline bool hugepage_migration_supported(struct hstate *h)
+@@ -529,6 +530,7 @@ static inline pgoff_t basepage_index(struct page *page)
+ {
+ 	return page->index;
+ }
++#define dissolve_free_huge_page(p)	0
+ #define dissolve_free_huge_pages(s, e)	0
+ #define hugepage_migration_supported(h)	false
  
- static inline swp_entry_t make_hwpoison_entry(struct page *page)
+diff --git v4.12-rc3/mm/hugetlb.c v4.12-rc3_patched/mm/hugetlb.c
+index 6d6c659..41c37ed 100644
+--- v4.12-rc3/mm/hugetlb.c
++++ v4.12-rc3_patched/mm/hugetlb.c
+@@ -1443,7 +1443,7 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+  * number of free hugepages would be reduced below the number of reserved
+  * hugepages.
+  */
+-static int dissolve_free_huge_page(struct page *page)
++int dissolve_free_huge_page(struct page *page)
+ {
+ 	int rc = 0;
+ 
+@@ -1456,6 +1456,14 @@ static int dissolve_free_huge_page(struct page *page)
+ 			rc = -EBUSY;
+ 			goto out;
+ 		}
++		/*
++		 * Move PageHWPoison flag from head page to the raw error page,
++		 * which makes any subpages rather than the error page reusable.
++		 */
++		if (PageHWPoison(head) && page != head) {
++			SetPageHWPoison(page);
++			ClearPageHWPoison(head);
++		}
+ 		list_del(&head->lru);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
 diff --git v4.12-rc3/mm/memory-failure.c v4.12-rc3_patched/mm/memory-failure.c
-index 6c1a7c9..aae620f 100644
+index aae620f..e03903f 100644
 --- v4.12-rc3/mm/memory-failure.c
 +++ v4.12-rc3_patched/mm/memory-failure.c
-@@ -1009,22 +1009,6 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	return unmap_success;
- }
- 
--static void set_page_hwpoison_huge_page(struct page *hpage)
--{
--	int i;
--	int nr_pages = 1 << compound_order(hpage);
--	for (i = 0; i < nr_pages; i++)
--		SetPageHWPoison(hpage + i);
--}
--
--static void clear_page_hwpoison_huge_page(struct page *hpage)
--{
--	int i;
--	int nr_pages = 1 << compound_order(hpage);
--	for (i = 0; i < nr_pages; i++)
--		ClearPageHWPoison(hpage + i);
--}
--
- /**
-  * memory_failure - Handle memory failure of a page.
-  * @pfn: Page Number of the corrupted page
-@@ -1050,7 +1034,6 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	struct page *hpage;
- 	struct page *orig_head;
- 	int res;
--	unsigned int nr_pages;
- 	unsigned long page_flags;
- 
- 	if (!sysctl_memory_failure_recovery)
-@@ -1064,24 +1047,23 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 
- 	p = pfn_to_page(pfn);
- 	orig_head = hpage = compound_head(p);
-+
-+	/* tmporary check code, to be updated in later patches */
-+	if (PageHuge(p)) {
-+		if (TestSetPageHWPoison(hpage)) {
-+			pr_err("Memory failure: %#lx: already hardware poisoned\n", pfn);
-+			return 0;
-+		}
-+		goto tmp;
-+	}
- 	if (TestSetPageHWPoison(p)) {
- 		pr_err("Memory failure: %#lx: already hardware poisoned\n",
- 			pfn);
- 		return 0;
- 	}
- 
--	/*
--	 * Currently errors on hugetlbfs pages are measured in hugepage units,
--	 * so nr_pages should be 1 << compound_order.  OTOH when errors are on
--	 * transparent hugepages, they are supposed to be split and error
--	 * measurement is done in normal page units.  So nr_pages should be one
--	 * in this case.
--	 */
--	if (PageHuge(p))
--		nr_pages = 1 << compound_order(hpage);
--	else /* normal page or thp */
--		nr_pages = 1;
--	num_poisoned_pages_add(nr_pages);
-+tmp:
-+	num_poisoned_pages_inc();
- 
- 	/*
- 	 * We need/can do nothing about count=0 pages.
-@@ -1109,12 +1091,11 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			if (PageHWPoison(hpage)) {
- 				if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
- 				    || (p != hpage && TestSetPageHWPoison(hpage))) {
--					num_poisoned_pages_sub(nr_pages);
-+					num_poisoned_pages_dec();
- 					unlock_page(hpage);
- 					return 0;
- 				}
- 			}
--			set_page_hwpoison_huge_page(hpage);
- 			res = dequeue_hwpoisoned_huge_page(hpage);
- 			action_result(pfn, MF_MSG_FREE_HUGE,
- 				      res ? MF_IGNORED : MF_DELAYED);
-@@ -1137,7 +1118,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 				pr_err("Memory failure: %#lx: thp split failed\n",
- 					pfn);
- 			if (TestClearPageHWPoison(p))
--				num_poisoned_pages_sub(nr_pages);
-+				num_poisoned_pages_dec();
- 			put_hwpoison_page(p);
- 			return -EBUSY;
- 		}
-@@ -1190,14 +1171,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	 */
- 	if (!PageHWPoison(p)) {
- 		pr_err("Memory failure: %#lx: just unpoisoned\n", pfn);
--		num_poisoned_pages_sub(nr_pages);
-+		num_poisoned_pages_dec();
- 		unlock_page(hpage);
- 		put_hwpoison_page(hpage);
- 		return 0;
- 	}
- 	if (hwpoison_filter(p)) {
- 		if (TestClearPageHWPoison(p))
--			num_poisoned_pages_sub(nr_pages);
-+			num_poisoned_pages_dec();
- 		unlock_page(hpage);
- 		put_hwpoison_page(hpage);
- 		return 0;
-@@ -1216,14 +1197,6 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 		put_hwpoison_page(hpage);
- 		return 0;
- 	}
--	/*
--	 * Set PG_hwpoison on all pages in an error hugepage,
--	 * because containment is done in hugepage unit for now.
--	 * Since we have done TestSetPageHWPoison() for the head page with
--	 * page lock held, we can safely set PG_hwpoison bits on tail pages.
--	 */
--	if (PageHuge(p))
--		set_page_hwpoison_huge_page(hpage);
- 
- 	/*
- 	 * It's very difficult to mess with pages currently under IO
-@@ -1394,7 +1367,6 @@ int unpoison_memory(unsigned long pfn)
- 	struct page *page;
- 	struct page *p;
- 	int freeit = 0;
--	unsigned int nr_pages;
- 	static DEFINE_RATELIMIT_STATE(unpoison_rs, DEFAULT_RATELIMIT_INTERVAL,
- 					DEFAULT_RATELIMIT_BURST);
- 
-@@ -1439,8 +1411,6 @@ int unpoison_memory(unsigned long pfn)
- 		return 0;
- 	}
- 
--	nr_pages = 1 << compound_order(page);
--
- 	if (!get_hwpoison_page(p)) {
- 		/*
- 		 * Since HWPoisoned hugepage should have non-zero refcount,
-@@ -1470,10 +1440,8 @@ int unpoison_memory(unsigned long pfn)
- 	if (TestClearPageHWPoison(page)) {
- 		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
- 				 pfn, &unpoison_rs);
--		num_poisoned_pages_sub(nr_pages);
-+		num_poisoned_pages_dec();
- 		freeit = 1;
--		if (PageHuge(page))
--			clear_page_hwpoison_huge_page(page);
- 	}
- 	unlock_page(page);
- 
-@@ -1604,14 +1572,10 @@ static int soft_offline_huge_page(struct page *page, int flags)
+@@ -1571,11 +1571,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 		if (ret > 0)
  			ret = -EIO;
  	} else {
- 		/* overcommit hugetlb page will be freed to buddy */
--		if (PageHuge(page)) {
--			set_page_hwpoison_huge_page(hpage);
-+		SetPageHWPoison(page);
-+		if (PageHuge(page))
- 			dequeue_hwpoisoned_huge_page(hpage);
--			num_poisoned_pages_add(1 << compound_order(hpage));
--		} else {
--			SetPageHWPoison(page);
--			num_poisoned_pages_inc();
--		}
-+		num_poisoned_pages_inc();
+-		/* overcommit hugetlb page will be freed to buddy */
+-		SetPageHWPoison(page);
+ 		if (PageHuge(page))
+-			dequeue_hwpoisoned_huge_page(hpage);
+-		num_poisoned_pages_inc();
++			dissolve_free_huge_page(page);
  	}
  	return ret;
  }
-@@ -1727,15 +1691,12 @@ static int soft_offline_in_use_page(struct page *page, int flags)
- 
- static void soft_offline_free_page(struct page *page)
- {
--	if (PageHuge(page)) {
--		struct page *hpage = compound_head(page);
-+	struct page *head = compound_head(page);
- 
--		set_page_hwpoison_huge_page(hpage);
--		if (!dequeue_hwpoisoned_huge_page(hpage))
--			num_poisoned_pages_add(1 << compound_order(hpage));
--	} else {
--		if (!TestSetPageHWPoison(page))
--			num_poisoned_pages_inc();
-+	if (!TestSetPageHWPoison(head)) {
+diff --git v4.12-rc3/mm/migrate.c v4.12-rc3_patched/mm/migrate.c
+index 89a0a17..f0319db 100644
+--- v4.12-rc3/mm/migrate.c
++++ v4.12-rc3_patched/mm/migrate.c
+@@ -1251,6 +1251,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ out:
+ 	if (rc != -EAGAIN)
+ 		putback_active_hugepage(hpage);
++	if (reason == MR_MEMORY_FAILURE && !test_set_page_hwpoison(hpage))
 +		num_poisoned_pages_inc();
-+		if (PageHuge(head))
-+			dequeue_hwpoisoned_huge_page(head);
- 	}
- }
  
+ 	/*
+ 	 * If migration was not successful and there's a freeing callback, use
 -- 
 2.7.0
 
