@@ -1,100 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D6CC6B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:27:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 8so9617738wms.11
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:27:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D41FA6B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:32:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b84so9642083wmh.0
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:32:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w13si19181608edf.60.2017.06.01.05.27.06
+        by mx.google.com with ESMTPS id 80si34629357wmt.84.2017.06.01.05.32.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 05:27:07 -0700 (PDT)
-Date: Thu, 1 Jun 2017 14:27:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
-Message-ID: <20170601122703.GB9091@dhcp22.suse.cz>
-References: <20170530074408.GA7969@dhcp22.suse.cz>
- <20170530101921.GA25738@rapoport-lnx>
- <20170530103930.GB7969@dhcp22.suse.cz>
- <20170530140456.GA8412@redhat.com>
- <20170530143941.GK7969@dhcp22.suse.cz>
- <20170530145632.GL7969@dhcp22.suse.cz>
- <20170530160610.GC8412@redhat.com>
- <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
- <20170531082414.GB27783@dhcp22.suse.cz>
- <20170601110048.GE30495@rapoport-lnx>
+        Thu, 01 Jun 2017 05:32:45 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: fix MMOP_ONLINE_KEEP behavior
+References: <20170601083746.4924-1-mhocko@kernel.org>
+ <20170601083746.4924-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ad200307-63d1-fe6f-cbc6-09c8cb431b8a@suse.cz>
+Date: Thu, 1 Jun 2017 14:32:42 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170601110048.GE30495@rapoport-lnx>
+In-Reply-To: <20170601083746.4924-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 01-06-17 14:00:48, Mike Rapoport wrote:
-> On Wed, May 31, 2017 at 10:24:14AM +0200, Michal Hocko wrote:
-> > On Wed 31-05-17 08:30:08, Vlastimil Babka wrote:
-> > > On 05/30/2017 06:06 PM, Andrea Arcangeli wrote:
-> > > > 
-> > > > I'm not sure if it should be considered a bug, the prctl is intended
-> > > > to use normally by wrappers so it looks optimal as implemented this
-> > > > way: affecting future vmas only, which will all be created after
-> > > > execve executed by the wrapper.
-> > > > 
-> > > > What's the point of messing with the prctl so it mangles over the
-> > > > wrapper process own vmas before exec? Messing with those vmas is pure
-> > > > wasted CPUs for the wrapper use case which is what the prctl was
-> > > > created for.
-> > > > 
-> > > > Furthermore there would be the risk a program that uses the prctl not
-> > > > as a wrapper and then calls the prctl to clear VM_NOHUGEPAGE from
-> > > > def_flags assuming the current kABI. The program could assume those
-> > > > vmas that were instantiated before disabling the prctl are still with
-> > > > VM_NOHUGEPAGE set (they would not after the change you propose).
-> > > > 
-> > > > Adding a scan of all vmas to PR_SET_THP_DISABLE to clear VM_NOHUGEPAGE
-> > > > on existing vmas looks more complex too and less finegrined so
-> > > > probably more complex for userland to manage
-> > > 
-> > > I would expect the prctl wouldn't iterate all vma's, nor would it modify
-> > > def_flags anymore. It would just set a flag somewhere in mm struct that
-> > > would be considered in addition to the per-vma flags when deciding
-> > > whether to use THP.
-> > 
-> > Exactly. Something like the below (not even compile tested).
->  
-> I did a quick go with the patch, compiles just fine :)
-> It worked for my simple examples, the THP is enabled/disabled as expected
-> and the vma->vm_flags are indeed unaffected.
+On 06/01/2017 10:37 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> > > We could consider whether MADV_HUGEPAGE should be
-> > > able to override the prctl or not.
-> > 
-> > This should be a master override to any per vma setting.
+> Heiko Carstens has noticed that the MMOP_ONLINE_KEEP is broken currently
+> $ grep . memory3?/valid_zones
+> memory34/valid_zones:Normal Movable
+> memory35/valid_zones:Normal Movable
+> memory36/valid_zones:Normal Movable
+> memory37/valid_zones:Normal Movable
 > 
-> Here you've introduced a change to the current behaviour. Consider the
-> following sequence:
+> $ echo online_movable > memory34/state
+> $ grep . memory3?/valid_zones
+> memory34/valid_zones:Movable
+> memory35/valid_zones:Movable
+> memory36/valid_zones:Movable
+> memory37/valid_zones:Movable
 > 
-> {
-> 	prctl(PR_SET_THP_DISABLE);
-> 	address = mmap(...);
-> 	madvise(address, len, MADV_HUGEPAGE);
-> }
->
-> Currently, for the vma that backs the address
-> transparent_hugepage_enabled(vma) will return true, and after your patch it
-> will return false.
-> The new behaviour may be more correct, I just wanted to bring the change to
-> attention. 
+> $ echo online > memory36/state
+> $ grep . memory3?/valid_zones
+> memory34/valid_zones:Movable
+> memory36/valid_zones:Normal
+> memory37/valid_zones:Movable
+> 
+> so we have effectivelly punched a hole into the movable zone. The
+> problem is that move_pfn_range() check for MMOP_ONLINE_KEEP is wrong.
+> It only checks whether the given range is already part of the movable
+> zone which is not the case here as only memory34 is in the zone. Fix
+> this by using allow_online_pfn_range(..., MMOP_ONLINE_KERNEL) if that
+> is false then we can be sure that movable onlining is the right thing to
+> do.
+> 
+> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
 
-The system wide disable should override any VMA specific setting
-IMHO. Why would we disable the THP for the whole process otherwise?
-Anyway this needs to be discussed at linux-api mailing list. I will try
-to make my change into a proper patch and post it there.
--- 
-Michal Hocko
-SUSE Labs
+Just fold it there before sending to Linus, right?
+
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/memory_hotplug.c | 9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 0a895df2397e..b3895fd609f4 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -950,11 +950,12 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
+>  	if (online_type == MMOP_ONLINE_KEEP) {
+>  		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+>  		/*
+> -		 * MMOP_ONLINE_KEEP inherits the current zone which is
+> -		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
+> -		 * already.
+> +		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
+> +		 * movable zone if that is not possible (e.g. we are within
+> +		 * or past the existing movable zone)
+>  		 */
+> -		if (zone_intersects(movable_zone, start_pfn, nr_pages))
+> +		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+> +					MMOP_ONLINE_KERNEL))
+>  			zone = movable_zone;
+>  	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+>  		zone = &pgdat->node_zones[ZONE_MOVABLE];
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
