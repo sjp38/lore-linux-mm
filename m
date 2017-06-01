@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D5FC56B02FD
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:20:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q27so45207900pfi.8
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:20:20 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l25si4140172pli.38.2017.06.01.08.20.19
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B724F6B02FD
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:35:31 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id c206so17273329qkb.11
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:35:31 -0700 (PDT)
+Received: from mail-qt0-x232.google.com (mail-qt0-x232.google.com. [2607:f8b0:400d:c0d::232])
+        by mx.google.com with ESMTPS id f15si14335469qkf.265.2017.06.01.08.35.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 08:20:20 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v51FK367018147
-	for <linux-mm@kvack.org>; Thu, 1 Jun 2017 11:20:19 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2atnc5g8yc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 01 Jun 2017 11:20:19 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 1 Jun 2017 11:19:44 -0400
-Date: Thu, 1 Jun 2017 10:19:36 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] mm, memory_hotplug: support movable_node for
- hotplugable nodes
-References: <20170601122004.32732-1-mhocko@kernel.org>
- <820164f3-8bef-7761-0695-88db9e0ce7a7@suse.cz>
- <20170601142227.GF9091@dhcp22.suse.cz>
+        Thu, 01 Jun 2017 08:35:30 -0700 (PDT)
+Received: by mail-qt0-x232.google.com with SMTP id c13so39187382qtc.1
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:35:30 -0700 (PDT)
+Date: Thu, 1 Jun 2017 11:35:28 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
+Message-ID: <20170601153528.GB3494@htj.duckdns.org>
+References: <1494855256-12558-1-git-send-email-longman@redhat.com>
+ <1494855256-12558-12-git-send-email-longman@redhat.com>
+ <20170519202624.GA15279@wtj.duckdns.org>
+ <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
+ <20170524203616.GO24798@htj.duckdns.org>
+ <9b147a7e-fec3-3b78-7587-3890efcd42f2@redhat.com>
+ <20170524212745.GP24798@htj.duckdns.org>
+ <20170601145042.GA3494@htj.duckdns.org>
+ <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170601142227.GF9091@dhcp22.suse.cz>
-Message-Id: <20170601151935.m5jbfmugocc66qfq@arbab-laptop.localdomain>
+In-Reply-To: <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Waiman Long <longman@redhat.com>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Thu, Jun 01, 2017 at 04:22:28PM +0200, Michal Hocko wrote:
->On Thu 01-06-17 16:11:55, Vlastimil Babka wrote:
->> Simple should work, hopefully.
->> - if memory is hotplugged, it's obviously hotplugable, so we don't have
->> to rely on BIOS description.
->
->Not sure I understand. We do not have any information about the hotplug
->status at the time we do online.
+Hello, Peter.
 
-The x86 SRAT (or the dt, on other platforms) can describe memory as 
-hotpluggable. See memblock_mark_hotplug(). That's only for memory 
-present at boot, though.
+On Thu, Jun 01, 2017 at 05:10:45PM +0200, Peter Zijlstra wrote:
+> I've not had time to look at any of this. But the question I'm most
+> curious about is how cgroup-v2 preserves the container invariant.
+> 
+> That is, each container (namespace) should look like a 'real' machine.
+> So just like userns allows to have a uid-0 (aka root) for each container
+> and pidns allows a pid-1 for each container, cgroupns should provide a
+> root group for each container.
+> 
+> And cgroup-v2 has this 'exception' (aka wart) for the root group which
+> needs to be replicated for each namespace.
 
-He's saying that since the memory was added after boot, it is by 
-definition hotpluggable. There's no need to check for that 
-marking/description.
+The goal has never been that a container must be indistinguishible
+from a real machine.  For certain things, things simply don't have
+exact equivalents due to sharing (memory stats or journal writes for
+example) and those things are exactly why people prefer containers
+over VMs for certain use cases.  If one wants full replication, VM
+would be the way to go.
+
+The goal is allowing enough container invariant so that appropriate
+workloads can be contained and co-exist in useful ways.  This also
+means that the contained workload is usually either a bit illiterate
+w.r.t. to the system details (doesn't care) or makes some adjustments
+for running inside a container (most quasi-full-system ones already
+do).
+
+System root is inherently different from all other nested roots.
+Making some exceptions for the root isn't about taking away from other
+roots but more reflecting the inherent differences - there are things
+which are inherently system / bare-metal.
+
+Thanks.
 
 -- 
-Reza Arbab
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
