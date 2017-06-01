@@ -1,82 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3053E6B0279
-	for <linux-mm@kvack.org>; Wed, 31 May 2017 22:04:05 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id i6so12363371qti.5
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 19:04:05 -0700 (PDT)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id o184si17632249qkb.178.2017.05.31.19.04.03
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E53896B0279
+	for <linux-mm@kvack.org>; Wed, 31 May 2017 23:36:02 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id r64so23586909ioi.10
+        for <linux-mm@kvack.org>; Wed, 31 May 2017 20:36:02 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g66si1208100ite.33.2017.05.31.20.36.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 May 2017 19:04:04 -0700 (PDT)
-Received: by mail-qt0-x244.google.com with SMTP id r58so4144024qtb.2
-        for <linux-mm@kvack.org>; Wed, 31 May 2017 19:04:03 -0700 (PDT)
+        Wed, 31 May 2017 20:36:01 -0700 (PDT)
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+References: <1494003796-748672-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170509181234.GA4397@dhcp22.suse.cz>
+ <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+ <20170515193817.GC7551@dhcp22.suse.cz>
+ <9b3d68aa-d2b6-2b02-4e75-f8372cbeb041@oracle.com>
+ <20170516083601.GB2481@dhcp22.suse.cz>
+ <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
+ <20170529115358.GJ19725@dhcp22.suse.cz>
+ <ae992f21-3edf-1ae7-41db-641052e411c7@oracle.com>
+ <20170531163131.GY27783@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <2fa60098-d9be-f57d-cb86-3b55cfe915b7@oracle.com>
+Date: Wed, 31 May 2017 23:35:48 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170524175349.GB24024@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com> <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
- <20170524175349.GB24024@redhat.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 1 Jun 2017 12:04:02 +1000
-Message-ID: <CAKTCnznUJcHt9cd3ZOn-f2-HVHrCM_L+BPC5mgBVhsB7o0=JUw@mail.gmail.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170531163131.GY27783@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-On Thu, May 25, 2017 at 3:53 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Wed, May 24, 2017 at 11:55:12AM +1000, Balbir Singh wrote:
->> On Tue, May 23, 2017 at 2:51 AM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat=
-.com> wrote:
->> > Patchset is on top of mmotm mmotm-2017-05-18, git branch:
->> >
->> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-v22
->> >
->> > Change since v21 is adding back special refcounting in put_page() to
->> > catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
->> > unlike regular page where a refcount of 0 means the page is free).
->> > See patch 8 of this serie for this refcounting. I did not use static
->> > keys because it kind of scares me to do that for an inline function.
->> > If people strongly feel about this i can try to make static key works
->> > here. Kirill will most likely want to review this.
->> >
->> >
->> > Everything else is the same. Below is the long description of what HMM
->> > is about and why. At the end of this email i describe briefly each pat=
-ch
->> > and suggest reviewers for each of them.
->> >
->> >
->> > Heterogeneous Memory Management (HMM) (description and justification)
->> >
->>
->> Thanks for the patches! These patches are very helpful. There are a
->> few additional things we would need on top of this (once HMM the base
->> is merged)
->>
->> 1. Support for other architectures, we'd like to make sure we can get
->> this working for powerpc for example. As a first step we have
->> ZONE_DEVICE enablement patches, but I think we need some additional
->> patches for iomem space searching and memory hotplug, IIRC
->> 2. HMM-CDM and physical address based migration bits. In a recent RFC
->> we decided to try and use the HMM CDM route as a route to implementing
->> coherent device memory as a starting point. It would be nice to have
->> those patches on top of these once these make it to mm -
->> https://lwn.net/Articles/720380/
->>
->
-> I intend to post the updated HMM CDM patchset early next week. I am
-> tie in couple internal backport but i should be able to resume work
-> on that this week.
->
+> OK, so why cannot we make zero_struct_page 8x 8B stores, other arches
+> would do memset. You said it would be slower but would that be
+> measurable? I am sorry to be so persistent here but I would be really
+> happier if this didn't depend on the deferred initialization. If this is
+> absolutely a no-go then I can live with that of course.
 
-Thanks, I am looking at the HMM CDM branch and trying to forward port
-and see what the results look like on top of HMM-v23. Do we have a timeline
-for the v23 merge?
+Hi Michal,
 
-Balbir Singh.
+This is actually a very good idea. I just did some measurements, and it 
+looks like performance is very good.
+
+Here is data from SPARC-M7 with 3312G memory with single thread performance:
+
+Current:
+memset() in memblock allocator takes: 8.83s
+__init_single_page() take: 8.63s
+
+Option 1:
+memset() in __init_single_page() takes: 61.09s (as we discussed because 
+of membar overhead, memset should really be optimized to do STBI only 
+when size is 1 page or bigger).
+
+Option 2:
+
+8 stores (stx) in __init_single_page(): 8.525s!
+
+So, even for single thread performance we can double the initialization 
+speed of "struct page" on SPARC by removing memset() from memblock, and 
+using 8 stx in __init_single_page(). It appears we never miss L1 in 
+__init_single_page() after the initial 8 stx.
+
+I will update patches with memset() on other platforms, and stx on SPARC.
+
+My experimental code looks like this:
+
+static void __meminit __init_single_page(struct page *page, unsigned 
+long pfn, unsigned long zone, int nid)
+{
+         __asm__ __volatile__(
+         "stx    %%g0, [%0 + 0x00]\n"
+         "stx    %%g0, [%0 + 0x08]\n"
+         "stx    %%g0, [%0 + 0x10]\n"
+         "stx    %%g0, [%0 + 0x18]\n"
+         "stx    %%g0, [%0 + 0x20]\n"
+         "stx    %%g0, [%0 + 0x28]\n"
+         "stx    %%g0, [%0 + 0x30]\n"
+         "stx    %%g0, [%0 + 0x38]\n"
+         :
+         :"r"(page));
+         set_page_links(page, zone, nid, pfn);
+         init_page_count(page);
+         page_mapcount_reset(page);
+         page_cpupid_reset_last(page);
+
+         INIT_LIST_HEAD(&page->lru);
+#ifdef WANT_PAGE_VIRTUAL
+         /* The shift won't overflow because ZONE_NORMAL is below 4G. */
+         if (!is_highmem_idx(zone))
+                 set_page_address(page, __va(pfn << PAGE_SHIFT));
+#endif
+}
+
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
