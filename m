@@ -1,99 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F2F76B0315
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 18:38:13 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id l4so21049237qkh.3
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 15:38:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e125si20767422qkc.177.2017.06.01.15.38.12
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA02E6B0338
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 19:02:17 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q27so62482030pfi.8
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 16:02:17 -0700 (PDT)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id o19si21561463pfj.126.2017.06.01.16.02.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 15:38:12 -0700 (PDT)
-Date: Thu, 1 Jun 2017 18:38:08 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
-Message-ID: <20170601223808.GC2780@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com>
- <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
- <20170524175349.GB24024@redhat.com>
- <CAKTCnznUJcHt9cd3ZOn-f2-HVHrCM_L+BPC5mgBVhsB7o0=JUw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="EVF5PPMfhYS0aIcm"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAKTCnznUJcHt9cd3ZOn-f2-HVHrCM_L+BPC5mgBVhsB7o0=JUw@mail.gmail.com>
+        Thu, 01 Jun 2017 16:02:16 -0700 (PDT)
+Received: by mail-pf0-x229.google.com with SMTP id n23so39634430pfb.2
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 16:02:16 -0700 (PDT)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH] memcg: refactor mem_cgroup_resize_limit()
+Date: Thu,  1 Jun 2017 16:02:12 -0700
+Message-Id: <20170601230212.30578-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
 
+mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
+identical logics. Refactor code so we don't need to keep two pieces
+of code that does same thing.
 
---EVF5PPMfhYS0aIcm
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+---
+ mm/memcontrol.c | 71 +++++++++------------------------------------------------
+ 1 file changed, 11 insertions(+), 60 deletions(-)
 
-On Thu, Jun 01, 2017 at 12:04:02PM +1000, Balbir Singh wrote:
-> On Thu, May 25, 2017 at 3:53 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Wed, May 24, 2017 at 11:55:12AM +1000, Balbir Singh wrote:
-> >> On Tue, May 23, 2017 at 2:51 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >> > Patchset is on top of mmotm mmotm-2017-05-18, git branch:
-> >> >
-> >> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v22
-> >> >
-> >> > Change since v21 is adding back special refcounting in put_page() to
-> >> > catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
-> >> > unlike regular page where a refcount of 0 means the page is free).
-> >> > See patch 8 of this serie for this refcounting. I did not use static
-> >> > keys because it kind of scares me to do that for an inline function.
-> >> > If people strongly feel about this i can try to make static key works
-> >> > here. Kirill will most likely want to review this.
-> >> >
-> >> >
-> >> > Everything else is the same. Below is the long description of what HMM
-> >> > is about and why. At the end of this email i describe briefly each patch
-> >> > and suggest reviewers for each of them.
-> >> >
-> >> >
-> >> > Heterogeneous Memory Management (HMM) (description and justification)
-> >> >
-> >>
-> >> Thanks for the patches! These patches are very helpful. There are a
-> >> few additional things we would need on top of this (once HMM the base
-> >> is merged)
-> >>
-> >> 1. Support for other architectures, we'd like to make sure we can get
-> >> this working for powerpc for example. As a first step we have
-> >> ZONE_DEVICE enablement patches, but I think we need some additional
-> >> patches for iomem space searching and memory hotplug, IIRC
-> >> 2. HMM-CDM and physical address based migration bits. In a recent RFC
-> >> we decided to try and use the HMM CDM route as a route to implementing
-> >> coherent device memory as a starting point. It would be nice to have
-> >> those patches on top of these once these make it to mm -
-> >> https://lwn.net/Articles/720380/
-> >>
-> >
-> > I intend to post the updated HMM CDM patchset early next week. I am
-> > tie in couple internal backport but i should be able to resume work
-> > on that this week.
-> >
-> 
-> Thanks, I am looking at the HMM CDM branch and trying to forward port
-> and see what the results look like on top of HMM-v23. Do we have a timeline
-> for the v23 merge?
-> 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 94172089f52f..a4f0daaff704 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2422,13 +2422,14 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+ static DEFINE_MUTEX(memcg_limit_mutex);
+ 
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+-				   unsigned long limit)
++				   unsigned long limit, bool memsw)
+ {
+ 	unsigned long curusage;
+ 	unsigned long oldusage;
+ 	bool enlarge = false;
+ 	int retry_count;
+ 	int ret;
++	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
+ 
+ 	/*
+ 	 * For keeping hierarchical_reclaim simple, how long we should retry
+@@ -2438,58 +2439,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+ 		      mem_cgroup_count_children(memcg);
+ 
+-	oldusage = page_counter_read(&memcg->memory);
+-
+-	do {
+-		if (signal_pending(current)) {
+-			ret = -EINTR;
+-			break;
+-		}
+-
+-		mutex_lock(&memcg_limit_mutex);
+-		if (limit > memcg->memsw.limit) {
+-			mutex_unlock(&memcg_limit_mutex);
+-			ret = -EINVAL;
+-			break;
+-		}
+-		if (limit > memcg->memory.limit)
+-			enlarge = true;
+-		ret = page_counter_limit(&memcg->memory, limit);
+-		mutex_unlock(&memcg_limit_mutex);
+-
+-		if (!ret)
+-			break;
+-
+-		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
+-
+-		curusage = page_counter_read(&memcg->memory);
+-		/* Usage is reduced ? */
+-		if (curusage >= oldusage)
+-			retry_count--;
+-		else
+-			oldusage = curusage;
+-	} while (retry_count);
+-
+-	if (!ret && enlarge)
+-		memcg_oom_recover(memcg);
+-
+-	return ret;
+-}
+-
+-static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+-					 unsigned long limit)
+-{
+-	unsigned long curusage;
+-	unsigned long oldusage;
+-	bool enlarge = false;
+-	int retry_count;
+-	int ret;
+-
+-	/* see mem_cgroup_resize_res_limit */
+-	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+-		      mem_cgroup_count_children(memcg);
+-
+-	oldusage = page_counter_read(&memcg->memsw);
++	oldusage = page_counter_read(counter);
+ 
+ 	do {
+ 		if (signal_pending(current)) {
+@@ -2498,22 +2448,23 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 		}
+ 
+ 		mutex_lock(&memcg_limit_mutex);
+-		if (limit < memcg->memory.limit) {
++		if (memsw ? limit < memcg->memory.limit :
++			    limit > memcg->memsw.limit) {
+ 			mutex_unlock(&memcg_limit_mutex);
+ 			ret = -EINVAL;
+ 			break;
+ 		}
+-		if (limit > memcg->memsw.limit)
++		if (limit > counter->limit)
+ 			enlarge = true;
+-		ret = page_counter_limit(&memcg->memsw, limit);
++		ret = page_counter_limit(counter, limit);
+ 		mutex_unlock(&memcg_limit_mutex);
+ 
+ 		if (!ret)
+ 			break;
+ 
+-		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
++		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
+ 
+-		curusage = page_counter_read(&memcg->memsw);
++		curusage = page_counter_read(counter);
+ 		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+ 			retry_count--;
+@@ -2975,10 +2926,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+ 		}
+ 		switch (MEMFILE_TYPE(of_cft(of)->private)) {
+ 		case _MEM:
+-			ret = mem_cgroup_resize_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, nr_pages, false);
+ 			break;
+ 		case _MEMSWAP:
+-			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, nr_pages, true);
+ 			break;
+ 		case _KMEM:
+ 			ret = memcg_update_kmem_limit(memcg, nr_pages);
+-- 
+2.13.0.506.g27d5fe0cd-goog
 
-So i am moving to new office and it has taken me more time than i thought
-to pack stuff. Attach is first step of CDM on top of lastest HMM. I hope
-to have more time tomorrow or next week to finish rebasing patches and to
-run some test with stolen ram as CDM memory.
-
-Jerome
-
---EVF5PPMfhYS0aIcm
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: attachment; filename="0001-mm-device-public-memory-device-memory-cache-coherent.patch"
-Content-Transfer-Encoding: 8bit
-
-
---EVF5PPMfhYS0aIcm--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
