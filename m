@@ -1,56 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AC59D6B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:11:00 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id q81so44406924itc.9
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:11:00 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id f202si20665075itb.121.2017.06.01.08.10.59
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DD36B0292
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:11:14 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id r58so17811895qtb.0
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:11:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a9si11922795qkj.295.2017.06.01.08.11.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 08:10:59 -0700 (PDT)
-Date: Thu, 1 Jun 2017 17:10:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-Message-ID: <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
-References: <1494855256-12558-1-git-send-email-longman@redhat.com>
- <1494855256-12558-12-git-send-email-longman@redhat.com>
- <20170519202624.GA15279@wtj.duckdns.org>
- <b1d02881-f522-8baa-5ebe-9b1ad74a03e4@redhat.com>
- <20170524203616.GO24798@htj.duckdns.org>
- <9b147a7e-fec3-3b78-7587-3890efcd42f2@redhat.com>
- <20170524212745.GP24798@htj.duckdns.org>
- <20170601145042.GA3494@htj.duckdns.org>
+        Thu, 01 Jun 2017 08:11:13 -0700 (PDT)
+Date: Thu, 1 Jun 2017 11:11:09 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] x86/mm: do not BUG_ON() on stall pgd entries
+Message-ID: <20170601151107.GC3961@redhat.com>
+References: <20170531150349.4816-1-jglisse@redhat.com>
+ <CALCETrVyY9zZz311i45Mh7284kf2vnoN0JTEvcPE1GOzosW_-Q@mail.gmail.com>
+ <20170601143344.GA3961@redhat.com>
+ <CALCETrWhehYF-2pPxH5S6px=hi=MaTeO6OC7_Ro3MgfKpyBhxg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170601145042.GA3494@htj.duckdns.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrWhehYF-2pPxH5S6px=hi=MaTeO6OC7_Ro3MgfKpyBhxg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Waiman Long <longman@redhat.com>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: Andy Lutomirski <luto@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Jun 01, 2017 at 10:50:42AM -0400, Tejun Heo wrote:
-> Hello, Waiman.
+On Thu, Jun 01, 2017 at 07:38:25AM -0700, Andy Lutomirski wrote:
+> On Thu, Jun 1, 2017 at 7:33 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Thu, Jun 01, 2017 at 06:59:04AM -0700, Andy Lutomirski wrote:
+> >> On Wed, May 31, 2017 at 8:03 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> >> > Since af2cf278ef4f ("Don't remove PGD entries in remove_pagetable()")
+> >> > we no longer cleanup stall pgd entries and thus the BUG_ON() inside
+> >> > sync_global_pgds() is wrong.
+> >> >
+> >> > This patch remove the BUG_ON() and unconditionaly update stall pgd
+> >> > entries.
+> >> >
+> >> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> >> > Cc: Ingo Molnar <mingo@kernel.org>
+> >> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >> > ---
+> >> >  arch/x86/mm/init_64.c | 7 +------
+> >> >  1 file changed, 1 insertion(+), 6 deletions(-)
+> >> >
+> >> > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> >> > index ff95fe8..36b9020 100644
+> >> > --- a/arch/x86/mm/init_64.c
+> >> > +++ b/arch/x86/mm/init_64.c
+> >> > @@ -123,12 +123,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+> >> >                         pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+> >> >                         spin_lock(pgt_lock);
+> >> >
+> >> > -                       if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
+> >> > -                               BUG_ON(p4d_page_vaddr(*p4d)
+> >> > -                                      != p4d_page_vaddr(*p4d_ref));
+> >> > -
+> >> > -                       if (p4d_none(*p4d))
+> >> > -                               set_p4d(p4d, *p4d_ref);
+> >> > +                       set_p4d(p4d, *p4d_ref);
+> >>
+> >> If we have a mismatch in the vmalloc range, vmalloc_fault is going to
+> >> screw up and we'll end up using incorrect page tables.
+> >>
+> >> What's causing the mismatch?  If you're hitting this BUG in practice,
+> >> I suspect we have a bug elsewhere.
+> >
+> > No bug elsewhere, simply hotplug memory then hotremove same memory you
+> > just hotplugged then hotplug it again and you will trigger this as on
+> > the first hotplug we allocate p4d/pud for the struct pages area, then on
+> > hot remove we free that memory and clear the p4d/pud in the mm_init pgd
+> > but not in any of the other pgds.
 > 
-> A short update.  I tried making root special while keeping the
-> existing threaded semantics but I didn't really like it because we
-> have to couple controller enables/disables with threaded
-> enables/disables.  I'm now trying a simpler, albeit a bit more
-> tedious, approach which should leave things mostly symmetrical.  I'm
-> hoping to be able to post mostly working patches this week.
+> That sounds like a bug to me.  Either we should remove the stale
+> entries and fix all the attendant races, or we should unconditionally
+> allocate second-highest-level kernel page tables in unremovable memory
+> and never free them.  I prefer the latter even though it's slightly
+> slower.
+> 
+> > So at that point the next hotplug
+> > will trigger the BUG because of stall entries from the first hotplug.
+> 
+> By the time we have a pgd with an entry pointing off into the woods,
+> we've already lost.  Removing the BUG just hides the problem.
 
-I've not had time to look at any of this. But the question I'm most
-curious about is how cgroup-v2 preserves the container invariant.
+Then why did you sign of on af2cf278ef4f9289f88504c3e03cb12f76027575
+this is what introduced this change in behavior.
 
-That is, each container (namespace) should look like a 'real' machine.
-So just like userns allows to have a uid-0 (aka root) for each container
-and pidns allows a pid-1 for each container, cgroupns should provide a
-root group for each container.
+If i understand you correctly you want to avoid deallocating p4d/pud
+directory page when hotremove happen ? But this happen in common non
+arch specific code vmemmap_populate_basepages() thought we can make
+x86 vmemmap_populate() code arch different thought.
 
-And cgroup-v2 has this 'exception' (aka wart) for the root group which
-needs to be replicated for each namespace.
+So i am not sure how to proceed here. My first attempt was to undo
+af2cf278ef4f9289f88504c3e03cb12f76027575 so that we keep all pgds
+synchronize. No if we want special case p4d/pud allocation that's
+a different approach all together.
 
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
