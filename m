@@ -1,121 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AC726B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:20:32 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 10so9608321wml.4
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:20:32 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id g18si4207829wrg.233.2017.06.01.05.20.30
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6CC6B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 08:27:08 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 8so9617738wms.11
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:27:08 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w13si19181608edf.60.2017.06.01.05.27.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 05:20:31 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id k15so10896411wmh.3
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 05:20:30 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Jun 2017 05:27:07 -0700 (PDT)
+Date: Thu, 1 Jun 2017 14:27:04 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] mm, memory_hotplug: support movable_node for hotplugable nodes
-Date: Thu,  1 Jun 2017 14:20:04 +0200
-Message-Id: <20170601122004.32732-1-mhocko@kernel.org>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+Message-ID: <20170601122703.GB9091@dhcp22.suse.cz>
+References: <20170530074408.GA7969@dhcp22.suse.cz>
+ <20170530101921.GA25738@rapoport-lnx>
+ <20170530103930.GB7969@dhcp22.suse.cz>
+ <20170530140456.GA8412@redhat.com>
+ <20170530143941.GK7969@dhcp22.suse.cz>
+ <20170530145632.GL7969@dhcp22.suse.cz>
+ <20170530160610.GC8412@redhat.com>
+ <e371b76b-d091-72d0-16c3-5227820595f0@suse.cz>
+ <20170531082414.GB27783@dhcp22.suse.cz>
+ <20170601110048.GE30495@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170601110048.GE30495@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu 01-06-17 14:00:48, Mike Rapoport wrote:
+> On Wed, May 31, 2017 at 10:24:14AM +0200, Michal Hocko wrote:
+> > On Wed 31-05-17 08:30:08, Vlastimil Babka wrote:
+> > > On 05/30/2017 06:06 PM, Andrea Arcangeli wrote:
+> > > > 
+> > > > I'm not sure if it should be considered a bug, the prctl is intended
+> > > > to use normally by wrappers so it looks optimal as implemented this
+> > > > way: affecting future vmas only, which will all be created after
+> > > > execve executed by the wrapper.
+> > > > 
+> > > > What's the point of messing with the prctl so it mangles over the
+> > > > wrapper process own vmas before exec? Messing with those vmas is pure
+> > > > wasted CPUs for the wrapper use case which is what the prctl was
+> > > > created for.
+> > > > 
+> > > > Furthermore there would be the risk a program that uses the prctl not
+> > > > as a wrapper and then calls the prctl to clear VM_NOHUGEPAGE from
+> > > > def_flags assuming the current kABI. The program could assume those
+> > > > vmas that were instantiated before disabling the prctl are still with
+> > > > VM_NOHUGEPAGE set (they would not after the change you propose).
+> > > > 
+> > > > Adding a scan of all vmas to PR_SET_THP_DISABLE to clear VM_NOHUGEPAGE
+> > > > on existing vmas looks more complex too and less finegrined so
+> > > > probably more complex for userland to manage
+> > > 
+> > > I would expect the prctl wouldn't iterate all vma's, nor would it modify
+> > > def_flags anymore. It would just set a flag somewhere in mm struct that
+> > > would be considered in addition to the per-vma flags when deciding
+> > > whether to use THP.
+> > 
+> > Exactly. Something like the below (not even compile tested).
+>  
+> I did a quick go with the patch, compiles just fine :)
+> It worked for my simple examples, the THP is enabled/disabled as expected
+> and the vma->vm_flags are indeed unaffected.
+> 
+> > > We could consider whether MADV_HUGEPAGE should be
+> > > able to override the prctl or not.
+> > 
+> > This should be a master override to any per vma setting.
+> 
+> Here you've introduced a change to the current behaviour. Consider the
+> following sequence:
+> 
+> {
+> 	prctl(PR_SET_THP_DISABLE);
+> 	address = mmap(...);
+> 	madvise(address, len, MADV_HUGEPAGE);
+> }
+>
+> Currently, for the vma that backs the address
+> transparent_hugepage_enabled(vma) will return true, and after your patch it
+> will return false.
+> The new behaviour may be more correct, I just wanted to bring the change to
+> attention. 
 
-movable_node kernel parameter allows to make hotplugable NUMA
-nodes to put all the hotplugable memory into movable zone which
-allows more or less reliable memory hotremove.  At least this
-is the case for the NUMA nodes present during the boot (see
-find_zone_movable_pfns_for_nodes).
-
-This is not the case for the memory hotplug, though.
-
-	echo online > /sys/devices/system/memory/memoryXYZ/status
-
-will default to a kernel zone (usually ZONE_NORMAL) unless the
-particular memblock is already in the movable zone range which is not
-the case normally when onlining the memory from the udev rule context
-for a freshly hotadded NUMA node. The only option currently is to have a
-special udev rule to echo online_movable to all memblocks belonging to
-such a node which is rather clumsy. Not the mention this is inconsistent
-as well because what ended up in the movable zone during the boot will
-end up in a kernel zone after hotremove & hotadd without special care.
-
-It would be nice to reuse memblock_is_hotpluggable but the runtime
-hotplug doesn't have that information available because the boot and
-hotplug paths are not shared and it would be really non trivial to
-make them use the same code path because the runtime hotplug doesn't
-play with the memblock allocator at all.
-
-Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
-movable_node is enabled and the range doesn't overlap with the existing
-normal zone. This should provide a reasonable default onlining strategy.
-
-Strictly speaking the semantic is not identical with the boot time
-initialization because find_zone_movable_pfns_for_nodes covers only the
-hotplugable range as described by the BIOS/FW. From my experience this
-is usually a full node though (except for Node0 which is special and
-never goes away completely). If this turns out to be a problem in the
-real life we can tweak the code to store hotplug flag into memblocks
-but let's keep this simple now.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-I am sending this as an RFC because this is a user visible change change
-of behavior, strictly speaking. I believe it is a desirable change of
-behavior, thought, and it an explicit opt-in (kernel parameter) is
-required to see the change so I do not expect any breakage. I would
-still like to hear what other people think about this shift. I have
-tested it on a memory hotplug capable HW where the whole numa node can
-be hotremove/added.
-
-Does anybody see any problem with the proposed semantic?
-
- mm/memory_hotplug.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b98fb0b3ae11..74d75583736c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -943,6 +943,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
- 	return &pgdat->node_zones[ZONE_NORMAL];
- }
- 
-+static inline bool movable_pfn_range(int nid, struct zone *default_zone,
-+		unsigned long start_pfn, unsigned long nr_pages)
-+{
-+	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-+				MMOP_ONLINE_KERNEL))
-+		return true;
-+
-+	if (!movable_node_is_enabled())
-+		return false;
-+
-+	return !zone_intersects(default_zone, start_pfn, nr_pages);
-+}
-+
- /*
-  * Associates the given pfn range with the given node and the zone appropriate
-  * for the given online type.
-@@ -958,10 +971,10 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
- 		/*
- 		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
- 		 * movable zone if that is not possible (e.g. we are within
--		 * or past the existing movable zone)
-+		 * or past the existing movable zone). movable_node overrides
-+		 * this default and defaults to movable zone
- 		 */
--		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
--					MMOP_ONLINE_KERNEL))
-+		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
- 			zone = movable_zone;
- 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
- 		zone = &pgdat->node_zones[ZONE_MOVABLE];
+The system wide disable should override any VMA specific setting
+IMHO. Why would we disable the THP for the whole process otherwise?
+Anyway this needs to be discussed at linux-api mailing list. I will try
+to make my change into a proper patch and post it there.
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
