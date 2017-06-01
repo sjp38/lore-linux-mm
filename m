@@ -1,159 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C2CA76B02B4
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:37:56 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b84so8362646wmh.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:56 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id 21si33675833wmv.75.2017.06.01.01.37.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CFDDF6B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 04:46:13 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x184so8432649wmf.14
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:46:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t31si6654426wrc.248.2017.06.01.01.46.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 01:37:55 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id g15so9377540wmc.2
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 01:37:54 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 01 Jun 2017 01:46:12 -0700 (PDT)
+Date: Thu, 1 Jun 2017 10:46:09 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is default kernel zone
-Date: Thu,  1 Jun 2017 10:37:46 +0200
-Message-Id: <20170601083746.4924-3-mhocko@kernel.org>
-In-Reply-To: <20170601083746.4924-1-mhocko@kernel.org>
-References: <20170601083746.4924-1-mhocko@kernel.org>
+Subject: Re: [v3 0/9] parallelized "struct page" zeroing
+Message-ID: <20170601084609.GF32677@dhcp22.suse.cz>
+References: <20170509181234.GA4397@dhcp22.suse.cz>
+ <e19b241d-be27-3c9a-8984-2fb20211e2e1@oracle.com>
+ <20170515193817.GC7551@dhcp22.suse.cz>
+ <9b3d68aa-d2b6-2b02-4e75-f8372cbeb041@oracle.com>
+ <20170516083601.GB2481@dhcp22.suse.cz>
+ <07a6772b-711d-4fdc-f688-db76f1ec4c45@oracle.com>
+ <20170529115358.GJ19725@dhcp22.suse.cz>
+ <ae992f21-3edf-1ae7-41db-641052e411c7@oracle.com>
+ <20170531163131.GY27783@dhcp22.suse.cz>
+ <2fa60098-d9be-f57d-cb86-3b55cfe915b7@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2fa60098-d9be-f57d-cb86-3b55cfe915b7@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 31-05-17 23:35:48, Pasha Tatashin wrote:
+> >OK, so why cannot we make zero_struct_page 8x 8B stores, other arches
+> >would do memset. You said it would be slower but would that be
+> >measurable? I am sorry to be so persistent here but I would be really
+> >happier if this didn't depend on the deferred initialization. If this is
+> >absolutely a no-go then I can live with that of course.
+> 
+> Hi Michal,
+> 
+> This is actually a very good idea. I just did some measurements, and it
+> looks like performance is very good.
+> 
+> Here is data from SPARC-M7 with 3312G memory with single thread performance:
+> 
+> Current:
+> memset() in memblock allocator takes: 8.83s
+> __init_single_page() take: 8.63s
+> 
+> Option 1:
+> memset() in __init_single_page() takes: 61.09s (as we discussed because of
+> membar overhead, memset should really be optimized to do STBI only when size
+> is 1 page or bigger).
+> 
+> Option 2:
+> 
+> 8 stores (stx) in __init_single_page(): 8.525s!
+> 
+> So, even for single thread performance we can double the initialization
+> speed of "struct page" on SPARC by removing memset() from memblock, and
+> using 8 stx in __init_single_page(). It appears we never miss L1 in
+> __init_single_page() after the initial 8 stx.
 
-Heiko Carstens has noticed that he can generate overlapping zones for
-ZONE_DMA and ZONE_NORMAL:
-DMA      [mem 0x0000000000000000-0x000000007fffffff]
-Normal   [mem 0x0000000080000000-0x000000017fffffff]
+OK, that is good to hear and it actually matches my understanding that
+writes to a single cacheline should add an overhead.
 
-$ cat /sys/devices/system/memory/block_size_bytes
-10000000
-$ cat /sys/devices/system/memory/memory5/valid_zones
-DMA
-$ echo 0 > /sys/devices/system/memory/memory5/online
-$ cat /sys/devices/system/memory/memory5/valid_zones
-Normal
-$ echo 1 > /sys/devices/system/memory/memory5/online
-Normal
-
-$ cat /proc/zoneinfo
-Node 0, zone      DMA
-spanned  524288        <-----
-present  458752
-managed  455078
-start_pfn:           0 <-----
-
-Node 0, zone   Normal
-spanned  720896
-present  589824
-managed  571648
-start_pfn:           327680 <-----
-
-The reason is that we assume that the default zone for kernel onlining
-is ZONE_NORMAL. This was a simplification introduced by the memory
-hotplug rework and it is easily fixable by checking the range overlap in
-the zone order and considering the first matching zone as the default
-one. If there is no such zone then assume ZONE_NORMAL as we have been
-doing so far.
-
-Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones until online"
-Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/base/memory.c          |  2 +-
- include/linux/memory_hotplug.h |  2 ++
- mm/memory_hotplug.c            | 27 ++++++++++++++++++++++++---
- 3 files changed, 27 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index b86fda30ce62..c7c4e0325cdb 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -419,7 +419,7 @@ static ssize_t show_valid_zones(struct device *dev,
- 
- 	nid = pfn_to_nid(start_pfn);
- 	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
--		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_NORMAL].name);
-+		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
- 		append = true;
- 	}
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 9e0249d0f5e4..ed167541e4fc 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -309,4 +309,6 @@ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
- 					  unsigned long pnum);
- extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 		int online_type);
-+extern struct zone *default_zone_for_pfn(int nid, unsigned long pfn,
-+		unsigned long nr_pages);
- #endif /* __LINUX_MEMORY_HOTPLUG_H */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b3895fd609f4..a0348de3e18c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -858,7 +858,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
--	struct zone *normal_zone =  &pgdat->node_zones[ZONE_NORMAL];
-+	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
- 
- 	/*
- 	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
-@@ -872,7 +872,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 			return true;
- 		return movable_zone->zone_start_pfn >= pfn + nr_pages;
- 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
--		return zone_end_pfn(normal_zone) <= pfn;
-+		return zone_end_pfn(default_zone) <= pfn;
- 	}
- 
- 	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
-@@ -938,6 +938,27 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
- }
- 
- /*
-+ * Returns a default kernel memory zone for the given pfn range.
-+ * If no kernel zone covers this pfn range it will automatically go
-+ * to the ZONE_NORMAL.
-+ */
-+struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-+		unsigned long nr_pages)
-+{
-+	struct pglist_data *pgdat = NODE_DATA(nid);
-+	int zid;
-+
-+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
-+		struct zone *zone = &pgdat->node_zones[zid];
-+
-+		if (zone_intersects(zone, start_pfn, nr_pages))
-+			return zone;
-+	}
-+
-+	return &pgdat->node_zones[ZONE_NORMAL];
-+}
-+
-+/*
-  * Associates the given pfn range with the given node and the zone appropriate
-  * for the given online type.
-  */
-@@ -945,7 +966,7 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
- 		unsigned long start_pfn, unsigned long nr_pages)
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
--	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
-+	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
- 
- 	if (online_type == MMOP_ONLINE_KEEP) {
- 		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+Thanks!
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
