@@ -1,105 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 83DD36B0292
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:11:14 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id r58so17811895qtb.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:11:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a9si11922795qkj.295.2017.06.01.08.11.12
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E62E6B02F4
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:16:06 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id t9so49001599oih.13
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:16:06 -0700 (PDT)
+Received: from mail-pf0-x23d.google.com (mail-pf0-x23d.google.com. [2607:f8b0:400e:c00::23d])
+        by mx.google.com with ESMTPS id l7si5794350otd.181.2017.06.01.08.16.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 08:11:13 -0700 (PDT)
-Date: Thu, 1 Jun 2017 11:11:09 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] x86/mm: do not BUG_ON() on stall pgd entries
-Message-ID: <20170601151107.GC3961@redhat.com>
-References: <20170531150349.4816-1-jglisse@redhat.com>
- <CALCETrVyY9zZz311i45Mh7284kf2vnoN0JTEvcPE1GOzosW_-Q@mail.gmail.com>
- <20170601143344.GA3961@redhat.com>
- <CALCETrWhehYF-2pPxH5S6px=hi=MaTeO6OC7_Ro3MgfKpyBhxg@mail.gmail.com>
+        Thu, 01 Jun 2017 08:16:05 -0700 (PDT)
+Received: by mail-pf0-x23d.google.com with SMTP id p70so4015658pfd.0
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:16:05 -0700 (PDT)
+Date: Thu, 1 Jun 2017 08:16:03 -0700 (PDT)
+From: =?UTF-8?B?546L6Z2W5aSp?= <ifqqfi@gmail.com>
+Message-Id: <7548984c-57c4-42a6-96a4-972f5405bc85@googlegroups.com>
+In-Reply-To: <3a7664a9-e360-ab68-610a-1b697a4b00b5@virtuozzo.com>
+References: <1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CACT4Y+ZVrs9XDk5QXkQyej+xFwKrgnGn-RPBC+pL5znUp2aSCg@mail.gmail.com>
+ <20170516062318.GC16015@js1304-desktop>
+ <CACT4Y+anOw8=7u-pZ2ceMw0xVnuaO9YKBJAr-2=KOYt_72b2pw@mail.gmail.com>
+ <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
+ <20170524074539.GA9697@js1304-desktop>
+ <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
+ <20170525004104.GA21336@js1304-desktop>
+ <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
+ <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
+ <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com>
+ <3a7664a9-e360-ab68-610a-1b697a4b00b5@virtuozzo.com>
+Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
+ reduce memory consumption
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrWhehYF-2pPxH5S6px=hi=MaTeO6OC7_Ro3MgfKpyBhxg@mail.gmail.com>
+Content-Type: multipart/mixed;
+	boundary="----=_Part_575_1074923699.1496330164030"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: kasan-dev <kasan-dev@googlegroups.com>
+Cc: dvyukov@google.com, js1304@gmail.com, akpm@linux-foundation.org, glider@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, kernel-team@lge.com, aryabinin@virtuozzo.com
 
-On Thu, Jun 01, 2017 at 07:38:25AM -0700, Andy Lutomirski wrote:
-> On Thu, Jun 1, 2017 at 7:33 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Thu, Jun 01, 2017 at 06:59:04AM -0700, Andy Lutomirski wrote:
-> >> On Wed, May 31, 2017 at 8:03 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >> > Since af2cf278ef4f ("Don't remove PGD entries in remove_pagetable()")
-> >> > we no longer cleanup stall pgd entries and thus the BUG_ON() inside
-> >> > sync_global_pgds() is wrong.
-> >> >
-> >> > This patch remove the BUG_ON() and unconditionaly update stall pgd
-> >> > entries.
-> >> >
-> >> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> >> > Cc: Ingo Molnar <mingo@kernel.org>
-> >> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >> > ---
-> >> >  arch/x86/mm/init_64.c | 7 +------
-> >> >  1 file changed, 1 insertion(+), 6 deletions(-)
-> >> >
-> >> > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> >> > index ff95fe8..36b9020 100644
-> >> > --- a/arch/x86/mm/init_64.c
-> >> > +++ b/arch/x86/mm/init_64.c
-> >> > @@ -123,12 +123,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
-> >> >                         pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
-> >> >                         spin_lock(pgt_lock);
-> >> >
-> >> > -                       if (!p4d_none(*p4d_ref) && !p4d_none(*p4d))
-> >> > -                               BUG_ON(p4d_page_vaddr(*p4d)
-> >> > -                                      != p4d_page_vaddr(*p4d_ref));
-> >> > -
-> >> > -                       if (p4d_none(*p4d))
-> >> > -                               set_p4d(p4d, *p4d_ref);
-> >> > +                       set_p4d(p4d, *p4d_ref);
-> >>
-> >> If we have a mismatch in the vmalloc range, vmalloc_fault is going to
-> >> screw up and we'll end up using incorrect page tables.
-> >>
-> >> What's causing the mismatch?  If you're hitting this BUG in practice,
-> >> I suspect we have a bug elsewhere.
-> >
-> > No bug elsewhere, simply hotplug memory then hotremove same memory you
-> > just hotplugged then hotplug it again and you will trigger this as on
-> > the first hotplug we allocate p4d/pud for the struct pages area, then on
-> > hot remove we free that memory and clear the p4d/pud in the mm_init pgd
-> > but not in any of the other pgds.
-> 
-> That sounds like a bug to me.  Either we should remove the stale
-> entries and fix all the attendant races, or we should unconditionally
-> allocate second-highest-level kernel page tables in unremovable memory
-> and never free them.  I prefer the latter even though it's slightly
-> slower.
-> 
-> > So at that point the next hotplug
-> > will trigger the BUG because of stall entries from the first hotplug.
-> 
-> By the time we have a pgd with an entry pointing off into the woods,
-> we've already lost.  Removing the BUG just hides the problem.
+------=_Part_575_1074923699.1496330164030
+Content-Type: multipart/alternative;
+	boundary="----=_Part_576_1928279626.1496330164030"
 
-Then why did you sign of on af2cf278ef4f9289f88504c3e03cb12f76027575
-this is what introduced this change in behavior.
+------=_Part_576_1928279626.1496330164030
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-If i understand you correctly you want to avoid deallocating p4d/pud
-directory page when hotremove happen ? But this happen in common non
-arch specific code vmemmap_populate_basepages() thought we can make
-x86 vmemmap_populate() code arch different thought.
 
-So i am not sure how to proceed here. My first attempt was to undo
-af2cf278ef4f9289f88504c3e03cb12f76027575 so that we keep all pgds
-synchronize. No if we want special case p4d/pud allocation that's
-a different approach all together.
 
-Cheers,
-Jerome
+>
+> > But the main win as I see it is that that's basically complete support 
+> > for 32-bit arches. People do ask about arm32 support: 
+> > https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ 
+> > https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ 
+> > and probably mips32 is relevant as well. 
+>
+> I don't see how above is relevant for 32-bit arches. Current design 
+> is perfectly fine for 32-bit arches. I did some POC arm32 port couple 
+> years 
+> ago - https://github.com/aryabinin/linux/commits/kasan/arm_v0_1 
+> It has some ugly hacks and non-critical bugs. AFAIR it also super-slow 
+> because I (mistakenly) 
+> made shadow memory uncached. But otherwise it works. 
+>
+>
+how many memory does this need, I want to use kasan on my system to debug 
+some issue. It only has 256MB memory, 70MB free memory. 
+and could you fix the super-slow problem?  
+
+------=_Part_576_1928279626.1496330164030
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<div class=3D"IVILX2C-Db-b"><br></div><div><blockquote class=3D"gmail_quote=
+" style=3D"margin: 0;margin-left: 0.8ex;border-left: 1px #ccc solid;padding=
+-left: 1ex;"><br>&gt; But the main win as I see it is that that&#39;s basic=
+ally complete support
+<br>&gt; for 32-bit arches. People do ask about arm32 support:
+<br>&gt; <a href=3D"https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/G=
+qh4oD_wAAAJ" target=3D"_blank" rel=3D"nofollow" onmousedown=3D"this.href=3D=
+&#39;https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ&#39=
+;;return true;" onclick=3D"this.href=3D&#39;https://groups.google.com/d/msg=
+/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ&#39;;return true;">https://groups.googl=
+e.com/d/<wbr>msg/kasan-dev/Sk6BsSPMRRc/<wbr>Gqh4oD_wAAAJ</a>
+<br>&gt; <a href=3D"https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/E=
+VJPbrsgAgAJ" target=3D"_blank" rel=3D"nofollow" onmousedown=3D"this.href=3D=
+&#39;https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ&#39=
+;;return true;" onclick=3D"this.href=3D&#39;https://groups.google.com/d/msg=
+/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ&#39;;return true;">https://groups.googl=
+e.com/d/<wbr>msg/kasan-dev/B22vOFp-QWg/<wbr>EVJPbrsgAgAJ</a>
+<br>&gt; and probably mips32 is relevant as well.
+<br>
+<br>I don&#39;t see how above is relevant for 32-bit arches. Current design
+<br>is perfectly fine for 32-bit arches. I did some POC arm32 port couple y=
+ears
+<br>ago - <a href=3D"https://github.com/aryabinin/linux/commits/kasan/arm_v=
+0_1" target=3D"_blank" rel=3D"nofollow" onmousedown=3D"this.href=3D&#39;htt=
+ps://www.google.com/url?q\x3dhttps%3A%2F%2Fgithub.com%2Faryabinin%2Flinux%2=
+Fcommits%2Fkasan%2Farm_v0_1\x26sa\x3dD\x26sntz\x3d1\x26usg\x3dAFQjCNHe6ASYv=
+IhTKeF0bpWFjDxojBEGLA&#39;;return true;" onclick=3D"this.href=3D&#39;https:=
+//www.google.com/url?q\x3dhttps%3A%2F%2Fgithub.com%2Faryabinin%2Flinux%2Fco=
+mmits%2Fkasan%2Farm_v0_1\x26sa\x3dD\x26sntz\x3d1\x26usg\x3dAFQjCNHe6ASYvIhT=
+KeF0bpWFjDxojBEGLA&#39;;return true;">https://github.com/aryabinin/<wbr>lin=
+ux/commits/kasan/arm_v0_1</a>
+<br>It has some ugly hacks and non-critical bugs. AFAIR it also super-slow =
+because I (mistakenly)=20
+<br>made shadow memory uncached. But otherwise it works.
+<br><br></blockquote><div><br></div><div>how many memory does this need, I =
+want to use kasan on my system to debug some issue. It only has 256MB memor=
+y, 70MB free memory.=C2=A0</div><div>and could you fix the super-slow probl=
+em? =C2=A0</div></div>
+------=_Part_576_1928279626.1496330164030--
+
+------=_Part_575_1074923699.1496330164030--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
