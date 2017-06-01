@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DD1E56B0279
-	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 11:52:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b84so11059729wmh.0
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 08:52:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l19si18923463eda.22.2017.06.01.08.52.35
+	by kanga.kvack.org (Postfix) with ESMTP id 6A92E6B0279
+	for <linux-mm@kvack.org>; Thu,  1 Jun 2017 12:02:39 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id k15so11233528wmh.3
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 09:02:39 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p92si22014512edb.320.2017.06.01.09.02.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Jun 2017 08:52:35 -0700 (PDT)
-Date: Thu, 1 Jun 2017 17:52:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Jun 2017 09:02:38 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v51FwuhT091278
+	for <linux-mm@kvack.org>; Thu, 1 Jun 2017 12:02:36 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ata1nm6bg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Jun 2017 12:02:36 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Thu, 1 Jun 2017 12:02:35 -0400
+Date: Thu, 1 Jun 2017 11:02:28 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
 Subject: Re: [RFC PATCH] mm, memory_hotplug: support movable_node for
  hotplugable nodes
-Message-ID: <20170601155204.GB8088@dhcp22.suse.cz>
 References: <20170601122004.32732-1-mhocko@kernel.org>
- <820164f3-8bef-7761-0695-88db9e0ce7a7@suse.cz>
- <20170601142227.GF9091@dhcp22.suse.cz>
- <20170601151935.m5jbfmugocc66qfq@arbab-laptop.localdomain>
- <20170601153838.GA8088@dhcp22.suse.cz>
- <20170601154746.wjc56eldgyzr2bpm@arbab-laptop.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20170601154746.wjc56eldgyzr2bpm@arbab-laptop.localdomain>
+In-Reply-To: <20170601122004.32732-1-mhocko@kernel.org>
+Message-Id: <20170601160227.uioluvgvjtplesjr@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 01-06-17 10:47:46, Reza Arbab wrote:
-> On Thu, Jun 01, 2017 at 05:38:38PM +0200, Michal Hocko wrote:
-> >On Thu 01-06-17 10:19:36, Reza Arbab wrote:
-> >>The x86 SRAT (or the dt, on other platforms) can describe memory as
-> >>hotpluggable. See memblock_mark_hotplug(). That's only for memory present at
-> >>boot, though.
-> >
-> >Yes but lose that information after the memblock is gone and numa fully
-> >initialized. Or can we reconstruct that somehow?
-> 
-> I'm not sure you'd have to. At boot time, those markings are used to
-> determine the initial boundaries of ZONE_MOVABLE. So if you removed these
-> memblocks, then readded them, they would still be in ZONE_MOVABLE.
+On Thu, Jun 01, 2017 at 02:20:04PM +0200, Michal Hocko wrote:
+>Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
+>movable_node is enabled and the range doesn't overlap with the existing
+>normal zone. This should provide a reasonable default onlining strategy.
 
-Yes but that already works like that. I am nore interested in the case
-when the node goes away and it is added again. echo online > ... would
-result in a non-movable memory and that is the inconsistency I tried to
-call out in the changelog
+I like it. If your distro has some auto-onlining udev rule like
+
+SUBSYSTEM=="memory", ACTION=="add", ATTR{state}=="offline", ATTR{state}="online"
+
+You could get things onlined as movable just by putting movable_node in
+the boot params, without changing/modifying the rule.
 
 -- 
-Michal Hocko
-SUSE Labs
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
