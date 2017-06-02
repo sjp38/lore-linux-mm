@@ -1,131 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B316B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 13:14:04 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id k133so31121905ita.3
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 10:14:04 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 5si22352675iob.195.2017.06.02.10.14.02
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 10:14:02 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170601132808.GD9091@dhcp22.suse.cz>
-	<20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
-	<20170602071818.GA29840@dhcp22.suse.cz>
-	<201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
-	<20170602121533.GH29840@dhcp22.suse.cz>
-In-Reply-To: <20170602121533.GH29840@dhcp22.suse.cz>
-Message-Id: <201706030213.JFI39513.FFOSVFOJLQMHtO@I-love.SAKURA.ne.jp>
-Date: Sat, 3 Jun 2017 02:13:43 +0900
-Mime-Version: 1.0
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D2BDF6B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 13:31:01 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w138so86073627oiw.0
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 10:31:01 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id h199si10866634oic.113.2017.06.02.10.31.00
+        for <linux-mm@kvack.org>;
+        Fri, 02 Jun 2017 10:31:01 -0700 (PDT)
+Date: Fri, 2 Jun 2017 18:30:17 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v2] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD
+ mappings
+Message-ID: <20170602173017.GP28299@leverpostej>
+References: <20170602155416.32706-1-ard.biesheuvel@linaro.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170602155416.32706-1-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, labbott@fedoraproject.org, catalin.marinas@arm.com, will.deacon@arm.com, zhongjiang@huawei.com, guohanjun@huawei.com, tanxiaojun@huawei.com, steve.capper@linaro.org
 
-Michal Hocko wrote:
-> On Fri 02-06-17 20:13:32, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
-> > >> Michal Hocko wrote:
-> > >>> On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
-> > >>>> Cong Wang has reported a lockup when running LTP memcg_stress test [1].
-> > >>>
-> > >>> This seems to be on an old and not pristine kernel. Does it happen also
-> > >>> on the vanilla up-to-date kernel?
-> > >>
-> > >> 4.9 is not an old kernel! It might be close to the kernel version which
-> > >> enterprise distributions would choose for their next long term supported
-> > >> version.
-> > >>
-> > >> And please stop saying "can you reproduce your problem with latest
-> > >> linux-next (or at least latest linux)?" Not everybody can use the vanilla
-> > >> up-to-date kernel!
-> > >
-> > > The changelog mentioned that the source of stalls is not clear so this
-> > > might be out-of-tree patches doing something wrong and dump_stack
-> > > showing up just because it is called often. This wouldn't be the first
-> > > time I have seen something like that. I am not really keen on adding
-> > > heavy lifting for something that is not clearly debugged and based on
-> > > hand waving and speculations.
-> > 
-> > You are asking users to prove that the problem is indeed in the MM subsystem,
-> > but you are thinking that kmallocwd which helps users to check whether the
-> > problem is indeed in the MM subsystem is not worth merging into mainline.
-> > As a result, we have to try things based on what you think handwaving and
-> > speculations. This is a catch-22. If you don't want handwaving/speculations,
-> > please please do provide a mechanism for checking (a) and (b) shown later.
+On Fri, Jun 02, 2017 at 03:54:16PM +0000, Ard Biesheuvel wrote:
+> While vmalloc() itself strictly uses page mappings only on all
+> architectures, some of the support routines are aware of the possible
+> existence of PMD or PUD size mappings inside the VMALLOC region.
+> This is necessary given that vmalloc() shares this region and the
+> unmap routines with ioremap(), which may use huge pages on some
+> architectures (HAVE_ARCH_HUGE_VMAP).
 > 
-> configure watchdog to bug on soft lockup, take a crash dump, see what
-> is going on there and you can draw a better picture of what is going on
-> here. Seriously I am fed up with all the "let's do the async thing
-> because it would tell much more" side discussions. You are trying to fix
-> a soft lockup which alone is not a deadly condition.
+> On arm64 running with 4 KB pages, VM_MAP mappings will exist in the
+> VMALLOC region that are mapped to some extent using PMD size mappings.
+> As reported by Zhong Jiang, this confuses the kcore code, given that
+> vread() does not expect having to deal with PMD mappings, resulting
+> in oopses.
+> 
+> Even though we could work around this by special casing kcore or vmalloc
+> code for the VM_MAP mappings used by the arm64 kernel, the fact is that
+> there is already a precedent for dealing with PMD/PUD mappings in the
+> VMALLOC region, and so we could update the vmalloc_to_page() routine to
+> deal with such mappings as well. This solves the problem, and brings us
+> a step closer to huge page support in vmalloc/vmap, which could well be
+> in our future anyway.
+> 
+> Reported-by: Zhong Jiang <zhongjiang@huawei.com>
+> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> ---
+> v2:
+> - simplify so we can get rid of #ifdefs (drop huge_ptep_get(), which seems
+>   unnecessary given that p?d_huge() can be assumed to imply p?d_present())
+> - use HAVE_ARCH_HUGE_VMAP Kconfig define as indicator whether huge mappings
+>   in the vmalloc range are to be expected, and VM_BUG_ON() otherwise
 
-Wrong and unacceptable. I'm trying to collect information for not only the
-cause of allocation stall reported by Cong Wang but also any allocation stalls
-(e.g. infinite too_many_isolated() trap from shrink_inactive_list() and
-infinite mempool_alloc() loop case).
+[...]
 
-I was indeed surprised to know how severe a race condition on a system with
-many CPUs at http://lkml.kernel.org/r/201409192053.IHJ35462.JLOMOSOFFVtQFH@I-love.SAKURA.ne.jp .
-Therefore, like you suspect, it is possible that dump_stack() serialization
-might be unfair on some hardware, especially when a lot of allocating threads
-are calling warn_alloc(). But if you read Cong's report, you will find that
-allocation stalls began before the first detection of soft lockup due to
-dump_stack() serialization. This suggests that allocation stalls already began
-before the system enters into a state where a lot of allocating threads started
-calling warn_alloc(). Then, I think that it is natural to suspect that the
-first culprit is MM subsystem. If you believe that you can debug and explain
-why the OOM killer was not invoked in Cong's case without comparing how situation
-changes over time (i.e. with a crash dump only), please explain it in that thread.
+> @@ -289,9 +290,17 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
+>  	pud = pud_offset(p4d, addr);
+>  	if (pud_none(*pud))
+>  		return NULL;
+> +	if (pud_huge(*pud)) {
+> +		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
+> +		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> +	}
+>  	pmd = pmd_offset(pud, addr);
+>  	if (pmd_none(*pmd))
+>  		return NULL;
+> +	if (pmd_huge(*pmd)) {
+> +		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
+> +		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> +	}
 
->                                                      If the system is
-> overwhelmed it can happen and if that is the case then we should care
-> whether it gets resolved or it is a permanent livelock situation.
+I don't think that it's correct to use the *_huge() helpers. Those
+account for huge user mappings, and not arbitrary kernel space block
+mappings.
 
-What I'm trying to check is exactly whether the stall gets resolved or
-the stall is a permanent livelock situation, via allowing users to take
-multiple snapshots of memory image and compare how situation changes over
-time. Taking a crash dump via kernel panic cannot allow users to take
-multiple snapshots of memory image.
+You can disable CONFIG_HUGETLB_PAGE by deselecting  HUGETLBFS and
+CGROUP_HUGETLB, in which cases the *_huge() helpers always return false,
+even though the kernel may use block mappings.
 
->                                                                   If yes
-> then we need to isolate which path is not preempting and why and place
-> the cond_resched there. The page allocator contains preemption points,
-> if we are lacking some for some pathological paths let's add them.
-
-What I'm talking about is not the lack of cond_resched(). As far as we know,
-cond_resched() is inserted whereever necessary. What I'm talking about is
-that cond_resched() cannot yield enough CPU time.
-
-Looping with calling cond_resched() can yield only e.g. 1% of CPU time
-compared to looping without calling cond_resched(). But if e.g. 100 threads
-are looping with only cond_resched(), some thread waiting for wake up from
-schedule_timeout_killable(1) can delay a lot. If that some thread has idle
-priority, the delay can become too long to wait.
-
->                                                                    For
-> some reason you seem to be focused only on the warn_alloc path, though,
-> while the real issue might be somewhere completely else.
-
-Not only because uncontrolled concurrent warn_alloc() causes flooding of
-printk() and prevents users from knowing what is going on, but also
-warn_alloc() cannot be called when we hit e.g. infinite too_many_isolated()
-loop case or infinite mempool_alloc() loop case which after all prevents
-users from knowing what is going on.
-
-You are not providing users means to skip warn_alloc() when flooding of
-printk() is just a junk (i.e. the real issue is somewhere completely else)
-or call warn_alloc() when all printk() messages are needed (i.e. the issue
-is in the MM subsystem). Current implementation of warn_alloc() can act as
-launcher of corrupted spam messages. Without comparing how situation changes
-over time, via reliably saving all printk() messages which might potentially
-be relevant, we can't judge whether warn_alloc() flooding is just a collateral
-phenomenon of a real issue somewhere completely else.
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
