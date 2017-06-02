@@ -1,105 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AE15F6B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 01:04:50 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p74so72304518pfd.11
-        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 22:04:50 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id e12si22157796pfb.265.2017.06.01.22.04.49
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DF7E26B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 01:58:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b9so6618596pfl.0
+        for <linux-mm@kvack.org>; Thu, 01 Jun 2017 22:58:01 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 12si22176424pfn.27.2017.06.01.22.58.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Jun 2017 22:04:49 -0700 (PDT)
-Date: Thu, 1 Jun 2017 23:04:47 -0600
+        Thu, 01 Jun 2017 22:58:00 -0700 (PDT)
+Date: Thu, 1 Jun 2017 23:57:59 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2] Patch for remapping pages around the fault page
-Message-ID: <20170602050447.GA5909@linux.intel.com>
-References: <201705230125.i1Cthtdz%fengguang.wu@intel.com>
- <1496354509-29061-1-git-send-email-sarunya@vt.edu>
+Subject: Re: [PATCH -mm 05/13] block, THP: Make
+ block_device_operations.rw_page support THP
+Message-ID: <20170602055759.GC5909@linux.intel.com>
+References: <20170525064635.2832-1-ying.huang@intel.com>
+ <20170525064635.2832-6-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1496354509-29061-1-git-send-email-sarunya@vt.edu>
+In-Reply-To: <20170525064635.2832-6-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sarunya Pumma <sarunya@vt.edu>
-Cc: kbuild-all@01.org, rppt@linux.vnet.ibm.com, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, jack@suse.cz, ross.zwisler@linux.intel.com, mhocko@suse.com, aneesh.kumar@linux.vnet.ibm.com, lstoakes@gmail.com, dave.jiang@intel.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-nvdimm@lists.01.org
 
-On Thu, Jun 01, 2017 at 06:01:49PM -0400, Sarunya Pumma wrote:
-> After the fault handler performs the __do_fault function to read a fault
-> page when a page fault occurs, it does not map other pages that have been
-> read together with the fault page. This can cause a number of minor page
-> faults to be large. Therefore, this patch is developed to remap pages
-> around the fault page by aiming to map the pages that have been read
-> synchronously or asynchronously with the fault page.
+On Thu, May 25, 2017 at 02:46:27PM +0800, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> The major function of this patch is the redo_fault_around function. This
-> function computes the start and end offsets of the pages to be mapped,
-> determines whether to do the page remapping, remaps pages using the
-> map_pages function, and returns. In the redo_fault_around function, the
-> start and end offsets are computed the same way as the do_fault_around
-> function. To determine whether to do the remapping, we determine if the
-> pages around the fault page are already mapped. If they are, the remapping
-> will not be performed.
+> The .rw_page in struct block_device_operations is used by the swap
+> subsystem to read/write the page contents from/into the corresponding
+> swap slot in the swap device.  To support the THP (Transparent Huge
+> Page) swap optimization, the .rw_page is enhanced to support to
+> read/write THP if possible.
 > 
-> As checking every page can be inefficient if a number of pages to be mapped
-> is large, we have added a threshold called "vm_nr_rempping" to consider
-> whether to check the status of every page around the fault page or just
-> some pages. Note that the vm_nr_rempping parameter can be adjusted via the
-> Sysctl interface. In the case that a number of pages to be mapped is
-> smaller than the vm_nr_rempping threshold, we check all pages around the
-> fault page (within the start and end offsets). Otherwise, we check only the
-> adjacent pages (left and right).
-> 
-> The page remapping is beneficial when performing the "almost sequential"
-> page accesses, where pages are accessed in order but some pages are
-> skipped.
-> 
-> The following is one example scenario that we can reduce one page fault
-> every 16 page:
-> 
-> Assume that we want to access pages sequentially and skip every page that
-> marked as PG_readahead. Assume that the read-ahead size is 32 pages and the
-> number of pages to be mapped each time (fault_around_pages) is 16.
-> 
-> When accessing a page at offset 0, a major page fault occurs, so pages from
-> page 0 to page 31 is read from the disk to the page cache. With this, page
-> 24 is marked as a read-ahead page (PG_readahead). Then only page 0 is
-> mapped to the virtual memory space.
-> 
-> When accessing a page at offset 1, a minor page fault occurs, pages from
-> page 0 to page 15 will be mapped.
-> 
-> We keep accessing pages until page 31. Note that we skip page 24.
-> 
-> When accessing a page at offset 32, a major page fault occurs.  The same
-> process will be repeated. The other 32 pages will be read from the disk.
-> Only page 32 is mapped. Then a minor page fault at the next page (page
-> 33) will occur.
-> 
-> From this example, two page faults occur every 16 page. With this patch, we
-> can eliminate the minor page fault in every 16 page.
-> 
-> Thank you very much for your time for reviewing the patch.
-> 
-> Signed-off-by: Sarunya Pumma <sarunya@vt.edu>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ross Zwisler <ross.zwisler@intel.com>
+> Cc: Vishal L Verma <vishal.l.verma@intel.com>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: linux-nvdimm@lists.01.org
+> ---
+>  drivers/block/brd.c           |  6 +++++-
+>  drivers/block/zram/zram_drv.c |  2 ++
+>  drivers/nvdimm/btt.c          |  4 +++-
+>  drivers/nvdimm/pmem.c         | 42 +++++++++++++++++++++++++++++++-----------
+>  4 files changed, 41 insertions(+), 13 deletions(-)
 
-Please consider Kirill's feedback:
+The changes in brd.c, zram_drv.c and pmem.c look good to me.  For those bits
+you can add: 
 
-http://www.spinics.net/lists/linux-mm/msg127597.html
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Really the only reason to consider this extra complexity would be if it
-provided a performance benefit.  So, the onus is on the patch author to show
-that the performance benefit is worth the code.
+I think we still want Vishal to make sure that the BTT changes are okay.  I
+don't know that code well enough to know whether it's safe to throw 512 pages
+at btt_[read|write]_pg().
 
-Also, it's helpful to reviewers to explicit enumerate the differences between 
-different patch versions.  If you have a cover letter that's a great place to
-do this, or if you have a short series without a cover letter you can do it
-below a --- section break like this:
+Also, Ying, next time can you please CC me (and probably the linux-nvdimm
+list) on the whole series?  It would give us more context on what the larger
+change is, allow us to see the cover letter, allow us to test with all the
+patches in the series, etc.  It's pretty easy for reviewers to skip over the
+patches we don't care about or aren't in our area.
 
-https://patchwork.kernel.org/patch/9741461/
-
-The extra text below the section break will be stripped off by git am when the
-patch is applied.
+Thanks,
+- Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
