@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 04B466B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 10:43:57 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d127so17232483wmf.15
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 07:43:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g30si19396646ede.335.2017.06.02.07.43.55
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFB86B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 10:48:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q27so76964523pfi.8
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 07:48:43 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0091.outbound.protection.outlook.com. [104.47.0.91])
+        by mx.google.com with ESMTPS id y13si11946845pgs.86.2017.06.02.07.48.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 07:43:55 -0700 (PDT)
-Date: Fri, 2 Jun 2017 16:43:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: strange PAGE_ALLOC_COSTLY_ORDER usage in xgbe_map_rx_buffer
-Message-ID: <20170602144352.GI29840@dhcp22.suse.cz>
-References: <20170531160422.GW27783@dhcp22.suse.cz>
- <4b894f15-6876-8598-def5-8113df836750@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 02 Jun 2017 07:48:41 -0700 (PDT)
+Subject: Re: [PATCHv6 06/10] x86/mm: Add sync_global_pgds() for configuration
+ with 5-level paging
+References: <20170524095419.14281-1-kirill.shutemov@linux.intel.com>
+ <20170524095419.14281-7-kirill.shutemov@linux.intel.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <86bddb33-4f07-2949-256b-caf931df98d8@virtuozzo.com>
+Date: Fri, 2 Jun 2017 17:50:34 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4b894f15-6876-8598-def5-8113df836750@amd.com>
+In-Reply-To: <20170524095419.14281-7-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 02-06-17 09:20:54, Tom Lendacky wrote:
-> On 5/31/2017 11:04 AM, Michal Hocko wrote:
-> >Hi Tom,
+On 05/24/2017 12:54 PM, Kirill A. Shutemov wrote:
+> This basically restores slightly modified version of original
+> sync_global_pgds() which we had before folded p4d was introduced.
 > 
-> Hi Michal,
+> The only modification is protection against 'addr' overflow.
 > 
-> >I have stumbled over the following construct in xgbe_map_rx_buffer
-> >	order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
-> >which looks quite suspicious. Why does it PAGE_ALLOC_COSTLY_ORDER - 1?
-> >And why do you depend on PAGE_ALLOC_COSTLY_ORDER at all?
-> >
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/mm/init_64.c | 39 +++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 39 insertions(+)
 > 
-> The driver tries to allocate a number of pages to be used as receive
-> buffers.  Based on what I could find in documentation, the value of
-> PAGE_ALLOC_COSTLY_ORDER is the point at which order allocations
-> (could) get expensive.  So I decrease by one the order requested. The
-> max_t test is just to insure that in case PAGE_ALLOC_COSTLY_ORDER ever
-> gets defined as 0, 0 would be used.
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 95651dc58e09..ce410c05d68d 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -92,6 +92,44 @@ __setup("noexec32=", nonx32_setup);
+>   * When memory was added make sure all the processes MM have
+>   * suitable PGD entries in the local PGD level page.
+>   */
+> +#ifdef CONFIG_X86_5LEVEL
+> +void sync_global_pgds(unsigned long start, unsigned long end)
+> +{
+> +	unsigned long addr;
+> +
+> +	for (addr = start; addr <= end; addr += ALIGN(addr + 1, PGDIR_SIZE)) {
 
-So you have fallen into a carefully prepared trap ;). The thing is that
-orders _larger_ than PAGE_ALLOC_COSTLY_ORDER are costly actually. I can
-completely see how this can be confusing.
+                                        addr = ALIGN(addr + 1, PGDIR_SIZE)
 
-Moreover xgbe_map_rx_buffer does an atomic allocation which doesn't do
-any direct reclaim/compaction attempts so the costly vs. non-costly
-doesn't apply here at all.
-
-I would be much happier if no code outside of mm used
-PAGE_ALLOC_COSTLY_ORDER directly but that requires a deeper
-consideration. E.g. what would be the largest size that would be
-useful for this path? xgbe_alloc_pages does the order fallback so
-PAGE_ALLOC_COSTLY_ORDER sounds like an artificial limit to me.
-I guess we can at least simplify the xgbe right away though.
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
