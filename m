@@ -1,88 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA766B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 03:50:16 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b84so15337357wmh.0
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 00:50:16 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 484E86B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 04:13:43 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id k15so15512436wmh.3
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 01:13:43 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i3si20931267edd.256.2017.06.02.00.50.15
+        by mx.google.com with ESMTPS id b11si10784396edb.27.2017.06.02.01.13.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 00:50:15 -0700 (PDT)
-Date: Fri, 2 Jun 2017 09:50:12 +0200
+        Fri, 02 Jun 2017 01:13:41 -0700 (PDT)
+Date: Fri, 2 Jun 2017 10:13:38 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/9] mm: introduce kv[mz]alloc helpers
-Message-ID: <20170602075012.GC29840@dhcp22.suse.cz>
-References: <20170306103032.2540-1-mhocko@kernel.org>
- <20170306103032.2540-2-mhocko@kernel.org>
- <20170602071718.zk3ujm64xesoqyrr@sasha-lappy>
- <20170602072855.GB29840@dhcp22.suse.cz>
- <20170602074008.wctxj5il3rqnnpbf@sasha-lappy>
+Subject: Re: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
+Message-ID: <20170602081338.GD29840@dhcp22.suse.cz>
+References: <1496145932-18636-1-git-send-email-guro@fb.com>
+ <20170530123415.GF7969@dhcp22.suse.cz>
+ <20170530133335.GB28148@castle>
+ <20170530134552.GI7969@dhcp22.suse.cz>
+ <20170530185231.GA13412@castle>
+ <20170531163928.GZ27783@dhcp22.suse.cz>
+ <20170601184113.GA31689@castle>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170602074008.wctxj5il3rqnnpbf@sasha-lappy>
+In-Reply-To: <20170601184113.GA31689@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>
+To: Roman Gushchin <guro@fb.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 02-06-17 07:40:12, Sasha Levin wrote:
-> On Fri, Jun 02, 2017 at 09:28:56AM +0200, Michal Hocko wrote:
-> > On Fri 02-06-17 07:17:22, Sasha Levin wrote:
-> > > On Mon, Mar 06, 2017 at 11:30:24AM +0100, Michal Hocko wrote:
-> > > > +void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> > > > +{
-> > > > +	gfp_t kmalloc_flags = flags;
-> > > > +	void *ret;
-> > > > +
-> > > > +	/*
-> > > > +	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
-> > > > +	 * so the given set of flags has to be compatible.
-> > > > +	 */
-> > > > +	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+On Thu 01-06-17 19:41:13, Roman Gushchin wrote:
+> On Wed, May 31, 2017 at 06:39:29PM +0200, Michal Hocko wrote:
+> > On Tue 30-05-17 19:52:31, Roman Gushchin wrote:
+> > > >From c57e3674efc609f8364f5e228a2c1309cfe99901 Mon Sep 17 00:00:00 2001
+> > > From: Roman Gushchin <guro@fb.com>
+> > > Date: Tue, 23 May 2017 17:37:55 +0100
+> > > Subject: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
 > > > 
-> > > Hm, there are quite a few locations in the kernel that do something like:
+> > > During the debugging of the problem described in
+> > > https://lkml.org/lkml/2017/5/17/542 and fixed by Tetsuo Handa
+> > > in https://lkml.org/lkml/2017/5/19/383 , I've found that
+> > > the existing debug output is not really useful to understand
+> > > issues related to the oom reaper.
 > > > 
-> > > 	__vmalloc(len, GFP_NOFS, PAGE_KERNEL);
+> > > So, I assume, that adding some tracepoints might help with
+> > > debugging of similar issues.
 > > > 
-> > > According to your patch, vmalloc can't really do GFP_NOFS, right?
+> > > Trace the following events:
+> > > 1) a process is marked as an oom victim,
+> > > 2) a process is added to the oom reaper list,
+> > > 3) the oom reaper starts reaping process's mm,
+> > > 4) the oom reaper finished reaping,
+> > > 5) the oom reaper skips reaping.
+> > > 
+> > > How it works in practice? Below is an example which show
+> > > how the problem mentioned above can be found: one process is added
+> > > twice to the oom_reaper list:
+> > > 
+> > > $ cd /sys/kernel/debug/tracing
+> > > $ echo "oom:mark_victim" > set_event
+> > > $ echo "oom:wake_reaper" >> set_event
+> > > $ echo "oom:skip_task_reaping" >> set_event
+> > > $ echo "oom:start_task_reaping" >> set_event
+> > > $ echo "oom:finish_task_reaping" >> set_event
+> > > $ cat trace_pipe
+> > >         allocate-502   [001] ....    91.836405: mark_victim: pid=502
+> > >         allocate-502   [001] .N..    91.837356: wake_reaper: pid=502
+> > >         allocate-502   [000] .N..    91.871149: wake_reaper: pid=502
+> > >       oom_reaper-23    [000] ....    91.871177: start_task_reaping: pid=502
+> > >       oom_reaper-23    [000] .N..    91.879511: finish_task_reaping: pid=502
+> > >       oom_reaper-23    [000] ....    91.879580: skip_task_reaping: pid=502
 > > 
-> > Yes. It is quite likely that they will just work because the hardcoded
-> > GFP_KERNEL inside the vmalloc path is in unlikely paths (page table
-> > allocations for example) but yes they are broken. I didn't convert some
-> > places which opencode the kvmalloc with GFP_NOFS because I strongly
-> > _believe_ that the GFP_NOFS should be revisited, checked whether it is
-> > needed, documented if so and then memalloc_nofs__{save,restore} be used
-> > for the scope which is reclaim recursion unsafe. This would turn all
-> > those vmalloc users to the default GFP_KERNEL and still do the right
-> > thing.
+> > OK, this is much better! The clue here would be that we got 2
+> > wakeups for the same task, right?
+> > Do you think it would make sense to put more context to those
+> > tracepoints? E.g. skip_task_reaping can be due to lock contention or the
+> > mm gone. wake_reaper is similar.
 > 
-> While you haven't converted those paths, other folks have picked up
-> on that:
-> 
-> 	commit beeeccca9bebcec386cc31c250cff8a06cf27034
-> 	Author: Vinnie Magro <vmagro@fb.com>
-> 	Date:   Thu May 25 12:18:02 2017 -0700
-> 
-> 	    btrfs: Use kvzalloc instead of kzalloc/vmalloc in alloc_bitmap
-> 	[...]
-> 
-> Maybe we should make kvmalloc_node() fail non-GFP_KERNEL allocations
-> rather than just warn on them to make this error more evident?
+> I agree, that some context might be useful under some circumstances,
+> but I don't think we should add any additional fields until we will have some examples
+> of where this data is actually useful. If we will need it, we can easily add it later.
 
-The above has been already discussed [1] and will be dropped with a more
-appropriate alternative. I do not think we should be failing those,
-though. Supported flags are documented and the warn on will tell that
-something is clearly wrong.
+OK, fair enough.
 
->  I'm not sure how these warnings were missed during testing.
-
-I suspect this conversion just hasn't been tested because it is an
-"obvious cleanup"
-
-[1] http://lkml.kernel.org/r/20170531063033.GC1795@yexl-desktop
-
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
 Michal Hocko
 SUSE Labs
