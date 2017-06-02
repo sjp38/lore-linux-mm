@@ -1,110 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6356B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 11:41:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p74so79350817pfd.11
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 08:41:41 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0042.outbound.protection.outlook.com. [104.47.36.42])
-        by mx.google.com with ESMTPS id u186si22659686pgd.98.2017.06.02.08.41.40
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 727CC6B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 11:54:27 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b86so17555262wmi.6
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 08:54:27 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id a15si3130553wme.139.2017.06.02.08.54.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 08:41:40 -0700 (PDT)
-Subject: Re: strange PAGE_ALLOC_COSTLY_ORDER usage in xgbe_map_rx_buffer
-References: <20170531160422.GW27783@dhcp22.suse.cz>
- <4b894f15-6876-8598-def5-8113df836750@amd.com>
- <20170602144352.GI29840@dhcp22.suse.cz>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <9b41c712-59ee-8457-2741-e913b8498ca7@amd.com>
-Date: Fri, 2 Jun 2017 10:41:26 -0500
-MIME-Version: 1.0
-In-Reply-To: <20170602144352.GI29840@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Jun 2017 08:54:26 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id d127so30257649wmf.0
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 08:54:25 -0700 (PDT)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH v2] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD mappings
+Date: Fri,  2 Jun 2017 15:54:16 +0000
+Message-Id: <20170602155416.32706-1-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, labbott@fedoraproject.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, zhongjiang@huawei.com, guohanjun@huawei.com, tanxiaojun@huawei.com, steve.capper@linaro.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On 6/2/2017 9:43 AM, Michal Hocko wrote:
-> On Fri 02-06-17 09:20:54, Tom Lendacky wrote:
->> On 5/31/2017 11:04 AM, Michal Hocko wrote:
->>> Hi Tom,
->>
->> Hi Michal,
->>
->>> I have stumbled over the following construct in xgbe_map_rx_buffer
->>> 	order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
->>> which looks quite suspicious. Why does it PAGE_ALLOC_COSTLY_ORDER - 1?
->>> And why do you depend on PAGE_ALLOC_COSTLY_ORDER at all?
->>>
->>
->> The driver tries to allocate a number of pages to be used as receive
->> buffers.  Based on what I could find in documentation, the value of
->> PAGE_ALLOC_COSTLY_ORDER is the point at which order allocations
->> (could) get expensive.  So I decrease by one the order requested. The
->> max_t test is just to insure that in case PAGE_ALLOC_COSTLY_ORDER ever
->> gets defined as 0, 0 would be used.
-> 
-> So you have fallen into a carefully prepared trap ;). The thing is that
-> orders _larger_ than PAGE_ALLOC_COSTLY_ORDER are costly actually. I can
-> completely see how this can be confusing.
-> 
-> Moreover xgbe_map_rx_buffer does an atomic allocation which doesn't do
-> any direct reclaim/compaction attempts so the costly vs. non-costly
-> doesn't apply here at all.
-> 
-> I would be much happier if no code outside of mm used
-> PAGE_ALLOC_COSTLY_ORDER directly but that requires a deeper
-> consideration. E.g. what would be the largest size that would be
-> useful for this path? xgbe_alloc_pages does the order fallback so
-> PAGE_ALLOC_COSTLY_ORDER sounds like an artificial limit to me.
-> I guess we can at least simplify the xgbe right away though.
-> ---
->  From c7d5ca637b889c4e3779f8d2a84ade6448a76ef9 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Fri, 2 Jun 2017 16:34:28 +0200
-> Subject: [PATCH] amd-xgbe: use PAGE_ALLOC_COSTLY_ORDER in xgbe_map_rx_buffer
-> 
-> xgbe_map_rx_buffer is rather confused about what PAGE_ALLOC_COSTLY_ORDER
-> means. It uses PAGE_ALLOC_COSTLY_ORDER-1 assuming that
-> PAGE_ALLOC_COSTLY_ORDER is the first costly order which is not the case
-> actually because orders larger than that are costly. And even that
-> applies only to sleeping allocations which is not the case here. We
-> simply do not perform any costly operations like reclaim or compaction
-> for those. Simplify the code by dropping the order calculation and use
-> PAGE_ALLOC_COSTLY_ORDER directly.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->   drivers/net/ethernet/amd/xgbe/xgbe-desc.c | 3 +--
->   1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/drivers/net/ethernet/amd/xgbe/xgbe-desc.c b/drivers/net/ethernet/amd/xgbe/xgbe-desc.c
-> index b3bc87fe3764..5ded10eba418 100644
-> --- a/drivers/net/ethernet/amd/xgbe/xgbe-desc.c
-> +++ b/drivers/net/ethernet/amd/xgbe/xgbe-desc.c
-> @@ -333,9 +333,8 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
->   	}
->   
->   	if (!ring->rx_buf_pa.pages) {
-> -		order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
->   		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa, GFP_ATOMIC,
-> -				       order);
-> +				       PAGE_ALLOC_COSTLY_ORDER);
+While vmalloc() itself strictly uses page mappings only on all
+architectures, some of the support routines are aware of the possible
+existence of PMD or PUD size mappings inside the VMALLOC region.
+This is necessary given that vmalloc() shares this region and the
+unmap routines with ioremap(), which may use huge pages on some
+architectures (HAVE_ARCH_HUGE_VMAP).
 
-You'll need to also remove the variable definition to avoid an un-used
-variable warning.  You should also send this to the netdev mailing list
-to send this through the net-next tree (or net tree if you want it fixed
-in the current version of the Linux kernel).
+On arm64 running with 4 KB pages, VM_MAP mappings will exist in the
+VMALLOC region that are mapped to some extent using PMD size mappings.
+As reported by Zhong Jiang, this confuses the kcore code, given that
+vread() does not expect having to deal with PMD mappings, resulting
+in oopses.
 
-Thanks,
-Tom
+Even though we could work around this by special casing kcore or vmalloc
+code for the VM_MAP mappings used by the arm64 kernel, the fact is that
+there is already a precedent for dealing with PMD/PUD mappings in the
+VMALLOC region, and so we could update the vmalloc_to_page() routine to
+deal with such mappings as well. This solves the problem, and brings us
+a step closer to huge page support in vmalloc/vmap, which could well be
+in our future anyway.
 
->   		if (ret)
->   			return ret;
->   	}
-> 
+Reported-by: Zhong Jiang <zhongjiang@huawei.com>
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+---
+v2:
+- simplify so we can get rid of #ifdefs (drop huge_ptep_get(), which seems
+  unnecessary given that p?d_huge() can be assumed to imply p?d_present())
+- use HAVE_ARCH_HUGE_VMAP Kconfig define as indicator whether huge mappings
+  in the vmalloc range are to be expected, and VM_BUG_ON() otherwise
+
+ mm/vmalloc.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 34a1c3e46ed7..451cd5cafedc 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -12,6 +12,7 @@
+ #include <linux/mm.h>
+ #include <linux/module.h>
+ #include <linux/highmem.h>
++#include <linux/hugetlb.h>
+ #include <linux/sched/signal.h>
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
+@@ -289,9 +290,17 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
+ 	pud = pud_offset(p4d, addr);
+ 	if (pud_none(*pud))
+ 		return NULL;
++	if (pud_huge(*pud)) {
++		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
++		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
++	}
+ 	pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd))
+ 		return NULL;
++	if (pmd_huge(*pmd)) {
++		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
++		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
++	}
+ 
+ 	ptep = pte_offset_map(pmd, addr);
+ 	pte = *ptep;
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
