@@ -1,172 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 556066B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 04:43:38 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 10so15646752wml.4
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 01:43:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si21311450edd.287.2017.06.02.01.43.36
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18BB56B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 05:11:43 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id n13so62919498ita.7
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 02:11:43 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 3si366227pfj.110.2017.06.02.02.11.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 01:43:36 -0700 (PDT)
-Date: Fri, 2 Jun 2017 10:43:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
-Message-ID: <20170602084333.GF29840@dhcp22.suse.cz>
-References: <1495124884-28974-1-git-send-email-guro@fb.com>
- <20170520183729.GA3195@esperanza>
- <20170522170116.GB22625@castle>
- <20170523070747.GF12813@dhcp22.suse.cz>
- <20170523132544.GA13145@cmpxchg.org>
- <20170525153819.GA7349@dhcp22.suse.cz>
- <20170525170805.GA5631@cmpxchg.org>
- <20170531162504.GX27783@dhcp22.suse.cz>
- <20170531180145.GB10481@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Jun 2017 02:11:42 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5298te6080807
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2017 05:11:41 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ats3sq6x3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Jun 2017 05:11:41 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Fri, 2 Jun 2017 10:11:38 +0100
+Date: Fri, 2 Jun 2017 12:11:30 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: introduce MADV_CLR_HUGEPAGE
+References: <20170524111800.GD14733@dhcp22.suse.cz>
+ <20170524142735.GF3063@rapoport-lnx>
+ <20170530074408.GA7969@dhcp22.suse.cz>
+ <20170530101921.GA25738@rapoport-lnx>
+ <20170530103930.GB7969@dhcp22.suse.cz>
+ <20170530140456.GA8412@redhat.com>
+ <20170530143941.GK7969@dhcp22.suse.cz>
+ <20170601065302.GA30495@rapoport-lnx>
+ <20170601080909.GD32677@dhcp22.suse.cz>
+ <20170601134522.GE302@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170531180145.GB10481@cmpxchg.org>
+In-Reply-To: <20170601134522.GE302@redhat.com>
+Message-Id: <20170602091129.GH30495@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov@tarantool.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed 31-05-17 14:01:45, Johannes Weiner wrote:
-> On Wed, May 31, 2017 at 06:25:04PM +0200, Michal Hocko wrote:
-> > On Thu 25-05-17 13:08:05, Johannes Weiner wrote:
-> > > Everything the user would want to dynamically program in the kernel,
-> > > say with bpf, they could do in userspace and then update the scores
-> > > for each group and task periodically.
-> > 
-> > I am rather skeptical about dynamic scores. oom_{score_}adj has turned
-> > to mere oom disable/enable knobs from my experience.
+On Thu, Jun 01, 2017 at 03:45:22PM +0200, Andrea Arcangeli wrote:
+> On Thu, Jun 01, 2017 at 10:09:09AM +0200, Michal Hocko wrote:
+> > That is a bit surprising. I didn't think that the userfault syscall
+> > (ioctl) can be faster than a regular #PF but considering that
+> > __mcopy_atomic bypasses the page fault path and it can be optimized for
+> > the anon case suggests that we can save some cycles for each page and so
+> > the cumulative savings can be visible.
 > 
-> That doesn't necessarily have to be a deficiency with the scoring
-> system. I suspect that most people simply don't care as long as the
-> the picks for OOM victims aren't entirely stupid.
+> __mcopy_atomic works not just for anonymous memory, hugetlbfs/shmem
+> are covered too and there are branches to handle those.
 > 
-> For example, we have a lot of machines that run one class of job. If
-> we run OOM there isn't much preference we'd need to express; just kill
-> one job - the biggest, whatever - and move on. (The biggest makes
-> sense because if all jobs are basically equal it's as good as any
-> other victim, but if one has a runaway bug it goes for that.)
+> If you were to run more than one precopy pass UFFDIO_COPY shall become
+> slower than the userland access starting from the second pass.
 > 
-> Where we have more than one job class, it actually is mostly one hipri
-> and one lopri, in which case setting a hard limit on the lopri or the
-> -1000 OOM score trick is enough.
-> 
-> How many systems run more than two clearly distinguishable classes of
-> workloads concurrently?
+> At the light of this if CRIU can only do one single pass of precopy,
+> CRIU is probably better off using UFFDIO_COPY than using prctl or
+> madvise to temporarily turn off THP.
 
-What about those which run different containers on a large physical
-machine?
-
-> I'm sure they exist. I'm just saying it doesn't surprise me that
-> elaborate OOM scoring isn't all that wide-spread.
+CRIU does memory tracking differently from QEMU. Every round of pre-copy in
+CRIU means we dump the dirty pages into an image file. The restore then
+chooses what image file to use. Anyway, we fill the memory only once at
+restore time, hence UFFDIO_COPY would be better than disabling THP.
+ 
+> With QEMU as opposed we set MADV_HUGEPAGE during precopy on
+> destination to maximize the THP utilization for all those 2M naturally
+> aligned guest regions that aren't re-dirtied in the source, so we're
+> better off without using UFFDIO_COPY in precopy even during the first
+> pass to avoid the enter/kernel for subpages that are written to
+> destination in a already instantiated THP. At least until we teach
+> QEMU to map 2M at once if possible (UFFDIO_COPY would then also
+> require an enhancement, because currently it won't map THP on the
+> fly).
 > 
-> > > The only limitation is that you have to recalculate and update the
-> > > scoring tree every once in a while, whereas a bpf program could
-> > > evaluate things just-in-time. But for that to matter in practice, OOM
-> > > kills would have to be a fairly hot path.
-> > 
-> > I am not really sure how to reliably implement "kill the memcg with the
-> > largest process" strategy. And who knows how many others strategies will
-> > pop out.
+> Thanks,
+> Andrea
 > 
-> That seems fairly contrived.
-> 
-> What does it mean to divide memory into subdomains, but when you run
-> out of physical memory you kill based on biggest task?
 
-Well, the biggest task might be the runaway one and so killing it first
-before you kill other innocent ones makes some sense to me.
-
-> Sure, it frees memory and gets the system going again, so it's as good
-> as any answer to overcommit gone wrong, I guess. But is that something
-> you'd intentionally want to express from a userspace perspective?
-> 
-[...]
-> > > > Maybe. But that requires somebody to tweak the scoring which can be hard
-> > > > from trivial.
-> > > 
-> > > Why is sorting and picking in userspace harder than sorting and
-> > > picking in the kernel?
-> > 
-> > Because the userspace score based approach would be much more racy
-> > especially in the busy system. This could lead to unexpected behavior
-> > when OOM killer would kill a different than a run-away memcgs.
-> 
-> How would it be easier to weigh priority against runaway detection
-> inside the kernel?
-
-You have better chances to catch such a process at the time of the OOM
-because you do the check at the time of the OOM rather than sometimes
-back in time when your monitor was able to run and check all the
-existing processes (which alone can be rather time consuming so you do
-not want to do that very often).
-
-> > > > +	/*
-> > > >  	 * If current has a pending SIGKILL or is exiting, then automatically
-> > > >  	 * select it.  The goal is to allow it to allocate so that it may
-> > > >  	 * quickly exit and free its memory.
-> > > > 
-> > > > Please note that I haven't explored how much of the infrastructure
-> > > > needed for the OOM decision making is available to modules. But we can
-> > > > export a lot of what we currently have in oom_kill.c. I admit it might
-> > > > turn out that this is simply not feasible but I would like this to be at
-> > > > least explored before we go and implement yet another hardcoded way to
-> > > > handle (see how I didn't use policy ;)) OOM situation.
-> > > 
-> > > ;)
-> > > 
-> > > My doubt here is mainly that we'll see many (or any) real-life cases
-> > > materialize that cannot be handled with cgroups and scoring. These are
-> > > powerful building blocks on which userspace can implement all kinds of
-> > > policy and sorting algorithms.
-> > > 
-> > > So this seems like a lot of churn and complicated code to handle one
-> > > extension. An extension that implements basic functionality.
-> > 
-> > Well, as I've said I didn't get to explore this path so I have only a
-> > very vague idea what we would have to export to implement e.g. the
-> > proposed oom killing strategy suggested in this thread. Unfortunatelly I
-> > do not have much time for that. I do not want to block a useful work
-> > which you have a usecase for but I would be really happy if we could
-> > consider longer term plans before diving into a "hardcoded"
-> > implementation. We didn't do that previously and we are left with
-> > oom_kill_allocating_task and similar one off things.
-> 
-> As I understand it, killing the allocating task was simply the default
-> before the OOM killer and was added as a compat knob. I really doubt
-> anybody is using it at this point, and we could probably delete it.
-
-I might misremember but my recollection is that SGI simply had too
-large machines with too many processes and so the task selection was
-very expensinve.
-
-> I appreciate your concern of being too short-sighted here, but the
-> fact that I cannot point to more usecases isn't for lack of trying. I
-> simply don't see the endless possibilities of usecases that you do.
-> 
-> It's unlikely for more types of memory domains to pop up besides MMs
-> and cgroups. (I mentioned vmas, but that just seems esoteric. And we
-> have panic_on_oom for whole-system death. What else could there be?)
-> 
-> And as I pointed out, there is no real evidence that the current
-> system for configuring preferences isn't sufficient in practice.
-> 
-> That's my thoughts on exploring. I'm not sure what else to do before
-> it feels like running off into fairly contrived hypotheticals.
-
-Yes, I do not want hypotheticals to block an otherwise useful feature,
-of course. But I haven't heard a strong argument why a module based
-approach would be a more maintenance burden longterm. From a very quick
-glance over patches Roman has posted yesterday it seems that a large
-part of the existing oom infrastructure can be reused reasonably.
-
--- 
-Michal Hocko
-SUSE Labs
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
