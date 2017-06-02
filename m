@@ -1,170 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 752966B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 03:32:56 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 10so15321334wml.4
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 00:32:56 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id l130si1722902wmd.126.2017.06.02.00.32.55
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D646B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 03:40:56 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id l145so58787708ita.14
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 00:40:56 -0700 (PDT)
+Received: from omzsmtpe02.verizonbusiness.com (omzsmtpe02.verizonbusiness.com. [199.249.25.209])
+        by mx.google.com with ESMTPS id c1si1672069itd.74.2017.06.02.00.40.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 00:32:55 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id g15so16788322wmc.2
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 00:32:55 -0700 (PDT)
-Subject: Re: [PATCH] memcg: refactor mem_cgroup_resize_limit()
-References: <20170601230212.30578-1-yuzhao@google.com>
-From: Nikolay Borisov <n.borisov.lkml@gmail.com>
-Message-ID: <7c1be205-837f-30f9-9161-9c8ed4689216@gmail.com>
-Date: Fri, 2 Jun 2017 10:32:52 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170601230212.30578-1-yuzhao@google.com>
-Content-Type: text/plain; charset=utf-8
+        Fri, 02 Jun 2017 00:40:55 -0700 (PDT)
+From: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+Subject: Re: [PATCH 1/9] mm: introduce kv[mz]alloc helpers
+Date: Fri, 2 Jun 2017 07:40:12 +0000
+Message-ID: <20170602074008.wctxj5il3rqnnpbf@sasha-lappy>
+References: <20170306103032.2540-1-mhocko@kernel.org>
+ <20170306103032.2540-2-mhocko@kernel.org>
+ <20170602071718.zk3ujm64xesoqyrr@sasha-lappy>
+ <20170602072855.GB29840@dhcp22.suse.cz>
+In-Reply-To: <20170602072855.GB29840@dhcp22.suse.cz>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <45AC844B5179814AAD5D5FB40FE7AC3F@vzwcorp.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, Andreas Dilger <adilger@dilger.ca>, Vlastimil Babka <vbabka@suse.cz>
 
+On Fri, Jun 02, 2017 at 09:28:56AM +0200, Michal Hocko wrote:
+> On Fri 02-06-17 07:17:22, Sasha Levin wrote:
+> > On Mon, Mar 06, 2017 at 11:30:24AM +0100, Michal Hocko wrote:
+> > > +void *kvmalloc_node(size_t size, gfp_t flags, int node)
+> > > +{
+> > > +	gfp_t kmalloc_flags =3D flags;
+> > > +	void *ret;
+> > > +
+> > > +	/*
+> > > +	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page =
+tables)
+> > > +	 * so the given set of flags has to be compatible.
+> > > +	 */
+> > > +	WARN_ON_ONCE((flags & GFP_KERNEL) !=3D GFP_KERNEL);
+> >=20
+> > Hm, there are quite a few locations in the kernel that do something lik=
+e:
+> >=20
+> > 	__vmalloc(len, GFP_NOFS, PAGE_KERNEL);
+> >=20
+> > According to your patch, vmalloc can't really do GFP_NOFS, right?
+>=20
+> Yes. It is quite likely that they will just work because the hardcoded
+> GFP_KERNEL inside the vmalloc path is in unlikely paths (page table
+> allocations for example) but yes they are broken. I didn't convert some
+> places which opencode the kvmalloc with GFP_NOFS because I strongly
+> _believe_ that the GFP_NOFS should be revisited, checked whether it is
+> needed, documented if so and then memalloc_nofs__{save,restore} be used
+> for the scope which is reclaim recursion unsafe. This would turn all
+> those vmalloc users to the default GFP_KERNEL and still do the right
+> thing.
 
+While you haven't converted those paths, other folks have picked up
+on that:
 
-On  2.06.2017 02:02, Yu Zhao wrote:
-> mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
-> identical logics. Refactor code so we don't need to keep two pieces
-> of code that does same thing.
-> 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-> ---
->  mm/memcontrol.c | 71 +++++++++------------------------------------------------
->  1 file changed, 11 insertions(+), 60 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 94172089f52f..a4f0daaff704 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2422,13 +2422,14 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
->  static DEFINE_MUTEX(memcg_limit_mutex);
->  
->  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
-> -				   unsigned long limit)
-> +				   unsigned long limit, bool memsw)
->  {
->  	unsigned long curusage;
->  	unsigned long oldusage;
->  	bool enlarge = false;
->  	int retry_count;
->  	int ret;
-> +	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
->  
->  	/*
->  	 * For keeping hierarchical_reclaim simple, how long we should retry
-> @@ -2438,58 +2439,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
->  		      mem_cgroup_count_children(memcg);
->  
-> -	oldusage = page_counter_read(&memcg->memory);
-> -
-> -	do {
-> -		if (signal_pending(current)) {
-> -			ret = -EINTR;
-> -			break;
-> -		}
-> -
-> -		mutex_lock(&memcg_limit_mutex);
-> -		if (limit > memcg->memsw.limit) {
-> -			mutex_unlock(&memcg_limit_mutex);
-> -			ret = -EINVAL;
-> -			break;
-> -		}
-> -		if (limit > memcg->memory.limit)
-> -			enlarge = true;
-> -		ret = page_counter_limit(&memcg->memory, limit);
-> -		mutex_unlock(&memcg_limit_mutex);
-> -
-> -		if (!ret)
-> -			break;
-> -
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
-> -
-> -		curusage = page_counter_read(&memcg->memory);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> -
-> -	if (!ret && enlarge)
-> -		memcg_oom_recover(memcg);
-> -
-> -	return ret;
-> -}
-> -
-> -static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
-> -					 unsigned long limit)
-> -{
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
-> -	bool enlarge = false;
-> -	int retry_count;
-> -	int ret;
-> -
-> -	/* see mem_cgroup_resize_res_limit */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(&memcg->memsw);
-> +	oldusage = page_counter_read(counter);
->  
->  	do {
->  		if (signal_pending(current)) {
-> @@ -2498,22 +2448,23 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		}
->  
->  		mutex_lock(&memcg_limit_mutex);
-> -		if (limit < memcg->memory.limit) {
-> +		if (memsw ? limit < memcg->memory.limit :
-> +			    limit > memcg->memsw.limit) {
+	commit beeeccca9bebcec386cc31c250cff8a06cf27034
+	Author: Vinnie Magro <vmagro@fb.com>
+	Date:   Thu May 25 12:18:02 2017 -0700
 
-No, just no. Please createa a local variable and use that. Using the
-ternary operator in an 'if' statement is just ugly!
+	    btrfs: Use kvzalloc instead of kzalloc/vmalloc in alloc_bitmap
+	[...]
 
->  			mutex_unlock(&memcg_limit_mutex);
->  			ret = -EINVAL;
->  			break;
->  		}
-> -		if (limit > memcg->memsw.limit)
-> +		if (limit > counter->limit)
->  			enlarge = true;
-> -		ret = page_counter_limit(&memcg->memsw, limit);
-> +		ret = page_counter_limit(counter, limit);
->  		mutex_unlock(&memcg_limit_mutex);
->  
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-> +		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
->  
-> -		curusage = page_counter_read(&memcg->memsw);
-> +		curusage = page_counter_read(counter);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
->  			retry_count--;
-> @@ -2975,10 +2926,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
->  		}
->  		switch (MEMFILE_TYPE(of_cft(of)->private)) {
->  		case _MEM:
-> -			ret = mem_cgroup_resize_limit(memcg, nr_pages);
-> +			ret = mem_cgroup_resize_limit(memcg, nr_pages, false);
->  			break;
->  		case _MEMSWAP:
-> -			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
-> +			ret = mem_cgroup_resize_limit(memcg, nr_pages, true);
->  			break;
->  		case _KMEM:
->  			ret = memcg_update_kmem_limit(memcg, nr_pages);
-> 
+Maybe we should make kvmalloc_node() fail non-GFP_KERNEL allocations
+rather than just warn on them to make this error more evident? I'm not
+sure how these warnings were missed during testing.
+
+--=20
+
+Thanks,
+Sasha=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
