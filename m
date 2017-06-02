@@ -1,90 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 727CC6B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 11:54:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b86so17555262wmi.6
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 08:54:27 -0700 (PDT)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id a15si3130553wme.139.2017.06.02.08.54.25
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C0AA36B02B4
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 12:03:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p74so80324368pfd.11
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 09:03:37 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 203si23587332pfu.4.2017.06.02.09.03.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 08:54:26 -0700 (PDT)
-Received: by mail-wm0-x22a.google.com with SMTP id d127so30257649wmf.0
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 08:54:25 -0700 (PDT)
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH v2] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD mappings
-Date: Fri,  2 Jun 2017 15:54:16 +0000
-Message-Id: <20170602155416.32706-1-ard.biesheuvel@linaro.org>
+        Fri, 02 Jun 2017 09:03:36 -0700 (PDT)
+Subject: Re: [PATCH] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD
+ mappings
+References: <20170602112720.28948-1-ard.biesheuvel@linaro.org>
+ <e98368d8-b1bc-5804-2115-370ec7109e9b@intel.com>
+ <CAKv+Gu964bDsV52gZ7QCJf26kXVaWgmuwXZSm0qWxa-34Eqttw@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <747b71d8-86a7-3b96-cf90-60d6c2ce0171@intel.com>
+Date: Fri, 2 Jun 2017 09:03:34 -0700
+MIME-Version: 1.0
+In-Reply-To: <CAKv+Gu964bDsV52gZ7QCJf26kXVaWgmuwXZSm0qWxa-34Eqttw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, labbott@fedoraproject.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, zhongjiang@huawei.com, guohanjun@huawei.com, tanxiaojun@huawei.com, steve.capper@linaro.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Zhong Jiang <zhongjiang@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Tanxiaojun <tanxiaojun@huawei.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>
 
-While vmalloc() itself strictly uses page mappings only on all
-architectures, some of the support routines are aware of the possible
-existence of PMD or PUD size mappings inside the VMALLOC region.
-This is necessary given that vmalloc() shares this region and the
-unmap routines with ioremap(), which may use huge pages on some
-architectures (HAVE_ARCH_HUGE_VMAP).
+On 06/02/2017 08:11 AM, Ard Biesheuvel wrote:
+>>> +     pte_t pte = huge_ptep_get((pte_t *)pud);
+>>> +
+>>> +     if (pte_present(pte))
+>>> +             page = pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+>> x86 has pmd/pud_page().  Seems a bit silly to open-code it here.
+>>
+> So I should replace pud_page() with what exactly?
 
-On arm64 running with 4 KB pages, VM_MAP mappings will exist in the
-VMALLOC region that are mapped to some extent using PMD size mappings.
-As reported by Zhong Jiang, this confuses the kcore code, given that
-vread() does not expect having to deal with PMD mappings, resulting
-in oopses.
+Whoops, I was reading that wrong.
 
-Even though we could work around this by special casing kcore or vmalloc
-code for the VM_MAP mappings used by the arm64 kernel, the fact is that
-there is already a precedent for dealing with PMD/PUD mappings in the
-VMALLOC region, and so we could update the vmalloc_to_page() routine to
-deal with such mappings as well. This solves the problem, and brings us
-a step closer to huge page support in vmalloc/vmap, which could well be
-in our future anyway.
+So, the pud in this case is a huge pud pointing to data.  pud_page()
+gives us the head page, but not the base (tail) page.  The 'addr' math
+gets us that.
 
-Reported-by: Zhong Jiang <zhongjiang@huawei.com>
-Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
-v2:
-- simplify so we can get rid of #ifdefs (drop huge_ptep_get(), which seems
-  unnecessary given that p?d_huge() can be assumed to imply p?d_present())
-- use HAVE_ARCH_HUGE_VMAP Kconfig define as indicator whether huge mappings
-  in the vmalloc range are to be expected, and VM_BUG_ON() otherwise
+First of all, this math isn't guaranteed to work.  We don't guarantee
+virtual contiguity for all mem_map[]s.  I think you need to go to a pfn
+or paddr first, add the pud offset, then convert to a 'struct page'.
 
- mm/vmalloc.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+But, what *is* the right thing to return here?  Do the users here want
+the head page or the tail page?
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 34a1c3e46ed7..451cd5cafedc 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -12,6 +12,7 @@
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/highmem.h>
-+#include <linux/hugetlb.h>
- #include <linux/sched/signal.h>
- #include <linux/slab.h>
- #include <linux/spinlock.h>
-@@ -289,9 +290,17 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
- 	pud = pud_offset(p4d, addr);
- 	if (pud_none(*pud))
- 		return NULL;
-+	if (pud_huge(*pud)) {
-+		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
-+		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+	}
- 	pmd = pmd_offset(pud, addr);
- 	if (pmd_none(*pmd))
- 		return NULL;
-+	if (pmd_huge(*pmd)) {
-+		VM_BUG_ON(!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP));
-+		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+	}
- 
- 	ptep = pte_offset_map(pmd, addr);
- 	pte = *ptep;
--- 
-2.9.3
+BTW, _are_ your huge vmalloc pages compound?
+
+>>> +#else
+>>> +     VIRTUAL_BUG_ON(1);
+>>> +#endif
+>>> +     return page;
+>>> +}
+>> So if somebody manages to call this function on a huge page table entry,
+>> but doesn't have hugetlbfs configured on, we kill the machine?
+> Yes. But only if you have CONFIG_DEBUG_VIRTUAL defined, in which case
+> it seems appropriate to signal a failure rather than proceed with
+> dereferencing the huge PMD entry as if it were a table entry.
+
+Why kill the machine rather than just warning and returning NULL?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
