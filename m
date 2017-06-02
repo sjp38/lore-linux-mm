@@ -1,67 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B2E316B0279
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 04:19:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k15so15537643wmh.3
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 01:19:00 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 556066B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 04:43:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 10so15646752wml.4
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 01:43:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l26si22625601edf.189.2017.06.02.01.18.59
+        by mx.google.com with ESMTPS id j5si21311450edd.287.2017.06.02.01.43.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 01:18:59 -0700 (PDT)
-Date: Fri, 2 Jun 2017 10:18:57 +0200
+        Fri, 02 Jun 2017 01:43:36 -0700 (PDT)
+Date: Fri, 2 Jun 2017 10:43:33 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] swap: cond_resched in swap_cgroup_prepare()
-Message-ID: <20170602081855.GE29840@dhcp22.suse.cz>
-References: <20170601195635.20744-1-yuzhao@google.com>
+Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
+Message-ID: <20170602084333.GF29840@dhcp22.suse.cz>
+References: <1495124884-28974-1-git-send-email-guro@fb.com>
+ <20170520183729.GA3195@esperanza>
+ <20170522170116.GB22625@castle>
+ <20170523070747.GF12813@dhcp22.suse.cz>
+ <20170523132544.GA13145@cmpxchg.org>
+ <20170525153819.GA7349@dhcp22.suse.cz>
+ <20170525170805.GA5631@cmpxchg.org>
+ <20170531162504.GX27783@dhcp22.suse.cz>
+ <20170531180145.GB10481@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170601195635.20744-1-yuzhao@google.com>
+In-Reply-To: <20170531180145.GB10481@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov@tarantool.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 01-06-17 12:56:35, Yu Zhao wrote:
-> Saw need_resched() warnings when swapping on large swapfile (TBs)
-> because page allocation in swap_cgroup_prepare() took too long.
-
-Hmm, but the page allocator makes sure to cond_resched for sleeping
-allocations. I guess what you mean is something different. It is not the
-allocation which took too look but there are too many of them and none
-of them sleeps because there is enough memory and the allocator doesn't
-sleep in that case. Right?
-
-> We already cond_resched when freeing page in swap_cgroup_swapoff().
-> Do the same for the page allocation.
+On Wed 31-05-17 14:01:45, Johannes Weiner wrote:
+> On Wed, May 31, 2017 at 06:25:04PM +0200, Michal Hocko wrote:
+> > On Thu 25-05-17 13:08:05, Johannes Weiner wrote:
+> > > Everything the user would want to dynamically program in the kernel,
+> > > say with bpf, they could do in userspace and then update the scores
+> > > for each group and task periodically.
+> > 
+> > I am rather skeptical about dynamic scores. oom_{score_}adj has turned
+> > to mere oom disable/enable knobs from my experience.
 > 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-
-The patch itself makes sense to me, the changelog could see some
-clarification but other than that
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/swap_cgroup.c | 3 +++
->  1 file changed, 3 insertions(+)
+> That doesn't necessarily have to be a deficiency with the scoring
+> system. I suspect that most people simply don't care as long as the
+> the picks for OOM victims aren't entirely stupid.
 > 
-> diff --git a/mm/swap_cgroup.c b/mm/swap_cgroup.c
-> index ac6318a064d3..3405b4ee1757 100644
-> --- a/mm/swap_cgroup.c
-> +++ b/mm/swap_cgroup.c
-> @@ -48,6 +48,9 @@ static int swap_cgroup_prepare(int type)
->  		if (!page)
->  			goto not_enough_page;
->  		ctrl->map[idx] = page;
-> +
-> +		if (!(idx % SWAP_CLUSTER_MAX))
-> +			cond_resched();
->  	}
->  	return 0;
->  not_enough_page:
-> -- 
-> 2.13.0.219.gdb65acc882-goog
+> For example, we have a lot of machines that run one class of job. If
+> we run OOM there isn't much preference we'd need to express; just kill
+> one job - the biggest, whatever - and move on. (The biggest makes
+> sense because if all jobs are basically equal it's as good as any
+> other victim, but if one has a runaway bug it goes for that.)
+> 
+> Where we have more than one job class, it actually is mostly one hipri
+> and one lopri, in which case setting a hard limit on the lopri or the
+> -1000 OOM score trick is enough.
+> 
+> How many systems run more than two clearly distinguishable classes of
+> workloads concurrently?
+
+What about those which run different containers on a large physical
+machine?
+
+> I'm sure they exist. I'm just saying it doesn't surprise me that
+> elaborate OOM scoring isn't all that wide-spread.
+> 
+> > > The only limitation is that you have to recalculate and update the
+> > > scoring tree every once in a while, whereas a bpf program could
+> > > evaluate things just-in-time. But for that to matter in practice, OOM
+> > > kills would have to be a fairly hot path.
+> > 
+> > I am not really sure how to reliably implement "kill the memcg with the
+> > largest process" strategy. And who knows how many others strategies will
+> > pop out.
+> 
+> That seems fairly contrived.
+> 
+> What does it mean to divide memory into subdomains, but when you run
+> out of physical memory you kill based on biggest task?
+
+Well, the biggest task might be the runaway one and so killing it first
+before you kill other innocent ones makes some sense to me.
+
+> Sure, it frees memory and gets the system going again, so it's as good
+> as any answer to overcommit gone wrong, I guess. But is that something
+> you'd intentionally want to express from a userspace perspective?
+> 
+[...]
+> > > > Maybe. But that requires somebody to tweak the scoring which can be hard
+> > > > from trivial.
+> > > 
+> > > Why is sorting and picking in userspace harder than sorting and
+> > > picking in the kernel?
+> > 
+> > Because the userspace score based approach would be much more racy
+> > especially in the busy system. This could lead to unexpected behavior
+> > when OOM killer would kill a different than a run-away memcgs.
+> 
+> How would it be easier to weigh priority against runaway detection
+> inside the kernel?
+
+You have better chances to catch such a process at the time of the OOM
+because you do the check at the time of the OOM rather than sometimes
+back in time when your monitor was able to run and check all the
+existing processes (which alone can be rather time consuming so you do
+not want to do that very often).
+
+> > > > +	/*
+> > > >  	 * If current has a pending SIGKILL or is exiting, then automatically
+> > > >  	 * select it.  The goal is to allow it to allocate so that it may
+> > > >  	 * quickly exit and free its memory.
+> > > > 
+> > > > Please note that I haven't explored how much of the infrastructure
+> > > > needed for the OOM decision making is available to modules. But we can
+> > > > export a lot of what we currently have in oom_kill.c. I admit it might
+> > > > turn out that this is simply not feasible but I would like this to be at
+> > > > least explored before we go and implement yet another hardcoded way to
+> > > > handle (see how I didn't use policy ;)) OOM situation.
+> > > 
+> > > ;)
+> > > 
+> > > My doubt here is mainly that we'll see many (or any) real-life cases
+> > > materialize that cannot be handled with cgroups and scoring. These are
+> > > powerful building blocks on which userspace can implement all kinds of
+> > > policy and sorting algorithms.
+> > > 
+> > > So this seems like a lot of churn and complicated code to handle one
+> > > extension. An extension that implements basic functionality.
+> > 
+> > Well, as I've said I didn't get to explore this path so I have only a
+> > very vague idea what we would have to export to implement e.g. the
+> > proposed oom killing strategy suggested in this thread. Unfortunatelly I
+> > do not have much time for that. I do not want to block a useful work
+> > which you have a usecase for but I would be really happy if we could
+> > consider longer term plans before diving into a "hardcoded"
+> > implementation. We didn't do that previously and we are left with
+> > oom_kill_allocating_task and similar one off things.
+> 
+> As I understand it, killing the allocating task was simply the default
+> before the OOM killer and was added as a compat knob. I really doubt
+> anybody is using it at this point, and we could probably delete it.
+
+I might misremember but my recollection is that SGI simply had too
+large machines with too many processes and so the task selection was
+very expensinve.
+
+> I appreciate your concern of being too short-sighted here, but the
+> fact that I cannot point to more usecases isn't for lack of trying. I
+> simply don't see the endless possibilities of usecases that you do.
+> 
+> It's unlikely for more types of memory domains to pop up besides MMs
+> and cgroups. (I mentioned vmas, but that just seems esoteric. And we
+> have panic_on_oom for whole-system death. What else could there be?)
+> 
+> And as I pointed out, there is no real evidence that the current
+> system for configuring preferences isn't sufficient in practice.
+> 
+> That's my thoughts on exploring. I'm not sure what else to do before
+> it feels like running off into fairly contrived hypotheticals.
+
+Yes, I do not want hypotheticals to block an otherwise useful feature,
+of course. But I haven't heard a strong argument why a module based
+approach would be a more maintenance burden longterm. From a very quick
+glance over patches Roman has posted yesterday it seems that a large
+part of the existing oom infrastructure can be reused reasonably.
 
 -- 
 Michal Hocko
