@@ -1,119 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 926E86B02B4
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 07:27:32 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 8so16489464wms.11
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 04:27:32 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id f42si23687071wrf.122.2017.06.02.04.27.31
+	by kanga.kvack.org (Postfix) with ESMTP id A1E236B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 08:15:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w79so16806539wme.7
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 05:15:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j35si21954791eda.11.2017.06.02.05.15.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 04:27:31 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id d127so23316906wmf.0
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 04:27:31 -0700 (PDT)
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD mappings
-Date: Fri,  2 Jun 2017 11:27:20 +0000
-Message-Id: <20170602112720.28948-1-ard.biesheuvel@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 02 Jun 2017 05:15:37 -0700 (PDT)
+Date: Fri, 2 Jun 2017 14:15:33 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+Message-ID: <20170602121533.GH29840@dhcp22.suse.cz>
+References: <20170601115936.GA9091@dhcp22.suse.cz>
+ <201706012211.GHI18267.JFOVMSOLFFQHOt@I-love.SAKURA.ne.jp>
+ <20170601132808.GD9091@dhcp22.suse.cz>
+ <20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
+ <20170602071818.GA29840@dhcp22.suse.cz>
+ <201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, labbott@fedoraproject.org, catalin.marinas@arm.com, will.deacon@arm.com, mark.rutland@arm.com, zhongjiang@huawei.com, guohanjun@huawei.com, tanxiaojun@huawei.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
 
-While vmalloc() itself strictly uses page mappings only on all
-architectures, some of the support routines are aware of the possible
-existence of PMD or PUD size mappings inside the VMALLOC region.
-This is necessary given that ioremap() shares this region and the
-unmap routines with vmalloc(), and ioremap() may use huge pages on
-some architectures.
+On Fri 02-06-17 20:13:32, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
+> >> Michal Hocko wrote:
+> >>> On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
+> >>>> Cong Wang has reported a lockup when running LTP memcg_stress test [1].
+> >>>
+> >>> This seems to be on an old and not pristine kernel. Does it happen also
+> >>> on the vanilla up-to-date kernel?
+> >>
+> >> 4.9 is not an old kernel! It might be close to the kernel version which
+> >> enterprise distributions would choose for their next long term supported
+> >> version.
+> >>
+> >> And please stop saying "can you reproduce your problem with latest
+> >> linux-next (or at least latest linux)?" Not everybody can use the vanilla
+> >> up-to-date kernel!
+> >
+> > The changelog mentioned that the source of stalls is not clear so this
+> > might be out-of-tree patches doing something wrong and dump_stack
+> > showing up just because it is called often. This wouldn't be the first
+> > time I have seen something like that. I am not really keen on adding
+> > heavy lifting for something that is not clearly debugged and based on
+> > hand waving and speculations.
+> 
+> You are asking users to prove that the problem is indeed in the MM subsystem,
+> but you are thinking that kmallocwd which helps users to check whether the
+> problem is indeed in the MM subsystem is not worth merging into mainline.
+> As a result, we have to try things based on what you think handwaving and
+> speculations. This is a catch-22. If you don't want handwaving/speculations,
+> please please do provide a mechanism for checking (a) and (b) shown later.
 
-On arm64 running with 4 KB pages, VM_MAP mappings will exist in the
-VMALLOC region that are mapped to some extent using PMD size mappings.
-As reported by Zhong Jiang, this confuses the kcore code, given that
-vread() does not expect having to deal with PMD mappings, resulting
-in oopses.
+configure watchdog to bug on soft lockup, take a crash dump, see what
+is going on there and you can draw a better picture of what is going on
+here. Seriously I am fed up with all the "let's do the async thing
+because it would tell much more" side discussions. You are trying to fix
+a soft lockup which alone is not a deadly condition. If the system is
+overwhelmed it can happen and if that is the case then we should care
+whether it gets resolved or it is a permanent livelock situation. If yes
+then we need to isolate which path is not preempting and why and place
+the cond_resched there. The page allocator contains preemption points,
+if we are lacking some for some pathological paths let's add them. For
+some reason you seem to be focused only on the warn_alloc path, though,
+while the real issue might be somewhere completely else.
 
-Even though we could work around this by special casing kcore or vmalloc
-code for the VM_MAP mappings used by the arm64 kernel, the fact is that
-there is already a precedent for dealing with PMD/PUD mappings in the
-VMALLOC region, and so we could update the vmalloc_to_page() routine to
-deal with such mappings as well. This solves the problem, and brings us
-a step closer to huge page support in vmalloc/vmap, which could well be
-in our future anyway.
-
-Reported-by: Zhong Jiang <zhongjiang@huawei.com>
-Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
- mm/vmalloc.c | 37 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 37 insertions(+)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 34a1c3e46ed7..cd79e62f8011 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -12,6 +12,7 @@
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/highmem.h>
-+#include <linux/hugetlb.h>
- #include <linux/sched/signal.h>
- #include <linux/slab.h>
- #include <linux/spinlock.h>
-@@ -263,6 +264,38 @@ int is_vmalloc_or_module_addr(const void *x)
- }
- 
- /*
-+ * Some architectures (such as arm64) allow vmap() mappings in the
-+ * vmalloc region that may consist of PMD block mappings.
-+ */
-+static struct page *vmalloc_to_pud_page(unsigned long addr, pud_t *pud)
-+{
-+	struct page *page = NULL;
-+#ifdef CONFIG_HUGETLB_PAGE
-+	pte_t pte = huge_ptep_get((pte_t *)pud);
-+
-+	if (pte_present(pte))
-+		page = pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+#else
-+	VIRTUAL_BUG_ON(1);
-+#endif
-+	return page;
-+}
-+
-+static struct page *vmalloc_to_pmd_page(unsigned long addr, pmd_t *pmd)
-+{
-+	struct page *page = NULL;
-+#ifdef CONFIG_HUGETLB_PAGE
-+	pte_t pte = huge_ptep_get((pte_t *)pmd);
-+
-+	if (pte_present(pte))
-+		page = pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+#else
-+	VIRTUAL_BUG_ON(1);
-+#endif
-+	return page;
-+}
-+
-+/*
-  * Walk a vmap address to the struct page it maps.
-  */
- struct page *vmalloc_to_page(const void *vmalloc_addr)
-@@ -289,9 +322,13 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
- 	pud = pud_offset(p4d, addr);
- 	if (pud_none(*pud))
- 		return NULL;
-+	if (pud_huge(*pud))
-+		return vmalloc_to_pud_page(addr, pud);
- 	pmd = pmd_offset(pud, addr);
- 	if (pmd_none(*pmd))
- 		return NULL;
-+	if (pmd_huge(*pmd))
-+		return vmalloc_to_pmd_page(addr, pmd);
- 
- 	ptep = pte_offset_map(pmd, addr);
- 	pte = *ptep;
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
