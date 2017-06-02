@@ -1,78 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C02C6B0338
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 16:36:27 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o99so30297488qko.15
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 13:36:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n82si24002727qkl.320.2017.06.02.13.36.26
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7010C6B033C
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 16:36:40 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w91so1644521wrb.13
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 13:36:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j80si58725wmj.91.2017.06.02.13.36.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 13:36:26 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
-References: <20170524212745.GP24798@htj.duckdns.org>
- <20170601145042.GA3494@htj.duckdns.org>
- <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
- <ffa991a3-074d-ffd5-7a6a-556d6cdd08fe@redhat.com>
- <20170601184740.GC3494@htj.duckdns.org>
- <ca834386-c41c-2797-702f-91516b06779f@redhat.com>
- <20170601203815.GA13390@htj.duckdns.org>
- <e65745c2-3b07-eb8b-b638-04e9bb1ed1e6@redhat.com>
- <20170601205203.GB13390@htj.duckdns.org>
- <1e775dcf-61b2-29d5-a214-350dc81c632b@redhat.com>
- <20170601211823.GC13390@htj.duckdns.org>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <cf47d637-204c-49ea-94ec-c2bf0cf10614@redhat.com>
-Date: Fri, 2 Jun 2017 16:36:22 -0400
-MIME-Version: 1.0
-In-Reply-To: <20170601211823.GC13390@htj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+        Fri, 02 Jun 2017 13:36:39 -0700 (PDT)
+Date: Fri, 2 Jun 2017 13:36:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free +
+ file is low
+Message-Id: <20170602133637.7f6b49fbb740fb70e3b2307d@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com>
+	<20170418013659.GD21354@bbox>
+	<alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com>
+	<20170419001405.GA13364@bbox>
+	<alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+	<20170420060904.GA3720@bbox>
+	<alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/01/2017 05:18 PM, Tejun Heo wrote:
-> Hello,
->
-> On Thu, Jun 01, 2017 at 05:12:42PM -0400, Waiman Long wrote:
->> Are you referring to keeping the no internal process restriction and
->> document how to work around that instead? I would like to hear what
->> workarounds are currently being used.
-> What we've been talking about all along - just creating explicit leaf
-> nodes.
->
->> Anyway, you currently allow internal process in thread mode, but not i=
-n
->> non-thread mode. I would prefer no such restriction in both thread and=
+On Mon, 1 May 2017 14:34:21 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
->> non-thread mode.
-> Heh, so, these aren't arbitrary.  The contraint is tied to
-> implementing resource domains and thread subtree doesn't have resource
-> domains in them, so they don't need the constraint.  I'm sorry about
-> the short replies but I'm kinda really tied up right now.  I'm gonna
-> do the thread mode so that it can be agnostic w.r.t. the internal
-> process constraint and I think it could be helpful to decouple these
-> discussions.  We've been having this discussion for a couple years now
-> and it looks like we're gonna go through it all over, which is fine,
-> but let's at least keep that separate.
+> The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+> not swap anon pages just because free+file is low'") reintroduces is to
+> prefer swapping anonymous memory rather than trashing the file lru.
+> 
+> If the anonymous inactive lru for the set of eligible zones is considered
+> low, however, or the length of the list for the given reclaim priority
+> does not allow for effective anonymous-only reclaiming, then avoid
+> forcing SCAN_ANON.  Forcing SCAN_ANON will end up thrashing the small
+> list and leave unreclaimed memory on the file lrus.
+> 
+> If the inactive list is insufficient, fallback to balanced reclaim so the
+> file lru doesn't remain untouched.
+> 
 
-I wouldn't argue further on that if you insist. However, I still want to
-relax the constraint somewhat by abandoning the no internal process
-constraint  when only threaded controllers (non-resource domains) are
-enabled even when thread mode has not been explicitly enabled. It is a
-modified version my second alternative. Now the question is which
-controllers are considered to be resource domains. I think memory and
-blkio are in the list. What else do you think should be considered
-resource domains?
+--- a/mm/vmscan.c~mm-vmscan-avoid-thrashing-anon-lru-when-free-file-is-low-fix
++++ a/mm/vmscan.c
+@@ -2233,7 +2233,7 @@ static void get_scan_count(struct lruvec
+ 			 * anonymous pages on the LRU in eligible zones.
+ 			 * Otherwise, the small LRU gets thrashed.
+ 			 */
+-			if (!inactive_list_is_low(lruvec, false, sc, false) &&
++			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
+ 			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+ 					>> sc->priority) {
+ 				scan_balance = SCAN_ANON;
 
-Cheers,
-Longman
-
-
-
-any of the resource domains (!threaded) controllers are enabled.
+Worried.  Did you send the correct version?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
