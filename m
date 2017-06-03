@@ -1,106 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C8BE6B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 03:40:05 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 10so19038026wml.4
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 00:40:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f57si24431354ede.117.2017.06.03.00.40.03
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6616B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 04:36:52 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r84so4841640oif.0
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 01:36:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id o126si10689216oih.92.2017.06.03.01.36.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 03 Jun 2017 00:40:04 -0700 (PDT)
-Date: Sat, 3 Jun 2017 09:40:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: make PR_SET_THP_DISABLE immediately active
-Message-ID: <20170603073959.GC21524@dhcp22.suse.cz>
-References: <1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170602125059.66209870607085b84c257593@linux-foundation.org>
- <8a810c81-6a72-2af0-a450-6f03c71d8cca@suse.cz>
- <20170602134038.13728cb77678ae1a7d7128a4@linux-foundation.org>
-MIME-Version: 1.0
+        Sat, 03 Jun 2017 01:36:51 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170601132808.GD9091@dhcp22.suse.cz>
+	<20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
+	<20170602071818.GA29840@dhcp22.suse.cz>
+	<20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
+	<20170603073221.GB21524@dhcp22.suse.cz>
+In-Reply-To: <20170603073221.GB21524@dhcp22.suse.cz>
+Message-Id: <201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
+Date: Sat, 3 Jun 2017 17:36:35 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170602134038.13728cb77678ae1a7d7128a4@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: mhocko@suse.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com
 
-On Fri 02-06-17 13:40:38, Andrew Morton wrote:
-> On Fri, 2 Jun 2017 22:31:47 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
-> 
-> > On 06/02/2017 09:50 PM, Andrew Morton wrote:
-> > > On Fri,  2 Jun 2017 18:03:22 +0300 "Mike Rapoport" <rppt@linux.vnet.ibm.com> wrote:
-> > > 
-> > >> PR_SET_THP_DISABLE has a rather subtle semantic. It doesn't affect any
-> > >> existing mapping because it only updated mm->def_flags which is a template
-> > >> for new mappings. The mappings created after prctl(PR_SET_THP_DISABLE) have
-> > >> VM_NOHUGEPAGE flag set.  This can be quite surprising for all those
-> > >> applications which do not do prctl(); fork() & exec() and want to control
-> > >> their own THP behavior.
-> > >>
-> > >> Another usecase when the immediate semantic of the prctl might be useful is
-> > >> a combination of pre- and post-copy migration of containers with CRIU.  In
-> > >> this case CRIU populates a part of a memory region with data that was saved
-> > >> during the pre-copy stage. Afterwards, the region is registered with
-> > >> userfaultfd and CRIU expects to get page faults for the parts of the region
-> > >> that were not yet populated. However, khugepaged collapses the pages and
-> > >> the expected page faults do not occur.
-> > >>
-> > >> In more general case, the prctl(PR_SET_THP_DISABLE) could be used as a
-> > >> temporary mechanism for enabling/disabling THP process wide.
-> > >>
-> > >> Implementation wise, a new MMF_DISABLE_THP flag is added. This flag is
-> > >> tested when decision whether to use huge pages is taken either during page
-> > >> fault of at the time of THP collapse.
-> > >>
-> > >> It should be noted, that the new implementation makes PR_SET_THP_DISABLE
-> > >> master override to any per-VMA setting, which was not the case previously.
-> > >>
-> > >> Fixes: a0715cc22601 ("mm, thp: add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE")
-> > > 
-> > > "Fixes" is a bit strong.  I'd say "alters".  And significantly altering
-> > > the runtime behaviour of a three-year-old interface is rather a worry,
-> > > no?
-> > > 
-> > > Perhaps we should be adding new prctl modes to select this new
-> > > behaviour and leave the existing PR_SET_THP_DISABLE behaviour as-is?
-> > 
-> > I think we can reasonably assume that most users of the prctl do just
-> > the fork() & exec() thing, so they will be unaffected.
-> 
-> That sounds optimistic.  Perhaps people are using the current behaviour
-> to set on particular mapping to MMF_DISABLE_THP, with
-> 
-> 	prctl(PR_SET_THP_DISABLE)
-> 	mmap()
-> 	prctl(PR_CLR_THP_DISABLE)
-> 
-> ?
-> 
-> Seems a reasonable thing to do.
+Michal Hocko wrote:
+> On Fri 02-06-17 12:59:44, Andrew Morton wrote:
+> > On Fri, 2 Jun 2017 09:18:18 +0200 Michal Hocko <mhocko@suse.com> wrote:
+> >
+> > > On Thu 01-06-17 15:10:22, Andrew Morton wrote:
+> > > > On Thu, 1 Jun 2017 15:28:08 +0200 Michal Hocko <mhocko@suse.com> wrote:
+> > > >
+> > > > > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
+> > > > > > Michal Hocko wrote:
+> > > > > > > On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
+> > > > > > > > Cong Wang has reported a lockup when running LTP memcg_stress test [1].
+> > > > > > >
+> > > > > > > This seems to be on an old and not pristine kernel. Does it happen also
+> > > > > > > on the vanilla up-to-date kernel?
+> > > > > >
+> > > > > > 4.9 is not an old kernel! It might be close to the kernel version which
+> > > > > > enterprise distributions would choose for their next long term supported
+> > > > > > version.
+> > > > > >
+> > > > > > And please stop saying "can you reproduce your problem with latest
+> > > > > > linux-next (or at least latest linux)?" Not everybody can use the vanilla
+> > > > > > up-to-date kernel!
+> > > > >
+> > > > > The changelog mentioned that the source of stalls is not clear so this
+> > > > > might be out-of-tree patches doing something wrong and dump_stack
+> > > > > showing up just because it is called often. This wouldn't be the first
+> > > > > time I have seen something like that. I am not really keen on adding
+> > > > > heavy lifting for something that is not clearly debugged and based on
+> > > > > hand waving and speculations.
+> > > >
+> > > > I'm thinking we should serialize warn_alloc anyway, to prevent the
+> > > > output from concurrent calls getting all jumbled together?
+> > >
+> > > dump_stack already serializes concurrent calls.
+> >
+> > Sure.  But warn_alloc() doesn't.
+>
+> I really do not see why that would be much better, really. warn_alloc is
+> more or less one line + dump_stack + warn_alloc_show_mem. Single line
+> shouldn't be a big deal even though this is a continuation line
+> actually. dump_stack already contains its own synchronization and the
+> meminfo stuff is ratelimited to one per second. So why do we exactly
+> wantt to put yet another lock on top? Just to stick them together? Well
+> is this worth a new lock dependency between memory allocation and the
+> whole printk stack or dump_stack? Maybe yes but this needs a much deeper
+> consideration.
 
-Is it? The documentation is not very specific but it is clear about the
-scope being thread (I would argue process would be more approapriate
-but whatever) "Set the state of the "THP disable" flag for the calling
-thread." So the above seems like an incorrect usage to me.
+You are completely ignoring the fact that writing to consoles needs CPU time.
+My proposal is intended for not only grouping relevant lines together but also
+giving logbuf readers (currently a thread which is inside console_unlock(),
+which might be offloaded to a dedicated kernel thread in near future) CPU time
+for writing to consoles.
 
-> But who knows - people do all sorts of inventive things.
+>
+> Tetsuo is arguing that the locking will throttle warn_alloc callers and
+> that can help other processes to move on. I would call it papering over
+> a real issue which might be somewhere else and that is why I push back so
+> hard. The initial report is far from complete and seeing 30+ seconds
+> stalls without any indication that this is just a repeating stall after
+> 10s and 20s suggests that we got stuck somewhere in the reclaim path.
 
-well yes.
+That timestamp jump is caused by the fact that log_buf writers are consuming
+more CPU times than log_buf readers can consume. If I leave that situation
+more, printk() just starts printing "** %u printk messages dropped ** " line.
 
-> > And as usual, if
-> > somebody does complain in the end, we revert and try the other way?
-> 
-> But by then it's too late - the new behaviour will be out in the field.
+There is nothing more to reclaim, allocating threads are looping with
+cond_resched() and schedule_timeout_uninterruptible(1) (which effectively becomes
+no-op when there are many other threads doing the same thing) only, logbuf
+reader cannot use enough CPU time, and the OOM killer remains oom_lock held
+(notice that this timestamp jump is between "invoked oom-killer: " line and
+"Out of memory: Kill process " line) which prevents reclaiming memory.
 
-Well, the interface is currently broken for anything other than prctl
-& exec. And those will work properly even with the patch. So I am not
-really sure whether keeping the current status quo is reasonable.
+>
+> Moreover let's assume that the unfair locking in dump_stack has caused
+> the stall. How would an warn_alloc lock help when there are other
+> sources of dump_stack all over the kernel?
 
--- 
-Michal Hocko
-SUSE Labs
+__alloc_pages_slowpath() is insane as a caller of dump_stack().
+
+Basically __alloc_pages_slowpath() allows doing
+
+  while (1) {
+    cond_resched();
+    dump_stack();
+  }
+
+because all stalling treads can call warn_alloc(). Even though we ratelimit
+dump_stack() at both time_after() test and __ratelimit() test like
+
+  while (1) {
+    cond_resched();
+    if (time_after(jiffies, alloc_start + stall_timeout)) {
+      if (!(gfp_mask & __GFP_NOWARN) && __ratelimit(&nopage_rs)) {
+        dump_stack();
+      }
+      stall_timeout += 10 * HZ;
+    }
+  }
+
+ratelimited threads are still doing
+
+  while (1) {
+    cond_resched();
+  }
+
+which still obviously remains the source of starving CPU time for
+writing to consoles.
+
+This problem won't be solved even if logbuf reader is offloaded to
+a kernel thread dedicated for printk().
+
+>
+> Seriously, this whole discussion is based on hand waving. Like for
+> any other patches, the real issue should be debugged, explained and
+> discussed based on known facts, not speculations. As things stand now,
+> my NACK still holds. I am not going to waste my time repeating same
+> points all over again.
+
+It is not a hand waving. Doing unconstrained printk() loops (with
+cond_resched() only) inside kernel is seriously broken. We have to be
+careful not to allow CPU time consumption by logbuf writers (e.g.
+warn_alloc() from __alloc_pages_slowpath()) because logbuf reader needs
+CPU time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
