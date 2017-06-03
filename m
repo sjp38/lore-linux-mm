@@ -1,128 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE966B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 01:07:14 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 67so93289371itx.11
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 22:07:14 -0700 (PDT)
-Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
-        by mx.google.com with ESMTPS id p195si4650415itb.11.2017.06.02.22.07.13
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EC1896B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 03:32:27 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b84so18962202wmh.0
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 00:32:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m7si23226527edj.167.2017.06.03.00.32.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 22:07:13 -0700 (PDT)
-Received: by mail-it0-x229.google.com with SMTP id m47so24024048iti.1
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 22:07:13 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 03 Jun 2017 00:32:26 -0700 (PDT)
+Date: Sat, 3 Jun 2017 09:32:21 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+Message-ID: <20170603073221.GB21524@dhcp22.suse.cz>
+References: <1496317427-5640-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170601115936.GA9091@dhcp22.suse.cz>
+ <201706012211.GHI18267.JFOVMSOLFFQHOt@I-love.SAKURA.ne.jp>
+ <20170601132808.GD9091@dhcp22.suse.cz>
+ <20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
+ <20170602071818.GA29840@dhcp22.suse.cz>
+ <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1496439121.13303.1.camel@gmail.com>
-References: <20170526095404.20439-1-danielmicay@gmail.com> <20170602140743.274b9babba6118bfd12c7a26@linux-foundation.org>
- <1496439121.13303.1.camel@gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 2 Jun 2017 22:07:12 -0700
-Message-ID: <CAGXu5jLGU_HzjKGOCqc5qnCW9Zta6YNcoz2QeNBpvViyUS0GVg@mail.gmail.com>
-Subject: Re: [PATCH v4] add the option of fortified string.h functions
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Moni Shoua <monis@mellanox.com>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>
-Cc: Daniel Micay <danielmicay@gmail.com>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, linux-kernel <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Daniel Axtens <dja@axtens.net>, linux-rdma@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
 
-On Fri, Jun 2, 2017 at 2:32 PM, Daniel Micay <danielmicay@gmail.com> wrote:
-> On Fri, 2017-06-02 at 14:07 -0700, Andrew Morton wrote:
->> On Fri, 26 May 2017 05:54:04 -0400 Daniel Micay <danielmicay@gmail.com
->> > wrote:
->>
->> > This adds support for compiling with a rough equivalent to the glibc
->> > _FORTIFY_SOURCE=1 feature, providing compile-time and runtime buffer
->> > overflow checks for string.h functions when the compiler determines
->> > the
->> > size of the source or destination buffer at compile-time. Unlike
->> > glibc,
->> > it covers buffer reads in addition to writes.
->>
->> Did we find a bug in drivers/infiniband/sw/rxe/rxe_resp.c?
->>
->> i386 allmodconfig:
->>
->> In file included from ./include/linux/bitmap.h:8:0,
->>                  from ./include/linux/cpumask.h:11,
->>                  from ./include/linux/mm_types_task.h:13,
->>                  from ./include/linux/mm_types.h:4,
->>                  from ./include/linux/kmemcheck.h:4,
->>                  from ./include/linux/skbuff.h:18,
->>                  from drivers/infiniband/sw/rxe/rxe_resp.c:34:
->> In function 'memcpy',
->>     inlined from 'send_atomic_ack.constprop' at
->> drivers/infiniband/sw/rxe/rxe_resp.c:998:2,
->>     inlined from 'acknowledge' at
->> drivers/infiniband/sw/rxe/rxe_resp.c:1026:3,
->>     inlined from 'rxe_responder' at
->> drivers/infiniband/sw/rxe/rxe_resp.c:1286:10:
->> ./include/linux/string.h:309:4: error: call to '__read_overflow2'
->> declared with attribute error: detected read beyond size of object
->> passed as 2nd parameter
->>     __read_overflow2();
->>
->>
->> If so, can you please interpret this for the infiniband developers?
->
-> It copies sizeof(skb->cb) bytes with memcpy which is 48 bytes since cb
-> is a 48 byte char array in `struct sk_buff`. The source buffer is a
-> `struct rxe_pkt_info`:
->
-> struct rxe_pkt_info {
->         struct rxe_dev          *rxe;           /* device that owns packet */
->         struct rxe_qp           *qp;            /* qp that owns packet */
->         struct rxe_send_wqe     *wqe;           /* send wqe */
->         u8                      *hdr;           /* points to bth */
->         u32                     mask;           /* useful info about pkt */
->         u32                     psn;            /* bth psn of packet */
->         u16                     pkey_index;     /* partition of pkt */
->         u16                     paylen;         /* length of bth - icrc */
->         u8                      port_num;       /* port pkt received on */
->         u8                      opcode;         /* bth opcode of packet */
->         u8                      offset;         /* bth offset from pkt->hdr */
-> };
->
-> That looks like 32 bytes (1 byte of padding) on 32-bit and 48 bytes on
-> 64-bit (1 byte of padding), so on 32-bit there's a read overflow of 16
-> bytes from the stack here.
+On Fri 02-06-17 12:59:44, Andrew Morton wrote:
+> On Fri, 2 Jun 2017 09:18:18 +0200 Michal Hocko <mhocko@suse.com> wrote:
+> 
+> > On Thu 01-06-17 15:10:22, Andrew Morton wrote:
+> > > On Thu, 1 Jun 2017 15:28:08 +0200 Michal Hocko <mhocko@suse.com> wrote:
+> > > 
+> > > > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
+> > > > > Michal Hocko wrote:
+> > > > > > On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
+> > > > > > > Cong Wang has reported a lockup when running LTP memcg_stress test [1].
+> > > > > >
+> > > > > > This seems to be on an old and not pristine kernel. Does it happen also
+> > > > > > on the vanilla up-to-date kernel?
+> > > > > 
+> > > > > 4.9 is not an old kernel! It might be close to the kernel version which
+> > > > > enterprise distributions would choose for their next long term supported
+> > > > > version.
+> > > > > 
+> > > > > And please stop saying "can you reproduce your problem with latest
+> > > > > linux-next (or at least latest linux)?" Not everybody can use the vanilla
+> > > > > up-to-date kernel!
+> > > > 
+> > > > The changelog mentioned that the source of stalls is not clear so this
+> > > > might be out-of-tree patches doing something wrong and dump_stack
+> > > > showing up just because it is called often. This wouldn't be the first
+> > > > time I have seen something like that. I am not really keen on adding
+> > > > heavy lifting for something that is not clearly debugged and based on
+> > > > hand waving and speculations.
+> > > 
+> > > I'm thinking we should serialize warn_alloc anyway, to prevent the
+> > > output from concurrent calls getting all jumbled together?
+> > 
+> > dump_stack already serializes concurrent calls.
+> 
+> Sure.  But warn_alloc() doesn't.
 
-This should work (untested):
+I really do not see why that would be much better, really. warn_alloc is
+more or less one line + dump_stack + warn_alloc_show_mem. Single line
+shouldn't be a big deal even though this is a continuation line
+actually. dump_stack already contains its own synchronization and the
+meminfo stuff is ratelimited to one per second. So why do we exactly
+wantt to put yet another lock on top? Just to stick them together? Well
+is this worth a new lock dependency between memory allocation and the
+whole printk stack or dump_stack? Maybe yes but this needs a much deeper
+consideration.
 
-diff --git a/drivers/infiniband/sw/rxe/rxe_resp.c
-b/drivers/infiniband/sw/rxe/rxe_resp.c
-index 23039768f541..7b226deb83bb 100644
---- a/drivers/infiniband/sw/rxe/rxe_resp.c
-+++ b/drivers/infiniband/sw/rxe/rxe_resp.c
-@@ -995,7 +995,9 @@ static int send_atomic_ack(struct rxe_qp *qp,
-struct rxe_pkt_info *pkt,
-        free_rd_atomic_resource(qp, res);
-        rxe_advance_resp_resource(qp);
+Tetsuo is arguing that the locking will throttle warn_alloc callers and
+that can help other processes to move on. I would call it papering over
+a real issue which might be somewhere else and that is why I push back so
+hard. The initial report is far from complete and seeing 30+ seconds
+stalls without any indication that this is just a repeating stall after
+10s and 20s suggests that we got stuck somewhere in the reclaim path.
 
--       memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(skb->cb));
-+       memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(ack_ptr));
-+       memset(SKB_TO_PKT(skb) + sizeof(ack_ptr), 0,
-+              sizeof(skb->cb) - sizeof(ack_ptr));
+Moreover let's assume that the unfair locking in dump_stack has caused
+the stall. How would an warn_alloc lock help when there are other
+sources of dump_stack all over the kernel?
 
-        res->type = RXE_ATOMIC_MASK;
-        res->atomic.skb = skb;
-
-Andrew, there are other fortify fixes too:
-
-https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=af6b0151896240457ef0fdc18ace533c3d3fbb75
-https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=186eaf81b43bf90d6b533732fb11ad31ca27df9d
-https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=95d589f21b3aef757f0eb3d0224b78648a4b22d2
-https://github.com/thestinger/linux-hardened/commit/576e64469b0c4634c007445c5f16bfde610b3600
-
-Do you want me to resend these for you to carry, or reping
-maintainers? Other fixes have already landed in -next.
-
-(And there are two arm64 fixes, too.)
-
--Kees
+Seriously, this whole discussion is based on hand waving. Like for
+any other patches, the real issue should be debugged, explained and
+discussed based on known facts, not speculations. As things stand now,
+my NACK still holds. I am not going to waste my time repeating same
+points all over again.
 
 -- 
-Kees Cook
-Pixel Security
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
