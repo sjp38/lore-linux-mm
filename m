@@ -1,90 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DF356B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 06:35:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 139so19202347wmf.5
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 03:35:07 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ADF96B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 06:40:33 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 46so3313371wru.0
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 03:40:33 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i2si26317469eda.252.2017.06.03.03.35.05
+        by mx.google.com with ESMTPS id l75si2865568wmb.67.2017.06.03.03.40.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Jun 2017 03:35:06 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v53AYTiF109883
-	for <linux-mm@kvack.org>; Sat, 3 Jun 2017 06:35:05 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2autdnhuf8-1
+        Sat, 03 Jun 2017 03:40:32 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v53AcaKA069056
+	for <linux-mm@kvack.org>; Sat, 3 Jun 2017 06:40:30 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2auudy06m5-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 03 Jun 2017 06:35:04 -0400
+	for <linux-mm@kvack.org>; Sat, 03 Jun 2017 06:40:30 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Sat, 3 Jun 2017 11:35:03 +0100
-Date: Sat, 03 Jun 2017 13:34:52 +0300
-In-Reply-To: <f9e8a159-7a25-6813-f909-11c4ae58adf3@suse.cz>
-References: <1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com> <20170602125059.66209870607085b84c257593@linux-foundation.org> <8a810c81-6a72-2af0-a450-6f03c71d8cca@suse.cz> <20170602134038.13728cb77678ae1a7d7128a4@linux-foundation.org> <f9e8a159-7a25-6813-f909-11c4ae58adf3@suse.cz>
+	Sat, 3 Jun 2017 11:40:28 +0100
+Date: Sat, 03 Jun 2017 13:40:20 +0300
+In-Reply-To: <20170602125059.66209870607085b84c257593@linux-foundation.org>
+References: <1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com> <20170602125059.66209870607085b84c257593@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
  charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Subject: Re: [PATCH] mm: make PR_SET_THP_DISABLE immediately active
 From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <CAAB5A6A-D7A1-4C06-9A07-D7EF56278EE5@linux.vnet.ibm.com>
+Message-Id: <495443D6-654F-4751-8279-FBB96E3D90B3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
 
 
-On June 2, 2017 11:55:12 PM GMT+03:00, Vlastimil Babka <vbabka@suse=2Ecz> =
-wrote:
->On 06/02/2017 10:40 PM, Andrew Morton wrote:
->> On Fri, 2 Jun 2017 22:31:47 +0200 Vlastimil Babka <vbabka@suse=2Ecz>
->wrote:
->>>> Perhaps we should be adding new prctl modes to select this new
->>>> behaviour and leave the existing PR_SET_THP_DISABLE behaviour
->as-is?
->>>
->>> I think we can reasonably assume that most users of the prctl do
->just
->>> the fork() & exec() thing, so they will be unaffected=2E
->>=20
->> That sounds optimistic=2E  Perhaps people are using the current
->behaviour
->> to set on particular mapping to MMF_DISABLE_THP, with
->>=20
->> 	prctl(PR_SET_THP_DISABLE)
->> 	mmap()
->> 	prctl(PR_CLR_THP_DISABLE)
->>=20
->> ?
->>=20
->> Seems a reasonable thing to do=2E
+On June 2, 2017 10:50:59 PM GMT+03:00, Andrew Morton <akpm@linux-foundatio=
+n=2Eorg> wrote:
+>On Fri,  2 Jun 2017 18:03:22 +0300 "Mike Rapoport"
+><rppt@linux=2Evnet=2Eibm=2Ecom> wrote:
 >
->Using madvise(MADV_NOHUGEPAGE) seems reasonabler to me, with the same
->effect=2E And it's older (2=2E6=2E38)=2E
->
->> But who knows - people do all sorts of
->> inventive things=2E
->
->Yeah :( but we can hope they don't even know that the prctl currently
->behaves they way it does - man page doesn't suggest it would, and most
->of us in this thread found it surprising=2E
->
->>> And as usual, if
->>> somebody does complain in the end, we revert and try the other way?
+>> PR_SET_THP_DISABLE has a rather subtle semantic=2E It doesn't affect
+>any
+>> existing mapping because it only updated mm->def_flags which is a
+>template
+>> for new mappings=2E The mappings created after
+>prctl(PR_SET_THP_DISABLE) have
+>> VM_NOHUGEPAGE flag set=2E  This can be quite surprising for all those
+>> applications which do not do prctl(); fork() & exec() and want to
+>control
+>> their own THP behavior=2E
 >>=20
->> But by then it's too late - the new behaviour will be out in the
->field=2E
+>> Another usecase when the immediate semantic of the prctl might be
+>useful is
+>> a combination of pre- and post-copy migration of containers with
+>CRIU=2E  In
+>> this case CRIU populates a part of a memory region with data that was
+>saved
+>> during the pre-copy stage=2E Afterwards, the region is registered with
+>> userfaultfd and CRIU expects to get page faults for the parts of the
+>region
+>> that were not yet populated=2E However, khugepaged collapses the pages
+>and
+>> the expected page faults do not occur=2E
+>>=20
+>> In more general case, the prctl(PR_SET_THP_DISABLE) could be used as
+>a
+>> temporary mechanism for enabling/disabling THP process wide=2E
+>>=20
+>> Implementation wise, a new MMF_DISABLE_THP flag is added=2E This flag
+>is
+>> tested when decision whether to use huge pages is taken either during
+>page
+>> fault of at the time of THP collapse=2E
+>>=20
+>> It should be noted, that the new implementation makes
+>PR_SET_THP_DISABLE
+>> master override to any per-VMA setting, which was not the case
+>previously=2E
+>>
+>> Fixes: a0715cc22601 ("mm, thp: add VM_INIT_DEF_MASK and
+>PRCTL_THP_DISABLE")
 >
->Revert in stable then?
->But I don't think this patch should go to stable=2E I understand right
->that CRIU will switch to the UFFDIO_COPY approach and doesn't need the
->prctl change/new madvise anymore?
+>"Fixes" is a bit strong=2E  I'd say "alters"=2E  And significantly alteri=
+ng
+>the runtime behaviour of a three-year-old interface is rather a worry,
+>no?
 
-Yes, we are going to use UFFDIO_COPY=2E We still might want to have contro=
-l over THP in the future without changing per-VMA flags, though=2E
+Well, there are people that consider current behavior as bug :)
+One can argue we alter the implementation=E2=80=8Bdetails and users should=
+ not rely on that=2E=2E=2E
+
+>Perhaps we should be adding new prctl modes to select this new
+>behaviour and leave the existing PR_SET_THP_DISABLE behaviour as-is?
+
+
 
 --=20
 Sincerely yours,
