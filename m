@@ -1,215 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1FD6B0292
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 22:58:04 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id n13so95261451ita.7
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 19:58:04 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 70si4457960itp.90.2017.06.02.19.58.02
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE966B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 01:07:14 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 67so93289371itx.11
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 22:07:14 -0700 (PDT)
+Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
+        by mx.google.com with ESMTPS id p195si4650415itb.11.2017.06.02.22.07.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 02 Jun 2017 19:58:02 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201706012211.GHI18267.JFOVMSOLFFQHOt@I-love.SAKURA.ne.jp>
-	<20170601132808.GD9091@dhcp22.suse.cz>
-	<20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
-	<20170602071818.GA29840@dhcp22.suse.cz>
-	<20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
-In-Reply-To: <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
-Message-Id: <201706031157.JCC51567.LOFSQHVMOJFtOF@I-love.SAKURA.ne.jp>
-Date: Sat, 3 Jun 2017 11:57:48 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Jun 2017 22:07:13 -0700 (PDT)
+Received: by mail-it0-x229.google.com with SMTP id m47so24024048iti.1
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 22:07:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1496439121.13303.1.camel@gmail.com>
+References: <20170526095404.20439-1-danielmicay@gmail.com> <20170602140743.274b9babba6118bfd12c7a26@linux-foundation.org>
+ <1496439121.13303.1.camel@gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 2 Jun 2017 22:07:12 -0700
+Message-ID: <CAGXu5jLGU_HzjKGOCqc5qnCW9Zta6YNcoz2QeNBpvViyUS0GVg@mail.gmail.com>
+Subject: Re: [PATCH v4] add the option of fortified string.h functions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com, akataria@vmware.com, syeh@vmware.com, thellstrom@vmware.com, charmainel@vmware.com, brianp@vmware.com, sbhatewara@vmware.com
+To: Andrew Morton <akpm@linux-foundation.org>, Moni Shoua <monis@mellanox.com>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>
+Cc: Daniel Micay <danielmicay@gmail.com>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, linux-kernel <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Daniel Axtens <dja@axtens.net>, linux-rdma@vger.kernel.org
 
-(Adding printk() and VMware folks.)
-
-Andrew Morton wrote:
-> On Fri, 2 Jun 2017 09:18:18 +0200 Michal Hocko <mhocko@suse.com> wrote:
+On Fri, Jun 2, 2017 at 2:32 PM, Daniel Micay <danielmicay@gmail.com> wrote:
+> On Fri, 2017-06-02 at 14:07 -0700, Andrew Morton wrote:
+>> On Fri, 26 May 2017 05:54:04 -0400 Daniel Micay <danielmicay@gmail.com
+>> > wrote:
+>>
+>> > This adds support for compiling with a rough equivalent to the glibc
+>> > _FORTIFY_SOURCE=1 feature, providing compile-time and runtime buffer
+>> > overflow checks for string.h functions when the compiler determines
+>> > the
+>> > size of the source or destination buffer at compile-time. Unlike
+>> > glibc,
+>> > it covers buffer reads in addition to writes.
+>>
+>> Did we find a bug in drivers/infiniband/sw/rxe/rxe_resp.c?
+>>
+>> i386 allmodconfig:
+>>
+>> In file included from ./include/linux/bitmap.h:8:0,
+>>                  from ./include/linux/cpumask.h:11,
+>>                  from ./include/linux/mm_types_task.h:13,
+>>                  from ./include/linux/mm_types.h:4,
+>>                  from ./include/linux/kmemcheck.h:4,
+>>                  from ./include/linux/skbuff.h:18,
+>>                  from drivers/infiniband/sw/rxe/rxe_resp.c:34:
+>> In function 'memcpy',
+>>     inlined from 'send_atomic_ack.constprop' at
+>> drivers/infiniband/sw/rxe/rxe_resp.c:998:2,
+>>     inlined from 'acknowledge' at
+>> drivers/infiniband/sw/rxe/rxe_resp.c:1026:3,
+>>     inlined from 'rxe_responder' at
+>> drivers/infiniband/sw/rxe/rxe_resp.c:1286:10:
+>> ./include/linux/string.h:309:4: error: call to '__read_overflow2'
+>> declared with attribute error: detected read beyond size of object
+>> passed as 2nd parameter
+>>     __read_overflow2();
+>>
+>>
+>> If so, can you please interpret this for the infiniband developers?
 >
-> > On Thu 01-06-17 15:10:22, Andrew Morton wrote:
-> > > On Thu, 1 Jun 2017 15:28:08 +0200 Michal Hocko <mhocko@suse.com> wrote:
-> > >
-> > > > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
-> > > > > > > Cong Wang has reported a lockup when running LTP memcg_stress test [1].
-> > > > > >
-> > > > > > This seems to be on an old and not pristine kernel. Does it happen also
-> > > > > > on the vanilla up-to-date kernel?
-> > > > >
-> > > > > 4.9 is not an old kernel! It might be close to the kernel version which
-> > > > > enterprise distributions would choose for their next long term supported
-> > > > > version.
-> > > > >
-> > > > > And please stop saying "can you reproduce your problem with latest
-> > > > > linux-next (or at least latest linux)?" Not everybody can use the vanilla
-> > > > > up-to-date kernel!
-> > > >
-> > > > The changelog mentioned that the source of stalls is not clear so this
-> > > > might be out-of-tree patches doing something wrong and dump_stack
-> > > > showing up just because it is called often. This wouldn't be the first
-> > > > time I have seen something like that. I am not really keen on adding
-> > > > heavy lifting for something that is not clearly debugged and based on
-> > > > hand waving and speculations.
-> > >
-> > > I'm thinking we should serialize warn_alloc anyway, to prevent the
-> > > output from concurrent calls getting all jumbled together?
-> >
-> > dump_stack already serializes concurrent calls.
-
-I don't think offloading serialization to dump_stack() is a polite behavior
-when the caller can do serialization. Not only it wastes a lot of CPU time
-but also just passes the DOS stress through to lower layers. printk() needs
-CPU time to write to console.
-
-If printk() flooding starts, I can observe that
-
-   (1) timestamp in printk() output does not get incremented timely
-
-   (2) printk() output is not written to virtual serial console timely
-
-which makes me give up observing whether situation is changing over time.
-
-Results from http://I-love.SAKURA.ne.jp/tmp/serial-20170602-2.txt.xz :
-----------------------------------------
-[  123.771523] mmap-write invoked oom-killer: gfp_mask=0x14201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), nodemask=(null),  order=0, oom_score_adj=0
-[  124.808940] mmap-write cpuset=/ mems_allowed=0
-[  124.811595] CPU: 0 PID: 2852 Comm: mmap-write Not tainted 4.12.0-rc3-next-20170602 #99
-[  124.815842] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[  124.821171] Call Trace:
-[  124.823106]  dump_stack+0x86/0xcf
-[  124.825336]  dump_header+0x97/0x26d
-[  124.827668]  ? trace_hardirqs_on+0xd/0x10
-[  124.830222]  oom_kill_process+0x203/0x470
-[  124.832778]  out_of_memory+0x138/0x580
-[  124.835223]  __alloc_pages_slowpath+0x1100/0x11f0
-[  124.838085]  __alloc_pages_nodemask+0x308/0x3c0
-[  124.840850]  alloc_pages_current+0x6a/0xe0
-[  124.843332]  __page_cache_alloc+0x119/0x150
-[  124.845723]  filemap_fault+0x3dc/0x950
-[  124.847932]  ? debug_lockdep_rcu_enabled+0x1d/0x20
-[  124.850683]  ? xfs_filemap_fault+0x5b/0x180 [xfs]
-[  124.853427]  ? down_read_nested+0x73/0xb0
-[  124.855792]  xfs_filemap_fault+0x63/0x180 [xfs]
-[  124.858327]  __do_fault+0x1e/0x140
-[  124.860383]  __handle_mm_fault+0xb2c/0x1090
-[  124.862760]  handle_mm_fault+0x190/0x350
-[  124.865161]  __do_page_fault+0x266/0x520
-[  124.867409]  do_page_fault+0x30/0x80
-[  124.869846]  page_fault+0x28/0x30
-[  124.871803] RIP: 0033:0x7fb997682dca
-[  124.873875] RSP: 002b:0000000000777fe8 EFLAGS: 00010246
-[  124.876601] RAX: 00007fb997b6e000 RBX: 0000000000000000 RCX: 00007fb997682dca
-[  124.880077] RDX: 0000000000000001 RSI: 0000000000001000 RDI: 0000000000000000
-[  124.883551] RBP: 0000000000001000 R08: 0000000000000003 R09: 0000000000000000
-[  124.886933] R10: 0000000000000002 R11: 0000000000000246 R12: 0000000000000002
-[  124.890336] R13: 0000000000000000 R14: 0000000000000003 R15: 0000000000000001
-[  124.893853] Mem-Info:
-[  126.408131] mmap-read: page allocation stalls for 10005ms, order:0, mode:0x14201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), nodemask=(null)
-[  126.408137] mmap-read cpuset=/ mems_allowed=0
-(...snipped...)
-[  350.182442] mmap-read: page allocation stalls for 230016ms, order:0, mode:0x14201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), nodemask=(null)
-[  350.182446] mmap-read cpuset=/ mems_allowed=0
-[  350.182450] CPU: 0 PID: 2749 Comm: mmap-read Not tainted 4.12.0-rc3-next-20170602 #99
-[  350.182451] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[  350.182451] Call Trace:
-[  350.182455]  dump_stack+0x86/0xcf
-[  350.182457]  warn_alloc+0x114/0x1c0
-[  350.182466]  __alloc_pages_slowpath+0xbb8/0x11f0
-[  350.182481]  __alloc_pages_nodemask+0x308/0x3c0
-[  350.182491]  alloc_pages_current+0x6a/0xe0
-[  350.182495]  __page_cache_alloc+0x119/0x150
-[  350.182498]  filemap_fault+0x3dc/0x950
-[  350.182501]  ? debug_lockdep_rcu_enabled+0x1d/0x20
-[  350.182525]  ? xfs_filemap_fault+0x5b/0x180 [xfs]
-[  350.182528]  ? down_read_nested+0x73/0xb0
-[  350.182550]  xfs_filemap_fault+0x63/0x180 [xfs]
-[  350.182554]  __do_fault+0x1e/0x140
-[  350.182557]  __handle_mm_fault+0xb2c/0x1090
-[  350.182566]  handle_mm_fault+0x190/0x350
-[  350.182569]  __do_page_fault+0x266/0x520
-[  350.182575]  do_page_fault+0x30/0x80
-[  350.182578]  page_fault+0x28/0x30
-[  350.182580] RIP: 0033:0x400bfb
-[  350.182581] RSP: 002b:00000000007cf570 EFLAGS: 00010207
-[  350.182582] RAX: 000000000000010d RBX: 0000000000000003 RCX: 00007fb997678443
-[  350.182583] RDX: 0000000000001000 RSI: 00000000006021a0 RDI: 0000000000000003
-[  350.182583] RBP: 0000000000000000 R08: 0000000000000000 R09: 000000000000000a
-[  350.182584] R10: 0000000000000000 R11: 0000000000000246 R12: 00007ffd42a62438
-[  350.182585] R13: 00007ffd42a62540 R14: 0000000000000000 R15: 0000000000000000
-[  350.836483] sysrq: SysRq : Kill All Tasks
-[  350.876112] cleanupd (2180) used greatest stack depth: 10240 bytes left
-[  351.219055] audit: type=1131 audit(1496388867.600:97): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=systemd-journald comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.219060] audit: type=1131 audit(1496388867.603:98): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=systemd-udevd comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.219064] audit: type=1131 audit(1496388867.607:99): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=auditd comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.229083] audit: type=1131 audit(1496388867.610:100): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=abrtd comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.229092] audit: type=1131 audit(1496388867.613:101): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=dbus comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.229095] audit: type=1131 audit(1496388867.617:102): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=polkit comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.229636] audit: type=1131 audit(1496388867.621:103): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=avahi-daemon comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.233058] audit: type=1131 audit(1496388867.624:104): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=irqbalance comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.236596] audit: type=1131 audit(1496388867.628:105): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=atd comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  351.239144] audit: type=1131 audit(1496388867.630:106): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=crond comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-[  389.308085] active_anon:1146 inactive_anon:2777 isolated_anon:0
-[  389.308085]  active_file:479 inactive_file:508 isolated_file:0
-[  389.308085]  unevictable:0 dirty:0 writeback:0 unstable:0
-[  389.308085]  slab_reclaimable:9536 slab_unreclaimable:15265
-[  389.308085]  mapped:629 shmem:3535 pagetables:34 bounce:0
-[  389.308085]  free:356689 free_pcp:596 free_cma:0
-[  389.308089] Node 0 active_anon:4584kB inactive_anon:11108kB active_file:1916kB inactive_file:2032kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2516kB dirty:0kB writeback:0kB shmem:14140kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
-[  389.308090] Node 0 DMA free:15872kB min:440kB low:548kB high:656kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:32kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-[  389.308093] lowmem_reserve[]: 0 1561 1561 1561
-[  389.308097] Node 0 DMA32 free:1410884kB min:44612kB low:55764kB high:66916kB active_anon:4584kB inactive_anon:11108kB active_file:1916kB inactive_file:2032kB unevictable:0kB writepending:0kB present:2080640kB managed:1599404kB mlocked:0kB slab_reclaimable:38144kB slab_unreclaimable:61028kB kernel_stack:3808kB pagetables:136kB bounce:0kB free_pcp:2384kB local_pcp:696kB free_cma:0kB
-[  389.308099] lowmem_reserve[]: 0 0 0 0
-[  389.308103] Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 15872kB
-[  389.308121] Node 0 DMA32: 975*4kB (UME) 1199*8kB (UME) 1031*16kB (UME) 973*32kB (UME) 564*64kB (UME) 303*128kB (UME) 160*256kB (UME) 70*512kB (UME) 40*1024kB (UME) 21*2048kB (M) 272*4096kB (M) = 1410884kB
-[  389.308142] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
-[  389.308143] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-[  389.308143] 4522 total pagecache pages
-[  389.308147] 0 pages in swap cache
-[  389.308148] Swap cache stats: add 0, delete 0, find 0/0
-[  389.308149] Free swap  = 0kB
-[  389.308149] Total swap = 0kB
-[  389.308150] 524157 pages RAM
-[  389.308151] 0 pages HighMem/MovableOnly
-[  389.308152] 120330 pages reserved
-[  389.308153] 0 pages cma reserved
-[  389.308153] 0 pages hwpoisoned
-[  389.308155] Out of memory: Kill process 2649 (mmap-mem) score 783 or sacrifice child
-----------------------------------------
-Notice the timestamp jump between [  351.239144] and [  389.308085].
-There was no such silence between the two lines. Rather, increment of
-timestamp obviously started delaying after printk() flooding started
-(e.g. regarding line-A and line-B where timestamp delta is only a few
-microseconds, line-B is written to console after magnitudes of many
-seconds of silence after line-A was written to console). And the delay
-of timestamp in the log (i.e. about 39 seconds in above example) is
-recovered (i.e. timestamp reflects actual uptime) only after I pressed
-SysRq-i in order to allow the rest of the system to use CPU time.
-
-I don't know why such delaying occurs (problem in printk() or VMware ?) but
-what I can say is that threads spinning inside __alloc_pages_slowpath() is
-giving too much stress to printk() and the rest of the system.
-
-Now, similar CPU time wasting situation is reported by Cong as soft lockup
-on a physical hardware.
-
-You say "Your system is already DOSed. You should configure your system not
-to allow giving such stress to MM subsystem." and I say back "printk() is
-already DOSed. You should configure MM subsystem not to allow giving such
-stress to printk()."
-
+> It copies sizeof(skb->cb) bytes with memcpy which is 48 bytes since cb
+> is a 48 byte char array in `struct sk_buff`. The source buffer is a
+> `struct rxe_pkt_info`:
 >
-> Sure.  But warn_alloc() doesn't.
+> struct rxe_pkt_info {
+>         struct rxe_dev          *rxe;           /* device that owns packet */
+>         struct rxe_qp           *qp;            /* qp that owns packet */
+>         struct rxe_send_wqe     *wqe;           /* send wqe */
+>         u8                      *hdr;           /* points to bth */
+>         u32                     mask;           /* useful info about pkt */
+>         u32                     psn;            /* bth psn of packet */
+>         u16                     pkey_index;     /* partition of pkt */
+>         u16                     paylen;         /* length of bth - icrc */
+>         u8                      port_num;       /* port pkt received on */
+>         u8                      opcode;         /* bth opcode of packet */
+>         u8                      offset;         /* bth offset from pkt->hdr */
+> };
 >
+> That looks like 32 bytes (1 byte of padding) on 32-bit and 48 bytes on
+> 64-bit (1 byte of padding), so on 32-bit there's a read overflow of 16
+> bytes from the stack here.
 
-I agree with Andrew. Callers of dump_stack() must do, if the callers are
-in schedulable context, a sensible flow-control so that lower layers are
-not annoyed .
+This should work (untested):
+
+diff --git a/drivers/infiniband/sw/rxe/rxe_resp.c
+b/drivers/infiniband/sw/rxe/rxe_resp.c
+index 23039768f541..7b226deb83bb 100644
+--- a/drivers/infiniband/sw/rxe/rxe_resp.c
++++ b/drivers/infiniband/sw/rxe/rxe_resp.c
+@@ -995,7 +995,9 @@ static int send_atomic_ack(struct rxe_qp *qp,
+struct rxe_pkt_info *pkt,
+        free_rd_atomic_resource(qp, res);
+        rxe_advance_resp_resource(qp);
+
+-       memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(skb->cb));
++       memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(ack_ptr));
++       memset(SKB_TO_PKT(skb) + sizeof(ack_ptr), 0,
++              sizeof(skb->cb) - sizeof(ack_ptr));
+
+        res->type = RXE_ATOMIC_MASK;
+        res->atomic.skb = skb;
+
+Andrew, there are other fortify fixes too:
+
+https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=af6b0151896240457ef0fdc18ace533c3d3fbb75
+https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=186eaf81b43bf90d6b533732fb11ad31ca27df9d
+https://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git/commit/?h=kspp/fortify&id=95d589f21b3aef757f0eb3d0224b78648a4b22d2
+https://github.com/thestinger/linux-hardened/commit/576e64469b0c4634c007445c5f16bfde610b3600
+
+Do you want me to resend these for you to carry, or reping
+maintainers? Other fixes have already landed in -next.
+
+(And there are two arm64 fixes, too.)
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
