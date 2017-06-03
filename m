@@ -1,627 +1,720 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C13D6B03A9
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 21:26:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p86so95664103pfl.12
-        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 18:26:17 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id v2si5356615pgn.193.2017.06.02.18.26.15
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A85816B0279
+	for <linux-mm@kvack.org>; Fri,  2 Jun 2017 22:24:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t126so24508063pgc.9
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 19:24:45 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id p30si24686472pgn.165.2017.06.02.19.24.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Jun 2017 18:26:15 -0700 (PDT)
-Date: Sat, 3 Jun 2017 09:25:48 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH] amd-xgbe: use PAGE_ALLOC_COSTLY_ORDER in
- xgbe_map_rx_buffer
-Message-ID: <201706030927.ol0IbBWK%fengguang.wu@intel.com>
+        Fri, 02 Jun 2017 19:24:44 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id f27so14374239pfe.0
+        for <linux-mm@kvack.org>; Fri, 02 Jun 2017 19:24:44 -0700 (PDT)
+Date: Sat, 3 Jun 2017 10:24:40 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC PATCH 2/4] mm, tree wide: replace __GFP_REPEAT by
+ __GFP_RETRY_MAYFAIL with more useful semantic
+Message-ID: <20170603022440.GA11080@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170307154843.32516-1-mhocko@kernel.org>
+ <20170307154843.32516-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="tKW2IUtsqtDRztdT"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="UugvWAfsgieZRqgk"
 Content-Disposition: inline
-In-Reply-To: <20170602144352.GI29840@dhcp22.suse.cz>
+In-Reply-To: <20170307154843.32516-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: kbuild-all@01.org, Tom Lendacky <thomas.lendacky@amd.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
 
---tKW2IUtsqtDRztdT
+--UugvWAfsgieZRqgk
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Hi Michal,
+Hi, Michal
 
-[auto build test WARNING on net-next/master]
-[also build test WARNING on v4.12-rc3 next-20170602]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+Just go through your patch.
 
-url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/amd-xgbe-use-PAGE_ALLOC_COSTLY_ORDER-in-xgbe_map_rx_buffer/20170603-021038
-config: x86_64-randconfig-v0-06030836 (attached as .config)
-compiler: gcc-4.4 (Debian 4.4.7-8) 4.4.7
-reproduce:
-        # save the attached .config to linux build tree
-        make ARCH=x86_64 
+I have one question and one suggestion as below.
 
-All warnings (new ones prefixed by >>):
+One suggestion:
 
-   drivers/net//ethernet/amd/xgbe/xgbe-desc.c: In function 'xgbe_map_rx_buffer':
->> drivers/net//ethernet/amd/xgbe/xgbe-desc.c:327: warning: unused variable 'order'
+This patch does two things to me:
+1. Replace __GFP_REPEAT with __GFP_RETRY_MAYFAIL
+2. Adjust the logic in page_alloc to provide the middle semantic
 
-vim +/order +327 drivers/net//ethernet/amd/xgbe/xgbe-desc.c
+My suggestion is to split these two task into two patches, so that readers
+could catch your fundamental logic change easily.
 
-174fd259 Lendacky, Thomas 2014-11-04  311  	if ((pa->pages_offset + len) > pa->pages_len) {
-08dcc47c Lendacky, Thomas 2014-11-04  312  		/* This data descriptor is responsible for unmapping page(s) */
-174fd259 Lendacky, Thomas 2014-11-04  313  		bd->pa_unmap = *pa;
-08dcc47c Lendacky, Thomas 2014-11-04  314  
-08dcc47c Lendacky, Thomas 2014-11-04  315  		/* Get a new allocation next time */
-174fd259 Lendacky, Thomas 2014-11-04  316  		pa->pages = NULL;
-174fd259 Lendacky, Thomas 2014-11-04  317  		pa->pages_len = 0;
-174fd259 Lendacky, Thomas 2014-11-04  318  		pa->pages_offset = 0;
-174fd259 Lendacky, Thomas 2014-11-04  319  		pa->pages_dma = 0;
-174fd259 Lendacky, Thomas 2014-11-04  320  	}
-174fd259 Lendacky, Thomas 2014-11-04  321  }
-174fd259 Lendacky, Thomas 2014-11-04  322  
-174fd259 Lendacky, Thomas 2014-11-04  323  static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
-174fd259 Lendacky, Thomas 2014-11-04  324  			      struct xgbe_ring *ring,
-174fd259 Lendacky, Thomas 2014-11-04  325  			      struct xgbe_ring_data *rdata)
-174fd259 Lendacky, Thomas 2014-11-04  326  {
-174fd259 Lendacky, Thomas 2014-11-04 @327  	int order, ret;
-174fd259 Lendacky, Thomas 2014-11-04  328  
-174fd259 Lendacky, Thomas 2014-11-04  329  	if (!ring->rx_hdr_pa.pages) {
-174fd259 Lendacky, Thomas 2014-11-04  330  		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, GFP_ATOMIC, 0);
-174fd259 Lendacky, Thomas 2014-11-04  331  		if (ret)
-174fd259 Lendacky, Thomas 2014-11-04  332  			return ret;
-08dcc47c Lendacky, Thomas 2014-11-04  333  	}
-08dcc47c Lendacky, Thomas 2014-11-04  334  
-174fd259 Lendacky, Thomas 2014-11-04  335  	if (!ring->rx_buf_pa.pages) {
+On Tue, Mar 07, 2017 at 04:48:41PM +0100, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+>__GFP_REPEAT was designed to allow retry-but-eventually-fail semantic to
+>the page allocator. This has been true but only for allocations requests
+>larger than PAGE_ALLOC_COSTLY_ORDER. It has been always ignored for
+>smaller sizes. This is a bit unfortunate because there is no way to
+>express the same semantic for those requests and they are considered too
+>important to fail so they might end up looping in the page allocator for
+>ever, similarly to GFP_NOFAIL requests.
+>
+>Now that the whole tree has been cleaned up and accidental or misled
+>usage of __GFP_REPEAT flag has been removed for !costly requests we can
+>give the original flag a better name and more importantly a more useful
+>semantic. Let's rename it to __GFP_RETRY_MAYFAIL which tells the user that
+>the allocator would try really hard but there is no promise of a
+>success. This will work independent of the order and overrides the
+>default allocator behavior. Page allocator users have several levels of
+>guarantee vs. cost options (take GFP_KERNEL as an example)
+>- GFP_KERNEL & ~__GFP_RECLAIM - optimistic allocation without _any_
+>  attempt to free memory at all. The most light weight mode which even
+>  doesn't kick the background reclaim. Should be used carefully because
+>  it might deplete the memory and the next user might hit the more
+>  aggressive reclaim
+>- GFP_KERNEL & ~__GFP_DIRECT_RECLAIM (or GFP_NOWAIT)- optimistic
+>  allocation without any attempt to free memory from the current context
+>  but can wake kswapd to reclaim memory if the zone is below the low
+>  watermark. Can be used from either atomic contexts or when the request
+>  is a performance optimization and there is another fallback for a slow
+>  path.
+>- (GFP_KERNEL|__GFP_HIGH) & ~__GFP_DIRECT_RECLAIM (aka GFP_ATOMIC) - non
+>  sleeping allocation with an expensive fallback so it can access some
+>  portion of memory reserves. Usually used from interrupt/bh context with
+>  an expensive slow path fallback.
+>- GFP_KERNEL - both background and direct reclaim are allowed and the
+>  _default_ page allocator behavior is used. That means that !costly
+>  allocation requests are basically nofail (unless the requesting task
+>  is killed by the OOM killer) and costly will fail early rather than
+>  cause disruptive reclaim.
+>- GFP_KERNEL | __GFP_NORETRY - overrides the default allocator behavior and
+>  all allocation requests fail early rather than cause disruptive
+>  reclaim (one round of reclaim in this implementation). The OOM killer
+>  is not invoked.
+>- GFP_KERNEL | __GFP_RETRY_MAYFAIL - overrides the default allocator behav=
+ior
+>  and all allocation requests try really hard. The request will fail if the
+>  reclaim cannot make any progress. The OOM killer won't be triggered.
+>- GFP_KERNEL | __GFP_NOFAIL - overrides the default allocator behavior
+>  and all allocation requests will loop endlessly until they
+>  succeed. This might be really dangerous especially for larger orders.
+>
+>Existing users of __GFP_REPEAT are changed to __GFP_RETRY_MAYFAIL because
+>they already had their semantic. No new users are added.
+>__alloc_pages_slowpath is changed to bail out for __GFP_RETRY_MAYFAIL if
+>there is no progress and we have already passed the OOM point. This
+>means that all the reclaim opportunities have been exhausted except the
+>most disruptive one (the OOM killer) and a user defined fallback
+>behavior is more sensible than keep retrying in the page allocator.
+>
+>Signed-off-by: Michal Hocko <mhocko@suse.com>
+>---
+> Documentation/DMA-ISA-LPC.txt                |  2 +-
+> arch/powerpc/include/asm/book3s/64/pgalloc.h |  2 +-
+> arch/powerpc/kvm/book3s_64_mmu_hv.c          |  2 +-
+> drivers/mmc/host/wbsd.c                      |  2 +-
+> drivers/s390/char/vmcp.c                     |  2 +-
+> drivers/target/target_core_transport.c       |  2 +-
+> drivers/vhost/net.c                          |  2 +-
+> drivers/vhost/scsi.c                         |  2 +-
+> drivers/vhost/vsock.c                        |  2 +-
+> fs/btrfs/check-integrity.c                   |  2 +-
+> fs/btrfs/raid56.c                            |  2 +-
+> include/linux/gfp.h                          | 32 +++++++++++++++++++----=
+-----
+> include/linux/slab.h                         |  3 ++-
+> include/trace/events/mmflags.h               |  2 +-
+> mm/hugetlb.c                                 |  4 ++--
+> mm/internal.h                                |  2 +-
+> mm/page_alloc.c                              | 14 +++++++++---
+> mm/sparse-vmemmap.c                          |  4 ++--
+> mm/util.c                                    |  6 +++---
+> mm/vmalloc.c                                 |  2 +-
+> mm/vmscan.c                                  |  8 +++----
+> net/core/dev.c                               |  6 +++---
+> net/core/skbuff.c                            |  2 +-
+> net/sched/sch_fq.c                           |  2 +-
+> tools/perf/builtin-kmem.c                    |  2 +-
+> 25 files changed, 66 insertions(+), 45 deletions(-)
+>
+>diff --git a/Documentation/DMA-ISA-LPC.txt b/Documentation/DMA-ISA-LPC.txt
+>index c41331398752..7a065ac4a9d1 100644
+>--- a/Documentation/DMA-ISA-LPC.txt
+>+++ b/Documentation/DMA-ISA-LPC.txt
+>@@ -42,7 +42,7 @@ requirements you pass the flag GFP_DMA to kmalloc.
+>=20
+> Unfortunately the memory available for ISA DMA is scarce so unless you
+> allocate the memory during boot-up it's a good idea to also pass
+>-__GFP_REPEAT and __GFP_NOWARN to make the allocator try a bit harder.
+>+__GFP_RETRY_MAYFAIL and __GFP_NOWARN to make the allocator try a bit hard=
+er.
+>=20
+> (This scarcity also means that you should allocate the buffer as
+> early as possible and not release it until the driver is unloaded.)
+>diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc.h b/arch/powerpc/i=
+nclude/asm/book3s/64/pgalloc.h
+>index cd5e7aa8cc34..1b835aa5b4d1 100644
+>--- a/arch/powerpc/include/asm/book3s/64/pgalloc.h
+>+++ b/arch/powerpc/include/asm/book3s/64/pgalloc.h
+>@@ -56,7 +56,7 @@ static inline pgd_t *radix__pgd_alloc(struct mm_struct *=
+mm)
+> 	return (pgd_t *)__get_free_page(PGALLOC_GFP);
+> #else
+> 	struct page *page;
+>-	page =3D alloc_pages(PGALLOC_GFP | __GFP_REPEAT, 4);
+>+	page =3D alloc_pages(PGALLOC_GFP | __GFP_RETRY_MAYFAIL, 4);
+> 	if (!page)
+> 		return NULL;
+> 	return (pgd_t *) page_address(page);
+>diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s=
+_64_mmu_hv.c
+>index 8c68145ba1bd..8ad2c309f14a 100644
+>--- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
+>+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
+>@@ -93,7 +93,7 @@ int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 o=
+rder)
+> 	}
+>=20
+> 	if (!hpt)
+>-		hpt =3D __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT
+>+		hpt =3D __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_RETRY_MAYFAIL
+> 				       |__GFP_NOWARN, order - PAGE_SHIFT);
+>=20
+> 	if (!hpt)
+>diff --git a/drivers/mmc/host/wbsd.c b/drivers/mmc/host/wbsd.c
+>index bd04e8bae010..b58fa5b5b972 100644
+>--- a/drivers/mmc/host/wbsd.c
+>+++ b/drivers/mmc/host/wbsd.c
+>@@ -1386,7 +1386,7 @@ static void wbsd_request_dma(struct wbsd_host *host,=
+ int dma)
+> 	 * order for ISA to be able to DMA to it.
+> 	 */
+> 	host->dma_buffer =3D kmalloc(WBSD_DMA_SIZE,
+>-		GFP_NOIO | GFP_DMA | __GFP_REPEAT | __GFP_NOWARN);
+>+		GFP_NOIO | GFP_DMA | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+> 	if (!host->dma_buffer)
+> 		goto free;
+>=20
+>diff --git a/drivers/s390/char/vmcp.c b/drivers/s390/char/vmcp.c
+>index 65f5a794f26d..98749fa817da 100644
+>--- a/drivers/s390/char/vmcp.c
+>+++ b/drivers/s390/char/vmcp.c
+>@@ -98,7 +98,7 @@ vmcp_write(struct file *file, const char __user *buff, s=
+ize_t count,
+> 	}
+> 	if (!session->response)
+> 		session->response =3D (char *)__get_free_pages(GFP_KERNEL
+>-						| __GFP_REPEAT | GFP_DMA,
+>+						| __GFP_RETRY_MAYFAIL | GFP_DMA,
+> 						get_order(session->bufsize));
+> 	if (!session->response) {
+> 		mutex_unlock(&session->mutex);
+>diff --git a/drivers/target/target_core_transport.c b/drivers/target/targe=
+t_core_transport.c
+>index 434d9d693989..e585d301c665 100644
+>--- a/drivers/target/target_core_transport.c
+>+++ b/drivers/target/target_core_transport.c
+>@@ -251,7 +251,7 @@ int transport_alloc_session_tags(struct se_session *se=
+_sess,
+> 	int rc;
+>=20
+> 	se_sess->sess_cmd_map =3D kzalloc(tag_num * tag_size,
+>-					GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+>+					GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYFAIL);
+> 	if (!se_sess->sess_cmd_map) {
+> 		se_sess->sess_cmd_map =3D vzalloc(tag_num * tag_size);
+> 		if (!se_sess->sess_cmd_map) {
+>diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
+>index f61f852d6cfd..7d2c4ce6d8d1 100644
+>--- a/drivers/vhost/net.c
+>+++ b/drivers/vhost/net.c
+>@@ -817,7 +817,7 @@ static int vhost_net_open(struct inode *inode, struct =
+file *f)
+> 	struct vhost_virtqueue **vqs;
+> 	int i;
+>=20
+>-	n =3D kvmalloc(sizeof *n, GFP_KERNEL | __GFP_REPEAT);
+>+	n =3D kvmalloc(sizeof *n, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+> 	if (!n)
+> 		return -ENOMEM;
+> 	vqs =3D kmalloc(VHOST_NET_VQ_MAX * sizeof(*vqs), GFP_KERNEL);
+>diff --git a/drivers/vhost/scsi.c b/drivers/vhost/scsi.c
+>index fd6c8b66f06f..ff02a942c4d5 100644
+>--- a/drivers/vhost/scsi.c
+>+++ b/drivers/vhost/scsi.c
+>@@ -1404,7 +1404,7 @@ static int vhost_scsi_open(struct inode *inode, stru=
+ct file *f)
+> 	struct vhost_virtqueue **vqs;
+> 	int r =3D -ENOMEM, i;
+>=20
+>-	vs =3D kzalloc(sizeof(*vs), GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+>+	vs =3D kzalloc(sizeof(*vs), GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYF=
+AIL);
+> 	if (!vs) {
+> 		vs =3D vzalloc(sizeof(*vs));
+> 		if (!vs)
+>diff --git a/drivers/vhost/vsock.c b/drivers/vhost/vsock.c
+>index d403c647ba56..5b76242d73e3 100644
+>--- a/drivers/vhost/vsock.c
+>+++ b/drivers/vhost/vsock.c
+>@@ -460,7 +460,7 @@ static int vhost_vsock_dev_open(struct inode *inode, s=
+truct file *file)
+> 	/* This struct is large and allocation could fail, fall back to vmalloc
+> 	 * if there is no other way.
+> 	 */
+>-	vsock =3D kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_REPEAT);
+>+	vsock =3D kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+> 	if (!vsock)
+> 		return -ENOMEM;
+>=20
+>diff --git a/fs/btrfs/check-integrity.c b/fs/btrfs/check-integrity.c
+>index ab14c2e635ca..e334ed2b7e64 100644
+>--- a/fs/btrfs/check-integrity.c
+>+++ b/fs/btrfs/check-integrity.c
+>@@ -2923,7 +2923,7 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
+> 		       fs_info->sectorsize, PAGE_SIZE);
+> 		return -1;
+> 	}
+>-	state =3D kzalloc(sizeof(*state), GFP_KERNEL | __GFP_NOWARN | __GFP_REPE=
+AT);
+>+	state =3D kzalloc(sizeof(*state), GFP_KERNEL | __GFP_NOWARN | __GFP_RETR=
+Y_MAYFAIL);
+> 	if (!state) {
+> 		state =3D vzalloc(sizeof(*state));
+> 		if (!state) {
+>diff --git a/fs/btrfs/raid56.c b/fs/btrfs/raid56.c
+>index 1571bf26dc07..94af3db1d0e4 100644
+>--- a/fs/btrfs/raid56.c
+>+++ b/fs/btrfs/raid56.c
+>@@ -218,7 +218,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info=
+ *info)
+> 	 * of a failing mount.
+> 	 */
+> 	table_size =3D sizeof(*table) + sizeof(*h) * num_entries;
+>-	table =3D kzalloc(table_size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+>+	table =3D kzalloc(table_size, GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MA=
+YFAIL);
+> 	if (!table) {
+> 		table =3D vzalloc(table_size);
+> 		if (!table)
+>diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>index 2bfcfd33e476..60af7937c6f2 100644
+>--- a/include/linux/gfp.h
+>+++ b/include/linux/gfp.h
+>@@ -25,7 +25,7 @@ struct vm_area_struct;
+> #define ___GFP_FS		0x80u
+> #define ___GFP_COLD		0x100u
+> #define ___GFP_NOWARN		0x200u
+>-#define ___GFP_REPEAT		0x400u
+>+#define ___GFP_RETRY_MAYFAIL		0x400u
+> #define ___GFP_NOFAIL		0x800u
+> #define ___GFP_NORETRY		0x1000u
+> #define ___GFP_MEMALLOC		0x2000u
+>@@ -136,26 +136,38 @@ struct vm_area_struct;
+>  *
+>  * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd recl=
+aim.
+>  *
+>- * __GFP_REPEAT: Try hard to allocate the memory, but the allocation atte=
+mpt
+>- *   _might_ fail.  This depends upon the particular VM implementation.
+>+ * The default allocator behavior depends on the request size. We have a =
+concept
+>+ * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
+>+ * !costly allocations are too essential to fail so they are implicitly
+>+ * non-failing (with some exceptions like OOM victims might fail) by defa=
+ult while
+>+ * costly requests try to be not disruptive and back off even without inv=
+oking
+>+ * the OOM killer. The following three modifiers might be used to overrid=
+e some of
+>+ * these implicit rules
+>+ *
+>+ * __GFP_NORETRY: The VM implementation must not retry indefinitely and w=
+ill
+>+ *   return NULL when direct reclaim and memory compaction have failed to=
+ allow
+>+ *   the allocation to succeed.  The OOM killer is not called with the cu=
+rrent
+>+ *   implementation. This is a default mode for costly allocations.
+>+ *
+>+ * __GFP_RETRY_MAYFAIL: Try hard to allocate the memory, but the allocati=
+on attempt
+>+ *   _might_ fail. All viable forms of memory reclaim are tried before th=
+e fail.
+>+ *   The OOM killer is excluded because this would be too disruptive. Thi=
+s can be
+>+ *   used to override non-failing default behavior for !costly requests a=
+s well as
+>+ *   fortify costly requests.
+>  *
+>  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
+>  *   cannot handle allocation failures. New users should be evaluated car=
+efully
+>  *   (and the flag should be used only when there is no reasonable failure
+>  *   policy) but it is definitely preferable to use the flag rather than
+>- *   opencode endless loop around allocator.
+>- *
+>- * __GFP_NORETRY: The VM implementation must not retry indefinitely and w=
+ill
+>- *   return NULL when direct reclaim and memory compaction have failed to=
+ allow
+>- *   the allocation to succeed.  The OOM killer is not called with the cu=
+rrent
+>- *   implementation.
+>+ *   opencode endless loop around allocator. Using this flag for costly a=
+llocations
+>+ *   is _highly_ discouraged.
+>  */
+> #define __GFP_IO	((__force gfp_t)___GFP_IO)
+> #define __GFP_FS	((__force gfp_t)___GFP_FS)
+> #define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Ca=
+ller can reclaim */
+> #define __GFP_KSWAPD_RECLAIM	((__force gfp_t)___GFP_KSWAPD_RECLAIM) /* ks=
+wapd can wake */
+> #define __GFP_RECLAIM ((__force gfp_t)(___GFP_DIRECT_RECLAIM|___GFP_KSWAP=
+D_RECLAIM))
+>-#define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+>+#define __GFP_RETRY_MAYFAIL	((__force gfp_t)___GFP_RETRY_MAYFAIL)
+> #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
+> #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
+>=20
+>diff --git a/include/linux/slab.h b/include/linux/slab.h
+>index 3c37a8c51921..064901ac3e37 100644
+>--- a/include/linux/slab.h
+>+++ b/include/linux/slab.h
+>@@ -469,7 +469,8 @@ static __always_inline void *kmalloc_large(size_t size=
+, gfp_t flags)
+>  *
+>  * %__GFP_NOWARN - If allocation fails, don't issue any warnings.
+>  *
+>- * %__GFP_REPEAT - If allocation fails initially, try once more before fa=
+iling.
+>+ * %__GFP_RETRY_MAYFAIL - Try really hard to succeed the allocation but f=
+ail
+>+ *   eventually.
+>  *
+>  * There are other flags available as well, but these are not intended
+>  * for general use, and so are not documented here. For a full list of
+>diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags=
+=2Eh
+>index 304ff94363b2..418142a4efce 100644
+>--- a/include/trace/events/mmflags.h
+>+++ b/include/trace/events/mmflags.h
+>@@ -34,7 +34,7 @@
+> 	{(unsigned long)__GFP_FS,		"__GFP_FS"},		\
+> 	{(unsigned long)__GFP_COLD,		"__GFP_COLD"},		\
+> 	{(unsigned long)__GFP_NOWARN,		"__GFP_NOWARN"},	\
+>-	{(unsigned long)__GFP_REPEAT,		"__GFP_REPEAT"},	\
+>+	{(unsigned long)__GFP_RETRY_MAYFAIL,	"__GFP_RETRY_MAYFAIL"},	\
+> 	{(unsigned long)__GFP_NOFAIL,		"__GFP_NOFAIL"},	\
+> 	{(unsigned long)__GFP_NORETRY,		"__GFP_NORETRY"},	\
+> 	{(unsigned long)__GFP_COMP,		"__GFP_COMP"},		\
+>diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>index a7aa811b7d14..dc598bfe4ce9 100644
+>--- a/mm/hugetlb.c
+>+++ b/mm/hugetlb.c
+>@@ -1369,7 +1369,7 @@ static struct page *alloc_fresh_huge_page_node(struc=
+t hstate *h, int nid)
+>=20
+> 	page =3D __alloc_pages_node(nid,
+> 		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
+>-						__GFP_REPEAT|__GFP_NOWARN,
+>+						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
+> 		huge_page_order(h));
+> 	if (page) {
+> 		prep_new_huge_page(h, page, nid);
+>@@ -1510,7 +1510,7 @@ static struct page *__hugetlb_alloc_buddy_huge_page(=
+struct hstate *h,
+> 		struct vm_area_struct *vma, unsigned long addr, int nid)
+> {
+> 	int order =3D huge_page_order(h);
+>-	gfp_t gfp =3D htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+>+	gfp_t gfp =3D htlb_alloc_mask(h)|__GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NO=
+WARN;
+> 	unsigned int cpuset_mems_cookie;
+>=20
+> 	/*
+>diff --git a/mm/internal.h b/mm/internal.h
+>index 823a7a89099b..8e6d347f70fb 100644
+>--- a/mm/internal.h
+>+++ b/mm/internal.h
+>@@ -23,7 +23,7 @@
+>  * hints such as HIGHMEM usage.
+>  */
+> #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
+>-			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
+>+			__GFP_NOWARN|__GFP_RETRY_MAYFAIL|__GFP_NOFAIL|\
+> 			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
+> 			__GFP_ATOMIC)
+>=20
+>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>index 5238b87aec91..bfe4a9bad0f8 100644
+>--- a/mm/page_alloc.c
+>+++ b/mm/page_alloc.c
+>@@ -3181,6 +3181,14 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int =
+order,
+> 	/* The OOM killer will not help higher order allocs */
+> 	if (order > PAGE_ALLOC_COSTLY_ORDER)
+> 		goto out;
+>+	/*
+>+	 * We have already exhausted all our reclaim opportunities without any
+>+	 * success so it is time to admit defeat. We will skip the OOM killer
+>+	 * because it is very likely that the caller has a more reasonable
+>+	 * fallback than shooting a random task.
+>+	 */
+>+	if (gfp_mask & __GFP_RETRY_MAYFAIL)
+>+		goto out;
+> 	/* The OOM killer does not needlessly kill tasks for lowmem */
+> 	if (ac->high_zoneidx < ZONE_NORMAL)
+> 		goto out;
+>@@ -3309,7 +3317,7 @@ should_compact_retry(struct alloc_context *ac, int o=
+rder, int alloc_flags,
+> 	}
+>=20
+> 	/*
+>-	 * !costly requests are much more important than __GFP_REPEAT
+>+	 * !costly requests are much more important than __GFP_RETRY_MAYFAIL
+> 	 * costly ones because they are de facto nofail and invoke OOM
+> 	 * killer to move on while costly can fail and users are ready
+> 	 * to cope with that. 1/4 retries is rather arbitrary but we
+>@@ -3776,9 +3784,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int =
+order,
+>=20
+> 	/*
+> 	 * Do not retry costly high order allocations unless they are
+>-	 * __GFP_REPEAT
+>+	 * __GFP_RETRY_MAYFAIL
+> 	 */
+>-	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+>+	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_MAYFAIL))
+> 		goto nopage;
 
-:::::: The code at line 327 was first introduced by commit
-:::::: 174fd2597b0bd8c19fce6a97e8b0f753ef4ce7cb amd-xgbe: Implement split header receive support
+One question:
 
-:::::: TO: Lendacky, Thomas <Thomas.Lendacky@amd.com>
-:::::: CC: David S. Miller <davem@davemloft.net>
+=46rom your change log, it mentions will provide the same semantic for !cos=
+tly
+allocations. While the logic here is the same as before.
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+For a !costly allocation with __GFP_REPEAT flag, the difference after this
+patch is no OOM will be invoked, while it will still continue in the loop.
 
---tKW2IUtsqtDRztdT
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+Maybe I don't catch your point in this message:
 
-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
+  __GFP_REPEAT was designed to allow retry-but-eventually-fail semantic to
+  the page allocator. This has been true but only for allocations requests
+  larger than PAGE_ALLOC_COSTLY_ORDER. It has been always ignored for
+  smaller sizes. This is a bit unfortunate because there is no way to
+  express the same semantic for those requests and they are considered too
+  important to fail so they might end up looping in the page allocator for
+  ever, similarly to GFP_NOFAIL requests.
 
---tKW2IUtsqtDRztdT--
+I thought you will provide the same semantic to !costly allocation, or I
+misunderstand?
+
+>=20
+> 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+>diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+>index 574c67b663fe..b21ba0dfe102 100644
+>--- a/mm/sparse-vmemmap.c
+>+++ b/mm/sparse-vmemmap.c
+>@@ -56,11 +56,11 @@ void * __meminit vmemmap_alloc_block(unsigned long siz=
+e, int node)
+>=20
+> 		if (node_state(node, N_HIGH_MEMORY))
+> 			page =3D alloc_pages_node(
+>-				node, GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+>+				node, GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
+> 				get_order(size));
+> 		else
+> 			page =3D alloc_pages(
+>-				GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+>+				GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
+> 				get_order(size));
+> 		if (page)
+> 			return page_address(page);
+>diff --git a/mm/util.c b/mm/util.c
+>index 6ed3e49bf1e5..885a78d1941b 100644
+>--- a/mm/util.c
+>+++ b/mm/util.c
+>@@ -339,7 +339,7 @@ EXPORT_SYMBOL(vm_mmap);
+>  * Uses kmalloc to get the memory but if the allocation fails then falls =
+back
+>  * to the vmalloc allocator. Use kvfree for freeing the memory.
+>  *
+>- * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. =
+__GFP_REPEAT
+>+ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. =
+__GFP_RETRY_MAYFAIL
+>  * is supported only for large (>32kB) allocations, and it should be used=
+ only if
+>  * kmalloc is preferable to the vmalloc fallback, due to visible performa=
+nce drawbacks.
+>  *
+>@@ -364,11 +364,11 @@ void *kvmalloc_node(size_t size, gfp_t flags, int no=
+de)
+> 		kmalloc_flags |=3D __GFP_NOWARN;
+>=20
+> 		/*
+>-		 * We have to override __GFP_REPEAT by __GFP_NORETRY for !costly
+>+		 * We have to override __GFP_RETRY_MAYFAIL by __GFP_NORETRY for !costly
+> 		 * requests because there is no other way to tell the allocator
+> 		 * that we want to fail rather than retry endlessly.
+> 		 */
+>-		if (!(kmalloc_flags & __GFP_REPEAT) ||
+>+		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL) ||
+> 				(size <=3D PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> 			kmalloc_flags |=3D __GFP_NORETRY;
+> 	}
+>diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>index 32979d945766..c2fa2e1b79fc 100644
+>--- a/mm/vmalloc.c
+>+++ b/mm/vmalloc.c
+>@@ -1747,7 +1747,7 @@ void *__vmalloc_node_range(unsigned long size, unsig=
+ned long align,
+>  *	allocator with @gfp_mask flags.  Map them into contiguous
+>  *	kernel virtual space, using a pagetable protection of @prot.
+>  *
+>- *	Reclaim modifiers in @gfp_mask - __GFP_NORETRY, __GFP_REPEAT
+>+ *	Reclaim modifiers in @gfp_mask - __GFP_NORETRY, __GFP_RETRY_MAYFAIL
+>  *	and __GFP_NOFAIL are not supported
+>  *
+>  *	Any use of gfp flags outside of GFP_KERNEL should be consulted
+>diff --git a/mm/vmscan.c b/mm/vmscan.c
+>index 4e0a828781e5..8f547176e02c 100644
+>--- a/mm/vmscan.c
+>+++ b/mm/vmscan.c
+>@@ -2435,18 +2435,18 @@ static inline bool should_continue_reclaim(struct =
+pglist_data *pgdat,
+> 		return false;
+>=20
+> 	/* Consider stopping depending on scan and reclaim activity */
+>-	if (sc->gfp_mask & __GFP_REPEAT) {
+>+	if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
+> 		/*
+>-		 * For __GFP_REPEAT allocations, stop reclaiming if the
+>+		 * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
+> 		 * full LRU list has been scanned and we are still failing
+> 		 * to reclaim pages. This full LRU scan is potentially
+>-		 * expensive but a __GFP_REPEAT caller really wants to succeed
+>+		 * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
+> 		 */
+> 		if (!nr_reclaimed && !nr_scanned)
+> 			return false;
+> 	} else {
+> 		/*
+>-		 * For non-__GFP_REPEAT allocations which can presumably
+>+		 * For non-__GFP_RETRY_MAYFAIL allocations which can presumably
+> 		 * fail without consequence, stop if we failed to reclaim
+> 		 * any pages from the last SWAP_CLUSTER_MAX number of
+> 		 * pages that were scanned. This will return to the
+>diff --git a/net/core/dev.c b/net/core/dev.c
+>index d947308ee255..3e659ac9e0ed 100644
+>--- a/net/core/dev.c
+>+++ b/net/core/dev.c
+>@@ -7121,7 +7121,7 @@ static int netif_alloc_rx_queues(struct net_device *=
+dev)
+>=20
+> 	BUG_ON(count < 1);
+>=20
+>-	rx =3D kvzalloc(sz, GFP_KERNEL | __GFP_REPEAT);
+>+	rx =3D kvzalloc(sz, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+> 	if (!rx)
+> 		return -ENOMEM;
+>=20
+>@@ -7161,7 +7161,7 @@ static int netif_alloc_netdev_queues(struct net_devi=
+ce *dev)
+> 	if (count < 1 || count > 0xffff)
+> 		return -EINVAL;
+>=20
+>-	tx =3D kvzalloc(sz, GFP_KERNEL | __GFP_REPEAT);
+>+	tx =3D kvzalloc(sz, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+> 	if (!tx)
+> 		return -ENOMEM;
+>=20
+>@@ -7698,7 +7698,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv,=
+ const char *name,
+> 	/* ensure 32-byte alignment of whole construct */
+> 	alloc_size +=3D NETDEV_ALIGN - 1;
+>=20
+>-	p =3D kvzalloc(alloc_size, GFP_KERNEL | __GFP_REPEAT);
+>+	p =3D kvzalloc(alloc_size, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+> 	if (!p)
+> 		return NULL;
+>=20
+>diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+>index 9ccba86fa23d..26af038e27f0 100644
+>--- a/net/core/skbuff.c
+>+++ b/net/core/skbuff.c
+>@@ -4653,7 +4653,7 @@ struct sk_buff *alloc_skb_with_frags(unsigned long h=
+eader_len,
+>=20
+> 	gfp_head =3D gfp_mask;
+> 	if (gfp_head & __GFP_DIRECT_RECLAIM)
+>-		gfp_head |=3D __GFP_REPEAT;
+>+		gfp_head |=3D __GFP_RETRY_MAYFAIL;
+>=20
+> 	*errcode =3D -ENOBUFS;
+> 	skb =3D alloc_skb(header_len, gfp_head);
+>diff --git a/net/sched/sch_fq.c b/net/sched/sch_fq.c
+>index 594f77d89f6c..daebe062a2dd 100644
+>--- a/net/sched/sch_fq.c
+>+++ b/net/sched/sch_fq.c
+>@@ -640,7 +640,7 @@ static int fq_resize(struct Qdisc *sch, u32 log)
+> 		return 0;
+>=20
+> 	/* If XPS was setup, we can allocate memory on right NUMA node */
+>-	array =3D kvmalloc_node(sizeof(struct rb_root) << log, GFP_KERNEL | __GF=
+P_REPEAT,
+>+	array =3D kvmalloc_node(sizeof(struct rb_root) << log, GFP_KERNEL | __GF=
+P_RETRY_MAYFAIL,
+> 			      netdev_queue_numa_node_read(sch->dev_queue));
+> 	if (!array)
+> 		return -ENOMEM;
+>diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+>index 6da8d083e4e5..01ca903fcdb9 100644
+>--- a/tools/perf/builtin-kmem.c
+>+++ b/tools/perf/builtin-kmem.c
+>@@ -638,7 +638,7 @@ static const struct {
+> 	{ "__GFP_FS",			"F" },
+> 	{ "__GFP_COLD",			"CO" },
+> 	{ "__GFP_NOWARN",		"NWR" },
+>-	{ "__GFP_REPEAT",		"R" },
+>+	{ "__GFP_RETRY_MAYFAIL",	"R" },
+> 	{ "__GFP_NOFAIL",		"NF" },
+> 	{ "__GFP_NORETRY",		"NR" },
+> 	{ "__GFP_COMP",			"C" },
+>--=20
+>2.11.0
+
+--=20
+Wei Yang
+Help you, Help me
+
+--UugvWAfsgieZRqgk
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZMh3oAAoJEKcLNpZP5cTdk9YP/3UJ/2Ax/aVRBVIE1nTRo+nq
+IgBB4CDcl6WbvkPuyl8tqplIXfvsVMZ07m/1t7e2FD2Q9xVJJXfRab5/klHEpyku
+HqjY+uhc8roXyztAAM06Veb7k0lUVtz/soKu/4ULiquhQ2rHpOiuavgc4c10cFZE
+23RIaT0U7oSmir8EhCHgzvKp/fkpID5V8Z6gpC2EgVEI3bAVQ+zM4LI4iFcPX+A2
+wDDC3GP69rQuYYXMdlsFJMnFu8pEbgCFBYrj4J55yc+npg1LbXVo6P5Zcdm8/vTC
+MkdtPCDpcUnk2D5xFXFnq8H98kQltKFwpx1MbOHXcmSeZ/W5YyUvWiAt7rnRUolM
+4TLe8lPxogBXnZ0A8renU5WgCVSS0PaBCTe0B5ywFSo3ZIxkcJwePdahRY8osq6o
+sTAdaoir1s9yQAJ6aQPlNH1n4iFABro2JwDRAT0Abfni36qhVj7RsU7qM+Gn+mFt
+UCwd3O98/Rlf7kD6oWZkaeMK/dWeEd+4gYVKGDW4DzGxWrqRu468arhWjB+NDvDD
+Ai+IVoTnjjE7g1RreVLHvwkQSVdXeG+kPV+oR5wjj4yYpxVYrwqmgTW5RrNQKh+Y
+YdUsBUz29vsUDv5CIDzE47l4GOOzrJga4QCAovgv9C0bac7cK8dTXyLYOE7/BMyQ
+ga70PJAzGYxBbU43IS7Y
+=b3Uo
+-----END PGP SIGNATURE-----
+
+--UugvWAfsgieZRqgk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
