@@ -1,154 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6616B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 04:36:52 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id r84so4841640oif.0
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 01:36:52 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id o126si10689216oih.92.2017.06.03.01.36.50
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1109F6B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 05:18:50 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id g53so29306442qta.3
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 02:18:50 -0700 (PDT)
+Received: from mail-qk0-x22c.google.com (mail-qk0-x22c.google.com. [2607:f8b0:400d:c09::22c])
+        by mx.google.com with ESMTPS id 16si25705393qtv.302.2017.06.03.02.18.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 03 Jun 2017 01:36:51 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170601132808.GD9091@dhcp22.suse.cz>
-	<20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
-	<20170602071818.GA29840@dhcp22.suse.cz>
-	<20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
-	<20170603073221.GB21524@dhcp22.suse.cz>
-In-Reply-To: <20170603073221.GB21524@dhcp22.suse.cz>
-Message-Id: <201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
-Date: Sat, 3 Jun 2017 17:36:35 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 03 Jun 2017 02:18:49 -0700 (PDT)
+Received: by mail-qk0-x22c.google.com with SMTP id p66so58392700qkf.3
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 02:18:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170601223808.GC2780@redhat.com>
+References: <20170522165206.6284-1-jglisse@redhat.com> <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
+ <20170524175349.GB24024@redhat.com> <CAKTCnznUJcHt9cd3ZOn-f2-HVHrCM_L+BPC5mgBVhsB7o0=JUw@mail.gmail.com>
+ <20170601223808.GC2780@redhat.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Sat, 3 Jun 2017 19:18:48 +1000
+Message-ID: <CAKTCnzntOCVh5kJ4VeGYHkwchhYGAP3Z9RqQqXCqZOssVNt6PQ@mail.gmail.com>
+Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
 
-Michal Hocko wrote:
-> On Fri 02-06-17 12:59:44, Andrew Morton wrote:
-> > On Fri, 2 Jun 2017 09:18:18 +0200 Michal Hocko <mhocko@suse.com> wrote:
-> >
-> > > On Thu 01-06-17 15:10:22, Andrew Morton wrote:
-> > > > On Thu, 1 Jun 2017 15:28:08 +0200 Michal Hocko <mhocko@suse.com> wrote:
-> > > >
-> > > > > On Thu 01-06-17 22:11:13, Tetsuo Handa wrote:
-> > > > > > Michal Hocko wrote:
-> > > > > > > On Thu 01-06-17 20:43:47, Tetsuo Handa wrote:
-> > > > > > > > Cong Wang has reported a lockup when running LTP memcg_stress test [1].
-> > > > > > >
-> > > > > > > This seems to be on an old and not pristine kernel. Does it happen also
-> > > > > > > on the vanilla up-to-date kernel?
-> > > > > >
-> > > > > > 4.9 is not an old kernel! It might be close to the kernel version which
-> > > > > > enterprise distributions would choose for their next long term supported
-> > > > > > version.
-> > > > > >
-> > > > > > And please stop saying "can you reproduce your problem with latest
-> > > > > > linux-next (or at least latest linux)?" Not everybody can use the vanilla
-> > > > > > up-to-date kernel!
-> > > > >
-> > > > > The changelog mentioned that the source of stalls is not clear so this
-> > > > > might be out-of-tree patches doing something wrong and dump_stack
-> > > > > showing up just because it is called often. This wouldn't be the first
-> > > > > time I have seen something like that. I am not really keen on adding
-> > > > > heavy lifting for something that is not clearly debugged and based on
-> > > > > hand waving and speculations.
-> > > >
-> > > > I'm thinking we should serialize warn_alloc anyway, to prevent the
-> > > > output from concurrent calls getting all jumbled together?
-> > >
-> > > dump_stack already serializes concurrent calls.
-> >
-> > Sure.  But warn_alloc() doesn't.
+On Fri, Jun 2, 2017 at 8:38 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> On Thu, Jun 01, 2017 at 12:04:02PM +1000, Balbir Singh wrote:
+>> On Thu, May 25, 2017 at 3:53 AM, Jerome Glisse <jglisse@redhat.com> wrot=
+e:
+>> > On Wed, May 24, 2017 at 11:55:12AM +1000, Balbir Singh wrote:
+>> >> On Tue, May 23, 2017 at 2:51 AM, J=C3=A9r=C3=B4me Glisse <jglisse@red=
+hat.com> wrote:
+>> >> > Patchset is on top of mmotm mmotm-2017-05-18, git branch:
+>> >> >
+>> >> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-v22
+>> >> >
+>> >> > Change since v21 is adding back special refcounting in put_page() t=
+o
+>> >> > catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
+>> >> > unlike regular page where a refcount of 0 means the page is free).
+>> >> > See patch 8 of this serie for this refcounting. I did not use stati=
+c
+>> >> > keys because it kind of scares me to do that for an inline function=
+.
+>> >> > If people strongly feel about this i can try to make static key wor=
+ks
+>> >> > here. Kirill will most likely want to review this.
+>> >> >
+>> >> >
+>> >> > Everything else is the same. Below is the long description of what =
+HMM
+>> >> > is about and why. At the end of this email i describe briefly each =
+patch
+>> >> > and suggest reviewers for each of them.
+>> >> >
+>> >> >
+>> >> > Heterogeneous Memory Management (HMM) (description and justificatio=
+n)
+>> >> >
+>> >>
+>> >> Thanks for the patches! These patches are very helpful. There are a
+>> >> few additional things we would need on top of this (once HMM the base
+>> >> is merged)
+>> >>
+>> >> 1. Support for other architectures, we'd like to make sure we can get
+>> >> this working for powerpc for example. As a first step we have
+>> >> ZONE_DEVICE enablement patches, but I think we need some additional
+>> >> patches for iomem space searching and memory hotplug, IIRC
+>> >> 2. HMM-CDM and physical address based migration bits. In a recent RFC
+>> >> we decided to try and use the HMM CDM route as a route to implementin=
+g
+>> >> coherent device memory as a starting point. It would be nice to have
+>> >> those patches on top of these once these make it to mm -
+>> >> https://lwn.net/Articles/720380/
+>> >>
+>> >
+>> > I intend to post the updated HMM CDM patchset early next week. I am
+>> > tie in couple internal backport but i should be able to resume work
+>> > on that this week.
+>> >
+>>
+>> Thanks, I am looking at the HMM CDM branch and trying to forward port
+>> and see what the results look like on top of HMM-v23. Do we have a timel=
+ine
+>> for the v23 merge?
+>>
 >
-> I really do not see why that would be much better, really. warn_alloc is
-> more or less one line + dump_stack + warn_alloc_show_mem. Single line
-> shouldn't be a big deal even though this is a continuation line
-> actually. dump_stack already contains its own synchronization and the
-> meminfo stuff is ratelimited to one per second. So why do we exactly
-> wantt to put yet another lock on top? Just to stick them together? Well
-> is this worth a new lock dependency between memory allocation and the
-> whole printk stack or dump_stack? Maybe yes but this needs a much deeper
-> consideration.
-
-You are completely ignoring the fact that writing to consoles needs CPU time.
-My proposal is intended for not only grouping relevant lines together but also
-giving logbuf readers (currently a thread which is inside console_unlock(),
-which might be offloaded to a dedicated kernel thread in near future) CPU time
-for writing to consoles.
-
+> So i am moving to new office and it has taken me more time than i thought
+> to pack stuff. Attach is first step of CDM on top of lastest HMM. I hope
+> to have more time tomorrow or next week to finish rebasing patches and to
+> run some test with stolen ram as CDM memory.
 >
-> Tetsuo is arguing that the locking will throttle warn_alloc callers and
-> that can help other processes to move on. I would call it papering over
-> a real issue which might be somewhere else and that is why I push back so
-> hard. The initial report is far from complete and seeing 30+ seconds
-> stalls without any indication that this is just a repeating stall after
-> 10s and 20s suggests that we got stuck somewhere in the reclaim path.
 
-That timestamp jump is caused by the fact that log_buf writers are consuming
-more CPU times than log_buf readers can consume. If I leave that situation
-more, printk() just starts printing "** %u printk messages dropped ** " line.
 
-There is nothing more to reclaim, allocating threads are looping with
-cond_resched() and schedule_timeout_uninterruptible(1) (which effectively becomes
-no-op when there are many other threads doing the same thing) only, logbuf
-reader cannot use enough CPU time, and the OOM killer remains oom_lock held
-(notice that this timestamp jump is between "invoked oom-killer: " line and
-"Out of memory: Kill process " line) which prevents reclaiming memory.
+No worries, thanks for the update. I forward ported some of the stuff from
+HMM-CDM myself for testing on top of v23, with some assumptions and names
+like MEMORY_PRIVATE_COHERENT (a new type) and arch_add_memory for
+hotplug. I also modified Reza's driver (test) to see how far I can get
+with HMM-CDM.
 
->
-> Moreover let's assume that the unfair locking in dump_stack has caused
-> the stall. How would an warn_alloc lock help when there are other
-> sources of dump_stack all over the kernel?
+I look forward to the HMM-CDM patchset that you post.
 
-__alloc_pages_slowpath() is insane as a caller of dump_stack().
-
-Basically __alloc_pages_slowpath() allows doing
-
-  while (1) {
-    cond_resched();
-    dump_stack();
-  }
-
-because all stalling treads can call warn_alloc(). Even though we ratelimit
-dump_stack() at both time_after() test and __ratelimit() test like
-
-  while (1) {
-    cond_resched();
-    if (time_after(jiffies, alloc_start + stall_timeout)) {
-      if (!(gfp_mask & __GFP_NOWARN) && __ratelimit(&nopage_rs)) {
-        dump_stack();
-      }
-      stall_timeout += 10 * HZ;
-    }
-  }
-
-ratelimited threads are still doing
-
-  while (1) {
-    cond_resched();
-  }
-
-which still obviously remains the source of starving CPU time for
-writing to consoles.
-
-This problem won't be solved even if logbuf reader is offloaded to
-a kernel thread dedicated for printk().
-
->
-> Seriously, this whole discussion is based on hand waving. Like for
-> any other patches, the real issue should be debugged, explained and
-> discussed based on known facts, not speculations. As things stand now,
-> my NACK still holds. I am not going to waste my time repeating same
-> points all over again.
-
-It is not a hand waving. Doing unconstrained printk() loops (with
-cond_resched() only) inside kernel is seriously broken. We have to be
-careful not to allow CPU time consumption by logbuf writers (e.g.
-warn_alloc() from __alloc_pages_slowpath()) because logbuf reader needs
-CPU time.
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
