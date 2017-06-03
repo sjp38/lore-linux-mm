@@ -1,110 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1109F6B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 05:18:50 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g53so29306442qta.3
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 02:18:50 -0700 (PDT)
-Received: from mail-qk0-x22c.google.com (mail-qk0-x22c.google.com. [2607:f8b0:400d:c09::22c])
-        by mx.google.com with ESMTPS id 16si25705393qtv.302.2017.06.03.02.18.49
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0828D6B0292
+	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 06:33:12 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id v195so35482453qka.1
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 03:33:12 -0700 (PDT)
+Received: from mail-qt0-x22b.google.com (mail-qt0-x22b.google.com. [2607:f8b0:400d:c0d::22b])
+        by mx.google.com with ESMTPS id s18si26050074qta.121.2017.06.03.03.33.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Jun 2017 02:18:49 -0700 (PDT)
-Received: by mail-qk0-x22c.google.com with SMTP id p66so58392700qkf.3
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 02:18:49 -0700 (PDT)
+        Sat, 03 Jun 2017 03:33:10 -0700 (PDT)
+Received: by mail-qt0-x22b.google.com with SMTP id c13so74817503qtc.1
+        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 03:33:10 -0700 (PDT)
+Date: Sat, 3 Jun 2017 06:33:03 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 11/17] cgroup: Implement new thread mode semantics
+Message-ID: <20170603103303.GA28145@wtj.duckdns.org>
+References: <20170601151045.xhsv7jauejjis3mi@hirez.programming.kicks-ass.net>
+ <ffa991a3-074d-ffd5-7a6a-556d6cdd08fe@redhat.com>
+ <20170601184740.GC3494@htj.duckdns.org>
+ <ca834386-c41c-2797-702f-91516b06779f@redhat.com>
+ <20170601203815.GA13390@htj.duckdns.org>
+ <e65745c2-3b07-eb8b-b638-04e9bb1ed1e6@redhat.com>
+ <20170601205203.GB13390@htj.duckdns.org>
+ <1e775dcf-61b2-29d5-a214-350dc81c632b@redhat.com>
+ <20170601211823.GC13390@htj.duckdns.org>
+ <cf47d637-204c-49ea-94ec-c2bf0cf10614@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170601223808.GC2780@redhat.com>
-References: <20170522165206.6284-1-jglisse@redhat.com> <CAKTCnzn2rTnqq62JY3GfAd7SCv1PChTrHSB6ikJzdjNzXC9cGA@mail.gmail.com>
- <20170524175349.GB24024@redhat.com> <CAKTCnznUJcHt9cd3ZOn-f2-HVHrCM_L+BPC5mgBVhsB7o0=JUw@mail.gmail.com>
- <20170601223808.GC2780@redhat.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Sat, 3 Jun 2017 19:18:48 +1000
-Message-ID: <CAKTCnzntOCVh5kJ4VeGYHkwchhYGAP3Z9RqQqXCqZOssVNt6PQ@mail.gmail.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v22
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cf47d637-204c-49ea-94ec-c2bf0cf10614@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@redhat.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, pjt@google.com, luto@amacapital.net, efault@gmx.de
 
-On Fri, Jun 2, 2017 at 8:38 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Thu, Jun 01, 2017 at 12:04:02PM +1000, Balbir Singh wrote:
->> On Thu, May 25, 2017 at 3:53 AM, Jerome Glisse <jglisse@redhat.com> wrot=
-e:
->> > On Wed, May 24, 2017 at 11:55:12AM +1000, Balbir Singh wrote:
->> >> On Tue, May 23, 2017 at 2:51 AM, J=C3=A9r=C3=B4me Glisse <jglisse@red=
-hat.com> wrote:
->> >> > Patchset is on top of mmotm mmotm-2017-05-18, git branch:
->> >> >
->> >> > https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-v22
->> >> >
->> >> > Change since v21 is adding back special refcounting in put_page() t=
-o
->> >> > catch when a ZONE_DEVICE page is free (refcount going from 2 to 1
->> >> > unlike regular page where a refcount of 0 means the page is free).
->> >> > See patch 8 of this serie for this refcounting. I did not use stati=
-c
->> >> > keys because it kind of scares me to do that for an inline function=
-.
->> >> > If people strongly feel about this i can try to make static key wor=
-ks
->> >> > here. Kirill will most likely want to review this.
->> >> >
->> >> >
->> >> > Everything else is the same. Below is the long description of what =
-HMM
->> >> > is about and why. At the end of this email i describe briefly each =
-patch
->> >> > and suggest reviewers for each of them.
->> >> >
->> >> >
->> >> > Heterogeneous Memory Management (HMM) (description and justificatio=
-n)
->> >> >
->> >>
->> >> Thanks for the patches! These patches are very helpful. There are a
->> >> few additional things we would need on top of this (once HMM the base
->> >> is merged)
->> >>
->> >> 1. Support for other architectures, we'd like to make sure we can get
->> >> this working for powerpc for example. As a first step we have
->> >> ZONE_DEVICE enablement patches, but I think we need some additional
->> >> patches for iomem space searching and memory hotplug, IIRC
->> >> 2. HMM-CDM and physical address based migration bits. In a recent RFC
->> >> we decided to try and use the HMM CDM route as a route to implementin=
-g
->> >> coherent device memory as a starting point. It would be nice to have
->> >> those patches on top of these once these make it to mm -
->> >> https://lwn.net/Articles/720380/
->> >>
->> >
->> > I intend to post the updated HMM CDM patchset early next week. I am
->> > tie in couple internal backport but i should be able to resume work
->> > on that this week.
->> >
->>
->> Thanks, I am looking at the HMM CDM branch and trying to forward port
->> and see what the results look like on top of HMM-v23. Do we have a timel=
-ine
->> for the v23 merge?
->>
->
-> So i am moving to new office and it has taken me more time than i thought
-> to pack stuff. Attach is first step of CDM on top of lastest HMM. I hope
-> to have more time tomorrow or next week to finish rebasing patches and to
-> run some test with stolen ram as CDM memory.
->
+Hello,
 
+On Fri, Jun 02, 2017 at 04:36:22PM -0400, Waiman Long wrote:
+> I wouldn't argue further on that if you insist. However, I still want to
 
-No worries, thanks for the update. I forward ported some of the stuff from
-HMM-CDM myself for testing on top of v23, with some assumptions and names
-like MEMORY_PRIVATE_COHERENT (a new type) and arch_add_memory for
-hotplug. I also modified Reza's driver (test) to see how far I can get
-with HMM-CDM.
+Oh, please don't get me wrong.  I'm not trying to shut down the
+discussion or anything.  It's just that whole-scope discussions can
+get very meandering and time-consuming when these two issues can be
+decoupled from each other without compromising on either.  Let's
+approach these issues separately.
 
-I look forward to the HMM-CDM patchset that you post.
+> relax the constraint somewhat by abandoning the no internal process
+> constraint  when only threaded controllers (non-resource domains) are
+> enabled even when thread mode has not been explicitly enabled. It is a
+> modified version my second alternative. Now the question is which
+> controllers are considered to be resource domains. I think memory and
+> blkio are in the list. What else do you think should be considered
+> resource domains?
 
-Balbir Singh
+And we're now a bit into repeating ourselves but for controlling of
+any significant resources (mostly cpu, memory, io), there gotta be
+significant portion of resource consumption which isn't tied to
+spcific processes or threads that should be accounted for.  Both
+memory and io already do this to a certain extent, but not completely.
+cpu doesn't do it at all yet but we usually can't / shouldn't declare
+a resource category to be domain-free.
+
+There are exceptions - controllers which are only used for membership
+identification (perf and the old net controllers), pids which is
+explicitly tied to tasks (note that CPU cycles aren't), cpuset which
+is an attribute propagating / restricting controller.
+
+Out of those, the identification uses already aren't affected by the
+constraint as they're now all either direct membership test against
+the hierarchy or implicit controllers which aren't subject to the
+constraint.  That leaves pids and cpuset.  We can exempt them from the
+constraint but I'm not quite sure what that buys us given that neither
+is affected by requiring explicit leaf nodes.  It'd just make the
+rules more complicated without actual benefits.
+
+That said, we can exempt those two.  I don't see much point in it but
+we can definitely discuss the pros and cons, and it's likely that it's
+not gonna make much difference wichever way we choose.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
