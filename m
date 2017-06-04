@@ -1,69 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 46D566B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 17:43:26 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id h127so146931130oic.11
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 14:43:26 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z37si11848329otc.51.2017.06.04.14.43.22
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 462C96B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 18:28:02 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k1so41774315pgp.14
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 15:28:02 -0700 (PDT)
+Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
+        by mx.google.com with ESMTPS id n65si17970023pga.157.2017.06.04.15.28.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Jun 2017 14:43:23 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170602071818.GA29840@dhcp22.suse.cz>
-	<201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
-	<CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
-	<201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
-	<20170604150533.GA3500@dhcp22.suse.cz>
-In-Reply-To: <20170604150533.GA3500@dhcp22.suse.cz>
-Message-Id: <201706050643.EDD87569.VSFQOFJtFHOOML@I-love.SAKURA.ne.jp>
-Date: Mon, 5 Jun 2017 06:43:04 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Jun 2017 15:28:01 -0700 (PDT)
+Received: by mail-pf0-x22f.google.com with SMTP id 9so74103491pfj.1
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 15:28:01 -0700 (PDT)
+Date: Sun, 4 Jun 2017 15:27:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, vmscan: avoid thrashing anon lru when free + file
+ is low
+In-Reply-To: <20170602133637.7f6b49fbb740fb70e3b2307d@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1706041520410.21195@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1704171657550.139497@chino.kir.corp.google.com> <20170418013659.GD21354@bbox> <alpine.DEB.2.10.1704181402510.112481@chino.kir.corp.google.com> <20170419001405.GA13364@bbox> <alpine.DEB.2.10.1704191623540.48310@chino.kir.corp.google.com>
+ <20170420060904.GA3720@bbox> <alpine.DEB.2.10.1705011432220.137835@chino.kir.corp.google.com> <20170602133637.7f6b49fbb740fb70e3b2307d@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: xiyou.wangcong@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Sun 04-06-17 17:58:49, Tetsuo Handa wrote:
-> [...]
-> > > As I already mentioned in my original report, I know there are at least
-> > > two similar warnings reported before:
-> > >
-> > > https://lkml.org/lkml/2016/12/13/529
-> > > https://bugzilla.kernel.org/show_bug.cgi?id=192981
-> > >
-> > > I don't see any fix, nor I see they are similar to mine.
-> > 
-> > No means for analyzing, no plan for fixing the problems.
+On Fri, 2 Jun 2017, Andrew Morton wrote:
+
+> On Mon, 1 May 2017 14:34:21 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 > 
-> Stop this bullshit Tetsuo! Seriously, you are getting over the line!
-> Nobody said we do not care. In order to do something about that we need
-> to get further and relevant information.
+> > The purpose of the code that commit 623762517e23 ("revert 'mm: vmscan: do
+> > not swap anon pages just because free+file is low'") reintroduces is to
+> > prefer swapping anonymous memory rather than trashing the file lru.
+> > 
+> > If the anonymous inactive lru for the set of eligible zones is considered
+> > low, however, or the length of the list for the given reclaim priority
+> > does not allow for effective anonymous-only reclaiming, then avoid
+> > forcing SCAN_ANON.  Forcing SCAN_ANON will end up thrashing the small
+> > list and leave unreclaimed memory on the file lrus.
+> > 
+> > If the inactive list is insufficient, fallback to balanced reclaim so the
+> > file lru doesn't remain untouched.
+> > 
+> 
+> --- a/mm/vmscan.c~mm-vmscan-avoid-thrashing-anon-lru-when-free-file-is-low-fix
+> +++ a/mm/vmscan.c
+> @@ -2233,7 +2233,7 @@ static void get_scan_count(struct lruvec
+>  			 * anonymous pages on the LRU in eligible zones.
+>  			 * Otherwise, the small LRU gets thrashed.
+>  			 */
+> -			if (!inactive_list_is_low(lruvec, false, sc, false) &&
+> +			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
+>  			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+>  					>> sc->priority) {
+>  				scan_balance = SCAN_ANON;
+> 
+> Worried.  Did you send the correct version?
+> 
 
-What I'm asking for is the method for getting further and relevant
-information. And I get no positive feedback nor usable alternatives.
+The patch was written before commit 2a2e48854d70 ("mm: vmscan: fix 
+IO/refault regression in cache workingset transition") was merged and 
+changed inactive_list_is_low().
 
->                                          The first and the most
-> important one is whether this is reproducible with the _clean_ vanilla
-> kernel.
-
-At this point, distribution kernel users won't get any help from community,
-nor distribution kernel users won't be able to help community.
-
-Even more, you are asking that whether this is reproducible with the clean
-_latest_ (linux-next.git or at least linux.git) vanilla kernel. Therefore,
-only quite few kernel developers can involve this problem, for not everybody
-is good at establishing environments / steps for reproducing this problem.
-It makes getting feedback even more difficult.
-
-According to your LSFMM session ( https://lwn.net/Articles/718212/ ),
-you are worrying about out of reviewers. But it seems to me that your
-orientation keeps the gap between developers and users wider; only
-experienced developers like you know almost all things, all others will
-know almost nothing.
+Your rebase looks good.  It could have used NULL instead of memcg since 
+this is only for global_reclaim() and memcg will always be NULL here, but 
+that's just personal preference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
