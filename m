@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0156B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 11:05:39 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 46so6857863wru.0
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 08:05:39 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92si798233wrb.122.2017.06.04.08.05.37
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CD066B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 15:26:01 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id b65so9275325lfh.8
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:26:01 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id p129si3183894lfp.49.2017.06.04.12.25.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Jun 2017 08:05:37 -0700 (PDT)
-Date: Sun, 4 Jun 2017 17:05:34 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-Message-ID: <20170604150533.GA3500@dhcp22.suse.cz>
-References: <20170601132808.GD9091@dhcp22.suse.cz>
- <20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
- <20170602071818.GA29840@dhcp22.suse.cz>
- <201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
- <CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
- <201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Jun 2017 12:25:59 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id f14so8140557lfe.1
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:25:58 -0700 (PDT)
+Date: Sun, 4 Jun 2017 22:25:54 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [RFC PATCH v2 1/7] mm, oom: refactor select_bad_process() to
+ take memcg as an argument
+Message-ID: <20170604192553.GA19980@esperanza>
+References: <1496342115-3974-1-git-send-email-guro@fb.com>
+ <1496342115-3974-2-git-send-email-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+In-Reply-To: <1496342115-3974-2-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: xiyou.wangcong@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun 04-06-17 17:58:49, Tetsuo Handa wrote:
-[...]
-> > As I already mentioned in my original report, I know there are at least
-> > two similar warnings reported before:
-> >
-> > https://lkml.org/lkml/2016/12/13/529
-> > https://bugzilla.kernel.org/show_bug.cgi?id=192981
-> >
-> > I don't see any fix, nor I see they are similar to mine.
+On Thu, Jun 01, 2017 at 07:35:09PM +0100, Roman Gushchin wrote:
+> The select_bad_process() function will be used further
+> to select a process to kill in the victim cgroup.
+> This cgroup doesn't necessary match oc->memcg,
+> which is a cgroup, which limits were caused cgroup-wide OOM
+> (or NULL in case of global OOM).
 > 
-> No means for analyzing, no plan for fixing the problems.
+> So, refactor select_bad_process() to take a pointer to
+> a cgroup to iterate over as an argument.
 
-Stop this bullshit Tetsuo! Seriously, you are getting over the line!
-Nobody said we do not care. In order to do something about that we need
-to get further and relevant information. The first and the most
-important one is whether this is reproducible with the _clean_ vanilla
-kernel. If yes then reproduction steps including the system dependent
-ones would help us as well. If we know that we can start building
-a more comprehensive picture of what is going on. Unlike you I do not
-want to jump into "this must be print" conclusion.
-
-But stop this unjustified claims.
--- 
-Michal Hocko
-SUSE Labs
+IMHO this patch, as well as patches 2-5, doesn't deserve to be submitted
+separately: none of them make sense as a separate change; worse, patches
+4 and 5 introduce user API that doesn't do anything without patch 6. All
+of the changes are relatively small and singling them out doesn't really
+facilitate review, so I'd merge them all in patch 6.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
