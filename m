@@ -1,168 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 43BA06B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 17:18:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e8so128933826pfl.4
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 14:18:15 -0700 (PDT)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id t188si29143405pgc.259.2017.06.04.14.18.14
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46D566B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 17:43:26 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id h127so146931130oic.11
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 14:43:26 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z37si11848329otc.51.2017.06.04.14.43.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Jun 2017 14:18:14 -0700 (PDT)
-Received: by mail-pf0-x231.google.com with SMTP id 9so73736385pfj.1
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 14:18:14 -0700 (PDT)
-From: Yu Zhao <yuzhao@google.com>
-Subject: [PATCH v3] memcg: refactor mem_cgroup_resize_limit()
-Date: Sun,  4 Jun 2017 14:18:07 -0700
-Message-Id: <20170604211807.32685-1-yuzhao@google.com>
-In-Reply-To: <20170601230212.30578-1-yuzhao@google.com>
-References: <20170601230212.30578-1-yuzhao@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 04 Jun 2017 14:43:23 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170602071818.GA29840@dhcp22.suse.cz>
+	<201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
+	<CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
+	<201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+	<20170604150533.GA3500@dhcp22.suse.cz>
+In-Reply-To: <20170604150533.GA3500@dhcp22.suse.cz>
+Message-Id: <201706050643.EDD87569.VSFQOFJtFHOOML@I-love.SAKURA.ne.jp>
+Date: Mon, 5 Jun 2017 06:43:04 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n.borisov.lkml@gmail.com, Yu Zhao <yuzhao@google.com>
+To: mhocko@suse.com
+Cc: xiyou.wangcong@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
 
-mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
-identical logics. Refactor code so we don't need to keep two pieces
-of code that does same thing.
+Michal Hocko wrote:
+> On Sun 04-06-17 17:58:49, Tetsuo Handa wrote:
+> [...]
+> > > As I already mentioned in my original report, I know there are at least
+> > > two similar warnings reported before:
+> > >
+> > > https://lkml.org/lkml/2016/12/13/529
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=192981
+> > >
+> > > I don't see any fix, nor I see they are similar to mine.
+> > 
+> > No means for analyzing, no plan for fixing the problems.
+> 
+> Stop this bullshit Tetsuo! Seriously, you are getting over the line!
+> Nobody said we do not care. In order to do something about that we need
+> to get further and relevant information.
 
-Signed-off-by: Yu Zhao <yuzhao@google.com>
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
----
-Changelog since v1:
-* minor style change
-Changelog since v2:
-* fix build error
+What I'm asking for is the method for getting further and relevant
+information. And I get no positive feedback nor usable alternatives.
 
- mm/memcontrol.c | 73 ++++++++++-----------------------------------------------
- 1 file changed, 13 insertions(+), 60 deletions(-)
+>                                          The first and the most
+> important one is whether this is reproducible with the _clean_ vanilla
+> kernel.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 94172089f52f..08a97a381b2a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2422,13 +2422,15 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
- static DEFINE_MUTEX(memcg_limit_mutex);
- 
- static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
--				   unsigned long limit)
-+				   unsigned long limit, bool memsw)
- {
- 	unsigned long curusage;
- 	unsigned long oldusage;
- 	bool enlarge = false;
- 	int retry_count;
- 	int ret;
-+	bool inverted;
-+	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
- 
- 	/*
- 	 * For keeping hierarchical_reclaim simple, how long we should retry
-@@ -2438,58 +2440,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
- 		      mem_cgroup_count_children(memcg);
- 
--	oldusage = page_counter_read(&memcg->memory);
--
--	do {
--		if (signal_pending(current)) {
--			ret = -EINTR;
--			break;
--		}
--
--		mutex_lock(&memcg_limit_mutex);
--		if (limit > memcg->memsw.limit) {
--			mutex_unlock(&memcg_limit_mutex);
--			ret = -EINVAL;
--			break;
--		}
--		if (limit > memcg->memory.limit)
--			enlarge = true;
--		ret = page_counter_limit(&memcg->memory, limit);
--		mutex_unlock(&memcg_limit_mutex);
--
--		if (!ret)
--			break;
--
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
--
--		curusage = page_counter_read(&memcg->memory);
--		/* Usage is reduced ? */
--		if (curusage >= oldusage)
--			retry_count--;
--		else
--			oldusage = curusage;
--	} while (retry_count);
--
--	if (!ret && enlarge)
--		memcg_oom_recover(memcg);
--
--	return ret;
--}
--
--static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
--					 unsigned long limit)
--{
--	unsigned long curusage;
--	unsigned long oldusage;
--	bool enlarge = false;
--	int retry_count;
--	int ret;
--
--	/* see mem_cgroup_resize_res_limit */
--	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
--		      mem_cgroup_count_children(memcg);
--
--	oldusage = page_counter_read(&memcg->memsw);
-+	oldusage = page_counter_read(counter);
- 
- 	do {
- 		if (signal_pending(current)) {
-@@ -2498,22 +2449,24 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		}
- 
- 		mutex_lock(&memcg_limit_mutex);
--		if (limit < memcg->memory.limit) {
-+		inverted = memsw ? limit < memcg->memory.limit :
-+				   limit > memcg->memsw.limit;
-+		if (inverted) {
- 			mutex_unlock(&memcg_limit_mutex);
- 			ret = -EINVAL;
- 			break;
- 		}
--		if (limit > memcg->memsw.limit)
-+		if (limit > counter->limit)
- 			enlarge = true;
--		ret = page_counter_limit(&memcg->memsw, limit);
-+		ret = page_counter_limit(counter, limit);
- 		mutex_unlock(&memcg_limit_mutex);
- 
- 		if (!ret)
- 			break;
- 
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
- 
--		curusage = page_counter_read(&memcg->memsw);
-+		curusage = page_counter_read(counter);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
- 			retry_count--;
-@@ -2975,10 +2928,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
- 		}
- 		switch (MEMFILE_TYPE(of_cft(of)->private)) {
- 		case _MEM:
--			ret = mem_cgroup_resize_limit(memcg, nr_pages);
-+			ret = mem_cgroup_resize_limit(memcg, nr_pages, false);
- 			break;
- 		case _MEMSWAP:
--			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
-+			ret = mem_cgroup_resize_limit(memcg, nr_pages, true);
- 			break;
- 		case _KMEM:
- 			ret = memcg_update_kmem_limit(memcg, nr_pages);
--- 
-2.13.0.506.g27d5fe0cd-goog
+At this point, distribution kernel users won't get any help from community,
+nor distribution kernel users won't be able to help community.
+
+Even more, you are asking that whether this is reproducible with the clean
+_latest_ (linux-next.git or at least linux.git) vanilla kernel. Therefore,
+only quite few kernel developers can involve this problem, for not everybody
+is good at establishing environments / steps for reproducing this problem.
+It makes getting feedback even more difficult.
+
+According to your LSFMM session ( https://lwn.net/Articles/718212/ ),
+you are worrying about out of reviewers. But it seems to me that your
+orientation keeps the gap between developers and users wider; only
+experienced developers like you know almost all things, all others will
+know almost nothing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
