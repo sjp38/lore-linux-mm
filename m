@@ -1,549 +1,786 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A1F1C6B0292
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2017 22:19:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m79so31087426pfg.13
-        for <linux-mm@kvack.org>; Sat, 03 Jun 2017 19:19:28 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id h65si26386410pgc.102.2017.06.03.19.19.27
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E32026B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 04:59:10 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id z125so127538898itc.12
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 01:59:10 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i127si7807791ita.72.2017.06.04.01.59.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Jun 2017 19:19:27 -0700 (PDT)
-Date: Sun, 4 Jun 2017 10:18:35 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 1/1] Sealable memory support
-Message-ID: <201706041042.gpzQjXpn%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="nFreZHaLTZJo0R7j"
-Content-Disposition: inline
-In-Reply-To: <20170519103811.2183-2-igor.stoppa@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 04 Jun 2017 01:59:08 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170601132808.GD9091@dhcp22.suse.cz>
+	<20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
+	<20170602071818.GA29840@dhcp22.suse.cz>
+	<201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
+	<CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
+In-Reply-To: <CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
+Message-Id: <201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+Date: Sun, 4 Jun 2017 17:58:49 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: kbuild-all@01.org, mhocko@kernel.org, dave.hansen@intel.com, labbott@redhat.com, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org
+To: xiyou.wangcong@gmail.com
+Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
+
+Cong Wang wrote:
+> Just FYI: it is not us who picks those numbers, they are in the LTP test
+> memcg_stress_test.sh.
+
+I see. No problem as long as 0.5GB per a memcg and 150 memcg groups
+parts are correct.
+
+> > but it is also possible that
+> >
+> >   (b) Cong is reporting an unnoticed bug in the MM subsystem
+> >
+>
+> I suppose so when I report the warning, unless commit
+> 63f53dea0c9866e93802d50a230c460a024 is a false alarm. ;)
+
+63f53dea0c9866e9 is really a half-baked troublesome alarm. :-(
+
+It has failed to alarm for more than 30+ minutes (won't be fixed),
+it is failing to alarm forever (not yet fixed), it has failed to
+alarm __GFP_NOWARN allocations (fixed in 4.12-rc1), it is still
+failing to print all possibly relevant threads (not yet fixed) etc.
+
+I can't expect that users find more than "something went wrong" from
+this alarm. You might have found a memcg related MM problem, but you
+are a victim who failed to find more than "the kernel got soft lockup
+due to parallel dump_stack() calls by this alarm".
+
+>
+> If I understand that commit correctly, it warns that we spend too
+> much time on retrying and make no progress on the mm allocator
+> slow path, which clearly indicates some problem.
+
+Yes, but it is far from reliable, and it won't become reliable.
+
+>
+> But I thought it is obvious we should OOM instead of hanging
+> somewhere in this situation? (My mm knowledge is very limited.)
+
+Yes, I think that your system should have invoked the OOM killer,
+though my MM knowledge is very limited as well.
+
+>
+>
+> > as well as
+> >
+> >   (c) Cong is reporting a bug which does not exist in the latest
+> >       linux-next kernel
+> >
+>
+> As I already mentioned in my original report, I know there are at least
+> two similar warnings reported before:
+>
+> https://lkml.org/lkml/2016/12/13/529
+> https://bugzilla.kernel.org/show_bug.cgi?id=192981
+>
+> I don't see any fix, nor I see they are similar to mine.
+
+No means for analyzing, no plan for fixing the problems.
+
+> >>> When memory allocation request is stalling, serialization via waiting
+> >>> for a lock does help.
+> >>
+> >> Which will mean that those unlucky ones which stall will stall even more
+> >> because they will wait on a lock with potentially many others. While
+> >> this certainly is a throttling mechanism it is also a big hammer.
+> >
+> > According to my testing, the cause of stalls with flooding of printk() from
+> > warn_alloc() is exactly the lack of enough CPU time because the page
+> > allocator continues busy looping when memory allocation is stalling.
+> >
+>
+> In the retry loop, warn_alloc() is only called after stall is detected, not
+> before, therefore waiting on the mutex does not contribute to at least
+> the first stall.
+
+Right, but waiting on the mutex inside warn_alloc() cannot yield enough
+CPU time for allowing log_buf readers to write to consoles.
+
+> > Andrew Morton wrote:
+> >> I'm thinking we should serialize warn_alloc anyway, to prevent the
+> >> output from concurrent calls getting all jumbled together?
+> >
+> > Yes. According to my testing, serializing warn_alloc() can not yield
+> > enough CPU time because warn_alloc() is called only once per 10 seconds.
+> > Serializing
+> >
+> > -       if (!mutex_trylock(&oom_lock)) {
+> > +       if (mutex_lock_killable(&oom_lock)) {
+> >
+> > in __alloc_pages_may_oom() can yield enough CPU time to solve the stalls.
+> >
+>
+> For this point, I am with you, it would be helpful to serialize them in
+> case we mix different warnings in dmesg. But you probably need to adjust
+> the timestamps in case waiting on the mutex contributes to the stall too?
+
+As long as Michal refuses serialization, we won't get helpful output.
+You can retry with my kmallocwd patch shown bottom. An example output is
+at http://I-love.SAKURA.ne.jp/tmp/sample-serial.log .
+
+Of course, kmallocwd can gather only basic information. You might need to
+gather more information by e.g. enabling tracepoints after analyzing basic
+information.
+
+>
+> [...]
+>
+> > This result shows that the OOM killer was not able to send SIGKILL until
+> > I gave up waiting and pressed SysRq-i because __alloc_pages_slowpath() continued
+> > wasting CPU time after the OOM killer tried to start printing memory information.
+> > We can avoid this case if we wait for oom_lock at __alloc_pages_may_oom().
+> >
+>
+> Note, in my case OOM killer was probably not even invoked although
+> the log I captured is a complete one...
+
+Since you said
+
+  The log I sent is partial, but that is already all what we captured,
+  I can't find more in kern.log due to log rotation.
+
+you meant "the log I captured is an incomplete one", don't you?
+
+Under memory pressure, we can't expect printk() output (as well as tracepoint
+output) to be flushed to log files on a storage because writing to a file
+involves memory allocation. Therefore, you can try serial console or netconsole
+for saving printk() output more reliably than log files.
+
+Some hardware uses horribly slow / unreliable serial device. In that case
+netconsole would be better. If you use netconsole, you can use a utility
+I wrote for receiving netconsole messages available at
+https://osdn.net/projects/akari/scm/svn/tree/head/branches/udplogger/ .
+This utility can concatenate pr_cont() output heavily used in MM subsystem
+with one timestamp per a line.
+
+Below is kmallocwd patch backpoated for 4.9.30 kernel from
+http://lkml.kernel.org/r/1495331504-12480-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+Documentation/malloc-watchdog.txt part is stripped in order to reduce lines.
 
 
---nFreZHaLTZJo0R7j
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 
-Hi Igor,
+ include/linux/gfp.h   |    8 +
+ include/linux/oom.h   |    4
+ include/linux/sched.h |   19 ++++
+ kernel/fork.c         |    4
+ kernel/hung_task.c    |  216 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ kernel/sysctl.c       |   10 ++
+ lib/Kconfig.debug     |   24 +++++
+ mm/mempool.c          |    9 +-
+ mm/oom_kill.c         |    3
+ mm/page_alloc.c       |   82 ++++++++++++++++++
+ 10 files changed, 377 insertions(+), 2 deletions(-)
 
-[auto build test ERROR on mmotm/master]
-[also build test ERROR on v4.12-rc3 next-20170602]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-
-url:    https://github.com/0day-ci/linux/commits/Igor-Stoppa/Sealable-memory-support/20170522-163525
-base:   git://git.cmpxchg.org/linux-mmotm.git master
-config: i386-randconfig-n0-06032349 (attached as .config)
-compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
-reproduce:
-        # save the attached .config to linux build tree
-        make ARCH=i386 
-
-All errors (new ones prefixed by >>):
-
-   mm//smalloc.c: In function 'smalloc_seal_set':
->> mm//smalloc.c:135:4: error: implicit declaration of function 'set_memory_ro' [-Werror=implicit-function-declaration]
-       set_memory_ro((unsigned long)node,
-       ^~~~~~~~~~~~~
->> mm//smalloc.c:138:4: error: implicit declaration of function 'set_memory_rw' [-Werror=implicit-function-declaration]
-       set_memory_rw((unsigned long)node,
-       ^~~~~~~~~~~~~
-   cc1: some warnings being treated as errors
-
-vim +/set_memory_ro +135 mm//smalloc.c
-
-   129			mutex_unlock(&pool->lock);
-   130			return;
-   131		}
-   132		list_for_each(pos, &pool->list) {
-   133			node = list_entry(pos, struct smalloc_node, list);
-   134			if (seal == SMALLOC_SEALED)
- > 135				set_memory_ro((unsigned long)node,
-   136					      get_node_pages_nr(node));
-   137			else if (seal == SMALLOC_UNSEALED)
- > 138				set_memory_rw((unsigned long)node,
-   139					      get_node_pages_nr(node));
-   140		}
-   141		pool->seal = seal;
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---nFreZHaLTZJo0R7j
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---nFreZHaLTZJo0R7j--
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index f8041f9de..cd4253f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -460,6 +460,14 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 	return __alloc_pages_node(nid, gfp_mask, order);
+ }
+ 
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++extern void start_memalloc_timer(const gfp_t gfp_mask, const int order);
++extern void stop_memalloc_timer(const gfp_t gfp_mask);
++#else
++#define start_memalloc_timer(gfp_mask, order) do { } while (0)
++#define stop_memalloc_timer(gfp_mask) do { } while (0)
++#endif
++
+ #ifdef CONFIG_NUMA
+ extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
+ 
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index b4e36e9..8487d1b 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -79,8 +79,12 @@ extern unsigned long oom_badness(struct task_struct *p,
+ 
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+ 
++extern unsigned int out_of_memory_count;
++extern bool memalloc_maybe_stalling(void);
++
+ /* sysctls */
+ extern int sysctl_oom_dump_tasks;
+ extern int sysctl_oom_kill_allocating_task;
+ extern int sysctl_panic_on_oom;
++extern unsigned long sysctl_memalloc_task_warning_secs;
+ #endif /* _INCLUDE_LINUX_OOM_H */
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f425eb3..5d48ecb 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1472,6 +1472,22 @@ struct tlbflush_unmap_batch {
+ 	bool writable;
+ };
+ 
++struct memalloc_info {
++	/* Is current thread doing (nested) memory allocation? */
++	u8 in_flight;
++	/* Watchdog kernel thread is about to report this task? */
++	bool report;
++	/* Index used for memalloc_in_flight[] counter. */
++	u8 idx;
++	/* For progress monitoring. */
++	unsigned int sequence;
++	/* Started time in jiffies as of in_flight == 1. */
++	unsigned long start;
++	/* Requested order and gfp flags as of in_flight == 1. */
++	unsigned int order;
++	gfp_t gfp;
++};
++
+ struct task_struct {
+ #ifdef CONFIG_THREAD_INFO_IN_TASK
+ 	/*
+@@ -1960,6 +1976,9 @@ struct task_struct {
+ 	/* A live task holds one reference. */
+ 	atomic_t stack_refcount;
+ #endif
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++	struct memalloc_info memalloc;
++#endif
+ /* CPU-specific state of this task */
+ 	struct thread_struct thread;
+ /*
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 59faac4..8c2aef2 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1624,6 +1624,10 @@ static __latent_entropy struct task_struct *copy_process(
+ 	p->sequential_io_avg	= 0;
+ #endif
+ 
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++	p->memalloc.sequence = 0;
++#endif
++
+ 	/* Perform scheduler related setup. Assign this task to a CPU. */
+ 	retval = sched_fork(clone_flags, p);
+ 	if (retval)
+diff --git a/kernel/hung_task.c b/kernel/hung_task.c
+index 2b59c82..b6ce9a3 100644
+--- a/kernel/hung_task.c
++++ b/kernel/hung_task.c
+@@ -16,6 +16,8 @@
+ #include <linux/export.h>
+ #include <linux/sysctl.h>
+ #include <linux/utsname.h>
++#include <linux/oom.h>
++#include <linux/console.h>
+ #include <trace/events/sched.h>
+ 
+ /*
+@@ -141,6 +143,8 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
+ 	get_task_struct(g);
+ 	get_task_struct(t);
+ 	rcu_read_unlock();
++	if (console_trylock())
++		console_unlock();
+ 	cond_resched();
+ 	rcu_read_lock();
+ 	can_cont = pid_alive(g) && pid_alive(t);
+@@ -193,6 +197,200 @@ static long hung_timeout_jiffies(unsigned long last_checked,
+ 		MAX_SCHEDULE_TIMEOUT;
+ }
+ 
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++/*
++ * Zero means infinite timeout - no checking done:
++ */
++unsigned long __read_mostly sysctl_memalloc_task_warning_secs =
++	CONFIG_DEFAULT_MEMALLOC_TASK_TIMEOUT;
++
++/* Filled by is_stalling_task(), used by only khungtaskd kernel thread. */
++static struct memalloc_info memalloc;
++
++/**
++ * is_stalling_task - Check and copy a task's memalloc variable.
++ *
++ * @task:   A task to check.
++ * @expire: Timeout in jiffies.
++ *
++ * Returns true if a task is stalling, false otherwise.
++ */
++static bool is_stalling_task(const struct task_struct *task,
++			     const unsigned long expire)
++{
++	const struct memalloc_info *m = &task->memalloc;
++
++	if (likely(!m->in_flight || !time_after_eq(expire, m->start)))
++		return false;
++	/*
++	 * start_memalloc_timer() guarantees that ->in_flight is updated after
++	 * ->start is stored.
++	 */
++	smp_rmb();
++	memalloc.sequence = m->sequence;
++	memalloc.start = m->start;
++	memalloc.order = m->order;
++	memalloc.gfp = m->gfp;
++	return time_after_eq(expire, memalloc.start);
++}
++
++/*
++ * check_memalloc_stalling_tasks - Check for memory allocation stalls.
++ *
++ * @timeout: Timeout in jiffies.
++ *
++ * Returns number of stalling tasks.
++ *
++ * This function is marked as "noinline" in order to allow inserting dynamic
++ * probes (e.g. printing more information as needed using SystemTap, calling
++ * panic() if this function returned non 0 value).
++ */
++static noinline int check_memalloc_stalling_tasks(unsigned long timeout)
++{
++	enum {
++		MEMALLOC_TYPE_STALLING,       /* Report as stalling task. */
++		MEMALLOC_TYPE_DYING,          /* Report as dying task. */
++		MEMALLOC_TYPE_EXITING,        /* Report as exiting task.*/
++		MEMALLOC_TYPE_OOM_VICTIM,     /* Report as OOM victim. */
++		MEMALLOC_TYPE_UNCONDITIONAL,  /* Report unconditionally. */
++	};
++	char buf[256];
++	struct task_struct *g, *p;
++	unsigned long now;
++	unsigned long expire;
++	unsigned int sigkill_pending = 0;
++	unsigned int exiting_tasks = 0;
++	unsigned int memdie_pending = 0;
++	unsigned int stalling_tasks = 0;
++
++	cond_resched();
++	now = jiffies;
++	/*
++	 * Report tasks that stalled for more than half of timeout duration
++	 * because such tasks might be correlated with tasks that already
++	 * stalled for full timeout duration.
++	 */
++	expire = now - timeout * (HZ / 2);
++	/* Count stalling tasks, dying and victim tasks. */
++	rcu_read_lock();
++	for_each_process_thread(g, p) {
++		bool report = false;
++
++		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
++			report = true;
++			memdie_pending++;
++		}
++		if (fatal_signal_pending(p)) {
++			report = true;
++			sigkill_pending++;
++		}
++		if ((p->flags & PF_EXITING) && p->state != TASK_DEAD) {
++			report = true;
++			exiting_tasks++;
++		}
++		if (is_stalling_task(p, expire)) {
++			report = true;
++			stalling_tasks++;
++		}
++		if (p->flags & PF_KSWAPD)
++			report = true;
++		p->memalloc.report = report;
++	}
++	rcu_read_unlock();
++	if (!stalling_tasks)
++		return 0;
++	cond_resched();
++	/* Report stalling tasks, dying and victim tasks. */
++	pr_warn("MemAlloc-Info: stalling=%u dying=%u exiting=%u victim=%u oom_count=%u\n",
++		stalling_tasks, sigkill_pending, exiting_tasks, memdie_pending,
++		out_of_memory_count);
++	cond_resched();
++	sigkill_pending = 0;
++	exiting_tasks = 0;
++	memdie_pending = 0;
++	stalling_tasks = 0;
++	rcu_read_lock();
++ restart_report:
++	for_each_process_thread(g, p) {
++		u8 type;
++
++		if (likely(!p->memalloc.report))
++			continue;
++		p->memalloc.report = false;
++		/* Recheck in case state changed meanwhile. */
++		type = 0;
++		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
++			type |= (1 << MEMALLOC_TYPE_OOM_VICTIM);
++			memdie_pending++;
++		}
++		if (fatal_signal_pending(p)) {
++			type |= (1 << MEMALLOC_TYPE_DYING);
++			sigkill_pending++;
++		}
++		if ((p->flags & PF_EXITING) && p->state != TASK_DEAD) {
++			type |= (1 << MEMALLOC_TYPE_EXITING);
++			exiting_tasks++;
++		}
++		if (is_stalling_task(p, expire)) {
++			type |= (1 << MEMALLOC_TYPE_STALLING);
++			stalling_tasks++;
++			snprintf(buf, sizeof(buf),
++				 " seq=%u gfp=0x%x(%pGg) order=%u delay=%lu",
++				 memalloc.sequence, memalloc.gfp,
++				 &memalloc.gfp,
++				 memalloc.order, now - memalloc.start);
++		} else {
++			buf[0] = '\0';
++		}
++		if (p->flags & PF_KSWAPD)
++			type |= (1 << MEMALLOC_TYPE_UNCONDITIONAL);
++		if (unlikely(!type))
++			continue;
++		/*
++		 * Victim tasks get pending SIGKILL removed before arriving at
++		 * do_exit(). Therefore, print " exiting" instead for " dying".
++		 */
++		pr_warn("MemAlloc: %s(%u) flags=0x%x switches=%lu%s%s%s%s%s\n",
++			p->comm, p->pid, p->flags, p->nvcsw + p->nivcsw, buf,
++			(p->state & TASK_UNINTERRUPTIBLE) ?
++			" uninterruptible" : "",
++			(type & (1 << MEMALLOC_TYPE_EXITING)) ?
++			" exiting" : "",
++			(type & (1 << MEMALLOC_TYPE_DYING)) ? " dying" : "",
++			(type & (1 << MEMALLOC_TYPE_OOM_VICTIM)) ?
++			" victim" : "");
++		sched_show_task(p);
++		/*
++		 * Since there could be thousands of tasks to report, we always
++		 * call cond_resched() after each report, in order to avoid RCU
++		 * stalls.
++		 *
++		 * Since not yet reported tasks are marked as
++		 * p->memalloc.report == T, this loop can restart even if
++		 * "g" or "p" went away.
++		 *
++		 * TODO: Try to wait for a while (e.g. sleep until usage of
++		 * printk() buffer becomes less than 75%) in order to avoid
++		 * dropping messages.
++		 */
++		if (!rcu_lock_break(g, p))
++			goto restart_report;
++	}
++	rcu_read_unlock();
++	cond_resched();
++	/* Show memory information. (SysRq-m) */
++	show_mem(0);
++	/* Show workqueue state. */
++	show_workqueue_state();
++	/* Show lock information. (SysRq-d) */
++	debug_show_all_locks();
++	pr_warn("MemAlloc-Info: stalling=%u dying=%u exiting=%u victim=%u oom_count=%u\n",
++		stalling_tasks, sigkill_pending, exiting_tasks, memdie_pending,
++		out_of_memory_count);
++	return stalling_tasks;
++}
++#endif /* CONFIG_DETECT_MEMALLOC_STALL_TASK */
++
+ /*
+  * Process updating of timeout sysctl
+  */
+@@ -227,12 +425,28 @@ void reset_hung_task_detector(void)
+ static int watchdog(void *dummy)
+ {
+ 	unsigned long hung_last_checked = jiffies;
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++	unsigned long stall_last_checked = hung_last_checked;
++#endif
+ 
+ 	set_user_nice(current, 0);
+ 
+ 	for ( ; ; ) {
+ 		unsigned long timeout = sysctl_hung_task_timeout_secs;
+ 		long t = hung_timeout_jiffies(hung_last_checked, timeout);
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++		unsigned long timeout2 = sysctl_memalloc_task_warning_secs;
++		long t2 = hung_timeout_jiffies(stall_last_checked, timeout2);
++
++		if (t2 <= 0) {
++			if (memalloc_maybe_stalling())
++				check_memalloc_stalling_tasks(timeout2);
++			stall_last_checked = jiffies;
++			continue;
++		}
++#else
++		long t2 = t;
++#endif
+ 
+ 		if (t <= 0) {
+ 			if (!atomic_xchg(&reset_hung_task, 0))
+@@ -240,7 +454,7 @@ static int watchdog(void *dummy)
+ 			hung_last_checked = jiffies;
+ 			continue;
+ 		}
+-		schedule_timeout_interruptible(t);
++		schedule_timeout_interruptible(min(t, t2));
+ 	}
+ 
+ 	return 0;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index c1095cd..d8ee12a 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1083,6 +1083,16 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
+ 		.proc_handler	= proc_dointvec_minmax,
+ 		.extra1		= &neg_one,
+ 	},
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++	{
++		.procname	= "memalloc_task_warning_secs",
++		.data		= &sysctl_memalloc_task_warning_secs,
++		.maxlen		= sizeof(unsigned long),
++		.mode		= 0644,
++		.proc_handler	= proc_dohung_task_timeout_secs,
++		.extra2		= &hung_task_timeout_max,
++	},
++#endif
+ #endif
+ #ifdef CONFIG_RT_MUTEXES
+ 	{
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index a6c8db1..54e8da0 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -880,6 +880,30 @@ config WQ_WATCHDOG
+ 	  state.  This can be configured through kernel parameter
+ 	  "workqueue.watchdog_thresh" and its sysfs counterpart.
+ 
++config DETECT_MEMALLOC_STALL_TASK
++	bool "Detect tasks stalling inside memory allocator"
++	default n
++	depends on DETECT_HUNG_TASK
++	help
++	  This option emits warning messages and traces when memory
++	  allocation requests are stalling, in order to catch unexplained
++	  hangups/reboots caused by memory allocation stalls.
++
++config DEFAULT_MEMALLOC_TASK_TIMEOUT
++	int "Default timeout for stalling task detection (in seconds)"
++	depends on DETECT_MEMALLOC_STALL_TASK
++	default 60
++	help
++	  This option controls the default timeout (in seconds) used
++	  to determine when a task has become non-responsive and should
++	  be considered stalling inside memory allocator.
++
++	  It can be adjusted at runtime via the kernel.memalloc_task_warning_secs
++	  sysctl or by writing a value to
++	  /proc/sys/kernel/memalloc_task_warning_secs.
++
++	  A timeout of 0 disables the check. The default is 60 seconds.
++
+ endmenu # "Debug lockups and hangs"
+ 
+ config PANIC_ON_OOPS
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 47a659d..8b449af 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -324,11 +324,14 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 
+ 	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
+ 
++	start_memalloc_timer(gfp_temp, -1);
+ repeat_alloc:
+ 
+ 	element = pool->alloc(gfp_temp, pool->pool_data);
+-	if (likely(element != NULL))
++	if (likely(element != NULL)) {
++		stop_memalloc_timer(gfp_temp);
+ 		return element;
++	}
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
+ 	if (likely(pool->curr_nr)) {
+@@ -341,6 +344,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 		 * for debugging.
+ 		 */
+ 		kmemleak_update_trace(element);
++		stop_memalloc_timer(gfp_temp);
+ 		return element;
+ 	}
+ 
+@@ -350,13 +354,16 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+ 	 */
+ 	if (gfp_temp != gfp_mask) {
+ 		spin_unlock_irqrestore(&pool->lock, flags);
++		stop_memalloc_timer(gfp_temp);
+ 		gfp_temp = gfp_mask;
++		start_memalloc_timer(gfp_temp, -1);
+ 		goto repeat_alloc;
+ 	}
+ 
+ 	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+ 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
+ 		spin_unlock_irqrestore(&pool->lock, flags);
++		stop_memalloc_timer(gfp_temp);
+ 		return NULL;
+ 	}
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ec9f11d..ab46d06 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -44,6 +44,8 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/oom.h>
+ 
++unsigned int out_of_memory_count;
++
+ int sysctl_panic_on_oom;
+ int sysctl_oom_kill_allocating_task;
+ int sysctl_oom_dump_tasks = 1;
+@@ -986,6 +988,7 @@ bool out_of_memory(struct oom_control *oc)
+ 	unsigned long freed = 0;
+ 	enum oom_constraint constraint = CONSTRAINT_NONE;
+ 
++	out_of_memory_count++;
+ 	if (oom_killer_disabled)
+ 		return false;
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b06fb3..de24961 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3507,8 +3507,10 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	enum compact_result compact_result;
+ 	int compaction_retries;
+ 	int no_progress_loops;
++#ifndef CONFIG_DETECT_MEMALLOC_STALL_TASK
+ 	unsigned long alloc_start = jiffies;
+ 	unsigned int stall_timeout = 10 * HZ;
++#endif
+ 	unsigned int cpuset_mems_cookie;
+ 
+ 	/*
+@@ -3682,6 +3684,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+ 		goto nopage;
+ 
++#ifndef CONFIG_DETECT_MEMALLOC_STALL_TASK
+ 	/* Make sure we know about allocations which stall for too long */
+ 	if (time_after(jiffies, alloc_start + stall_timeout)) {
+ 		warn_alloc(gfp_mask,
+@@ -3689,6 +3692,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 			jiffies_to_msecs(jiffies-alloc_start), order);
+ 		stall_timeout += 10 * HZ;
+ 	}
++#endif
+ 
+ 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+ 				 did_some_progress > 0, &no_progress_loops))
+@@ -3741,6 +3745,76 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return page;
+ }
+ 
++#ifdef CONFIG_DETECT_MEMALLOC_STALL_TASK
++
++static DEFINE_PER_CPU_ALIGNED(int, memalloc_in_flight[2]);
++static u8 memalloc_active_index; /* Either 0 or 1. */
++
++/* Called periodically with sysctl_memalloc_task_warning_secs interval. */
++bool memalloc_maybe_stalling(void)
++{
++	int cpu;
++	int sum = 0;
++	const u8 idx = memalloc_active_index ^ 1;
++
++	for_each_online_cpu(cpu)
++		sum += per_cpu(memalloc_in_flight[idx], cpu);
++	if (sum)
++		return true;
++	memalloc_active_index ^= 1;
++	return false;
++}
++
++void start_memalloc_timer(const gfp_t gfp_mask, const int order)
++{
++	struct memalloc_info *m = &current->memalloc;
++
++	/* We don't check for stalls for !__GFP_DIRECT_RECLAIM allocations. */
++	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
++		return;
++	/* Record the beginning of memory allocation request. */
++	if (!m->in_flight) {
++		m->sequence++;
++		m->start = jiffies;
++		m->order = order;
++		m->gfp = gfp_mask;
++		m->idx = memalloc_active_index;
++		/*
++		 * is_stalling_task() depends on ->in_flight being updated
++		 * after ->start is stored.
++		 */
++		smp_wmb();
++		this_cpu_inc(memalloc_in_flight[m->idx]);
++	}
++	m->in_flight++;
++}
++
++void stop_memalloc_timer(const gfp_t gfp_mask)
++{
++	struct memalloc_info *m = &current->memalloc;
++
++	if ((gfp_mask & __GFP_DIRECT_RECLAIM) && !--m->in_flight)
++		this_cpu_dec(memalloc_in_flight[m->idx]);
++}
++
++static void memalloc_counter_fold(int cpu)
++{
++	int counter;
++	u8 idx;
++
++	for (idx = 0; idx < 2; idx++) {
++		counter = per_cpu(memalloc_in_flight[idx], cpu);
++		if (!counter)
++			continue;
++		this_cpu_add(memalloc_in_flight[idx], counter);
++		per_cpu(memalloc_in_flight[idx], cpu) = 0;
++	}
++}
++
++#else
++#define memalloc_counter_fold(cpu) do { } while (0)
++#endif
++
+ /*
+  * This is the 'heart' of the zoned buddy allocator.
+  */
+@@ -3825,7 +3899,9 @@ struct page *
+ 	if (unlikely(ac.nodemask != nodemask))
+ 		ac.nodemask = nodemask;
+ 
++	start_memalloc_timer(alloc_mask, order);
+ 	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
++	stop_memalloc_timer(alloc_mask);
+ 
+ out:
+ 	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
+@@ -6551,6 +6627,12 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
+ 		 * race with what we are doing.
+ 		 */
+ 		cpu_vm_stats_fold(cpu);
++
++		/*
++		 * Zero the in-flight counters of the dead processor so that
++		 * memalloc_maybe_stalling() needs to check only online processors.
++		 */
++		memalloc_counter_fold(cpu);
+ 	}
+ 	return NOTIFY_OK;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
