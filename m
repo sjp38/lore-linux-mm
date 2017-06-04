@@ -1,47 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CD066B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 15:26:01 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b65so9275325lfh.8
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:26:01 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id p129si3183894lfp.49.2017.06.04.12.25.58
+	by kanga.kvack.org (Postfix) with ESMTP id 3C9D16B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 15:30:08 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id d198so25521390lfg.0
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:30:08 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id o184si3646264lfo.10.2017.06.04.12.30.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Jun 2017 12:25:59 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id f14so8140557lfe.1
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:25:58 -0700 (PDT)
-Date: Sun, 4 Jun 2017 22:25:54 +0300
+        Sun, 04 Jun 2017 12:30:06 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id f14so8144987lfe.1
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:30:06 -0700 (PDT)
+Date: Sun, 4 Jun 2017 22:30:02 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [RFC PATCH v2 1/7] mm, oom: refactor select_bad_process() to
- take memcg as an argument
-Message-ID: <20170604192553.GA19980@esperanza>
+Subject: Re: [RFC PATCH v2 4/7] mm, oom: introduce oom_kill_all_tasks option
+ for memory cgroups
+Message-ID: <20170604193002.GB19980@esperanza>
 References: <1496342115-3974-1-git-send-email-guro@fb.com>
- <1496342115-3974-2-git-send-email-guro@fb.com>
+ <1496342115-3974-5-git-send-email-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1496342115-3974-2-git-send-email-guro@fb.com>
+In-Reply-To: <1496342115-3974-5-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
 Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 01, 2017 at 07:35:09PM +0100, Roman Gushchin wrote:
-> The select_bad_process() function will be used further
-> to select a process to kill in the victim cgroup.
-> This cgroup doesn't necessary match oc->memcg,
-> which is a cgroup, which limits were caused cgroup-wide OOM
-> (or NULL in case of global OOM).
+On Thu, Jun 01, 2017 at 07:35:12PM +0100, Roman Gushchin wrote:
+> This option defines whether a cgroup should be treated
+> as a single entity by the OOM killer.
 > 
-> So, refactor select_bad_process() to take a pointer to
-> a cgroup to iterate over as an argument.
+> If set, the OOM killer will compare the whole cgroup with other
+> memory consumers (other cgroups and tasks in the root cgroup),
+> and in case of an OOM will kill all belonging tasks.
+> 
+> Disabled by default.
+> 
+...
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> @@ -5265,6 +5292,12 @@ static struct cftype memory_files[] = {
+>  		.write = memory_max_write,
+>  	},
+>  	{
+> +		.name = "oom_kill_all_tasks",
+> +		.flags = CFTYPE_NOT_ON_ROOT,
+> +		.seq_show = memory_oom_kill_all_tasks_show,
+> +		.write = memory_oom_kill_all_tasks_write,
+> +	},
+> +	{
+>  		.name = "events",
+>  		.flags = CFTYPE_NOT_ON_ROOT,
+>  		.file_offset = offsetof(struct mem_cgroup, events_file),
 
-IMHO this patch, as well as patches 2-5, doesn't deserve to be submitted
-separately: none of them make sense as a separate change; worse, patches
-4 and 5 introduce user API that doesn't do anything without patch 6. All
-of the changes are relatively small and singling them out doesn't really
-facilitate review, so I'd merge them all in patch 6.
+I don't really like the name of the new knob, but can't come up with
+anything better :-( May be, drop '_tasks' suffix and call it just
+'oom_kill_all'? Or perhaps we should emphasize the fact that this
+cgroup is treated as a single entity by the OOM killer by calling it
+'oom_entity' or 'oom_unit'? Dunno...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
