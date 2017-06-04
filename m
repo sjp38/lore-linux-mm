@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C9D16B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 15:30:08 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id d198so25521390lfg.0
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:30:08 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id o184si3646264lfo.10.2017.06.04.12.30.06
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 72D356B02C3
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 15:38:55 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z6so56351318pgc.13
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:38:55 -0700 (PDT)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id i23si5466729pll.379.2017.06.04.12.38.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Jun 2017 12:30:06 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id f14so8144987lfe.1
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:30:06 -0700 (PDT)
-Date: Sun, 4 Jun 2017 22:30:02 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [RFC PATCH v2 4/7] mm, oom: introduce oom_kill_all_tasks option
- for memory cgroups
-Message-ID: <20170604193002.GB19980@esperanza>
-References: <1496342115-3974-1-git-send-email-guro@fb.com>
- <1496342115-3974-5-git-send-email-guro@fb.com>
+        Sun, 04 Jun 2017 12:38:54 -0700 (PDT)
+Received: by mail-pf0-x22e.google.com with SMTP id 9so73233456pfj.1
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 12:38:54 -0700 (PDT)
+Date: Sun, 4 Jun 2017 12:38:50 -0700
+From: Yu Zhao <yuzhao@google.com>
+Subject: Re: [PATCH] swap: cond_resched in swap_cgroup_prepare()
+Message-ID: <20170604193850.GA15369@google.com>
+References: <20170601195635.20744-1-yuzhao@google.com>
+ <20170602081855.GE29840@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1496342115-3974-5-git-send-email-guro@fb.com>
+In-Reply-To: <20170602081855.GE29840@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 01, 2017 at 07:35:12PM +0100, Roman Gushchin wrote:
-> This option defines whether a cgroup should be treated
-> as a single entity by the OOM killer.
+On Fri, Jun 02, 2017 at 10:18:57AM +0200, Michal Hocko wrote:
+> On Thu 01-06-17 12:56:35, Yu Zhao wrote:
+> > Saw need_resched() warnings when swapping on large swapfile (TBs)
+> > because page allocation in swap_cgroup_prepare() took too long.
 > 
-> If set, the OOM killer will compare the whole cgroup with other
-> memory consumers (other cgroups and tasks in the root cgroup),
-> and in case of an OOM will kill all belonging tasks.
+> Hmm, but the page allocator makes sure to cond_resched for sleeping
+> allocations. I guess what you mean is something different. It is not the
+> allocation which took too look but there are too many of them and none
+> of them sleeps because there is enough memory and the allocator doesn't
+> sleep in that case. Right?
 > 
-> Disabled by default.
+> > We already cond_resched when freeing page in swap_cgroup_swapoff().
+> > Do the same for the page allocation.
+> > 
+> > Signed-off-by: Yu Zhao <yuzhao@google.com>
 > 
-...
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> @@ -5265,6 +5292,12 @@ static struct cftype memory_files[] = {
->  		.write = memory_max_write,
->  	},
->  	{
-> +		.name = "oom_kill_all_tasks",
-> +		.flags = CFTYPE_NOT_ON_ROOT,
-> +		.seq_show = memory_oom_kill_all_tasks_show,
-> +		.write = memory_oom_kill_all_tasks_write,
-> +	},
-> +	{
->  		.name = "events",
->  		.flags = CFTYPE_NOT_ON_ROOT,
->  		.file_offset = offsetof(struct mem_cgroup, events_file),
+> The patch itself makes sense to me, the changelog could see some
+> clarification but other than that
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-I don't really like the name of the new knob, but can't come up with
-anything better :-( May be, drop '_tasks' suffix and call it just
-'oom_kill_all'? Or perhaps we should emphasize the fact that this
-cgroup is treated as a single entity by the OOM killer by calling it
-'oom_entity' or 'oom_unit'? Dunno...
+Thanks, I'll clarify the problem in the commit message and resend the
+patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
