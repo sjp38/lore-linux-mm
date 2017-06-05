@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ED896B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 18:50:40 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o8so58897320pgq.8
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 15:50:40 -0700 (PDT)
-Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
-        by mx.google.com with ESMTPS id a8si5813347ple.184.2017.06.04.15.50.39
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38DF76B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 21:00:46 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k81so1131684pfg.9
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 18:00:46 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f1si5830688pld.384.2017.06.04.18.00.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Jun 2017 15:50:39 -0700 (PDT)
-Received: by mail-pg0-x22e.google.com with SMTP id 8so26643605pgc.2
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 15:50:39 -0700 (PDT)
-Date: Sun, 4 Jun 2017 15:50:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH v2 1/7] mm, oom: refactor select_bad_process() to
- take memcg as an argument
-In-Reply-To: <1496342115-3974-2-git-send-email-guro@fb.com>
-Message-ID: <alpine.DEB.2.10.1706041550290.24226@chino.kir.corp.google.com>
-References: <1496342115-3974-1-git-send-email-guro@fb.com> <1496342115-3974-2-git-send-email-guro@fb.com>
+        Sun, 04 Jun 2017 18:00:45 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm 05/13] block, THP: Make block_device_operations.rw_page support THP
+References: <20170525064635.2832-1-ying.huang@intel.com>
+	<20170525064635.2832-6-ying.huang@intel.com>
+	<20170602055759.GC5909@linux.intel.com>
+Date: Mon, 05 Jun 2017 09:00:42 +0800
+In-Reply-To: <20170602055759.GC5909@linux.intel.com> (Ross Zwisler's message
+	of "Thu, 1 Jun 2017 23:57:59 -0600")
+Message-ID: <87a85n1c5h.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-nvdimm@lists.01.org
 
-We use a heavily modified system and memcg oom killer and I'm wondering
-if there is some opportunity for collaboration because we may have some
-shared goals.
+Ross Zwisler <ross.zwisler@linux.intel.com> writes:
 
-I can summarize how we currently use the oom killer at a high level so
-that it is not overwhelming with implementation details and give some
-rationale for why we have converged onto this strategy over the period of
-a few years.
+> On Thu, May 25, 2017 at 02:46:27PM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> The .rw_page in struct block_device_operations is used by the swap
+>> subsystem to read/write the page contents from/into the corresponding
+>> swap slot in the swap device.  To support the THP (Transparent Huge
+>> Page) swap optimization, the .rw_page is enhanced to support to
+>> read/write THP if possible.
+>> 
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Ross Zwisler <ross.zwisler@intel.com>
+>> Cc: Vishal L Verma <vishal.l.verma@intel.com>
+>> Cc: Jens Axboe <axboe@kernel.dk>
+>> Cc: linux-nvdimm@lists.01.org
+>> ---
+>>  drivers/block/brd.c           |  6 +++++-
+>>  drivers/block/zram/zram_drv.c |  2 ++
+>>  drivers/nvdimm/btt.c          |  4 +++-
+>>  drivers/nvdimm/pmem.c         | 42 +++++++++++++++++++++++++++++++-----------
+>>  4 files changed, 41 insertions(+), 13 deletions(-)
+>
+> The changes in brd.c, zram_drv.c and pmem.c look good to me.  For those bits
+> you can add: 
+>
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-For victim selection, we have strict priority based oom killing both at
-the memcg level and the process level.
+Thanks!
 
-Each process has its own "badness" value that is independent of
-oom_score_adj, although some conversion is done if a third-party thread
-chooses to disable itself from oom killing for backwards compatibility.
-Lower values are more preferable victims, but that detail should not
-matter significantly.  If two processes share the same badness value,
-tiebreaks are done by selecting the largest rss.
+> I think we still want Vishal to make sure that the BTT changes are okay.  I
+> don't know that code well enough to know whether it's safe to throw 512 pages
+> at btt_[read|write]_pg().
+>
+> Also, Ying, next time can you please CC me (and probably the linux-nvdimm
+> list) on the whole series?  It would give us more context on what the larger
+> change is, allow us to see the cover letter, allow us to test with all the
+> patches in the series, etc.  It's pretty easy for reviewers to skip over the
+> patches we don't care about or aren't in our area.
 
-Each memcg in a hierarchy also has its own badness value which
-semantically means the same as the per-process value, although it
-considers the entire memcg as a unit, similar to your approach, when
-iterating the hierarchy to choose a process.  The benefit of the
-per-memcg and per-process approach is that you can kill the lowest
-priority process from the lowest priority memcg.
+Sure.
 
-The above scoring is enabled with a VM sysctl for the system and is used
-for both system (global) and memcg oom kills.  For system overcommit,
-this means we can kill the lowest priority job on the system; for memcg,
-we can allow users to define their oom kill priorities at each level of
-their own hierarchy.
+Best Regards,
+Huang, Ying
 
-When the system or root of an oom memcg hierarchy encounters its limit,
-we iterate each level of the memcg hierarchy to find the lowest priority
-job.  This is done by comparing the badness of the sibling memcgs at
-each level, finding the lowest, and iterating that subtree.  If there are
-lower priority processes per the per-process badness value compared to
-all sibling memcgs, that process is killed.
-
-We also have complete userspace oom handling support.  This complements
-the existing memory.oom_control notification when a memcg is oom with a
-separate notifier that notifies when the kernel has oom killed a process.
-It is possible to delay the oom killer from killing a process for memcg
-oom kills with a configurable, per-memcg, oom delay.  If set, the kernel
-will wait for userspace to respond to its oom notification and effect its
-own policy decisions until memory is uncharged to that memcg hierarchy,
-or the oom delay expires.  If the oom delay expires, the kernel oom
-killer kills a process based on badness.
-
-Our oom kill notification file used to get an fd to register with
-cgroup.event_control also provides oom kill statistics based on system,
-memcg, local, hierarchical, and user-induced oom kills when read().
-
-We also have a convenient "kill all" knob that userspace can write when
-handling oom conditions to iterate all threads attached to a particular
-memcg and kill them.  This is merely to prevent races where userspace
-does the oom killing itself, which is not problematic in itself, but
-additional tasks continue to be attached to an oom memcg.
-
-A caveat here is that we also support fully inclusive kmem accounting to
-memcg hierarchies, so we call the oom killer as part of the memcg charge
-path rather than only upon returning from fault with VM_FAULT_OOM.  We
-have our own oom killer livelock detection that isn't necessarily
-important in this thread, but we haven't encountered a situation where we
-livelock by calling the oom killer during charge, and this is a
-requirement for memcg charging as part of slab allocation.
-
-I could post many patches to implement all of this functionality that we
-have used for a few years, but I first wanted to send this email to see
-if there is any common ground or to better understand your methodology
-for using the kernel oom killer for both system and memcg oom kills.
-
-Otherwise, very interesting stuff!
+> Thanks,
+> - Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
