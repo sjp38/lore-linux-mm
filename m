@@ -1,63 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CA0E6B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 14:35:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r203so24365937wmb.2
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 11:35:31 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n49si1869490edd.16.2017.06.05.11.35.29
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E75A6B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 15:23:48 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id k15so24475143wmh.3
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 12:23:48 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id g12si7589594wrd.274.2017.06.05.12.23.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 05 Jun 2017 11:35:29 -0700 (PDT)
-Date: Mon, 5 Jun 2017 14:35:11 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/6] mm: vmstat: move slab statistics from zone to node
- counters
-Message-ID: <20170605183511.GA8915@cmpxchg.org>
-References: <20170530181724.27197-1-hannes@cmpxchg.org>
- <20170530181724.27197-3-hannes@cmpxchg.org>
- <20170531091256.GA5914@osiris>
- <20170531113900.GB5914@osiris>
- <20170531171151.e4zh7ffzbl4w33gd@yury-thinkpad>
- <87mv9s2f8f.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Jun 2017 12:23:46 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: 
+Date: Mon, 5 Jun 2017 22:22:11 +0300
+Message-ID: <20170605192216.21596-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87mv9s2f8f.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Yury Norov <ynorov@caviumnetworks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Josef Bacik <josef@toxicpanda.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-s390@vger.kernel.org
+To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-On Thu, Jun 01, 2017 at 08:07:28PM +1000, Michael Ellerman wrote:
-> Yury Norov <ynorov@caviumnetworks.com> writes:
-> 
-> > On Wed, May 31, 2017 at 01:39:00PM +0200, Heiko Carstens wrote:
-> >> On Wed, May 31, 2017 at 11:12:56AM +0200, Heiko Carstens wrote:
-> >> > On Tue, May 30, 2017 at 02:17:20PM -0400, Johannes Weiner wrote:
-> >> > > To re-implement slab cache vs. page cache balancing, we'll need the
-> >> > > slab counters at the lruvec level, which, ever since lru reclaim was
-> >> > > moved from the zone to the node, is the intersection of the node, not
-> >> > > the zone, and the memcg.
-> >> > > 
-> >> > > We could retain the per-zone counters for when the page allocator
-> >> > > dumps its memory information on failures, and have counters on both
-> >> > > levels - which on all but NUMA node 0 is usually redundant. But let's
-> >> > > keep it simple for now and just move them. If anybody complains we can
-> >> > > restore the per-zone counters.
-> >> > > 
-> >> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> >> > 
-> >> > This patch causes an early boot crash on s390 (linux-next as of today).
-> >> > CONFIG_NUMA on/off doesn't make any difference. I haven't looked any
-> >> > further into this yet, maybe you have an idea?
-> >
-> > The same on arm64.
-> 
-> And powerpc.
+Subject: [RFC v4 PATCH 0/5] NOT FOR MERGE - ro protection for dynamic data
 
-It looks like we need the following on top. I can't reproduce the
-crash, but it's verifiable with WARN_ONs in the vmstat functions that
-the nodestat array isn't properly initialized when slab bootstraps:
+This patchset introduces the possibility of protecting memory that has
+been allocated dynamically.
 
----
+The memory is managed in pools: when a pool is made R/O, all the memory
+that is part of it, will become R/O.
+
+A R/O pool can be destroyed to recover its memory, but it cannot be
+turned back into R/W mode.
+
+This is intentional and this feature is meant for data that doesn't need
+further modifications, after initialization.
+
+An example is provided, showing how to turn into a boot-time option the
+writable state of the security hooks.
+Prior to this patch, it was a compile-time option.
+
+This is made possible, thanks to Tetsuo Handa's rewor of the hooks
+structure (included in the patchset).
+
+Notes:
+
+* I have performed some preliminary test on qemu x86_64 and the changes
+  seem to hold, but more extensive testing is required.
+
+* I'll be AFK for about a week, so I preferred to share this version, even
+  if not thoroughly tested, in the hope to get preliminary comments, but
+  it is rough around the edges.
+
+Igor Stoppa (4):
+  Protectable Memory Allocator
+  Protectable Memory Allocator - Debug interface
+  Make LSM Writable Hooks a command line option
+  NOT FOR MERGE - Protectable Memory Allocator test
+
+Tetsuo Handa (1):
+  LSM: Convert security_hook_heads into explicit array of struct
+    list_head
+
+ include/linux/lsm_hooks.h      | 412 ++++++++++++++++++++---------------------
+ include/linux/page-flags.h     |   2 +
+ include/linux/pmalloc.h        |  20 ++
+ include/trace/events/mmflags.h |   1 +
+ init/main.c                    |   2 +
+ mm/Kconfig                     |  11 ++
+ mm/Makefile                    |   4 +-
+ mm/pmalloc.c                   | 340 ++++++++++++++++++++++++++++++++++
+ mm/pmalloc_test.c              | 172 +++++++++++++++++
+ mm/usercopy.c                  |  24 ++-
+ security/security.c            |  58 ++++--
+ 11 files changed, 814 insertions(+), 232 deletions(-)
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 mm/pmalloc.c
+ create mode 100644 mm/pmalloc_test.c
+
+-- 
+2.9.3
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
