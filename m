@@ -1,80 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BA536B02C3
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 09:00:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o74so45703372pfi.6
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 06:00:27 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id i22si7263734pll.64.2017.06.05.06.00.25
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF466B02C3
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 09:09:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 8so23480415wms.11
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 06:09:06 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l59si28843101edl.281.2017.06.05.06.09.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 06:00:26 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] signal: Avoid undefined behaviour in kill_something_info
-Date: Mon, 5 Jun 2017 20:53:27 +0800
-Message-ID: <1496667207-56723-1-git-send-email-zhongjiang@huawei.com>
+        Mon, 05 Jun 2017 06:09:05 -0700 (PDT)
+Date: Mon, 5 Jun 2017 15:09:03 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] signal: Avoid undefined behaviour in
+ kill_something_info
+Message-ID: <20170605130903.GP9248@dhcp22.suse.cz>
+References: <1496667207-56723-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1496667207-56723-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: oleg@redhat.com, mhocko@kernel.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, zhongjiang@huawei.com
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, oleg@redhat.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com
 
-when I run the kill(72057458746458112, 0) in the userspace, I hit
-the following issue.
+On Mon 05-06-17 20:53:27, zhongjiang wrote:
+> diff --git a/kernel/signal.c b/kernel/signal.c
+> index ca92bcf..63148f7 100644
+> --- a/kernel/signal.c
+> +++ b/kernel/signal.c
+> @@ -1395,6 +1395,12 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
+>  
+>  	read_lock(&tasklist_lock);
+>  	if (pid != -1) {
+> +		/*
+> +	 	 * -INT_MIN is undefined, it need to exclude following case to 
+> + 		 * avoid the UBSAN detection.
+> +		 */
+> +		if (pid == INT_MIN)
+> +			return -ESRCH;
 
-[  304.606353] UBSAN: Undefined behaviour in kernel/signal.c:1462:11
-[  304.612622] negation of -2147483648 cannot be represented in type 'int':
-[  304.619516] CPU: 226 PID: 9849 Comm: test Tainted: G    B          ---- -------   3.10.0-327.53.58.70.x86_64_ubsan+ #116
-[  304.630692] Hardware name: Huawei Technologies Co., Ltd. RH8100 V3/BC61PBIA, BIOS BLHSV028 11/11/2014
-[  304.640168]  ffffffff825ded30 000000005dc276fa ffff883c3a4b7ce0 ffffffff81d6eb06
-[  304.647870]  ffff883c3a4b7cf8 ffffffff81d6ebb9 ffffffff825ded20 ffff883c3a4b7de8
-[  304.655584]  ffffffff81d6fc89 0000000041b58ab3 ffffffff8228d6d8 ffffffff81d6fb80
-[  304.663299] Call Trace:
-[  304.665827]  [<ffffffff81d6eb06>] dump_stack+0x19/0x1b
-[  304.671115]  [<ffffffff81d6ebb9>] ubsan_epilogue+0xd/0x50
-[  304.676668]  [<ffffffff81d6fc89>] __ubsan_handle_negate_overflow+0x109/0x14e
-[  304.683917]  [<ffffffff81d6fb80>] ? __ubsan_handle_divrem_overflow+0x1df/0x1df
-[  304.691353]  [<ffffffff8134a129>] ? __inc_zone_state+0x29/0xf0
-[  304.697358]  [<ffffffff813272df>] ? __lru_cache_add+0x8f/0xe0
-[  304.703272]  [<ffffffff8132764e>] ? lru_cache_add+0xe/0x10
-[  304.708921]  [<ffffffff812263bd>] ? map_id_up+0xad/0xe0
-[  304.714306]  [<ffffffff8113126e>] SYSC_kill+0x43e/0x4d0
-[  304.725359]  [<ffffffff8116e630>] ? lg_local_unlock+0x20/0xd0
-[  304.736978]  [<ffffffff81130e30>] ? kill_pid+0x20/0x20
-[  304.747928]  [<ffffffff81366f90>] ? __pmd_alloc+0x180/0x180
-[  304.759273]  [<ffffffff8143f80b>] ? mntput+0x3b/0x70
-[  304.769919]  [<ffffffff81d85c3c>] ? __do_page_fault+0x2bc/0x650
-[  304.781462]  [<ffffffff8123bb47>] ? __audit_syscall_entry+0x1f7/0x2a0
-[  304.793476]  [<ffffffff8113535e>] SyS_kill+0xe/0x10
-[  304.803859]  [<ffffffff81d91109>] system_call_fastpath+0x16/0x1b
+this will obviously keep the tasklist_lock held...
 
-The patch add particular case to avoid the UBSAN detection.
+>  		ret = __kill_pgrp_info(sig, info,
+>  				pid ? find_vpid(-pid) : task_pgrp(current));
+>  	} else {
+> -- 
+> 1.7.12.4
 
-Signed-off-by: zhongjiang <zhongjiang@huawei.com>
----
- kernel/signal.c | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/kernel/signal.c b/kernel/signal.c
-index ca92bcf..63148f7 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1395,6 +1395,12 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
- 
- 	read_lock(&tasklist_lock);
- 	if (pid != -1) {
-+		/*
-+	 	 * -INT_MIN is undefined, it need to exclude following case to 
-+ 		 * avoid the UBSAN detection.
-+		 */
-+		if (pid == INT_MIN)
-+			return -ESRCH;
- 		ret = __kill_pgrp_info(sig, info,
- 				pid ? find_vpid(-pid) : task_pgrp(current));
- 	} else {
 -- 
-1.7.12.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
