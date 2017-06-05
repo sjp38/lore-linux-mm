@@ -1,90 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D496B02B4
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 05:21:28 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id c132so158478152oia.6
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 02:21:28 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id k9si2122979oib.193.2017.06.05.02.21.26
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 491016B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 05:27:26 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a3so2105682wma.12
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 02:27:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d33si28840298wrd.85.2017.06.05.02.27.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 02:21:28 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] signal: Avoid undefined behaviour in kill_something_info
-Date: Mon, 5 Jun 2017 17:11:37 +0800
-Message-ID: <1496653897-53093-1-git-send-email-zhongjiang@huawei.com>
+        Mon, 05 Jun 2017 02:27:24 -0700 (PDT)
+Subject: Re: [PATCH] mm: make PR_SET_THP_DISABLE immediately active
+References: <1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170602125059.66209870607085b84c257593@linux-foundation.org>
+ <8a810c81-6a72-2af0-a450-6f03c71d8cca@suse.cz>
+ <20170602134038.13728cb77678ae1a7d7128a4@linux-foundation.org>
+ <f9e8a159-7a25-6813-f909-11c4ae58adf3@suse.cz>
+ <20170602141041.baace0cfa370b6bec6d411b4@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0457fa18-fdaa-6572-819d-f918c49c0c6f@suse.cz>
+Date: Mon, 5 Jun 2017 11:27:20 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170602141041.baace0cfa370b6bec6d411b4@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: oleg@redhat.com, stsp@list.ru, Waiman.Long@hpe.com, mingo@kernel.org, mhocko@kernel.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang@huawei.com, qiuxishi@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-when I run the kill(72057458746458112, 0) in the userspace, I hit
-the following issue.
+On 06/02/2017 11:10 PM, Andrew Morton wrote:
+> On Fri, 2 Jun 2017 22:55:12 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+> 
+>> On 06/02/2017 10:40 PM, Andrew Morton wrote:
+>>> On Fri, 2 Jun 2017 22:31:47 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+>>>>> Perhaps we should be adding new prctl modes to select this new
+>>>>> behaviour and leave the existing PR_SET_THP_DISABLE behaviour as-is?
+>>>>
+>>>> I think we can reasonably assume that most users of the prctl do just
+>>>> the fork() & exec() thing, so they will be unaffected.
+>>>
+>>> That sounds optimistic.  Perhaps people are using the current behaviour
+>>> to set on particular mapping to MMF_DISABLE_THP, with
+>>>
+>>> 	prctl(PR_SET_THP_DISABLE)
+>>> 	mmap()
+>>> 	prctl(PR_CLR_THP_DISABLE)
+>>>
+>>> ?
+>>>
+>>> Seems a reasonable thing to do.
+>>
+>> Using madvise(MADV_NOHUGEPAGE) seems reasonabler to me, with the same
+>> effect. And it's older (2.6.38).
+>>
+>>> But who knows - people do all sorts of
+>>> inventive things.
+>>
+>> Yeah :( but we can hope they don't even know that the prctl currently
+>> behaves they way it does - man page doesn't suggest it would, and most
+>> of us in this thread found it surprising.
+> 
+> Well.  There might be such people and sometimes we do make people
+> unhappy.  it partly depends on how traumatic it would be to leave the
+> current behaviour as-is.  Have you evaluated such a patch?
 
-[  304.606353] UBSAN: Undefined behaviour in kernel/signal.c:1462:11
-[  304.612622] negation of -2147483648 cannot be represented in type 'int':
-[  304.619516] CPU: 226 PID: 9849 Comm: test Tainted: G    B          ---- -------   3.10.0-327.53.58.70.x86_64_ubsan+ #116
-[  304.630692] Hardware name: Huawei Technologies Co., Ltd. RH8100 V3/BC61PBIA, BIOS BLHSV028 11/11/2014
-[  304.640168]  ffffffff825ded30 000000005dc276fa ffff883c3a4b7ce0 ffffffff81d6eb06
-[  304.647870]  ffff883c3a4b7cf8 ffffffff81d6ebb9 ffffffff825ded20 ffff883c3a4b7de8
-[  304.655584]  ffffffff81d6fc89 0000000041b58ab3 ffffffff8228d6d8 ffffffff81d6fb80
-[  304.663299] Call Trace:
-[  304.665827]  [<ffffffff81d6eb06>] dump_stack+0x19/0x1b
-[  304.671115]  [<ffffffff81d6ebb9>] ubsan_epilogue+0xd/0x50
-[  304.676668]  [<ffffffff81d6fc89>] __ubsan_handle_negate_overflow+0x109/0x14e
-[  304.683917]  [<ffffffff81d6fb80>] ? __ubsan_handle_divrem_overflow+0x1df/0x1df
-[  304.691353]  [<ffffffff8134a129>] ? __inc_zone_state+0x29/0xf0
-[  304.697358]  [<ffffffff813272df>] ? __lru_cache_add+0x8f/0xe0
-[  304.703272]  [<ffffffff8132764e>] ? lru_cache_add+0xe/0x10
-[  304.708921]  [<ffffffff812263bd>] ? map_id_up+0xad/0xe0
-[  304.714306]  [<ffffffff8113126e>] SYSC_kill+0x43e/0x4d0
-[  304.725359]  [<ffffffff8116e630>] ? lg_local_unlock+0x20/0xd0
-[  304.736978]  [<ffffffff81130e30>] ? kill_pid+0x20/0x20
-[  304.747928]  [<ffffffff81366f90>] ? __pmd_alloc+0x180/0x180
-[  304.759273]  [<ffffffff8143f80b>] ? mntput+0x3b/0x70
-[  304.769919]  [<ffffffff81d85c3c>] ? __do_page_fault+0x2bc/0x650
-[  304.781462]  [<ffffffff8123bb47>] ? __audit_syscall_entry+0x1f7/0x2a0
-[  304.793476]  [<ffffffff8113535e>] SyS_kill+0xe/0x10
-[  304.803859]  [<ffffffff81d91109>] system_call_fastpath+0x16/0x1b
+You mean introducing a new prctl instead of changing the existing one? I
+can evaluate that as being ugly :)
+Well, maybe we could use arg3, because currently we have:
+        case PR_SET_THP_DISABLE:
+                if (arg3 || arg4 || arg5)
+                        return -EINVAL;
 
-The patch assign the particular pid to the INT_MAX to avoid the overflow issue.
+We could make non-zero arg3 (or specific value of arg3) set the new
+"immediate" behavior. This would also take care of the discovery of
+kernels that support the fixed/altered behavior, without having to check
+uname etc - just check if we got -EINVAL.
 
-Signed-off-by: zhongjiang <zhongjiang@huawei.com>
----
- kernel/signal.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+I'm just not sure how to implement PR_GET_THP_DISABLE properly in such
+scenario. Or what happens when somebody calls SET with arg3==0 and then
+arg3==1 (or vice versa). But we would have to think about it even when
+we introduced a newly named option. Reminds me of the MLOCK_ONFAULT
+discussions...
 
-diff --git a/kernel/signal.c b/kernel/signal.c
-index ca92bcf..070a9bd 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1384,7 +1384,7 @@ int kill_pid_info_as_cred(int sig, struct siginfo *info, struct pid *pid,
- 
- static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
- {
--	int ret;
-+	int ret, vpid;
- 
- 	if (pid > 0) {
- 		rcu_read_lock();
-@@ -1395,8 +1395,12 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
- 
- 	read_lock(&tasklist_lock);
- 	if (pid != -1) {
-+		if (pid == INT_MIN)
-+			vpid = INT_MAX;
-+		else
-+			vpid = -pid;
- 		ret = __kill_pgrp_info(sig, info,
--				pid ? find_vpid(-pid) : task_pgrp(current));
-+				pid ? find_vpid(vpid) : task_pgrp(current));
- 	} else {
- 		int retval = 0, count = 0;
- 		struct task_struct * p;
--- 
-1.7.12.4
+>>>> And as usual, if
+>>>> somebody does complain in the end, we revert and try the other way?
+>>>
+>>> But by then it's too late - the new behaviour will be out in the field.
+>>
+>> Revert in stable then?
+>> But I don't think this patch should go to stable. I understand right
+>> that CRIU will switch to the UFFDIO_COPY approach and doesn't need the
+>> prctl change/new madvise anymore?
+> 
+> What I mean is that the new behaviour will go out in 4.12 and it may
+> be many months before we find out that we broke someone.  By then, we
+> can't go back because others may be assuming the new behaviour.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
