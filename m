@@ -1,130 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A666B02C3
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 04:13:12 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g13so22754669wmd.9
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 01:13:11 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A1E4B6B02F4
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 04:27:27 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g15so22782673wmc.8
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 01:27:27 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u21si11618493wma.83.2017.06.05.01.13.09
+        by mx.google.com with ESMTPS id j189si9234245wmf.143.2017.06.05.01.27.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 01:13:09 -0700 (PDT)
-Date: Mon, 5 Jun 2017 10:13:06 +0200
+        Mon, 05 Jun 2017 01:27:26 -0700 (PDT)
+Date: Mon, 5 Jun 2017 10:27:23 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, memory_hotplug: support movable_node for
- hotplugable nodes
-Message-ID: <20170605081306.GH9248@dhcp22.suse.cz>
-References: <20170601122004.32732-1-mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: cgroup-aware OOM-killer
+Message-ID: <20170605082722.GI9248@dhcp22.suse.cz>
+References: <20170520183729.GA3195@esperanza>
+ <20170522170116.GB22625@castle>
+ <20170523070747.GF12813@dhcp22.suse.cz>
+ <20170523132544.GA13145@cmpxchg.org>
+ <20170525153819.GA7349@dhcp22.suse.cz>
+ <20170525170805.GA5631@cmpxchg.org>
+ <20170531162504.GX27783@dhcp22.suse.cz>
+ <20170531180145.GB10481@cmpxchg.org>
+ <20170602084333.GF29840@dhcp22.suse.cz>
+ <20170602151852.GA21305@castle>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170601122004.32732-1-mhocko@kernel.org>
+In-Reply-To: <20170602151852.GA21305@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@tarantool.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Are there any further comments? Can I post this for merging? I will
-update the documentation as well.
+On Fri 02-06-17 16:18:52, Roman Gushchin wrote:
+> On Fri, Jun 02, 2017 at 10:43:33AM +0200, Michal Hocko wrote:
+> > On Wed 31-05-17 14:01:45, Johannes Weiner wrote:
+> > > On Wed, May 31, 2017 at 06:25:04PM +0200, Michal Hocko wrote:
+> > > > > > +	/*
+> > > > > >  	 * If current has a pending SIGKILL or is exiting, then automatically
+> > > > > >  	 * select it.  The goal is to allow it to allocate so that it may
+> > > > > >  	 * quickly exit and free its memory.
+> > > > > > 
+> > > > > > Please note that I haven't explored how much of the infrastructure
+> > > > > > needed for the OOM decision making is available to modules. But we can
+> > > > > > export a lot of what we currently have in oom_kill.c. I admit it might
+> > > > > > turn out that this is simply not feasible but I would like this to be at
+> > > > > > least explored before we go and implement yet another hardcoded way to
+> > > > > > handle (see how I didn't use policy ;)) OOM situation.
+> > > > > 
+> > > > > ;)
+> > > > > 
+> > > > > My doubt here is mainly that we'll see many (or any) real-life cases
+> > > > > materialize that cannot be handled with cgroups and scoring. These are
+> > > > > powerful building blocks on which userspace can implement all kinds of
+> > > > > policy and sorting algorithms.
+> > > > > 
+> > > > > So this seems like a lot of churn and complicated code to handle one
+> > > > > extension. An extension that implements basic functionality.
+> > > > 
+> > > > Well, as I've said I didn't get to explore this path so I have only a
+> > > > very vague idea what we would have to export to implement e.g. the
+> > > > proposed oom killing strategy suggested in this thread. Unfortunatelly I
+> > > > do not have much time for that. I do not want to block a useful work
+> > > > which you have a usecase for but I would be really happy if we could
+> > > > consider longer term plans before diving into a "hardcoded"
+> > > > implementation. We didn't do that previously and we are left with
+> > > > oom_kill_allocating_task and similar one off things.
+> > > 
+> > > As I understand it, killing the allocating task was simply the default
+> > > before the OOM killer and was added as a compat knob. I really doubt
+> > > anybody is using it at this point, and we could probably delete it.
+> > 
+> > I might misremember but my recollection is that SGI simply had too
+> > large machines with too many processes and so the task selection was
+> > very expensinve.
+> 
+> Cgroup-aware OOM killer can be much better in case of large number of processes,
+> as we don't have to iterate over all processes locking each mm, and
+> can select an appropriate cgroup based mostly on lockless counters.
+> Of course, it depends on concrete setup, but it can be much more efficient
+> under right circumstances.
 
-On Thu 01-06-17 14:20:04, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+Yes, I agree with that.
+
+> > > I appreciate your concern of being too short-sighted here, but the
+> > > fact that I cannot point to more usecases isn't for lack of trying. I
+> > > simply don't see the endless possibilities of usecases that you do.
+> > > 
+> > > It's unlikely for more types of memory domains to pop up besides MMs
+> > > and cgroups. (I mentioned vmas, but that just seems esoteric. And we
+> > > have panic_on_oom for whole-system death. What else could there be?)
+> > > 
+> > > And as I pointed out, there is no real evidence that the current
+> > > system for configuring preferences isn't sufficient in practice.
+> > > 
+> > > That's my thoughts on exploring. I'm not sure what else to do before
+> > > it feels like running off into fairly contrived hypotheticals.
+> > 
+> > Yes, I do not want hypotheticals to block an otherwise useful feature,
+> > of course. But I haven't heard a strong argument why a module based
+> > approach would be a more maintenance burden longterm. From a very quick
+> > glance over patches Roman has posted yesterday it seems that a large
+> > part of the existing oom infrastructure can be reused reasonably.
 > 
-> movable_node kernel parameter allows to make hotplugable NUMA
-> nodes to put all the hotplugable memory into movable zone which
-> allows more or less reliable memory hotremove.  At least this
-> is the case for the NUMA nodes present during the boot (see
-> find_zone_movable_pfns_for_nodes).
+> I have nothing against module based approach, but I don't think that a module
+> should implement anything rather than then oom score calculation
+> (for a process and a cgroup).
+> Maybe only some custom method for killing, but I can't really imagine anything
+> reasonable except killing one "worst" process or killing whole cgroup(s).
+> In case of a system wide OOM, we have to free some memory quickly,
+> and this means we can't do anything much more complex,
+> than killing some process(es).
 > 
-> This is not the case for the memory hotplug, though.
-> 
-> 	echo online > /sys/devices/system/memory/memoryXYZ/status
-> 
-> will default to a kernel zone (usually ZONE_NORMAL) unless the
-> particular memblock is already in the movable zone range which is not
-> the case normally when onlining the memory from the udev rule context
-> for a freshly hotadded NUMA node. The only option currently is to have a
-> special udev rule to echo online_movable to all memblocks belonging to
-> such a node which is rather clumsy. Not the mention this is inconsistent
-> as well because what ended up in the movable zone during the boot will
-> end up in a kernel zone after hotremove & hotadd without special care.
-> 
-> It would be nice to reuse memblock_is_hotpluggable but the runtime
-> hotplug doesn't have that information available because the boot and
-> hotplug paths are not shared and it would be really non trivial to
-> make them use the same code path because the runtime hotplug doesn't
-> play with the memblock allocator at all.
-> 
-> Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
-> movable_node is enabled and the range doesn't overlap with the existing
-> normal zone. This should provide a reasonable default onlining strategy.
-> 
-> Strictly speaking the semantic is not identical with the boot time
-> initialization because find_zone_movable_pfns_for_nodes covers only the
-> hotplugable range as described by the BIOS/FW. From my experience this
-> is usually a full node though (except for Node0 which is special and
-> never goes away completely). If this turns out to be a problem in the
-> real life we can tweak the code to store hotplug flag into memblocks
-> but let's keep this simple now.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi,
-> I am sending this as an RFC because this is a user visible change change
-> of behavior, strictly speaking. I believe it is a desirable change of
-> behavior, thought, and it an explicit opt-in (kernel parameter) is
-> required to see the change so I do not expect any breakage. I would
-> still like to hear what other people think about this shift. I have
-> tested it on a memory hotplug capable HW where the whole numa node can
-> be hotremove/added.
-> 
-> Does anybody see any problem with the proposed semantic?
-> 
->  mm/memory_hotplug.c | 19 ++++++++++++++++---
->  1 file changed, 16 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b98fb0b3ae11..74d75583736c 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -943,6 +943,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
->  	return &pgdat->node_zones[ZONE_NORMAL];
->  }
->  
-> +static inline bool movable_pfn_range(int nid, struct zone *default_zone,
-> +		unsigned long start_pfn, unsigned long nr_pages)
-> +{
-> +	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-> +				MMOP_ONLINE_KERNEL))
-> +		return true;
-> +
-> +	if (!movable_node_is_enabled())
-> +		return false;
-> +
-> +	return !zone_intersects(default_zone, start_pfn, nr_pages);
-> +}
-> +
->  /*
->   * Associates the given pfn range with the given node and the zone appropriate
->   * for the given online type.
-> @@ -958,10 +971,10 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
->  		/*
->  		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
->  		 * movable zone if that is not possible (e.g. we are within
-> -		 * or past the existing movable zone)
-> +		 * or past the existing movable zone). movable_node overrides
-> +		 * this default and defaults to movable zone
->  		 */
-> -		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-> -					MMOP_ONLINE_KERNEL))
-> +		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
->  			zone = movable_zone;
->  	} else if (online_type == MMOP_ONLINE_MOVABLE) {
->  		zone = &pgdat->node_zones[ZONE_MOVABLE];
-> -- 
-> 2.11.0
-> 
+> So, in my understanding, what you're suggesting is not against the proposed
+> approach at all. We still need to iterate over cgroups, somehow define
+> their badness, find the worst one and destroy it. In my v2 I've tried
+> to separate these two potentially customizable areas in two simple functions:
+> mem_cgroup_oom_badness() and mem_cgroup_kill_oom_victim().
+
+As I've said, I didn't get to look closer at your v2 yet. My point was
+that we shouldn't hardcode the memcg specific selection nor the killing
+strategy into the oom proper. Instead we could reuse the existing
+infrastructure we already have. And yes from a quick look, you are
+already doing something I have had in mind. I will look more closely
+sometimes this week. The biggest concern I've had so far is to have
+something hardcoded in the oom proper now if we can make this a module.
+
+I will follow up in your v2 email thread.
 
 -- 
 Michal Hocko
