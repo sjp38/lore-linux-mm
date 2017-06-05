@@ -1,87 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 405EC6B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 00:57:47 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id t30so8494464wra.7
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 21:57:47 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E233E6B02C3
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 01:12:10 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id n7so484298wrb.0
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 22:12:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j89si31968696wrj.264.2017.06.04.21.57.45
+        by mx.google.com with ESMTPS id o6si20931196wrc.161.2017.06.04.22.12.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Jun 2017 21:57:46 -0700 (PDT)
-Date: Mon, 5 Jun 2017 06:57:42 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-Message-ID: <20170605045725.GA9248@dhcp22.suse.cz>
-References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
+        Sun, 04 Jun 2017 22:12:09 -0700 (PDT)
+Date: Mon, 5 Jun 2017 07:12:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] swap: cond_resched in swap_cgroup_prepare()
+Message-ID: <20170605051206.GB9248@dhcp22.suse.cz>
+References: <20170601195635.20744-1-yuzhao@google.com>
+ <20170604200109.17606-1-yuzhao@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
+In-Reply-To: <20170604200109.17606-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mike.kravetz@Oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Yu Zhao <yuzhao@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 02-06-17 20:54:13, Liam R. Howlett wrote:
-> When the user specifies too many hugepages or an invalid
-> default_hugepagesz the communication to the user is implicit in the
-> allocation message.  This patch adds a warning when the desired page
-> count is not allocated and prints an error when the default_hugepagesz
-> is invalid on boot.
+[CC Andrew]
 
-We do not warn when doing echo $NUM > nr_hugepages, so why should we
-behave any different during the boot?
- 
-> Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+On Sun 04-06-17 13:01:09, Yu Zhao wrote:
+> Saw need_resched() warnings when swapping on large swapfile (TBs)
+> because continuously allocating many pages in swap_cgroup_prepare()
+> took too long.
+> 
+> We already cond_resched when freeing page in swap_cgroup_swapoff().
+> Do the same for the page allocation.
+> 
+> Signed-off-by: Yu Zhao <yuzhao@google.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 > ---
->  mm/hugetlb.c | 15 ++++++++++++++-
->  1 file changed, 14 insertions(+), 1 deletion(-)
+> Changelog since v1:
+> * clarify the problem in the commit message
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index e5828875f7bb..6de30bbac23e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -70,6 +70,7 @@ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
->  
->  /* Forward declaration */
->  static int hugetlb_acct_memory(struct hstate *h, long delta);
-> +static char * __init memfmt(char *buf, unsigned long n);
->  
->  static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
->  {
-> @@ -2189,7 +2190,14 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
->  					 &node_states[N_MEMORY]))
->  			break;
+>  mm/swap_cgroup.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/swap_cgroup.c b/mm/swap_cgroup.c
+> index ac6318a064d3..3405b4ee1757 100644
+> --- a/mm/swap_cgroup.c
+> +++ b/mm/swap_cgroup.c
+> @@ -48,6 +48,9 @@ static int swap_cgroup_prepare(int type)
+>  		if (!page)
+>  			goto not_enough_page;
+>  		ctrl->map[idx] = page;
+> +
+> +		if (!(idx % SWAP_CLUSTER_MAX))
+> +			cond_resched();
 >  	}
-> -	h->max_huge_pages = i;
-> +	if (i < h->max_huge_pages) {
-> +		char buf[32];
-> +
-> +		memfmt(buf, huge_page_size(h)),
-> +		pr_warn("HugeTLB: allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
-> +			h->max_huge_pages, buf, i);
-> +		h->max_huge_pages = i;
-> +	}
->  }
->  
->  static void __init hugetlb_init_hstates(void)
-> @@ -2785,6 +2793,11 @@ static int __init hugetlb_init(void)
->  		return 0;
->  
->  	if (!size_to_hstate(default_hstate_size)) {
-> +		if (default_hstate_size != 0) {
-> +			pr_err("HugeTLB: unsupported default_hugepagesz %lu. Reverting to %lu\n",
-> +			       default_hstate_size, HPAGE_SIZE);
-> +		}
-> +
->  		default_hstate_size = HPAGE_SIZE;
->  		if (!size_to_hstate(default_hstate_size))
->  			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+>  	return 0;
+>  not_enough_page:
 > -- 
-> 2.13.0.92.gcd65a7235
-> 
+> 2.13.0.506.g27d5fe0cd-goog
 
 -- 
 Michal Hocko
