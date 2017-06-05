@@ -1,98 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 715B86B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 05:36:28 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s12so4611271pgc.2
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 02:36:28 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id f1si6786020pld.384.2017.06.05.02.36.27
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A96A6B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 08:35:38 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id v184so48426300itc.15
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 05:35:38 -0700 (PDT)
+Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com. [2607:f8b0:4001:c0b::22f])
+        by mx.google.com with ESMTPS id n66si10838824itb.2.2017.06.05.05.35.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jun 2017 02:36:27 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id v18so5864270pgb.3
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 02:36:27 -0700 (PDT)
-Date: Mon, 5 Jun 2017 18:36:32 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-Message-ID: <20170605093632.GA565@jagdpanzerIV.localdomain>
-References: <20170601132808.GD9091@dhcp22.suse.cz>
- <20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
- <20170602071818.GA29840@dhcp22.suse.cz>
- <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
- <20170603073221.GB21524@dhcp22.suse.cz>
- <201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
- <20170605071053.GA471@jagdpanzerIV.localdomain>
+        Mon, 05 Jun 2017 05:35:36 -0700 (PDT)
+Received: by mail-it0-x22f.google.com with SMTP id m62so59786433itc.0
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 05:35:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170605071053.GA471@jagdpanzerIV.localdomain>
+In-Reply-To: <97a535d8-f9d5-57b2-4b9c-23a0e6df7cc8@intel.com>
+References: <20170602112720.28948-1-ard.biesheuvel@linaro.org>
+ <e98368d8-b1bc-5804-2115-370ec7109e9b@intel.com> <CAKv+Gu964bDsV52gZ7QCJf26kXVaWgmuwXZSm0qWxa-34Eqttw@mail.gmail.com>
+ <747b71d8-86a7-3b96-cf90-60d6c2ce0171@intel.com> <CAKv+Gu_0cQDyRP0urZEF6OAn7cOEVH3WXL2UpDgg6wKUrWcRYA@mail.gmail.com>
+ <97a535d8-f9d5-57b2-4b9c-23a0e6df7cc8@intel.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Mon, 5 Jun 2017 12:35:35 +0000
+Message-ID: <CAKv+Gu9CR3N4C6Xuc9aTtSbgSgMHXtPEKeEnkxssk3NmffqgTQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD mappings
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Steve Capper <steve.capper@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Zhong Jiang <zhongjiang@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Tanxiaojun <tanxiaojun@huawei.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>
 
-On (06/05/17 16:10), Sergey Senozhatsky wrote:
-[..]
-> > Notice the timestamp jump between [  351.239144] and [  389.308085].
-> 
-> do you have a restrictive console loglevel and a ton of messages that
-> were simply filtered out by console loglevel check? we still store those
-> messages to the logbuf (for dmesg, etc.) and process them in console_unlock(),
-> but don't print to the serial console. so, in other words,
-> 
-> logbuf:
-> 
-> 	timestamp T0	message M0		-- visible loglevel
-> 	timestamp T1	message M1  		-- suppressed loglevel
-> 	....
-> 	timestamp T100	message M101		-- suppressed loglevel
-> 	timestamp T101	message M102		-- visible loglevel
-> 
-> on the serial console you'll see
-> 
-> 	T0	M0
-> 	T101	M102
-> 
-> which might look like a spike in timestamps (while there weren't any).
-> just a thought.
+On 2 June 2017 at 18:18, Dave Hansen <dave.hansen@intel.com> wrote:
+> On 06/02/2017 09:21 AM, Ard Biesheuvel wrote:
+>>> First of all, this math isn't guaranteed to work.  We don't guarantee
+>>> virtual contiguity for all mem_map[]s.  I think you need to go to a pfn
+>>> or paddr first, add the pud offset, then convert to a 'struct page'.
+>>
+>> OK, so you are saying the slice of the struct page array covering the
+>> range could be discontiguous even though the physical range it
+>> describes is contiguous? (which is guaranteed due to the nature of a
+>> PMD mapping IIUC) In that case,
+>
+> Yes.
+>
+>>> But, what *is* the right thing to return here?  Do the users here want
+>>> the head page or the tail page?
+>>
+>> Hmm, I see what you mean. The vread() code that I am trying to fix
+>> simply kmaps the returned page, copies from it and unmaps it, so it is
+>> after the tail page. But I guess code that is aware of compound pages
+>> is after the head page instead.
+>
+> Yeah, and some operations happen on tail pages while others get
+> redirected to the head page.
+>
 
-does it make any difference if you disable preemption in console_unlock()?
-something like below... just curious...
+OK. So given that vmalloc() never allocates compound pages, and vmap()
+does not deal with them at all, we should be able to safely assume
+that vmalloc_to_page() callers are interested in the tail page only.
 
----
+>>> BTW, _are_ your huge vmalloc pages compound?
+>>
+>> Not in the case that I am trying to solve, no. They are simply VM_MAP
+>> mappings of sequences of pages that are occupied by the kernel itself,
+>> and not allocated by the page allocator.
+>
+> Huh, so what are they?  Are they system RAM that was bootmem allocated
+> or something?
+>
 
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index a1aecf44ab07..25fe408cb994 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -2204,6 +2204,8 @@ void console_unlock(void)
- 		return;
- 	}
- 
-+	preempt_disable();
-+
- 	for (;;) {
- 		struct printk_log *msg;
- 		size_t ext_len = 0;
-@@ -2260,9 +2262,6 @@ void console_unlock(void)
- 		call_console_drivers(ext_text, ext_len, text, len);
- 		start_critical_timings();
- 		printk_safe_exit_irqrestore(flags);
--
--		if (do_cond_resched)
--			cond_resched();
- 	}
- 	console_locked = 0;
- 
-@@ -2274,6 +2273,8 @@ void console_unlock(void)
- 
- 	up_console_sem();
- 
-+	preempt_enable();
-+
- 	/*
- 	 * Someone could have filled up the buffer again, so re-check if there's
- 	 * something to flush. In case we cannot trylock the console_sem again,
+They are static mappings of vmlinux segments. I.e., on my system I have
+
+vmalloc : 0xffff000008000000 - 0xffff7dffbfff0000   (129022 GB)
+  .text : 0xffff2125f4ce0000 - 0xffff2125f5670000   (  9792 KB)
+.rodata : 0xffff2125f5670000 - 0xffff2125f5a30000   (  3840 KB)
+  .init : 0xffff2125f5a30000 - 0xffff2125f5e50000   (  4224 KB)
+  .data : 0xffff2125f5e50000 - 0xffff2125f5f8ba00   (  1263 KB)
+   .bss : 0xffff2125f5f8ba00 - 0xffff2125f609692c   (  1068 KB)
+
+where KASLR may place these segments anywhere in the VMALLOC region.
+Mark has suggested that these regions should not intersect, but in my
+opinion, given that the VMALLOC region already contains executable
+code and associated data (for kernel modules), and may already contain
+huge mappings (for HUGE_VMAP), it is reasonable to expect shared code
+to at least tolerate such mappings.
+
+As Mark pointed out, pmd_huge()/pud_huge() may not work as expected
+depending on the kernel configuration, so I will respin the patch to
+take HUGE_VMAP into account for those definitions as well.
+
+-- 
+Ard.
+
+
+
+>>>>>> +#else
+>>>>>> +     VIRTUAL_BUG_ON(1);
+>>>>>> +#endif
+>>>>>> +     return page;
+>>>>>> +}
+>>>>> So if somebody manages to call this function on a huge page table entry,
+>>>>> but doesn't have hugetlbfs configured on, we kill the machine?
+>>>> Yes. But only if you have CONFIG_DEBUG_VIRTUAL defined, in which case
+>>>> it seems appropriate to signal a failure rather than proceed with
+>>>> dereferencing the huge PMD entry as if it were a table entry.
+>>>
+>>> Why kill the machine rather than just warning and returning NULL?
+>>
+>> I know this is generally a bad thing, but in this case, when a debug
+>> option has been enabled exactly for this purpose, I think it is not
+>> inappropriate to BUG() when encountering such a mapping. But I am
+>> happy to relax it to a WARN() and return NULL instead, but in that
+>> case, it should be unconditional imo and not based on
+>> CONFIG_DEBUG_VIRTUAL or the likes.
+>
+> Sounds sane to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
