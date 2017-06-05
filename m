@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0417F6B02C3
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 15:24:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a3so3628863wma.12
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 12:24:06 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B846A6B02F3
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 15:24:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g15so24451339wmc.8
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 12:24:16 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id q184si13074453wmg.165.2017.06.05.12.24.05
+        by mx.google.com with ESMTPS id e189si13119325wmg.138.2017.06.05.12.24.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 12:24:05 -0700 (PDT)
+        Mon, 05 Jun 2017 12:24:15 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 2/5] Protectable Memory Allocator
-Date: Mon, 5 Jun 2017 22:22:13 +0300
-Message-ID: <20170605192216.21596-3-igor.stoppa@huawei.com>
+Subject: [PATCH 3/5] Protectable Memory Allocator - Debug interface
+Date: Mon, 5 Jun 2017 22:22:14 +0300
+Message-ID: <20170605192216.21596-4-igor.stoppa@huawei.com>
 In-Reply-To: <20170605192216.21596-1-igor.stoppa@huawei.com>
 References: <20170605192216.21596-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
@@ -22,396 +22,161 @@ List-ID: <linux-mm.kvack.org>
 To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
 Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
 
-The MMU available in many systems runnign Linux can often provide R/O
-protection to the memory pages it handles.
+Debugfs interface: it creates a file
 
-However, this works efficiently only when said pages contain only data
-that does not need to be modified.
+/sys/kernel/debug/pmalloc/pools
 
-This can work well for statically allocated variables, however it doe
-not fit too well the case of dynamically allocated ones.
-
-Dynamic allocation does not provide, currently, means for grouping
-variables in memory pages that would contain exclusively data that can
-be made read only.
-
-The allocator here provided (pmalloc - protectable memory allocator)
-introduces the concept of pools of protectable memory.
-
-A module can request a pool and then refer any allocation request to the
-pool handler it has received.
-
-Once all the memory requested (over various iterations) is initialized,
-the pool can be protected.
-
-After this point, the pool can only be destroyed (it is up to the module
-to avoid any no further references to the memory from the pool, after
-the destruction is invoked).
-
-The latter case is mainly meant for releasing memory when a module is
-unloaded.
-
-A module can have as many pools as needed, for example to support the
-protection of data that is initialized in sufficiently distinct phases.
+which exposes statistics about all the pools and memory nodes in use.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 ---
- include/linux/page-flags.h     |   2 +
- include/linux/pmalloc.h        |  20 ++++
- include/trace/events/mmflags.h |   1 +
- mm/Makefile                    |   2 +-
- mm/pmalloc.c                   | 227 +++++++++++++++++++++++++++++++++++++++++
- mm/usercopy.c                  |  24 +++--
- 6 files changed, 266 insertions(+), 10 deletions(-)
- create mode 100644 include/linux/pmalloc.h
- create mode 100644 mm/pmalloc.c
+ mm/Kconfig   |  11 ++++++
+ mm/pmalloc.c | 113 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6b5818d..acc0723 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -81,6 +81,7 @@ enum pageflags {
- 	PG_active,
- 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
- 	PG_slab,
-+	PG_pmalloc,
- 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
- 	PG_arch_1,
- 	PG_reserved,
-@@ -274,6 +275,7 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
- 	TESTCLEARFLAG(Active, active, PF_HEAD)
- __PAGEFLAG(Slab, slab, PF_NO_TAIL)
- __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
-+__PAGEFLAG(Pmalloc, pmalloc, PF_NO_TAIL)
- PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index beb7a45..dfbdc07 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -539,6 +539,17 @@ config CMA_AREAS
  
- /* Xen */
-diff --git a/include/linux/pmalloc.h b/include/linux/pmalloc.h
-new file mode 100644
-index 0000000..83d3557
---- /dev/null
-+++ b/include/linux/pmalloc.h
-@@ -0,0 +1,20 @@
-+/*
-+ * pmalloc.h: Header for Protectable Memory Allocator
-+ *
-+ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
+ 	  If unsure, leave the default value "7".
+ 
++config PMALLOC_DEBUG
++        bool "Protectable Memory Allocator debugging"
++        depends on DEBUG_KERNEL
++        default y
++        help
++          Debugfs support for dumping information about memory pools.
++          It shows internal stats: free/used/total space, protection
++          status, data overhead, etc.
 +
-+#ifndef _PMALLOC_H
-+#define _PMALLOC_H
++          If unsure, say "y".
 +
-+struct pmalloc_pool *pmalloc_create_pool(const char *name);
-+void *pmalloc(unsigned long size, struct pmalloc_pool *pool);
-+int pmalloc_protect_pool(struct pmalloc_pool *pool);
-+int pmalloc_destroy_pool(struct pmalloc_pool *pool);
-+#endif
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index 304ff94..41d1587 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -91,6 +91,7 @@
- 	{1UL << PG_lru,			"lru"		},		\
- 	{1UL << PG_active,		"active"	},		\
- 	{1UL << PG_slab,		"slab"		},		\
-+	{1UL << PG_pmalloc,		"pmalloc"	},		\
- 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
- 	{1UL << PG_arch_1,		"arch_1"	},		\
- 	{1UL << PG_reserved,		"reserved"	},		\
-diff --git a/mm/Makefile b/mm/Makefile
-index 026f6a8..79dd99c 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -25,7 +25,7 @@ mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o \
- 			   page_vma_mapped.o pagewalk.o pgtable-generic.o \
--			   rmap.o vmalloc.o
-+			   rmap.o vmalloc.o pmalloc.o
- 
- 
- ifdef CONFIG_CROSS_MEMORY_ATTACH
+ config MEM_SOFT_DIRTY
+ 	bool "Track memory changes"
+ 	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
 diff --git a/mm/pmalloc.c b/mm/pmalloc.c
-new file mode 100644
-index 0000000..c73d60c
---- /dev/null
+index c73d60c..6dd6bbe 100644
+--- a/mm/pmalloc.c
 +++ b/mm/pmalloc.c
-@@ -0,0 +1,227 @@
-+/*
-+ * pmalloc.c: Protectable Memory Allocator
-+ *
-+ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
+@@ -225,3 +225,116 @@ int __init pmalloc_init(void)
+ 	return 0;
+ }
+ EXPORT_SYMBOL(pmalloc_init);
 +
-+#include <linux/printk.h>
-+#include <linux/init.h>
-+#include <linux/mm.h>
-+#include <linux/vmalloc.h>
-+#include <linux/list.h>
-+#include <linux/rculist.h>
-+#include <linux/mutex.h>
-+#include <linux/atomic.h>
-+#include <asm/set_memory.h>
-+#include <asm/page.h>
++#ifdef CONFIG_PMALLOC_DEBUG
++#include <linux/debugfs.h>
++static struct dentry *pmalloc_root;
 +
-+typedef uint64_t align_t;
-+#define WORD_SIZE sizeof(align_t)
-+
-+#define __PMALLOC_ALIGNED __aligned(WORD_SIZE)
-+
-+#define MAX_POOL_NAME_LEN 40
-+
-+#define PMALLOC_HASH_SIZE (PAGE_SIZE / 2)
-+
-+#define PMALLOC_HASH_ENTRIES ilog2(PMALLOC_HASH_SIZE)
-+
-+
-+struct pmalloc_data {
-+	struct hlist_head pools_list_head;
-+	struct mutex pools_list_mutex;
-+	atomic_t pools_count;
-+};
-+
-+struct pmalloc_pool {
-+	struct hlist_node pools_list;
-+	struct hlist_head nodes_list_head;
-+	struct mutex nodes_list_mutex;
-+	atomic_t nodes_count;
-+	bool protected;
-+	char name[MAX_POOL_NAME_LEN];
-+};
-+
-+struct pmalloc_node {
-+	struct hlist_node nodes_list;
-+	atomic_t used_words;
-+	unsigned int total_words;
-+	__PMALLOC_ALIGNED align_t data[];
-+};
-+
-+#define HEADER_SIZE sizeof(struct pmalloc_node)
-+
-+static struct pmalloc_data *pmalloc_data;
-+
-+struct pmalloc_node *__pmalloc_create_node(int words)
++static void *__pmalloc_seq_start(struct seq_file *s, loff_t *pos)
 +{
-+	struct pmalloc_node *node;
-+	unsigned long size, i, pages;
-+	struct page *p;
-+
-+	size = ((HEADER_SIZE - 1 + PAGE_SIZE) +
-+		WORD_SIZE * (unsigned long) words) & PAGE_MASK;
-+	node = vmalloc(size);
-+	if (!node)
++	if (*pos)
 +		return NULL;
-+	atomic_set(&node->used_words, 0);
-+	node->total_words = (size - HEADER_SIZE) / WORD_SIZE;
-+	pages = size / PAGE_SIZE;
-+	for (i = 0; i < pages; i++) {
-+		p = vmalloc_to_page((void *)(i * PAGE_SIZE +
-+					     (unsigned long)node));
-+		__SetPagePmalloc(p);
-+	}
-+	return node;
++	return pos;
 +}
 +
-+void *pmalloc(unsigned long size, struct pmalloc_pool *pool)
++static void *__pmalloc_seq_next(struct seq_file *s, void *v, loff_t *pos)
 +{
-+	struct pmalloc_node *node;
-+	int req_words;
-+	int starting_word;
-+
-+	if (size > INT_MAX || size == 0)
-+		return NULL;
-+	req_words = (((int)size) + WORD_SIZE - 1) / WORD_SIZE;
-+	rcu_read_lock();
-+	hlist_for_each_entry_rcu(node, &pool->nodes_list_head, nodes_list) {
-+		starting_word = atomic_fetch_add(req_words, &node->used_words);
-+		if (starting_word + req_words > node->total_words)
-+			atomic_sub(req_words, &node->used_words);
-+		else
-+			goto found_node;
-+	}
-+	rcu_read_unlock();
-+	node = __pmalloc_create_node(req_words);
-+	starting_word = atomic_fetch_add(req_words, &node->used_words);
-+	mutex_lock(&pool->nodes_list_mutex);
-+	hlist_add_head_rcu(&node->nodes_list, &pool->nodes_list_head);
-+	mutex_unlock(&pool->nodes_list_mutex);
-+	atomic_inc(&pool->nodes_count);
-+found_node:
-+	return node->data + starting_word;
-+}
-+
-+const char msg[] = "Not a valid Pmalloc object.";
-+const char *__pmalloc_check_object(const void *ptr, unsigned long n)
-+{
-+	unsigned long p;
-+
-+	p = (unsigned long)ptr;
-+	n += (unsigned long)ptr;
-+	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
-+		if (is_vmalloc_addr((void *)p)) {
-+			struct page *page;
-+
-+			page = vmalloc_to_page((void *)p);
-+			if (!(page && PagePmalloc(page)))
-+				return msg;
-+		}
-+	}
 +	return NULL;
 +}
-+EXPORT_SYMBOL(__pmalloc_check_object);
 +
-+
-+struct pmalloc_pool *pmalloc_create_pool(const char *name)
++static void __pmalloc_seq_stop(struct seq_file *s, void *v)
 +{
-+	struct pmalloc_pool *pool;
-+	unsigned int name_len;
-+
-+	name_len = strnlen(name, MAX_POOL_NAME_LEN);
-+	if (unlikely(name_len == MAX_POOL_NAME_LEN))
-+		return NULL;
-+	pool = vmalloc(sizeof(struct pmalloc_pool));
-+	if (unlikely(!pool))
-+		return NULL;
-+	INIT_HLIST_NODE(&pool->pools_list);
-+	INIT_HLIST_HEAD(&pool->nodes_list_head);
-+	mutex_init(&pool->nodes_list_mutex);
-+	atomic_set(&pool->nodes_count, 0);
-+	pool->protected = false;
-+	strcpy(pool->name, name);
-+	mutex_lock(&pmalloc_data->pools_list_mutex);
-+	hlist_add_head_rcu(&pool->pools_list, &pmalloc_data->pools_list_head);
-+	mutex_unlock(&pmalloc_data->pools_list_mutex);
-+	atomic_inc(&pmalloc_data->pools_count);
-+	return pool;
-+}
-+
-+int pmalloc_protect_pool(struct pmalloc_pool *pool)
-+{
-+	struct pmalloc_node *node;
-+
-+	if (!pool)
-+		return -EINVAL;
-+	mutex_lock(&pool->nodes_list_mutex);
-+	hlist_for_each_entry(node, &pool->nodes_list_head, nodes_list) {
-+		unsigned long size, pages;
-+
-+		size = WORD_SIZE * node->total_words + HEADER_SIZE;
-+		pages = size / PAGE_SIZE;
-+		set_memory_ro((unsigned long)node, pages);
-+	}
-+	pool->protected = true;
-+	mutex_unlock(&pool->nodes_list_mutex);
-+	return 0;
 +}
 +
 +static __always_inline
-+void __pmalloc_destroy_node(struct pmalloc_node *node)
++void __seq_printf_node(struct seq_file *s, struct pmalloc_node *node)
 +{
-+	int pages, i;
++	unsigned long total_space, node_pages, end_of_node,
++		      used_space, available_space;
++	int total_words, used_words, available_words;
 +
-+	pages = (node->total_words * WORD_SIZE + HEADER_SIZE) /	PAGE_SIZE;
-+	for (i = 0; i < pages; i++)
-+		__ClearPagePmalloc(vmalloc_to_page(node + i * PAGE_SIZE));
-+	vfree(node);
++	used_words = atomic_read(&node->used_words);
++	total_words = node->total_words;
++	available_words = total_words - used_words;
++	used_space = used_words * WORD_SIZE;
++	total_space = total_words * WORD_SIZE;
++	available_space = total_space - used_space;
++	node_pages = (total_space + HEADER_SIZE) / PAGE_SIZE;
++	end_of_node = total_space + HEADER_SIZE + (unsigned long) node;
++	seq_printf(s, " - node:\t\t%p\n", node);
++	seq_printf(s, "   - start of data ptr:\t%p\n", node->data);
++	seq_printf(s, "   - end of node ptr:\t%p\n", (void *)end_of_node);
++	seq_printf(s, "   - total words:\t%d\n", total_words);
++	seq_printf(s, "   - used words:\t%d\n", used_words);
++	seq_printf(s, "   - available words:\t%d\n", available_words);
++	seq_printf(s, "   - pages:\t\t%lu\n", node_pages);
++	seq_printf(s, "   - total space:\t%lu\n", total_space);
++	seq_printf(s, "   - used space:\t%lu\n", used_space);
++	seq_printf(s, "   - available space:\t%lu\n", available_space);
 +}
 +
-+int pmalloc_destroy_pool(struct pmalloc_pool *pool)
++static __always_inline
++void __seq_printf_pool(struct seq_file *s, struct pmalloc_pool *pool)
 +{
 +	struct pmalloc_node *node;
 +
-+	if (!pool)
-+		return -EINVAL;
-+	mutex_lock(&pool->nodes_list_mutex);
-+	mutex_lock(&pmalloc_data->pools_list_mutex);
-+	hlist_del_rcu(&pool->pools_list);
-+	mutex_unlock(&pmalloc_data->pools_list_mutex);
-+	hlist_for_each_entry_rcu(node, &pool->nodes_list_head, nodes_list) {
-+		int pages;
-+
-+		pages = (node->total_words * WORD_SIZE + HEADER_SIZE) /
-+			PAGE_SIZE;
-+		set_memory_rw((unsigned long)node, pages);
-+	}
-+
-+	while (likely(!hlist_empty(&pool->nodes_list_head))) {
-+		node = hlist_entry(pool->nodes_list_head.first,
-+				   struct pmalloc_node, nodes_list);
-+		hlist_del(&node->nodes_list);
-+		__pmalloc_destroy_node(node);
-+	}
-+	mutex_unlock(&pool->nodes_list_mutex);
-+	atomic_dec(&pmalloc_data->pools_count);
-+	vfree(pool);
-+	return 0;
++	seq_printf(s, "pool:\t\t\t%p\n", pool);
++	seq_printf(s, " - name:\t\t%s\n", pool->name);
++	seq_printf(s, " - protected:\t\t%u\n", pool->protected);
++	seq_printf(s, " - nodes count:\t\t%u\n",
++		   atomic_read(&pool->nodes_count));
++	rcu_read_lock();
++	hlist_for_each_entry_rcu(node, &pool->nodes_list_head, nodes_list)
++		__seq_printf_node(s, node);
++	rcu_read_unlock();
 +}
 +
-+int __init pmalloc_init(void)
++static int __pmalloc_seq_show(struct seq_file *s, void *v)
 +{
-+	pmalloc_data = vmalloc(sizeof(struct pmalloc_data));
-+	if (!pmalloc_data)
-+		return -ENOMEM;
-+	INIT_HLIST_HEAD(&pmalloc_data->pools_list_head);
-+	mutex_init(&pmalloc_data->pools_list_mutex);
-+	atomic_set(&pmalloc_data->pools_count, 0);
++	struct pmalloc_pool *pool;
++
++	seq_printf(s, "pools count:\t\t%u\n",
++		   atomic_read(&pmalloc_data->pools_count));
++	seq_printf(s, "page size:\t\t%lu\n", PAGE_SIZE);
++	seq_printf(s, "word size:\t\t%lu\n", WORD_SIZE);
++	seq_printf(s, "node header size:\t%lu\n", HEADER_SIZE);
++	rcu_read_lock();
++	hlist_for_each_entry_rcu(pool, &pmalloc_data->pools_list_head,
++				 pools_list)
++		__seq_printf_pool(s, pool);
++	rcu_read_unlock();
 +	return 0;
 +}
-+EXPORT_SYMBOL(pmalloc_init);
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index a9852b2..29bb691 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -195,22 +195,28 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
- 	return NULL;
- }
- 
-+extern const char *__pmalloc_check_object(const void *ptr, unsigned long n);
 +
- static inline const char *check_heap_object(const void *ptr, unsigned long n,
- 					    bool to_user)
- {
- 	struct page *page;
- 
--	if (!virt_addr_valid(ptr))
--		return NULL;
--
--	page = virt_to_head_page(ptr);
--
--	/* Check slab allocator for flags and size. */
--	if (PageSlab(page))
--		return __check_heap_object(ptr, n, page);
-+	if (virt_addr_valid(ptr)) {
-+		page = virt_to_head_page(ptr);
- 
-+		/* Check slab allocator for flags and size. */
-+		if (PageSlab(page))
-+			return __check_heap_object(ptr, n, page);
- 	/* Verify object does not incorrectly span multiple pages. */
--	return check_page_span(ptr, n, page, to_user);
-+		return check_page_span(ptr, n, page, to_user);
-+	}
-+	if (likely(is_vmalloc_addr(ptr))) {
-+		page = vmalloc_to_page(ptr);
-+		if (unlikely(page && PagePmalloc(page)))
-+			return __pmalloc_check_object(ptr, n);
-+	}
-+	return NULL;
- }
- 
- /*
++static const struct seq_operations pmalloc_seq_ops = {
++	.start = __pmalloc_seq_start,
++	.next  = __pmalloc_seq_next,
++	.stop  = __pmalloc_seq_stop,
++	.show  = __pmalloc_seq_show,
++};
++
++static int __pmalloc_open(struct inode *inode, struct file *file)
++{
++	return seq_open(file, &pmalloc_seq_ops);
++}
++
++static const struct file_operations pmalloc_file_ops = {
++	.owner   = THIS_MODULE,
++	.open    = __pmalloc_open,
++	.read    = seq_read,
++	.llseek  = seq_lseek,
++	.release = seq_release
++};
++
++
++static int __init __pmalloc_init_track_pool(void)
++{
++	struct dentry *de = NULL;
++
++	pmalloc_root = debugfs_create_dir("pmalloc", NULL);
++	debugfs_create_file("pools", 0644, pmalloc_root, NULL,
++			    &pmalloc_file_ops);
++	return 0;
++}
++late_initcall(__pmalloc_init_track_pool);
++#endif
 -- 
 2.9.3
 
