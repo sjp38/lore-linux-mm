@@ -1,100 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB796B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 02:43:48 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r203so22619440wmb.2
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 23:43:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y42si16919552wrd.240.2017.06.04.23.43.46
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C7456B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 02:45:04 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o41so19873831qtf.8
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 23:45:04 -0700 (PDT)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id v1si31243999qtc.54.2017.06.04.23.45.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 04 Jun 2017 23:43:46 -0700 (PDT)
-Date: Mon, 5 Jun 2017 08:43:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/4] mm, tree wide: replace __GFP_REPEAT by
- __GFP_RETRY_MAYFAIL with more useful semantic
-Message-ID: <20170605064343.GE9248@dhcp22.suse.cz>
-References: <20170307154843.32516-1-mhocko@kernel.org>
- <20170307154843.32516-3-mhocko@kernel.org>
- <20170603022440.GA11080@WeideMacBook-Pro.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Jun 2017 23:45:03 -0700 (PDT)
+Received: by mail-qt0-x244.google.com with SMTP id s33so6444278qtg.3
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 23:45:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170603022440.GA11080@WeideMacBook-Pro.local>
+In-Reply-To: <1496434412-21005-1-git-send-email-sean.j.christopherson@intel.com>
+References: <1496434412-21005-1-git-send-email-sean.j.christopherson@intel.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Mon, 5 Jun 2017 16:45:02 +1000
+Message-ID: <CAKTCnzkqKV8_HPur456Ue+_UnkiRLZKpZ3Aar=AVgWmHpch8+g@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcontrol: exclude @root from checks in mem_cgroup_low
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Sat 03-06-17 10:24:40, Wei Yang wrote:
-> Hi, Michal
-> 
-> Just go through your patch.
-> 
-> I have one question and one suggestion as below.
-> 
-> One suggestion:
-> 
-> This patch does two things to me:
-> 1. Replace __GFP_REPEAT with __GFP_RETRY_MAYFAIL
-> 2. Adjust the logic in page_alloc to provide the middle semantic
-> 
-> My suggestion is to split these two task into two patches, so that readers
-> could catch your fundamental logic change easily.
+On Sat, Jun 3, 2017 at 6:13 AM, Sean Christopherson
+<sean.j.christopherson@intel.com> wrote:
+> Make @root exclusive in mem_cgroup_low; it is never considered low
+> when looked at directly and is not checked when traversing the tree.
+> In effect, @root is handled identically to how root_mem_cgroup was
+> previously handled by mem_cgroup_low.
+>
+> If @root is not excluded from the checks, a cgroup underneath @root
+> will never be considered low during targeted reclaim of @root, e.g.
+> due to memory.current > memory.high, unless @root is misconfigured
+> to have memory.low > memory.high.
+>
+> Excluding @root enables using memory.low to prioritize memory usage
+> between cgroups within a subtree of the hierarchy that is limited by
+> memory.high or memory.max, e.g. when ROOT owns @root's controls but
+> delegates the @root directory to a USER so that USER can create and
+> administer children of @root.
+>
+> For example, given cgroup A with children B and C:
+>
+>     A
+>    / \
+>   B   C
+>
+> and
+>
+>   1. A/memory.current > A/memory.high
+>   2. A/B/memory.current < A/B/memory.low
+>   3. A/C/memory.current >= A/C/memory.low
+>
+> As 'A' is high, i.e. triggers reclaim from 'A', and 'B' is low, we
+> should reclaim from 'C' until 'A' is no longer high or until we can
+> no longer reclaim from 'C'.  If 'A', i.e. @root, isn't excluded by
+> mem_cgroup_low when reclaming from 'A', then 'B' won't be considered
+> low and we will reclaim indiscriminately from both 'B' and 'C'.
+>
+> Signed-off-by: Sean Christopherson <sean.j.christopherson@intel.com>
+> ---
+>  mm/memcontrol.c | 50 ++++++++++++++++++++++++++++++++------------------
+>  1 file changed, 32 insertions(+), 18 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 13998ab..690b7dc 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5314,38 +5314,52 @@ struct cgroup_subsys memory_cgrp_subsys = {
+>
+>  /**
+>   * mem_cgroup_low - check if memory consumption is below the normal range
+> - * @root: the highest ancestor to consider
+> + * @root: the top ancestor of the sub-tree being checked
+>   * @memcg: the memory cgroup to check
+>   *
+>   * Returns %true if memory consumption of @memcg, and that of all
+> - * configurable ancestors up to @root, is below the normal range.
+> + * ancestors up to (but not including) @root, is below the normal range.
+> + *
+> + * @root is exclusive; it is never low when looked at directly and isn't
+> + * checked when traversing the hierarchy.
+> + *
+> + * Excluding @root enables using memory.low to prioritize memory usage
+> + * between cgroups within a subtree of the hierarchy that is limited by
+> + * memory.high or memory.max.
+> + *
+> + * For example, given cgroup A with children B and C:
+> + *
+> + *    A
+> + *   / \
+> + *  B   C
+> + *
+> + * and
+> + *
+> + *  1. A/memory.current > A/memory.high
+> + *  2. A/B/memory.current < A/B/memory.low
+> + *  3. A/C/memory.current >= A/C/memory.low
+> + *
+> + * As 'A' is high, i.e. triggers reclaim from 'A', and 'B' is low, we
+> + * should reclaim from 'C' until 'A' is no longer high or until we can
+> + * no longer reclaim from 'C'.  If 'A', i.e. @root, isn't excluded by
+> + * mem_cgroup_low when reclaming from 'A', then 'B' won't be considered
+> + * low and we will reclaim indiscriminately from both 'B' and 'C'.
+>   */
+>  bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
+>  {
+>         if (mem_cgroup_disabled())
+>                 return false;
+>
+> -       /*
+> -        * The toplevel group doesn't have a configurable range, so
+> -        * it's never low when looked at directly, and it is not
+> -        * considered an ancestor when assessing the hierarchy.
+> -        */
+> -
+> -       if (memcg == root_mem_cgroup)
+> -               return false;
+> -
+> -       if (page_counter_read(&memcg->memory) >= memcg->low)
+> +       if (!root)
+> +               root = root_mem_cgroup;
+> +       if (memcg == root)
+>                 return false;
+>
+> -       while (memcg != root) {
+> -               memcg = parent_mem_cgroup(memcg);
+> -
+> -               if (memcg == root_mem_cgroup)
+> -                       break;
+> -
+> +       for (; memcg != root; memcg = parent_mem_cgroup(memcg)) {
+>                 if (page_counter_read(&memcg->memory) >= memcg->low)
+>                         return false;
+>         }
+> +
+>         return true;
+>  }
+>
+> --
 
-Well, the rename and the change is intentionally tight together. My
-previous patches have removed all __GFP_REPEAT users for low order
-requests which didn't have any implemented semantic. So as of now we
-should only have those users which semantic will not change. I do not
-add any new low order user in this patch so it in fact doesn't change
-any existing semnatic.
+Looks good to me
 
-> 
-> On Tue, Mar 07, 2017 at 04:48:41PM +0100, Michal Hocko wrote:
-> >From: Michal Hocko <mhocko@suse.com>
-[...]
-> >@@ -3776,9 +3784,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> > 
-> > 	/*
-> > 	 * Do not retry costly high order allocations unless they are
-> >-	 * __GFP_REPEAT
-> >+	 * __GFP_RETRY_MAYFAIL
-> > 	 */
-> >-	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
-> >+	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_MAYFAIL))
-> > 		goto nopage;
-> 
-> One question:
-> 
-> From your change log, it mentions will provide the same semantic for !costly
-> allocations. While the logic here is the same as before.
-> 
-> For a !costly allocation with __GFP_REPEAT flag, the difference after this
-> patch is no OOM will be invoked, while it will still continue in the loop.
-
-Not really. There are two things. The above will shortcut retrying if
-there is _no_ __GFP_RETRY_MAYFAIL. If the flags _is_ specified we will
-back of in __alloc_pages_may_oom.
- 
-> Maybe I don't catch your point in this message:
-> 
->   __GFP_REPEAT was designed to allow retry-but-eventually-fail semantic to
->   the page allocator. This has been true but only for allocations requests
->   larger than PAGE_ALLOC_COSTLY_ORDER. It has been always ignored for
->   smaller sizes. This is a bit unfortunate because there is no way to
->   express the same semantic for those requests and they are considered too
->   important to fail so they might end up looping in the page allocator for
->   ever, similarly to GFP_NOFAIL requests.
-> 
-> I thought you will provide the same semantic to !costly allocation, or I
-> misunderstand?
-
-yes and that is the case. __alloc_pages_may_oom will back off before OOM
-killer is invoked and the allocator slow path will fail because
-did_some_progress == 0;
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
