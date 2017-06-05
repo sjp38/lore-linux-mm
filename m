@@ -1,141 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 562E86B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 11:02:37 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id l6so146843323iti.0
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 08:02:37 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 37si31455754iol.60.2017.06.05.08.02.34
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0896B02C3
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 11:16:03 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id t9so96219850ywe.12
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 08:16:03 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j1si4731193ywi.131.2017.06.05.08.16.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 08:02:34 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
-	<20170603073221.GB21524@dhcp22.suse.cz>
-	<201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
-	<20170605071053.GA471@jagdpanzerIV.localdomain>
-	<20170605093632.GA565@jagdpanzerIV.localdomain>
-In-Reply-To: <20170605093632.GA565@jagdpanzerIV.localdomain>
-Message-Id: <201706060002.FCD65614.OFFLOVQtHSJFOM@I-love.SAKURA.ne.jp>
-Date: Tue, 6 Jun 2017 00:02:11 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Jun 2017 08:16:02 -0700 (PDT)
+Date: Mon, 5 Jun 2017 11:15:41 -0400
+From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
+Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
+ to hugepages
+Message-ID: <20170605151541.avidrotxpoiekoy5@oracle.com>
+References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
+ <20170605045725.GA9248@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170605045725.GA9248@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sergey.senozhatsky.work@gmail.com
-Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mike.kravetz@Oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
 
-Thank you for explanation, Sergey.
-
-Sergey Senozhatsky wrote:
-> Hello,
->
-> On (06/03/17 17:36), Tetsuo Handa wrote:
-> [..]
-> > > Tetsuo is arguing that the locking will throttle warn_alloc callers and
-> > > that can help other processes to move on. I would call it papering over
-> > > a real issue which might be somewhere else and that is why I push back so
-> > > hard. The initial report is far from complete and seeing 30+ seconds
-> > > stalls without any indication that this is just a repeating stall after
-> > > 10s and 20s suggests that we got stuck somewhere in the reclaim path.
-> >
-> > That timestamp jump is caused by the fact that log_buf writers are consuming
-> > more CPU times than log_buf readers can consume. If I leave that situation
-> > more, printk() just starts printing "** %u printk messages dropped ** " line.
->
-> hhmm... sorry, not sure I see how printk() would affect timer ticks. unless
-> you do printing from timer IRQs, or always in deferred printk() mode, which
-> runs from timer IRQ... timestamps are assigned at the moment we add a new
-> message to the logbuf, not when we print it. so slow serial console really
-> should not affect it. unless I'm missing something.
-
-All printk() are from warn_alloc(). I retested using stop watch, and confirmed
-that console is printing pending output at full speed during the timestamp jump.
-Thus, it seems that this timestamp jump was caused by simply log_buf reader had
-been busy, and the OOM killer processing resumed after all pending output was
-consumed by log_buf reader.
-
-> I don't think vprintk_emit() was spinning on logbuf_lock_irqsave(),
-> you would have seen spinlock lockup reports otherwise. in console_unlock()
-> logbuf lock is acquired only to pick the first pending messages and,
-> basically, do memcpy() to a static buffer. we don't call "slow console
-> drivers" with the logbuf lock taken. so other CPUs are free/welcome to
-> append new messages to the logbuf in the meantime (and read accurate
-> local_clock()).
-
-Yes. The local_clock() value seems to be correct.
-
->
-> so if you see spikes in messages' timestamps it's most likely because
-> there was something between printk() calls that kept the CPU busy.
->
-
-Flooding of warn_alloc() from __alloc_pages_slowpath() kept log_buf
-reader busy enough to block resuming processing of the OOM killer.
-If warn_alloc() refrained from flooding, log_buf reader will be able to
-consume pending output more quickly, and we won't observe slowdown nor
-timestamp jump.
-
-> does it make any difference if you disable preemption in console_unlock()?
-> something like below... just curious...
-
-Yes, this change reduces stalls a lot. But I don't think changing printk()
-side for this problem is correct.
-
->
-> ---
->
-> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> index a1aecf44ab07..25fe408cb994 100644
-> --- a/kernel/printk/printk.c
-> +++ b/kernel/printk/printk.c
-> @@ -2204,6 +2204,8 @@ void console_unlock(void)
->          return;
->      }
+* Michal Hocko <mhocko@suse.com> [170605 00:57]:
+> On Fri 02-06-17 20:54:13, Liam R. Howlett wrote:
+> > When the user specifies too many hugepages or an invalid
+> > default_hugepagesz the communication to the user is implicit in the
+> > allocation message.  This patch adds a warning when the desired page
+> > count is not allocated and prints an error when the default_hugepagesz
+> > is invalid on boot.
 > 
-> +    preempt_disable();
-> +
->      for (;;) {
->          struct printk_log *msg;
->          size_t ext_len = 0;
-> @@ -2260,9 +2262,6 @@ void console_unlock(void)
->          call_console_drivers(ext_text, ext_len, text, len);
->          start_critical_timings();
->          printk_safe_exit_irqrestore(flags);
-> -
-> -        if (do_cond_resched)
-> -            cond_resched();
->      }
->      console_locked = 0;
+> We do not warn when doing echo $NUM > nr_hugepages, so why should we
+> behave any different during the boot?
+
+During boot hugepages will allocate until there is a fraction of the
+hugepage size left.  That is, we allocate until either the request is
+satisfied or memory for the pages is exhausted.  When memory for the
+pages is exhausted, it will most likely lead to the system failing with
+the OOM manager not finding enough (or anything) to kill (unless you're
+using really big hugepages in the order of 100s of MB or in the GBs).
+The user will most likely see the OOM messages much later in the boot
+sequence than the implicitly stated message.  Worse yet, you may even
+get an OOM for each processor which causes many pages of OOMs on modern
+systems.  Although these messages will be printed earlier than the OOM
+messages, at least giving the user errors and warnings will highlight
+the configuration as an issue.  I'm trying to point the user in the
+right direction by providing a more robust statement of what is failing.
+
+During the sysctl or echo command, the user can check the results much
+easier than if the system hangs during boot and the scenario of having
+nothing to OOM for kernel memory is highly unlikely.
+
+Thanks,
+Liam
+
+>  
+> > Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+> > ---
+> >  mm/hugetlb.c | 15 ++++++++++++++-
+> >  1 file changed, 14 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index e5828875f7bb..6de30bbac23e 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -70,6 +70,7 @@ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
+> >  
+> >  /* Forward declaration */
+> >  static int hugetlb_acct_memory(struct hstate *h, long delta);
+> > +static char * __init memfmt(char *buf, unsigned long n);
+> >  
+> >  static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
+> >  {
+> > @@ -2189,7 +2190,14 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+> >  					 &node_states[N_MEMORY]))
+> >  			break;
+> >  	}
+> > -	h->max_huge_pages = i;
+> > +	if (i < h->max_huge_pages) {
+> > +		char buf[32];
+> > +
+> > +		memfmt(buf, huge_page_size(h)),
+> > +		pr_warn("HugeTLB: allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
+> > +			h->max_huge_pages, buf, i);
+> > +		h->max_huge_pages = i;
+> > +	}
+> >  }
+> >  
+> >  static void __init hugetlb_init_hstates(void)
+> > @@ -2785,6 +2793,11 @@ static int __init hugetlb_init(void)
+> >  		return 0;
+> >  
+> >  	if (!size_to_hstate(default_hstate_size)) {
+> > +		if (default_hstate_size != 0) {
+> > +			pr_err("HugeTLB: unsupported default_hugepagesz %lu. Reverting to %lu\n",
+> > +			       default_hstate_size, HPAGE_SIZE);
+> > +		}
+> > +
+> >  		default_hstate_size = HPAGE_SIZE;
+> >  		if (!size_to_hstate(default_hstate_size))
+> >  			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
+> > -- 
+> > 2.13.0.92.gcd65a7235
+> > 
 > 
-> @@ -2274,6 +2273,8 @@ void console_unlock(void)
+> -- 
+> Michal Hocko
+> SUSE Labs
 > 
->      up_console_sem();
-> 
-> +    preempt_enable();
-> +
->      /*
->       * Someone could have filled up the buffer again, so re-check if there's
->       * something to flush. In case we cannot trylock the console_sem again,
-
-This change is a subset of enclosing whole oom_kill_process() steps
-with preempt_disable()/preempt_enable(), which was already rejected.
-
-Regarding the OOM killer preempted by console_unlock() from printk()
-problem, it will be mitigated by offloading to the printk kernel thread.
-But offloading solves only the OOM killer preempted by console_unlock()
-case. The OOM killer can still be preempted by schedule_timeout_killable(1).
-
-Also, Cong Wang's case was (presumably) unable to invoke the OOM killer case.
-When the OOM killer can make forward progress, accelerating log_buf readers
-instead of throttling log_buf writers might make sense. But when the OOM killer
-cannot make forward progress, we need to make sure that log_buf writer (i.e.
-warn_alloc()) is slower than log_buf reader (i.e. printk kernel thread).
-
-So, coming back to warn_alloc(). I don't think that current ratelimit
-choice is enough to give log_buf reader enough CPU time. Users won't be
-happy with randomly filtered, otherwise flooded/mixed warn_alloc() output.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
