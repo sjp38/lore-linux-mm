@@ -1,114 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 816766B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 10:27:53 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id x81so17872153lfb.10
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 07:27:53 -0700 (PDT)
-Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
-        by mx.google.com with ESMTPS id d137si18698993lfd.200.2017.06.05.07.27.51
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 562E86B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 11:02:37 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id l6so146843323iti.0
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 08:02:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 37si31455754iol.60.2017.06.05.08.02.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jun 2017 07:27:51 -0700 (PDT)
-Subject: Re: [PATCH v2] mm/oom_kill: count global and memory cgroup oom kills
-References: <149570810989.203600.9492483715840752937.stgit@buzz>
- <20170605085011.GJ9248@dhcp22.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
-Date: Mon, 5 Jun 2017 17:27:50 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170605085011.GJ9248@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: ru-RU
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Jun 2017 08:02:34 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
+	<20170603073221.GB21524@dhcp22.suse.cz>
+	<201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
+	<20170605071053.GA471@jagdpanzerIV.localdomain>
+	<20170605093632.GA565@jagdpanzerIV.localdomain>
+In-Reply-To: <20170605093632.GA565@jagdpanzerIV.localdomain>
+Message-Id: <201706060002.FCD65614.OFFLOVQtHSJFOM@I-love.SAKURA.ne.jp>
+Date: Tue, 6 Jun 2017 00:02:11 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>
+To: sergey.senozhatsky.work@gmail.com
+Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com
 
+Thank you for explanation, Sergey.
 
+Sergey Senozhatsky wrote:
+> Hello,
+>
+> On (06/03/17 17:36), Tetsuo Handa wrote:
+> [..]
+> > > Tetsuo is arguing that the locking will throttle warn_alloc callers and
+> > > that can help other processes to move on. I would call it papering over
+> > > a real issue which might be somewhere else and that is why I push back so
+> > > hard. The initial report is far from complete and seeing 30+ seconds
+> > > stalls without any indication that this is just a repeating stall after
+> > > 10s and 20s suggests that we got stuck somewhere in the reclaim path.
+> >
+> > That timestamp jump is caused by the fact that log_buf writers are consuming
+> > more CPU times than log_buf readers can consume. If I leave that situation
+> > more, printk() just starts printing "** %u printk messages dropped ** " line.
+>
+> hhmm... sorry, not sure I see how printk() would affect timer ticks. unless
+> you do printing from timer IRQs, or always in deferred printk() mode, which
+> runs from timer IRQ... timestamps are assigned at the moment we add a new
+> message to the logbuf, not when we print it. so slow serial console really
+> should not affect it. unless I'm missing something.
 
-On 05.06.2017 11:50, Michal Hocko wrote:
-> On Thu 25-05-17 13:28:30, Konstantin Khlebnikov wrote:
->> Show count of oom killer invocations in /proc/vmstat and count of
->> processes killed in memory cgroup in knob "memory.events"
->> (in memory.oom_control for v1 cgroup).
->>
->> Also describe difference between "oom" and "oom_kill" in memory
->> cgroup documentation. Currently oom in memory cgroup kills tasks
->> iff shortage has happened inside page fault.
->>
->> These counters helps in monitoring oom kills - for now
->> the only way is grepping for magic words in kernel log.
-> 
-> Yes this is less than optimal and the counter sounds like a good step
-> forward. I have 2 comments to the patch though.
-> 
-> [...]
-> 
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 899949bbb2f9..42296f7001da 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -556,8 +556,11 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
->>   
->>   	rcu_read_lock();
->>   	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
->> -	if (likely(memcg))
->> +	if (likely(memcg)) {
->>   		this_cpu_inc(memcg->stat->events[idx]);
->> +		if (idx == OOM_KILL)
->> +			cgroup_file_notify(&memcg->events_file);
->> +	}
->>   	rcu_read_unlock();
-> 
-> Well, this is ugly. I see how you want to share the global counter and
-> the memcg event which needs the notification. But I cannot say this
-> would be really easy to follow. Can we have at least a comment in
-> memcg_event_item enum definition?
+All printk() are from warn_alloc(). I retested using stop watch, and confirmed
+that console is printing pending output at full speed during the timestamp jump.
+Thus, it seems that this timestamp jump was caused by simply log_buf reader had
+been busy, and the OOM killer processing resumed after all pending output was
+consumed by log_buf reader.
 
-Yep, this is a little bit ugly.
-But this funciton is static-inline and idx always constant so resulting code is fine.
+> I don't think vprintk_emit() was spinning on logbuf_lock_irqsave(),
+> you would have seen spinlock lockup reports otherwise. in console_unlock()
+> logbuf lock is acquired only to pick the first pending messages and,
+> basically, do memcpy() to a static buffer. we don't call "slow console
+> drivers" with the logbuf lock taken. so other CPUs are free/welcome to
+> append new messages to the logbuf in the meantime (and read accurate
+> local_clock()).
 
-> 
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 04c9143a8625..dd30a045ef5b 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->>   	/* Get a reference to safely compare mm after task_unlock(victim) */
->>   	mm = victim->mm;
->>   	mmgrab(mm);
->> +
->> +	/* Raise event before sending signal: reaper must see this */
->> +	count_vm_event(OOM_KILL);
->> +	mem_cgroup_count_vm_event(mm, OOM_KILL);
->> +
->>   	/*
->>   	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
->>   	 * the OOM victim from depleting the memory reserves from the user
-> 
-> Why don't you count tasks which share mm with the oom victim?
+Yes. The local_clock() value seems to be correct.
 
-Yes, this makes sense. But these kills are not logged thus counter will differs from logged events.
-Also these tasks might live in different cgroups, so counting to mm owner isn't correct.
+>
+> so if you see spikes in messages' timestamps it's most likely because
+> there was something between printk() calls that kept the CPU busy.
+>
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0e2c925e7826..9a95947a60ba 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -924,6 +924,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->   		 */
->   		if (unlikely(p->flags & PF_KTHREAD))
->   			continue;
-> +		count_vm_event(OOM_KILL);
-> +		count_memcg_event_mm(mm, OOM_KILL);
->   		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
->   	}
->   	rcu_read_unlock();
+Flooding of warn_alloc() from __alloc_pages_slowpath() kept log_buf
+reader busy enough to block resuming processing of the OOM killer.
+If warn_alloc() refrained from flooding, log_buf reader will be able to
+consume pending output more quickly, and we won't observe slowdown nor
+timestamp jump.
+
+> does it make any difference if you disable preemption in console_unlock()?
+> something like below... just curious...
+
+Yes, this change reduces stalls a lot. But I don't think changing printk()
+side for this problem is correct.
+
+>
+> ---
+>
+> diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+> index a1aecf44ab07..25fe408cb994 100644
+> --- a/kernel/printk/printk.c
+> +++ b/kernel/printk/printk.c
+> @@ -2204,6 +2204,8 @@ void console_unlock(void)
+>          return;
+>      }
 > 
-> Other than that looks good to me.
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> +    preempt_disable();
+> +
+>      for (;;) {
+>          struct printk_log *msg;
+>          size_t ext_len = 0;
+> @@ -2260,9 +2262,6 @@ void console_unlock(void)
+>          call_console_drivers(ext_text, ext_len, text, len);
+>          start_critical_timings();
+>          printk_safe_exit_irqrestore(flags);
+> -
+> -        if (do_cond_resched)
+> -            cond_resched();
+>      }
+>      console_locked = 0;
 > 
+> @@ -2274,6 +2273,8 @@ void console_unlock(void)
+> 
+>      up_console_sem();
+> 
+> +    preempt_enable();
+> +
+>      /*
+>       * Someone could have filled up the buffer again, so re-check if there's
+>       * something to flush. In case we cannot trylock the console_sem again,
+
+This change is a subset of enclosing whole oom_kill_process() steps
+with preempt_disable()/preempt_enable(), which was already rejected.
+
+Regarding the OOM killer preempted by console_unlock() from printk()
+problem, it will be mitigated by offloading to the printk kernel thread.
+But offloading solves only the OOM killer preempted by console_unlock()
+case. The OOM killer can still be preempted by schedule_timeout_killable(1).
+
+Also, Cong Wang's case was (presumably) unable to invoke the OOM killer case.
+When the OOM killer can make forward progress, accelerating log_buf readers
+instead of throttling log_buf writers might make sense. But when the OOM killer
+cannot make forward progress, we need to make sure that log_buf writer (i.e.
+warn_alloc()) is slower than log_buf reader (i.e. printk kernel thread).
+
+So, coming back to warn_alloc(). I don't think that current ratelimit
+choice is enough to give log_buf reader enough CPU time. Users won't be
+happy with randomly filtered, otherwise flooded/mixed warn_alloc() output.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
