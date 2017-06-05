@@ -1,80 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38DF76B0292
-	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 21:00:46 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k81so1131684pfg.9
-        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 18:00:46 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f1si5830688pld.384.2017.06.04.18.00.45
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1F56B0292
+	for <linux-mm@kvack.org>; Sun,  4 Jun 2017 21:43:56 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 62so132131489pft.3
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 18:43:56 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id e6si6010187plk.0.2017.06.04.18.43.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Jun 2017 18:00:45 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm 05/13] block, THP: Make block_device_operations.rw_page support THP
-References: <20170525064635.2832-1-ying.huang@intel.com>
-	<20170525064635.2832-6-ying.huang@intel.com>
-	<20170602055759.GC5909@linux.intel.com>
-Date: Mon, 05 Jun 2017 09:00:42 +0800
-In-Reply-To: <20170602055759.GC5909@linux.intel.com> (Ross Zwisler's message
-	of "Thu, 1 Jun 2017 23:57:59 -0600")
-Message-ID: <87a85n1c5h.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        Sun, 04 Jun 2017 18:43:55 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id v14so4366473pgn.1
+        for <linux-mm@kvack.org>; Sun, 04 Jun 2017 18:43:55 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm/page_alloc: Trivial typo fix.
+Date: Mon,  5 Jun 2017 09:43:50 +0800
+Message-Id: <20170605014350.1973-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, linux-nvdimm@lists.01.org
+To: trivial@kernel.org, akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, Wei Yang <richard.weiyang@gmail.com>
 
-Ross Zwisler <ross.zwisler@linux.intel.com> writes:
+Looks there is no word "blamo", and it should be "blame".
 
-> On Thu, May 25, 2017 at 02:46:27PM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> The .rw_page in struct block_device_operations is used by the swap
->> subsystem to read/write the page contents from/into the corresponding
->> swap slot in the swap device.  To support the THP (Transparent Huge
->> Page) swap optimization, the .rw_page is enhanced to support to
->> read/write THP if possible.
->> 
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Dan Williams <dan.j.williams@intel.com>
->> Cc: Ross Zwisler <ross.zwisler@intel.com>
->> Cc: Vishal L Verma <vishal.l.verma@intel.com>
->> Cc: Jens Axboe <axboe@kernel.dk>
->> Cc: linux-nvdimm@lists.01.org
->> ---
->>  drivers/block/brd.c           |  6 +++++-
->>  drivers/block/zram/zram_drv.c |  2 ++
->>  drivers/nvdimm/btt.c          |  4 +++-
->>  drivers/nvdimm/pmem.c         | 42 +++++++++++++++++++++++++++++++-----------
->>  4 files changed, 41 insertions(+), 13 deletions(-)
->
-> The changes in brd.c, zram_drv.c and pmem.c look good to me.  For those bits
-> you can add: 
->
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+This patch just fix the typo.
 
-Thanks!
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> I think we still want Vishal to make sure that the BTT changes are okay.  I
-> don't know that code well enough to know whether it's safe to throw 512 pages
-> at btt_[read|write]_pg().
->
-> Also, Ying, next time can you please CC me (and probably the linux-nvdimm
-> list) on the whole series?  It would give us more context on what the larger
-> change is, allow us to see the cover letter, allow us to test with all the
-> patches in the series, etc.  It's pretty easy for reviewers to skip over the
-> patches we don't care about or aren't in our area.
-
-Sure.
-
-Best Regards,
-Huang, Ying
-
-> Thanks,
-> - Ross
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 07efbc3a8656..9ce765e6fe2f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3214,7 +3214,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	if (gfp_mask & __GFP_THISNODE)
+ 		goto out;
+ 
+-	/* Exhausted what can be done so it's blamo time */
++	/* Exhausted what can be done so it's blame time */
+ 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+ 		*did_some_progress = 1;
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
