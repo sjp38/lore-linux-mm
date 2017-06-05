@@ -1,117 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A2DF56B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 03:10:49 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id e1so14144230pga.5
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 00:10:49 -0700 (PDT)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id 1si857404pli.41.2017.06.05.00.10.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 109CD6B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 04:12:01 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t126so66417117pgc.9
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 01:12:01 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id g125si30233940pfc.376.2017.06.05.01.11.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jun 2017 00:10:48 -0700 (PDT)
-Received: by mail-pf0-x234.google.com with SMTP id 83so21186097pfr.0
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 00:10:48 -0700 (PDT)
-Date: Mon, 5 Jun 2017 16:10:53 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-Message-ID: <20170605071053.GA471@jagdpanzerIV.localdomain>
-References: <20170601132808.GD9091@dhcp22.suse.cz>
- <20170601151022.b17716472adbf0e6d51fb011@linux-foundation.org>
- <20170602071818.GA29840@dhcp22.suse.cz>
- <20170602125944.b35575ccb960e467596cf880@linux-foundation.org>
- <20170603073221.GB21524@dhcp22.suse.cz>
- <201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 05 Jun 2017 01:12:00 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v2] vmalloc: show more detail info in vmallocinfo for clarify
+Date: Mon, 5 Jun 2017 16:01:22 +0800
+Message-ID: <1496649682-20710-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201706031736.DHB82306.QOOHtVFFSJFOLM@I-love.SAKURA.ne.jp>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky@gmail.com, pmladek@suse.com
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
 
-Hello,
+When ioremap a 67112960 bytes vm_area with the vmallocinfo:
+ [..]
+ 0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+ 0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
 
-On (06/03/17 17:36), Tetsuo Handa wrote:
-[..]
-> > Tetsuo is arguing that the locking will throttle warn_alloc callers and
-> > that can help other processes to move on. I would call it papering over
-> > a real issue which might be somewhere else and that is why I push back so
-> > hard. The initial report is far from complete and seeing 30+ seconds
-> > stalls without any indication that this is just a repeating stall after
-> > 10s and 20s suggests that we got stuck somewhere in the reclaim path.
-> 
-> That timestamp jump is caused by the fact that log_buf writers are consuming
-> more CPU times than log_buf readers can consume. If I leave that situation
-> more, printk() just starts printing "** %u printk messages dropped ** " line.
+we get the result:
+ 0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
 
-hhmm... sorry, not sure I see how printk() would affect timer ticks. unless
-you do printing from timer IRQs, or always in deferred printk() mode, which
-runs from timer IRQ... timestamps are assigned at the moment we add a new
-message to the logbuf, not when we print it. so slow serial console really
-should not affect it. unless I'm missing something.
+For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
+	if (flags & VM_IOREMAP)
+		align = 1ul << clamp_t(int, get_count_order_long(size),
+			PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
-	vprintk_emit()
-	{
-		logbuf_lock_irqsave(flags);
+So it makes idiot like me a litter puzzle why jump the vm_area from
+0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
+0xed000000-0xf1000000 as a big hole.
 
-		log_output(facility, level, lflags, dict, dictlen, text, text_len);
-		{
-			log_store()
-			{
-				msg->ts_nsec = local_clock();
-						^^^^^^^^^^^^^
-			}
-		}
+This is to show all of vm_area, including which is freeing but still in
+vmap_area_list, to make it more clear about why we will get
+0xf1000000-0xf5001000 int the above case. And we will get the
+vmallocinfo like:
+ [..]
+ 0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+ 0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+ [..]
+ 0xece7c000-0xece7e000    8192 unpurged vm_area
+ 0xece7e000-0xece83000   20480 vm_map_ram
+ 0xf0099000-0xf00aa000   69632 vm_map_ram
+after apply this patch.
 
-		logbuf_unlock_irqrestore(flags);
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+v2:
+ - changed "freeing vm_area" to "unpurged vm_area" to be clearer  - Tim
 
-		if (console_trylock())
-			console_unlock();
-	}
+ mm/vmalloc.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
 
-
-I don't think vprintk_emit() was spinning on logbuf_lock_irqsave(),
-you would have seen spinlock lockup reports otherwise. in console_unlock()
-logbuf lock is acquired only to pick the first pending messages and,
-basically, do memcpy() to a static buffer. we don't call "slow console
-drivers" with the logbuf lock taken. so other CPUs are free/welcome to
-append new messages to the logbuf in the meantime (and read accurate
-local_clock()).
-
-so if you see spikes in messages' timestamps it's most likely because
-there was something between printk() calls that kept the CPU busy.
-
-/* or you had a ton of printk calls from other CPUs with noisy loglevels
-   that were suppressed later in console_unlock(), see later. */
-
-... well, serial consoles can be slow, sure.
-
-
-> Notice the timestamp jump between [  351.239144] and [  389.308085].
-
-do you have a restrictive console loglevel and a ton of messages that
-were simply filtered out by console loglevel check? we still store those
-messages to the logbuf (for dmesg, etc.) and process them in console_unlock(),
-but don't print to the serial console. so, in other words,
-
-logbuf:
-
-	timestamp T0	message M0		-- visible loglevel
-	timestamp T1	message M1  		-- suppressed loglevel
-	....
-	timestamp T100	message M101		-- suppressed loglevel
-	timestamp T101	message M102		-- visible loglevel
-
-on the serial console you'll see
-
-	T0	M0
-	T101	M102
-
-which might look like a spike in timestamps (while there weren't any).
-just a thought.
-
-	-ss
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 34a1c3e..6ef021f 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -314,6 +314,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+ 
+ /*** Global kva allocator ***/
+ 
++#define VM_LAZY_FREE	0x02
+ #define VM_VM_AREA	0x04
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+@@ -1486,6 +1487,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 		spin_lock(&vmap_area_lock);
+ 		va->vm = NULL;
+ 		va->flags &= ~VM_VM_AREA;
++		va->flags |= VM_LAZY_FREE;
+ 		spin_unlock(&vmap_area_lock);
+ 
+ 		vmap_debug_free_range(va->va_start, va->va_end);
+@@ -2698,8 +2700,14 @@ static int s_show(struct seq_file *m, void *p)
+ 	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
+ 	 * behalf of vmap area is being tear down or vm_map_ram allocation.
+ 	 */
+-	if (!(va->flags & VM_VM_AREA))
++	if (!(va->flags & VM_VM_AREA)) {
++		seq_printf(m, "0x%pK-0x%pK %7ld %s\n",
++			(void *)va->va_start, (void *)va->va_end,
++			va->va_end - va->va_start,
++			va->flags & VM_LAZY_FREE ? "unpurged vm_area" : "vm_map_ram");
++
+ 		return 0;
++	}
+ 
+ 	v = va->vm;
+ 
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
