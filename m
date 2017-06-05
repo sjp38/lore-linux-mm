@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2DD6B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 16:50:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q27so149199810pfi.8
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 13:50:57 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m66si31973932pfc.39.2017.06.05.13.50.55
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 082B66B0292
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 17:38:35 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z70so11365507wrc.1
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 14:38:34 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 6si21420775wrq.87.2017.06.05.14.38.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Jun 2017 13:50:56 -0700 (PDT)
-Subject: Re: [PATCH 4/5] Make LSM Writable Hooks a command line option
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170605192216.21596-1-igor.stoppa@huawei.com>
-	<20170605192216.21596-5-igor.stoppa@huawei.com>
-	<71e91de0-7d91-79f4-67f0-be0afb33583c@schaufler-ca.com>
-In-Reply-To: <71e91de0-7d91-79f4-67f0-be0afb33583c@schaufler-ca.com>
-Message-Id: <201706060550.HAC69712.OVFOtSFLQJOMFH@I-love.SAKURA.ne.jp>
-Date: Tue, 6 Jun 2017 05:50:11 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Jun 2017 14:38:33 -0700 (PDT)
+Date: Mon, 5 Jun 2017 14:38:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/6] mm: vmstat: move slab statistics from zone to node
+ counters
+Message-Id: <20170605143831.dac73f489bfe2644e103d2b3@linux-foundation.org>
+In-Reply-To: <20170605183511.GA8915@cmpxchg.org>
+References: <20170530181724.27197-1-hannes@cmpxchg.org>
+	<20170530181724.27197-3-hannes@cmpxchg.org>
+	<20170531091256.GA5914@osiris>
+	<20170531113900.GB5914@osiris>
+	<20170531171151.e4zh7ffzbl4w33gd@yury-thinkpad>
+	<87mv9s2f8f.fsf@concordia.ellerman.id.au>
+	<20170605183511.GA8915@cmpxchg.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: casey@schaufler-ca.com, igor.stoppa@huawei.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
-Cc: paul@paul-moore.com, sds@tycho.nsa.gov, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Yury Norov <ynorov@caviumnetworks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Josef Bacik <josef@toxicpanda.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-s390@vger.kernel.org
 
-Casey Schaufler wrote:
-> > @@ -33,8 +34,17 @@
-> >  /* Maximum number of letters for an LSM name string */
-> >  #define SECURITY_NAME_MAX	10
-> >  
-> > -static struct list_head hook_heads[LSM_MAX_HOOK_INDEX]
-> > -	__lsm_ro_after_init;
-> > +static int security_debug;
-> > +
-> > +static __init int set_security_debug(char *str)
-> > +{
-> > +	get_option(&str, &security_debug);
-> > +	return 0;
-> > +}
-> > +early_param("security_debug", set_security_debug);
-> 
-> I don't care for calling this "security debug". Making
-> the lists writable after init isn't about development,
-> it's about (Tetsuo's desire for) dynamic module loading.
-> I would prefer "dynamic_module_lists" our something else
-> more descriptive.
+On Mon, 5 Jun 2017 14:35:11 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Maybe dynamic_lsm ?
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5107,6 +5107,7 @@ static void build_zonelists(pg_data_t *pgdat)
+>   */
+>  static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch);
+>  static DEFINE_PER_CPU(struct per_cpu_pageset, boot_pageset);
+> +static DEFINE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
+>  static void setup_zone_pageset(struct zone *zone);
 
-> 
-> > +
-> > +static struct list_head *hook_heads;
-> > +static struct pmalloc_pool *sec_pool;
-> >  char *lsm_names;
-> >  /* Boot-time LSM user choice */
-> >  static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
-> > @@ -59,6 +69,13 @@ int __init security_init(void)
-> >  {
-> >  	enum security_hook_index i;
-> >  
-> > +	sec_pool = pmalloc_create_pool("security");
-> > +	if (!sec_pool)
-> > +		goto error_pool;
-> 
-> Excessive gotoing - return -ENOMEM instead.
-
-But does it make sense to continue?
-hook_heads == NULL and we will oops as soon as
-call_void_hook() or call_int_hook() is called for the first time.
+There's a few kb there.  It just sits evermore unused after boot?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
