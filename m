@@ -1,117 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A96A6B0292
-	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 08:35:38 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id v184so48426300itc.15
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 05:35:38 -0700 (PDT)
-Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com. [2607:f8b0:4001:c0b::22f])
-        by mx.google.com with ESMTPS id n66si10838824itb.2.2017.06.05.05.35.36
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6286B6B02C3
+	for <linux-mm@kvack.org>; Mon,  5 Jun 2017 08:37:50 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id m57so39662668qta.9
+        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 05:37:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r32si10097973qta.195.2017.06.05.05.37.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jun 2017 05:35:36 -0700 (PDT)
-Received: by mail-it0-x22f.google.com with SMTP id m62so59786433itc.0
-        for <linux-mm@kvack.org>; Mon, 05 Jun 2017 05:35:36 -0700 (PDT)
+        Mon, 05 Jun 2017 05:37:49 -0700 (PDT)
+Date: Mon, 5 Jun 2017 14:37:45 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] signal: Avoid undefined behaviour in kill_something_info
+Message-ID: <20170605123744.GA9807@redhat.com>
+References: <1496653897-53093-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <97a535d8-f9d5-57b2-4b9c-23a0e6df7cc8@intel.com>
-References: <20170602112720.28948-1-ard.biesheuvel@linaro.org>
- <e98368d8-b1bc-5804-2115-370ec7109e9b@intel.com> <CAKv+Gu964bDsV52gZ7QCJf26kXVaWgmuwXZSm0qWxa-34Eqttw@mail.gmail.com>
- <747b71d8-86a7-3b96-cf90-60d6c2ce0171@intel.com> <CAKv+Gu_0cQDyRP0urZEF6OAn7cOEVH3WXL2UpDgg6wKUrWcRYA@mail.gmail.com>
- <97a535d8-f9d5-57b2-4b9c-23a0e6df7cc8@intel.com>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Mon, 5 Jun 2017 12:35:35 +0000
-Message-ID: <CAKv+Gu9CR3N4C6Xuc9aTtSbgSgMHXtPEKeEnkxssk3NmffqgTQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmalloc: make vmalloc_to_page() deal with PMD/PUD mappings
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1496653897-53093-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Steve Capper <steve.capper@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Laura Abbott <labbott@fedoraproject.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Zhong Jiang <zhongjiang@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Tanxiaojun <tanxiaojun@huawei.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, stsp@list.ru, Waiman.Long@hpe.com, mingo@kernel.org, mhocko@kernel.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com
 
-On 2 June 2017 at 18:18, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 06/02/2017 09:21 AM, Ard Biesheuvel wrote:
->>> First of all, this math isn't guaranteed to work.  We don't guarantee
->>> virtual contiguity for all mem_map[]s.  I think you need to go to a pfn
->>> or paddr first, add the pud offset, then convert to a 'struct page'.
->>
->> OK, so you are saying the slice of the struct page array covering the
->> range could be discontiguous even though the physical range it
->> describes is contiguous? (which is guaranteed due to the nature of a
->> PMD mapping IIUC) In that case,
+On 06/05, zhongjiang wrote:
 >
-> Yes.
->
->>> But, what *is* the right thing to return here?  Do the users here want
->>> the head page or the tail page?
->>
->> Hmm, I see what you mean. The vread() code that I am trying to fix
->> simply kmaps the returned page, copies from it and unmaps it, so it is
->> after the tail page. But I guess code that is aware of compound pages
->> is after the head page instead.
->
-> Yeah, and some operations happen on tail pages while others get
-> redirected to the head page.
->
+>  static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
+>  {
+> -	int ret;
+> +	int ret, vpid;
+>  
+>  	if (pid > 0) {
+>  		rcu_read_lock();
+> @@ -1395,8 +1395,12 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
+>  
+>  	read_lock(&tasklist_lock);
+>  	if (pid != -1) {
+> +		if (pid == INT_MIN)
+> +			vpid = INT_MAX;
 
-OK. So given that vmalloc() never allocates compound pages, and vmap()
-does not deal with them at all, we should be able to safely assume
-that vmalloc_to_page() callers are interested in the tail page only.
+Well, this probably needs a comment to explain that this is just "avoid ub".
 
->>> BTW, _are_ your huge vmalloc pages compound?
->>
->> Not in the case that I am trying to solve, no. They are simply VM_MAP
->> mappings of sequences of pages that are occupied by the kernel itself,
->> and not allocated by the page allocator.
->
-> Huh, so what are they?  Are they system RAM that was bootmem allocated
-> or something?
->
+And if we really want the fix, to me
 
-They are static mappings of vmlinux segments. I.e., on my system I have
+	if (pid == INT_MIN)
+		return -ESRCH;
 
-vmalloc : 0xffff000008000000 - 0xffff7dffbfff0000   (129022 GB)
-  .text : 0xffff2125f4ce0000 - 0xffff2125f5670000   (  9792 KB)
-.rodata : 0xffff2125f5670000 - 0xffff2125f5a30000   (  3840 KB)
-  .init : 0xffff2125f5a30000 - 0xffff2125f5e50000   (  4224 KB)
-  .data : 0xffff2125f5e50000 - 0xffff2125f5f8ba00   (  1263 KB)
-   .bss : 0xffff2125f5f8ba00 - 0xffff2125f609692c   (  1068 KB)
+at the start makes more sense...
 
-where KASLR may place these segments anywhere in the VMALLOC region.
-Mark has suggested that these regions should not intersect, but in my
-opinion, given that the VMALLOC region already contains executable
-code and associated data (for kernel modules), and may already contain
-huge mappings (for HUGE_VMAP), it is reasonable to expect shared code
-to at least tolerate such mappings.
-
-As Mark pointed out, pmd_huge()/pud_huge() may not work as expected
-depending on the kernel configuration, so I will respin the patch to
-take HUGE_VMAP into account for those definitions as well.
-
--- 
-Ard.
-
-
-
->>>>>> +#else
->>>>>> +     VIRTUAL_BUG_ON(1);
->>>>>> +#endif
->>>>>> +     return page;
->>>>>> +}
->>>>> So if somebody manages to call this function on a huge page table entry,
->>>>> but doesn't have hugetlbfs configured on, we kill the machine?
->>>> Yes. But only if you have CONFIG_DEBUG_VIRTUAL defined, in which case
->>>> it seems appropriate to signal a failure rather than proceed with
->>>> dereferencing the huge PMD entry as if it were a table entry.
->>>
->>> Why kill the machine rather than just warning and returning NULL?
->>
->> I know this is generally a bad thing, but in this case, when a debug
->> option has been enabled exactly for this purpose, I think it is not
->> inappropriate to BUG() when encountering such a mapping. But I am
->> happy to relax it to a WARN() and return NULL instead, but in that
->> case, it should be unconditional imo and not based on
->> CONFIG_DEBUG_VIRTUAL or the likes.
->
-> Sounds sane to me.
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
