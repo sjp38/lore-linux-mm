@@ -1,44 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 09BE76B0279
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 09:43:21 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id b65so18828822lfh.8
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 06:43:20 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id n16si5501961lje.79.2017.06.06.06.43.18
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 086E56B0292
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 10:02:15 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w91so13687755wrb.13
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 07:02:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a8si14630433edb.297.2017.06.06.07.02.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 06:43:19 -0700 (PDT)
-Message-ID: <5936B098.6020807@huawei.com>
-Date: Tue, 6 Jun 2017 21:39:36 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Tue, 06 Jun 2017 07:02:13 -0700 (PDT)
+Subject: Re: Sleeping BUG in khugepaged for i586
+References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
+ <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
+Date: Tue, 6 Jun 2017 16:02:10 +0200
 MIME-Version: 1.0
-Subject: double call identical release when there is a race hitting
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Larry Finger <Larry.Finger@lwfinger.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi
+On 06/05/2017 11:44 PM, Andrew Morton wrote:
+> On Sat, 3 Jun 2017 14:24:26 -0500 Larry Finger <Larry.Finger@lwfinger.net> wrote:
+> 
+>> I recently turned on locking diagnostics for a Dell Latitude D600 laptop, which 
+>> requires a 32-bit kernel. In the log I found the following:
+>>
+>> BUG: sleeping function called from invalid context at mm/khugepaged.c:655
+>> in_atomic(): 1, irqs_disabled(): 0, pid: 20, name: khugepaged
+>> 1 lock held by khugepaged/20:
+>>   #0:  (&mm->mmap_sem){++++++}, at: [<c03d6609>] 
+>> collapse_huge_page.isra.47+0x439/0x1240
+>> CPU: 0 PID: 20 Comm: khugepaged Tainted: G        W 
 
-when I review the code, I find the following scenario will lead to a race ,
-but I am not sure whether the real issue will hit or not.
+W means thre was WARN earler. Could be related... Got logs?
 
-cpu1                                                                      cpu2
-exit_mmap                                               mmu_notifier_unregister
-   __mmu_notifier_release                                 srcu_read_lock
-            srcu_read_lock
-            mm->ops->release(mn, mm)                 mm->ops->release(mn,mm)
-           srcu_read_unlock                                         srcu_read_unlock
+>> 4.12.0-rc1-wl-12125-g952a068 #80
 
+What is "wl-12125-g952a068"? What patches on top of mainline?
 
-obviously,  the specified mm will call identical release function when
-the related condition satisfy.  is it right?
+>> Hardware name: Dell Computer Corporation Latitude D600 
+>> /03U652, BIOS A05 05/29/2003
+>> Call Trace:
+>>   dump_stack+0x76/0xb2
+>>   ___might_sleep+0x174/0x230
+>>   collapse_huge_page.isra.47+0xacf/0x1240
+>>   khugepaged_scan_mm_slot+0x41e/0xc00
+>>   ? _raw_spin_lock+0x46/0x50
+>>   khugepaged+0x277/0x4f0
+>>   ? prepare_to_wait_event+0xe0/0xe0
+>>   kthread+0xeb/0x120
+>>   ? khugepaged_scan_mm_slot+0xc00/0xc00
+>>   ? kthread_create_on_node+0x30/0x30
+>>   ret_from_fork+0x21/0x30
+>>
+>> I have no idea when this problem was introduced. Of course, I will test any 
+>> proposed fixes.
+>>
+> 
+> Odd.  There's nothing wrong with cond_resched() while holding mmap_sem.
+> It looks like khugepaged forgot to do a spin_unlock somewhere and we
+> leaked a preempt_count.
 
-Thanks
-zhongjiang
+Hmm I'd expect such spin lock to be reported together with mmap_sem in
+the debugging "locks held" message?
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
