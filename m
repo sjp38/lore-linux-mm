@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 201FB6B0292
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 555006B02C3
 	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 13:58:32 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b74so162939406pfd.2
+Received: by mail-pf0-f200.google.com with SMTP id e8so164002085pfl.4
         for <linux-mm@kvack.org>; Tue, 06 Jun 2017 10:58:32 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l132si34006524pfc.88.2017.06.06.10.58.30
+        by mx.google.com with ESMTP id c82si34160947pfd.302.2017.06.06.10.58.30
         for <linux-mm@kvack.org>;
         Tue, 06 Jun 2017 10:58:31 -0700 (PDT)
 From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH 3/3] mm: migrate: Stabilise page count when migrating transparent hugepages
-Date: Tue,  6 Jun 2017 18:58:36 +0100
-Message-Id: <1496771916-28203-4-git-send-email-will.deacon@arm.com>
+Subject: [PATCH 1/3] mm: numa: avoid waiting on freed migrated pages
+Date: Tue,  6 Jun 2017 18:58:34 +0100
+Message-Id: <1496771916-28203-2-git-send-email-will.deacon@arm.com>
 In-Reply-To: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
 References: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,73 +19,82 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com, Will Deacon <will.deacon@arm.com>
 
-When migrating a transparent hugepage, migrate_misplaced_transhuge_page
-guards itself against a concurrent fastgup of the page by checking that
-the page count is equal to 2 before and after installing the new pmd.
+From: Mark Rutland <mark.rutland@arm.com>
 
-If the page count changes, then the pmd is reverted back to the original
-entry, however there is a small window where the new (possibly writable)
-pmd is installed and the underlying page could be written by userspace.
-Restoring the old pmd could therefore result in loss of data.
+In do_huge_pmd_numa_page(), we attempt to handle a migrating thp pmd by
+waiting until the pmd is unlocked before we return and retry. However,
+we can race with migrate_misplaced_transhuge_page():
 
-This patch fixes the problem by freezing the page count whilst updating
-the page tables, which protects against a concurrent fastgup without the
-need to restore the old pmd in the failure case (since the page count can
-no longer change under our feet).
+// do_huge_pmd_numa_page                // migrate_misplaced_transhuge_page()
+// Holds 0 refs on page                 // Holds 2 refs on page
 
-Cc: Mel Gorman <mgorman@suse.de>
+vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
+/* ... */
+if (pmd_trans_migrating(*vmf->pmd)) {
+        page = pmd_page(*vmf->pmd);
+        spin_unlock(vmf->ptl);
+                                        ptl = pmd_lock(mm, pmd);
+                                        if (page_count(page) != 2)) {
+                                                /* roll back */
+                                        }
+                                        /* ... */
+                                        mlock_migrate_page(new_page, page);
+                                        /* ... */
+                                        spin_unlock(ptl);
+                                        put_page(page);
+                                        put_page(page); // page freed here
+        wait_on_page_locked(page);
+        goto out;
+}
+
+This can result in the freed page having its waiters flag set
+unexpectedly, which trips the PAGE_FLAGS_CHECK_AT_PREP checks in the
+page alloc/free functions. This has been observed on arm64 KVM guests.
+
+We can avoid this by having do_huge_pmd_numa_page() take a reference on
+the page before dropping the pmd lock, mirroring what we do in
+__migration_entry_wait().
+
+When we hit the race, migrate_misplaced_transhuge_page() will see the
+reference and abort the migration, as it may do today in other cases.
+
+Acked-by: Steve Capper <steve.capper@arm.com>
+Signed-off-by: Mark Rutland <mark.rutland@arm.com>
 Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- mm/migrate.c | 15 ++-------------
- 1 file changed, 2 insertions(+), 13 deletions(-)
+ mm/huge_memory.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 89a0a1707f4c..8b21f1b1ec6e 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1913,7 +1913,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	int page_lru = page_is_file_cache(page);
- 	unsigned long mmun_start = address & HPAGE_PMD_MASK;
- 	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
--	pmd_t orig_entry;
- 
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
-@@ -1956,8 +1955,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	/* Recheck the target PMD */
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 	ptl = pmd_lock(mm, pmd);
--	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
--fail_putback:
-+	if (unlikely(!pmd_same(*pmd, entry) || !page_ref_freeze(page, 2))) {
- 		spin_unlock(ptl);
- 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
-@@ -1979,7 +1977,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		goto out_unlock;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a84909cf20d3..88c6167f194d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1426,8 +1426,11 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+ 	 */
+ 	if (unlikely(pmd_trans_migrating(*vmf->pmd))) {
+ 		page = pmd_page(*vmf->pmd);
++		if (!get_page_unless_zero(page))
++			goto out_unlock;
+ 		spin_unlock(vmf->ptl);
+ 		wait_on_page_locked(page);
++		put_page(page);
+ 		goto out;
  	}
  
--	orig_entry = *pmd;
- 	entry = mk_huge_pmd(new_page, vma->vm_page_prot);
- 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+@@ -1459,9 +1462,12 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
  
-@@ -1996,15 +1993,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	set_pmd_at(mm, mmun_start, pmd, entry);
- 	update_mmu_cache_pmd(vma, address, &entry);
+ 	/* Migration could have started since the pmd_trans_migrating check */
+ 	if (!page_locked) {
++		page_nid = -1;
++		if (!get_page_unless_zero(page))
++			goto out_unlock;
+ 		spin_unlock(vmf->ptl);
+ 		wait_on_page_locked(page);
+-		page_nid = -1;
++		put_page(page);
+ 		goto out;
+ 	}
  
--	if (page_count(page) != 2) {
--		set_pmd_at(mm, mmun_start, pmd, orig_entry);
--		flush_pmd_tlb_range(vma, mmun_start, mmun_end);
--		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
--		update_mmu_cache_pmd(vma, address, &entry);
--		page_remove_rmap(new_page, true);
--		goto fail_putback;
--	}
--
-+	page_ref_unfreeze(page, 2);
- 	mlock_migrate_page(new_page, page);
- 	page_remove_rmap(page, true);
- 	set_page_owner_migrate_reason(new_page, MR_NUMA_MISPLACED);
 -- 
 2.1.4
 
