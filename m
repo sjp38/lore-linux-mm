@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F346A6B0279
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 13:58:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c7so11845502pfd.12
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 10:58:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 201FB6B0292
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 13:58:32 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b74so162939406pfd.2
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 10:58:32 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 31si10703492plh.326.2017.06.06.10.58.30
+        by mx.google.com with ESMTP id l132si34006524pfc.88.2017.06.06.10.58.30
         for <linux-mm@kvack.org>;
         Tue, 06 Jun 2017 10:58:31 -0700 (PDT)
 From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH 2/3] mm/page_ref: Ensure page_ref_unfreeze is ordered against prior accesses
-Date: Tue,  6 Jun 2017 18:58:35 +0100
-Message-Id: <1496771916-28203-3-git-send-email-will.deacon@arm.com>
+Subject: [PATCH 3/3] mm: migrate: Stabilise page count when migrating transparent hugepages
+Date: Tue,  6 Jun 2017 18:58:36 +0100
+Message-Id: <1496771916-28203-4-git-send-email-will.deacon@arm.com>
 In-Reply-To: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
 References: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,38 +19,73 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com, Will Deacon <will.deacon@arm.com>
 
-page_ref_freeze and page_ref_unfreeze are designed to be used as a pair,
-wrapping a critical section where struct pages can be modified without
-having to worry about consistency for a concurrent fast-GUP.
+When migrating a transparent hugepage, migrate_misplaced_transhuge_page
+guards itself against a concurrent fastgup of the page by checking that
+the page count is equal to 2 before and after installing the new pmd.
 
-Whilst page_ref_freeze has full barrier semantics due to its use of
-atomic_cmpxchg, page_ref_unfreeze is implemented using atomic_set, which
-doesn't provide any barrier semantics and allows the operation to be
-reordered with respect to page modifications in the critical section.
+If the page count changes, then the pmd is reverted back to the original
+entry, however there is a small window where the new (possibly writable)
+pmd is installed and the underlying page could be written by userspace.
+Restoring the old pmd could therefore result in loss of data.
 
-This patch ensures that page_ref_unfreeze is ordered after any critical
-section updates, by invoking smp_mb__before_atomic() prior to the
-atomic_set.
+This patch fixes the problem by freezing the page count whilst updating
+the page tables, which protects against a concurrent fastgup without the
+need to restore the old pmd in the failure case (since the page count can
+no longer change under our feet).
 
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Acked-by: Steve Capper <steve.capper@arm.com>
+Cc: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Will Deacon <will.deacon@arm.com>
 ---
- include/linux/page_ref.h | 1 +
- 1 file changed, 1 insertion(+)
+ mm/migrate.c | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
-index 610e13271918..74d32d7905cb 100644
---- a/include/linux/page_ref.h
-+++ b/include/linux/page_ref.h
-@@ -174,6 +174,7 @@ static inline void page_ref_unfreeze(struct page *page, int count)
- 	VM_BUG_ON_PAGE(page_count(page) != 0, page);
- 	VM_BUG_ON(count == 0);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 89a0a1707f4c..8b21f1b1ec6e 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1913,7 +1913,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	int page_lru = page_is_file_cache(page);
+ 	unsigned long mmun_start = address & HPAGE_PMD_MASK;
+ 	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
+-	pmd_t orig_entry;
  
-+	smp_mb__before_atomic();
- 	atomic_set(&page->_refcount, count);
- 	if (page_ref_tracepoint_active(__tracepoint_page_ref_unfreeze))
- 		__page_ref_unfreeze(page, count);
+ 	/*
+ 	 * Rate-limit the amount of data that is being migrated to a node.
+@@ -1956,8 +1955,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	/* Recheck the target PMD */
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 	ptl = pmd_lock(mm, pmd);
+-	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
+-fail_putback:
++	if (unlikely(!pmd_same(*pmd, entry) || !page_ref_freeze(page, 2))) {
+ 		spin_unlock(ptl);
+ 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 
+@@ -1979,7 +1977,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 		goto out_unlock;
+ 	}
+ 
+-	orig_entry = *pmd;
+ 	entry = mk_huge_pmd(new_page, vma->vm_page_prot);
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 
+@@ -1996,15 +1993,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	set_pmd_at(mm, mmun_start, pmd, entry);
+ 	update_mmu_cache_pmd(vma, address, &entry);
+ 
+-	if (page_count(page) != 2) {
+-		set_pmd_at(mm, mmun_start, pmd, orig_entry);
+-		flush_pmd_tlb_range(vma, mmun_start, mmun_end);
+-		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
+-		update_mmu_cache_pmd(vma, address, &entry);
+-		page_remove_rmap(new_page, true);
+-		goto fail_putback;
+-	}
+-
++	page_ref_unfreeze(page, 2);
+ 	mlock_migrate_page(new_page, page);
+ 	page_remove_rmap(page, true);
+ 	set_page_owner_migrate_reason(new_page, MR_NUMA_MISPLACED);
 -- 
 2.1.4
 
