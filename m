@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E8F5C6B0292
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 06:11:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d64so1260875wmf.9
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 03:11:47 -0700 (PDT)
-Received: from mail-wr0-x236.google.com (mail-wr0-x236.google.com. [2a00:1450:400c:c0c::236])
-        by mx.google.com with ESMTPS id u139si15459517wmd.111.2017.06.06.03.11.46
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C51556B02C3
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 06:11:49 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id t30so13050827wra.7
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 03:11:49 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id 91si15262135wrs.75.2017.06.06.03.11.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jun 2017 03:11:46 -0700 (PDT)
-Received: by mail-wr0-x236.google.com with SMTP id g76so51903042wrd.1
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 03:11:46 -0700 (PDT)
+        Tue, 06 Jun 2017 03:11:48 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id 7so93962222wmo.1
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 03:11:48 -0700 (PDT)
 From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH v3 2/7] x86: use s64* for old arg of atomic64_try_cmpxchg()
-Date: Tue,  6 Jun 2017 12:11:35 +0200
-Message-Id: <626e9ec17fd70591a6560e75df80dc372dc4f486.1496743523.git.dvyukov@google.com>
+Subject: [PATCH v3 3/7] asm-generic: add atomic-instrumented.h
+Date: Tue,  6 Jun 2017 12:11:36 +0200
+Message-Id: <09e703138fc80340ce469e3d34e42b3cb2306999.1496743523.git.dvyukov@google.com>
 In-Reply-To: <cover.1496743523.git.dvyukov@google.com>
 References: <cover.1496743523.git.dvyukov@google.com>
 In-Reply-To: <cover.1496743523.git.dvyukov@google.com>
@@ -24,12 +24,8 @@ List-ID: <linux-mm.kvack.org>
 To: mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com
 Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-atomic64_try_cmpxchg() declares old argument as long*,
-this makes it impossible to use it in portable code.
-If caller passes long*, it becomes 32-bits on 32-bit arches.
-If caller passes s64*, it does not compile on x86_64.
-
-Change type of old arg to s64*.
+The new header allows to wrap per-arch atomic operations
+and add common functionality to all of them.
 
 Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
 Cc: Mark Rutland <mark.rutland@arm.com>
@@ -38,87 +34,336 @@ Cc: Will Deacon <will.deacon@arm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: kasan-dev@googlegroups.com
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 Cc: x86@kernel.org
 ---
- arch/x86/include/asm/atomic64_64.h | 12 ++++++------
- arch/x86/include/asm/cmpxchg.h     |  2 +-
- 2 files changed, 7 insertions(+), 7 deletions(-)
+ include/asm-generic/atomic-instrumented.h | 316 ++++++++++++++++++++++++++++++
+ 1 file changed, 316 insertions(+)
 
-diff --git a/arch/x86/include/asm/atomic64_64.h b/arch/x86/include/asm/atomic64_64.h
-index 8db8879a6d8c..5d9de36a2f04 100644
---- a/arch/x86/include/asm/atomic64_64.h
-+++ b/arch/x86/include/asm/atomic64_64.h
-@@ -177,7 +177,7 @@ static inline long atomic64_cmpxchg(atomic64_t *v, long old, long new)
- }
- 
- #define atomic64_try_cmpxchg atomic64_try_cmpxchg
--static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, long *old, long new)
-+static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, long new)
- {
- 	return try_cmpxchg(&v->counter, old, new);
- }
-@@ -198,7 +198,7 @@ static inline long atomic64_xchg(atomic64_t *v, long new)
-  */
- static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
- {
--	long c = atomic64_read(v);
-+	s64 c = atomic64_read(v);
- 	do {
- 		if (unlikely(c == u))
- 			return false;
-@@ -217,7 +217,7 @@ static inline bool atomic64_add_unless(atomic64_t *v, long a, long u)
-  */
- static inline long atomic64_dec_if_positive(atomic64_t *v)
- {
--	long dec, c = atomic64_read(v);
-+	s64 dec, c = atomic64_read(v);
- 	do {
- 		dec = c - 1;
- 		if (unlikely(dec < 0))
-@@ -236,7 +236,7 @@ static inline void atomic64_and(long i, atomic64_t *v)
- 
- static inline long atomic64_fetch_and(long i, atomic64_t *v)
- {
--	long val = atomic64_read(v);
-+	s64 val = atomic64_read(v);
- 
- 	do {
- 	} while (!atomic64_try_cmpxchg(v, &val, val & i));
-@@ -253,7 +253,7 @@ static inline void atomic64_or(long i, atomic64_t *v)
- 
- static inline long atomic64_fetch_or(long i, atomic64_t *v)
- {
--	long val = atomic64_read(v);
-+	s64 val = atomic64_read(v);
- 
- 	do {
- 	} while (!atomic64_try_cmpxchg(v, &val, val | i));
-@@ -270,7 +270,7 @@ static inline void atomic64_xor(long i, atomic64_t *v)
- 
- static inline long atomic64_fetch_xor(long i, atomic64_t *v)
- {
--	long val = atomic64_read(v);
-+	s64 val = atomic64_read(v);
- 
- 	do {
- 	} while (!atomic64_try_cmpxchg(v, &val, val ^ i));
-diff --git a/arch/x86/include/asm/cmpxchg.h b/arch/x86/include/asm/cmpxchg.h
-index d90296d061e8..b5069e802d5c 100644
---- a/arch/x86/include/asm/cmpxchg.h
-+++ b/arch/x86/include/asm/cmpxchg.h
-@@ -157,7 +157,7 @@ extern void __add_wrong_size(void)
- #define __raw_try_cmpxchg(_ptr, _pold, _new, size, lock)		\
- ({									\
- 	bool success;							\
--	__typeof__(_ptr) _old = (_pold);				\
-+	__typeof__(_ptr) _old = (__typeof__(_ptr))(_pold);		\
- 	__typeof__(*(_ptr)) __old = *_old;				\
- 	__typeof__(*(_ptr)) __new = (_new);				\
- 	switch (size) {							\
+diff --git a/include/asm-generic/atomic-instrumented.h b/include/asm-generic/atomic-instrumented.h
+new file mode 100644
+index 000000000000..50401d925290
+--- /dev/null
++++ b/include/asm-generic/atomic-instrumented.h
+@@ -0,0 +1,316 @@
++#ifndef _LINUX_ATOMIC_INSTRUMENTED_H
++#define _LINUX_ATOMIC_INSTRUMENTED_H
++
++static __always_inline int atomic_read(const atomic_t *v)
++{
++	return arch_atomic_read(v);
++}
++
++static __always_inline s64 atomic64_read(const atomic64_t *v)
++{
++	return arch_atomic64_read(v);
++}
++
++static __always_inline void atomic_set(atomic_t *v, int i)
++{
++	arch_atomic_set(v, i);
++}
++
++static __always_inline void atomic64_set(atomic64_t *v, s64 i)
++{
++	arch_atomic64_set(v, i);
++}
++
++static __always_inline int atomic_xchg(atomic_t *v, int i)
++{
++	return arch_atomic_xchg(v, i);
++}
++
++static __always_inline s64 atomic64_xchg(atomic64_t *v, s64 i)
++{
++	return arch_atomic64_xchg(v, i);
++}
++
++static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
++{
++	return arch_atomic_cmpxchg(v, old, new);
++}
++
++static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
++{
++	return arch_atomic64_cmpxchg(v, old, new);
++}
++
++#ifdef arch_atomic_try_cmpxchg
++#define atomic_try_cmpxchg atomic_try_cmpxchg
++static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
++{
++	return arch_atomic_try_cmpxchg(v, old, new);
++}
++#endif
++
++#ifdef arch_atomic64_try_cmpxchg
++#define atomic64_try_cmpxchg atomic64_try_cmpxchg
++static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
++{
++	return arch_atomic64_try_cmpxchg(v, old, new);
++}
++#endif
++
++static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
++{
++	return __arch_atomic_add_unless(v, a, u);
++}
++
++
++static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
++{
++	return arch_atomic64_add_unless(v, a, u);
++}
++
++static __always_inline void atomic_inc(atomic_t *v)
++{
++	arch_atomic_inc(v);
++}
++
++static __always_inline void atomic64_inc(atomic64_t *v)
++{
++	arch_atomic64_inc(v);
++}
++
++static __always_inline void atomic_dec(atomic_t *v)
++{
++	arch_atomic_dec(v);
++}
++
++static __always_inline void atomic64_dec(atomic64_t *v)
++{
++	arch_atomic64_dec(v);
++}
++
++static __always_inline void atomic_add(int i, atomic_t *v)
++{
++	arch_atomic_add(i, v);
++}
++
++static __always_inline void atomic64_add(s64 i, atomic64_t *v)
++{
++	arch_atomic64_add(i, v);
++}
++
++static __always_inline void atomic_sub(int i, atomic_t *v)
++{
++	arch_atomic_sub(i, v);
++}
++
++static __always_inline void atomic64_sub(s64 i, atomic64_t *v)
++{
++	arch_atomic64_sub(i, v);
++}
++
++static __always_inline void atomic_and(int i, atomic_t *v)
++{
++	arch_atomic_and(i, v);
++}
++
++static __always_inline void atomic64_and(s64 i, atomic64_t *v)
++{
++	arch_atomic64_and(i, v);
++}
++
++static __always_inline void atomic_or(int i, atomic_t *v)
++{
++	arch_atomic_or(i, v);
++}
++
++static __always_inline void atomic64_or(s64 i, atomic64_t *v)
++{
++	arch_atomic64_or(i, v);
++}
++
++static __always_inline void atomic_xor(int i, atomic_t *v)
++{
++	arch_atomic_xor(i, v);
++}
++
++static __always_inline void atomic64_xor(s64 i, atomic64_t *v)
++{
++	arch_atomic64_xor(i, v);
++}
++
++static __always_inline int atomic_inc_return(atomic_t *v)
++{
++	return arch_atomic_inc_return(v);
++}
++
++static __always_inline s64 atomic64_inc_return(atomic64_t *v)
++{
++	return arch_atomic64_inc_return(v);
++}
++
++static __always_inline int atomic_dec_return(atomic_t *v)
++{
++	return arch_atomic_dec_return(v);
++}
++
++static __always_inline s64 atomic64_dec_return(atomic64_t *v)
++{
++	return arch_atomic64_dec_return(v);
++}
++
++static __always_inline s64 atomic64_inc_not_zero(atomic64_t *v)
++{
++	return arch_atomic64_inc_not_zero(v);
++}
++
++static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
++{
++	return arch_atomic64_dec_if_positive(v);
++}
++
++static __always_inline bool atomic_dec_and_test(atomic_t *v)
++{
++	return arch_atomic_dec_and_test(v);
++}
++
++static __always_inline bool atomic64_dec_and_test(atomic64_t *v)
++{
++	return arch_atomic64_dec_and_test(v);
++}
++
++static __always_inline bool atomic_inc_and_test(atomic_t *v)
++{
++	return arch_atomic_inc_and_test(v);
++}
++
++static __always_inline bool atomic64_inc_and_test(atomic64_t *v)
++{
++	return arch_atomic64_inc_and_test(v);
++}
++
++static __always_inline int atomic_add_return(int i, atomic_t *v)
++{
++	return arch_atomic_add_return(i, v);
++}
++
++static __always_inline s64 atomic64_add_return(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_add_return(i, v);
++}
++
++static __always_inline int atomic_sub_return(int i, atomic_t *v)
++{
++	return arch_atomic_sub_return(i, v);
++}
++
++static __always_inline s64 atomic64_sub_return(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_sub_return(i, v);
++}
++
++static __always_inline int atomic_fetch_add(int i, atomic_t *v)
++{
++	return arch_atomic_fetch_add(i, v);
++}
++
++static __always_inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_fetch_add(i, v);
++}
++
++static __always_inline int atomic_fetch_sub(int i, atomic_t *v)
++{
++	return arch_atomic_fetch_sub(i, v);
++}
++
++static __always_inline s64 atomic64_fetch_sub(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_fetch_sub(i, v);
++}
++
++static __always_inline int atomic_fetch_and(int i, atomic_t *v)
++{
++	return arch_atomic_fetch_and(i, v);
++}
++
++static __always_inline s64 atomic64_fetch_and(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_fetch_and(i, v);
++}
++
++static __always_inline int atomic_fetch_or(int i, atomic_t *v)
++{
++	return arch_atomic_fetch_or(i, v);
++}
++
++static __always_inline s64 atomic64_fetch_or(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_fetch_or(i, v);
++}
++
++static __always_inline int atomic_fetch_xor(int i, atomic_t *v)
++{
++	return arch_atomic_fetch_xor(i, v);
++}
++
++static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_fetch_xor(i, v);
++}
++
++static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
++{
++	return arch_atomic_sub_and_test(i, v);
++}
++
++static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_sub_and_test(i, v);
++}
++
++static __always_inline bool atomic_add_negative(int i, atomic_t *v)
++{
++	return arch_atomic_add_negative(i, v);
++}
++
++static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
++{
++	return arch_atomic64_add_negative(i, v);
++}
++
++#define cmpxchg(ptr, old, new)				\
++({							\
++	arch_cmpxchg((ptr), (old), (new));		\
++})
++
++#define sync_cmpxchg(ptr, old, new)			\
++({							\
++	arch_sync_cmpxchg((ptr), (old), (new));		\
++})
++
++#define cmpxchg_local(ptr, old, new)			\
++({							\
++	arch_cmpxchg_local((ptr), (old), (new));	\
++})
++
++#define cmpxchg64(ptr, old, new)			\
++({							\
++	arch_cmpxchg64((ptr), (old), (new));		\
++})
++
++#define cmpxchg64_local(ptr, old, new)			\
++({							\
++	arch_cmpxchg64_local((ptr), (old), (new));	\
++})
++
++#define cmpxchg_double(p1, p2, o1, o2, n1, n2)				\
++({									\
++	arch_cmpxchg_double((p1), (p2), (o1), (o2), (n1), (n2));	\
++})
++
++#define cmpxchg_double_local(p1, p2, o1, o2, n1, n2)			\
++({									\
++	arch_cmpxchg_double_local((p1), (p2), (o1), (o2), (n1), (n2));	\
++})
++
++#endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
 -- 
 2.13.0.506.g27d5fe0cd-goog
 
