@@ -1,76 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F1A716B0279
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 11:17:11 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id n13so194652901ita.7
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:17:11 -0700 (PDT)
-Received: from nm23-vm5.bullet.mail.ne1.yahoo.com (nm23-vm5.bullet.mail.ne1.yahoo.com. [98.138.91.245])
-        by mx.google.com with ESMTPS id t26si34374916ioi.151.2017.06.06.08.17.09
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C6FC46B0279
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 11:55:52 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id k68so2884867otc.5
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:55:52 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id s80si1786058oie.58.2017.06.06.08.55.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jun 2017 08:17:10 -0700 (PDT)
-Subject: Re: [PATCH 4/5] Make LSM Writable Hooks a command line option
-References: <ff5714b2-bbb0-726d-2fe6-13d4f1a30a38@huawei.com>
- <201706061954.GBH56755.QSOOFMFLtJFVOH@I-love.SAKURA.ne.jp>
- <6c807793-6a39-82ef-93d9-29ad2546fc4c@huawei.com>
- <201706062042.GAC86916.FMtHOOFJOSVLFQ@I-love.SAKURA.ne.jp>
- <4c3e3b8b-6507-7da5-1537-1e0ce04fcba5@huawei.com>
- <201706062336.CFE35913.OFFLQOHMtSJFVO@I-love.SAKURA.ne.jp>
- <bff5442e-9ecd-9493-7397-7030ade63e81@huawei.com>
-From: Casey Schaufler <casey@schaufler-ca.com>
-Message-ID: <61106c92-ab4c-4bc3-1cb9-d01b1845f670@schaufler-ca.com>
-Date: Tue, 6 Jun 2017 08:17:01 -0700
+        Tue, 06 Jun 2017 08:55:52 -0700 (PDT)
+Received: from mail-vk0-f52.google.com (mail-vk0-f52.google.com [209.85.213.52])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 209A723A12
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 15:55:51 +0000 (UTC)
+Received: by mail-vk0-f52.google.com with SMTP id g66so24827048vki.1
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:55:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <bff5442e-9ecd-9493-7397-7030ade63e81@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+In-Reply-To: <20170606131704.azzk62zsunynhj7o@gmail.com>
+References: <cover.1495990440.git.luto@kernel.org> <20170606131704.azzk62zsunynhj7o@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 6 Jun 2017 08:55:29 -0700
+Message-ID: <CALCETrVYhbwJLHS_GB-C9ktt3oQ1boFcHa9Ax11OMxMRTPZvag@mail.gmail.com>
+Subject: Re: [PATCH v4 0/8] x86 TLB flush cleanups, moving toward PCID support
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
-Cc: paul@paul-moore.com, sds@tycho.nsa.gov, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On 6/6/2017 7:51 AM, Igor Stoppa wrote:
-> On 06/06/17 17:36, Tetsuo Handa wrote:
->> Igor Stoppa wrote:
->>> For the case at hand, would it work if there was a non-API call that you
->>> could use until the API is properly expanded?
->> Kernel command line switching (i.e. this patch) is fine for my use cases.
->>
->> SELinux folks might want
->>
->> -static int security_debug;
->> +static int security_debug = IS_ENABLED(CONFIG_SECURITY_SELINUX_DISABLE);
-> ok, thanks, I will add this
+On Tue, Jun 6, 2017 at 6:17 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
->> so that those who are using SELINUX=disabled in /etc/selinux/config won't
->> get oops upon boot by default. If "unlock the pool" were available,
->> SELINUX=enforcing users would be happy. Maybe two modes for rw/ro transition helps.
->>
->>   oneway rw -> ro transition mode: can't be made rw again by calling "unlock the pool" API
->>   twoway rw <-> ro transition mode: can be made rw again by calling "unlock the pool" API
-> This was in the first cut of the API, but I was told that it would
-> require further rework, to make it ok for upstream, so we agreed to do
-> first the lockdown/destroy only part and the the rewrite.
+> FYI, there's this new build failure in rare randconfig variants:
 >
-> Is there really a valid use case for unloading SE Linux?
+> In file included from ./include/linux/mm.h:1032:0,
+>                  from arch/x86/mm/tlb.c:3:
+> arch/x86/mm/tlb.c: In function =E2=80=98flush_tlb_func_remote=E2=80=99:
+> arch/x86/mm/tlb.c:251:21: error: =E2=80=98NR_TLB_REMOTE_FLUSH_RECEIVED=E2=
+=80=99 undeclared (first
+> use in this function)
+>   count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+>                      ^
+> ./include/linux/vmstat.h:91:49: note: in definition of macro =E2=80=98cou=
+nt_vm_tlb_event=E2=80=99
+>  #define count_vm_tlb_event(x)    count_vm_event(x)
+>                                                  ^
+>
+> Config attached.
 
-It's used today in the Redhat distros. There is talk of removing it.
-You can only unload SELinux before policy is loaded, which is sort of
-saying that you have your system misconfigured but can't figure out
-how to fix it. You might be able to convince Paul Moore to accelerate
-the removal of this feature for this worthy cause.
-
-> Or any other security module.
-
-I suppose that you could argue that if a security module had
-been in place for 2 years on a system and had never once denied
-anyone access it should be removed. That's a reasonable use case
-description, but I doubt you'd encounter it in the real world.
-Another possibility is a security module that is used during
-container setup and once the system goes into full operation
-is no longer needed. Personally, I don't see either of these
-cases as compelling. "systemctl restart xyzzyd".
+This should be fixed by "[PATCH] vmstat: Make
+NR_TLB_REMOTE_FLUSH_RECEIVED available even on UP", which I sent
+yesterday.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
