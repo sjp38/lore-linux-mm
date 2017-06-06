@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 086E56B0292
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 10:02:15 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w91so13687755wrb.13
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 07:02:14 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a8si14630433edb.297.2017.06.06.07.02.12
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F8406B0292
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 10:07:02 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id s4so11452979wrc.15
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 07:07:02 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id o92si36194153eda.52.2017.06.06.07.07.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 07:02:13 -0700 (PDT)
-Subject: Re: Sleeping BUG in khugepaged for i586
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
- <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
-Date: Tue, 6 Jun 2017 16:02:10 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jun 2017 07:07:01 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-In-Reply-To: <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <e55bf483-e9f5-30ec-7e88-1298778bc0b1@suse.cz>
+References: <20170606120436.8683-1-chris@chris-wilson.co.uk>
+ <20170606121418.GM1189@dhcp22.suse.cz>
+ <e55bf483-e9f5-30ec-7e88-1298778bc0b1@suse.cz>
+Message-ID: <149675795783.14666.10554838566926041673@mail.alporthouse.com>
+Subject: Re: [RFC] mm,drm/i915: Mark pinned shmemfs pages as unevictable
+Date: Tue, 06 Jun 2017 15:05:57 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Larry Finger <Larry.Finger@lwfinger.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Matthew Auld <matthew.auld@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
 
-On 06/05/2017 11:44 PM, Andrew Morton wrote:
-> On Sat, 3 Jun 2017 14:24:26 -0500 Larry Finger <Larry.Finger@lwfinger.net> wrote:
-> 
->> I recently turned on locking diagnostics for a Dell Latitude D600 laptop, which 
->> requires a 32-bit kernel. In the log I found the following:
->>
->> BUG: sleeping function called from invalid context at mm/khugepaged.c:655
->> in_atomic(): 1, irqs_disabled(): 0, pid: 20, name: khugepaged
->> 1 lock held by khugepaged/20:
->>   #0:  (&mm->mmap_sem){++++++}, at: [<c03d6609>] 
->> collapse_huge_page.isra.47+0x439/0x1240
->> CPU: 0 PID: 20 Comm: khugepaged Tainted: G        W 
+Quoting Vlastimil Babka (2017-06-06 13:30:15)
+> On 06/06/2017 02:14 PM, Michal Hocko wrote:
+> > On Tue 06-06-17 13:04:36, Chris Wilson wrote:
+> >> Similar in principle to the treatment of get_user_pages, pages that
+> >> i915.ko acquires from shmemfs are not immediately reclaimable and so
+> >> should be excluded from the mm accounting and vmscan until they have
+> >> been returned to the system via shrink_slab/i915_gem_shrink. By moving
+> >> the unreclaimable pages off the inactive anon lru, not only should
+> >> vmscan be improved by avoiding walking unreclaimable pages, but the
+> >> system should also have a better idea of how much memory it can reclaim
+> >> at that moment in time.
+> > =
 
-W means thre was WARN earler. Could be related... Got logs?
+> > That is certainly desirable. Peter has proposed a generic pin_page (or
+> > similar) API. What happened with it? I think it would be a better
+> > approach than (ab)using mlock API. I am also not familiar with the i915
+> > code to be sure that using lock_page is really safe here. I think that
+> > all we need is to simply move those pages in/out to/from unevictable LRU
+> > list on pin/unpining.
+> =
 
->> 4.12.0-rc1-wl-12125-g952a068 #80
+> Hmm even when on unevictable list, the pages were still allocated as
+> MOVABLE, while pinning prevents them from being migrated, so it doesn't
+> play well with compaction/grouping by mobility/CMA etc. Addressing that
+> would be more useful IMHO, and e.g. one of the features envisioned for
+> the pinning API was to first migrate the pinned pages out of movable
+> zones and CMA/MOVABLE pageblocks.
 
-What is "wl-12125-g952a068"? What patches on top of mainline?
-
->> Hardware name: Dell Computer Corporation Latitude D600 
->> /03U652, BIOS A05 05/29/2003
->> Call Trace:
->>   dump_stack+0x76/0xb2
->>   ___might_sleep+0x174/0x230
->>   collapse_huge_page.isra.47+0xacf/0x1240
->>   khugepaged_scan_mm_slot+0x41e/0xc00
->>   ? _raw_spin_lock+0x46/0x50
->>   khugepaged+0x277/0x4f0
->>   ? prepare_to_wait_event+0xe0/0xe0
->>   kthread+0xeb/0x120
->>   ? khugepaged_scan_mm_slot+0xc00/0xc00
->>   ? kthread_create_on_node+0x30/0x30
->>   ret_from_fork+0x21/0x30
->>
->> I have no idea when this problem was introduced. Of course, I will test any 
->> proposed fixes.
->>
-> 
-> Odd.  There's nothing wrong with cond_resched() while holding mmap_sem.
-> It looks like khugepaged forgot to do a spin_unlock somewhere and we
-> leaked a preempt_count.
-
-Hmm I'd expect such spin lock to be reported together with mmap_sem in
-the debugging "locks held" message?
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Whilst today i915 doesn't take part in compaction, we do have
+plans/patches for enabling migratepage. It would be nice not to nip that
+in the bud.
+-Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
