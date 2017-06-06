@@ -1,76 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 933B76B03B8
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:13:16 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 56so7487388wrx.5
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:13:16 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id a17si32095999wrc.296.2017.06.06.05.13.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A9B6B03BA
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:14:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id s4so11147951wrc.15
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:14:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y57si13025125edc.183.2017.06.06.05.14.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 05:13:15 -0700 (PDT)
-Subject: Re: [PATCH 4/5] Make LSM Writable Hooks a command line option
-References: <71e91de0-7d91-79f4-67f0-be0afb33583c@schaufler-ca.com>
- <201706060550.HAC69712.OVFOtSFLQJOMFH@I-love.SAKURA.ne.jp>
- <ff5714b2-bbb0-726d-2fe6-13d4f1a30a38@huawei.com>
- <201706061954.GBH56755.QSOOFMFLtJFVOH@I-love.SAKURA.ne.jp>
- <6c807793-6a39-82ef-93d9-29ad2546fc4c@huawei.com>
- <201706062042.GAC86916.FMtHOOFJOSVLFQ@I-love.SAKURA.ne.jp>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <4c3e3b8b-6507-7da5-1537-1e0ce04fcba5@huawei.com>
-Date: Tue, 6 Jun 2017 15:11:58 +0300
+        Tue, 06 Jun 2017 05:14:21 -0700 (PDT)
+Date: Tue, 6 Jun 2017 14:14:18 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC] mm,drm/i915: Mark pinned shmemfs pages as unevictable
+Message-ID: <20170606121418.GM1189@dhcp22.suse.cz>
+References: <20170606120436.8683-1-chris@chris-wilson.co.uk>
 MIME-Version: 1.0
-In-Reply-To: <201706062042.GAC86916.FMtHOOFJOSVLFQ@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170606120436.8683-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, casey@schaufler-ca.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
-Cc: paul@paul-moore.com, sds@tycho.nsa.gov, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Matthew Auld <matthew.auld@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
 
+On Tue 06-06-17 13:04:36, Chris Wilson wrote:
+> Similar in principle to the treatment of get_user_pages, pages that
+> i915.ko acquires from shmemfs are not immediately reclaimable and so
+> should be excluded from the mm accounting and vmscan until they have
+> been returned to the system via shrink_slab/i915_gem_shrink. By moving
+> the unreclaimable pages off the inactive anon lru, not only should
+> vmscan be improved by avoiding walking unreclaimable pages, but the
+> system should also have a better idea of how much memory it can reclaim
+> at that moment in time.
 
+That is certainly desirable. Peter has proposed a generic pin_page (or
+similar) API. What happened with it? I think it would be a better
+approach than (ab)using mlock API. I am also not familiar with the i915
+code to be sure that using lock_page is really safe here. I think that
+all we need is to simply move those pages in/out to/from unevictable LRU
+list on pin/unpining.
 
-On 06/06/17 14:42, Tetsuo Handa wrote:
-> Igor Stoppa wrote:
->> Who decides when enough is enough, meaning that all the needed modules
->> are loaded?
->> Should I provide an interface to user-space? A sysfs entry?
+> Note, however, the interaction with shrink_slab which will move some
+> mlocked pages back to the inactive anon lru.
 > 
-> No such interface is needed. Just an API for applying set_memory_rw()
-> and set_memory_ro() on LSM hooks is enough.
+> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Matthew Auld <matthew.auld@intel.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/gpu/drm/i915/i915_gem.c | 17 ++++++++++++++++-
+>  mm/mlock.c                      |  2 ++
+>  2 files changed, 18 insertions(+), 1 deletion(-)
 > 
-> security_add_hooks() can call set_memory_rw() before adding hooks and
-> call set_memory_ro() after adding hooks. Ditto for security_delete_hooks()
-> for SELinux's unregistration.
+> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+> index 8cb811519db1..37a98fbc6a12 100644
+> --- a/drivers/gpu/drm/i915/i915_gem.c
+> +++ b/drivers/gpu/drm/i915/i915_gem.c
+> @@ -2193,6 +2193,9 @@ void __i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+>  	obj->mm.pages = ERR_PTR(-EFAULT);
+>  }
+>  
+> +extern void mlock_vma_page(struct page *page);
+> +extern unsigned int munlock_vma_page(struct page *page);
+> +
+>  static void
+>  i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+>  			      struct sg_table *pages)
+> @@ -2214,6 +2217,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+>  		if (obj->mm.madv == I915_MADV_WILLNEED)
+>  			mark_page_accessed(page);
+>  
+> +		lock_page(page);
+> +		munlock_vma_page(page);
+> +		unlock_page(page);
+> +
+>  		put_page(page);
+>  	}
+>  	obj->mm.dirty = false;
+> @@ -2412,6 +2419,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+>  		}
+>  		last_pfn = page_to_pfn(page);
+>  
+> +		lock_page(page);
+> +		mlock_vma_page(page);
+> +		unlock_page(page);
+> +
+>  		/* Check that the i965g/gm workaround works. */
+>  		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
+>  	}
+> @@ -2450,8 +2461,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+>  err_sg:
+>  	sg_mark_end(sg);
+>  err_pages:
+> -	for_each_sgt_page(page, sgt_iter, st)
+> +	for_each_sgt_page(page, sgt_iter, st) {
+> +		lock_page(page);
+> +		munlock_vma_page(page);
+> +		unlock_page(page);
+>  		put_page(page);
+> +	}
+>  	sg_free_table(st);
+>  	kfree(st);
+>  
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index b562b5523a65..531d9f8fd033 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -94,6 +94,7 @@ void mlock_vma_page(struct page *page)
+>  			putback_lru_page(page);
+>  	}
+>  }
+> +EXPORT_SYMBOL_GPL(mlock_vma_page);
+>  
+>  /*
+>   * Isolate a page from LRU with optional get_page() pin.
+> @@ -211,6 +212,7 @@ unsigned int munlock_vma_page(struct page *page)
+>  out:
+>  	return nr_pages - 1;
+>  }
+> +EXPORT_SYMBOL_GPL(munlock_vma_page);
+>  
+>  /*
+>   * convert get_user_pages() return value to posix mlock() error
+> -- 
+> 2.11.0
+> 
 
-
-I think this should be considered part of the 2nd phase "write seldom",
-as we agreed with Kees Cook.
-
-Right now the goal was to provide the basic API for:
-- create pool
-- get memory from pool
-- lock the pool
-- destroy the pool
-
-And, behind the scene, verify that a memory range falls into Pmalloc pages.
-
-
-Then would come the "write seldom" part.
-
-The reason for this is that a proper implementation of write seldom
-should, imho, make writable only those pages that really need to be
-modified. Possibly also add some verification on the call stack about
-who is requesting the unlocking.
-
-Therefore I would feel more comfortable in splitting the work into 2 part.
-
-For the case at hand, would it work if there was a non-API call that you
-could use until the API is properly expanded?
-
---
-igor
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
