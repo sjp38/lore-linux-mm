@@ -1,94 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 525826B0350
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 15:03:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t30so70848932pgo.0
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 12:03:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id t127si33032545pfd.377.2017.06.06.12.03.52
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B95EA6B0350
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 15:11:29 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o21so51473663qtb.13
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 12:11:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a7si12777144qkb.333.2017.06.06.12.11.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jun 2017 12:03:52 -0700 (PDT)
-Date: Tue, 6 Jun 2017 12:03:50 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-Message-ID: <20170606190350.GA20010@bombadil.infradead.org>
-References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
- <20170605153819.9c86969a73926e4269e77976@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170605153819.9c86969a73926e4269e77976@linux-foundation.org>
+        Tue, 06 Jun 2017 12:11:28 -0700 (PDT)
+Message-ID: <1496776285.20270.64.camel@redhat.com>
+Subject: Re: [RFC 05/11] x86/mm: Rework lazy TLB mode and TLB freshness
+ tracking
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 06 Jun 2017 15:11:25 -0400
+In-Reply-To: <9b939d6218b78352b9f13594ebf97c1c88a6c33d.1496701658.git.luto@kernel.org>
+References: <cover.1496701658.git.luto@kernel.org>
+	 <9b939d6218b78352b9f13594ebf97c1c88a6c33d.1496701658.git.luto@kernel.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-Ml6CMBFBx0n1aQSFac6r"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, linux-mm@kvack.org, mike.kravetz@Oracle.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com--dry-run
+To: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>
+Cc: Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Mon, Jun 05, 2017 at 03:38:19PM -0700, Andrew Morton wrote:
-> It's better to just move memfmt() to the right place.  After all, you
-> have revealed that it was in the wrong place, no?
-> 
-> (Am a bit surprised that something as general as memfmt is private to
-> hugetlb.c)
 
-Oh, hey, look, memory management people and storage people have
-their own ideas about "general" code.  Storage people have been using
-string_get_size() for a while.  It feels a bit over-engineered to me,
-but since we already have it, we should use it.
+--=-Ml6CMBFBx0n1aQSFac6r
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
----- 8< ----
+On Mon, 2017-06-05 at 15:36 -0700, Andy Lutomirski wrote:
 
-Subject: [PATCH] Replace memfmt with string_get_size
+> +++ b/arch/x86/include/asm/mmu_context.h
+> @@ -122,8 +122,10 @@ static inline void switch_ldt(struct mm_struct
+> *prev, struct mm_struct *next)
+> =C2=A0
+> =C2=A0static inline void enter_lazy_tlb(struct mm_struct *mm, struct
+> task_struct *tsk)
+> =C2=A0{
+> -	if (this_cpu_read(cpu_tlbstate.state) =3D=3D TLBSTATE_OK)
+> -		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+> +	int cpu =3D smp_processor_id();
+> +
+> +	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+> +		cpumask_clear_cpu(cpu, mm_cpumask(mm));
+> =C2=A0}
 
-The hugetlb code has its own function to report human-readable sizes.
-Convert it to use the shared string_get_size function.  This will lead
-to a minor difference in user visible output (MiB/GiB instead of MB/GB),
-but some would argue that's desirable anyway.
+This is an atomic write to a shared cacheline,
+every time a CPU goes idle.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+I am not sure you really want to do this, since
+there are some workloads out there that have a
+crazy number of threads, which go idle hundreds,
+or even thousands of times a second, on dozens
+of CPUs at a time. *cough*Java*cough*
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index e5828875f7bb..7f2b7d9f1f45 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -20,6 +20,7 @@
- #include <linux/slab.h>
- #include <linux/sched/signal.h>
- #include <linux/rmap.h>
-+#include <linux/string_helpers.h>
- #include <linux/swap.h>
- #include <linux/swapops.h>
- #include <linux/page-isolation.h>
-@@ -2207,26 +2208,15 @@ static void __init hugetlb_init_hstates(void)
- 	VM_BUG_ON(minimum_order == UINT_MAX);
- }
- 
--static char * __init memfmt(char *buf, unsigned long n)
--{
--	if (n >= (1UL << 30))
--		sprintf(buf, "%lu GB", n >> 30);
--	else if (n >= (1UL << 20))
--		sprintf(buf, "%lu MB", n >> 20);
--	else
--		sprintf(buf, "%lu KB", n >> 10);
--	return buf;
--}
--
- static void __init report_hugepages(void)
- {
- 	struct hstate *h;
- 
- 	for_each_hstate(h) {
- 		char buf[32];
-+		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
- 		pr_info("HugeTLB registered %s page size, pre-allocated %ld pages\n",
--			memfmt(buf, huge_page_size(h)),
--			h->free_huge_pages);
-+			buf, h->free_huge_pages);
- 	}
- }
- 
+Keeping track of the state in a CPU-local variable,
+written with a non-atomic write, would be much more
+CPU cache friendly here.
+
+--=20
+All rights reversed
+--=-Ml6CMBFBx0n1aQSFac6r
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJZNv5dAAoJEM553pKExN6D0EQH/3CS75m/jGHxg579bPiR9SYi
+4cOFq8VahPtpABSyLuBb2PeXxnm4LF0+8jSpm/d56Fx3JeYGmpar3EsNRr44TSCd
+othzVHgZjujzTetPvrKqzCQRYxe5K83DkDk2iZta1xCr08HozvP4vy0ZsIUosbd5
+nvEKGMUzlHV4aK9IYkwwARW8SCyk0sYcPTXhcoNmWtQILRuHxErXHw34KcfXPoM3
+KquK2y2PPBT9wNqEbDYT86Gs2pFyTe+1DiOsnHMXw2SA4n1bxtGoDcMs08sSKSwE
+4BHHdNYuCjPeBqjcTDx1yUY39QYjz9Hv1KhU8+YVYMtJd9Ca+4n26DVpBWiSvjQ=
+=xqKu
+-----END PGP SIGNATURE-----
+
+--=-Ml6CMBFBx0n1aQSFac6r--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
