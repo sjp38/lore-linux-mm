@@ -1,95 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E5A26B0279
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 11:01:20 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id h4so181804610oib.5
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:01:20 -0700 (PDT)
-Received: from mail-ot0-x244.google.com (mail-ot0-x244.google.com. [2607:f8b0:4003:c0f::244])
-        by mx.google.com with ESMTPS id w81si14545655oig.114.2017.06.06.08.01.19
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F1A716B0279
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 11:17:11 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id n13so194652901ita.7
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:17:11 -0700 (PDT)
+Received: from nm23-vm5.bullet.mail.ne1.yahoo.com (nm23-vm5.bullet.mail.ne1.yahoo.com. [98.138.91.245])
+        by mx.google.com with ESMTPS id t26si34374916ioi.151.2017.06.06.08.17.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jun 2017 08:01:19 -0700 (PDT)
-Received: by mail-ot0-x244.google.com with SMTP id t31so2262379ota.2
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 08:01:19 -0700 (PDT)
-Subject: Re: Sleeping BUG in khugepaged for i586
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
- <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
- <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Message-ID: <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
-Date: Tue, 6 Jun 2017 10:01:12 -0500
+        Tue, 06 Jun 2017 08:17:10 -0700 (PDT)
+Subject: Re: [PATCH 4/5] Make LSM Writable Hooks a command line option
+References: <ff5714b2-bbb0-726d-2fe6-13d4f1a30a38@huawei.com>
+ <201706061954.GBH56755.QSOOFMFLtJFVOH@I-love.SAKURA.ne.jp>
+ <6c807793-6a39-82ef-93d9-29ad2546fc4c@huawei.com>
+ <201706062042.GAC86916.FMtHOOFJOSVLFQ@I-love.SAKURA.ne.jp>
+ <4c3e3b8b-6507-7da5-1537-1e0ce04fcba5@huawei.com>
+ <201706062336.CFE35913.OFFLQOHMtSJFVO@I-love.SAKURA.ne.jp>
+ <bff5442e-9ecd-9493-7397-7030ade63e81@huawei.com>
+From: Casey Schaufler <casey@schaufler-ca.com>
+Message-ID: <61106c92-ab4c-4bc3-1cb9-d01b1845f670@schaufler-ca.com>
+Date: Tue, 6 Jun 2017 08:17:01 -0700
 MIME-Version: 1.0
-In-Reply-To: <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+In-Reply-To: <bff5442e-9ecd-9493-7397-7030ade63e81@huawei.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Igor Stoppa <igor.stoppa@huawei.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
+Cc: paul@paul-moore.com, sds@tycho.nsa.gov, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On 06/06/2017 09:02 AM, Vlastimil Babka wrote:
-> On 06/05/2017 11:44 PM, Andrew Morton wrote:
->> On Sat, 3 Jun 2017 14:24:26 -0500 Larry Finger <Larry.Finger@lwfinger.net> wrote:
+On 6/6/2017 7:51 AM, Igor Stoppa wrote:
+> On 06/06/17 17:36, Tetsuo Handa wrote:
+>> Igor Stoppa wrote:
+>>> For the case at hand, would it work if there was a non-API call that you
+>>> could use until the API is properly expanded?
+>> Kernel command line switching (i.e. this patch) is fine for my use cases.
 >>
->>> I recently turned on locking diagnostics for a Dell Latitude D600 laptop, which
->>> requires a 32-bit kernel. In the log I found the following:
->>>
->>> BUG: sleeping function called from invalid context at mm/khugepaged.c:655
->>> in_atomic(): 1, irqs_disabled(): 0, pid: 20, name: khugepaged
->>> 1 lock held by khugepaged/20:
->>>    #0:  (&mm->mmap_sem){++++++}, at: [<c03d6609>]
->>> collapse_huge_page.isra.47+0x439/0x1240
->>> CPU: 0 PID: 20 Comm: khugepaged Tainted: G        W
-> 
-> W means thre was WARN earler. Could be related... Got logs?
-
-When I grabbed a splat, I got the last one in my log. The first one shows "Not 
-tainted".
-
-> 
->>> 4.12.0-rc1-wl-12125-g952a068 #80
-> 
-> What is "wl-12125-g952a068"? What patches on top of mainline?
-
-I found this while chasing a problem with one of the wireless drivers. For that 
-reason I use Kalle Valo's wireless-testing-next, which happens to be the only 
-kernel tree I have on this laptop. I'm reasonably certain that the extra updates 
-are not the cause of the problem as the first one appears before any of the 
-wireless drivers are loaded, but I will pull a clean copy of mainline to test 
-that assumption.
-
->>> Hardware name: Dell Computer Corporation Latitude D600
->>> /03U652, BIOS A05 05/29/2003
->>> Call Trace:
->>>    dump_stack+0x76/0xb2
->>>    ___might_sleep+0x174/0x230
->>>    collapse_huge_page.isra.47+0xacf/0x1240
->>>    khugepaged_scan_mm_slot+0x41e/0xc00
->>>    ? _raw_spin_lock+0x46/0x50
->>>    khugepaged+0x277/0x4f0
->>>    ? prepare_to_wait_event+0xe0/0xe0
->>>    kthread+0xeb/0x120
->>>    ? khugepaged_scan_mm_slot+0xc00/0xc00
->>>    ? kthread_create_on_node+0x30/0x30
->>>    ret_from_fork+0x21/0x30
->>>
->>> I have no idea when this problem was introduced. Of course, I will test any
->>> proposed fixes.
->>>
+>> SELinux folks might want
 >>
->> Odd.  There's nothing wrong with cond_resched() while holding mmap_sem.
->> It looks like khugepaged forgot to do a spin_unlock somewhere and we
->> leaked a preempt_count.
-> 
-> Hmm I'd expect such spin lock to be reported together with mmap_sem in
-> the debugging "locks held" message?
+>> -static int security_debug;
+>> +static int security_debug = IS_ENABLED(CONFIG_SECURITY_SELINUX_DISABLE);
+> ok, thanks, I will add this
+>
+>> so that those who are using SELINUX=disabled in /etc/selinux/config won't
+>> get oops upon boot by default. If "unlock the pool" were available,
+>> SELINUX=enforcing users would be happy. Maybe two modes for rw/ro transition helps.
+>>
+>>   oneway rw -> ro transition mode: can't be made rw again by calling "unlock the pool" API
+>>   twoway rw <-> ro transition mode: can be made rw again by calling "unlock the pool" API
+> This was in the first cut of the API, but I was told that it would
+> require further rework, to make it ok for upstream, so we agreed to do
+> first the lockdown/destroy only part and the the rewrite.
+>
+> Is there really a valid use case for unloading SE Linux?
 
-My bisection of the problem is about half done. My latest good version is commit 
-7b8cd33 and the latest bad one is 2ea659a. Only about 7 steps to go.
+It's used today in the Redhat distros. There is talk of removing it.
+You can only unload SELinux before policy is loaded, which is sort of
+saying that you have your system misconfigured but can't figure out
+how to fix it. You might be able to convince Paul Moore to accelerate
+the removal of this feature for this worthy cause.
 
-Larry
+> Or any other security module.
 
+I suppose that you could argue that if a security module had
+been in place for 2 years on a system and had never once denied
+anyone access it should be removed. That's a reasonable use case
+description, but I doubt you'd encounter it in the real world.
+Another possibility is a security module that is used during
+container setup and once the system goes into full operation
+is no longer needed. Personally, I don't see either of these
+cases as compelling. "systemctl restart xyzzyd".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
