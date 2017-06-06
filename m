@@ -1,54 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 919B96B0315
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 16:42:33 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d13so5791815pgf.12
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 13:42:33 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z24sor3955574pfd.34.2017.06.06.13.42.31
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 442D46B0314
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 17:24:08 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id v74so5511875oie.10
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 14:24:08 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v187si14886414oie.325.2017.06.06.14.24.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Jun 2017 13:42:32 -0700 (PDT)
-Date: Tue, 6 Jun 2017 13:42:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH v2 1/7] mm, oom: refactor select_bad_process() to
- take memcg as an argument
-In-Reply-To: <20170606162007.GB752@castle>
-Message-ID: <alpine.DEB.2.10.1706061339410.23608@chino.kir.corp.google.com>
-References: <1496342115-3974-1-git-send-email-guro@fb.com> <1496342115-3974-2-git-send-email-guro@fb.com> <alpine.DEB.2.10.1706041550290.24226@chino.kir.corp.google.com> <20170606162007.GB752@castle>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jun 2017 14:24:07 -0700 (PDT)
+Received: from mail-vk0-f48.google.com (mail-vk0-f48.google.com [209.85.213.48])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id A1B3E23A0E
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 21:24:06 +0000 (UTC)
+Received: by mail-vk0-f48.google.com with SMTP id p85so86568085vkd.3
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 14:24:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <C5EDE308-D2EA-490E-A76F-258E7B9A56E9@gmail.com>
+References: <cover.1496701658.git.luto@kernel.org> <9b939d6218b78352b9f13594ebf97c1c88a6c33d.1496701658.git.luto@kernel.org>
+ <C5EDE308-D2EA-490E-A76F-258E7B9A56E9@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 6 Jun 2017 14:23:45 -0700
+Message-ID: <CALCETrVrMtzYVUsLwjN6kuSXr-AF+_V-gYDs8J++zHa_9Bw0BQ@mail.gmail.com>
+Subject: Re: [RFC 05/11] x86/mm: Rework lazy TLB mode and TLB freshness tracking
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Tue, 6 Jun 2017, Roman Gushchin wrote:
+On Mon, Jun 5, 2017 at 6:39 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
+>
+>> On Jun 5, 2017, at 3:36 PM, Andy Lutomirski <luto@kernel.org> wrote:
+>>
+>> x86's lazy TLB mode used to be fairly weak -- it would switch to
+>> init_mm the first time it tried to flush a lazy TLB.  This meant an
+>> unnecessary CR3 write and, if the flush was remote, an unnecessary
+>> IPI.
+>>
+>> Rewrite it entirely.  When we enter lazy mode, we simply remove the
+>> cpu from mm_cpumask.  This means that we need a way to figure out
+>> whether we've missed a flush when we switch back out of lazy mode.
+>> I use the tlb_gen machinery to track whether a context is up to
+>> date.
+>>
+>
+> [snip]
+>
+>> @@ -67,133 +67,118 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>> {
+>>
+>
+> [snip]
+>
+>> +             /* Resume remote flushes and then read tlb_gen. */
+>> +             cpumask_set_cpu(cpu, mm_cpumask(next));
+>> +             next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+>
+> It seems correct, but it got me somewhat confused at first.
+>
+> Perhaps it worth a comment that a memory barrier is not needed since
+> cpumask_set_cpu() uses a locked-instruction. Otherwise, somebody may
+> even copy-paste it to another architecture...
 
-> Hi David!
-> 
-> Thank you for sharing this!
-> 
-> It's very interesting, and it looks like,
-> it's not that far from what I've suggested.
-> 
-> So we definitily need to come up with some common solution.
-> 
+Agreed.  I'll do something here.
 
-Hi Roman,
-
-Yes, definitely.  I could post a series of patches to do everything that 
-was listed in my email sans the fully inclusive kmem accounting, which may 
-be pursued at a later date, if it would be helpful to see where there is 
-common ground?
-
-Another question is what you think about userspace oom handling?  We 
-implement our own oom kill policies in userspace for both the system and 
-for user-controlled memcg hierarchies because it often does not match the 
-kernel implementation and there is some action that can be taken other 
-than killing a process.  Have you tried to implement functionality to do 
-userspace oom handling, or are you considering it?  This is the main 
-motivation behind allowing an oom delay to be configured.
+>
+> Thanks,
+> Nadav
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
