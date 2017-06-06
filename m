@@ -1,125 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B2C36B03A1
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:03:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v104so5603998wrb.6
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:03:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f28si5368448ede.117.2017.06.06.05.03.20
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E05CA6B03B5
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:05:43 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id n7so5285308wrb.0
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:05:43 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id p12si36154588wrd.273.2017.06.06.05.05.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 05:03:21 -0700 (PDT)
-Date: Tue, 6 Jun 2017 14:03:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/4] mm, tree wide: replace __GFP_REPEAT by
- __GFP_RETRY_MAYFAIL with more useful semantic
-Message-ID: <20170606120314.GL1189@dhcp22.suse.cz>
-References: <20170307154843.32516-1-mhocko@kernel.org>
- <20170307154843.32516-3-mhocko@kernel.org>
- <20170603022440.GA11080@WeideMacBook-Pro.local>
- <20170605064343.GE9248@dhcp22.suse.cz>
- <20170606030401.GA2259@WeideMacBook-Pro.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170606030401.GA2259@WeideMacBook-Pro.local>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jun 2017 05:05:42 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [RFC] mm,drm/i915: Mark pinned shmemfs pages as unevictable
+Date: Tue,  6 Jun 2017 13:04:36 +0100
+Message-Id: <20170606120436.8683-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Matthew Auld <matthew.auld@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue 06-06-17 11:04:01, Wei Yang wrote:
-> On Mon, Jun 05, 2017 at 08:43:43AM +0200, Michal Hocko wrote:
-> >On Sat 03-06-17 10:24:40, Wei Yang wrote:
-> >> Hi, Michal
-> >> 
-> >> Just go through your patch.
-> >> 
-> >> I have one question and one suggestion as below.
-> >> 
-> >> One suggestion:
-> >> 
-> >> This patch does two things to me:
-> >> 1. Replace __GFP_REPEAT with __GFP_RETRY_MAYFAIL
-> >> 2. Adjust the logic in page_alloc to provide the middle semantic
-> >> 
-> >> My suggestion is to split these two task into two patches, so that readers
-> >> could catch your fundamental logic change easily.
-> >
-> >Well, the rename and the change is intentionally tight together. My
-> >previous patches have removed all __GFP_REPEAT users for low order
-> >requests which didn't have any implemented semantic. So as of now we
-> >should only have those users which semantic will not change. I do not
-> >add any new low order user in this patch so it in fact doesn't change
-> >any existing semnatic.
-> >
-> >> 
-> >> On Tue, Mar 07, 2017 at 04:48:41PM +0100, Michal Hocko wrote:
-> >> >From: Michal Hocko <mhocko@suse.com>
-> >[...]
-> >> >@@ -3776,9 +3784,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >> > 
-> >> > 	/*
-> >> > 	 * Do not retry costly high order allocations unless they are
-> >> >-	 * __GFP_REPEAT
-> >> >+	 * __GFP_RETRY_MAYFAIL
-> >> > 	 */
-> >> >-	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
-> >> >+	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_MAYFAIL))
-> >> > 		goto nopage;
-> >> 
-> >> One question:
-> >> 
-> >> From your change log, it mentions will provide the same semantic for !costly
-> >> allocations. While the logic here is the same as before.
-> >> 
-> >> For a !costly allocation with __GFP_REPEAT flag, the difference after this
-> >> patch is no OOM will be invoked, while it will still continue in the loop.
-> >
-> >Not really. There are two things. The above will shortcut retrying if
-> >there is _no_ __GFP_RETRY_MAYFAIL. If the flags _is_ specified we will
-> >back of in __alloc_pages_may_oom.
-> > 
-> >> Maybe I don't catch your point in this message:
-> >> 
-> >>   __GFP_REPEAT was designed to allow retry-but-eventually-fail semantic to
-> >>   the page allocator. This has been true but only for allocations requests
-> >>   larger than PAGE_ALLOC_COSTLY_ORDER. It has been always ignored for
-> >>   smaller sizes. This is a bit unfortunate because there is no way to
-> >>   express the same semantic for those requests and they are considered too
-> >>   important to fail so they might end up looping in the page allocator for
-> >>   ever, similarly to GFP_NOFAIL requests.
-> >> 
-> >> I thought you will provide the same semantic to !costly allocation, or I
-> >> misunderstand?
-> >
-> >yes and that is the case. __alloc_pages_may_oom will back off before OOM
-> >killer is invoked and the allocator slow path will fail because
-> >did_some_progress == 0;
-> 
-> Thanks for your explanation.
-> 
-> So same "semantic" doesn't mean same "behavior".
-> 1. costly allocations will pick up the shut cut
+Similar in principle to the treatment of get_user_pages, pages that
+i915.ko acquires from shmemfs are not immediately reclaimable and so
+should be excluded from the mm accounting and vmscan until they have
+been returned to the system via shrink_slab/i915_gem_shrink. By moving
+the unreclaimable pages off the inactive anon lru, not only should
+vmscan be improved by avoiding walking unreclaimable pages, but the
+system should also have a better idea of how much memory it can reclaim
+at that moment in time.
 
-yes and there are no such allocations yet (based on my previous
-cleanups)
+Note, however, the interaction with shrink_slab which will move some
+mlocked pages back to the inactive anon lru.
 
-> 2. !costly allocations will try something more but finally fail without
-> invoking OOM.
+Suggested-by: Dave Hansen <dave.hansen@intel.com>
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Matthew Auld <matthew.auld@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+---
+ drivers/gpu/drm/i915/i915_gem.c | 17 ++++++++++++++++-
+ mm/mlock.c                      |  2 ++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
 
-no, the behavior will not change for those.
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index 8cb811519db1..37a98fbc6a12 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -2193,6 +2193,9 @@ void __i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+ 	obj->mm.pages = ERR_PTR(-EFAULT);
+ }
  
-> Hope this time I catch your point.
-> 
-> BTW, did_some_progress mostly means the OOM works to me. Are there some other
-> important situations when did_some_progress is set to 1?
-
-Yes e.g. for GFP_NOFS when we cannot really invoke the OOM killer yet we
-cannot fail the allocation.
++extern void mlock_vma_page(struct page *page);
++extern unsigned int munlock_vma_page(struct page *page);
++
+ static void
+ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 			      struct sg_table *pages)
+@@ -2214,6 +2217,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+ 		if (obj->mm.madv == I915_MADV_WILLNEED)
+ 			mark_page_accessed(page);
+ 
++		lock_page(page);
++		munlock_vma_page(page);
++		unlock_page(page);
++
+ 		put_page(page);
+ 	}
+ 	obj->mm.dirty = false;
+@@ -2412,6 +2419,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+ 		}
+ 		last_pfn = page_to_pfn(page);
+ 
++		lock_page(page);
++		mlock_vma_page(page);
++		unlock_page(page);
++
+ 		/* Check that the i965g/gm workaround works. */
+ 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
+ 	}
+@@ -2450,8 +2461,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+ err_sg:
+ 	sg_mark_end(sg);
+ err_pages:
+-	for_each_sgt_page(page, sgt_iter, st)
++	for_each_sgt_page(page, sgt_iter, st) {
++		lock_page(page);
++		munlock_vma_page(page);
++		unlock_page(page);
+ 		put_page(page);
++	}
+ 	sg_free_table(st);
+ 	kfree(st);
+ 
+diff --git a/mm/mlock.c b/mm/mlock.c
+index b562b5523a65..531d9f8fd033 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -94,6 +94,7 @@ void mlock_vma_page(struct page *page)
+ 			putback_lru_page(page);
+ 	}
+ }
++EXPORT_SYMBOL_GPL(mlock_vma_page);
+ 
+ /*
+  * Isolate a page from LRU with optional get_page() pin.
+@@ -211,6 +212,7 @@ unsigned int munlock_vma_page(struct page *page)
+ out:
+ 	return nr_pages - 1;
+ }
++EXPORT_SYMBOL_GPL(munlock_vma_page);
+ 
+ /*
+  * convert get_user_pages() return value to posix mlock() error
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
