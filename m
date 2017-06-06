@@ -1,109 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 70F966B03BC
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:24:29 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id i42so11416882otb.0
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:24:29 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id j20si3885172oih.138.2017.06.06.05.24.27
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7756B03BF
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:30:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 204so26213966wmy.1
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:30:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c9si1625952ede.103.2017.06.06.05.30.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 05:24:28 -0700 (PDT)
-Subject: Re: [PATCH 2/5] Protectable Memory Allocator
-References: <20170605192216.21596-1-igor.stoppa@huawei.com>
- <20170605192216.21596-3-igor.stoppa@huawei.com>
- <201706060444.v564iWds024768@www262.sakura.ne.jp>
- <a4ef229f-0dce-fa15-117b-2c7e904be7e7@huawei.com>
- <201706062108.JDD17143.MOQFFVtHLJOFOS@I-love.SAKURA.ne.jp>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <a9c0b60b-d540-785b-3455-d35ae051b891@huawei.com>
-Date: Tue, 6 Jun 2017 15:23:12 +0300
+        Tue, 06 Jun 2017 05:30:17 -0700 (PDT)
+Subject: Re: [RFC] mm,drm/i915: Mark pinned shmemfs pages as unevictable
+References: <20170606120436.8683-1-chris@chris-wilson.co.uk>
+ <20170606121418.GM1189@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e55bf483-e9f5-30ec-7e88-1298778bc0b1@suse.cz>
+Date: Tue, 6 Jun 2017 14:30:15 +0200
 MIME-Version: 1.0
-In-Reply-To: <201706062108.JDD17143.MOQFFVtHLJOFOS@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20170606121418.GM1189@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@suse.com>, Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Matthew Auld <matthew.auld@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
 
+On 06/06/2017 02:14 PM, Michal Hocko wrote:
+> On Tue 06-06-17 13:04:36, Chris Wilson wrote:
+>> Similar in principle to the treatment of get_user_pages, pages that
+>> i915.ko acquires from shmemfs are not immediately reclaimable and so
+>> should be excluded from the mm accounting and vmscan until they have
+>> been returned to the system via shrink_slab/i915_gem_shrink. By moving
+>> the unreclaimable pages off the inactive anon lru, not only should
+>> vmscan be improved by avoiding walking unreclaimable pages, but the
+>> system should also have a better idea of how much memory it can reclaim
+>> at that moment in time.
+> 
+> That is certainly desirable. Peter has proposed a generic pin_page (or
+> similar) API. What happened with it? I think it would be a better
+> approach than (ab)using mlock API. I am also not familiar with the i915
+> code to be sure that using lock_page is really safe here. I think that
+> all we need is to simply move those pages in/out to/from unevictable LRU
+> list on pin/unpining.
 
-On 06/06/17 15:08, Tetsuo Handa wrote:
-> Igor Stoppa wrote:
->>>> +struct pmalloc_node {
->>>> +	struct hlist_node nodes_list;
->>>> +	atomic_t used_words;
->>>> +	unsigned int total_words;
->>>> +	__PMALLOC_ALIGNED align_t data[];
->>>> +};
->>>
->>> Is this __PMALLOC_ALIGNED needed? Why not use "long" and "BITS_PER_LONG" ?
+Hmm even when on unevictable list, the pages were still allocated as
+MOVABLE, while pinning prevents them from being migrated, so it doesn't
+play well with compaction/grouping by mobility/CMA etc. Addressing that
+would be more useful IMHO, and e.g. one of the features envisioned for
+the pinning API was to first migrate the pinned pages out of movable
+zones and CMA/MOVABLE pageblocks.
+
+>> Note, however, the interaction with shrink_slab which will move some
+>> mlocked pages back to the inactive anon lru.
 >>
->> In an earlier version I actually asked the same question.
->> It is currently there because I just don't know enough about various
->> architectures. The idea of having "align_t" was that it could be tied
->> into what is the most desirable alignment for each architecture.
->> But I'm actually looking for advise on this.
-> 
-> I think that let the compiler use natural alignment is OK.
-
-On a 64 bit machine the preferred alignment might be either 32 or 64,
-depending on the application. How can the compiler choose?
-
-
->>> You need to check for node != NULL before dereference it.
+>> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+>> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+>> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+>> Cc: Matthew Auld <matthew.auld@intel.com>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> ---
+>>  drivers/gpu/drm/i915/i915_gem.c | 17 ++++++++++++++++-
+>>  mm/mlock.c                      |  2 ++
+>>  2 files changed, 18 insertions(+), 1 deletion(-)
 >>
->> So, if I understood correctly, there shouldn't be a case where node is
->> NULL, right?
->> Unless it has been tampered/damaged. Is that what you mean?
-> 
-> I meant to say
-> 
-> +	node = __pmalloc_create_node(req_words);
-> // this location.
-> +	starting_word = atomic_fetch_add(req_words, &node->used_words);
-
-argh, yes
-
-
->>>> +const char *__pmalloc_check_object(const void *ptr, unsigned long n)
->>>> +{
->>>> +	unsigned long p;
->>>> +
->>>> +	p = (unsigned long)ptr;
->>>> +	n += (unsigned long)ptr;
->>>> +	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
->>>> +		if (is_vmalloc_addr((void *)p)) {
->>>> +			struct page *page;
->>>> +
->>>> +			page = vmalloc_to_page((void *)p);
->>>> +			if (!(page && PagePmalloc(page)))
->>>> +				return msg;
->>>> +		}
->>>> +	}
->>>> +	return NULL;
->>>> +}
->>>
->>> I feel that n is off-by-one if (ptr + n) % PAGE_SIZE == 0
->>> according to check_page_span().
+>> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+>> index 8cb811519db1..37a98fbc6a12 100644
+>> --- a/drivers/gpu/drm/i915/i915_gem.c
+>> +++ b/drivers/gpu/drm/i915/i915_gem.c
+>> @@ -2193,6 +2193,9 @@ void __i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+>>  	obj->mm.pages = ERR_PTR(-EFAULT);
+>>  }
+>>  
+>> +extern void mlock_vma_page(struct page *page);
+>> +extern unsigned int munlock_vma_page(struct page *page);
+>> +
+>>  static void
+>>  i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+>>  			      struct sg_table *pages)
+>> @@ -2214,6 +2217,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+>>  		if (obj->mm.madv == I915_MADV_WILLNEED)
+>>  			mark_page_accessed(page);
+>>  
+>> +		lock_page(page);
+>> +		munlock_vma_page(page);
+>> +		unlock_page(page);
+>> +
+>>  		put_page(page);
+>>  	}
+>>  	obj->mm.dirty = false;
+>> @@ -2412,6 +2419,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+>>  		}
+>>  		last_pfn = page_to_pfn(page);
+>>  
+>> +		lock_page(page);
+>> +		mlock_vma_page(page);
+>> +		unlock_page(page);
+>> +
+>>  		/* Check that the i965g/gm workaround works. */
+>>  		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
+>>  	}
+>> @@ -2450,8 +2461,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
+>>  err_sg:
+>>  	sg_mark_end(sg);
+>>  err_pages:
+>> -	for_each_sgt_page(page, sgt_iter, st)
+>> +	for_each_sgt_page(page, sgt_iter, st) {
+>> +		lock_page(page);
+>> +		munlock_vma_page(page);
+>> +		unlock_page(page);
+>>  		put_page(page);
+>> +	}
+>>  	sg_free_table(st);
+>>  	kfree(st);
+>>  
+>> diff --git a/mm/mlock.c b/mm/mlock.c
+>> index b562b5523a65..531d9f8fd033 100644
+>> --- a/mm/mlock.c
+>> +++ b/mm/mlock.c
+>> @@ -94,6 +94,7 @@ void mlock_vma_page(struct page *page)
+>>  			putback_lru_page(page);
+>>  	}
+>>  }
+>> +EXPORT_SYMBOL_GPL(mlock_vma_page);
+>>  
+>>  /*
+>>   * Isolate a page from LRU with optional get_page() pin.
+>> @@ -211,6 +212,7 @@ unsigned int munlock_vma_page(struct page *page)
+>>  out:
+>>  	return nr_pages - 1;
+>>  }
+>> +EXPORT_SYMBOL_GPL(munlock_vma_page);
+>>  
+>>  /*
+>>   * convert get_user_pages() return value to posix mlock() error
+>> -- 
+>> 2.11.0
 >>
->> It seems to work. If I am missing your point, could you please
->> use the same format of the example I made, to explain me?
 > 
-> If ptr == NULL and n == PAGE_SIZE so that (ptr + n) % PAGE_SIZE == 0,
-> this loop will access two pages (one page containing p == 0 and another
-> page containing p == PAGE_SIZE) when this loop should access only one
-> page containing p == 0. When checking n bytes, it's range is 0 to n - 1.
-
-oh, so:
-
-p = (unsigned long) ptr;
-n = p + n - 1;
-
-
---
-igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
