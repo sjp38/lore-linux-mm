@@ -1,104 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 486B36B0343
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 14:28:39 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id w41so13506491otw.8
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 11:28:39 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id b124si10831592oia.78.2017.06.06.11.28.37
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 525826B0350
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 15:03:53 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t30so70848932pgo.0
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 12:03:53 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id t127si33032545pfd.377.2017.06.06.12.03.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 11:28:38 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 4/4] Make LSM Writable Hooks a command line option
-Date: Tue, 6 Jun 2017 21:24:53 +0300
-Message-ID: <20170606182453.32688-5-igor.stoppa@huawei.com>
-In-Reply-To: <20170606182453.32688-1-igor.stoppa@huawei.com>
-References: <20170606182453.32688-1-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jun 2017 12:03:52 -0700 (PDT)
+Date: Tue, 6 Jun 2017 12:03:50 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
+ to hugepages
+Message-ID: <20170606190350.GA20010@bombadil.infradead.org>
+References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
+ <20170605153819.9c86969a73926e4269e77976@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170605153819.9c86969a73926e4269e77976@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor Stoppa <igor.stoppa@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, linux-mm@kvack.org, mike.kravetz@Oracle.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com--dry-run
 
-This patch shows how it is possible to take advantage of pmalloc:
-instead of using the build-time option __lsm_ro_after_init, to decide if
-it is possible to keep the hooks modifiable, now this becomes a
-boot-time decision, based on the kernel command line.
+On Mon, Jun 05, 2017 at 03:38:19PM -0700, Andrew Morton wrote:
+> It's better to just move memfmt() to the right place.  After all, you
+> have revealed that it was in the wrong place, no?
+> 
+> (Am a bit surprised that something as general as memfmt is private to
+> hugetlb.c)
 
-This patch relies on:
+Oh, hey, look, memory management people and storage people have
+their own ideas about "general" code.  Storage people have been using
+string_get_size() for a while.  It feels a bit over-engineered to me,
+but since we already have it, we should use it.
 
-"Convert security_hook_heads into explicit array of struct list_head"
-Author: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---- 8< ----
 
-to break free from the static constraint imposed by the previous
-hardening model, based on __ro_after_init.
+Subject: [PATCH] Replace memfmt with string_get_size
 
-The default value is disabled, unless SE Linux debugging is turned on.
+The hugetlb code has its own function to report human-readable sizes.
+Convert it to use the shared string_get_size function.  This will lead
+to a minor difference in user visible output (MiB/GiB instead of MB/GB),
+but some would argue that's desirable anyway.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-CC: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- security/security.c | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-diff --git a/security/security.c b/security/security.c
-index c492f68..9b8b478 100644
---- a/security/security.c
-+++ b/security/security.c
-@@ -26,6 +26,7 @@
- #include <linux/personality.h>
- #include <linux/backing-dev.h>
- #include <linux/string.h>
-+#include <linux/pmalloc.h>
- #include <net/flow.h>
- 
- #define MAX_LSM_EVM_XATTR	2
-@@ -33,8 +34,17 @@
- /* Maximum number of letters for an LSM name string */
- #define SECURITY_NAME_MAX	10
- 
--static struct list_head hook_heads[LSM_MAX_HOOK_INDEX]
--	__lsm_ro_after_init;
-+static int dynamic_lsm = IS_ENABLED(CONFIG_SECURITY_SELINUX_DISABLE);
-+
-+static __init int set_dynamic_lsm(char *str)
-+{
-+	get_option(&str, &dynamic_lsm);
-+	return 0;
-+}
-+early_param("dynamic_lsm", set_dynamic_lsm);
-+
-+static struct list_head *hook_heads;
-+static struct pmalloc_pool *sec_pool;
- char *lsm_names;
- /* Boot-time LSM user choice */
- static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
-@@ -59,6 +69,11 @@ int __init security_init(void)
- {
- 	enum security_hook_index i;
- 
-+	sec_pool = pmalloc_create_pool("security");
-+	BUG_ON(!sec_pool);
-+	hook_heads = pmalloc(sizeof(struct list_head) * LSM_MAX_HOOK_INDEX,
-+			     sec_pool);
-+	BUG_ON(!hook_heads);
- 	for (i = 0; i < LSM_MAX_HOOK_INDEX; i++)
- 		INIT_LIST_HEAD(&hook_heads[i]);
- 	pr_info("Security Framework initialized\n");
-@@ -74,7 +89,8 @@ int __init security_init(void)
- 	 * Load all the remaining security modules.
- 	 */
- 	do_security_initcalls();
--
-+	if (!dynamic_lsm)
-+		pmalloc_protect_pool(sec_pool);
- 	return 0;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e5828875f7bb..7f2b7d9f1f45 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -20,6 +20,7 @@
+ #include <linux/slab.h>
+ #include <linux/sched/signal.h>
+ #include <linux/rmap.h>
++#include <linux/string_helpers.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+ #include <linux/page-isolation.h>
+@@ -2207,26 +2208,15 @@ static void __init hugetlb_init_hstates(void)
+ 	VM_BUG_ON(minimum_order == UINT_MAX);
  }
  
--- 
-2.9.3
+-static char * __init memfmt(char *buf, unsigned long n)
+-{
+-	if (n >= (1UL << 30))
+-		sprintf(buf, "%lu GB", n >> 30);
+-	else if (n >= (1UL << 20))
+-		sprintf(buf, "%lu MB", n >> 20);
+-	else
+-		sprintf(buf, "%lu KB", n >> 10);
+-	return buf;
+-}
+-
+ static void __init report_hugepages(void)
+ {
+ 	struct hstate *h;
+ 
+ 	for_each_hstate(h) {
+ 		char buf[32];
++		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
+ 		pr_info("HugeTLB registered %s page size, pre-allocated %ld pages\n",
+-			memfmt(buf, huge_page_size(h)),
+-			h->free_huge_pages);
++			buf, h->free_huge_pages);
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
