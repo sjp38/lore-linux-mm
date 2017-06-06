@@ -1,120 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E05CA6B03B5
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:05:43 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id n7so5285308wrb.0
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:05:43 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id p12si36154588wrd.273.2017.06.06.05.05.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 80C976B03B6
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 08:10:46 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c6so160811486pfj.5
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 05:10:46 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x9si31114909pge.123.2017.06.06.05.10.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jun 2017 05:05:42 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [RFC] mm,drm/i915: Mark pinned shmemfs pages as unevictable
-Date: Tue,  6 Jun 2017 13:04:36 +0100
-Message-Id: <20170606120436.8683-1-chris@chris-wilson.co.uk>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 06 Jun 2017 05:10:45 -0700 (PDT)
+Subject: Re: [PATCH 2/5] Protectable Memory Allocator
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170605192216.21596-1-igor.stoppa@huawei.com>
+	<20170605192216.21596-3-igor.stoppa@huawei.com>
+	<201706060444.v564iWds024768@www262.sakura.ne.jp>
+	<a4ef229f-0dce-fa15-117b-2c7e904be7e7@huawei.com>
+In-Reply-To: <a4ef229f-0dce-fa15-117b-2c7e904be7e7@huawei.com>
+Message-Id: <201706062108.JDD17143.MOQFFVtHLJOFOS@I-love.SAKURA.ne.jp>
+Date: Tue, 6 Jun 2017 21:08:44 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Matthew Auld <matthew.auld@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: igor.stoppa@huawei.com
+Cc: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, labbott@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-Similar in principle to the treatment of get_user_pages, pages that
-i915.ko acquires from shmemfs are not immediately reclaimable and so
-should be excluded from the mm accounting and vmscan until they have
-been returned to the system via shrink_slab/i915_gem_shrink. By moving
-the unreclaimable pages off the inactive anon lru, not only should
-vmscan be improved by avoiding walking unreclaimable pages, but the
-system should also have a better idea of how much memory it can reclaim
-at that moment in time.
+Igor Stoppa wrote:
+> >> +struct pmalloc_node {
+> >> +	struct hlist_node nodes_list;
+> >> +	atomic_t used_words;
+> >> +	unsigned int total_words;
+> >> +	__PMALLOC_ALIGNED align_t data[];
+> >> +};
+> >
+> > Is this __PMALLOC_ALIGNED needed? Why not use "long" and "BITS_PER_LONG" ?
+> 
+> In an earlier version I actually asked the same question.
+> It is currently there because I just don't know enough about various
+> architectures. The idea of having "align_t" was that it could be tied
+> into what is the most desirable alignment for each architecture.
+> But I'm actually looking for advise on this.
 
-Note, however, the interaction with shrink_slab which will move some
-mlocked pages back to the inactive anon lru.
+I think that let the compiler use natural alignment is OK.
 
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Matthew Auld <matthew.auld@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
----
- drivers/gpu/drm/i915/i915_gem.c | 17 ++++++++++++++++-
- mm/mlock.c                      |  2 ++
- 2 files changed, 18 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 8cb811519db1..37a98fbc6a12 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -2193,6 +2193,9 @@ void __i915_gem_object_truncate(struct drm_i915_gem_object *obj)
- 	obj->mm.pages = ERR_PTR(-EFAULT);
- }
- 
-+extern void mlock_vma_page(struct page *page);
-+extern unsigned int munlock_vma_page(struct page *page);
-+
- static void
- i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 			      struct sg_table *pages)
-@@ -2214,6 +2217,10 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
- 		if (obj->mm.madv == I915_MADV_WILLNEED)
- 			mark_page_accessed(page);
- 
-+		lock_page(page);
-+		munlock_vma_page(page);
-+		unlock_page(page);
-+
- 		put_page(page);
- 	}
- 	obj->mm.dirty = false;
-@@ -2412,6 +2419,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 		}
- 		last_pfn = page_to_pfn(page);
- 
-+		lock_page(page);
-+		mlock_vma_page(page);
-+		unlock_page(page);
-+
- 		/* Check that the i965g/gm workaround works. */
- 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
- 	}
-@@ -2450,8 +2461,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- err_sg:
- 	sg_mark_end(sg);
- err_pages:
--	for_each_sgt_page(page, sgt_iter, st)
-+	for_each_sgt_page(page, sgt_iter, st) {
-+		lock_page(page);
-+		munlock_vma_page(page);
-+		unlock_page(page);
- 		put_page(page);
-+	}
- 	sg_free_table(st);
- 	kfree(st);
- 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index b562b5523a65..531d9f8fd033 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -94,6 +94,7 @@ void mlock_vma_page(struct page *page)
- 			putback_lru_page(page);
- 	}
- }
-+EXPORT_SYMBOL_GPL(mlock_vma_page);
- 
- /*
-  * Isolate a page from LRU with optional get_page() pin.
-@@ -211,6 +212,7 @@ unsigned int munlock_vma_page(struct page *page)
- out:
- 	return nr_pages - 1;
- }
-+EXPORT_SYMBOL_GPL(munlock_vma_page);
- 
- /*
-  * convert get_user_pages() return value to posix mlock() error
--- 
-2.11.0
+
+> > You need to check for node != NULL before dereference it.
+> 
+> So, if I understood correctly, there shouldn't be a case where node is
+> NULL, right?
+> Unless it has been tampered/damaged. Is that what you mean?
+
+I meant to say
+
++	node = __pmalloc_create_node(req_words);
+// this location.
++	starting_word = atomic_fetch_add(req_words, &node->used_words);
+
+
+
+> >> +const char *__pmalloc_check_object(const void *ptr, unsigned long n)
+> >> +{
+> >> +	unsigned long p;
+> >> +
+> >> +	p = (unsigned long)ptr;
+> >> +	n += (unsigned long)ptr;
+> >> +	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
+> >> +		if (is_vmalloc_addr((void *)p)) {
+> >> +			struct page *page;
+> >> +
+> >> +			page = vmalloc_to_page((void *)p);
+> >> +			if (!(page && PagePmalloc(page)))
+> >> +				return msg;
+> >> +		}
+> >> +	}
+> >> +	return NULL;
+> >> +}
+> > 
+> > I feel that n is off-by-one if (ptr + n) % PAGE_SIZE == 0
+> > according to check_page_span().
+> 
+> It seems to work. If I am missing your point, could you please
+> use the same format of the example I made, to explain me?
+
+If ptr == NULL and n == PAGE_SIZE so that (ptr + n) % PAGE_SIZE == 0,
+this loop will access two pages (one page containing p == 0 and another
+page containing p == PAGE_SIZE) when this loop should access only one
+page containing p == 0. When checking n bytes, it's range is 0 to n - 1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
