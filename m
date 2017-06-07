@@ -1,47 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 221516B0338
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 16:56:04 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t126so8524584pgc.9
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 13:56:04 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 778256B0350
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 17:17:52 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id t87so6829772ioe.7
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 14:17:52 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y1sor2262906pli.2.2017.06.07.13.56.03
+        by mx.google.com with SMTPS id v3sor1341440iof.100.2017.06.07.14.17.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 07 Jun 2017 13:56:03 -0700 (PDT)
-Date: Wed, 7 Jun 2017 13:56:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Sleeping BUG in khugepaged for i586
-In-Reply-To: <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
-Message-ID: <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net> <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org> <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz> <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
- <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 07 Jun 2017 14:17:51 -0700 (PDT)
+From: Tycho Andersen <tycho@docker.com>
+Subject: [RFC v4 0/3] Add support for eXclusive Page Frame Ownership
+Date: Wed,  7 Jun 2017 15:16:50 -0600
+Message-Id: <20170607211653.14536-1-tycho@docker.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Juerg Haefliger <juergh@gmail.com>, kernel-hardening@lists.openwall.com, Tycho Andersen <tycho@docker.com>
 
-On Wed, 7 Jun 2017, Vlastimil Babka wrote:
+Hi all,
 
-> >> Hmm I'd expect such spin lock to be reported together with mmap_sem in
-> >> the debugging "locks held" message?
-> > 
-> > My bisection of the problem is about half done. My latest good version is commit 
-> > 7b8cd33 and the latest bad one is 2ea659a. Only about 7 steps to go.
-> 
-> Hmm, your bisection will most likely just find commit 338a16ba15495
-> which added the cond_resched() at mm/khugepaged.c:655. CCing David who
-> added it.
-> 
+I have talked with Juerg about picking up the torch for XPFO [1], and have been
+playing around with the set for a bit. I've fixed one memory corruption issue
+since v3, and also tried and failed at integrating hugepages support. The code
+in patch 3 seems to split up the page and apply the right protections, but
+somehow the lkdtm test read succeeds and no fault is generated, and I don't
+understand why.
 
-I agree it's probably going to bisect to 338a16ba15495 since it's the 
-cond_resched() at the line number reported, but I think there must be 
-something else going on.  I think the list of locks held by khugepaged is 
-correct because it matches with the implementation.  The preempt_count(), 
-as suggested by Andrew, does not.  If this is reproducible, I'd like to 
-know what preempt_count() is.
+[1]: https://lkml.org/lkml/2016/11/4/245
+
+Thoughts welcome,
+
+Tycho
+
+Juerg Haefliger (2):
+  mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
+  lkdtm: Add tests for XPFO
+
+Tycho Andersen (1):
+  xpfo: add support for hugepages
+
+ Documentation/admin-guide/kernel-parameters.txt |   2 +
+ arch/x86/Kconfig                                |   1 +
+ arch/x86/include/asm/pgtable.h                  |  22 +++
+ arch/x86/mm/Makefile                            |   1 +
+ arch/x86/mm/pageattr.c                          |  21 +--
+ arch/x86/mm/xpfo.c                              |  82 +++++++++
+ drivers/misc/Makefile                           |   1 +
+ drivers/misc/lkdtm.h                            |   3 +
+ drivers/misc/lkdtm_core.c                       |   1 +
+ drivers/misc/lkdtm_xpfo.c                       | 105 ++++++++++++
+ include/linux/highmem.h                         |  15 +-
+ include/linux/xpfo.h                            |  38 +++++
+ mm/Makefile                                     |   1 +
+ mm/page_alloc.c                                 |   2 +
+ mm/page_ext.c                                   |   4 +
+ mm/xpfo.c                                       | 210 ++++++++++++++++++++++++
+ security/Kconfig                                |  19 +++
+ 17 files changed, 508 insertions(+), 20 deletions(-)
+ create mode 100644 arch/x86/mm/xpfo.c
+ create mode 100644 drivers/misc/lkdtm_xpfo.c
+ create mode 100644 include/linux/xpfo.h
+ create mode 100644 mm/xpfo.c
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
