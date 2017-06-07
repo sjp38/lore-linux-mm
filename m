@@ -1,68 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E4A56B0279
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 23:22:05 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t126so489905pgc.9
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 20:22:05 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id d28si448877plj.363.2017.06.06.20.22.02
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7F476B0279
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 23:33:29 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id w1so285601qtg.6
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 20:33:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p123si503437qkd.290.2017.06.06.20.33.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 20:22:04 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] Revert "mm: vmpressure: fix sending wrong events on underflow"
-Date: Wed, 7 Jun 2017 11:08:37 +0800
-Message-ID: <1496804917-7628-1-git-send-email-zhongjiang@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jun 2017 20:33:28 -0700 (PDT)
+Message-ID: <1496806405.29205.131.camel@redhat.com>
+Subject: Re: [RFC 05/11] x86/mm: Rework lazy TLB mode and TLB freshness
+ tracking
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 06 Jun 2017 23:33:25 -0400
+In-Reply-To: <CALCETrVX73+vHJMVYaddygEFj42oc3ShoUrXOm_s6CBwEP1peA@mail.gmail.com>
+References: <cover.1496701658.git.luto@kernel.org>
+	 <9b939d6218b78352b9f13594ebf97c1c88a6c33d.1496701658.git.luto@kernel.org>
+	 <1496776285.20270.64.camel@redhat.com>
+	 <CALCETrVX73+vHJMVYaddygEFj42oc3ShoUrXOm_s6CBwEP1peA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: minchan@kernel.org, vinayakm.list@gmail.com, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-This reverts commit e1587a4945408faa58d0485002c110eb2454740c.
+On Tue, 2017-06-06 at 14:34 -0700, Andy Lutomirski wrote:
+> On Tue, Jun 6, 2017 at 12:11 PM, Rik van Riel <riel@redhat.com>
+> wrote:
+> > On Mon, 2017-06-05 at 15:36 -0700, Andy Lutomirski wrote:
+> > 
+> > > +++ b/arch/x86/include/asm/mmu_context.h
+> > > @@ -122,8 +122,10 @@ static inline void switch_ldt(struct
+> > > mm_struct
+> > > *prev, struct mm_struct *next)
+> > > 
+> > > A static inline void enter_lazy_tlb(struct mm_struct *mm, struct
+> > > task_struct *tsk)
+> > > A {
+> > > -A A A A A if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
+> > > -A A A A A A A A A A A A A this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+> > > +A A A A A int cpu = smp_processor_id();
+> > > +
+> > > +A A A A A if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+> > > +A A A A A A A A A A A A A cpumask_clear_cpu(cpu, mm_cpumask(mm));
+> > > A }
+> > 
+> > This is an atomic write to a shared cacheline,
+> > every time a CPU goes idle.
+> > 
+> > I am not sure you really want to do this, since
+> > there are some workloads out there that have a
+> > crazy number of threads, which go idle hundreds,
+> > or even thousands of times a second, on dozens
+> > of CPUs at a time. *cough*Java*cough*
+> 
+> It seems to me that the set of workloads on which this patch will
+> hurt
+> performance is rather limited.A A We'd need an mm with a lot of
+> threads,
+> probably spread among a lot of nodes, that is constantly going idle
+> and non-idle on multiple CPUs on the same node, where there's nothing
+> else happening on those CPUs.
 
-THP lru page is reclaimed , THP is split to normal page and loop again.
-reclaimed pages should not be bigger than nr_scan.  because of each
-loop will increase nr_scan counter.
+I am assuming the SPECjbb2015 benchmark is representative
+of how some actual (albeit crazy) Java workloads behave.
 
-Signed-off-by: zhongjiang <zhongjiang@huawei.com>
----
- mm/vmpressure.c | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
+> > Keeping track of the state in a CPU-local variable,
+> > written with a non-atomic write, would be much more
+> > CPU cache friendly here.
+> 
+> We could, but then handing remote flushes becomes more complicated.
 
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 6063581..149fdf6 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -112,16 +112,9 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- 						    unsigned long reclaimed)
- {
- 	unsigned long scale = scanned + reclaimed;
--	unsigned long pressure = 0;
-+	unsigned long pressure;
- 
- 	/*
--	 * reclaimed can be greater than scanned in cases
--	 * like THP, where the scanned is 1 and reclaimed
--	 * could be 512
--	 */
--	if (reclaimed >= scanned)
--		goto out;
--	/*
- 	 * We calculate the ratio (in percents) of how many pages were
- 	 * scanned vs. reclaimed in a given time frame (window). Note that
- 	 * time is in VM reclaimer's "ticks", i.e. number of pages
-@@ -131,7 +124,6 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- 	pressure = scale - (reclaimed * scale / scanned);
- 	pressure = pressure * 100 / scale;
- 
--out:
- 	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
- 		 scanned, reclaimed);
- 
--- 
-1.7.12.4
+I already wrote that code. It's not that hard.
+
+> My inclination would be to keep the patch as is and, if this is
+> actually a problem, think about solving it more generally.A A The real
+> issue is that we need a way to reasonably efficiently find the set of
+> CPUs for which a given mm is currently loaded and non-lazy.A A A simple
+> improvement would be to split up mm_cpumask so that we'd have one
+> cache line per node.A A (And we'd presumably allow several mms to share
+> the same pile of memory.)A A Or we could go all out and use percpu
+> state
+> only and iterate over all online CPUs when flushing (ick!).A A Or
+> something in between.
+
+Reading per cpu state is relatively cheap. Writing is
+more expensive, but that only needs to be done at TLB
+flush time, and is much cheaper than sending an IPI.
+
+Tasks going idle and waking back up seems to be a much
+more common operation than doing a TLB flush. Having the
+idle path being the more expensive one makes little sense
+to me, but I may be overlooking something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
