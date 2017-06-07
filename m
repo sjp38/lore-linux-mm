@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 57FD46B02F3
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 15:15:09 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id o51so5095489otb.9
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 12:15:09 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0081.outbound.protection.outlook.com. [104.47.37.81])
-        by mx.google.com with ESMTPS id s17si1076303ots.157.2017.06.07.12.15.08
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6C86B0314
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 15:15:15 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id d13so7744054pgf.12
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 12:15:15 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0078.outbound.protection.outlook.com. [104.47.41.78])
+        by mx.google.com with ESMTPS id a65si2478588pfc.94.2017.06.07.12.15.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Jun 2017 12:15:08 -0700 (PDT)
+        Wed, 07 Jun 2017 12:15:13 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v6 10/34] x86, x86/mm, x86/xen,
- olpc: Use __va() against just the physical address in cr3
-Date: Wed, 07 Jun 2017 14:14:53 -0500
-Message-ID: <20170607191453.28645.92256.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v6 11/34] x86/mm: Provide general kernel support for memory
+ encryption
+Date: Wed, 07 Jun 2017 14:15:08 -0500
+Message-ID: <20170607191508.28645.85684.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
 References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,177 +24,500 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-The cr3 register entry can contain the SME encryption bit that indicates
-the PGD is encrypted.  The encryption bit should not be used when creating
-a virtual address for the PGD table.
+Changes to the existing page table macros will allow the SME support to
+be enabled in a simple fashion with minimal changes to files that use these
+macros.  Since the memory encryption mask will now be part of the regular
+pagetable macros, we introduce two new macros (_PAGE_TABLE_NOENC and
+_KERNPG_TABLE_NOENC) to allow for early pagetable creation/initialization
+without the encryption mask before SME becomes active.  Two new pgprot()
+macros are defined to allow setting or clearing the page encryption mask.
 
-Create a new function, read_cr3_pa(), that will extract the physical
-address from the cr3 register. This function is then used where a virtual
-address of the PGD needs to be created/used from the cr3 register.
+The FIXMAP_PAGE_NOCACHE define is introduced for use with MMIO.  SME does
+not support encryption for MMIO areas so this define removes the encryption
+mask from the page attribute.
+
+Two new macros are introduced (__sme_pa() / __sme_pa_nodebug()) to allow
+creating a physical address with the encryption mask.  These are used when
+working with the cr3 register so that the PGD can be encrypted. The current
+__va() macro is updated so that the virtual address is generated based off
+of the physical address without the encryption mask thus allowing the same
+virtual address to be generated regardless of whether encryption is enabled
+for that physical location or not.
+
+Also, an early initialization function is added for SME.  If SME is active,
+this function:
+ - Updates the early_pmd_flags so that early page faults create mappings
+   with the encryption mask.
+ - Updates the __supported_pte_mask to include the encryption mask.
+ - Updates the protection_map entries to include the encryption mask so
+   that user-space allocations will automatically have the encryption mask
+   applied.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/special_insns.h |    9 +++++++++
- arch/x86/kernel/head64.c             |    2 +-
- arch/x86/mm/fault.c                  |   10 +++++-----
- arch/x86/mm/ioremap.c                |    2 +-
- arch/x86/platform/olpc/olpc-xo1-pm.c |    2 +-
- arch/x86/power/hibernate_64.c        |    2 +-
- arch/x86/xen/mmu_pv.c                |    6 +++---
- 7 files changed, 21 insertions(+), 12 deletions(-)
+ arch/x86/boot/compressed/pagetable.c |    7 +++++
+ arch/x86/include/asm/fixmap.h        |    7 +++++
+ arch/x86/include/asm/mem_encrypt.h   |   25 +++++++++++++++++++
+ arch/x86/include/asm/page_types.h    |    2 +-
+ arch/x86/include/asm/pgtable.h       |    9 +++++++
+ arch/x86/include/asm/pgtable_types.h |   45 ++++++++++++++++++++++------------
+ arch/x86/include/asm/processor.h     |    3 ++
+ arch/x86/kernel/espfix_64.c          |    2 +-
+ arch/x86/kernel/head64.c             |   10 +++++++-
+ arch/x86/kernel/head_64.S            |   18 +++++++-------
+ arch/x86/mm/kasan_init_64.c          |    4 ++-
+ arch/x86/mm/mem_encrypt.c            |   18 ++++++++++++++
+ arch/x86/mm/pageattr.c               |    3 ++
+ include/asm-generic/mem_encrypt.h    |    8 ++++++
+ include/asm-generic/pgtable.h        |    8 ++++++
+ 15 files changed, 138 insertions(+), 31 deletions(-)
 
-diff --git a/arch/x86/include/asm/special_insns.h b/arch/x86/include/asm/special_insns.h
-index 12af3e3..d8e8ace 100644
---- a/arch/x86/include/asm/special_insns.h
-+++ b/arch/x86/include/asm/special_insns.h
-@@ -234,6 +234,15 @@ static inline void clwb(volatile void *__p)
+diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
+index 1d78f17..05455ff 100644
+--- a/arch/x86/boot/compressed/pagetable.c
++++ b/arch/x86/boot/compressed/pagetable.c
+@@ -15,6 +15,13 @@
+ #define __pa(x)  ((unsigned long)(x))
+ #define __va(x)  ((void *)((unsigned long)(x)))
  
- #define nop() asm volatile ("nop")
++/*
++ * The pgtable.h and mm/ident_map.c includes make use of the SME related
++ * information which is not used in the compressed image support. Un-define
++ * the SME support to avoid any compile and link errors.
++ */
++#undef CONFIG_AMD_MEM_ENCRYPT
++
+ #include "misc.h"
  
-+static inline unsigned long native_read_cr3_pa(void)
+ /* These actually do the work of building the kernel identity maps. */
+diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
+index b65155c..d9ff226 100644
+--- a/arch/x86/include/asm/fixmap.h
++++ b/arch/x86/include/asm/fixmap.h
+@@ -157,6 +157,13 @@ static inline void __set_fixmap(enum fixed_addresses idx,
+ }
+ #endif
+ 
++/*
++ * FIXMAP_PAGE_NOCACHE is used for MMIO. Memory encryption is not
++ * supported for MMIO addresses, so make sure that the memory encryption
++ * mask is not part of the page attributes.
++ */
++#define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_IO_NOCACHE
++
+ #include <asm-generic/fixmap.h>
+ 
+ #define __late_set_fixmap(idx, phys, flags) __set_fixmap(idx, phys, flags)
+diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+index 5008fd9..f1c4c29 100644
+--- a/arch/x86/include/asm/mem_encrypt.h
++++ b/arch/x86/include/asm/mem_encrypt.h
+@@ -15,14 +15,22 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#include <linux/init.h>
++
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
+ 
+ extern unsigned long sme_me_mask;
+ 
++void __init sme_early_init(void);
++
+ #else	/* !CONFIG_AMD_MEM_ENCRYPT */
+ 
+ #define sme_me_mask	0UL
+ 
++static inline void __init sme_early_init(void)
 +{
-+	return (native_read_cr3() & PHYSICAL_PAGE_MASK);
 +}
 +
-+static inline unsigned long read_cr3_pa(void)
-+{
-+	return (read_cr3() & PHYSICAL_PAGE_MASK);
-+}
+ #endif	/* CONFIG_AMD_MEM_ENCRYPT */
  
- #endif /* __KERNEL__ */
+ static inline bool sme_active(void)
+@@ -30,6 +38,23 @@ static inline bool sme_active(void)
+ 	return !!sme_me_mask;
+ }
+ 
++/*
++ * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when
++ * writing to or comparing values from the cr3 register.  Having the
++ * encryption mask set in cr3 enables the PGD entry to be encrypted and
++ * avoid special case handling of PGD allocations.
++ */
++#define __sme_pa(x)		(__pa(x) | sme_me_mask)
++#define __sme_pa_nodebug(x)	(__pa_nodebug(x) | sme_me_mask)
++
++/*
++ * The __sme_set() and __sme_clr() macros are useful for adding or removing
++ * the encryption mask from a value (e.g. when dealing with pagetable
++ * entries).
++ */
++#define __sme_set(x)		((unsigned long)(x) | sme_me_mask)
++#define __sme_clr(x)		((unsigned long)(x) & ~sme_me_mask)
++
+ #endif	/* __ASSEMBLY__ */
+ 
+ #endif	/* __X86_MEM_ENCRYPT_H__ */
+diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+index 7bd0099..fead0a5 100644
+--- a/arch/x86/include/asm/page_types.h
++++ b/arch/x86/include/asm/page_types.h
+@@ -15,7 +15,7 @@
+ #define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
+ #define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
+ 
+-#define __PHYSICAL_MASK		((phys_addr_t)((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
++#define __PHYSICAL_MASK		((phys_addr_t)(__sme_clr((1ULL << __PHYSICAL_MASK_SHIFT) - 1)))
+ #define __VIRTUAL_MASK		((1UL << __VIRTUAL_MASK_SHIFT) - 1)
+ 
+ /* Cast *PAGE_MASK to a signed type so that it is sign-extended if
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 96b6b83..3f789ec 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -3,6 +3,7 @@
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable_types.h>
++#include <asm/mem_encrypt.h>
+ 
+ /*
+  * Macro to mark a page protection value as UC-
+@@ -13,6 +14,12 @@
+ 		     cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS)))	\
+ 	 : (prot))
+ 
++/*
++ * Macros to add or remove encryption attribute
++ */
++#define pgprot_encrypted(prot)	__pgprot(__sme_set(pgprot_val(prot)))
++#define pgprot_decrypted(prot)	__pgprot(__sme_clr(pgprot_val(prot)))
++
+ #ifndef __ASSEMBLY__
+ #include <asm/x86_init.h>
+ 
+@@ -38,6 +45,8 @@
+ 
+ extern struct mm_struct *pgd_page_get_mm(struct page *page);
+ 
++extern pmdval_t early_pmd_flags;
++
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #else  /* !CONFIG_PARAVIRT */
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index bf9638e..d3ae99c 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -2,7 +2,9 @@
+ #define _ASM_X86_PGTABLE_DEFS_H
+ 
+ #include <linux/const.h>
++
+ #include <asm/page_types.h>
++#include <asm/mem_encrypt.h>
+ 
+ #define FIRST_USER_ADDRESS	0UL
+ 
+@@ -121,10 +123,10 @@
+ 
+ #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
+ 
+-#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+-			 _PAGE_ACCESSED | _PAGE_DIRTY)
+-#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+-			 _PAGE_DIRTY)
++#define _PAGE_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |\
++				 _PAGE_ACCESSED | _PAGE_DIRTY)
++#define _KERNPG_TABLE_NOENC	(_PAGE_PRESENT | _PAGE_RW |		\
++				 _PAGE_ACCESSED | _PAGE_DIRTY)
+ 
+ /*
+  * Set of bits not changed in pte_modify.  The pte's
+@@ -191,18 +193,29 @@ enum page_cache_mode {
+ #define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
+ #define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE)
+ 
+-#define PAGE_KERNEL			__pgprot(__PAGE_KERNEL)
+-#define PAGE_KERNEL_RO			__pgprot(__PAGE_KERNEL_RO)
+-#define PAGE_KERNEL_EXEC		__pgprot(__PAGE_KERNEL_EXEC)
+-#define PAGE_KERNEL_RX			__pgprot(__PAGE_KERNEL_RX)
+-#define PAGE_KERNEL_NOCACHE		__pgprot(__PAGE_KERNEL_NOCACHE)
+-#define PAGE_KERNEL_LARGE		__pgprot(__PAGE_KERNEL_LARGE)
+-#define PAGE_KERNEL_LARGE_EXEC		__pgprot(__PAGE_KERNEL_LARGE_EXEC)
+-#define PAGE_KERNEL_VSYSCALL		__pgprot(__PAGE_KERNEL_VSYSCALL)
+-#define PAGE_KERNEL_VVAR		__pgprot(__PAGE_KERNEL_VVAR)
+-
+-#define PAGE_KERNEL_IO			__pgprot(__PAGE_KERNEL_IO)
+-#define PAGE_KERNEL_IO_NOCACHE		__pgprot(__PAGE_KERNEL_IO_NOCACHE)
++#ifndef __ASSEMBLY__
++
++#define _PAGE_ENC	(_AT(pteval_t, sme_me_mask))
++
++#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
++			 _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_ENC)
++#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
++			 _PAGE_DIRTY | _PAGE_ENC)
++
++#define PAGE_KERNEL		__pgprot(__PAGE_KERNEL | _PAGE_ENC)
++#define PAGE_KERNEL_RO		__pgprot(__PAGE_KERNEL_RO | _PAGE_ENC)
++#define PAGE_KERNEL_EXEC	__pgprot(__PAGE_KERNEL_EXEC | _PAGE_ENC)
++#define PAGE_KERNEL_RX		__pgprot(__PAGE_KERNEL_RX | _PAGE_ENC)
++#define PAGE_KERNEL_NOCACHE	__pgprot(__PAGE_KERNEL_NOCACHE | _PAGE_ENC)
++#define PAGE_KERNEL_LARGE	__pgprot(__PAGE_KERNEL_LARGE | _PAGE_ENC)
++#define PAGE_KERNEL_LARGE_EXEC	__pgprot(__PAGE_KERNEL_LARGE_EXEC | _PAGE_ENC)
++#define PAGE_KERNEL_VSYSCALL	__pgprot(__PAGE_KERNEL_VSYSCALL | _PAGE_ENC)
++#define PAGE_KERNEL_VVAR	__pgprot(__PAGE_KERNEL_VVAR | _PAGE_ENC)
++
++#define PAGE_KERNEL_IO		__pgprot(__PAGE_KERNEL_IO)
++#define PAGE_KERNEL_IO_NOCACHE	__pgprot(__PAGE_KERNEL_IO_NOCACHE)
++
++#endif	/* __ASSEMBLY__ */
+ 
+ /*         xwr */
+ #define __P000	PAGE_NONE
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 3cada99..61e055d 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -22,6 +22,7 @@
+ #include <asm/nops.h>
+ #include <asm/special_insns.h>
+ #include <asm/fpu/types.h>
++#include <asm/mem_encrypt.h>
+ 
+ #include <linux/personality.h>
+ #include <linux/cache.h>
+@@ -233,7 +234,7 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
+ 
+ static inline void load_cr3(pgd_t *pgdir)
+ {
+-	write_cr3(__pa(pgdir));
++	write_cr3(__sme_pa(pgdir));
+ }
+ 
+ #ifdef CONFIG_X86_32
+diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
+index 8e598a1..0955ec7 100644
+--- a/arch/x86/kernel/espfix_64.c
++++ b/arch/x86/kernel/espfix_64.c
+@@ -195,7 +195,7 @@ void init_espfix_ap(int cpu)
+ 
+ 	pte_p = pte_offset_kernel(&pmd, addr);
+ 	stack_page = page_address(alloc_pages_node(node, GFP_KERNEL, 0));
+-	pte = __pte(__pa(stack_page) | (__PAGE_KERNEL_RO & ptemask));
++	pte = __pte(__pa(stack_page) | ((__PAGE_KERNEL_RO | _PAGE_ENC) & ptemask));
+ 	for (n = 0; n < ESPFIX_PTE_CLONES; n++)
+ 		set_pte(&pte_p[n*PTE_STRIDE], pte);
  
 diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 43b7002..dc03624 100644
+index dc03624..00ae2c5 100644
 --- a/arch/x86/kernel/head64.c
 +++ b/arch/x86/kernel/head64.c
-@@ -55,7 +55,7 @@ int __init early_make_pgtable(unsigned long address)
- 	pmdval_t pmd, *pmd_p;
+@@ -29,6 +29,7 @@
+ #include <asm/bootparam_utils.h>
+ #include <asm/microcode.h>
+ #include <asm/kasan.h>
++#include <asm/mem_encrypt.h>
  
- 	/* Invalid address or early pgt is done ?  */
--	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
-+	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_nodebug(early_level4_pgt))
- 		return -1;
- 
- again:
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 8ad91a0..2a1fa10c 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -346,7 +346,7 @@ static noinline int vmalloc_fault(unsigned long address)
- 	 * Do _not_ use "current" here. We might be inside
- 	 * an interrupt in the middle of a task switch..
- 	 */
--	pgd_paddr = read_cr3();
-+	pgd_paddr = read_cr3_pa();
- 	pmd_k = vmalloc_sync_one(__va(pgd_paddr), address);
- 	if (!pmd_k)
- 		return -1;
-@@ -388,7 +388,7 @@ static bool low_pfn(unsigned long pfn)
- 
- static void dump_pagetable(unsigned long address)
+ /*
+  * Manage page tables very early on.
+@@ -43,7 +44,7 @@ static void __init reset_early_page_tables(void)
  {
--	pgd_t *base = __va(read_cr3());
-+	pgd_t *base = __va(read_cr3_pa());
- 	pgd_t *pgd = &base[pgd_index(address)];
- 	p4d_t *p4d;
- 	pud_t *pud;
-@@ -451,7 +451,7 @@ static noinline int vmalloc_fault(unsigned long address)
- 	 * happen within a race in page table update. In the later
- 	 * case just flush:
- 	 */
--	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(address);
-+	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(address);
- 	pgd_ref = pgd_offset_k(address);
- 	if (pgd_none(*pgd_ref))
- 		return -1;
-@@ -555,7 +555,7 @@ static int bad_address(void *p)
+ 	memset(early_level4_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
+ 	next_early_pgt = 0;
+-	write_cr3(__pa_nodebug(early_level4_pgt));
++	write_cr3(__sme_pa_nodebug(early_level4_pgt));
+ }
  
- static void dump_pagetable(unsigned long address)
- {
--	pgd_t *base = __va(read_cr3() & PHYSICAL_PAGE_MASK);
-+	pgd_t *base = __va(read_cr3_pa());
- 	pgd_t *pgd = base + pgd_index(address);
- 	p4d_t *p4d;
- 	pud_t *pud;
-@@ -700,7 +700,7 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
- 		pgd_t *pgd;
- 		pte_t *pte;
+ /* Create a new PMD entry */
+@@ -158,6 +159,13 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
  
--		pgd = __va(read_cr3() & PHYSICAL_PAGE_MASK);
-+		pgd = __va(read_cr3_pa());
- 		pgd += pgd_index(address);
+ 	clear_page(init_level4_pgt);
  
- 		pte = lookup_address_in_pgd(pgd, address, &level);
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index 2a0fa89..e6305dd 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -427,7 +427,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
- static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
- {
- 	/* Don't assume we're using swapper_pg_dir at this point */
--	pgd_t *base = __va(read_cr3());
-+	pgd_t *base = __va(read_cr3_pa());
- 	pgd_t *pgd = &base[pgd_index(addr)];
- 	p4d_t *p4d = p4d_offset(pgd, addr);
- 	pud_t *pud = pud_offset(p4d, addr);
-diff --git a/arch/x86/platform/olpc/olpc-xo1-pm.c b/arch/x86/platform/olpc/olpc-xo1-pm.c
-index c5350fd..0668aaf 100644
---- a/arch/x86/platform/olpc/olpc-xo1-pm.c
-+++ b/arch/x86/platform/olpc/olpc-xo1-pm.c
-@@ -77,7 +77,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
++	/*
++	 * SME support may update early_pmd_flags to include the memory
++	 * encryption mask, so it needs to be called before anything
++	 * that may generate a page fault.
++	 */
++	sme_early_init();
++
+ 	kasan_early_init();
  
- asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
- {
--	void *pgd_addr = __va(read_cr3());
-+	void *pgd_addr = __va(read_cr3_pa());
+ 	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++)
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index 222630c..1fe944b 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -129,7 +129,7 @@ startup_64:
+ 	movq	%rdi, %rax
+ 	shrq	$PGDIR_SHIFT, %rax
  
- 	/* Program wakeup mask (using dword access to CS5536_PM1_EN) */
- 	outl(wakeup_mask << 16, acpi_base + CS5536_PM1_STS);
-diff --git a/arch/x86/power/hibernate_64.c b/arch/x86/power/hibernate_64.c
-index a6e21fe..0a7650d 100644
---- a/arch/x86/power/hibernate_64.c
-+++ b/arch/x86/power/hibernate_64.c
-@@ -150,7 +150,7 @@ static int relocate_restore_code(void)
- 	memcpy((void *)relocated_restore_code, &core_restore_code, PAGE_SIZE);
+-	leaq	(PAGE_SIZE + _KERNPG_TABLE)(%rbx), %rdx
++	leaq	(PAGE_SIZE + _KERNPG_TABLE_NOENC)(%rbx), %rdx
+ 	addq	%r12, %rdx
+ 	movq	%rdx, 0(%rbx,%rax,8)
+ 	movq	%rdx, 8(%rbx,%rax,8)
+@@ -476,7 +476,7 @@ GLOBAL(name)
+ 	__INITDATA
+ NEXT_PAGE(early_level4_pgt)
+ 	.fill	511,8,0
+-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
++	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
  
- 	/* Make the page containing the relocated code executable */
--	pgd = (pgd_t *)__va(read_cr3()) + pgd_index(relocated_restore_code);
-+	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(relocated_restore_code);
- 	p4d = p4d_offset(pgd, relocated_restore_code);
- 	if (p4d_large(*p4d)) {
- 		set_p4d(p4d, __p4d(p4d_val(*p4d) & ~_PAGE_NX));
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 1f386d7..2dc5243 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -2022,7 +2022,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
- 	pmd_t pmd;
- 	pte_t pte;
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
+@@ -488,15 +488,15 @@ NEXT_PAGE(init_level4_pgt)
+ 	.fill	512,8,0
+ #else
+ NEXT_PAGE(init_level4_pgt)
+-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
++	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+ 	.org    init_level4_pgt + L4_PAGE_OFFSET*8, 0
+-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
++	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+ 	.org    init_level4_pgt + L4_START_KERNEL*8, 0
+ 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+-	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
++	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
  
--	pa = read_cr3();
-+	pa = read_cr3_pa();
- 	pgd = native_make_pgd(xen_read_phys_ulong(pa + pgd_index(vaddr) *
- 						       sizeof(pgd)));
- 	if (!pgd_present(pgd))
-@@ -2102,7 +2102,7 @@ void __init xen_relocate_p2m(void)
- 	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
- 	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
+ NEXT_PAGE(level3_ident_pgt)
+-	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
++	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+ 	.fill	511, 8, 0
+ NEXT_PAGE(level2_ident_pgt)
+ 	/* Since I easily can, map the first 1G.
+@@ -508,8 +508,8 @@ NEXT_PAGE(level2_ident_pgt)
+ NEXT_PAGE(level3_kernel_pgt)
+ 	.fill	L3_START_KERNEL,8,0
+ 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
+-	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
+-	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
++	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
++	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
  
--	pgd = __va(read_cr3());
-+	pgd = __va(read_cr3_pa());
- 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
- 	idx_p4d = 0;
- 	save_pud = n_pud;
-@@ -2209,7 +2209,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
- {
- 	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
- 
--	BUG_ON(read_cr3() != __pa(initial_page_table));
-+	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
- 	BUG_ON(cr3 != __pa(swapper_pg_dir));
- 
+ NEXT_PAGE(level2_kernel_pgt)
  	/*
+@@ -527,7 +527,7 @@ NEXT_PAGE(level2_kernel_pgt)
+ 
+ NEXT_PAGE(level2_fixmap_pgt)
+ 	.fill	506,8,0
+-	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
++	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+ 	/* 8MB reserved for vsyscalls + a 2MB hole = 4 + 1 entries */
+ 	.fill	5,8,0
+ 
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 0c7d812..6f1837a 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -92,7 +92,7 @@ static int kasan_die_handler(struct notifier_block *self,
+ void __init kasan_early_init(void)
+ {
+ 	int i;
+-	pteval_t pte_val = __pa_nodebug(kasan_zero_page) | __PAGE_KERNEL;
++	pteval_t pte_val = __pa_nodebug(kasan_zero_page) | __PAGE_KERNEL | _PAGE_ENC;
+ 	pmdval_t pmd_val = __pa_nodebug(kasan_zero_pte) | _KERNPG_TABLE;
+ 	pudval_t pud_val = __pa_nodebug(kasan_zero_pmd) | _KERNPG_TABLE;
+ 	p4dval_t p4d_val = __pa_nodebug(kasan_zero_pud) | _KERNPG_TABLE;
+@@ -158,7 +158,7 @@ void __init kasan_init(void)
+ 	 */
+ 	memset(kasan_zero_page, 0, PAGE_SIZE);
+ 	for (i = 0; i < PTRS_PER_PTE; i++) {
+-		pte_t pte = __pte(__pa(kasan_zero_page) | __PAGE_KERNEL_RO);
++		pte_t pte = __pte(__pa(kasan_zero_page) | __PAGE_KERNEL_RO | _PAGE_ENC);
+ 		set_pte(&kasan_zero_pte[i], pte);
+ 	}
+ 	/* Flush TLBs again to be sure that write protection applied. */
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index cc00d8b..8ca93e5 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -15,6 +15,8 @@
+ 
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
+ 
++#include <linux/mm.h>
++
+ /*
+  * Since SME related variables are set early in the boot process they must
+  * reside in the .data section so as not to be zeroed out when the .bss
+@@ -23,6 +25,22 @@
+ unsigned long sme_me_mask __section(.data) = 0;
+ EXPORT_SYMBOL_GPL(sme_me_mask);
+ 
++void __init sme_early_init(void)
++{
++	unsigned int i;
++
++	if (!sme_me_mask)
++		return;
++
++	early_pmd_flags = __sme_set(early_pmd_flags);
++
++	__supported_pte_mask = __sme_set(__supported_pte_mask);
++
++	/* Update the protection map with memory encryption mask */
++	for (i = 0; i < ARRAY_SIZE(protection_map); i++)
++		protection_map[i] = pgprot_encrypted(protection_map[i]);
++}
++
+ void __init sme_encrypt_kernel(void)
+ {
+ }
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index c8520b2..e7d3866 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -2014,6 +2014,9 @@ int kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
+ 	if (!(page_flags & _PAGE_RW))
+ 		cpa.mask_clr = __pgprot(_PAGE_RW);
+ 
++	if (!(page_flags & _PAGE_ENC))
++		cpa.mask_clr = pgprot_encrypted(cpa.mask_clr);
++
+ 	cpa.mask_set = __pgprot(_PAGE_PRESENT | page_flags);
+ 
+ 	retval = __change_page_attr_set_clr(&cpa, 0);
+diff --git a/include/asm-generic/mem_encrypt.h b/include/asm-generic/mem_encrypt.h
+index 563c918..b55c3f9 100644
+--- a/include/asm-generic/mem_encrypt.h
++++ b/include/asm-generic/mem_encrypt.h
+@@ -22,6 +22,14 @@ static inline bool sme_active(void)
+ 	return false;
+ }
+ 
++/*
++ * The __sme_set() and __sme_clr() macros are useful for adding or removing
++ * the encryption mask from a value (e.g. when dealing with pagetable
++ * entries).
++ */
++#define __sme_set(x)		(x)
++#define __sme_clr(x)		(x)
++
+ #endif	/* __ASSEMBLY__ */
+ 
+ #endif	/* __MEM_ENCRYPT_H__ */
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 7dfa767..882cb5d 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -424,6 +424,14 @@ static inline int pud_same(pud_t pud_a, pud_t pud_b)
+ #define pgprot_device pgprot_noncached
+ #endif
+ 
++#ifndef pgprot_encrypted
++#define pgprot_encrypted(prot)	(prot)
++#endif
++
++#ifndef pgprot_decrypted
++#define pgprot_decrypted(prot)	(prot)
++#endif
++
+ #ifndef pgprot_modify
+ #define pgprot_modify pgprot_modify
+ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
