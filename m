@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 484BE6B02B4
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 05:02:13 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id c66so977403qkb.11
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 02:02:13 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id 21si1377841qtu.34.2017.06.07.02.02.12
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A1FBA6B02F3
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 05:05:41 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w79so717610wme.7
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 02:05:41 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t2si1197391wrb.3.2017.06.07.02.05.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Jun 2017 02:02:12 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id d14so701292qkb.1
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 02:02:12 -0700 (PDT)
+        Wed, 07 Jun 2017 02:05:40 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5793gTA091115
+	for <linux-mm@kvack.org>; Wed, 7 Jun 2017 05:05:38 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2awy7mv1vt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 07 Jun 2017 05:05:38 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <wild@linux.vnet.ibm.com>;
+	Wed, 7 Jun 2017 10:05:35 +0100
+From: Andre Wild <wild@linux.vnet.ibm.com>
+Subject: BUG: using __this_cpu_read() in preemptible [00000000] code:
+ mm_percpu_wq/7
+Date: Wed, 7 Jun 2017 11:05:32 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170601223518.GA2780@redhat.com>
-References: <20170524172024.30810-1-jglisse@redhat.com> <20170524172024.30810-13-jglisse@redhat.com>
- <20170531135954.1d67ca31@firefly.ozlabs.ibm.com> <20170601223518.GA2780@redhat.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Wed, 7 Jun 2017 19:02:11 +1000
-Message-ID: <CAKTCnz=dHsiHVPmAro1=9PoFiUQt8hzxVenpTwSzOM9aSjsXOQ@mail.gmail.com>
-Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
- device memory v4
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Message-Id: <b7cc8709-5bbf-8a9a-a155-0ea804641e9a@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: cl@linux.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, heiko.carstens@de.ibm.com
 
-On Fri, Jun 2, 2017 at 8:35 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Wed, May 31, 2017 at 01:59:54PM +1000, Balbir Singh wrote:
->> On Wed, 24 May 2017 13:20:21 -0400
->> J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
->>
->> > This patch add a new memory migration helpers, which migrate memory
->> > backing a range of virtual address of a process to different memory
->> > (which can be allocated through special allocator). It differs from
->> > numa migration by working on a range of virtual address and thus by
->> > doing migration in chunk that can be large enough to use DMA engine
->> > or special copy offloading engine.
->> >
->> > Expected users are any one with heterogeneous memory where different
->> > memory have different characteristics (latency, bandwidth, ...). As
->> > an example IBM platform with CAPI bus can make use of this feature
->> > to migrate between regular memory and CAPI device memory. New CPU
->> > architecture with a pool of high performance memory not manage as
->> > cache but presented as regular memory (while being faster and with
->> > lower latency than DDR) will also be prime user of this patch.
->> >
->> > Migration to private device memory will be useful for device that
->> > have large pool of such like GPU, NVidia plans to use HMM for that.
->> >
->>
->> It is helpful, for HMM-CDM however we would like to avoid the downsides
->> of MIGRATE_SYNC_NOCOPY
->
-> What are the downside you are referring too ?
+Hi Christoph,
 
-IIUC, MIGRATE_SYNC_NO_COPY is for anonymous memory only.
+I'm currently seeing the following message running kernel version 4.11.0.
+It looks like it was introduced with the patch 4037d452202e34214e8a939fa5621b2b3bbb45b7.
+Can you please take a look at this problem?
 
-Balbir Singh.
+[Tue Jun  6 15:27:03 2017] BUG: using __this_cpu_read() in preemptible [00000000] code: mm_percpu_wq/7
+[Tue Jun  6 15:27:03 2017] caller is refresh_cpu_vm_stats+0x198/0x3d8
+[Tue Jun  6 15:27:03 2017] CPU: 0 PID: 7 Comm: mm_percpu_wq Tainted: G        W       4.11.0-20170529.0.ae409ab.224a322.fc25.s390xdefault #1
+[Tue Jun  6 15:27:03 2017] Workqueue: mm_percpu_wq vmstat_update
+[Tue Jun  6 15:27:03 2017] Call Trace:
+[Tue Jun  6 15:27:03 2017] ([<00000000001138ea>] show_trace+0x8a/0xe0)
+[Tue Jun  6 15:27:03 2017]  [<00000000001139c0>] show_stack+0x80/0xd8
+[Tue Jun  6 15:27:03 2017]  [<000000000074488e>] dump_stack+0x96/0xd8
+[Tue Jun  6 15:27:03 2017]  [<000000000077afaa>] check_preemption_disabled+0xea/0x108
+[Tue Jun  6 15:27:03 2017]  [<00000000002ec198>] refresh_cpu_vm_stats+0x198/0x3d8
+[Tue Jun  6 15:27:03 2017]  [<00000000002ed306>] vmstat_update+0x2e/0x98
+[Tue Jun  6 15:27:03 2017]  [<0000000000167450>] process_one_work+0x3d8/0x780
+[Tue Jun  6 15:27:03 2017]  [<00000000001688dc>] rescuer_thread+0x224/0x3d0
+[Tue Jun  6 15:27:03 2017]  [<0000000000170096>] kthread+0x166/0x178
+[Tue Jun  6 15:27:03 2017]  [<0000000000a4d69a>] kernel_thread_starter+0x6/0xc
+[Tue Jun  6 15:27:03 2017]  [<0000000000a4d694>] kernel_thread_starter+0x0/0xc
+[Tue Jun  6 15:27:03 2017] INFO: lockdep is turned off.
+
+
+Kind regards,
+
+AndrA(C)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
