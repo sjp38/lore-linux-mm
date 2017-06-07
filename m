@@ -1,72 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 83AAC6B0292
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 23:12:38 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id p77so1113130ioe.11
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 20:12:38 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id t68si481611ioe.23.2017.06.06.20.12.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E4A56B0279
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 23:22:05 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t126so489905pgc.9
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 20:22:05 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id d28si448877plj.363.2017.06.06.20.22.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 20:12:37 -0700 (PDT)
-Message-ID: <59376DEA.2080900@huawei.com>
-Date: Wed, 7 Jun 2017 11:07:22 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Tue, 06 Jun 2017 20:22:04 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] Revert "mm: vmpressure: fix sending wrong events on underflow"
+Date: Wed, 7 Jun 2017 11:08:37 +0800
+Message-ID: <1496804917-7628-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: vmscan: do not pass reclaimed slab to vmpressure
-References: <1485344318-6418-1-git-send-email-vinmenon@codeaurora.org> <20170125232713.GB20811@bbox> <CAOaiJ-mk=SmNR4oK+udhJNxHzmobf28wSu+nf449c=1cHMBDAg@mail.gmail.com> <20170126141836.GA3584@bbox> <CAOaiJ-m=X=8GpLCW-7wVkBmT=Gq9V9ocXtcXbmNNALffLepWeg@mail.gmail.com> <20170130234028.GA7942@bbox> <5936A787.4050002@huawei.com> <20170607025324.GB18007@bbox>
-In-Reply-To: <20170607025324.GB18007@bbox>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: vinayak menon <vinayakm.list@gmail.com>, Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Shiraz Hashim <shiraz.hashim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: minchan@kernel.org, vinayakm.list@gmail.com, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2017/6/7 10:53, Minchan Kim wrote:
-> Hi,
->
-> On Tue, Jun 06, 2017 at 09:00:55PM +0800, zhong jiang wrote:
->> On 2017/1/31 7:40, Minchan Kim wrote:
->>> Hi Vinayak,
->>> Sorry for late response. It was Lunar New Year holidays.
->>>
->>> On Fri, Jan 27, 2017 at 01:43:23PM +0530, vinayak menon wrote:
->>>>> Thanks for the explain. However, such case can happen with THP page
->>>>> as well as slab. In case of THP page, nr_scanned is 1 but nr_reclaimed
->>>>> could be 512 so I think vmpressure should have a logic to prevent undeflow
->>>>> regardless of slab shrinking.
->>>>>
->>>> I see. Going to send a vmpressure fix. But, wouldn't the THP case
->>>> result in incorrect
->>>> vmpressure reporting even if we fix the vmpressure underflow problem ?
->>> If a THP page is reclaimed, it reports lower pressure due to bigger
->>> reclaim ratio(ie, reclaimed/scanned) compared to normal pages but
->>> it's not a problem, is it? Because VM reclaimed more memory than
->>> expected so memory pressure isn't severe now.
->>   Hi, Minchan
->>
->>   THP lru page is reclaimed, reclaim ratio bigger make sense. but I read the code, I found
->>   THP is split to normal pages and loop again.  reclaimed pages should not be bigger
->>    than nr_scan.  because of each loop will increase nr_scan counter.
->>  
->>    It is likely  I miss something.  you can point out the point please.
-> You are absolutely right.
->
-> I got confused by nr_scanned from isolate_lru_pages and sc->nr_scanned
-> from shrink_page_list.
->
-> Thanks.
->
->
-> .
->
- Hi, Minchan
+This reverts commit e1587a4945408faa58d0485002c110eb2454740c.
 
- I will send the revert patch shortly. how do you think?
+THP lru page is reclaimed , THP is split to normal page and loop again.
+reclaimed pages should not be bigger than nr_scan.  because of each
+loop will increase nr_scan counter.
 
- Thanks
- zhongjiang
+Signed-off-by: zhongjiang <zhongjiang@huawei.com>
+---
+ mm/vmpressure.c | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 6063581..149fdf6 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -112,16 +112,9 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 						    unsigned long reclaimed)
+ {
+ 	unsigned long scale = scanned + reclaimed;
+-	unsigned long pressure = 0;
++	unsigned long pressure;
+ 
+ 	/*
+-	 * reclaimed can be greater than scanned in cases
+-	 * like THP, where the scanned is 1 and reclaimed
+-	 * could be 512
+-	 */
+-	if (reclaimed >= scanned)
+-		goto out;
+-	/*
+ 	 * We calculate the ratio (in percents) of how many pages were
+ 	 * scanned vs. reclaimed in a given time frame (window). Note that
+ 	 * time is in VM reclaimer's "ticks", i.e. number of pages
+@@ -131,7 +124,6 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+ 	pressure = scale - (reclaimed * scale / scanned);
+ 	pressure = pressure * 100 / scale;
+ 
+-out:
+ 	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
+ 		 scanned, reclaimed);
+ 
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
