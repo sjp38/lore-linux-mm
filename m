@@ -1,97 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 20E046B0292
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 14:17:10 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z70so2374440wrc.1
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 11:17:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k44sor449363eda.3.2017.06.07.11.17.08
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 487E96B0292
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 14:21:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g76so2382006wrd.3
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 11:21:04 -0700 (PDT)
+Received: from mail-wr0-x22e.google.com (mail-wr0-x22e.google.com. [2a00:1450:400c:c0c::22e])
+        by mx.google.com with ESMTPS id q11si2476872wra.189.2017.06.07.11.21.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Jun 2017 11:17:08 -0700 (PDT)
-Date: Wed, 7 Jun 2017 21:17:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
- freeing pud v2
-Message-ID: <20170607181705.7jortbns732jtiba@node.shutemov.name>
-References: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
- <20170607170325.65ex46hoqjalprnu@black.fi.intel.com>
- <20170607170651.exful7yvxvrjaolz@node.shutemov.name>
- <1169495863.31360420.1496857080560.JavaMail.zimbra@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1169495863.31360420.1496857080560.JavaMail.zimbra@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Jun 2017 11:21:00 -0700 (PDT)
+Received: by mail-wr0-x22e.google.com with SMTP id g76so9522481wrd.1
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 11:21:00 -0700 (PDT)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH] mm: vmalloc: simplify vread/vwrite to use existing mappings
+Date: Wed,  7 Jun 2017 18:20:52 +0000
+Message-Id: <20170607182052.31447-1-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Logan Gunthorpe <logang@deltatee.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, zhongjiang@huawei.com, labbott@fedoraproject.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On Wed, Jun 07, 2017 at 01:38:00PM -0400, Jerome Glisse wrote:
-> > On Wed, Jun 07, 2017 at 08:03:25PM +0300, Kirill A. Shutemov wrote:
-> > > On Wed, Jun 07, 2017 at 10:46:20AM -0400, jglisse@redhat.com wrote:
-> > > > From: Jerome Glisse <jglisse@redhat.com>
-> > > > 
-> > > > With commit af2cf278ef4f we no longer free pud so that we do not
-> > > > have synchronize all pgd on hotremove/vfree. But the new 5 level
-> > > > page table patchset reverted that for 4 level page table.
-> > > > 
-> > > > This patch restore af2cf278ef4f and disable free_pud() if we are
-> > > > in the 4 level page table case thus avoiding BUG_ON() after hot-
-> > > > remove.
-> > > > 
-> > > > af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in
-> > > > remove_pagetable()
-> > > > 
-> > > > Changed since v1:
-> > > >   - make free_pud() conditional on the number of page table
-> > > >     level
-> > > >   - improved commit message
-> > > > 
-> > > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > > > Cc: Andy Lutomirski <luto@kernel.org>
-> > > > Cc: Ingo Molnar <mingo@kernel.org>
-> > > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > > > > thus we now trigger a BUG_ON() l128 in sync_global_pgds()
-> > > > >
-> > > > > This patch remove free_pud() like in af2cf278ef4f
-> > > > ---
-> > > >  arch/x86/mm/init_64.c | 11 +++++++++++
-> > > >  1 file changed, 11 insertions(+)
-> > > > 
-> > > > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> > > > index 95651dc..61028bc 100644
-> > > > --- a/arch/x86/mm/init_64.c
-> > > > +++ b/arch/x86/mm/init_64.c
-> > > > @@ -771,6 +771,16 @@ static void __meminit free_pmd_table(pmd_t
-> > > > *pmd_start, pud_t *pud)
-> > > >  	spin_unlock(&init_mm.page_table_lock);
-> > > >  }
-> > > >  
-> > > > +/*
-> > > > + * For 4 levels page table we do not want to free puds but for 5 levels
-> > > > + * we should free them. This code also need to change to adapt for boot
-> > > > + * time switching between 4 and 5 level.
-> > > > + */
-> > > > +#if CONFIG_PGTABLE_LEVELS == 4
-> > > > +static inline void free_pud_table(pud_t *pud_start, p4d_t *p4d)
-> > > > +{
-> > > > +}
-> > > 
-> > > Just "if (CONFIG_PGTABLE_LEVELS > 4)" before calling free_pud_table(), but
-> > > okay -- I'll rework it anyway for boot-time switching.
-> > 
-> > Err. "if (CONFIG_PGTABLE_LEVELS == 4)" obviously.
-> 
-> You want me to respawn a v3 or is that good enough until you finish
-> boot time 5 level page table ?
+The vread() and vwrite() routines contain elaborate plumbing to access
+the contents of vmalloc/vmap regions safely. According to the comments,
+this removes the need for locking, but given that both these routines
+execute with the vmap_area_lock spinlock held anyway, this is not much
+of an advantage, and so the only safety these routines provide is the
+assurance that only valid mappings are dereferenced.
 
-It doesn't matter for me. Upto Ingo.
+The current safe path iterates over each mapping page by page, and
+kmap()'s each one individually, which is expensive and unnecessary.
+Instead, let's use kern_addr_valid() to establish on a per-VMA basis
+whether we may safely derefence them, and do so via its mapping in
+the VMALLOC region. This can be done safely due to the fact that we
+are holding the vmap_area_lock spinlock.
 
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+---
+ mm/vmalloc.c | 103 ++------------------
+ 1 file changed, 10 insertions(+), 93 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 34a1c3e46ed7..982d29511f92 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1983,87 +1983,6 @@ void *vmalloc_32_user(unsigned long size)
+ }
+ EXPORT_SYMBOL(vmalloc_32_user);
+ 
+-/*
+- * small helper routine , copy contents to buf from addr.
+- * If the page is not present, fill zero.
+- */
+-
+-static int aligned_vread(char *buf, char *addr, unsigned long count)
+-{
+-	struct page *p;
+-	int copied = 0;
+-
+-	while (count) {
+-		unsigned long offset, length;
+-
+-		offset = offset_in_page(addr);
+-		length = PAGE_SIZE - offset;
+-		if (length > count)
+-			length = count;
+-		p = vmalloc_to_page(addr);
+-		/*
+-		 * To do safe access to this _mapped_ area, we need
+-		 * lock. But adding lock here means that we need to add
+-		 * overhead of vmalloc()/vfree() calles for this _debug_
+-		 * interface, rarely used. Instead of that, we'll use
+-		 * kmap() and get small overhead in this access function.
+-		 */
+-		if (p) {
+-			/*
+-			 * we can expect USER0 is not used (see vread/vwrite's
+-			 * function description)
+-			 */
+-			void *map = kmap_atomic(p);
+-			memcpy(buf, map + offset, length);
+-			kunmap_atomic(map);
+-		} else
+-			memset(buf, 0, length);
+-
+-		addr += length;
+-		buf += length;
+-		copied += length;
+-		count -= length;
+-	}
+-	return copied;
+-}
+-
+-static int aligned_vwrite(char *buf, char *addr, unsigned long count)
+-{
+-	struct page *p;
+-	int copied = 0;
+-
+-	while (count) {
+-		unsigned long offset, length;
+-
+-		offset = offset_in_page(addr);
+-		length = PAGE_SIZE - offset;
+-		if (length > count)
+-			length = count;
+-		p = vmalloc_to_page(addr);
+-		/*
+-		 * To do safe access to this _mapped_ area, we need
+-		 * lock. But adding lock here means that we need to add
+-		 * overhead of vmalloc()/vfree() calles for this _debug_
+-		 * interface, rarely used. Instead of that, we'll use
+-		 * kmap() and get small overhead in this access function.
+-		 */
+-		if (p) {
+-			/*
+-			 * we can expect USER0 is not used (see vread/vwrite's
+-			 * function description)
+-			 */
+-			void *map = kmap_atomic(p);
+-			memcpy(map + offset, buf, length);
+-			kunmap_atomic(map);
+-		}
+-		addr += length;
+-		buf += length;
+-		copied += length;
+-		count -= length;
+-	}
+-	return copied;
+-}
+-
+ /**
+  *	vread() -  read vmalloc area in a safe way.
+  *	@buf:		buffer for reading data
+@@ -2083,10 +2002,8 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
+  *	If [addr...addr+count) doesn't includes any intersects with alive
+  *	vm_struct area, returns 0. @buf should be kernel's buffer.
+  *
+- *	Note: In usual ops, vread() is never necessary because the caller
+- *	should know vmalloc() area is valid and can use memcpy().
+- *	This is for routines which have to access vmalloc area without
+- *	any informaion, as /dev/kmem.
++ *	Note: This routine executes with the vmap_area_lock spinlock held,
++ *	which means it can safely access mappings at their virtual address.
+  *
+  */
+ 
+@@ -2125,8 +2042,9 @@ long vread(char *buf, char *addr, unsigned long count)
+ 		n = vaddr + get_vm_area_size(vm) - addr;
+ 		if (n > count)
+ 			n = count;
+-		if (!(vm->flags & VM_IOREMAP))
+-			aligned_vread(buf, addr, n);
++		if (!(vm->flags & VM_IOREMAP) &&
++		    kern_addr_valid((unsigned long)addr))
++			memcpy(buf, addr, n);
+ 		else /* IOREMAP area is treated as memory hole */
+ 			memset(buf, 0, n);
+ 		buf += n;
+@@ -2165,10 +2083,8 @@ long vread(char *buf, char *addr, unsigned long count)
+  *	If [addr...addr+count) doesn't includes any intersects with alive
+  *	vm_struct area, returns 0. @buf should be kernel's buffer.
+  *
+- *	Note: In usual ops, vwrite() is never necessary because the caller
+- *	should know vmalloc() area is valid and can use memcpy().
+- *	This is for routines which have to access vmalloc area without
+- *	any informaion, as /dev/kmem.
++ *	Note: This routine executes with the vmap_area_lock spinlock held,
++ *	which means it can safely access mappings at their virtual address.
+  */
+ 
+ long vwrite(char *buf, char *addr, unsigned long count)
+@@ -2206,8 +2122,9 @@ long vwrite(char *buf, char *addr, unsigned long count)
+ 		n = vaddr + get_vm_area_size(vm) - addr;
+ 		if (n > count)
+ 			n = count;
+-		if (!(vm->flags & VM_IOREMAP)) {
+-			aligned_vwrite(buf, addr, n);
++		if (!(vm->flags & VM_IOREMAP) &&
++		    kern_addr_valid((unsigned long)addr)) {
++			memcpy(addr, buf, n);
+ 			copied++;
+ 		}
+ 		buf += n;
 -- 
- Kirill A. Shutemov
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
