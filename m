@@ -1,97 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC616B0279
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 12:15:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id l6so5405129iti.0
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 09:15:06 -0700 (PDT)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id x62si2850186itx.48.2017.06.07.09.15.04
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C82F6B0279
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 12:20:33 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id t30so2066628wra.7
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 09:20:33 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y34si2514461edy.223.2017.06.07.09.20.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Jun 2017 09:15:04 -0700 (PDT)
-References: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <dc3d5bcb-9448-20ef-0736-2c2529d85742@deltatee.com>
-Date: Wed, 7 Jun 2017 10:14:58 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Jun 2017 09:20:32 -0700 (PDT)
+Date: Wed, 7 Jun 2017 12:20:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/6] mm: vmstat: move slab statistics from zone to node
+ counters
+Message-ID: <20170607162013.GA25280@cmpxchg.org>
+References: <20170530181724.27197-1-hannes@cmpxchg.org>
+ <20170530181724.27197-3-hannes@cmpxchg.org>
+ <20170531091256.GA5914@osiris>
+ <20170531113900.GB5914@osiris>
+ <20170531171151.e4zh7ffzbl4w33gd@yury-thinkpad>
+ <87mv9s2f8f.fsf@concordia.ellerman.id.au>
+ <20170605183511.GA8915@cmpxchg.org>
+ <20170605143831.dac73f489bfe2644e103d2b3@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
- freeing pud v2
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170605143831.dac73f489bfe2644e103d2b3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Yury Norov <ynorov@caviumnetworks.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Josef Bacik <josef@toxicpanda.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, linux-s390@vger.kernel.org
 
-This patch still fixes my bug.
+On Mon, Jun 05, 2017 at 02:38:31PM -0700, Andrew Morton wrote:
+> On Mon, 5 Jun 2017 14:35:11 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -5107,6 +5107,7 @@ static void build_zonelists(pg_data_t *pgdat)
+> >   */
+> >  static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch);
+> >  static DEFINE_PER_CPU(struct per_cpu_pageset, boot_pageset);
+> > +static DEFINE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
+> >  static void setup_zone_pageset(struct zone *zone);
+> 
+> There's a few kb there.  It just sits evermore unused after boot?
 
-Tested-by: Logan Gunthorpe <logang@deltatee.com>
+It's not the greatest, but it's nothing new. All the node stats we
+have now used to be in the zone, i.e. the then bigger boot_pageset,
+before we moved them to the node level. It just re-adds static boot
+time space for them now.
 
-Thanks,
-
-Logan
-
-On 07/06/17 08:46 AM, jglisse@redhat.com wrote:
-> From: JA(C)rA'me Glisse <jglisse@redhat.com>
-> 
-> With commit af2cf278ef4f we no longer free pud so that we do not
-> have synchronize all pgd on hotremove/vfree. But the new 5 level
-> page table patchset reverted that for 4 level page table.
-> 
-> This patch restore af2cf278ef4f and disable free_pud() if we are
-> in the 4 level page table case thus avoiding BUG_ON() after hot-
-> remove.
-> 
-> af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
-> 
-> Changed since v1:
->   - make free_pud() conditional on the number of page table
->     level
->   - improved commit message
-> 
-> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
->> thus we now trigger a BUG_ON() l128 in sync_global_pgds()
->>
->> This patch remove free_pud() like in af2cf278ef4f
-> ---
->  arch/x86/mm/init_64.c | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 95651dc..61028bc 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -771,6 +771,16 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
->  	spin_unlock(&init_mm.page_table_lock);
->  }
->  
-> +/*
-> + * For 4 levels page table we do not want to free puds but for 5 levels
-> + * we should free them. This code also need to change to adapt for boot
-> + * time switching between 4 and 5 level.
-> + */
-> +#if CONFIG_PGTABLE_LEVELS == 4
-> +static inline void free_pud_table(pud_t *pud_start, p4d_t *p4d)
-> +{
-> +}
-> +#else /* CONFIG_PGTABLE_LEVELS == 4 */
->  static void __meminit free_pud_table(pud_t *pud_start, p4d_t *p4d)
->  {
->  	pud_t *pud;
-> @@ -788,6 +798,7 @@ static void __meminit free_pud_table(pud_t *pud_start, p4d_t *p4d)
->  	p4d_clear(p4d);
->  	spin_unlock(&init_mm.page_table_lock);
->  }
-> +#endif /* CONFIG_PGTABLE_LEVELS == 4 */
->  
->  static void __meminit
->  remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
-> 
+Of course, if somebody has an idea on how to elegantly reuse that
+memory after boot, that'd be cool. But we've lived with that footprint
+for the longest time, so I don't think it's a showstopper.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
