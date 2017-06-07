@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ACB936B0314
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 15:17:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id z6so7762863pgc.13
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 12:17:08 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0084.outbound.protection.outlook.com. [104.47.38.84])
-        by mx.google.com with ESMTPS id y77si2444278pfk.142.2017.06.07.12.17.07
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D0E6B02C3
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 15:17:21 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id f100so6115159iod.14
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 12:17:21 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0084.outbound.protection.outlook.com. [104.47.32.84])
+        by mx.google.com with ESMTPS id i192si3261398ita.7.2017.06.07.12.17.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Jun 2017 12:17:07 -0700 (PDT)
+        Wed, 07 Jun 2017 12:17:20 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v6 22/34] x86/mm: Add support for changing the memory
- encryption attribute
-Date: Wed, 07 Jun 2017 14:17:00 -0500
-Message-ID: <20170607191659.28645.1669.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v6 23/34] x86,
+ realmode: Decrypt trampoline area if memory encryption is active
+Date: Wed, 07 Jun 2017 14:17:09 -0500
+Message-ID: <20170607191709.28645.69034.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
 References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,112 +24,65 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Rik van Riel <riel@redhat.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Add support for changing the memory encryption attribute for one or more
-memory pages. This will be useful when we have to change the AP trampoline
-area to not be encrypted. Or when we need to change the SWIOTLB area to
-not be encrypted in support of devices that can't support the encryption
-mask range.
+When Secure Memory Encryption is enabled, the trampoline area must not
+be encrypted. A CPU running in real mode will not be able to decrypt
+memory that has been encrypted because it will not be able to use addresses
+with the memory encryption mask.
+
+A recent change that added a new system_state value exposed a warning
+issued by early_ioreamp() when the system_state was not SYSTEM_BOOTING.
+At the stage where the trampoline area is decrypted, the system_state is
+now SYSTEM_SCHEDULING. The check was changed to issue a warning if the
+system_state is greater than or equal to SYSTEM_RUNNING.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/set_memory.h |    3 ++
- arch/x86/mm/pageattr.c            |   62 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 65 insertions(+)
+ arch/x86/realmode/init.c |   11 +++++++++++
+ mm/early_ioremap.c       |    2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
-index eaec6c3..cd71273 100644
---- a/arch/x86/include/asm/set_memory.h
-+++ b/arch/x86/include/asm/set_memory.h
-@@ -11,6 +11,7 @@
-  * Executability : eXeutable, NoteXecutable
-  * Read/Write    : ReadOnly, ReadWrite
-  * Presence      : NotPresent
-+ * Encryption    : Encrypted, Decrypted
-  *
-  * Within a category, the attributes are mutually exclusive.
-  *
-@@ -42,6 +43,8 @@
- int set_memory_wb(unsigned long addr, int numpages);
- int set_memory_np(unsigned long addr, int numpages);
- int set_memory_4k(unsigned long addr, int numpages);
-+int set_memory_encrypted(unsigned long addr, int numpages);
-+int set_memory_decrypted(unsigned long addr, int numpages);
+diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
+index a163a90..195ba29 100644
+--- a/arch/x86/realmode/init.c
++++ b/arch/x86/realmode/init.c
+@@ -6,6 +6,7 @@
+ #include <asm/pgtable.h>
+ #include <asm/realmode.h>
+ #include <asm/tlbflush.h>
++#include <asm/mem_encrypt.h>
  
- int set_memory_array_uc(unsigned long *addr, int addrinarray);
- int set_memory_array_wc(unsigned long *addr, int addrinarray);
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index e7d3866..d9e09fb 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1769,6 +1769,68 @@ int set_memory_4k(unsigned long addr, int numpages)
- 					__pgprot(0), 1, 0, NULL);
- }
+ struct real_mode_header *real_mode_header;
+ u32 *trampoline_cr4_features;
+@@ -130,6 +131,16 @@ static void __init set_real_mode_permissions(void)
+ 	unsigned long text_start =
+ 		(unsigned long) __va(real_mode_header->text_start);
  
-+static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
-+{
-+	struct cpa_data cpa;
-+	unsigned long start;
-+	int ret;
-+
-+	/* Nothing to do if the SME is not active */
-+	if (!sme_active())
-+		return 0;
-+
-+	/* Should not be working on unaligned addresses */
-+	if (WARN_ONCE(addr & ~PAGE_MASK, "misaligned address: %#lx\n", addr))
-+		addr &= PAGE_MASK;
-+
-+	start = addr;
-+
-+	memset(&cpa, 0, sizeof(cpa));
-+	cpa.vaddr = &addr;
-+	cpa.numpages = numpages;
-+	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
-+	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
-+	cpa.pgd = init_mm.pgd;
-+
-+	/* Must avoid aliasing mappings in the highmem code */
-+	kmap_flush_unused();
-+	vm_unmap_aliases();
-+
 +	/*
-+	 * Before changing the encryption attribute, we need to flush caches.
++	 * If SME is active, the trampoline area will need to be in
++	 * decrypted memory in order to bring up other processors
++	 * successfully.
 +	 */
-+	if (static_cpu_has(X86_FEATURE_CLFLUSH))
-+		cpa_flush_range(start, numpages, 1);
-+	else
-+		cpa_flush_all(1);
++	if (sme_active()) {
++		sme_early_decrypt(__pa(base), size);
++		set_memory_decrypted((unsigned long)base, size >> PAGE_SHIFT);
++	}
 +
-+	ret = __change_page_attr_set_clr(&cpa, 1);
-+
-+	/*
-+	 * After changing the encryption attribute, we need to flush TLBs
-+	 * again in case any speculative TLB caching occurred (but no need
-+	 * to flush caches again).  We could just use cpa_flush_all(), but
-+	 * in case TLB flushing gets optimized in the cpa_flush_range()
-+	 * path use the same logic as above.
-+	 */
-+	if (static_cpu_has(X86_FEATURE_CLFLUSH))
-+		cpa_flush_range(start, numpages, 0);
-+	else
-+		cpa_flush_all(0);
-+
-+	return ret;
-+}
-+
-+int set_memory_encrypted(unsigned long addr, int numpages)
-+{
-+	return __set_memory_enc_dec(addr, numpages, true);
-+}
-+
-+int set_memory_decrypted(unsigned long addr, int numpages)
-+{
-+	return __set_memory_enc_dec(addr, numpages, false);
-+}
-+
- int set_pages_uc(struct page *page, int numpages)
- {
- 	unsigned long addr = (unsigned long)page_address(page);
+ 	set_memory_nx((unsigned long) base, size >> PAGE_SHIFT);
+ 	set_memory_ro((unsigned long) base, ro_size >> PAGE_SHIFT);
+ 	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index b1dd4a9..01d13ae 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -110,7 +110,7 @@ static int __init check_early_ioremap_leak(void)
+ 	enum fixed_addresses idx;
+ 	int i, slot;
+ 
+-	WARN_ON(system_state != SYSTEM_BOOTING);
++	WARN_ON(system_state >= SYSTEM_RUNNING);
+ 
+ 	slot = -1;
+ 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
