@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A89C6B0311
-	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 22:21:16 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 185so964155itv.8
-        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 19:21:16 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id o79si324584iod.158.2017.06.06.19.21.14
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Jun 2017 19:21:15 -0700 (PDT)
-Message-ID: <593762FF.10705@huawei.com>
-Date: Wed, 7 Jun 2017 10:20:47 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E36E66B0311
+	for <linux-mm@kvack.org>; Tue,  6 Jun 2017 23:01:08 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s12so389329pgc.2
+        for <linux-mm@kvack.org>; Tue, 06 Jun 2017 20:01:08 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 1si401748plz.248.2017.06.06.20.01.07
+        for <linux-mm@kvack.org>;
+        Tue, 06 Jun 2017 20:01:07 -0700 (PDT)
+Date: Wed, 7 Jun 2017 11:53:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: vmscan: do not pass reclaimed slab to vmpressure
+Message-ID: <20170607025324.GB18007@bbox>
+References: <1485344318-6418-1-git-send-email-vinmenon@codeaurora.org>
+ <20170125232713.GB20811@bbox>
+ <CAOaiJ-mk=SmNR4oK+udhJNxHzmobf28wSu+nf449c=1cHMBDAg@mail.gmail.com>
+ <20170126141836.GA3584@bbox>
+ <CAOaiJ-m=X=8GpLCW-7wVkBmT=Gq9V9ocXtcXbmNNALffLepWeg@mail.gmail.com>
+ <20170130234028.GA7942@bbox>
+ <5936A787.4050002@huawei.com>
 MIME-Version: 1.0
-Subject: Re: double call identical release when there is a race hitting
-References: <5936B098.6020807@huawei.com> <20170606155600.GA17705@redhat.com>
-In-Reply-To: <20170606155600.GA17705@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5936A787.4050002@huawei.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: vinayak menon <vinayakm.list@gmail.com>, Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, Rik van Riel <riel@redhat.com>, vdavydov.dev@gmail.com, anton.vorontsov@linaro.org, Shiraz Hashim <shiraz.hashim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On 2017/6/6 23:56, Oleg Nesterov wrote:
-> I can't answer authoritatively, but
->
-> On 06/06, zhong jiang wrote:
->> Hi
->>
->> when I review the code, I find the following scenario will lead to a race ,
->> but I am not sure whether the real issue will hit or not.
->>
->> cpu1                                                                      cpu2
->> exit_mmap                                               mmu_notifier_unregister
->>    __mmu_notifier_release                                 srcu_read_lock
->>             srcu_read_lock
->>             mm->ops->release(mn, mm)                 mm->ops->release(mn,mm)
->>            srcu_read_unlock                                         srcu_read_unlock
->>
->>
->> obviously,  the specified mm will call identical release function when
->> the related condition satisfy.  is it right?
-> I think you are right, this is possible, perhaps the comments should mention
-> this explicitly.
->
-> See the changelog in d34883d4e35c0a994e91dd847a82b4c9e0c31d83 "mm: mmu_notifier:
-> re-fix freed page still mapped in secondary MMU":
->
-> 	"multiple ->release() callouts", we needn't care it too much ...
->
-> Oleg.
->
->
-> .
->
-Thank you for clarification.
- yes,  I see that the author admit that this is a issue.   The patch describe that it is really rare.
- Anyway, this issue should be fixed in a separate patch.
+Hi,
 
-but so far  the issue still exist unfortunately.
+On Tue, Jun 06, 2017 at 09:00:55PM +0800, zhong jiang wrote:
+> On 2017/1/31 7:40, Minchan Kim wrote:
+> > Hi Vinayak,
+> > Sorry for late response. It was Lunar New Year holidays.
+> >
+> > On Fri, Jan 27, 2017 at 01:43:23PM +0530, vinayak menon wrote:
+> >>> Thanks for the explain. However, such case can happen with THP page
+> >>> as well as slab. In case of THP page, nr_scanned is 1 but nr_reclaimed
+> >>> could be 512 so I think vmpressure should have a logic to prevent undeflow
+> >>> regardless of slab shrinking.
+> >>>
+> >> I see. Going to send a vmpressure fix. But, wouldn't the THP case
+> >> result in incorrect
+> >> vmpressure reporting even if we fix the vmpressure underflow problem ?
+> > If a THP page is reclaimed, it reports lower pressure due to bigger
+> > reclaim ratio(ie, reclaimed/scanned) compared to normal pages but
+> > it's not a problem, is it? Because VM reclaimed more memory than
+> > expected so memory pressure isn't severe now.
+>   Hi, Minchan
+> 
+>   THP lru page is reclaimed, reclaim ratio bigger make sense. but I read the code, I found
+>   THP is split to normal pages and loop again.  reclaimed pages should not be bigger
+>    than nr_scan.  because of each loop will increase nr_scan counter.
+>  
+>    It is likely  I miss something.  you can point out the point please.
 
-Regards
-zhongjiang
+You are absolutely right.
 
+I got confused by nr_scanned from isolate_lru_pages and sc->nr_scanned
+from shrink_page_list.
 
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
