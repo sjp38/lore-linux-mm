@@ -1,111 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 58D646B02C3
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 09:43:09 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id a133so12247436itd.9
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 06:43:09 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0065.outbound.protection.outlook.com. [104.47.32.65])
-        by mx.google.com with ESMTPS id m128si5441732iof.91.2017.06.08.06.43.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A4C586B02C3
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 09:50:28 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n81so15032880pfb.14
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 06:50:28 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id c19si4434261pfe.59.2017.06.08.06.50.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 06:43:08 -0700 (PDT)
-Subject: Re: [PATCH v6 10/34] x86, x86/mm, x86/xen, olpc: Use __va() against
- just the physical address in cr3
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191453.28645.92256.stgit@tlendack-t1.amdoffice.net>
- <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <4a7376fb-abfc-8edd-42b7-38de461ac65e@amd.com>
-Date: Thu, 8 Jun 2017 08:42:51 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Jun 2017 06:50:27 -0700 (PDT)
+Message-ID: <593954BD.9060703@huawei.com>
+Date: Thu, 8 Jun 2017 21:44:29 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Subject: Re: mm, something wring in page_lock_anon_vma_read()?
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils> <591FB173.4020409@huawei.com> <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz> <5923FF31.5020801@huawei.com> <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz>
+In-Reply-To: <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
-Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, xen-devel <xen-devel@lists.xen.org>
+To: Vlastimil Babka <vbabka@suse.cz>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>
+Cc: zhong jiang <zhongjiang@huawei.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 6/7/2017 5:06 PM, Boris Ostrovsky wrote:
-> On 06/07/2017 03:14 PM, Tom Lendacky wrote:
->> The cr3 register entry can contain the SME encryption bit that indicates
->> the PGD is encrypted.  The encryption bit should not be used when creating
->> a virtual address for the PGD table.
->>
->> Create a new function, read_cr3_pa(), that will extract the physical
->> address from the cr3 register. This function is then used where a virtual
->> address of the PGD needs to be created/used from the cr3 register.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>   arch/x86/include/asm/special_insns.h |    9 +++++++++
->>   arch/x86/kernel/head64.c             |    2 +-
->>   arch/x86/mm/fault.c                  |   10 +++++-----
->>   arch/x86/mm/ioremap.c                |    2 +-
->>   arch/x86/platform/olpc/olpc-xo1-pm.c |    2 +-
->>   arch/x86/power/hibernate_64.c        |    2 +-
->>   arch/x86/xen/mmu_pv.c                |    6 +++---
->>   7 files changed, 21 insertions(+), 12 deletions(-)
->>
+On 2017/5/23 17:33, Vlastimil Babka wrote:
 
-...
-
->> diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
->> index 1f386d7..2dc5243 100644
->> --- a/arch/x86/xen/mmu_pv.c
->> +++ b/arch/x86/xen/mmu_pv.c
->> @@ -2022,7 +2022,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
->>   	pmd_t pmd;
->>   	pte_t pte;
->>   
->> -	pa = read_cr3();
->> +	pa = read_cr3_pa();
->>   	pgd = native_make_pgd(xen_read_phys_ulong(pa + pgd_index(vaddr) *
->>   						       sizeof(pgd)));
->>   	if (!pgd_present(pgd))
->> @@ -2102,7 +2102,7 @@ void __init xen_relocate_p2m(void)
->>   	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
->>   	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
->>   
->> -	pgd = __va(read_cr3());
->> +	pgd = __va(read_cr3_pa());
->>   	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
->>   	idx_p4d = 0;
->>   	save_pud = n_pud;
->> @@ -2209,7 +2209,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
->>   {
->>   	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
->>   
->> -	BUG_ON(read_cr3() != __pa(initial_page_table));
->> +	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
->>   	BUG_ON(cr3 != __pa(swapper_pg_dir));
->>   
->>   	/*
+> On 05/23/2017 11:21 AM, zhong jiang wrote:
+>> On 2017/5/23 0:51, Vlastimil Babka wrote:
+>>> On 05/20/2017 05:01 AM, zhong jiang wrote:
+>>>> On 2017/5/20 10:40, Hugh Dickins wrote:
+>>>>> On Sat, 20 May 2017, Xishi Qiu wrote:
+>>>>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+>>>>>> And I meet the bug too. However it is hard to reproduce, and 
+>>>>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+>>>>>>
+>>>>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+>>>>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+>>>>>> but anon_vma has been corrupted.
+>>>>>>
+>>>>>> Any ideas?
+>>>>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
+>>>>> a pte mapped in on top of another pte; but cannot begin tell you where
+>>>>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+>>>>>
+>>>>> Hugh
+>>>>>
+>>>>> .
+>>>>>
+>>>> Hi, Hugh
+>>>>
+>>>> I find the following message from the dmesg.
+>>>>
+>>>> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
+>>>>
+>>>> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
+>>>> still exist.
+>>> Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
+>>> thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
+>>   HI, Vlastimil
+>>  
+>>   I miss the patch.
 > 
+> Try applying it then, there's good chance the error and crash will go
+> away. Even if your workload doesn't actually run any madvise(MADV_DONTNEED).
 > 
-> (Please copy Xen maintainers when modifying xen-related files.)
 
-Sorry about that, missed adding the Xen maintainers when I added this
-change.
+Hi Vlastimil,
 
-> 
-> Given that page tables for Xen PV guests are controlled by the
-> hypervisor I don't think this change (although harmless) is necessary.
+I find this error was reported by Kirill as following, right?
+https://patchwork.kernel.org/patch/7550401/
 
-I can back this change out if the Xen maintainers think that's best.
-
-> What may be needed is making sure X86_FEATURE_SME is not set for PV guests.
-
-And that may be something that Xen will need to control through either
-CPUID or MSR support for the PV guests.
+The call trace is quite like the same as ours.
 
 Thanks,
-Tom
+Xishi Qiu
 
+>> when I read the patch. I find the following issue. but I am sure it is right.
+>>
+>>       if (unlikely(pmd_trans_unstable(pmd)))
+>>         return 0;
+>>     /*
+>>      * A regular pmd is established and it can't morph into a huge pmd
+>>      * from under us anymore at this point because we hold the mmap_sem
+>>      * read mode and khugepaged takes it in write mode. So now it's
+>>      * safe to run pte_offset_map().
+>>      */
+>>     pte = pte_offset_map(pmd, address);
+>>
+>>   after pmd_trans_unstable call,  without any protect method.  by the comments,
+>>   it think the pte_offset_map is safe.    before pte_offset_map call, it still may be
+>>   unstable. it is possible?
 > 
-> -boris
+> IIRC it's "unstable" wrt possible none->huge->none transition. But once
+> we've seen it's a regular pmd via pmd_trans_unstable(), we're safe as a
+> transition from regular pmd can't happen.
 > 
+>>   Thanks
+>> zhongjiang
+>>>> Thanks
+>>>> zhongjiang
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>
+>>>
+>>> .
+>>>
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
