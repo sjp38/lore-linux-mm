@@ -1,377 +1,298 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B02B56B0279
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 22:38:16 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id v185so7493860ybe.12
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:38:16 -0700 (PDT)
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CAEC86B02C3
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 22:40:05 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id h82so7351264ywb.11
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:40:05 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t11sor1919319ywi.139.2017.06.07.19.38.15
+        by mx.google.com with SMTPS id i1sor1914636ywd.1.2017.06.07.19.40.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 07 Jun 2017 19:38:15 -0700 (PDT)
+        Wed, 07 Jun 2017 19:40:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net> <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
 From: Nick Sarnie <commendsarnex@gmail.com>
-Date: Wed, 7 Jun 2017 22:38:14 -0400
-Message-ID: <CAOcCaLZ5QNx+CdnLn4eHtYOJOezJAsmq2whf8mggOdeMQDWOhw@mail.gmail.com>
-Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
- memory encryption
+Date: Wed, 7 Jun 2017 22:40:03 -0400
+Message-ID: <CAOcCaLYWoOu0c-Fkee-=wegNqkzUp9pLFLmaFrXuhiXRnUZ3Xw@mail.gmail.com>
+Subject: Re: [PATCH v6 00/34] x86: Secure Memory Encryption (AMD)
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tom Lendacky <thomas.lendacky@amd.com>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, Jun 7, 2017 at 3:17 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
-> The IOMMU is programmed with physical addresses for the various tables
-> and buffers that are used to communicate between the device and the
-> driver. When the driver allocates this memory it is encrypted. In order
-> for the IOMMU to access the memory as encrypted the encryption mask needs
-> to be included in these physical addresses during configuration.
+On Wed, Jun 7, 2017 at 3:13 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> This patch series provides support for AMD's new Secure Memory Encryption (SME)
+> feature.
 >
-> The PTE entries created by the IOMMU should also include the encryption
-> mask so that when the device behind the IOMMU performs a DMA, the DMA
-> will be performed to encrypted memory.
+> SME can be used to mark individual pages of memory as encrypted through the
+> page tables. A page of memory that is marked encrypted will be automatically
+> decrypted when read from DRAM and will be automatically encrypted when
+> written to DRAM. Details on SME can found in the links below.
 >
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> The SME feature is identified through a CPUID function and enabled through
+> the SYSCFG MSR. Once enabled, page table entries will determine how the
+> memory is accessed. If a page table entry has the memory encryption mask set,
+> then that memory will be accessed as encrypted memory. The memory encryption
+> mask (as well as other related information) is determined from settings
+> returned through the same CPUID function that identifies the presence of the
+> feature.
+>
+> The approach that this patch series takes is to encrypt everything possible
+> starting early in the boot where the kernel is encrypted. Using the page
+> table macros the encryption mask can be incorporated into all page table
+> entries and page allocations. By updating the protection map, userspace
+> allocations are also marked encrypted. Certain data must be accounted for
+> as having been placed in memory before SME was enabled (EFI, initrd, etc.)
+> and accessed accordingly.
+>
+> This patch series is a pre-cursor to another AMD processor feature called
+> Secure Encrypted Virtualization (SEV). The support for SEV will build upon
+> the SME support and will be submitted later. Details on SEV can be found
+> in the links below.
+>
+> The following links provide additional detail:
+>
+> AMD Memory Encryption whitepaper:
+>    http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
+>
+> AMD64 Architecture Programmer's Manual:
+>    http://support.amd.com/TechDocs/24593.pdf
+>    SME is section 7.10
+>    SEV is section 15.34
+>
 > ---
->  arch/x86/include/asm/mem_encrypt.h |    7 +++++++
->  arch/x86/mm/mem_encrypt.c          |   30 ++++++++++++++++++++++++++++++
->  drivers/iommu/amd_iommu.c          |   36 +++++++++++++++++++-----------------
->  drivers/iommu/amd_iommu_init.c     |   18 ++++++++++++------
->  drivers/iommu/amd_iommu_proto.h    |   10 ++++++++++
->  drivers/iommu/amd_iommu_types.h    |    2 +-
->  include/asm-generic/mem_encrypt.h  |    5 +++++
->  7 files changed, 84 insertions(+), 24 deletions(-)
 >
-> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-> index c7a2525..d86e544 100644
-> --- a/arch/x86/include/asm/mem_encrypt.h
-> +++ b/arch/x86/include/asm/mem_encrypt.h
-> @@ -31,6 +31,8 @@ void __init sme_early_decrypt(resource_size_t paddr,
+> This patch series is based off of the master branch of tip.
+>   Commit 53614fbd7961 ("Merge branch 'WIP.x86/fpu'")
 >
->  void __init sme_early_init(void);
->
-> +bool sme_iommu_supported(void);
-> +
->  /* Architecture __weak replacement functions */
->  void __init mem_encrypt_init(void);
->
-> @@ -62,6 +64,11 @@ static inline void __init sme_early_init(void)
->  {
->  }
->
-> +static inline bool sme_iommu_supported(void)
-> +{
-> +       return true;
-> +}
-> +
->  #endif /* CONFIG_AMD_MEM_ENCRYPT */
->
->  static inline bool sme_active(void)
-> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-> index 5d7c51d..018b58a 100644
-> --- a/arch/x86/mm/mem_encrypt.c
-> +++ b/arch/x86/mm/mem_encrypt.c
-> @@ -197,6 +197,36 @@ void __init sme_early_init(void)
->                 protection_map[i] = pgprot_encrypted(protection_map[i]);
->  }
->
-> +bool sme_iommu_supported(void)
-> +{
-> +       struct cpuinfo_x86 *c = &boot_cpu_data;
-> +
-> +       if (!sme_me_mask || (c->x86 != 0x17))
-> +               return true;
-> +
-> +       /* For Fam17h, a specific level of support is required */
-> +       switch (c->microcode & 0xf000) {
-> +       case 0x0000:
-> +               return false;
-> +       case 0x1000:
-> +               switch (c->microcode & 0x0f00) {
-> +               case 0x0000:
-> +                       return false;
-> +               case 0x0100:
-> +                       if ((c->microcode & 0xff) < 0x26)
-> +                               return false;
-> +                       break;
-> +               case 0x0200:
-> +                       if ((c->microcode & 0xff) < 0x05)
-> +                               return false;
-> +                       break;
-> +               }
-> +               break;
-> +       }
-> +
-> +       return true;
-> +}
-> +
->  /* Architecture __weak replacement functions */
->  void __init mem_encrypt_init(void)
->  {
-> diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
-> index 63cacf5..94eb130 100644
-> --- a/drivers/iommu/amd_iommu.c
-> +++ b/drivers/iommu/amd_iommu.c
-> @@ -544,7 +544,7 @@ static void dump_dte_entry(u16 devid)
->
->  static void dump_command(unsigned long phys_addr)
->  {
-> -       struct iommu_cmd *cmd = phys_to_virt(phys_addr);
-> +       struct iommu_cmd *cmd = iommu_phys_to_virt(phys_addr);
->         int i;
->
->         for (i = 0; i < 4; ++i)
-> @@ -863,13 +863,15 @@ static void copy_cmd_to_buffer(struct amd_iommu *iommu,
->         writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
->  }
->
-> -static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
-> +static void build_completion_wait(struct iommu_cmd *cmd, volatile u64 *sem)
->  {
-> +       u64 address = iommu_virt_to_phys((void *)sem);
-> +
->         WARN_ON(address & 0x7ULL);
->
->         memset(cmd, 0, sizeof(*cmd));
-> -       cmd->data[0] = lower_32_bits(__pa(address)) | CMD_COMPL_WAIT_STORE_MASK;
-> -       cmd->data[1] = upper_32_bits(__pa(address));
-> +       cmd->data[0] = lower_32_bits(address) | CMD_COMPL_WAIT_STORE_MASK;
-> +       cmd->data[1] = upper_32_bits(address);
->         cmd->data[2] = 1;
->         CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
->  }
-> @@ -1033,7 +1035,7 @@ static int __iommu_queue_command_sync(struct amd_iommu *iommu,
->
->                 iommu->cmd_sem = 0;
->
-> -               build_completion_wait(&sync_cmd, (u64)&iommu->cmd_sem);
-> +               build_completion_wait(&sync_cmd, &iommu->cmd_sem);
->                 copy_cmd_to_buffer(iommu, &sync_cmd, tail);
->
->                 if ((ret = wait_on_sem(&iommu->cmd_sem)) != 0)
-> @@ -1083,7 +1085,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
->                 return 0;
+> Source code is also available at https://github.com/codomania/tip/tree/sme-v6
 >
 >
-> -       build_completion_wait(&cmd, (u64)&iommu->cmd_sem);
-> +       build_completion_wait(&cmd, &iommu->cmd_sem);
+> Still to do:
+> - Kdump support, including using memremap() instead of ioremap_cache()
 >
->         spin_lock_irqsave(&iommu->lock, flags);
+> Changes since v5:
+> - Added support for 5-level paging
+> - Added IOMMU support
+> - Created a generic asm/mem_encrypt.h in order to remove a bunch of
+>   #ifndef/#define entries
+> - Removed changes to the __va() macro and defined a function to return
+>   the true physical address in cr3
+> - Removed sysfs support as it was determined not to be needed
+> - General code cleanup based on feedback
+> - General cleanup of patch subjects and descriptions
 >
-> @@ -1328,7 +1330,7 @@ static bool increase_address_space(struct protection_domain *domain,
->                 return false;
+> Changes since v4:
+> - Re-worked mapping of setup data to not use a fixed list. Rather, check
+>   dynamically whether the requested early_memremap()/memremap() call
+>   needs to be mapped decrypted.
+> - Moved SME cpu feature into scattered features
+> - Moved some declarations into header files
+> - Cleared the encryption mask from the __PHYSICAL_MASK so that users
+>   of macros such as pmd_pfn_mask() don't have to worry/know about the
+>   encryption mask
+> - Updated some return types and values related to EFI and e820 functions
+>   so that an error could be returned
+> - During cpu shutdown, removed cache disabling and added a check for kexec
+>   in progress to use wbinvd followed immediately by halt in order to avoid
+>   any memory corruption
+> - Update how persistent memory is identified
+> - Added a function to find command line arguments and their values
+> - Added sysfs support
+> - General code cleanup based on feedback
+> - General cleanup of patch subjects and descriptions
 >
->         *pte             = PM_LEVEL_PDE(domain->mode,
-> -                                       virt_to_phys(domain->pt_root));
-> +                                       iommu_virt_to_phys(domain->pt_root));
->         domain->pt_root  = pte;
->         domain->mode    += 1;
->         domain->updated  = true;
-> @@ -1365,7 +1367,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
->                         if (!page)
->                                 return NULL;
 >
-> -                       __npte = PM_LEVEL_PDE(level, virt_to_phys(page));
-> +                       __npte = PM_LEVEL_PDE(level, iommu_virt_to_phys(page));
+> Changes since v3:
+> - Broke out some of the patches into smaller individual patches
+> - Updated Documentation
+> - Added a message to indicate why the IOMMU was disabled
+> - Updated CPU feature support for SME by taking into account whether
+>   BIOS has enabled SME
+> - Eliminated redundant functions
+> - Added some warning messages for DMA usage of bounce buffers when SME
+>   is active
+> - Added support for persistent memory
+> - Added support to determine when setup data is being mapped and be sure
+>   to map it un-encrypted
+> - Added CONFIG support to set the default action of whether to activate
+>   SME if it is supported/enabled
+> - Added support for (re)booting with kexec
 >
->                         /* pte could have been changed somewhere. */
->                         if (cmpxchg64(pte, __pte, __npte) != __pte) {
-> @@ -1481,10 +1483,10 @@ static int iommu_map_page(struct protection_domain *dom,
->                         return -EBUSY;
+> Changes since v2:
+> - Updated Documentation
+> - Make the encryption mask available outside of arch/x86 through a
+>   standard include file
+> - Conversion of assembler routines to C where possible (not everything
+>   could be converted, e.g. the routine that does the actual encryption
+>   needs to be copied into a safe location and it is difficult to
+>   determine the actual length of the function in order to copy it)
+> - Fix SME feature use of scattered CPUID feature
+> - Creation of SME specific functions for things like encrypting
+>   the setup data, ramdisk, etc.
+> - New take on early_memremap / memremap encryption support
+> - Additional support for accessing video buffers (fbdev/gpu) as
+>   un-encrypted
+> - Disable IOMMU for now - need to investigate further in relation to
+>   how it needs to be programmed relative to accessing physical memory
 >
->         if (count > 1) {
-> -               __pte = PAGE_SIZE_PTE(phys_addr, page_size);
-> +               __pte = PAGE_SIZE_PTE(__sme_set(phys_addr), page_size);
->                 __pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_P | IOMMU_PTE_FC;
->         } else
-> -               __pte = phys_addr | IOMMU_PTE_P | IOMMU_PTE_FC;
-> +               __pte = __sme_set(phys_addr) | IOMMU_PTE_P | IOMMU_PTE_FC;
+> Changes since v1:
+> - Added Documentation.
+> - Removed AMD vendor check for setting the PAT write protect mode
+> - Updated naming of trampoline flag for SME as well as moving of the
+>   SME check to before paging is enabled.
+> - Change to early_memremap to identify the data being mapped as either
+>   boot data or kernel data.  The idea being that boot data will have
+>   been placed in memory as un-encrypted data and would need to be accessed
+>   as such.
+> - Updated debugfs support for the bootparams to access the data properly.
+> - Do not set the SYSCFG[MEME] bit, only check it.  The setting of the
+>   MemEncryptionModeEn bit results in a reduction of physical address size
+>   of the processor.  It is possible that BIOS could have configured resources
+>   resources into a range that will now not be addressable.  To prevent this,
+>   rely on BIOS to set the SYSCFG[MEME] bit and only then enable memory
+>   encryption support in the kernel.
 >
->         if (prot & IOMMU_PROT_IR)
->                 __pte |= IOMMU_PTE_IR;
-> @@ -1700,7 +1702,7 @@ static void free_gcr3_tbl_level1(u64 *tbl)
->                 if (!(tbl[i] & GCR3_VALID))
->                         continue;
+> Tom Lendacky (34):
+>       x86: Document AMD Secure Memory Encryption (SME)
+>       x86/mm/pat: Set write-protect cache mode for full PAT support
+>       x86, mpparse, x86/acpi, x86/PCI, x86/dmi, SFI: Use memremap for RAM mappings
+>       x86/CPU/AMD: Add the Secure Memory Encryption CPU feature
+>       x86/CPU/AMD: Handle SME reduction in physical address size
+>       x86/mm: Add Secure Memory Encryption (SME) support
+>       x86/mm: Don't use phys_to_virt in ioremap() if SME is active
+>       x86/mm: Add support to enable SME in early boot processing
+>       x86/mm: Simplify p[gum]d_page() macros
+>       x86, x86/mm, x86/xen, olpc: Use __va() against just the physical address in cr3
+>       x86/mm: Provide general kernel support for memory encryption
+>       x86/mm: Extend early_memremap() support with additional attrs
+>       x86/mm: Add support for early encrypt/decrypt of memory
+>       x86/mm: Insure that boot memory areas are mapped properly
+>       x86/boot/e820: Add support to determine the E820 type of an address
+>       efi: Add an EFI table address match function
+>       efi: Update efi_mem_type() to return an error rather than 0
+>       x86/efi: Update EFI pagetable creation to work with SME
+>       x86/mm: Add support to access boot related data in the clear
+>       x86, mpparse: Use memremap to map the mpf and mpc data
+>       x86/mm: Add support to access persistent memory in the clear
+>       x86/mm: Add support for changing the memory encryption attribute
+>       x86, realmode: Decrypt trampoline area if memory encryption is active
+>       x86, swiotlb: Add memory encryption support
+>       swiotlb: Add warnings for use of bounce buffers with SME
+>       iommu/amd: Allow the AMD IOMMU to work with memory encryption
+>       x86, realmode: Check for memory encryption on the APs
+>       x86, drm, fbdev: Do not specify encrypted memory for video mappings
+>       kvm: x86: svm: Support Secure Memory Encryption within KVM
+>       x86/mm, kexec: Allow kexec to be used with SME
+>       x86/mm: Use proper encryption attributes with /dev/mem
+>       x86/mm: Add support to encrypt the kernel in-place
+>       x86/boot: Add early cmdline parsing for options with arguments
+>       x86/mm: Add support to make use of Secure Memory Encryption
 >
-> -               ptr = __va(tbl[i] & PAGE_MASK);
-> +               ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
 >
->                 free_page((unsigned long)ptr);
->         }
-> @@ -1715,7 +1717,7 @@ static void free_gcr3_tbl_level2(u64 *tbl)
->                 if (!(tbl[i] & GCR3_VALID))
->                         continue;
+>  Documentation/admin-guide/kernel-parameters.txt |   11
+>  Documentation/x86/amd-memory-encryption.txt     |   68 ++
+>  arch/ia64/kernel/efi.c                          |    4
+>  arch/x86/Kconfig                                |   26 +
+>  arch/x86/boot/compressed/pagetable.c            |    7
+>  arch/x86/include/asm/cmdline.h                  |    2
+>  arch/x86/include/asm/cpufeatures.h              |    1
+>  arch/x86/include/asm/dma-mapping.h              |    5
+>  arch/x86/include/asm/dmi.h                      |    8
+>  arch/x86/include/asm/e820/api.h                 |    2
+>  arch/x86/include/asm/fixmap.h                   |   20 +
+>  arch/x86/include/asm/init.h                     |    1
+>  arch/x86/include/asm/io.h                       |    7
+>  arch/x86/include/asm/kexec.h                    |    8
+>  arch/x86/include/asm/kvm_host.h                 |    2
+>  arch/x86/include/asm/mem_encrypt.h              |  112 ++++
+>  arch/x86/include/asm/msr-index.h                |    2
+>  arch/x86/include/asm/page_types.h               |    2
+>  arch/x86/include/asm/pgtable.h                  |   28 +
+>  arch/x86/include/asm/pgtable_types.h            |   54 +-
+>  arch/x86/include/asm/processor.h                |    3
+>  arch/x86/include/asm/realmode.h                 |   12
+>  arch/x86/include/asm/set_memory.h               |    3
+>  arch/x86/include/asm/special_insns.h            |    9
+>  arch/x86/include/asm/vga.h                      |   14
+>  arch/x86/kernel/acpi/boot.c                     |    6
+>  arch/x86/kernel/cpu/amd.c                       |   17 +
+>  arch/x86/kernel/cpu/scattered.c                 |    1
+>  arch/x86/kernel/e820.c                          |   26 +
+>  arch/x86/kernel/espfix_64.c                     |    2
+>  arch/x86/kernel/head64.c                        |   42 +
+>  arch/x86/kernel/head_64.S                       |   80 ++-
+>  arch/x86/kernel/kdebugfs.c                      |   34 -
+>  arch/x86/kernel/ksysfs.c                        |   28 -
+>  arch/x86/kernel/machine_kexec_64.c              |   35 +
+>  arch/x86/kernel/mpparse.c                       |  108 +++-
+>  arch/x86/kernel/pci-dma.c                       |   11
+>  arch/x86/kernel/pci-nommu.c                     |    2
+>  arch/x86/kernel/pci-swiotlb.c                   |   15 -
+>  arch/x86/kernel/process.c                       |   17 +
+>  arch/x86/kernel/setup.c                         |    9
+>  arch/x86/kvm/mmu.c                              |   12
+>  arch/x86/kvm/mmu.h                              |    2
+>  arch/x86/kvm/svm.c                              |   35 +
+>  arch/x86/kvm/vmx.c                              |    3
+>  arch/x86/kvm/x86.c                              |    3
+>  arch/x86/lib/cmdline.c                          |  105 ++++
+>  arch/x86/mm/Makefile                            |    3
+>  arch/x86/mm/fault.c                             |   10
+>  arch/x86/mm/ident_map.c                         |   12
+>  arch/x86/mm/ioremap.c                           |  277 +++++++++-
+>  arch/x86/mm/kasan_init_64.c                     |    4
+>  arch/x86/mm/mem_encrypt.c                       |  667 +++++++++++++++++++++++
+>  arch/x86/mm/mem_encrypt_boot.S                  |  150 +++++
+>  arch/x86/mm/pageattr.c                          |   67 ++
+>  arch/x86/mm/pat.c                               |    9
+>  arch/x86/pci/common.c                           |    4
+>  arch/x86/platform/efi/efi.c                     |    6
+>  arch/x86/platform/efi/efi_64.c                  |   15 -
+>  arch/x86/platform/olpc/olpc-xo1-pm.c            |    2
+>  arch/x86/power/hibernate_64.c                   |    2
+>  arch/x86/realmode/init.c                        |   15 +
+>  arch/x86/realmode/rm/trampoline_64.S            |   24 +
+>  arch/x86/xen/mmu_pv.c                           |    6
+>  drivers/firmware/dmi-sysfs.c                    |    5
+>  drivers/firmware/efi/efi.c                      |   33 +
+>  drivers/firmware/pcdp.c                         |    4
+>  drivers/gpu/drm/drm_gem.c                       |    2
+>  drivers/gpu/drm/drm_vm.c                        |    4
+>  drivers/gpu/drm/ttm/ttm_bo_vm.c                 |    7
+>  drivers/gpu/drm/udl/udl_fb.c                    |    4
+>  drivers/iommu/amd_iommu.c                       |   36 +
+>  drivers/iommu/amd_iommu_init.c                  |   18 -
+>  drivers/iommu/amd_iommu_proto.h                 |   10
+>  drivers/iommu/amd_iommu_types.h                 |    2
+>  drivers/sfi/sfi_core.c                          |   22 -
+>  drivers/video/fbdev/core/fbmem.c                |   12
+>  include/asm-generic/early_ioremap.h             |    2
+>  include/asm-generic/mem_encrypt.h               |   45 ++
+>  include/asm-generic/pgtable.h                   |    8
+>  include/linux/dma-mapping.h                     |    9
+>  include/linux/efi.h                             |    9
+>  include/linux/io.h                              |    2
+>  include/linux/kexec.h                           |   14
+>  include/linux/mem_encrypt.h                     |   18 +
+>  include/linux/swiotlb.h                         |    1
+>  init/main.c                                     |   13
+>  kernel/kexec_core.c                             |    6
+>  kernel/memremap.c                               |   20 +
+>  lib/swiotlb.c                                   |   59 ++
+>  mm/early_ioremap.c                              |   30 +
+>  91 files changed, 2411 insertions(+), 261 deletions(-)
+>  create mode 100644 Documentation/x86/amd-memory-encryption.txt
+>  create mode 100644 arch/x86/include/asm/mem_encrypt.h
+>  create mode 100644 arch/x86/mm/mem_encrypt.c
+>  create mode 100644 arch/x86/mm/mem_encrypt_boot.S
+>  create mode 100644 include/asm-generic/mem_encrypt.h
+>  create mode 100644 include/linux/mem_encrypt.h
 >
-> -               ptr = __va(tbl[i] & PAGE_MASK);
-> +               ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
->
->                 free_gcr3_tbl_level1(ptr);
->         }
-> @@ -1807,7 +1809,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
->         u64 flags = 0;
->
->         if (domain->mode != PAGE_MODE_NONE)
-> -               pte_root = virt_to_phys(domain->pt_root);
-> +               pte_root = iommu_virt_to_phys(domain->pt_root);
->
->         pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
->                     << DEV_ENTRY_MODE_SHIFT;
-> @@ -1819,7 +1821,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
->                 flags |= DTE_FLAG_IOTLB;
->
->         if (domain->flags & PD_IOMMUV2_MASK) {
-> -               u64 gcr3 = __pa(domain->gcr3_tbl);
-> +               u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
->                 u64 glx  = domain->glx;
->                 u64 tmp;
->
-> @@ -3470,10 +3472,10 @@ static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
->                         if (root == NULL)
->                                 return NULL;
->
-> -                       *pte = __pa(root) | GCR3_VALID;
-> +                       *pte = iommu_virt_to_phys(root) | GCR3_VALID;
->                 }
->
-> -               root = __va(*pte & PAGE_MASK);
-> +               root = iommu_phys_to_virt(*pte & PAGE_MASK);
->
->                 level -= 1;
->         }
-> @@ -3652,7 +3654,7 @@ static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)
->
->         dte     = amd_iommu_dev_table[devid].data[2];
->         dte     &= ~DTE_IRQ_PHYS_ADDR_MASK;
-> -       dte     |= virt_to_phys(table->table);
-> +       dte     |= iommu_virt_to_phys(table->table);
->         dte     |= DTE_IRQ_REMAP_INTCTL;
->         dte     |= DTE_IRQ_TABLE_LEN;
->         dte     |= DTE_IRQ_REMAP_ENABLE;
-> diff --git a/drivers/iommu/amd_iommu_init.c b/drivers/iommu/amd_iommu_init.c
-> index 5a11328..2870a6b 100644
-> --- a/drivers/iommu/amd_iommu_init.c
-> +++ b/drivers/iommu/amd_iommu_init.c
-> @@ -29,6 +29,7 @@
->  #include <linux/export.h>
->  #include <linux/iommu.h>
->  #include <linux/kmemleak.h>
-> +#include <linux/mem_encrypt.h>
->  #include <asm/pci-direct.h>
->  #include <asm/iommu.h>
->  #include <asm/gart.h>
-> @@ -346,7 +347,7 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
->
->         BUG_ON(iommu->mmio_base == NULL);
->
-> -       entry = virt_to_phys(amd_iommu_dev_table);
-> +       entry = iommu_virt_to_phys(amd_iommu_dev_table);
->         entry |= (dev_table_size >> 12) - 1;
->         memcpy_toio(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET,
->                         &entry, sizeof(entry));
-> @@ -602,7 +603,7 @@ static void iommu_enable_command_buffer(struct amd_iommu *iommu)
->
->         BUG_ON(iommu->cmd_buf == NULL);
->
-> -       entry = (u64)virt_to_phys(iommu->cmd_buf);
-> +       entry = iommu_virt_to_phys(iommu->cmd_buf);
->         entry |= MMIO_CMD_SIZE_512;
->
->         memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
-> @@ -631,7 +632,7 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
->
->         BUG_ON(iommu->evt_buf == NULL);
->
-> -       entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
-> +       entry = iommu_virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
->
->         memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
->                     &entry, sizeof(entry));
-> @@ -664,7 +665,7 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
->         if (iommu->ppr_log == NULL)
->                 return;
->
-> -       entry = (u64)virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
-> +       entry = iommu_virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
->
->         memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
->                     &entry, sizeof(entry));
-> @@ -744,10 +745,10 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
->         if (!iommu->ga_log_tail)
->                 goto err_out;
->
-> -       entry = (u64)virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
-> +       entry = iommu_virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
->         memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
->                     &entry, sizeof(entry));
-> -       entry = ((u64)virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
-> +       entry = (iommu_virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
->         memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_TAIL_OFFSET,
->                     &entry, sizeof(entry));
->         writel(0x00, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
-> @@ -2552,6 +2553,11 @@ int __init amd_iommu_detect(void)
->         if (amd_iommu_disabled)
->                 return -ENODEV;
->
-> +       if (!sme_iommu_supported()) {
-> +               pr_notice("AMD-Vi: IOMMU not supported when SME is active\n");
-> +               return -ENODEV;
-> +       }
-> +
->         ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
->         if (ret)
->                 return ret;
-> diff --git a/drivers/iommu/amd_iommu_proto.h b/drivers/iommu/amd_iommu_proto.h
-> index 466260f..3f12fb2 100644
-> --- a/drivers/iommu/amd_iommu_proto.h
-> +++ b/drivers/iommu/amd_iommu_proto.h
-> @@ -87,4 +87,14 @@ static inline bool iommu_feature(struct amd_iommu *iommu, u64 f)
->         return !!(iommu->features & f);
->  }
->
-> +static inline u64 iommu_virt_to_phys(void *vaddr)
-> +{
-> +       return (u64)__sme_set(virt_to_phys(vaddr));
-> +}
-> +
-> +static inline void *iommu_phys_to_virt(unsigned long paddr)
-> +{
-> +       return phys_to_virt(__sme_clr(paddr));
-> +}
-> +
->  #endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */
-> diff --git a/drivers/iommu/amd_iommu_types.h b/drivers/iommu/amd_iommu_types.h
-> index 4de8f41..3ce587d 100644
-> --- a/drivers/iommu/amd_iommu_types.h
-> +++ b/drivers/iommu/amd_iommu_types.h
-> @@ -343,7 +343,7 @@
->
->  #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
->  #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
-> -#define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
-> +#define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
->  #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
->
->  #define IOMMU_PROT_MASK 0x03
-> diff --git a/include/asm-generic/mem_encrypt.h b/include/asm-generic/mem_encrypt.h
-> index fb02ff0..bbc49e1 100644
-> --- a/include/asm-generic/mem_encrypt.h
-> +++ b/include/asm-generic/mem_encrypt.h
-> @@ -27,6 +27,11 @@ static inline u64 sme_dma_mask(void)
->         return 0ULL;
->  }
->
-> +static inline bool sme_iommu_supported(void)
-> +{
-> +       return true;
-> +}
-> +
->  /*
->   * The __sme_set() and __sme_clr() macros are useful for adding or removing
->   * the encryption mask from a value (e.g. when dealing with pagetable
->
+> --
+> Tom Lendacky
 > _______________________________________________
 > iommu mailing list
 > iommu@lists.linux-foundation.org
@@ -380,11 +301,10 @@ On Wed, Jun 7, 2017 at 3:17 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
 
 Hi Tom,
 
-This sounds like a cool feature. I'm trying to test it on my Ryzen
-system, but c->microcode & 0xf000 is evaluating as 0, so IOMMU is not
-being enabled on my system. I'm using the latest microcode for AGESA
-1.0.0.6, 0x08001126. Is this work reliant on a future microcode
-update, or is there some other issue?
+Thanks for your work on this. This may be a stupid question, but is
+using bounce buffers for the GPU(s) expected to reduce performance in
+any/a noticeable way? I'm hitting another issue which I've already
+sent mail about so I can't test it for myself at the moment,
 
 Thanks,
 Sarnex
