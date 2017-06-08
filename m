@@ -1,63 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8F36B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 09:29:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 204so3394316wmy.1
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 06:29:45 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v2si5209180wra.152.2017.06.08.06.29.44
-        for <linux-mm@kvack.org>;
-        Thu, 08 Jun 2017 06:29:44 -0700 (PDT)
-Date: Thu, 8 Jun 2017 14:28:59 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v3] mm: huge-vmap: fail gracefully on unexpected huge
- vmap mappings
-Message-ID: <20170608132859.GE5765@leverpostej>
-References: <20170608113548.24905-1-ard.biesheuvel@linaro.org>
- <20170608125946.GD5765@leverpostej>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 58D646B02C3
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 09:43:09 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id a133so12247436itd.9
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 06:43:09 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0065.outbound.protection.outlook.com. [104.47.32.65])
+        by mx.google.com with ESMTPS id m128si5441732iof.91.2017.06.08.06.43.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 08 Jun 2017 06:43:08 -0700 (PDT)
+Subject: Re: [PATCH v6 10/34] x86, x86/mm, x86/xen, olpc: Use __va() against
+ just the physical address in cr3
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191453.28645.92256.stgit@tlendack-t1.amdoffice.net>
+ <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <4a7376fb-abfc-8edd-42b7-38de461ac65e@amd.com>
+Date: Thu, 8 Jun 2017 08:42:51 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170608125946.GD5765@leverpostej>
+In-Reply-To: <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: mhocko@suse.com, linux-mm@kvack.org, akpm@linux-foundation.org, zhongjiang@huawei.com, linux-arm-kernel@lists.infradead.org, labbott@fedoraproject.org
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, xen-devel <xen-devel@lists.xen.org>
 
-On Thu, Jun 08, 2017 at 01:59:46PM +0100, Mark Rutland wrote:
-> On Thu, Jun 08, 2017 at 11:35:48AM +0000, Ard Biesheuvel wrote:
-> > @@ -287,10 +288,10 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
-> >  	if (p4d_none(*p4d))
-> >  		return NULL;
-> >  	pud = pud_offset(p4d, addr);
-> > -	if (pud_none(*pud))
-> > +	if (pud_none(*pud) || WARN_ON_ONCE(pud_huge(*pud)))
-> >  		return NULL;
-> >  	pmd = pmd_offset(pud, addr);
-> > -	if (pmd_none(*pmd))
-> > +	if (pmd_none(*pmd) || WARN_ON_ONCE(pmd_huge(*pmd)))
-> >  		return NULL;
+On 6/7/2017 5:06 PM, Boris Ostrovsky wrote:
+> On 06/07/2017 03:14 PM, Tom Lendacky wrote:
+>> The cr3 register entry can contain the SME encryption bit that indicates
+>> the PGD is encrypted.  The encryption bit should not be used when creating
+>> a virtual address for the PGD table.
+>>
+>> Create a new function, read_cr3_pa(), that will extract the physical
+>> address from the cr3 register. This function is then used where a virtual
+>> address of the PGD needs to be created/used from the cr3 register.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/include/asm/special_insns.h |    9 +++++++++
+>>   arch/x86/kernel/head64.c             |    2 +-
+>>   arch/x86/mm/fault.c                  |   10 +++++-----
+>>   arch/x86/mm/ioremap.c                |    2 +-
+>>   arch/x86/platform/olpc/olpc-xo1-pm.c |    2 +-
+>>   arch/x86/power/hibernate_64.c        |    2 +-
+>>   arch/x86/xen/mmu_pv.c                |    6 +++---
+>>   7 files changed, 21 insertions(+), 12 deletions(-)
+>>
+
+...
+
+>> diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+>> index 1f386d7..2dc5243 100644
+>> --- a/arch/x86/xen/mmu_pv.c
+>> +++ b/arch/x86/xen/mmu_pv.c
+>> @@ -2022,7 +2022,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
+>>   	pmd_t pmd;
+>>   	pte_t pte;
+>>   
+>> -	pa = read_cr3();
+>> +	pa = read_cr3_pa();
+>>   	pgd = native_make_pgd(xen_read_phys_ulong(pa + pgd_index(vaddr) *
+>>   						       sizeof(pgd)));
+>>   	if (!pgd_present(pgd))
+>> @@ -2102,7 +2102,7 @@ void __init xen_relocate_p2m(void)
+>>   	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
+>>   	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
+>>   
+>> -	pgd = __va(read_cr3());
+>> +	pgd = __va(read_cr3_pa());
+>>   	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
+>>   	idx_p4d = 0;
+>>   	save_pud = n_pud;
+>> @@ -2209,7 +2209,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
+>>   {
+>>   	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
+>>   
+>> -	BUG_ON(read_cr3() != __pa(initial_page_table));
+>> +	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
+>>   	BUG_ON(cr3 != __pa(swapper_pg_dir));
+>>   
+>>   	/*
 > 
-> I think it might be better to use p*d_bad() here, since that doesn't
-> depend on CONFIG_HUGETLB_PAGE.
 > 
-> While the cross-arch semantics are a little fuzzy, my understanding is
-> those should return true if an entry is not a pointer to a next level of
-> table (so pXd_huge(p) implies pXd_bad(p)).
+> (Please copy Xen maintainers when modifying xen-related files.)
 
-Ugh; it turns out this isn't universally true.
+Sorry about that, missed adding the Xen maintainers when I added this
+change.
 
-I see that at least arch/hexagon's pmd_bad() always returns 0, and they
-support CONFIG_HUGETLB_PAGE.
+> 
+> Given that page tables for Xen PV guests are controlled by the
+> hypervisor I don't think this change (although harmless) is necessary.
 
-So I guess there isn't an arch-neutral, always-available way of checking
-this. Sorry for having mislead you.
+I can back this change out if the Xen maintainers think that's best.
 
-For arm64, p*d_bad() would still be preferable, so maybe we should check
-both?
+> What may be needed is making sure X86_FEATURE_SME is not set for PV guests.
+
+And that may be something that Xen will need to control through either
+CPUID or MSR support for the PV guests.
 
 Thanks,
-Mark.
+Tom
+
+> 
+> -boris
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
