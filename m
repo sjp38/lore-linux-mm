@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F6C6B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 11:29:42 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id i42so10926650otb.0
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 08:29:42 -0700 (PDT)
-Received: from mail-ot0-x244.google.com (mail-ot0-x244.google.com. [2607:f8b0:4003:c0f::244])
-        by mx.google.com with ESMTPS id i64si1992171oia.144.2017.06.08.08.29.41
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ACFF76B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 12:00:59 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b74so774636pfj.5
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 09:00:59 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id h66si4716110pfa.285.2017.06.08.09.00.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jun 2017 08:29:41 -0700 (PDT)
-Received: by mail-ot0-x244.google.com with SMTP id t31so3801364ota.2
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 08:29:41 -0700 (PDT)
-Subject: Re: Sleeping BUG in khugepaged for i586
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
- <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
- <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
- <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
- <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Message-ID: <a94e1315-aded-0984-327e-e091e76b4a66@lwfinger.net>
-Date: Thu, 8 Jun 2017 10:29:38 -0500
+        Thu, 08 Jun 2017 09:00:58 -0700 (PDT)
+Date: Thu, 8 Jun 2017 16:59:57 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RFC PATCH v2 1/7] mm, oom: refactor select_bad_process() to
+ take memcg as an argument
+Message-ID: <20170608155957.GA13161@castle>
+References: <1496342115-3974-1-git-send-email-guro@fb.com>
+ <1496342115-3974-2-git-send-email-guro@fb.com>
+ <alpine.DEB.2.10.1706041550290.24226@chino.kir.corp.google.com>
+ <20170606162007.GB752@castle>
+ <alpine.DEB.2.10.1706061339410.23608@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1706061339410.23608@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 06/07/2017 03:56 PM, David Rientjes wrote:
-> On Wed, 7 Jun 2017, Vlastimil Babka wrote:
+On Tue, Jun 06, 2017 at 01:42:29PM -0700, David Rientjes wrote:
+> On Tue, 6 Jun 2017, Roman Gushchin wrote:
 > 
->>>> Hmm I'd expect such spin lock to be reported together with mmap_sem in
->>>> the debugging "locks held" message?
->>>
->>> My bisection of the problem is about half done. My latest good version is commit
->>> 7b8cd33 and the latest bad one is 2ea659a. Only about 7 steps to go.
->>
->> Hmm, your bisection will most likely just find commit 338a16ba15495
->> which added the cond_resched() at mm/khugepaged.c:655. CCing David who
->> added it.
->>
-> 
-> I agree it's probably going to bisect to 338a16ba15495 since it's the
-> cond_resched() at the line number reported, but I think there must be
-> something else going on.  I think the list of locks held by khugepaged is
-> correct because it matches with the implementation.  The preempt_count(),
-> as suggested by Andrew, does not.  If this is reproducible, I'd like to
-> know what preempt_count() is.
+> > Hi David!
+> > 
+> > Thank you for sharing this!
+> > 
+> > It's very interesting, and it looks like,
+> > it's not that far from what I've suggested.
+> > 
+> > So we definitily need to come up with some common solution.
+> > 
 > 
 
-The BUG output is reproducible. By the time the box finishes booting, there are 
-at least 2 of them logged. My bisection shows that commit 338a16ba15495 is the 
-bad one. I added a pr_info() to output the value of preempt_count() just before 
-the cond_resched() statement. The count was always 1 whether the BUG was 
-triggered or not.
+Hi David,
 
-If there are other things you would like logged at that point, or any other 
-diagnostics, please let me know.
+> Yes, definitely.  I could post a series of patches to do everything that 
+> was listed in my email sans the fully inclusive kmem accounting, which may 
+> be pursued at a later date, if it would be helpful to see where there is 
+> common ground?
+> 
+> Another question is what you think about userspace oom handling?  We 
+> implement our own oom kill policies in userspace for both the system and 
+> for user-controlled memcg hierarchies because it often does not match the 
+> kernel implementation and there is some action that can be taken other 
+> than killing a process.  Have you tried to implement functionality to do 
+> userspace oom handling, or are you considering it?  This is the main 
+> motivation behind allowing an oom delay to be configured.
 
-Larry
+cgroup v2 memory controller is built on the idea of preventing OOMs
+by using the memory.high limit. This allows an userspace app to get notified
+before OOM happens (by looking at memory.events control), so there is (hopefully)
+no need in things like oom delay.
+
+Actually, I'm trying to implement some minimal functionality in the kernel,
+which will simplify and make more consistent the userspace part of the job.
+But, of course, the main goal of the patchset is to fix the unfairness
+of the current victim selection.
+
+Thanks!
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
