@@ -1,193 +1,393 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D6E6B0279
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 22:31:41 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id y2so3183019vkd.2
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:31:41 -0700 (PDT)
-Received: from mail-ua0-x236.google.com (mail-ua0-x236.google.com. [2607:f8b0:400c:c08::236])
-        by mx.google.com with ESMTPS id x131si1454vkc.121.2017.06.07.19.31.39
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B02B56B0279
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 22:38:16 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id v185so7493860ybe.12
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:38:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t11sor1919319ywi.139.2017.06.07.19.38.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Jun 2017 19:31:39 -0700 (PDT)
-Received: by mail-ua0-x236.google.com with SMTP id x47so14008103uab.0
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:31:39 -0700 (PDT)
+        (Google Transport Security);
+        Wed, 07 Jun 2017 19:38:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CACbyUSpTZBVa0MTvScqVmN3Mg8j0b9QDkzGZ08c7zQiH-wRy3g@mail.gmail.com>
-References: <CACbyUSpTZBVa0MTvScqVmN3Mg8j0b9QDkzGZ08c7zQiH-wRy3g@mail.gmail.com>
-From: Gene Blue <geneblue.mail@gmail.com>
-Date: Thu, 8 Jun 2017 10:31:39 +0800
-Message-ID: <CACbyUSoEZCW0oATVgk4z0z9M=KX3jxw5p+coN-xSSeCpmqGZQw@mail.gmail.com>
-Subject: Fwd: kernel BUG at lib/radix-tree.c:1008!
-Content-Type: multipart/alternative; boundary="001a113cec880dcdf3055169a78c"
+In-Reply-To: <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net> <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+From: Nick Sarnie <commendsarnex@gmail.com>
+Date: Wed, 7 Jun 2017 22:38:14 -0400
+Message-ID: <CAOcCaLZ5QNx+CdnLn4eHtYOJOezJAsmq2whf8mggOdeMQDWOhw@mail.gmail.com>
+Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
+ memory encryption
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org
-Cc: syzkaller <syzkaller@googlegroups.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Thomas Gleixner <tglx@linutronix.de>, Rik van Riel <riel@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
 
---001a113cec880dcdf3055169a78c
-Content-Type: text/plain; charset="UTF-8"
+On Wed, Jun 7, 2017 at 3:17 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> The IOMMU is programmed with physical addresses for the various tables
+> and buffers that are used to communicate between the device and the
+> driver. When the driver allocates this memory it is encrypted. In order
+> for the IOMMU to access the memory as encrypted the encryption mask needs
+> to be included in these physical addresses during configuration.
+>
+> The PTE entries created by the IOMMU should also include the encryption
+> mask so that when the device behind the IOMMU performs a DMA, the DMA
+> will be performed to encrypted memory.
+>
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/mem_encrypt.h |    7 +++++++
+>  arch/x86/mm/mem_encrypt.c          |   30 ++++++++++++++++++++++++++++++
+>  drivers/iommu/amd_iommu.c          |   36 +++++++++++++++++++-----------------
+>  drivers/iommu/amd_iommu_init.c     |   18 ++++++++++++------
+>  drivers/iommu/amd_iommu_proto.h    |   10 ++++++++++
+>  drivers/iommu/amd_iommu_types.h    |    2 +-
+>  include/asm-generic/mem_encrypt.h  |    5 +++++
+>  7 files changed, 84 insertions(+), 24 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+> index c7a2525..d86e544 100644
+> --- a/arch/x86/include/asm/mem_encrypt.h
+> +++ b/arch/x86/include/asm/mem_encrypt.h
+> @@ -31,6 +31,8 @@ void __init sme_early_decrypt(resource_size_t paddr,
+>
+>  void __init sme_early_init(void);
+>
+> +bool sme_iommu_supported(void);
+> +
+>  /* Architecture __weak replacement functions */
+>  void __init mem_encrypt_init(void);
+>
+> @@ -62,6 +64,11 @@ static inline void __init sme_early_init(void)
+>  {
+>  }
+>
+> +static inline bool sme_iommu_supported(void)
+> +{
+> +       return true;
+> +}
+> +
+>  #endif /* CONFIG_AMD_MEM_ENCRYPT */
+>
+>  static inline bool sme_active(void)
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 5d7c51d..018b58a 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -197,6 +197,36 @@ void __init sme_early_init(void)
+>                 protection_map[i] = pgprot_encrypted(protection_map[i]);
+>  }
+>
+> +bool sme_iommu_supported(void)
+> +{
+> +       struct cpuinfo_x86 *c = &boot_cpu_data;
+> +
+> +       if (!sme_me_mask || (c->x86 != 0x17))
+> +               return true;
+> +
+> +       /* For Fam17h, a specific level of support is required */
+> +       switch (c->microcode & 0xf000) {
+> +       case 0x0000:
+> +               return false;
+> +       case 0x1000:
+> +               switch (c->microcode & 0x0f00) {
+> +               case 0x0000:
+> +                       return false;
+> +               case 0x0100:
+> +                       if ((c->microcode & 0xff) < 0x26)
+> +                               return false;
+> +                       break;
+> +               case 0x0200:
+> +                       if ((c->microcode & 0xff) < 0x05)
+> +                               return false;
+> +                       break;
+> +               }
+> +               break;
+> +       }
+> +
+> +       return true;
+> +}
+> +
+>  /* Architecture __weak replacement functions */
+>  void __init mem_encrypt_init(void)
+>  {
+> diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
+> index 63cacf5..94eb130 100644
+> --- a/drivers/iommu/amd_iommu.c
+> +++ b/drivers/iommu/amd_iommu.c
+> @@ -544,7 +544,7 @@ static void dump_dte_entry(u16 devid)
+>
+>  static void dump_command(unsigned long phys_addr)
+>  {
+> -       struct iommu_cmd *cmd = phys_to_virt(phys_addr);
+> +       struct iommu_cmd *cmd = iommu_phys_to_virt(phys_addr);
+>         int i;
+>
+>         for (i = 0; i < 4; ++i)
+> @@ -863,13 +863,15 @@ static void copy_cmd_to_buffer(struct amd_iommu *iommu,
+>         writel(tail, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
+>  }
+>
+> -static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
+> +static void build_completion_wait(struct iommu_cmd *cmd, volatile u64 *sem)
+>  {
+> +       u64 address = iommu_virt_to_phys((void *)sem);
+> +
+>         WARN_ON(address & 0x7ULL);
+>
+>         memset(cmd, 0, sizeof(*cmd));
+> -       cmd->data[0] = lower_32_bits(__pa(address)) | CMD_COMPL_WAIT_STORE_MASK;
+> -       cmd->data[1] = upper_32_bits(__pa(address));
+> +       cmd->data[0] = lower_32_bits(address) | CMD_COMPL_WAIT_STORE_MASK;
+> +       cmd->data[1] = upper_32_bits(address);
+>         cmd->data[2] = 1;
+>         CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
+>  }
+> @@ -1033,7 +1035,7 @@ static int __iommu_queue_command_sync(struct amd_iommu *iommu,
+>
+>                 iommu->cmd_sem = 0;
+>
+> -               build_completion_wait(&sync_cmd, (u64)&iommu->cmd_sem);
+> +               build_completion_wait(&sync_cmd, &iommu->cmd_sem);
+>                 copy_cmd_to_buffer(iommu, &sync_cmd, tail);
+>
+>                 if ((ret = wait_on_sem(&iommu->cmd_sem)) != 0)
+> @@ -1083,7 +1085,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
+>                 return 0;
+>
+>
+> -       build_completion_wait(&cmd, (u64)&iommu->cmd_sem);
+> +       build_completion_wait(&cmd, &iommu->cmd_sem);
+>
+>         spin_lock_irqsave(&iommu->lock, flags);
+>
+> @@ -1328,7 +1330,7 @@ static bool increase_address_space(struct protection_domain *domain,
+>                 return false;
+>
+>         *pte             = PM_LEVEL_PDE(domain->mode,
+> -                                       virt_to_phys(domain->pt_root));
+> +                                       iommu_virt_to_phys(domain->pt_root));
+>         domain->pt_root  = pte;
+>         domain->mode    += 1;
+>         domain->updated  = true;
+> @@ -1365,7 +1367,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
+>                         if (!page)
+>                                 return NULL;
+>
+> -                       __npte = PM_LEVEL_PDE(level, virt_to_phys(page));
+> +                       __npte = PM_LEVEL_PDE(level, iommu_virt_to_phys(page));
+>
+>                         /* pte could have been changed somewhere. */
+>                         if (cmpxchg64(pte, __pte, __npte) != __pte) {
+> @@ -1481,10 +1483,10 @@ static int iommu_map_page(struct protection_domain *dom,
+>                         return -EBUSY;
+>
+>         if (count > 1) {
+> -               __pte = PAGE_SIZE_PTE(phys_addr, page_size);
+> +               __pte = PAGE_SIZE_PTE(__sme_set(phys_addr), page_size);
+>                 __pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_P | IOMMU_PTE_FC;
+>         } else
+> -               __pte = phys_addr | IOMMU_PTE_P | IOMMU_PTE_FC;
+> +               __pte = __sme_set(phys_addr) | IOMMU_PTE_P | IOMMU_PTE_FC;
+>
+>         if (prot & IOMMU_PROT_IR)
+>                 __pte |= IOMMU_PTE_IR;
+> @@ -1700,7 +1702,7 @@ static void free_gcr3_tbl_level1(u64 *tbl)
+>                 if (!(tbl[i] & GCR3_VALID))
+>                         continue;
+>
+> -               ptr = __va(tbl[i] & PAGE_MASK);
+> +               ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
+>
+>                 free_page((unsigned long)ptr);
+>         }
+> @@ -1715,7 +1717,7 @@ static void free_gcr3_tbl_level2(u64 *tbl)
+>                 if (!(tbl[i] & GCR3_VALID))
+>                         continue;
+>
+> -               ptr = __va(tbl[i] & PAGE_MASK);
+> +               ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
+>
+>                 free_gcr3_tbl_level1(ptr);
+>         }
+> @@ -1807,7 +1809,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
+>         u64 flags = 0;
+>
+>         if (domain->mode != PAGE_MODE_NONE)
+> -               pte_root = virt_to_phys(domain->pt_root);
+> +               pte_root = iommu_virt_to_phys(domain->pt_root);
+>
+>         pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
+>                     << DEV_ENTRY_MODE_SHIFT;
+> @@ -1819,7 +1821,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
+>                 flags |= DTE_FLAG_IOTLB;
+>
+>         if (domain->flags & PD_IOMMUV2_MASK) {
+> -               u64 gcr3 = __pa(domain->gcr3_tbl);
+> +               u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
+>                 u64 glx  = domain->glx;
+>                 u64 tmp;
+>
+> @@ -3470,10 +3472,10 @@ static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
+>                         if (root == NULL)
+>                                 return NULL;
+>
+> -                       *pte = __pa(root) | GCR3_VALID;
+> +                       *pte = iommu_virt_to_phys(root) | GCR3_VALID;
+>                 }
+>
+> -               root = __va(*pte & PAGE_MASK);
+> +               root = iommu_phys_to_virt(*pte & PAGE_MASK);
+>
+>                 level -= 1;
+>         }
+> @@ -3652,7 +3654,7 @@ static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)
+>
+>         dte     = amd_iommu_dev_table[devid].data[2];
+>         dte     &= ~DTE_IRQ_PHYS_ADDR_MASK;
+> -       dte     |= virt_to_phys(table->table);
+> +       dte     |= iommu_virt_to_phys(table->table);
+>         dte     |= DTE_IRQ_REMAP_INTCTL;
+>         dte     |= DTE_IRQ_TABLE_LEN;
+>         dte     |= DTE_IRQ_REMAP_ENABLE;
+> diff --git a/drivers/iommu/amd_iommu_init.c b/drivers/iommu/amd_iommu_init.c
+> index 5a11328..2870a6b 100644
+> --- a/drivers/iommu/amd_iommu_init.c
+> +++ b/drivers/iommu/amd_iommu_init.c
+> @@ -29,6 +29,7 @@
+>  #include <linux/export.h>
+>  #include <linux/iommu.h>
+>  #include <linux/kmemleak.h>
+> +#include <linux/mem_encrypt.h>
+>  #include <asm/pci-direct.h>
+>  #include <asm/iommu.h>
+>  #include <asm/gart.h>
+> @@ -346,7 +347,7 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
+>
+>         BUG_ON(iommu->mmio_base == NULL);
+>
+> -       entry = virt_to_phys(amd_iommu_dev_table);
+> +       entry = iommu_virt_to_phys(amd_iommu_dev_table);
+>         entry |= (dev_table_size >> 12) - 1;
+>         memcpy_toio(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET,
+>                         &entry, sizeof(entry));
+> @@ -602,7 +603,7 @@ static void iommu_enable_command_buffer(struct amd_iommu *iommu)
+>
+>         BUG_ON(iommu->cmd_buf == NULL);
+>
+> -       entry = (u64)virt_to_phys(iommu->cmd_buf);
+> +       entry = iommu_virt_to_phys(iommu->cmd_buf);
+>         entry |= MMIO_CMD_SIZE_512;
+>
+>         memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
+> @@ -631,7 +632,7 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
+>
+>         BUG_ON(iommu->evt_buf == NULL);
+>
+> -       entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+> +       entry = iommu_virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+>
+>         memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
+>                     &entry, sizeof(entry));
+> @@ -664,7 +665,7 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
+>         if (iommu->ppr_log == NULL)
+>                 return;
+>
+> -       entry = (u64)virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
+> +       entry = iommu_virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
+>
+>         memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
+>                     &entry, sizeof(entry));
+> @@ -744,10 +745,10 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
+>         if (!iommu->ga_log_tail)
+>                 goto err_out;
+>
+> -       entry = (u64)virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
+> +       entry = iommu_virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
+>         memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
+>                     &entry, sizeof(entry));
+> -       entry = ((u64)virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
+> +       entry = (iommu_virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
+>         memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_TAIL_OFFSET,
+>                     &entry, sizeof(entry));
+>         writel(0x00, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+> @@ -2552,6 +2553,11 @@ int __init amd_iommu_detect(void)
+>         if (amd_iommu_disabled)
+>                 return -ENODEV;
+>
+> +       if (!sme_iommu_supported()) {
+> +               pr_notice("AMD-Vi: IOMMU not supported when SME is active\n");
+> +               return -ENODEV;
+> +       }
+> +
+>         ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
+>         if (ret)
+>                 return ret;
+> diff --git a/drivers/iommu/amd_iommu_proto.h b/drivers/iommu/amd_iommu_proto.h
+> index 466260f..3f12fb2 100644
+> --- a/drivers/iommu/amd_iommu_proto.h
+> +++ b/drivers/iommu/amd_iommu_proto.h
+> @@ -87,4 +87,14 @@ static inline bool iommu_feature(struct amd_iommu *iommu, u64 f)
+>         return !!(iommu->features & f);
+>  }
+>
+> +static inline u64 iommu_virt_to_phys(void *vaddr)
+> +{
+> +       return (u64)__sme_set(virt_to_phys(vaddr));
+> +}
+> +
+> +static inline void *iommu_phys_to_virt(unsigned long paddr)
+> +{
+> +       return phys_to_virt(__sme_clr(paddr));
+> +}
+> +
+>  #endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */
+> diff --git a/drivers/iommu/amd_iommu_types.h b/drivers/iommu/amd_iommu_types.h
+> index 4de8f41..3ce587d 100644
+> --- a/drivers/iommu/amd_iommu_types.h
+> +++ b/drivers/iommu/amd_iommu_types.h
+> @@ -343,7 +343,7 @@
+>
+>  #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
+>  #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
+> -#define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
+> +#define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
+>  #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
+>
+>  #define IOMMU_PROT_MASK 0x03
+> diff --git a/include/asm-generic/mem_encrypt.h b/include/asm-generic/mem_encrypt.h
+> index fb02ff0..bbc49e1 100644
+> --- a/include/asm-generic/mem_encrypt.h
+> +++ b/include/asm-generic/mem_encrypt.h
+> @@ -27,6 +27,11 @@ static inline u64 sme_dma_mask(void)
+>         return 0ULL;
+>  }
+>
+> +static inline bool sme_iommu_supported(void)
+> +{
+> +       return true;
+> +}
+> +
+>  /*
+>   * The __sme_set() and __sme_clr() macros are useful for adding or removing
+>   * the encryption mask from a value (e.g. when dealing with pagetable
+>
+> _______________________________________________
+> iommu mailing list
+> iommu@lists.linux-foundation.org
+> https://lists.linuxfoundation.org/mailman/listinfo/iommu
 
----------- Forwarded message ----------
-From: Gene Blue <geneblue.mail@gmail.com>
-Date: 2017-06-07 20:03 GMT+08:00
-Subject: kernel BUG at lib/radix-tree.c:1008!
-To: syzkaller@googlegroups.com
 
+Hi Tom,
 
-Hello:
-  Another bug when fuzzing the kernel with syzkaller.
+This sounds like a cool feature. I'm trying to test it on my Ryzen
+system, but c->microcode & 0xf000 is evaluating as 0, so IOMMU is not
+being enabled on my system. I'm using the latest microcode for AGESA
+1.0.0.6, 0x08001126. Is this work reliant on a future microcode
+update, or is there some other issue?
 
-  My kernel version is  4.11.0-rc1 directly download from kernel.org.
-
-
-************************************************************
-*********************************
-kernel BUG at lib/radix-tree.c:1008!
-invalid opcode: 0000 [#1] SMP KASAN
-Dumping ftrace buffer:
-   (ftrace buffer empty)
-Modules linked in:
-CPU: 1 PID: 7809 Comm: syz-executor2 Not tainted 4.11.0-rc1 #7
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff88006a1bdb40 task.stack: ffff88006b348000
-RIP: 0010:__radix_tree_insert+0x26b/0x2f0 lib/radix-tree.c:1008
-RSP: 0018:ffff88006b34f760 EFLAGS: 00010087
-RAX: ffff88006a1bdb40 RBX: 1ffff1000d669eee RCX: 0000000000000001
-RDX: 0000000000000000 RSI: ffffffff81bd50fb RDI: ffffc90004032000
-RBP: ffff88006b34f838 R08: 00000000000000fa R09: 0000000000010000
-R10: 0000000000000003 R11: ffff8800605b8ed0 R12: 0000000000000000
-R13: 1ffff1000c0b71da R14: 0000000000000000 R15: ffff8800605b8ed0
-FS:  00007f8722b38700(0000) GS:ffff88003ed00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000020001ff4 CR3: 000000003c6d6000 CR4: 00000000000006e0
-Call Trace:
- radix_tree_insert include/linux/radix-tree.h:297 [inline]
- shmem_add_to_page_cache+0x2fe/0x420 mm/shmem.c:591
- shmem_getpage_gfp.isra.49+0x110a/0x1c90 mm/shmem.c:1792
- shmem_fault+0x21f/0x690 mm/shmem.c:1985
- __do_fault+0x83/0x210 mm/memory.c:2888
- do_read_fault mm/memory.c:3270 [inline]
- do_fault mm/memory.c:3370 [inline]
- handle_pte_fault mm/memory.c:3600 [inline]
- __handle_mm_fault+0x8d5/0x1bc0 mm/memory.c:3714
- handle_mm_fault+0x1ea/0x4c0 mm/memory.c:3751
- __do_page_fault+0x508/0xb00 arch/x86/mm/fault.c:1397
- trace_do_page_fault+0x93/0x450 arch/x86/mm/fault.c:1490
- do_async_page_fault+0x14/0x60 arch/x86/kernel/kvm.c:264
- async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:1014
-RIP: 0010:do_strncpy_from_user lib/strncpy_from_user.c:44 [inline]
-RIP: 0010:strncpy_from_user+0xa9/0x2b0 lib/strncpy_from_user.c:117
-RSP: 0018:ffff88006b34fdc0 EFLAGS: 00010246
-RAX: ffff88006a1bdb40 RBX: 0000000000000fe4 RCX: 0000000000000001
-RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffc90004032000
-RBP: ffff88006b34fe00 R08: 0000000000000017 R09: 0000000000010000
-R10: ffff88003a9568ff R11: ffffed000752ad20 R12: 0000000000000fe4
-R13: 0000000020001ff4 R14: 0000000000000fe4 R15: fffffffffffffff2
- getname_flags+0x113/0x580 fs/namei.c:148
- getname+0x19/0x20 fs/namei.c:208
- do_sys_open+0x1c7/0x450 fs/open.c:1045
- SYSC_openat fs/open.c:1078 [inline]
- SyS_openat+0x30/0x40 fs/open.c:1072
- entry_SYSCALL_64_fastpath+0x1f/0xc2
-RIP: 0033:0x4458d9
-RSP: 002b:00007f8722b37b58 EFLAGS: 00000292 ORIG_RAX: 0000000000000101
-RAX: ffffffffffffffda RBX: 00000000007080a8 RCX: 00000000004458d9
-RDX: 0000000000010100 RSI: 0000000020001ff4 RDI: ffffffffffffff9c
-RBP: 0000000000000046 R08: 0000000000000000 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000292 R12: 0000000000000000
-R13: 0000000000000000 R14: 00007f8722b389c0 R15: 00007f8722b38700
-Code: 38 ca 7c 0d 45 84 c9 74 08 4c 89 ff e8 8f a5 97 ff 4c 8b 9d 30 ff ff
-ff 41 8b 03 c1 e8 1a 85 c0 0f 84 8b fe ff ff e8 15 52 78 ff <0f> 0b e8 0e
-52 78 ff 49 8d 7d 03 48 b9 00 00 00 00 00 fc ff df
-RIP: __radix_tree_insert+0x26b/0x2f0 lib/radix-tree.c:1008 RSP:
-ffff88006b34f760
----[ end trace c1b7be537b8a3b4a ]---
-Kernel panic - not syncing: Fatal exception
-Dumping ftrace buffer:
-   (ftrace buffer empty)
-Kernel Offset: disabled
-Rebooting in 86400 seconds..
-
---001a113cec880dcdf3055169a78c
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_quote">---------- Forwarded messag=
-e ----------<br>From: <b class=3D"gmail_sendername">Gene Blue</b> <span dir=
-=3D"ltr">&lt;<a href=3D"mailto:geneblue.mail@gmail.com">geneblue.mail@gmail=
-.com</a>&gt;</span><br>Date: 2017-06-07 20:03 GMT+08:00<br>Subject: kernel =
-BUG at lib/radix-tree.c:1008!<br>To: <a href=3D"mailto:syzkaller@googlegrou=
-ps.com">syzkaller@googlegroups.com</a><br><br><br><div dir=3D"ltr"><div sty=
-le=3D"margin:0px;padding:0px;border:0px;font-family:Arial,Helvetica,sans-se=
-rif;font-size:13px">Hello:</div><div style=3D"margin:0px;padding:0px;border=
-:0px;font-family:Arial,Helvetica,sans-serif;font-size:13px">=C2=A0 Another =
-bug when fuzzing the kernel with syzkaller.</div><div style=3D"margin:0px;p=
-adding:0px;border:0px;font-family:Arial,Helvetica,sans-serif;font-size:13px=
-"><br></div><div style=3D"margin:0px;padding:0px;border:0px;font-family:Ari=
-al,Helvetica,sans-serif;font-size:13px">=C2=A0 My kernel version is =C2=A04=
-.11.0-rc1 directly download from=C2=A0<a href=3D"http://kernel.org/" rel=3D=
-"nofollow" style=3D"margin:0px;padding:0px;border:0px;text-decoration-line:=
-none;color:rgb(102,17,204)" target=3D"_blank">kernel.org</a>.</div><div><br=
-></div><div><br></div><div>******************************<wbr>*************=
-*****************<wbr>******************************<wbr>***</div><div><div=
->kernel BUG at lib/radix-tree.c:1008!</div><div>invalid opcode: 0000 [#1] S=
-MP KASAN</div><div>Dumping ftrace buffer:</div><div>=C2=A0 =C2=A0(ftrace bu=
-ffer empty)</div><div>Modules linked in:</div><div>CPU: 1 PID: 7809 Comm: s=
-yz-executor2 Not tainted 4.11.0-rc1 #7</div><div>Hardware name: QEMU Standa=
-rd PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011</div><div>task: ffff8800=
-6a1bdb40 task.stack: ffff88006b348000</div><div>RIP: 0010:__radix_tree_inse=
-rt+<wbr>0x26b/0x2f0 lib/radix-tree.c:1008</div><div>RSP: 0018:ffff88006b34f=
-760 EFLAGS: 00010087</div><div>RAX: ffff88006a1bdb40 RBX: 1ffff1000d669eee =
-RCX: 0000000000000001</div><div>RDX: 0000000000000000 RSI: ffffffff81bd50fb=
- RDI: ffffc90004032000</div><div>RBP: ffff88006b34f838 R08: 00000000000000f=
-a R09: 0000000000010000</div><div>R10: 0000000000000003 R11: ffff8800605b8e=
-d0 R12: 0000000000000000</div><div>R13: 1ffff1000c0b71da R14: 0000000000000=
-000 R15: ffff8800605b8ed0</div><div>FS: =C2=A000007f8722b38700(0000) GS:fff=
-f88003ed00000(0000) knlGS:0000000000000000</div><div>CS: =C2=A00010 DS: 000=
-0 ES: 0000 CR0: 0000000080050033</div><div>CR2: 0000000020001ff4 CR3: 00000=
-0003c6d6000 CR4: 00000000000006e0</div><div>Call Trace:</div><div>=C2=A0rad=
-ix_tree_insert include/linux/radix-tree.h:297 [inline]</div><div>=C2=A0shme=
-m_add_to_page_cache+<wbr>0x2fe/0x420 mm/shmem.c:591</div><div>=C2=A0shmem_g=
-etpage_gfp.isra.49+<wbr>0x110a/0x1c90 mm/shmem.c:1792</div><div>=C2=A0shmem=
-_fault+0x21f/0x690 mm/shmem.c:1985</div><div>=C2=A0__do_fault+0x83/0x210 mm=
-/memory.c:2888</div><div>=C2=A0do_read_fault mm/memory.c:3270 [inline]</div=
-><div>=C2=A0do_fault mm/memory.c:3370 [inline]</div><div>=C2=A0handle_pte_f=
-ault mm/memory.c:3600 [inline]</div><div>=C2=A0__handle_mm_fault+0x8d5/<wbr=
->0x1bc0 mm/memory.c:3714</div><div>=C2=A0handle_mm_fault+0x1ea/0x4c0 mm/mem=
-ory.c:3751</div><div>=C2=A0__do_page_fault+0x508/0xb00 arch/x86/mm/fault.c:=
-1397</div><div>=C2=A0trace_do_page_fault+0x93/<wbr>0x450 arch/x86/mm/fault.=
-c:1490</div><div>=C2=A0do_async_page_fault+0x14/0x60 arch/x86/kernel/kvm.c:=
-264</div><div>=C2=A0async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:10=
-14</div><div>RIP: 0010:do_strncpy_from_user lib/strncpy_from_user.c:44 [inl=
-ine]</div><div>RIP: 0010:strncpy_from_user+0xa9/<wbr>0x2b0 lib/strncpy_from=
-_user.c:117</div><div>RSP: 0018:ffff88006b34fdc0 EFLAGS: 00010246</div><div=
->RAX: ffff88006a1bdb40 RBX: 0000000000000fe4 RCX: 0000000000000001</div><di=
-v>RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffc90004032000</div><d=
-iv>RBP: ffff88006b34fe00 R08: 0000000000000017 R09: 0000000000010000</div><=
-div>R10: ffff88003a9568ff R11: ffffed000752ad20 R12: 0000000000000fe4</div>=
-<div>R13: 0000000020001ff4 R14: 0000000000000fe4 R15: fffffffffffffff2</div=
-><div>=C2=A0getname_flags+0x113/0x580 fs/namei.c:148</div><div>=C2=A0getnam=
-e+0x19/0x20 fs/namei.c:208</div><div>=C2=A0do_sys_open+0x1c7/0x450 fs/open.=
-c:1045</div><div>=C2=A0SYSC_openat fs/open.c:1078 [inline]</div><div>=C2=A0=
-SyS_openat+0x30/0x40 fs/open.c:1072</div><div>=C2=A0entry_SYSCALL_64_fastpa=
-th+<wbr>0x1f/0xc2</div><div>RIP: 0033:0x4458d9</div><div>RSP: 002b:00007f87=
-22b37b58 EFLAGS: 00000292 ORIG_RAX: 0000000000000101</div><div>RAX: fffffff=
-fffffffda RBX: 00000000007080a8 RCX: 00000000004458d9</div><div>RDX: 000000=
-0000010100 RSI: 0000000020001ff4 RDI: ffffffffffffff9c</div><div>RBP: 00000=
-00000000046 R08: 0000000000000000 R09: 0000000000000000</div><div>R10: 0000=
-000000000000 R11: 0000000000000292 R12: 0000000000000000</div><div>R13: 000=
-0000000000000 R14: 00007f8722b389c0 R15: 00007f8722b38700</div><div>Code: 3=
-8 ca 7c 0d 45 84 c9 74 08 4c 89 ff e8 8f a5 97 ff 4c 8b 9d 30 ff ff ff 41 8=
-b 03 c1 e8 1a 85 c0 0f 84 8b fe ff ff e8 15 52 78 ff &lt;0f&gt; 0b e8 0e 52=
- 78 ff 49 8d 7d 03 48 b9 00 00 00 00 00 fc ff df=C2=A0</div><div>RIP: __rad=
-ix_tree_insert+0x26b/<wbr>0x2f0 lib/radix-tree.c:1008 RSP: ffff88006b34f760=
-</div><div>---[ end trace c1b7be537b8a3b4a ]---</div><div>Kernel panic - no=
-t syncing: Fatal exception</div><div>Dumping ftrace buffer:</div><div>=C2=
-=A0 =C2=A0(ftrace buffer empty)</div><div>Kernel Offset: disabled</div><div=
->Rebooting in 86400 seconds..</div></div></div>
-</div><br></div>
-
---001a113cec880dcdf3055169a78c--
+Thanks,
+Sarnex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
