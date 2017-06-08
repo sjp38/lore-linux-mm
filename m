@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8020A6B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:22:35 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c16so2770510wmh.14
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:22:35 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E726E6B02C3
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:36:17 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 56so4161996wrx.5
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:36:17 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r20si4968227wmd.15.2017.06.08.01.22.34
+        by mx.google.com with ESMTPS id j39si4674259wre.70.2017.06.08.01.36.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 01:22:34 -0700 (PDT)
-Subject: Re: [PATCH 2/4] hugetlb, memory_hotplug: prefer to use reserved pages
- for migration
+        Thu, 08 Jun 2017 01:36:16 -0700 (PDT)
+Subject: Re: [PATCH 3/4] mm: unify new_node_page and alloc_migrate_target
 References: <20170608074553.22152-1-mhocko@kernel.org>
- <20170608074553.22152-3-mhocko@kernel.org>
+ <20170608074553.22152-4-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <faef20f5-80b4-fcb0-6460-ddae9856f35e@suse.cz>
-Date: Thu, 8 Jun 2017 10:22:32 +0200
+Message-ID: <7449f1dc-e51f-7b91-ef73-f69cf3eff294@suse.cz>
+Date: Thu, 8 Jun 2017 10:36:13 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170608074553.22152-3-mhocko@kernel.org>
+In-Reply-To: <20170608074553.22152-4-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -29,36 +28,67 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.j
 On 06/08/2017 09:45 AM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> new_node_page will try to use the origin's next NUMA node as the
-> migration destination for hugetlb pages. If such a node doesn't have any
-> preallocated pool it falls back to __alloc_buddy_huge_page_no_mpol to
-> allocate a surplus page instead. This is quite subotpimal for any
-> configuration when hugetlb pages are no distributed to all NUMA nodes
-> evenly. Say we have a hotplugable node 4 and spare hugetlb pages are
-> node 0
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:10000
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node2/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node3/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node4/hugepages/hugepages-2048kB/nr_hugepages:10000
-> /sys/devices/system/node/node5/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node6/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node7/hugepages/hugepages-2048kB/nr_hugepages:0
+> 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest neighbor node
+> when mem-offline") has duplicated a large part of alloc_migrate_target
+> with some hotplug specific special casing. To be more precise it tried
+> to enfore the allocation from a different node than the original page.
+> As a result the two function diverged in their shared logic, e.g. the
+> hugetlb allocation strategy. Let's unify the two and express different
+> NUMA requirements by the given nodemask. new_node_page will simply
+> exclude the node it doesn't care about and alloc_migrate_target will
+> use all the available nodes. alloc_migrate_target will then learn to
+> migrate hugetlb pages more sanely and use preallocated pool when
+> possible.
 > 
-> Now we consume the whole pool on node 4 and try to offline this
-> node. All the allocated pages should be moved to node0 which has enough
-> preallocated pages to hold them. With the current implementation
-> offlining very likely fails because hugetlb allocations during runtime
-> are much less reliable.
-> 
-> Fix this by reusing the nodemask which excludes migration source and try
-> to find a first node which has a page in the preallocated pool first and
-> fall back to __alloc_buddy_huge_page_no_mpol only when the whole pool is
-> consumed.
+> Please note that alloc_migrate_target used to call alloc_page resp.
+> alloc_pages_current so the memory policy of the current context which
+> is quite strange when we consider that it is used in the context of
+> alloc_contig_range which just tries to migrate pages which stand in the
+> way.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 3606104893e0..757410d9f758 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -8,6 +8,7 @@
+>  #include <linux/memory.h>
+>  #include <linux/hugetlb.h>
+>  #include <linux/page_owner.h>
+> +#include <linux/migrate.h>
+>  #include "internal.h"
+>  
+>  #define CREATE_TRACE_POINTS
+> @@ -294,20 +295,5 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+>  struct page *alloc_migrate_target(struct page *page, unsigned long private,
+>  				  int **resultp)
+>  {
+> -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+> -
+> -	/*
+> -	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+> -	 * accordance with memory policy of the user process if possible. For
+> -	 * now as a simple work-around, we use the next node for destination.
+> -	 */
+> -	if (PageHuge(page))
+> -		return alloc_huge_page_node(page_hstate(compound_head(page)),
+> -					    next_node_in(page_to_nid(page),
+> -							 node_online_map));
+> -
+> -	if (PageHighMem(page))
+> -		gfp_mask |= __GFP_HIGHMEM;
+> -
+> -	return alloc_page(gfp_mask);
+> +	return new_page_nodemask(page, numa_node_id(), &node_states[N_MEMORY]);
+
+This replaces the N_ONLINE (node_online_map) with N_MEMORY for huge
+pages. Assuming that's OK.
+
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
