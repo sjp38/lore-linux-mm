@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 59EAA6B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:15:21 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id t30so4110580wra.7
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:15:21 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8020A6B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:22:35 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c16so2770510wmh.14
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:22:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p90si4462191wrb.39.2017.06.08.01.15.19
+        by mx.google.com with ESMTPS id r20si4968227wmd.15.2017.06.08.01.22.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 01:15:19 -0700 (PDT)
-Subject: Re: [PATCH 1/4] mm, memory_hotplug: simplify empty node mask handling
- in new_node_page
+        Thu, 08 Jun 2017 01:22:34 -0700 (PDT)
+Subject: Re: [PATCH 2/4] hugetlb, memory_hotplug: prefer to use reserved pages
+ for migration
 References: <20170608074553.22152-1-mhocko@kernel.org>
- <20170608074553.22152-2-mhocko@kernel.org>
+ <20170608074553.22152-3-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f8f22a22-355d-44d9-69d3-492ea9e24c8f@suse.cz>
-Date: Thu, 8 Jun 2017 10:15:16 +0200
+Message-ID: <faef20f5-80b4-fcb0-6460-ddae9856f35e@suse.cz>
+Date: Thu, 8 Jun 2017 10:22:32 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170608074553.22152-2-mhocko@kernel.org>
+In-Reply-To: <20170608074553.22152-3-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -29,16 +29,32 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.j
 On 06/08/2017 09:45 AM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> new_node_page tries to allocate the target page on a different NUMA node
-> than the source page. This makes sense in most cases during the hotplug
-> because we are likely to offline the whole numa node. But there are
-> cases where there are no other nodes to fallback (e.g. when offlining
-> parts of the only existing node) and we have to fallback to allocating
-> from the source node. The current code does that but it can be
-> simplified by checking the nmask and updating it before we even try to
-> allocate rather than special casing it.
+> new_node_page will try to use the origin's next NUMA node as the
+> migration destination for hugetlb pages. If such a node doesn't have any
+> preallocated pool it falls back to __alloc_buddy_huge_page_no_mpol to
+> allocate a surplus page instead. This is quite subotpimal for any
+> configuration when hugetlb pages are no distributed to all NUMA nodes
+> evenly. Say we have a hotplugable node 4 and spare hugetlb pages are
+> node 0
+> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:10000
+> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
+> /sys/devices/system/node/node2/hugepages/hugepages-2048kB/nr_hugepages:0
+> /sys/devices/system/node/node3/hugepages/hugepages-2048kB/nr_hugepages:0
+> /sys/devices/system/node/node4/hugepages/hugepages-2048kB/nr_hugepages:10000
+> /sys/devices/system/node/node5/hugepages/hugepages-2048kB/nr_hugepages:0
+> /sys/devices/system/node/node6/hugepages/hugepages-2048kB/nr_hugepages:0
+> /sys/devices/system/node/node7/hugepages/hugepages-2048kB/nr_hugepages:0
 > 
-> This patch shouldn't introduce any functional change.
+> Now we consume the whole pool on node 4 and try to offline this
+> node. All the allocated pages should be moved to node0 which has enough
+> preallocated pages to hold them. With the current implementation
+> offlining very likely fails because hugetlb allocations during runtime
+> are much less reliable.
+> 
+> Fix this by reusing the nodemask which excludes migration source and try
+> to find a first node which has a page in the preallocated pool first and
+> fall back to __alloc_buddy_huge_page_no_mpol only when the whole pool is
+> consumed.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
