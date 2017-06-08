@@ -1,65 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0036B02FD
-	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 22:43:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u8so11013137pgo.11
-        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 19:43:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 10sor1833732pfh.8.2017.06.07.19.43.12
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DAB536B0279
+	for <linux-mm@kvack.org>; Wed,  7 Jun 2017 23:03:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q78so5540128pfj.9
+        for <linux-mm@kvack.org>; Wed, 07 Jun 2017 20:03:41 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id l63si3288451pfb.315.2017.06.07.20.03.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Jun 2017 19:43:12 -0700 (PDT)
-Date: Thu, 8 Jun 2017 11:43:05 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: [PATCH v1 00/11] mm/kasan: support per-page shadow memory to
- reduce memory consumption
-Message-ID: <20170608024303.GC27998@js1304-desktop>
-References: <CACT4Y+YREmHViSMsH84bwtEqbUsqsgzaa76eWzJXqmSgqKbgvg@mail.gmail.com>
- <20170524074539.GA9697@js1304-desktop>
- <CACT4Y+ZwL+iTMvF5NpsovThQrdhunCc282ffjqQcgZg3tAQH4w@mail.gmail.com>
- <20170525004104.GA21336@js1304-desktop>
- <CACT4Y+YV7Rf93NOa1yi0NiELX7wfwkfQmXJ67hEVOrG7VkuJJg@mail.gmail.com>
- <CACT4Y+ZrUi_YGkwmbuGV2_6wC7Q54at1_xyYeT3dQQ=cNm1NsQ@mail.gmail.com>
- <CACT4Y+bT=aaC+XTMwoON-Rc5gOheAj702anXKJMXDJ5FtLDRMw@mail.gmail.com>
- <3a7664a9-e360-ab68-610a-1b697a4b00b5@virtuozzo.com>
- <20170531055047.GA21606@js1304-desktop>
- <80f2f6f7-0a37-53dc-843e-1adbed4377fa@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Jun 2017 20:03:40 -0700 (PDT)
+Date: Wed, 7 Jun 2017 20:03:39 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: Fwd: kernel BUG at lib/radix-tree.c:1008!
+Message-ID: <20170608030339.GC20010@bombadil.infradead.org>
+References: <CACbyUSpTZBVa0MTvScqVmN3Mg8j0b9QDkzGZ08c7zQiH-wRy3g@mail.gmail.com>
+ <CACbyUSoEZCW0oATVgk4z0z9M=KX3jxw5p+coN-xSSeCpmqGZQw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <80f2f6f7-0a37-53dc-843e-1adbed4377fa@virtuozzo.com>
+In-Reply-To: <CACbyUSoEZCW0oATVgk4z0z9M=KX3jxw5p+coN-xSSeCpmqGZQw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kernel-team@lge.com
+To: Gene Blue <geneblue.mail@gmail.com>
+Cc: hughd@google.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, syzkaller <syzkaller@googlegroups.com>
 
-On Wed, May 31, 2017 at 07:31:53PM +0300, Andrey Ryabinin wrote:
-> On 05/31/2017 08:50 AM, Joonsoo Kim wrote:
-> >>> But the main win as I see it is that that's basically complete support
-> >>> for 32-bit arches. People do ask about arm32 support:
-> >>> https://groups.google.com/d/msg/kasan-dev/Sk6BsSPMRRc/Gqh4oD_wAAAJ
-> >>> https://groups.google.com/d/msg/kasan-dev/B22vOFp-QWg/EVJPbrsgAgAJ
-> >>> and probably mips32 is relevant as well.
-> >>
-> >> I don't see how above is relevant for 32-bit arches. Current design
-> >> is perfectly fine for 32-bit arches. I did some POC arm32 port couple years
-> >> ago - https://github.com/aryabinin/linux/commits/kasan/arm_v0_1
-> >> It has some ugly hacks and non-critical bugs. AFAIR it also super-slow because I (mistakenly) 
-> >> made shadow memory uncached. But otherwise it works.
-> > 
-> > Could you explain that where is the code to map shadow memory uncached?
-> > I don't find anything related to it.
-> > 
-> 
-> I didn't set set any cache policy (L_PTE_MT_*) on shadow mapping (see set_pte_at() calls )
-> which means it's L_PTE_MT_UNCACHED 
+On Thu, Jun 08, 2017 at 10:31:39AM +0800, Gene Blue wrote:
+> kernel BUG at lib/radix-tree.c:1008!
 
-Thanks for pointing it out.
+Well, that's interesting.  The BUG at that line is:
 
-I did some quick tests and found that it's not super(?) slow on my
-QEMU. Maybe, it would be different with real machine.
+		BUG_ON(root_tags_get(root));
 
-Thanks.
+which indicates we just inserted an entry into the radix tree at root, and
+found out that the entry was already tagged!
+
+That shouldn't be happening.  We clear the tags (all the way up to the root)
+when deleting entries from the tree.  Is this at all reproducible?
+
+> invalid opcode: 0000 [#1] SMP KASAN
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 1 PID: 7809 Comm: syz-executor2 Not tainted 4.11.0-rc1 #7
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff88006a1bdb40 task.stack: ffff88006b348000
+> RIP: 0010:__radix_tree_insert+0x26b/0x2f0 lib/radix-tree.c:1008
+> RSP: 0018:ffff88006b34f760 EFLAGS: 00010087
+> RAX: ffff88006a1bdb40 RBX: 1ffff1000d669eee RCX: 0000000000000001
+> RDX: 0000000000000000 RSI: ffffffff81bd50fb RDI: ffffc90004032000
+> RBP: ffff88006b34f838 R08: 00000000000000fa R09: 0000000000010000
+> R10: 0000000000000003 R11: ffff8800605b8ed0 R12: 0000000000000000
+> R13: 1ffff1000c0b71da R14: 0000000000000000 R15: ffff8800605b8ed0
+> FS:  00007f8722b38700(0000) GS:ffff88003ed00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000020001ff4 CR3: 000000003c6d6000 CR4: 00000000000006e0
+> Call Trace:
+>  radix_tree_insert include/linux/radix-tree.h:297 [inline]
+>  shmem_add_to_page_cache+0x2fe/0x420 mm/shmem.c:591
+>  shmem_getpage_gfp.isra.49+0x110a/0x1c90 mm/shmem.c:1792
+>  shmem_fault+0x21f/0x690 mm/shmem.c:1985
+>  __do_fault+0x83/0x210 mm/memory.c:2888
+>  do_read_fault mm/memory.c:3270 [inline]
+>  do_fault mm/memory.c:3370 [inline]
+>  handle_pte_fault mm/memory.c:3600 [inline]
+>  __handle_mm_fault+0x8d5/0x1bc0 mm/memory.c:3714
+>  handle_mm_fault+0x1ea/0x4c0 mm/memory.c:3751
+>  __do_page_fault+0x508/0xb00 arch/x86/mm/fault.c:1397
+>  trace_do_page_fault+0x93/0x450 arch/x86/mm/fault.c:1490
+>  do_async_page_fault+0x14/0x60 arch/x86/kernel/kvm.c:264
+>  async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:1014
+> RIP: 0010:do_strncpy_from_user lib/strncpy_from_user.c:44 [inline]
+> RIP: 0010:strncpy_from_user+0xa9/0x2b0 lib/strncpy_from_user.c:117
+> RSP: 0018:ffff88006b34fdc0 EFLAGS: 00010246
+> RAX: ffff88006a1bdb40 RBX: 0000000000000fe4 RCX: 0000000000000001
+> RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffc90004032000
+> RBP: ffff88006b34fe00 R08: 0000000000000017 R09: 0000000000010000
+> R10: ffff88003a9568ff R11: ffffed000752ad20 R12: 0000000000000fe4
+> R13: 0000000020001ff4 R14: 0000000000000fe4 R15: fffffffffffffff2
+>  getname_flags+0x113/0x580 fs/namei.c:148
+>  getname+0x19/0x20 fs/namei.c:208
+>  do_sys_open+0x1c7/0x450 fs/open.c:1045
+>  SYSC_openat fs/open.c:1078 [inline]
+>  SyS_openat+0x30/0x40 fs/open.c:1072
+>  entry_SYSCALL_64_fastpath+0x1f/0xc2
+> RIP: 0033:0x4458d9
+> RSP: 002b:00007f8722b37b58 EFLAGS: 00000292 ORIG_RAX: 0000000000000101
+> RAX: ffffffffffffffda RBX: 00000000007080a8 RCX: 00000000004458d9
+> RDX: 0000000000010100 RSI: 0000000020001ff4 RDI: ffffffffffffff9c
+> RBP: 0000000000000046 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000292 R12: 0000000000000000
+> R13: 0000000000000000 R14: 00007f8722b389c0 R15: 00007f8722b38700
+> Code: 38 ca 7c 0d 45 84 c9 74 08 4c 89 ff e8 8f a5 97 ff 4c 8b 9d 30 ff ff
+> ff 41 8b 03 c1 e8 1a 85 c0 0f 84 8b fe ff ff e8 15 52 78 ff <0f> 0b e8 0e
+> 52 78 ff 49 8d 7d 03 48 b9 00 00 00 00 00 fc ff df
+> RIP: __radix_tree_insert+0x26b/0x2f0 lib/radix-tree.c:1008 RSP:
+> ffff88006b34f760
+> ---[ end trace c1b7be537b8a3b4a ]---
+> Kernel panic - not syncing: Fatal exception
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Kernel Offset: disabled
+> Rebooting in 86400 seconds..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
