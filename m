@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B3A6B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 03:58:33 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a70so8539232pge.8
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 00:58:33 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b74si3853254pfc.93.2017.06.08.00.58.32
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 59EAA6B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:15:21 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id t30so4110580wra.7
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:15:21 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p90si4462191wrb.39.2017.06.08.01.15.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jun 2017 00:58:32 -0700 (PDT)
-Date: Thu, 8 Jun 2017 00:58:29 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v6 25/34] swiotlb: Add warnings for use of bounce buffers
- with SME
-Message-ID: <20170608075829.GA2446@infradead.org>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Jun 2017 01:15:19 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm, memory_hotplug: simplify empty node mask handling
+ in new_node_page
+References: <20170608074553.22152-1-mhocko@kernel.org>
+ <20170608074553.22152-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f8f22a22-355d-44d9-69d3-492ea9e24c8f@suse.cz>
+Date: Thu, 8 Jun 2017 10:15:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20170608074553.22152-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Joonsoo Kim <js1304@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jun 07, 2017 at 02:17:32PM -0500, Tom Lendacky wrote:
-> Add warnings to let the user know when bounce buffers are being used for
-> DMA when SME is active.  Since the bounce buffers are not in encrypted
-> memory, these notifications are to allow the user to determine some
-> appropriate action - if necessary.
+On 06/08/2017 09:45 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> new_node_page tries to allocate the target page on a different NUMA node
+> than the source page. This makes sense in most cases during the hotplug
+> because we are likely to offline the whole numa node. But there are
+> cases where there are no other nodes to fallback (e.g. when offlining
+> parts of the only existing node) and we have to fallback to allocating
+> from the source node. The current code does that but it can be
+> simplified by checking the nmask and updating it before we even try to
+> allocate rather than special casing it.
+> 
+> This patch shouldn't introduce any functional change.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-And what would the action be?  Do we need a boot or other option to
-disallow this fallback for people who care deeply?
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
