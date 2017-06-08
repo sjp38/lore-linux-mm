@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D8BA56B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 06:33:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g15so3032239wmc.8
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 03:33:56 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q3si4860707wrd.188.2017.06.08.03.33.55
-        for <linux-mm@kvack.org>;
-        Thu, 08 Jun 2017 03:33:55 -0700 (PDT)
-Date: Thu, 8 Jun 2017 11:34:02 +0100
-From: Will Deacon <will.deacon@arm.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CA6E6B02C3
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 06:41:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c6so13622194pfj.5
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 03:41:01 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id d17si4085856pge.245.2017.06.08.03.41.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Jun 2017 03:41:00 -0700 (PDT)
+Date: Thu, 8 Jun 2017 13:40:56 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Subject: Re: [PATCH 2/3] mm/page_ref: Ensure page_ref_unfreeze is ordered
  against prior accesses
-Message-ID: <20170608103402.GF6071@arm.com>
+Message-ID: <20170608104056.ujuytybmwumuty64@black.fi.intel.com>
 References: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
  <1496771916-28203-3-git-send-email-will.deacon@arm.com>
  <b6677057-54d6-4336-93a0-5d0770434aa7@suse.cz>
@@ -23,7 +24,7 @@ In-Reply-To: <b6677057-54d6-4336-93a0-5d0770434aa7@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com
+Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com, akpm@linux-foundation.org, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com
 
 On Thu, Jun 08, 2017 at 11:38:21AM +0200, Vlastimil Babka wrote:
 > On 06/06/2017 07:58 PM, Will Deacon wrote:
@@ -48,54 +49,38 @@ On Thu, Jun 08, 2017 at 11:38:21AM +0200, Vlastimil Babka wrote:
 > from Documentation/core-api/atomic_ops.rst where we have to make
 > modifications visible before we let others see them? Here the one who is
 > freezing is doing it so others can't get their page pin and interfere
-> with the freezer's work. But maybe there are some (documented or not)
-> consistency guarantees to expect once you obtain the pin, that can be
-> violated, or they might be added later, so it would be safer to add the
-> barrier?
+> with the freezer's work.
 
-The problem comes if the unfreeze is reordered so that it happens before the
-freezer has performed its work. For example, in
-migrate_huge_page_move_mapping:
+Hm.. I'm not sure I'm getting what you are talking about. 
 
+What would guarantee others to see changes to page before seeing page
+unfreezed?
 
-	if (!page_ref_freeze(page, expected_count)) {
-		spin_unlock_irq(&mapping->tree_lock);
-		return -EAGAIN;
-	}
+> >  include/linux/page_ref.h | 1 +
+> >  1 file changed, 1 insertion(+)
+> > 
+> > diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+> > index 610e13271918..74d32d7905cb 100644
+> > --- a/include/linux/page_ref.h
+> > +++ b/include/linux/page_ref.h
+> > @@ -174,6 +174,7 @@ static inline void page_ref_unfreeze(struct page *page, int count)
+> >  	VM_BUG_ON_PAGE(page_count(page) != 0, page);
+> >  	VM_BUG_ON(count == 0);
+> >  
+> > +	smp_mb__before_atomic();
+> >  	atomic_set(&page->_refcount, count);
 
-	newpage->index = page->index;
-	newpage->mapping = page->mapping;
+I *think* it should be smp_mb(), not __before_atomic(). atomic_set() is
+not really atomic. For instance on x86 it's plain WRITE_ONCE() which CPU
+would happily reorder.
 
-	get_page(newpage);
+> >  	if (page_ref_tracepoint_active(__tracepoint_page_ref_unfreeze))
+> >  		__page_ref_unfreeze(page, count);
+> > 
+> 
 
-	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
-
-	page_ref_unfreeze(page, expected_count - 1);
-
-
-then there's nothing stopping the CPU (and potentially the compiler) from
-reordering the unfreeze call so that it effectively becomes:
-
-
-	if (!page_ref_freeze(page, expected_count)) {
-		spin_unlock_irq(&mapping->tree_lock);
-		return -EAGAIN;
-	}
-
-	page_ref_unfreeze(page, expected_count - 1);
-
-	newpage->index = page->index;
-	newpage->mapping = page->mapping;
-
-	get_page(newpage);
-
-	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
-
-
-which then means that the freezer's work is carried out without the page
-being frozen.
-
-Will
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
