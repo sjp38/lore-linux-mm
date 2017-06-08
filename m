@@ -1,103 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 984226B02C3
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 04:40:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c68so2815323wmi.4
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 01:40:14 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BE8E6B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 05:04:10 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k30so4224633wrc.9
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 02:04:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b19si4315212wrd.118.2017.06.08.01.40.13
+        by mx.google.com with ESMTPS id i5si4972160wmh.10.2017.06.08.02.04.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 01:40:13 -0700 (PDT)
-Date: Thu, 8 Jun 2017 10:40:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/4] mm: unify new_node_page and alloc_migrate_target
-Message-ID: <20170608084010.GB19866@dhcp22.suse.cz>
-References: <20170608074553.22152-1-mhocko@kernel.org>
- <20170608074553.22152-4-mhocko@kernel.org>
- <7449f1dc-e51f-7b91-ef73-f69cf3eff294@suse.cz>
+        Thu, 08 Jun 2017 02:04:09 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: numa: avoid waiting on freed migrated pages
+References: <1496771916-28203-1-git-send-email-will.deacon@arm.com>
+ <1496771916-28203-2-git-send-email-will.deacon@arm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c7000523-7b2b-06ed-6273-886978efaab5@suse.cz>
+Date: Thu, 8 Jun 2017 11:04:05 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7449f1dc-e51f-7b91-ef73-f69cf3eff294@suse.cz>
+In-Reply-To: <1496771916-28203-2-git-send-email-will.deacon@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Joonsoo Kim <js1304@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com
 
-On Thu 08-06-17 10:36:13, Vlastimil Babka wrote:
-> On 06/08/2017 09:45 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest neighbor node
-> > when mem-offline") has duplicated a large part of alloc_migrate_target
-> > with some hotplug specific special casing. To be more precise it tried
-> > to enfore the allocation from a different node than the original page.
-> > As a result the two function diverged in their shared logic, e.g. the
-> > hugetlb allocation strategy. Let's unify the two and express different
-> > NUMA requirements by the given nodemask. new_node_page will simply
-> > exclude the node it doesn't care about and alloc_migrate_target will
-> > use all the available nodes. alloc_migrate_target will then learn to
-> > migrate hugetlb pages more sanely and use preallocated pool when
-> > possible.
-> > 
-> > Please note that alloc_migrate_target used to call alloc_page resp.
-> > alloc_pages_current so the memory policy of the current context which
-> > is quite strange when we consider that it is used in the context of
-> > alloc_contig_range which just tries to migrate pages which stand in the
-> > way.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 06/06/2017 07:58 PM, Will Deacon wrote:
+> From: Mark Rutland <mark.rutland@arm.com>
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
-> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> > index 3606104893e0..757410d9f758 100644
-> > --- a/mm/page_isolation.c
-> > +++ b/mm/page_isolation.c
-> > @@ -8,6 +8,7 @@
-> >  #include <linux/memory.h>
-> >  #include <linux/hugetlb.h>
-> >  #include <linux/page_owner.h>
-> > +#include <linux/migrate.h>
-> >  #include "internal.h"
-> >  
-> >  #define CREATE_TRACE_POINTS
-> > @@ -294,20 +295,5 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-> >  struct page *alloc_migrate_target(struct page *page, unsigned long private,
-> >  				  int **resultp)
-> >  {
-> > -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> > -
-> > -	/*
-> > -	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-> > -	 * accordance with memory policy of the user process if possible. For
-> > -	 * now as a simple work-around, we use the next node for destination.
-> > -	 */
-> > -	if (PageHuge(page))
-> > -		return alloc_huge_page_node(page_hstate(compound_head(page)),
-> > -					    next_node_in(page_to_nid(page),
-> > -							 node_online_map));
-> > -
-> > -	if (PageHighMem(page))
-> > -		gfp_mask |= __GFP_HIGHMEM;
-> > -
-> > -	return alloc_page(gfp_mask);
-> > +	return new_page_nodemask(page, numa_node_id(), &node_states[N_MEMORY]);
+> In do_huge_pmd_numa_page(), we attempt to handle a migrating thp pmd by
+> waiting until the pmd is unlocked before we return and retry. However,
+> we can race with migrate_misplaced_transhuge_page():
 > 
-> This replaces the N_ONLINE (node_online_map) with N_MEMORY for huge
-> pages. Assuming that's OK.
+> // do_huge_pmd_numa_page                // migrate_misplaced_transhuge_page()
+> // Holds 0 refs on page                 // Holds 2 refs on page
+> 
+> vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
+> /* ... */
+> if (pmd_trans_migrating(*vmf->pmd)) {
+>         page = pmd_page(*vmf->pmd);
+>         spin_unlock(vmf->ptl);
+>                                         ptl = pmd_lock(mm, pmd);
+>                                         if (page_count(page) != 2)) {
+>                                                 /* roll back */
+>                                         }
+>                                         /* ... */
+>                                         mlock_migrate_page(new_page, page);
+>                                         /* ... */
+>                                         spin_unlock(ptl);
+>                                         put_page(page);
+>                                         put_page(page); // page freed here
+>         wait_on_page_locked(page);
+>         goto out;
+> }
+> 
+> This can result in the freed page having its waiters flag set
+> unexpectedly, which trips the PAGE_FLAGS_CHECK_AT_PREP checks in the
+> page alloc/free functions. This has been observed on arm64 KVM guests.
+> 
+> We can avoid this by having do_huge_pmd_numa_page() take a reference on
+> the page before dropping the pmd lock, mirroring what we do in
+> __migration_entry_wait().
+> 
+> When we hit the race, migrate_misplaced_transhuge_page() will see the
+> reference and abort the migration, as it may do today in other cases.
+> 
+> Acked-by: Steve Capper <steve.capper@arm.com>
+> Signed-off-by: Mark Rutland <mark.rutland@arm.com>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
 
-Yes, this is what 231e97e2b8ec ("mem-hotplug: use nodes that contain
-memory as mask in new_node_page()") fixed in new_node_page and didn't
-care to do on alloc_migrate_target. Another argument to remove the code
-duplication. Thanks for pointing out anyway!
+Nice catch! Stable candidate? Fixes: the commit that added waiters flag?
+Assuming it was harmless before that?
 
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/huge_memory.c | 8 +++++++-
+>  1 file changed, 7 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index a84909cf20d3..88c6167f194d 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1426,8 +1426,11 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+>  	 */
+>  	if (unlikely(pmd_trans_migrating(*vmf->pmd))) {
+>  		page = pmd_page(*vmf->pmd);
+> +		if (!get_page_unless_zero(page))
+> +			goto out_unlock;
+>  		spin_unlock(vmf->ptl);
+>  		wait_on_page_locked(page);
+> +		put_page(page);
+>  		goto out;
+>  	}
+>  
+> @@ -1459,9 +1462,12 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+>  
+>  	/* Migration could have started since the pmd_trans_migrating check */
+>  	if (!page_locked) {
+> +		page_nid = -1;
+> +		if (!get_page_unless_zero(page))
+> +			goto out_unlock;
+>  		spin_unlock(vmf->ptl);
+>  		wait_on_page_locked(page);
+> -		page_nid = -1;
+> +		put_page(page);
+>  		goto out;
+>  	}
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
