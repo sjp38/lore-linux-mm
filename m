@@ -1,22 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3694B6B0279
+	by kanga.kvack.org (Postfix) with ESMTP id 8816E6B02C3
 	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 15:19:11 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id n40so15932912qtb.4
+Received: by mail-qt0-f198.google.com with SMTP id m57so15878106qta.9
         for <linux-mm@kvack.org>; Thu, 08 Jun 2017 12:19:11 -0700 (PDT)
-Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
-        by mx.google.com with ESMTPS id l23si5934305qke.219.2017.06.08.12.19.09
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id n19si6300613qta.256.2017.06.08.12.19.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jun 2017 12:19:09 -0700 (PDT)
-Received: by mail-qt0-x243.google.com with SMTP id s33so10385785qtg.3
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 12:19:09 -0700 (PDT)
+        Thu, 08 Jun 2017 12:19:08 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id s33so10385636qtg.3
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 12:19:08 -0700 (PDT)
 From: josef@toxicpanda.com
-Subject: [PATCH 2/2] mm: make kswapd try harder to keep active pages in cache
-Date: Thu,  8 Jun 2017 15:19:06 -0400
-Message-Id: <1496949546-2223-2-git-send-email-jbacik@fb.com>
-In-Reply-To: <1496949546-2223-1-git-send-email-jbacik@fb.com>
-References: <1496949546-2223-1-git-send-email-jbacik@fb.com>
+Subject: [PATCH 1/2] mm: use slab size in the slab shrinking ratio calculation
+Date: Thu,  8 Jun 2017 15:19:05 -0400
+Message-Id: <1496949546-2223-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com
@@ -24,386 +22,193 @@ Cc: Josef Bacik <jbacik@fb.com>
 
 From: Josef Bacik <jbacik@fb.com>
 
-While testing slab reclaim I noticed that if we were running a workload
-that used most of the system memory for it's working set and we start
-putting a lot of reclaimable slab pressure on the system (think find /,
-or some other silliness), we will happily evict the active pages over
-the slab cache.  This is kind of backwards as we want to do all that we
-can to keep the active working set in memory, and instead evict these
-short lived objects.  The same thing occurs when say you do a yum
-update of a few packages while your working set takes up most of RAM,
-you end up with inactive lists being relatively small and so we reclaim
-active pages even though we could reclaim these short lived inactive
-pages.
-
-My approach here is twofold.  First, keep track of the difference in
-inactive and slab pages since the last time kswapd ran.  In the first
-run this will just be the overall counts of inactive and slab, but for
-each subsequent run we'll have a good idea of where the memory pressure
-is coming from.  Then we use this information to put pressure on either
-the inactive lists or the slab caches, depending on where the pressure
-is coming from.
-
-If this optimization does not work, then we fall back to the previous
-methods of reclaiming space with a slight adjustment.  Instead of using
-the overall scan rate of page cache to determine the scan rate for slab,
-we instead use the total usage of slab compared to the reclaimable page
-cache on the box.  This will allow us to put an appropriate amount of
-pressure on the slab shrinkers if we are a mostly slab workload.
-
-I have two tests I was using to watch either side of this problem.  The
-first test kept 2 files that took up 3/4 of the memory, and then started
-creating a bunch of empty files.  Without this patch we would have to
-re-read both files in their entirety at least 3 times during the run.
-With this patch the active pages are never evicted.
-
-The second test was a test that would read and stat all the files in a
-directory, which again would take up about 3/4 of the memory with slab
-cache.  Then I cat'ed a 100gib file into /dev/null and checked to see if
-any of the files were evicted and verified that none of the files were
-evicted.
+When testing a slab heavy workload I noticed that we often would barely
+reclaim anything at all from slab when kswapd started doing reclaim.
+This is because we use the ratio of nr_scanned / nr_lru to determine how
+much of slab we should reclaim.  But in a slab only/mostly workload we
+will not have much page cache to reclaim, and thus our ratio will be
+really low and not at all related to where the memory on the system is.
+Instead we want to use a ratio of the reclaimable slab to the actual
+reclaimable space on the system.  That way if we are slab heavy we work
+harder to reclaim slab.
 
 Signed-off-by: Josef Bacik <jbacik@fb.com>
 ---
- mm/vmscan.c | 173 ++++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 158 insertions(+), 15 deletions(-)
+ mm/vmscan.c | 71 +++++++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 43 insertions(+), 28 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 16add44..141a860 100644
+index f84cdd3..16add44 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -110,11 +110,20 @@ struct scan_control {
- 	/* One of the zones is ready for compaction */
- 	unsigned int compaction_ready:1;
+@@ -307,8 +307,8 @@ EXPORT_SYMBOL(unregister_shrinker);
  
-+	/* Only reclaim inactive page cache or slab. */
-+	unsigned int inactive_only:1;
-+
- 	/* Incremented by the number of inactive pages that were scanned */
- 	unsigned long nr_scanned;
- 
- 	/* Number of pages freed so far during a call to shrink_zones() */
- 	unsigned long nr_reclaimed;
-+
-+	/* Number of inactive pages added since last kswapd run. */
-+	unsigned long inactive_diff;
-+
-+	/* Number of slab pages added since last kswapd run. */
-+	unsigned long slab_diff;
- };
- 
- #ifdef ARCH_HAS_PREFETCH
-@@ -308,7 +317,8 @@ EXPORT_SYMBOL(unregister_shrinker);
  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
  				    struct shrinker *shrinker,
- 				    unsigned long numerator,
--				    unsigned long denominator)
-+				    unsigned long denominator,
-+				    unsigned long *slab_scanned)
+-				    unsigned long nr_scanned,
+-				    unsigned long nr_eligible)
++				    unsigned long numerator,
++				    unsigned long denominator)
  {
  	unsigned long freed = 0;
  	unsigned long long delta;
-@@ -409,6 +419,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 		next_deferred -= scanned;
- 	else
- 		next_deferred = 0;
-+	if (slab_scanned)
-+		(*slab_scanned) += scanned;
-+
+@@ -333,9 +333,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+ 
+ 	total_scan = nr;
+-	delta = (4 * nr_scanned) / shrinker->seeks;
++	delta = (4 * numerator) / shrinker->seeks;
+ 	delta *= freeable;
+-	do_div(delta, nr_eligible + 1);
++	do_div(delta, denominator + 1);
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+@@ -369,7 +369,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		total_scan = freeable * 2;
+ 
+ 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+-				   nr_scanned, nr_eligible,
++				   numerator, denominator,
+ 				   freeable, delta, total_scan);
+ 
  	/*
- 	 * move the unused scan count back into the shrinker in a
- 	 * manner that handles concurrent updates. If we exhausted the
-@@ -451,7 +464,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+@@ -429,8 +429,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * @gfp_mask: allocation context
+  * @nid: node whose slab caches to target
+  * @memcg: memory cgroup whose slab caches to target
+- * @nr_scanned: pressure numerator
+- * @nr_eligible: pressure denominator
++ * @numerator: pressure numerator
++ * @denominator: pressure denominator
+  *
+  * Call the shrink functions to age shrinkable caches.
+  *
+@@ -442,20 +442,16 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * objects from the memory cgroup specified. Otherwise, only unaware
+  * shrinkers are called.
+  *
+- * @nr_scanned and @nr_eligible form a ratio that indicate how much of
+- * the available objects should be scanned.  Page reclaim for example
+- * passes the number of pages scanned and the number of pages on the
+- * LRU lists that it considered on @nid, plus a bias in @nr_scanned
+- * when it encountered mapped pages.  The ratio is further biased by
+- * the ->seeks setting of the shrink function, which indicates the
+- * cost to recreate an object relative to that of an LRU page.
++ * @numerator and @denominator form a ratio that indicate how much of
++ * the available objects should be scanned.  Global reclaim for example will do
++ * the ratio of reclaimable slab to the lru sizes.
+  *
+  * Returns the number of reclaimed slab objects.
+  */
  static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
  				 struct mem_cgroup *memcg,
- 				 unsigned long numerator,
--				 unsigned long denominator)
-+				 unsigned long denominator,
-+				 unsigned long *slab_scanned)
+-				 unsigned long nr_scanned,
+-				 unsigned long nr_eligible)
++				 unsigned long numerator,
++				 unsigned long denominator)
  {
  	struct shrinker *shrinker;
  	unsigned long freed = 0;
-@@ -489,7 +503,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+@@ -463,9 +459,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 		return 0;
+ 
+-	if (nr_scanned == 0)
+-		nr_scanned = SWAP_CLUSTER_MAX;
+-
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/*
+ 		 * If we would return 0, our callers would understand that we
+@@ -496,7 +489,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
  			sc.nid = 0;
  
--		freed += do_shrink_slab(&sc, shrinker, numerator, denominator);
-+		freed += do_shrink_slab(&sc, shrinker, numerator, denominator,
-+					slab_scanned);
+-		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		freed += do_shrink_slab(&sc, shrinker, numerator, denominator);
  	}
  
  	up_read(&shrinker_rwsem);
-@@ -508,7 +523,7 @@ void drop_slab_node(int nid)
- 		freed = 0;
- 		do {
- 			freed += shrink_slab(GFP_KERNEL, nid, memcg,
--					     1000, 1000);
-+					     1000, 1000, NULL);
- 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
- 	} while (freed > 10);
+@@ -2558,12 +2551,34 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 	return true;
  }
-@@ -2139,6 +2154,7 @@ enum scan_balance {
- 	SCAN_FRACT,
- 	SCAN_ANON,
- 	SCAN_FILE,
-+	SCAN_INACTIVE,
- };
  
- /*
-@@ -2165,6 +2181,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	unsigned long ap, fp;
- 	enum lru_list lru;
- 
-+	if (sc->inactive_only) {
-+		scan_balance = SCAN_INACTIVE;
-+		goto out;
-+	}
++static unsigned long lruvec_reclaimable_pages(struct lruvec *lruvec)
++{
++	unsigned long nr;
 +
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
- 		scan_balance = SCAN_FILE;
-@@ -2338,6 +2359,14 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 				scan = 0;
- 			}
- 			break;
-+		case SCAN_INACTIVE:
-+			if (file && !is_active_lru(lru)) {
-+				scan = max(scan, sc->nr_to_reclaim);
-+			} else {
-+				size = 0;
-+				scan = 0;
-+			}
-+			break;
- 		default:
- 			/* Look ma, no brain */
- 			BUG();
-@@ -2571,12 +2600,59 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
++	nr = lruvec_page_state(lruvec, NR_ACTIVE_FILE) +
++	     lruvec_page_state(lruvec, NR_INACTIVE_FILE) +
++	     lruvec_page_state(lruvec, NR_ISOLATED_FILE);
++
++	if (get_nr_swap_pages() > 0)
++		nr += lruvec_page_state(lruvec, NR_ACTIVE_ANON) +
++		      lruvec_page_state(lruvec, NR_INACTIVE_ANON) +
++		      lruvec_page_state(lruvec, NR_ISOLATED_ANON);
++
++	return nr;
++}
++
+ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  {
  	struct reclaim_state *reclaim_state = current->reclaim_state;
  	unsigned long nr_reclaimed, nr_scanned;
--	unsigned long greclaim = 1, gslab = 1;
-+	unsigned long greclaim = 1, gslab = 1, total_high_wmark = 0, nr_inactive;
++	unsigned long greclaim = 1, gslab = 1;
  	bool reclaimable = false;
-+	bool skip_slab = false;
  
- 	if (global_reclaim(sc)) {
-+		int z;
-+		for (z = 0; z < MAX_NR_ZONES; z++) {
-+			struct zone *zone = &pgdat->node_zones[z];
-+			if (!managed_zone(zone))
-+				continue;
-+			total_high_wmark += high_wmark_pages(zone);
-+		}
-+		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
- 		gslab = node_page_state(pgdat, NR_SLAB_RECLAIMABLE);
- 		greclaim = pgdat_reclaimable_pages(pgdat);
-+	} else {
-+		struct lruvec *lruvec =
-+			mem_cgroup_lruvec(pgdat, sc->target_mem_cgroup);
-+		total_high_wmark = sc->nr_to_reclaim;
-+		nr_inactive = lruvec_page_state(lruvec, NR_INACTIVE_FILE);
-+		gslab = lruvec_page_state(lruvec, NR_SLAB_RECLAIMABLE);
++	if (global_reclaim(sc)) {
++		gslab = node_page_state(pgdat, NR_SLAB_RECLAIMABLE);
++		greclaim = pgdat_reclaimable_pages(pgdat);
 +	}
 +
-+	/*
-+	 * If we don't have a lot of inactive or slab pages then there's no
-+	 * point in trying to free them exclusively, do the normal scan stuff.
-+	 */
-+	if (nr_inactive + gslab < total_high_wmark)
-+		sc->inactive_only = 0;
-+
-+	/*
-+	 * We still want to slightly prefer slab over inactive, so if the
-+	 * inactive on this node is large enough and what is pushing us into
-+	 * reclaim terretitory then limit our flushing to the inactive list for
-+	 * the first go around.
-+	 *
-+	 * The idea is that with a memcg configured system we will still reclaim
-+	 * memcg aware shrinkers, which includes the super block shrinkers.  So
-+	 * if our steady state is keeping fs objects in cache for our workload
-+	 * we'll still put a certain amount of pressure on them anyway.  To
-+	 * avoid evicting things we actually care about we want to skip slab
-+	 * reclaim altogether.
-+	 *
-+	 * However we still want to account for slab and inactive growing at the
-+	 * same rate, so if that is the case just carry on shrinking inactive
-+	 * and slab together.
-+	 */
-+	if (nr_inactive > total_high_wmark &&
-+	    sc->inactive_diff > sc->slab_diff) {
-+		unsigned long tmp = sc->inactive_diff >> 1;
-+
-+		if (tmp >= sc->slab_diff)
-+			skip_slab = true;
- 	}
- 
  	do {
-@@ -2586,6 +2662,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			.priority = sc->priority,
- 		};
- 		unsigned long node_lru_pages = 0;
-+		unsigned long slab_reclaimed = 0;
-+		unsigned long slab_scanned = 0;
- 		struct mem_cgroup *memcg;
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+@@ -2578,6 +2593,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
- 		nr_reclaimed = sc->nr_reclaimed;
-@@ -2617,9 +2695,18 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 		do {
++			struct lruvec *lruvec = mem_cgroup_lruvec(pgdat,
++								  memcg);
++			unsigned long nr_slab, nr_reclaim;
+ 			unsigned long lru_pages;
+ 			unsigned long reclaimed;
+ 			unsigned long scanned;
+@@ -2592,14 +2610,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
++			nr_slab = lruvec_page_state(lruvec,
++						    NR_SLAB_RECLAIMABLE);
++			nr_reclaim = lruvec_reclaimable_pages(lruvec);
+ 
  			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
  			node_lru_pages += lru_pages;
  
--			if (memcg)
--				shrink_slab(sc->gfp_mask, pgdat->node_id,
--					    memcg, nr_slab, nr_reclaim);
-+			if (memcg && !skip_slab) {
-+				unsigned long numerator = nr_slab;
-+				unsigned long denominator = nr_reclaim;
-+				if (sc->inactive_only) {
-+					numerator = sc->slab_diff;
-+					denominator = sc->inactive_diff;
-+				}
-+				slab_reclaimed +=
-+					shrink_slab(sc->gfp_mask, pgdat->node_id,
-+						    memcg, numerator, denominator,
-+						    &slab_scanned);
-+			}
+ 			if (memcg)
+ 				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->nr_scanned - scanned,
+-					    lru_pages);
++					    memcg, nr_slab, nr_reclaim);
  
  			/* Record the group's reclaim efficiency */
  			vmpressure(sc->gfp_mask, memcg, false,
-@@ -2643,9 +2730,18 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -2623,14 +2643,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  			}
  		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
  
--		if (global_reclaim(sc))
--			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
--				    gslab, greclaim);
-+		if (!skip_slab && global_reclaim(sc)) {
-+			unsigned long numerator = gslab;
-+			unsigned long denominator = greclaim;
-+			if (sc->inactive_only) {
-+				numerator = sc->slab_diff;
-+				denominator = sc->inactive_diff;
-+			}
-+			slab_reclaimed += shrink_slab(sc->gfp_mask,
-+						      pgdat->node_id, NULL,
-+						      numerator, denominator,
-+						      &slab_scanned);
-+		}
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+ 		if (global_reclaim(sc))
+ 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    node_lru_pages);
++				    gslab, greclaim);
  
  		/*
  		 * Record the subtree's reclaim efficiency. The reclaimed
-@@ -2664,9 +2760,28 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			reclaim_state->reclaimed_slab = 0;
- 		}
- 
--		if (sc->nr_reclaimed - nr_reclaimed)
-+		if (sc->nr_reclaimed - nr_reclaimed) {
- 			reclaimable = true;
-+		} else if (sc->inactive_only && !skip_slab) {
-+			unsigned long percent = 0;
- 
-+			/*
-+			 * We didn't reclaim anything this go around, so the
-+			 * inactive list is likely spent.  If we're reclaiming
-+			 * less than half of the objects in slab that we're
-+			 * scanning then just stop doing the inactive only scan.
-+			 * Otherwise ramp up the pressure on the slab caches
-+			 * hoping that eventually we'll start freeing enough
-+			 * objects to reclaim space.
-+			 */
-+			if (slab_scanned)
-+				percent = slab_reclaimed * 100 / slab_scanned;
-+			if (percent < 50)
-+				sc->inactive_only = 0;
-+			else
-+				gslab <<= 1;
-+		}
-+		skip_slab = false;
- 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
- 					 sc->nr_scanned - nr_scanned, sc));
- 
-@@ -3309,7 +3424,8 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
-  * or lower is eligible for reclaim until at least one usable zone is
-  * balanced.
-  */
--static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
-+static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx,
-+			 unsigned long inactive_diff, unsigned long slab_diff)
- {
- 	int i;
- 	unsigned long nr_soft_reclaimed;
-@@ -3322,6 +3438,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-+		.inactive_only = 1,
-+		.inactive_diff = inactive_diff,
-+		.slab_diff = slab_diff,
- 	};
- 	count_vm_event(PAGEOUTRUN);
- 
-@@ -3541,7 +3660,7 @@ static int kswapd(void *p)
- 	unsigned int classzone_idx = MAX_NR_ZONES - 1;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
--
-+	unsigned long nr_slab = 0, nr_inactive = 0;
- 	struct reclaim_state reclaim_state = {
- 		.reclaimed_slab = 0,
- 	};
-@@ -3571,6 +3690,7 @@ static int kswapd(void *p)
- 	pgdat->kswapd_order = 0;
- 	pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
- 	for ( ; ; ) {
-+		unsigned long slab_diff, inactive_diff;
- 		bool ret;
- 
- 		alloc_order = reclaim_order = pgdat->kswapd_order;
-@@ -3598,6 +3718,23 @@ static int kswapd(void *p)
- 			continue;
- 
- 		/*
-+		 * We want to know where we're adding pages so we can make
-+		 * smarter decisions about where we're going to put pressure
-+		 * when shrinking.
-+		 */
-+		slab_diff = sum_zone_node_page_state(pgdat->node_id,
-+						     NR_SLAB_RECLAIMABLE);
-+		inactive_diff = node_page_state(pgdat, NR_INACTIVE_FILE);
-+		if (nr_slab > slab_diff)
-+			slab_diff = 0;
-+		else
-+			slab_diff -= nr_slab;
-+		if (inactive_diff < nr_inactive)
-+			inactive_diff = 0;
-+		else
-+			inactive_diff -= nr_inactive;
-+
-+		/*
- 		 * Reclaim begins at the requested order but if a high-order
- 		 * reclaim fails then kswapd falls back to reclaiming for
- 		 * order-0. If that happens, kswapd will consider sleeping
-@@ -3607,7 +3744,11 @@ static int kswapd(void *p)
- 		 */
- 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
- 						alloc_order);
--		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-+		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx,
-+					      inactive_diff, slab_diff);
-+		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
-+		nr_slab = sum_zone_node_page_state(pgdat->node_id,
-+						   NR_SLAB_RECLAIMABLE);
- 		if (reclaim_order < alloc_order)
- 			goto kswapd_try_sleep;
- 	}
-@@ -3859,6 +4000,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
- 		.may_swap = 1,
- 		.reclaim_idx = gfp_zone(gfp_mask),
-+		.slab_diff = 1,
-+		.inactive_diff = 1,
- 	};
- 
- 	cond_resched();
 -- 
 2.7.4
 
