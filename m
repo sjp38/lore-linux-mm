@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F9D6B02F4
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 15:22:30 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g36so5846382wrg.4
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 12:22:30 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id 135si6559307wmx.59.2017.06.08.12.22.28
+	by kanga.kvack.org (Postfix) with ESMTP id 498DE6B0292
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 16:18:28 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id n7so5983011wrb.0
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 13:18:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 193si6875907wmm.48.2017.06.08.13.18.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jun 2017 12:22:28 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id d73so37237238wma.0
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 12:22:28 -0700 (PDT)
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH v4] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
-Date: Thu,  8 Jun 2017 19:22:19 +0000
-Message-Id: <20170608192219.8338-1-ard.biesheuvel@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 08 Jun 2017 13:18:27 -0700 (PDT)
+Date: Thu, 8 Jun 2017 22:18:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Sleeping BUG in khugepaged for i586
+Message-ID: <20170608201822.GA5535@dhcp22.suse.cz>
+References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
+ <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
+ <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
+ <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
+ <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
+ <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
+ <20170608144831.GA19903@dhcp22.suse.cz>
+ <20170608170557.GA8118@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170608170557.GA8118@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, zhongjiang@huawei.com, labbott@fedoraproject.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, dave.hansen@intel.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Existing code that uses vmalloc_to_page() may assume that any
-address for which is_vmalloc_addr() returns true may be passed
-into vmalloc_to_page() to retrieve the associated struct page.
+On Thu 08-06-17 10:05:57, Matthew Wilcox wrote:
+> On Thu, Jun 08, 2017 at 04:48:31PM +0200, Michal Hocko wrote:
+> > On Wed 07-06-17 13:56:01, David Rientjes wrote:
+> > > I agree it's probably going to bisect to 338a16ba15495 since it's the 
+> > > cond_resched() at the line number reported, but I think there must be 
+> > > something else going on.  I think the list of locks held by khugepaged is 
+> > > correct because it matches with the implementation.  The preempt_count(), 
+> > > as suggested by Andrew, does not.  If this is reproducible, I'd like to 
+> > > know what preempt_count() is.
+> > 
+> > collapse_huge_page
+> >   pte_offset_map
+> >     kmap_atomic
+> >       kmap_atomic_prot
+> >         preempt_disable
+> >   __collapse_huge_page_copy
+> >   pte_unmap
+> >     kunmap_atomic
+> >       __kunmap_atomic
+> >         preempt_enable
+> > 
+> > I suspect, so cond_resched seems indeed inappropriate on 32b systems.
+> 
+> Then why doesn't it trigger on 64-bit systems too?
+> 
+> #ifndef ARCH_HAS_KMAP
+> ...
+> static inline void *kmap_atomic(struct page *page)
+> {
+>         preempt_disable();
+>         pagefault_disable();
+>         return page_address(page);
+> }
+> #define kmap_atomic_prot(page, prot)    kmap_atomic(page)
+> 
+> 
+> ... oh, wait, I see.  Because pte_offset_map() doesn't call kmap_atomic()
+> on 64-bit.  Indeed, it doesn't necessarily call kmap_atomic() on 32-bit
+> either; only with CONFIG_HIGHPTE enabled.  How much of a performance
+> penalty would it be to call kmap_atomic() unconditionally on 64 bit to
+> make sure that this kind of problem doesn't show on 32-bit systems only?
 
-This is not un unreasonable assumption to make, but on architectures
-that have CONFIG_HAVE_ARCH_HUGE_VMAP=y, it no longer holds, and we
-need to ensure that vmalloc_to_page() does not go off into the weeds
-trying to dereference huge PUDs or PMDs as table entries.
+I am not sure I understand why would we map those pages in 64b systems?
+We can access them directly.
 
-Given that vmalloc() and vmap() themselves never create huge
-mappings or deal with compound pages at all, there is no correct
-answer in this case, so return NULL instead, and issue a warning.
-
-Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
-v4: - use pud_bad/pmd_bad instead of pud_huge/pmd_huge, which don't require
-      changes to hugetlb.h, and give us what we need on all architectures
-    - move WARN_ON_ONCE() calls out of conditionals
-    - add explanatory comment
-
- mm/vmalloc.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 34a1c3e46ed7..0ba20eb17212 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -287,10 +287,21 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
- 	if (p4d_none(*p4d))
- 		return NULL;
- 	pud = pud_offset(p4d, addr);
--	if (pud_none(*pud))
-+
-+	/*
-+	 * Don't dereference bad PUD or PMD (below) entries. This will also
-+	 * identify huge mappings, which we may encounter on architectures
-+	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
-+	 * identified as vmalloc addresses by is_vmalloc_addr(), but are not
-+	 * [unambiguously] associated with a struct page, so there is no
-+	 * correct value to return for them.
-+	 */
-+	WARN_ON_ONCE(pud_bad(*pud));
-+	if (pud_none(*pud) || pud_bad(*pud))
- 		return NULL;
- 	pmd = pmd_offset(pud, addr);
--	if (pmd_none(*pmd))
-+	WARN_ON_ONCE(pmd_bad(*pmd);
-+	if (pmd_none(*pmd) || pmd_bad(*pmd))
- 		return NULL;
- 
- 	ptep = pte_offset_map(pmd, addr);
 -- 
-2.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
