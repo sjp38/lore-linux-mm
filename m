@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B781D6B02B4
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 03:46:08 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id s4so4024336wrc.15
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 00:46:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 203E36B02C3
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 03:46:10 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k30so4023757wrc.9
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 00:46:10 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l133sor626772wmd.47.2017.06.08.00.46.07
+        by mx.google.com with SMTPS id y133sor638256wmg.24.2017.06.08.00.46.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 08 Jun 2017 00:46:07 -0700 (PDT)
+        Thu, 08 Jun 2017 00:46:08 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/4] mm, memory_hotplug: simplify empty node mask handling in new_node_page
-Date: Thu,  8 Jun 2017 09:45:50 +0200
-Message-Id: <20170608074553.22152-2-mhocko@kernel.org>
+Subject: [PATCH 2/4] hugetlb, memory_hotplug: prefer to use reserved pages for migration
+Date: Thu,  8 Jun 2017 09:45:51 +0200
+Message-Id: <20170608074553.22152-3-mhocko@kernel.org>
 In-Reply-To: <20170608074553.22152-1-mhocko@kernel.org>
 References: <20170608074553.22152-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,63 +22,119 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
 
 From: Michal Hocko <mhocko@suse.com>
 
-new_node_page tries to allocate the target page on a different NUMA node
-than the source page. This makes sense in most cases during the hotplug
-because we are likely to offline the whole numa node. But there are
-cases where there are no other nodes to fallback (e.g. when offlining
-parts of the only existing node) and we have to fallback to allocating
-from the source node. The current code does that but it can be
-simplified by checking the nmask and updating it before we even try to
-allocate rather than special casing it.
+new_node_page will try to use the origin's next NUMA node as the
+migration destination for hugetlb pages. If such a node doesn't have any
+preallocated pool it falls back to __alloc_buddy_huge_page_no_mpol to
+allocate a surplus page instead. This is quite subotpimal for any
+configuration when hugetlb pages are no distributed to all NUMA nodes
+evenly. Say we have a hotplugable node 4 and spare hugetlb pages are
+node 0
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:10000
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node2/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node3/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node4/hugepages/hugepages-2048kB/nr_hugepages:10000
+/sys/devices/system/node/node5/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node6/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node7/hugepages/hugepages-2048kB/nr_hugepages:0
 
-This patch shouldn't introduce any functional change.
+Now we consume the whole pool on node 4 and try to offline this
+node. All the allocated pages should be moved to node0 which has enough
+preallocated pages to hold them. With the current implementation
+offlining very likely fails because hugetlb allocations during runtime
+are much less reliable.
+
+Fix this by reusing the nodemask which excludes migration source and try
+to find a first node which has a page in the preallocated pool first and
+fall back to __alloc_buddy_huge_page_no_mpol only when the whole pool is
+consumed.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/memory_hotplug.c | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ include/linux/hugetlb.h |  2 ++
+ mm/hugetlb.c            | 27 +++++++++++++++++++++++++++
+ mm/memory_hotplug.c     |  9 ++-------
+ 3 files changed, 31 insertions(+), 7 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d61509752112..1ca373bdffbf 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1432,7 +1432,15 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
- 	int nid = page_to_nid(page);
- 	nodemask_t nmask = node_states[N_MEMORY];
--	struct page *new_page = NULL;
-+
-+	/*
-+	 * try to allocate from a different node but reuse this node if there
-+	 * are no other online nodes to be used (e.g. we are offlining a part
-+	 * of the only existing node)
-+	 */
-+	node_clear(nid, nmask);
-+	if (nodes_empty(nmask))
-+		node_set(nid, nmask);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index dbb118c566cd..c469191bb13b 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -349,6 +349,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
+ struct page *alloc_huge_page_node(struct hstate *h, int nid);
+ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve);
++struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask);
+ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+ 			pgoff_t idx);
  
- 	/*
- 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-@@ -1443,18 +1451,11 @@ static struct page *new_node_page(struct page *page, unsigned long private,
- 		return alloc_huge_page_node(page_hstate(compound_head(page)),
- 					next_node_in(nid, nmask));
- 
--	node_clear(nid, nmask);
--
- 	if (PageHighMem(page)
- 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
- 		gfp_mask |= __GFP_HIGHMEM;
- 
--	if (!nodes_empty(nmask))
--		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
--	if (!new_page)
--		new_page = __alloc_pages(gfp_mask, 0, nid);
--
--	return new_page;
-+	return __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
+@@ -524,6 +525,7 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
+ struct hstate {};
+ #define alloc_huge_page(v, a, r) NULL
+ #define alloc_huge_page_node(h, nid) NULL
++#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
+ #define alloc_huge_page_noerr(v, a, r) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 761a669d0b62..01c11ceb47d6 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1723,6 +1723,33 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ 	return page;
  }
  
- #define NR_OFFLINE_AT_ONCE_PAGES	(256)
++struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask)
++{
++	struct page *page = NULL;
++	int node;
++
++	spin_lock(&hugetlb_lock);
++	if (h->free_huge_pages - h->resv_huge_pages > 0) {
++		for_each_node_mask(node, *nmask) {
++			page = dequeue_huge_page_node_exact(h, node);
++			if (page)
++				break;
++		}
++	}
++	spin_unlock(&hugetlb_lock);
++	if (page)
++		return page;
++
++	/* No reservations, try to overcommit */
++	for_each_node_mask(node, *nmask) {
++		page = __alloc_buddy_huge_page_no_mpol(h, node);
++		if (page)
++			return page;
++	}
++
++	return NULL;
++}
++
+ /*
+  * Increase the hugetlb pool such that it can accommodate a reservation
+  * of size 'delta'.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 1ca373bdffbf..6e0d964ac561 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1442,14 +1442,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+ 	if (nodes_empty(nmask))
+ 		node_set(nid, nmask);
+ 
+-	/*
+-	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+-	 * accordance with memory policy of the user process if possible. For
+-	 * now as a simple work-around, we use the next node for destination.
+-	 */
+ 	if (PageHuge(page))
+-		return alloc_huge_page_node(page_hstate(compound_head(page)),
+-					next_node_in(nid, nmask));
++		return alloc_huge_page_nodemask(
++				page_hstate(compound_head(page)), &nmask);
+ 
+ 	if (PageHighMem(page)
+ 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 -- 
 2.11.0
 
