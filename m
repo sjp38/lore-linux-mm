@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E49D26B02C3
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 05:44:46 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u101so4338260wrc.2
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 02:44:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e62si5445088wmf.81.2017.06.08.02.44.45
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 00AED6B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 06:21:16 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 201so5315698itu.13
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 03:21:15 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id w27si5275883ioe.58.2017.06.08.03.21.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 02:44:45 -0700 (PDT)
-Date: Thu, 8 Jun 2017 11:44:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/oom_kill: count global and memory cgroup oom kills
-Message-ID: <20170608094441.GD19866@dhcp22.suse.cz>
-References: <149570810989.203600.9492483715840752937.stgit@buzz>
- <20170605085011.GJ9248@dhcp22.suse.cz>
- <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
+        Thu, 08 Jun 2017 03:21:14 -0700 (PDT)
+Subject: Re: 4.9.30 NULL pointer dereference in __remove_shared_vm_struct
+References: <7244cb6d-ed7a-451a-1af9-885090173311@nokia.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <d61fec36-ab07-26e6-6572-5c8a58cbe393@I-love.SAKURA.ne.jp>
+Date: Thu, 8 Jun 2017 19:21:02 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
+In-Reply-To: <7244cb6d-ed7a-451a-1af9-885090173311@nokia.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>
+To: Tommi Rantala <tommi.t.rantala@nokia.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 05-06-17 17:27:50, Konstantin Khlebnikov wrote:
-> 
-> 
-> On 05.06.2017 11:50, Michal Hocko wrote:
-> >On Thu 25-05-17 13:28:30, Konstantin Khlebnikov wrote:
-[...]
-> >>index 04c9143a8625..dd30a045ef5b 100644
-> >>--- a/mm/oom_kill.c
-> >>+++ b/mm/oom_kill.c
-> >>@@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> >>  	/* Get a reference to safely compare mm after task_unlock(victim) */
-> >>  	mm = victim->mm;
-> >>  	mmgrab(mm);
-> >>+
-> >>+	/* Raise event before sending signal: reaper must see this */
-> >>+	count_vm_event(OOM_KILL);
-> >>+	mem_cgroup_count_vm_event(mm, OOM_KILL);
-> >>+
-> >>  	/*
-> >>  	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
-> >>  	 * the OOM victim from depleting the memory reserves from the user
-> >
-> >Why don't you count tasks which share mm with the oom victim?
-> 
-> Yes, this makes sense. But these kills are not logged thus counter
-> will differs from logged events.
+Tommi Rantala wrote:
+> I have hit this kernel bug twice with 4.9.30 while running trinity, any 
+> ideas? It's not easily reproducible.
 
-Yes they are not but does that matter? Do we want _all_ or only some oom
-kills being counted.
+No idea. But if you can reproduce this problem, I think you can retry with
+the OOM reaper disabled (like shown below), for the latter report is 10 seconds
+after the OOM reaper reclaimed memory.
 
-> Also these tasks might live in different cgroups, so counting to mm
-> owner isn't correct.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ec9f11d..7e17242 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -560,8 +560,8 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	struct mm_struct *mm = tsk->signal->oom_mm;
+ 
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+-	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
+-		schedule_timeout_idle(HZ/10);
++	//while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
++	//	schedule_timeout_idle(HZ/10);
+ 
+ 	if (attempts <= MAX_OOM_REAP_RETRIES)
+ 		goto done;
 
-Well, the situation with mm shared between different memcgs is always
-hairy. We try to charge mm->owner but I suspect we are not consistent in
-that. I would have to double check because it's been a long ago since
-I've investigated that. My point is that once you count OOM kills you
-should count all the tasks IMHO.
+Since line 137 is atomic_inc(), file->f_inode was for some reason NULL, wasn't it?
 
--- 
-Michal Hocko
-SUSE Labs
+	if (vma->vm_flags & VM_DENYWRITE)
+		atomic_inc(&file_inode(file)->i_writecount);
+
+And mmput() from exit_mm() from do_exit() is called before exit_files() is
+called from do_exit(). Thus, something by error made file->f_inode == NULL,
+despite quite few locations set f_inode to NULL.
+
+# grep -nFr -- '->f_inode ' *
+fs/file_table.c:168:    file->f_inode = path->dentry->d_inode;
+fs/file_table.c:224:    file->f_inode = NULL;
+fs/open.c:711:  f->f_inode = inode;
+fs/open.c:782:  f->f_inode = NULL;
+fs/overlayfs/copy_up.c:36:      if (f->f_inode == d_inode(dentry))
+
+Maybe the OOM reaper by error reclaimed and somebody zeroed the reclaimed
+page containing file->f_inode.
+
+JFYI, 4.9.30 does not have commit 235190738aba7c5c ("oom-reaper: use
+madvise_dontneed() logic to decide if unmap the VMA") backported.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
