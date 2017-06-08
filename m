@@ -1,146 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A6C6E6B02F4
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 09:59:19 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w91so4986560wrb.13
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 06:59:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w107si3525373wrc.14.2017.06.08.06.59.17
+	by kanga.kvack.org (Postfix) with ESMTP id C25EB6B02FD
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 10:00:34 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id c52so4997512wra.12
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 07:00:34 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b66sor786807wmf.50.2017.06.08.07.00.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Jun 2017 06:59:18 -0700 (PDT)
-Subject: Re: mm, something wring in page_lock_anon_vma_read()?
-References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com>
- <591EBE71.7080402@huawei.com>
- <alpine.LSU.2.11.1705191453040.3819@eggly.anvils>
- <591F9A09.6010707@huawei.com>
- <alpine.LSU.2.11.1705191852360.11060@eggly.anvils>
- <591FA78E.9050307@huawei.com>
- <alpine.LSU.2.11.1705191935220.11750@eggly.anvils>
- <591FB173.4020409@huawei.com> <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz>
- <5923FF31.5020801@huawei.com> <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz>
- <593954BD.9060703@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e8dacd42-e5c5-998b-5f9a-a34dbfb986f1@suse.cz>
-Date: Thu, 8 Jun 2017 15:59:15 +0200
+        (Google Transport Security);
+        Thu, 08 Jun 2017 07:00:33 -0700 (PDT)
+Date: Thu, 8 Jun 2017 15:00:31 +0100
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCHv7 03/14] x86/boot/efi: Cleanup initialization of GDT
+ entries
+Message-ID: <20170608140031.GB3220@codeblueprint.co.uk>
+References: <20170606113133.22974-1-kirill.shutemov@linux.intel.com>
+ <20170606113133.22974-4-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <593954BD.9060703@huawei.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170606113133.22974-4-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>
-Cc: zhong jiang <zhongjiang@huawei.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/08/2017 03:44 PM, Xishi Qiu wrote:
-> On 2017/5/23 17:33, Vlastimil Babka wrote:
+On Tue, 06 Jun, at 02:31:22PM, Kirill A. Shutemov wrote:
+> This is preparation for following patches without changing semantics of the
+> code.
 > 
->> On 05/23/2017 11:21 AM, zhong jiang wrote:
->>> On 2017/5/23 0:51, Vlastimil Babka wrote:
->>>> On 05/20/2017 05:01 AM, zhong jiang wrote:
->>>>> On 2017/5/20 10:40, Hugh Dickins wrote:
->>>>>> On Sat, 20 May 2017, Xishi Qiu wrote:
->>>>>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
->>>>>>> And I meet the bug too. However it is hard to reproduce, and 
->>>>>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
->>>>>>>
->>>>>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
->>>>>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
->>>>>>> but anon_vma has been corrupted.
->>>>>>>
->>>>>>> Any ideas?
->>>>>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
->>>>>> a pte mapped in on top of another pte; but cannot begin tell you where
->>>>>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
->>>>>>
->>>>>> Hugh
->>>>>>
->>>>>> .
->>>>>>
->>>>> Hi, Hugh
->>>>>
->>>>> I find the following message from the dmesg.
->>>>>
->>>>> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
->>>>>
->>>>> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
->>>>> still exist.
->>>> Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
->>>> thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
->>>   HI, Vlastimil
->>>  
->>>   I miss the patch.
->>
->> Try applying it then, there's good chance the error and crash will go
->> away. Even if your workload doesn't actually run any madvise(MADV_DONTNEED).
->>
-> 
-> Hi Vlastimil,
-> 
-> I find this error was reported by Kirill as following, right?
-> https://patchwork.kernel.org/patch/7550401/
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Matt Fleming <matt@codeblueprint.co.uk>
+> ---
+>  arch/x86/boot/compressed/eboot.c | 39 +++++++++++++++++++++------------------
+>  1 file changed, 21 insertions(+), 18 deletions(-)
 
-That was reported by Minchan.
-
-> The call trace is quite like the same as ours.
-
-In that thread, the error seems just disappeared in the end.
-
-So, did you apply the patch I suggested? Did it help?
-
-> Thanks,
-> Xishi Qiu
-> 
->>> when I read the patch. I find the following issue. but I am sure it is right.
->>>
->>>       if (unlikely(pmd_trans_unstable(pmd)))
->>>         return 0;
->>>     /*
->>>      * A regular pmd is established and it can't morph into a huge pmd
->>>      * from under us anymore at this point because we hold the mmap_sem
->>>      * read mode and khugepaged takes it in write mode. So now it's
->>>      * safe to run pte_offset_map().
->>>      */
->>>     pte = pte_offset_map(pmd, address);
->>>
->>>   after pmd_trans_unstable call,  without any protect method.  by the comments,
->>>   it think the pte_offset_map is safe.    before pte_offset_map call, it still may be
->>>   unstable. it is possible?
->>
->> IIRC it's "unstable" wrt possible none->huge->none transition. But once
->> we've seen it's a regular pmd via pmd_trans_unstable(), we're safe as a
->> transition from regular pmd can't happen.
->>
->>>   Thanks
->>> zhongjiang
->>>>> Thanks
->>>>> zhongjiang
->>>>>
->>>>> --
->>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>>>> see: http://www.linux-mm.org/ .
->>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>>>
->>>>
->>>> .
->>>>
->>>
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->>
->>
->> .
->>
-> 
-> 
-> 
+Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
