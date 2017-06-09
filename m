@@ -1,80 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 255AE6B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 07:18:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n81so24054019pfb.14
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 04:18:47 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s61si766977plb.32.2017.06.09.04.18.46
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ECD2D6B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 09:58:25 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g76so8531466wrd.3
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 06:58:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 62si1291432wrg.43.2017.06.09.06.58.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Jun 2017 04:18:46 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v11 0/6] Virtio-balloon Enhancement
-Date: Fri, 9 Jun 2017 11:18:42 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F73925B11D@shsmsx102.ccr.corp.intel.com>
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Jun 2017 06:58:24 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] x86, mm: disable 1GB direct mapping when disabling 2MB mapping
+Date: Fri,  9 Jun 2017 15:57:43 +0200
+Message-Id: <20170609135743.9920-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Friday, June 9, 2017 6:42 PM, Wang, Wei W wrote:
-> To: virtio-dev@lists.oasis-open.org; linux-kernel@vger.kernel.org; qemu-
-> devel@nongnu.org; virtualization@lists.linux-foundation.org;
-> kvm@vger.kernel.org; linux-mm@kvack.org; mst@redhat.com;
-> david@redhat.com; Hansen, Dave <dave.hansen@intel.com>;
-> cornelia.huck@de.ibm.com; akpm@linux-foundation.org;
-> mgorman@techsingularity.net; aarcange@redhat.com; amit.shah@redhat.com;
-> pbonzini@redhat.com; Wang, Wei W <wei.w.wang@intel.com>;
-> liliang.opensource@gmail.com
-> Subject: [PATCH v11 0/6] Virtio-balloon Enhancement
->=20
-> This patch series enhances the existing virtio-balloon with the following=
- new
-> features:
-> 1) fast ballooning: transfer ballooned pages between the guest and host i=
-n
-> chunks, instead of one by one; and
-> 2) cmdq: a new virtqueue to send commands between the device and driver.
-> Currently, it supports commands to report memory stats (replace the old s=
-tatq
-> mechanism) and report guest unused pages.
+The kmemleak and debug_pagealloc features both disable using huge pages for
+direct mapping so they can do cpa() on page level granularity in any context.
+However they only do that for 2MB pages, which means 1GB pages can still be
+used if the CPU supports it, unless disabled by a boot param, which is
+non-obvious. Disable also 1GB pages when disabling 2MB pages.
 
-v10->v11 changes:
-1) virtio_balloon: use vring_desc to describe a chunk;
-2) virtio_ring: support to add an indirect desc table to virtqueue;
-3)  virtio_balloon: use cmdq to report guest memory statistics.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ arch/x86/mm/init.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
->=20
-> Liang Li (1):
->   virtio-balloon: deflate via a page list
->=20
-> Wei Wang (5):
->   virtio-balloon: coding format cleanup
->   virtio-balloon: VIRTIO_BALLOON_F_PAGE_CHUNKS
->   mm: function to offer a page block on the free list
->   mm: export symbol of next_zone and first_online_pgdat
->   virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
->=20
->  drivers/virtio/virtio_balloon.c     | 781 ++++++++++++++++++++++++++++++=
-++--
-> --
->  drivers/virtio/virtio_ring.c        | 120 +++++-
->  include/linux/mm.h                  |   5 +
->  include/linux/virtio.h              |   7 +
->  include/uapi/linux/virtio_balloon.h |  14 +
->  include/uapi/linux/virtio_ring.h    |   3 +
->  mm/mmzone.c                         |   2 +
->  mm/page_alloc.c                     |  91 +++++
->  8 files changed, 950 insertions(+), 73 deletions(-)
->=20
-> --
-> 2.7.4
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index cbc87ea98751..20282dfce0fa 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -170,6 +170,10 @@ static void __init probe_page_size_mask(void)
+ 	 */
+ 	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
+ 		page_size_mask |= 1 << PG_LEVEL_2M;
++	else
++		direct_gbpages = 0;
++#else
++	direct_gbpages = 0;
+ #endif
+ 
+ 	/* Enable PSE if available */
+-- 
+2.13.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
