@@ -1,71 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCA46B0279
-	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 22:54:29 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m19so21790527pgd.14
-        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 19:54:29 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u21si6035408pfj.0.2017.06.08.19.54.28
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A76976B0279
+	for <linux-mm@kvack.org>; Thu,  8 Jun 2017 23:55:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h21so21116250pfk.13
+        for <linux-mm@kvack.org>; Thu, 08 Jun 2017 20:55:07 -0700 (PDT)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id t28si5786358pfl.241.2017.06.08.20.55.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jun 2017 19:54:28 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v592rawx062699
-	for <linux-mm@kvack.org>; Thu, 8 Jun 2017 22:54:28 -0400
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2aygma52e4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 08 Jun 2017 22:54:27 -0400
-Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 9 Jun 2017 12:54:25 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v592sNCt57213008
-	for <linux-mm@kvack.org>; Fri, 9 Jun 2017 12:54:23 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v592sL39006058
-	for <linux-mm@kvack.org>; Fri, 9 Jun 2017 12:54:22 +1000
-Subject: Re: [PATCH] mm: Define KB, MB, GB, TB in core VM
-References: <20170522111742.29433-1-khandual@linux.vnet.ibm.com>
- <20170522141149.9ef84bb0713769f4af0383f0@linux-foundation.org>
- <20170523070227.GA27864@infradead.org>
- <09a6bafa-5743-425e-8def-bd9219cd756c@suse.cz>
- <161638da-3b2b-7912-2ae2-3b2936ca1537@linux.vnet.ibm.com>
- <7f85724c-6fc1-bb51-11e4-15fc2f89372b@linux.vnet.ibm.com>
- <87d1as6ifk.fsf@concordia.ellerman.id.au>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 9 Jun 2017 08:24:20 +0530
+        Thu, 08 Jun 2017 20:55:06 -0700 (PDT)
+Subject: Re: [HMM 07/15] mm/ZONE_DEVICE: new type of ZONE_DEVICE for
+ unaddressable memory v3
+References: <20170524172024.30810-1-jglisse@redhat.com>
+ <20170524172024.30810-8-jglisse@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <9d4efdd1-1a76-27e2-5e6b-86bfe13b9865@nvidia.com>
+Date: Thu, 8 Jun 2017 20:55:05 -0700
 MIME-Version: 1.0
-In-Reply-To: <87d1as6ifk.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <b819bdda-10ac-01be-9198-c2323ecd142a@linux.vnet.ibm.com>
+In-Reply-To: <20170524172024.30810-8-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <michaele@au1.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 05/29/2017 04:25 PM, Michael Ellerman wrote:
-> Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
->>
->> So the question is are we willing to do all these changes across
->> the tree to achieve common definitions of KB, MB, GB, TB in the
->> kernel ? Is it worth ?
-> 
-> No I don't think it's worth the churn.
-> 
-> But have you looked at using the "proper" names, ie. KiB, MiB, GiB?
-> 
-> AFAICS the only clash is:
-> 
-> drivers/mtd/ssfdc.c:#define KiB(x)	( (x) * 1024L )
-> drivers/mtd/ssfdc.c:#define MiB(x)	( KiB(x) * 1024L )
-> 
-> Which would be easy to convert.
+On 05/24/2017 10:20 AM, J=C3=A9r=C3=B4me Glisse wrote:
+[...8<...]
+> +#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+> +int device_private_entry_fault(struct vm_area_struct *vma,
+> +		       unsigned long addr,
+> +		       swp_entry_t entry,
+> +		       unsigned int flags,
+> +		       pmd_t *pmdp)
+> +{
+> +	struct page *page =3D device_private_entry_to_page(entry);
+> +
+> +	/*
+> +	 * The page_fault() callback must migrate page back to system memory
+> +	 * so that CPU can access it. This might fail for various reasons
+> +	 * (device issue, device was unsafely unplugged, ...). When such
+> +	 * error conditions happen, the callback must return VM_FAULT_SIGBUS.
+> +	 *
+> +	 * Note that because memory cgroup charges are accounted to the device
+> +	 * memory, this should never fail because of memory restrictions (but
+> +	 * allocation of regular system page might still fail because we are
+> +	 * out of memory).
+> +	 *
+> +	 * There is a more in-depth description of what that callback can and
+> +	 * cannot do, in include/linux/memremap.h
+> +	 */
+> +	return page->pgmap->page_fault(vma, addr, page, flags, pmdp);
+> +}
+> +EXPORT_SYMBOL(device_private_entry_fault);
+> +#endif /* CONFIG_DEVICE_PRIVATE */
+> +
+>   static void pgmap_radix_release(struct resource *res)
+>   {
+>   	resource_size_t key, align_start, align_size, align_end;
+> @@ -321,6 +351,10 @@ void *devm_memremap_pages(struct device *dev, struct=
+ resource *res,
+>   	}
+>   	pgmap->ref =3D ref;
+>   	pgmap->res =3D &page_map->res;
+> +	pgmap->type =3D MEMORY_DEVICE_PUBLIC;
+> +	pgmap->page_fault =3D NULL;
+> +	pgmap->page_free =3D NULL;
+> +	pgmap->data =3D NULL;
+>  =20
+>   	mutex_lock(&pgmap_lock);
+>   	error =3D 0;
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index d744cff..f5357ff 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -736,6 +736,19 @@ config ZONE_DEVICE
+>  =20
+>   	  If FS_DAX is enabled, then say Y.
+>  =20
+> +config DEVICE_PRIVATE
+> +	bool "Unaddressable device memory (GPU memory, ...)"
+> +	depends on X86_64
+> +	depends on ZONE_DEVICE
+> +	depends on MEMORY_HOTPLUG
+> +	depends on MEMORY_HOTREMOVE
+> +	depends on SPARSEMEM_VMEMMAP
+> +
+> +	help
+> +	  Allows creation of struct pages to represent unaddressable device
+> +	  memory; i.e., memory that is only accessible from the device (or
+> +	  group of devices).
+> +
 
-Sure, will take a look into generalizing KiB/MiB/GiB instead of
-current proposal for KB/MB/GB.
+Hi Jerome,
+
+CONFIG_DEVICE_PRIVATE has caused me some problems, because it's not coupled=
+ to HMM_DEVMEM.
+
+To fix this, my first choice would be to just s/DEVICE_PRIVATE/HMM_DEVMEM/g=
+ , because I don't see=20
+any value to DEVICE_PRIVATE as an independent Kconfig choice. It's complica=
+ting the Kconfig choices,=20
+and adding problems. However, if DEVICE_PRIVATE must be kept, then somethin=
+g like this also fixes my=20
+HMM tests:
+
+From: John Hubbard <jhubbard@nvidia.com>
+Date: Thu, 8 Jun 2017 20:13:13 -0700
+Subject: [PATCH] hmm: select CONFIG_DEVICE_PRIVATE with HMM_DEVMEM
+
+The HMM_DEVMEM feature is useless without the various
+features that are guarded with CONFIG_DEVICE_PRIVATE.
+Therefore, auto-select DEVICE_PRIVATE when selecting
+HMM_DEVMEM.
+
+Otherwise, you can easily end up with a partially
+working HMM installation: if you select HMM_DEVMEM,
+but do not select DEVICE_PRIVATE, then faulting and
+migrating to a device (such as a GPU) works, but CPU
+page faults are ignored, so the page never migrates
+back to the CPU.
+
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+  mm/Kconfig | 2 ++
+  1 file changed, 2 insertions(+)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 46296d5d7570..23d2f5ec865e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -318,6 +318,8 @@ config HMM_DEVMEM
+  	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
+  	depends on ARCH_HAS_HMM
+  	select HMM
++	select DEVICE_PRIVATE
++
+  	help
+  	  HMM devmem is a set of helper routines to leverage the ZONE_DEVICE
+  	  feature. This is just to avoid having device drivers to replicating a =
+lot
+--=20
+2.13.1
+
+This is a minor thing, and I don't think this needs to hold up merging HMM =
+v23 into -mm, IMHO. But I=20
+would like it fixed at some point.
+
+thanks,
+--
+John Hubbard
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
