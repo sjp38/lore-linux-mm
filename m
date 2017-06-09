@@ -1,308 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D95916B0292
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 14:56:19 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id v20so13864042qtg.3
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 11:56:19 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f132sor1104583qkb.12.2017.06.09.11.56.18
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5096B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 14:59:28 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p4so906201pfk.15
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 11:59:28 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0057.outbound.protection.outlook.com. [104.47.41.57])
+        by mx.google.com with ESMTPS id 1si1512144plx.88.2017.06.09.11.59.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Jun 2017 11:56:18 -0700 (PDT)
-Subject: Re: [PATCH 2/4] Protectable Memory Allocator
-References: <20170607123505.16629-1-igor.stoppa@huawei.com>
- <20170607123505.16629-3-igor.stoppa@huawei.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <ace6f45a-2d21-9a00-fa74-518ac727074f@redhat.com>
-Date: Fri, 9 Jun 2017 11:56:14 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Jun 2017 11:59:28 -0700 (PDT)
+Subject: Re: [Xen-devel] [PATCH v6 10/34] x86, x86/mm, x86/xen, olpc: Use
+ __va() against just the physical address in cr3
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191453.28645.92256.stgit@tlendack-t1.amdoffice.net>
+ <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
+ <4a7376fb-abfc-8edd-42b7-38de461ac65e@amd.com>
+ <67fe69ac-a213-8de3-db28-0e54bba95127@oracle.com>
+ <fcb196c8-f1eb-a38c-336c-7bd3929b029e@amd.com>
+ <12c7e511-996d-cf60-3a3b-0be7b41bd85b@oracle.com>
+ <d37917b1-8e49-e8a8-b9ac-59491331640f@citrix.com>
+ <9725c503-2e33-2365-87f5-f017e1cbe9b6@amd.com>
+ <8e8eac45-95be-f1b5-6f44-f131d275f7bc@oracle.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <33f20df0-bf71-bd9d-7a7e-4fb5e8793400@amd.com>
+Date: Fri, 9 Jun 2017 13:59:21 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170607123505.16629-3-igor.stoppa@huawei.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <8e8eac45-95be-f1b5-6f44-f131d275f7bc@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andrew Cooper <andrew.cooper3@citrix.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, xen-devel <xen-devel@lists.xen.org>, Paolo Bonzini <pbonzini@redhat.com>
 
-On 06/07/2017 05:35 AM, Igor Stoppa wrote:
-> The MMU available in many systems running Linux can often provide R/O
-> protection to the memory pages it handles.
+On 6/9/2017 1:43 PM, Boris Ostrovsky wrote:
+> On 06/09/2017 02:36 PM, Tom Lendacky wrote:
+>> On 6/8/2017 5:01 PM, Andrew Cooper wrote:
+>>> On 08/06/2017 22:17, Boris Ostrovsky wrote:
+>>>> On 06/08/2017 05:02 PM, Tom Lendacky wrote:
+>>>>> On 6/8/2017 3:51 PM, Boris Ostrovsky wrote:
+>>>>>>>> What may be needed is making sure X86_FEATURE_SME is not set for PV
+>>>>>>>> guests.
+>>>>>>> And that may be something that Xen will need to control through
+>>>>>>> either
+>>>>>>> CPUID or MSR support for the PV guests.
+>>>>>>
+>>>>>> Only on newer versions of Xen. On earlier versions (2-3 years old)
+>>>>>> leaf
+>>>>>> 0x80000007 is passed to the guest unchanged. And so is MSR_K8_SYSCFG.
+>>>>> The SME feature is in leaf 0x8000001f, is that leaf passed to the
+>>>>> guest
+>>>>> unchanged?
+>>>> Oh, I misread the patch where X86_FEATURE_SME is defined. Then all
+>>>> versions, including the current one, pass it unchanged.
+>>>>
+>>>> All that's needed is setup_clear_cpu_cap(X86_FEATURE_SME) in
+>>>> xen_init_capabilities().
+>>>
+>>> AMD processors still don't support CPUID Faulting (or at least, I
+>>> couldn't find any reference to it in the latest docs), so we cannot
+>>> actually hide SME from a guest which goes looking at native CPUID.
+>>> Furthermore, I'm not aware of any CPUID masking support covering that
+>>> leaf.
+>>>
+>>> However, if Linux is using the paravirtual cpuid hook, things are
+>>> slightly better.
+>>>
+>>> On Xen 4.9 and later, no guests will see the feature.  On earlier
+>>> versions of Xen (before I fixed the logic), plain domUs will not see the
+>>> feature, while dom0 will.
+>>>
+>>> For safely, I'd recommend unilaterally clobbering the feature as Boris
+>>> suggested.  There is no way SME will be supportable on a per-PV guest
+>>
+>> That may be too late. Early boot support in head_64.S will make calls to
+>> check for the feature (through CPUID and MSR), set the sme_me_mask and
+>> encrypt the kernel in place. Is there another way to approach this?
 > 
-> However, the MMU-based protection works efficiently only when said pages
-> contain only data that will not need further modifications.
 > 
-> Statically allocated variables can be segregated into a dedicated
-> section, however this is not fit too well the case of dynamically
-> allocated ones.
+> PV guests don't go through Linux x86 early boot code. They start at
+> xen_start_kernel() (well, xen-head.S:startup_xen(), really) and  merge
+> with baremetal path at x86_64_start_reservations() (for 64-bit).
 > 
-> Dynamic allocation does not provide, currently, means for grouping
-> variables in memory pages that would contain exclusively data that can
-> be made read only.
-> 
-> The allocator here provided (pmalloc - protectable memory allocator)
-> introduces the concept of pools of protectable memory.
-> 
-> A module can request a pool and then refer any allocation request to the
-> pool handler it has received.
-> 
-> Once all the memory requested (over various iterations) is initialized,
-> the pool can be protected.
-> 
-> After this point, the pool can only be destroyed (it is up to the module
-> to avoid any further references to the memory from the pool, after
-> the destruction is invoked).
-> 
-> The latter case is mainly meant for releasing memory, when a module is
-> unloaded.
-> 
-> A module can have as many pools as needed, for example to support the
-> protection of data that is initialized in sufficiently distinct phases.
-> 
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->  include/linux/page-flags.h     |   2 +
->  include/linux/pmalloc.h        |  20 ++++
->  include/trace/events/mmflags.h |   1 +
->  init/main.c                    |   2 +
->  mm/Makefile                    |   1 +
->  mm/pmalloc.c                   | 226 +++++++++++++++++++++++++++++++++++++++++
->  mm/usercopy.c                  |  24 +++--
->  7 files changed, 267 insertions(+), 9 deletions(-)
->  create mode 100644 include/linux/pmalloc.h
->  create mode 100644 mm/pmalloc.c
-> 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 6b5818d..acc0723 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -81,6 +81,7 @@ enum pageflags {
->  	PG_active,
->  	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
->  	PG_slab,
-> +	PG_pmalloc,
->  	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
->  	PG_arch_1,
->  	PG_reserved,
-> @@ -274,6 +275,7 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
->  	TESTCLEARFLAG(Active, active, PF_HEAD)
->  __PAGEFLAG(Slab, slab, PF_NO_TAIL)
->  __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
-> +__PAGEFLAG(Pmalloc, pmalloc, PF_NO_TAIL)
->  PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
->  
->  /* Xen */
-> diff --git a/include/linux/pmalloc.h b/include/linux/pmalloc.h
-> new file mode 100644
-> index 0000000..83d3557
-> --- /dev/null
-> +++ b/include/linux/pmalloc.h
-> @@ -0,0 +1,20 @@
-> +/*
-> + * pmalloc.h: Header for Protectable Memory Allocator
-> + *
-> + * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-> + * Author: Igor Stoppa <igor.stoppa@huawei.com>
-> + *
-> + * This program is free software; you can redistribute it and/or
-> + * modify it under the terms of the GNU General Public License
-> + * as published by the Free Software Foundation; version 2
-> + * of the License.
-> + */
-> +
-> +#ifndef _PMALLOC_H
-> +#define _PMALLOC_H
-> +
-> +struct pmalloc_pool *pmalloc_create_pool(const char *name);
-> +void *pmalloc(unsigned long size, struct pmalloc_pool *pool);
-> +int pmalloc_protect_pool(struct pmalloc_pool *pool);
-> +int pmalloc_destroy_pool(struct pmalloc_pool *pool);
-> +#endif
-> diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-> index 304ff94..41d1587 100644
-> --- a/include/trace/events/mmflags.h
-> +++ b/include/trace/events/mmflags.h
-> @@ -91,6 +91,7 @@
->  	{1UL << PG_lru,			"lru"		},		\
->  	{1UL << PG_active,		"active"	},		\
->  	{1UL << PG_slab,		"slab"		},		\
-> +	{1UL << PG_pmalloc,		"pmalloc"	},		\
->  	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
->  	{1UL << PG_arch_1,		"arch_1"	},		\
->  	{1UL << PG_reserved,		"reserved"	},		\
-> diff --git a/init/main.c b/init/main.c
-> index f866510..7850887 100644
-> --- a/init/main.c
-> +++ b/init/main.c
-> @@ -485,6 +485,7 @@ static void __init mm_init(void)
->  	ioremap_huge_init();
->  }
->  
-> +extern int __init pmalloc_init(void);
->  asmlinkage __visible void __init start_kernel(void)
->  {
->  	char *command_line;
-> @@ -653,6 +654,7 @@ asmlinkage __visible void __init start_kernel(void)
->  	proc_caches_init();
->  	buffer_init();
->  	key_init();
-> +	pmalloc_init();
->  	security_init();
->  	dbg_late_init();
->  	vfs_caches_init();
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 026f6a8..b47dcf8 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -65,6 +65,7 @@ obj-$(CONFIG_SPARSEMEM)	+= sparse.o
->  obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
->  obj-$(CONFIG_SLOB) += slob.o
->  obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
-> +obj-$(CONFIG_ARCH_HAS_SET_MEMORY) += pmalloc.o
->  obj-$(CONFIG_KSM) += ksm.o
->  obj-$(CONFIG_PAGE_POISONING) += page_poison.o
->  obj-$(CONFIG_SLAB) += slab.o
-> diff --git a/mm/pmalloc.c b/mm/pmalloc.c
-> new file mode 100644
-> index 0000000..8050dea
-> --- /dev/null
-> +++ b/mm/pmalloc.c
-> @@ -0,0 +1,226 @@
-> +/*
-> + * pmalloc.c: Protectable Memory Allocator
-> + *
-> + * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-> + * Author: Igor Stoppa <igor.stoppa@huawei.com>
-> + *
-> + * This program is free software; you can redistribute it and/or
-> + * modify it under the terms of the GNU General Public License
-> + * as published by the Free Software Foundation; version 2
-> + * of the License.
-> + */
-> +
-> +#include <linux/printk.h>
-> +#include <linux/init.h>
-> +#include <linux/mm.h>
-> +#include <linux/vmalloc.h>
-> +#include <linux/list.h>
-> +#include <linux/rculist.h>
-> +#include <linux/mutex.h>
-> +#include <linux/atomic.h>
-> +#include <asm/set_memory.h>
-> +#include <asm/page.h>
-> +
-> +typedef unsigned long align_t;
-> +#define WORD_SIZE sizeof(unsigned long)
-> +
-> +#define __PMALLOC_ALIGNED __aligned(WORD_SIZE)
-> +
-> +#define MAX_POOL_NAME_LEN 20
-> +
-> +struct pmalloc_data {
-> +	struct hlist_head pools_list_head;
-> +	struct mutex pools_list_mutex;
-> +	atomic_t pools_count;
-> +};
-> +
-> +struct pmalloc_pool {
-> +	struct hlist_node pools_list;
-> +	struct hlist_head nodes_list_head;
-> +	struct mutex nodes_list_mutex;
-> +	atomic_t nodes_count;
-> +	atomic_t protected;
-> +	char name[MAX_POOL_NAME_LEN];
-> +};
-> +
-> +struct pmalloc_node {
-> +	struct hlist_node nodes_list;
-> +	atomic_t used_words;
-> +	unsigned int total_words;
-> +	__PMALLOC_ALIGNED align_t data[];
-> +};
-> +
-> +#define HEADER_SIZE sizeof(struct pmalloc_node)
-> +
-> +static struct pmalloc_data *pmalloc_data;
-> +
-> +static struct pmalloc_node *__pmalloc_create_node(int words)
-> +{
-> +	struct pmalloc_node *node;
-> +	unsigned long size, i, pages;
-> +	struct page *p;
-> +
-> +	size = roundup(HEADER_SIZE + WORD_SIZE * words, PAGE_SIZE);
-> +	node = vmalloc(size);
-> +	if (!node)
-> +		return NULL;
-> +	atomic_set(&node->used_words, 0);
-> +	node->total_words = (size - HEADER_SIZE) / WORD_SIZE;
-> +	pages = size / PAGE_SIZE;
-> +	for (i = 0; i < pages; i++) {
-> +		p = vmalloc_to_page((void *)(i * PAGE_SIZE +
-> +					     (unsigned long)node));
-> +		__SetPagePmalloc(p);
-> +	}
-> +	return node;
-> +}
-> +
-> +void *pmalloc(unsigned long size, struct pmalloc_pool *pool)
-> +{
-> +	struct pmalloc_node *node;
-> +	int req_words;
-> +	int starting_word;
-> +
-> +	if (size > INT_MAX || size == 0 ||
-> +	    !pool || atomic_read(&pool->protected))
-> +		return NULL;
-> +	req_words = roundup(size, WORD_SIZE) / WORD_SIZE;
-> +	rcu_read_lock();
-> +	hlist_for_each_entry_rcu(node, &pool->nodes_list_head, nodes_list) {
-> +		starting_word = atomic_fetch_add(req_words, &node->used_words);
-> +		if (starting_word + req_words > node->total_words) {
-> +			atomic_sub(req_words, &node->used_words);
-> +		} else {
-> +			rcu_read_unlock();
-> +			return node->data + starting_word;
-> +		}
-> +	}
-> +	rcu_read_unlock();
-> +	node = __pmalloc_create_node(req_words);
-> +	if (!node)
-> +		return NULL;
-> +	starting_word = atomic_fetch_add(req_words, &node->used_words);
-> +	mutex_lock(&pool->nodes_list_mutex);
-> +	hlist_add_head_rcu(&node->nodes_list, &pool->nodes_list_head);
-> +	mutex_unlock(&pool->nodes_list_mutex);
-> +	synchronize_rcu();
-> +	atomic_inc(&pool->nodes_count);
-> +	return node->data + starting_word;
-> +}
 
-The pool logic looks remarkably similar to genalloc (lib/genalloc.c).
-It's not a perfect 1-to-1 mapping but it's close enough to be worth
-a look.
-
-> +
-> +const char msg[] = "Not a valid Pmalloc object.";
-> +const char *__pmalloc_check_object(const void *ptr, unsigned long n)
-> +{
-> +	unsigned long p;
-> +
-> +	p = (unsigned long)ptr;
-> +	n = p + n - 1;
-> +	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
-> +		if (is_vmalloc_addr((void *)p)) {
-> +			struct page *page;
-> +
-> +			page = vmalloc_to_page((void *)p);
-> +			if (!(page && PagePmalloc(page)))
-> +				return msg;
-> +		}
-
-Should this be an error if is_vmalloc_addr returns false?
+Ok, I don't think anything needs to be done then. The sme_me_mask is set
+in sme_enable() which is only called from head_64.S. If the sme_me_mask
+isn't set then SME won't be active. The feature will just report the
+capability of the processor, but that doesn't mean it is active. If you
+still want the feature to be clobbered we can do that, though.
 
 Thanks,
-Laura
+Tom
+
+> 
+> -boris
+> 
+>>
+>>> basis, although (as far as I am aware) Xen as a whole would be able to
+>>> encompass itself and all of its PV guests inside one single SME
+>>> instance.
+>>
+>> Yes, that is correct.
+>>
+>> Thanks,
+>> Tom
+>>
+>>>
+>>> ~Andrew
+>>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
