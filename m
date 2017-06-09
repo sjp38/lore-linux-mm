@@ -1,46 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D952C6B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 12:30:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v104so9219882wrb.6
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 09:30:22 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id j133si89237wmg.152.2017.06.09.09.30.19
-        for <linux-mm@kvack.org>;
-        Fri, 09 Jun 2017 09:30:20 -0700 (PDT)
-Date: Fri, 9 Jun 2017 18:30:03 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 05/34] x86/CPU/AMD: Handle SME reduction in physical
- address size
-Message-ID: <20170609163003.g2s6aqzkikt6nt4a@pd.tnic>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191404.28645.41148.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C28C76B02B4
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 12:30:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y39so9209598wry.10
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 09:30:29 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r28si1642390wra.315.2017.06.09.09.30.26
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Jun 2017 09:30:26 -0700 (PDT)
+Date: Fri, 9 Jun 2017 18:30:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v2 0/7] cgroup-aware OOM killer
+Message-ID: <20170609163022.GA9332@dhcp22.suse.cz>
+References: <1496342115-3974-1-git-send-email-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170607191404.28645.41148.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <1496342115-3974-1-git-send-email-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org
 
-On Wed, Jun 07, 2017 at 02:14:04PM -0500, Tom Lendacky wrote:
-> When System Memory Encryption (SME) is enabled, the physical address
-> space is reduced. Adjust the x86_phys_bits value to reflect this
-> reduction.
+On Thu 01-06-17 19:35:08, Roman Gushchin wrote:
+> This patchset makes the OOM killer cgroup-aware.
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/kernel/cpu/amd.c |   10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
+> Patches 1-3 are simple refactorings of the OOM killer code,
+> required to reuse the code in the memory controller.
+> Patches 4 & 5 are introducing new memcg settings:
+> oom_kill_all_tasks and oom_score_adj.
+> Patch 6 introduces the cgroup-aware OOM killer.
+> Patch 7 is docs update.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+I have only had a look at the cumulative diff (sorry I've been quite
+busy throughout the week) and here are my high level comments. I can see
+few rather serious issues which will need to be resolved before this
+can move on.
+- the first problem is a pre-existing one but it will get more urgent
+  with the fact that more tasks will be killed with your approach. OOM
+  victims are allowed to consume memory reserves without any bound. The
+  current throttling is quite arguable and it relies on the fact that we
+  try to limit the number of tasks to have this access to reserves.
+  Theoretically, though, a heavily multithread application can deplete the
+  reserves completely even now. With more processes being killed this
+  will get much more likely. Johannes and me have already posted patches
+  to address that. The last patch was
+  http://lkml.kernel.org/r/1472723464-22866-2-git-send-email-mhocko@kernel.org
+- I do not see any explicit lockout mechanism to prevent from too eager oom
+  invocation while the previous oom killed memcg is still not torn down
+  completely. We use tsk_is_oom_victim check in oom_evaluate_task for
+  that purpose. You seem to rely on the fact that such a memcg would be
+  still the largest one, right? I am not really sure this is sufficient.
+- You seem to completely ignore per task oom_score_adj and override it
+  by the memcg value. This makes some sense but it can lead to an
+  unexpected behavior when somebody relies on the original behavior.
+  E.g. a workload that would corrupt data when killed unexpectedly and
+  so it is protected by OOM_SCORE_ADJ_MIN. Now this assumption will
+  break when running inside a container. I do not have a good answer
+  what is the desirable behavior and maybe there is no universal answer.
+  Maybe you just do not to kill those tasks? But then you have to be
+  careful when selecting a memcg victim. Hairy...
+- While we are at it oom_score_adj has turned out to be quite unusable
+  for a sensible oom prioritization from my experience. Practically
+  it reduced to disable/enforce the task for selection. The scale is
+  quite small as well. There certainly is a need for prioritization
+  and maybe a completely different api would be better. Maybe a simple
+  priority in (0, infinity) range will be better. Priority could be used
+  either as the only criterion or as a tie breaker when consumption of
+  more memcgs is too close (this could be implemented for each strategy
+  in a different way if we go modules way)
+- oom_kill_all_tasks should be hierarchical and consistent within a
+  hierarchy. Or maybe it should be applicable to memcgs with tasks (leaf
+  cgroups). Although selecting a memcg higher in the hierarchy kill all
+  tasks in that hierarchy makes some sense as well IMHO. Say you
+  delegate a hierarchy to an unprivileged user and still want to contain
+  that user.
 
+I have likely forgot some points but the above ones should be the most
+important ones I guess.
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
