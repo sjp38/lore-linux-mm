@@ -1,51 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CEB6B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 06:55:56 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id c52so7712612wra.12
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 03:55:56 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id 20si1707085wmg.38.2017.06.09.03.55.55
-        for <linux-mm@kvack.org>;
-        Fri, 09 Jun 2017 03:55:55 -0700 (PDT)
-Date: Fri, 9 Jun 2017 12:55:40 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 04/34] x86/CPU/AMD: Add the Secure Memory Encryption
- CPU feature
-Message-ID: <20170609105540.jpkle2qja4kyin6i@pd.tnic>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191353.28645.85058.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 255AE6B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 07:18:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n81so24054019pfb.14
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 04:18:47 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id s61si766977plb.32.2017.06.09.04.18.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Jun 2017 04:18:46 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v11 0/6] Virtio-balloon Enhancement
+Date: Fri, 9 Jun 2017 11:18:42 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F73925B11D@shsmsx102.ccr.corp.intel.com>
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170607191353.28645.85058.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
-On Wed, Jun 07, 2017 at 02:13:53PM -0500, Tom Lendacky wrote:
-> Update the CPU features to include identifying and reporting on the
-> Secure Memory Encryption (SME) feature.  SME is identified by CPUID
-> 0x8000001f, but requires BIOS support to enable it (set bit 23 of
-> MSR_K8_SYSCFG).  Only show the SME feature as available if reported by
-> CPUID and enabled by BIOS.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/cpufeatures.h |    1 +
->  arch/x86/include/asm/msr-index.h   |    2 ++
->  arch/x86/kernel/cpu/amd.c          |   13 +++++++++++++
->  arch/x86/kernel/cpu/scattered.c    |    1 +
->  4 files changed, 17 insertions(+)
+On Friday, June 9, 2017 6:42 PM, Wang, Wei W wrote:
+> To: virtio-dev@lists.oasis-open.org; linux-kernel@vger.kernel.org; qemu-
+> devel@nongnu.org; virtualization@lists.linux-foundation.org;
+> kvm@vger.kernel.org; linux-mm@kvack.org; mst@redhat.com;
+> david@redhat.com; Hansen, Dave <dave.hansen@intel.com>;
+> cornelia.huck@de.ibm.com; akpm@linux-foundation.org;
+> mgorman@techsingularity.net; aarcange@redhat.com; amit.shah@redhat.com;
+> pbonzini@redhat.com; Wang, Wei W <wei.w.wang@intel.com>;
+> liliang.opensource@gmail.com
+> Subject: [PATCH v11 0/6] Virtio-balloon Enhancement
+>=20
+> This patch series enhances the existing virtio-balloon with the following=
+ new
+> features:
+> 1) fast ballooning: transfer ballooned pages between the guest and host i=
+n
+> chunks, instead of one by one; and
+> 2) cmdq: a new virtqueue to send commands between the device and driver.
+> Currently, it supports commands to report memory stats (replace the old s=
+tatq
+> mechanism) and report guest unused pages.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+v10->v11 changes:
+1) virtio_balloon: use vring_desc to describe a chunk;
+2) virtio_ring: support to add an indirect desc table to virtqueue;
+3)  virtio_balloon: use cmdq to report guest memory statistics.
 
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+>=20
+> Liang Li (1):
+>   virtio-balloon: deflate via a page list
+>=20
+> Wei Wang (5):
+>   virtio-balloon: coding format cleanup
+>   virtio-balloon: VIRTIO_BALLOON_F_PAGE_CHUNKS
+>   mm: function to offer a page block on the free list
+>   mm: export symbol of next_zone and first_online_pgdat
+>   virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
+>=20
+>  drivers/virtio/virtio_balloon.c     | 781 ++++++++++++++++++++++++++++++=
+++--
+> --
+>  drivers/virtio/virtio_ring.c        | 120 +++++-
+>  include/linux/mm.h                  |   5 +
+>  include/linux/virtio.h              |   7 +
+>  include/uapi/linux/virtio_balloon.h |  14 +
+>  include/uapi/linux/virtio_ring.h    |   3 +
+>  mm/mmzone.c                         |   2 +
+>  mm/page_alloc.c                     |  91 +++++
+>  8 files changed, 950 insertions(+), 73 deletions(-)
+>=20
+> --
+> 2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
