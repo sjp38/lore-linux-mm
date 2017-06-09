@@ -1,142 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1E26B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 04:21:03 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p190so2877799wme.3
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 01:21:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q1si478652wrc.106.2017.06.09.01.21.01
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E7B6B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 04:22:36 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u101so7346862wrc.2
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 01:22:36 -0700 (PDT)
+Received: from mail-wr0-x233.google.com (mail-wr0-x233.google.com. [2a00:1450:400c:c0c::233])
+        by mx.google.com with ESMTPS id z57si529569wrz.90.2017.06.09.01.22.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Jun 2017 01:21:01 -0700 (PDT)
-Subject: Re: [PATCH 2/4] thp: fix MADV_DONTNEED vs. numa balancing race
-From: Vlastimil Babka <vbabka@suse.cz>
-References: <20170302151034.27829-1-kirill.shutemov@linux.intel.com>
- <20170302151034.27829-3-kirill.shutemov@linux.intel.com>
- <f105f6a5-bb5e-9480-6b2e-d2d15f631af9@suse.cz>
- <20170516202919.GA2843@redhat.com>
- <744fe557-3aaf-0010-4b94-5f53c9f28f89@suse.cz>
-Message-ID: <3b6e3eab-3d61-e7f8-0ebd-886b7c9c23e9@suse.cz>
-Date: Fri, 9 Jun 2017 10:21:00 +0200
-MIME-Version: 1.0
-In-Reply-To: <744fe557-3aaf-0010-4b94-5f53c9f28f89@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Jun 2017 01:22:35 -0700 (PDT)
+Received: by mail-wr0-x233.google.com with SMTP id v104so27213138wrb.0
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 01:22:34 -0700 (PDT)
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Subject: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
+Date: Fri,  9 Jun 2017 08:22:26 +0000
+Message-Id: <20170609082226.26152-1-ard.biesheuvel@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, zhongjiang@huawei.com, labbott@fedoraproject.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, dave.hansen@intel.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On 05/23/2017 02:42 PM, Vlastimil Babka wrote:
-> On 05/16/2017 10:29 PM, Andrea Arcangeli wrote:
->> On Wed, Apr 12, 2017 at 03:33:35PM +0200, Vlastimil Babka wrote:
->>>
->>> pmdp_invalidate() does:
->>>
->>>         pmd_t entry = *pmdp;
->>>         set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
->>>
->>> so it's not atomic and if CPU sets dirty or accessed in the middle of
->>> this, they will be lost?
->>
->> I agree it looks like the dirty bit can be lost. Furthermore this also
->> loses a MMU notifier invalidate that will lead to corruption at the
->> secondary MMU level (which will keep using the old protection
->> permission, potentially keeping writing to a wrprotected page).
-> 
-> Oh, I didn't paste the whole function, just the pmd manipulation.
-> There's also a third line:
-> 
-> flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
-> 
-> so there's no missing invalidate, AFAICS? Sorry for the confusion.
+Existing code that uses vmalloc_to_page() may assume that any
+address for which is_vmalloc_addr() returns true may be passed
+into vmalloc_to_page() to retrieve the associated struct page.
 
-Oh, tlb flush is not MMU notified invalidate...
+This is not un unreasonable assumption to make, but on architectures
+that have CONFIG_HAVE_ARCH_HUGE_VMAP=y, it no longer holds, and we
+need to ensure that vmalloc_to_page() does not go off into the weeds
+trying to dereference huge PUDs or PMDs as table entries.
 
->>>
->>> But I don't see how the other invalidate caller
->>> __split_huge_pmd_locked() deals with this either. Andrea, any idea?
->>
->> The original code I wrote did this in __split_huge_page_map to create
->> the "entry" to establish in the pte pagetables:
->>
->>     	       entry = mk_pte(page + i, vma->vm_page_prot);
->> 	       entry = maybe_mkwrite(pte_mkdirty(entry),
->> 	       	       		   vma);
->>
->> For anonymous memory the dirty bit is only meaningful for swapping,
->> and THP couldn't be swapped so setting it unconditional avoided any
->> issue with the pmdp_invalidate; pmdp_establish.
-> 
-> Yeah, but now we are going to swap THP's, and we have shmem THP's...
-> 
->> pmdp_invalidate is needed primarily to avoid aliasing of two different
->> TLB translation pointing from the same virtual address to the the same
->> physical address that triggered machine checks (while needing to keep
->> the pmd huge at all times, back then it was also splitting huge,
->> splitting is a software bit so userland could still access the data,
->> splitting bit only blocked kernel code to manipulate on it similar to
->> what migration entry does right now upstream, except those prevent
->> userland to access the page during split which is less efficient than
->> the splitting bit, but at least it's only used for the physical split,
->> back then there was no difference between virtual and physical split
->> and physical split is less frequent than the virtual one right now).
-> 
-> This took me a while to grasp, but I think I understand now :)
-> 
->> It looks like this needs a pmdp_populate that atomically grabs the
->> value of the pmd and returns it like pmdp_huge_get_and_clear_notify
->> does
-> 
-> pmdp_huge_get_and_clear_notify() is now gone...
-> 
->> and a _notify variant to use "freeze" is false (if freeze is true
->> the MMU notifier invalidate must have happened when the pmd was set to
->> a migration entry). If pmdp_populate_notify (freeze==true)
->> /pmd_populate (freeze==false) would return the old pmd value
->> atomically with xchg() (just instead of setting it to 0 we should set
->> it to the mknotpresent one), then we can set the dirty bit on the ptes
->> (__split_huge_pmd_locked) or in the pmd itself in the change_huge_pmd
->> accordingly.
+Given that vmalloc() and vmap() themselves never create huge
+mappings or deal with compound pages at all, there is no correct
+answer in this case, so return NULL instead, and issue a warning.
 
-I was trying to look into this yesterday, but e.g. I know next to
-nothing about MMU notifiers (see above :) so I would probably get it
-wrong. But it should get fixed, so... Kirill?
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+---
+v5: - fix typo
 
-> I think the confusion was partially caused by the comment at the
-> original caller of pmdp_invalidate():
-> 
-> we first mark the
-> * current pmd notpresent (atomically because here the pmd_trans_huge
-> * and pmd_trans_splitting must remain set at all times on the pmd
-> * until the split is complete for this pmd),
-> 
-> It says "atomically" but in fact that only means that the pmd_trans_huge
-> and pmd_trans_splitting flags are not temporarily cleared at any point
-> of time, right? It's not a true atomic swap.
-> 
->> If the "dirty" flag information is obtained by the pmd read before
->> calling pmdp_invalidate is not ok (losing _notify also not ok).
-> 
-> Right.
-> 
->> Thanks!
->> Andrea
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+v4: - use pud_bad/pmd_bad instead of pud_huge/pmd_huge, which don't require
+      changes to hugetlb.h, and give us what we need on all architectures
+    - move WARN_ON_ONCE() calls out of conditionals
+    - add explanatory comment
+
+ mm/vmalloc.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 34a1c3e46ed7..0fcd371266a4 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -287,10 +287,21 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
+ 	if (p4d_none(*p4d))
+ 		return NULL;
+ 	pud = pud_offset(p4d, addr);
+-	if (pud_none(*pud))
++
++	/*
++	 * Don't dereference bad PUD or PMD (below) entries. This will also
++	 * identify huge mappings, which we may encounter on architectures
++	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
++	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
++	 * not [unambiguously] associated with a struct page, so there is
++	 * no correct value to return for them.
++	 */
++	WARN_ON_ONCE(pud_bad(*pud));
++	if (pud_none(*pud) || pud_bad(*pud))
+ 		return NULL;
+ 	pmd = pmd_offset(pud, addr);
+-	if (pmd_none(*pmd))
++	WARN_ON_ONCE(pmd_bad(*pmd));
++	if (pmd_none(*pmd) || pmd_bad(*pmd))
+ 		return NULL;
+ 
+ 	ptep = pte_offset_map(pmd, addr);
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
