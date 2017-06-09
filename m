@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1566B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 04:29:29 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 67so18086729itx.11
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 01:29:29 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C944B6B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 05:17:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g78so23209059pfg.4
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 02:17:13 -0700 (PDT)
 Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id n194si765610ita.92.2017.06.09.01.29.27
+        by mx.google.com with ESMTPS id 31si513663pli.289.2017.06.09.02.17.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Jun 2017 01:29:28 -0700 (PDT)
-Message-ID: <593A5B76.7080205@huawei.com>
-Date: Fri, 9 Jun 2017 16:25:26 +0800
+        Fri, 09 Jun 2017 02:17:12 -0700 (PDT)
+Message-ID: <593A6775.10203@huawei.com>
+Date: Fri, 9 Jun 2017 17:16:37 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 3/3] mm: migrate: Stabilise page count when migrating
@@ -21,8 +21,8 @@ Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com
+To: Will Deacon <will.deacon@arm.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com
 
 On 2017/6/8 20:07, Will Deacon wrote:
 > On Thu, Jun 08, 2017 at 12:52:07PM +0200, Vlastimil Babka wrote:
@@ -94,11 +94,7 @@ On 2017/6/8 20:07, Will Deacon wrote:
 > about because of the count momentarily being set to 0 (and
 > page_cache_add_speculative bailing), but that's just fastGUP implementation
 > details, I think.
-  The pagetable lock will prevent the fastgup by userspace.  why the race will come across
-  I do not unaderstand , can you explain it please?
-
- Thanks
- zhongjiang
+ I think it should be hold off the speculative , but the fastgup by userspace.
 >>>  	set_pmd_at(mm, mmun_start, pmd, entry);
 >>>  	update_mmu_cache_pmd(vma, address, &entry);
 >>>  
@@ -110,6 +106,7 @@ On 2017/6/8 20:07, Will Deacon wrote:
 > fastGUP).
 >
 > Will
+>
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
