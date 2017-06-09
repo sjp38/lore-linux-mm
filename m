@@ -1,87 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C4AAD6B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 14:13:17 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id m57so25802383qta.9
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 11:13:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e19sor1046563qkj.4.2017.06.09.11.13.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 090706B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 14:36:53 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b74so27503740pfd.2
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 11:36:53 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0061.outbound.protection.outlook.com. [104.47.33.61])
+        by mx.google.com with ESMTPS id f26si1412472plj.86.2017.06.09.11.36.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Jun 2017 11:13:16 -0700 (PDT)
-Subject: Re: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap
- mappings
-References: <20170609082226.26152-1-ard.biesheuvel@linaro.org>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <d58379fe-9e18-8e58-0f77-24d09a02fc05@redhat.com>
-Date: Fri, 9 Jun 2017 11:13:12 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 09 Jun 2017 11:36:47 -0700 (PDT)
+Subject: Re: [Xen-devel] [PATCH v6 10/34] x86, x86/mm, x86/xen, olpc: Use
+ __va() against just the physical address in cr3
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191453.28645.92256.stgit@tlendack-t1.amdoffice.net>
+ <b15e8924-4069-b5fa-adb2-86c164b1dd36@oracle.com>
+ <4a7376fb-abfc-8edd-42b7-38de461ac65e@amd.com>
+ <67fe69ac-a213-8de3-db28-0e54bba95127@oracle.com>
+ <fcb196c8-f1eb-a38c-336c-7bd3929b029e@amd.com>
+ <12c7e511-996d-cf60-3a3b-0be7b41bd85b@oracle.com>
+ <d37917b1-8e49-e8a8-b9ac-59491331640f@citrix.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <9725c503-2e33-2365-87f5-f017e1cbe9b6@amd.com>
+Date: Fri, 9 Jun 2017 13:36:35 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170609082226.26152-1-ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <d37917b1-8e49-e8a8-b9ac-59491331640f@citrix.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, zhongjiang@huawei.com, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, dave.hansen@intel.com
+To: Andrew Cooper <andrew.cooper3@citrix.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, xen-devel <xen-devel@lists.xen.org>, Paolo Bonzini <pbonzini@redhat.com>
 
-On 06/09/2017 01:22 AM, Ard Biesheuvel wrote:
-> Existing code that uses vmalloc_to_page() may assume that any
-> address for which is_vmalloc_addr() returns true may be passed
-> into vmalloc_to_page() to retrieve the associated struct page.
+On 6/8/2017 5:01 PM, Andrew Cooper wrote:
+> On 08/06/2017 22:17, Boris Ostrovsky wrote:
+>> On 06/08/2017 05:02 PM, Tom Lendacky wrote:
+>>> On 6/8/2017 3:51 PM, Boris Ostrovsky wrote:
+>>>>>> What may be needed is making sure X86_FEATURE_SME is not set for PV
+>>>>>> guests.
+>>>>> And that may be something that Xen will need to control through either
+>>>>> CPUID or MSR support for the PV guests.
+>>>>
+>>>> Only on newer versions of Xen. On earlier versions (2-3 years old) leaf
+>>>> 0x80000007 is passed to the guest unchanged. And so is MSR_K8_SYSCFG.
+>>> The SME feature is in leaf 0x8000001f, is that leaf passed to the guest
+>>> unchanged?
+>> Oh, I misread the patch where X86_FEATURE_SME is defined. Then all
+>> versions, including the current one, pass it unchanged.
+>>
+>> All that's needed is setup_clear_cpu_cap(X86_FEATURE_SME) in
+>> xen_init_capabilities().
 > 
-> This is not un unreasonable assumption to make, but on architectures
-> that have CONFIG_HAVE_ARCH_HUGE_VMAP=y, it no longer holds, and we
-> need to ensure that vmalloc_to_page() does not go off into the weeds
-> trying to dereference huge PUDs or PMDs as table entries.
+> AMD processors still don't support CPUID Faulting (or at least, I
+> couldn't find any reference to it in the latest docs), so we cannot
+> actually hide SME from a guest which goes looking at native CPUID.
+> Furthermore, I'm not aware of any CPUID masking support covering that leaf.
 > 
-> Given that vmalloc() and vmap() themselves never create huge
-> mappings or deal with compound pages at all, there is no correct
-> answer in this case, so return NULL instead, and issue a warning.
+> However, if Linux is using the paravirtual cpuid hook, things are
+> slightly better.
 > 
-> Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> On Xen 4.9 and later, no guests will see the feature.  On earlier
+> versions of Xen (before I fixed the logic), plain domUs will not see the
+> feature, while dom0 will.
+> 
+> For safely, I'd recommend unilaterally clobbering the feature as Boris
+> suggested.  There is no way SME will be supportable on a per-PV guest
 
-Reviewed-by: Laura Abbott <labbott@redhat.com>
+That may be too late. Early boot support in head_64.S will make calls to
+check for the feature (through CPUID and MSR), set the sme_me_mask and
+encrypt the kernel in place. Is there another way to approach this?
 
-> ---
-> v5: - fix typo
+> basis, although (as far as I am aware) Xen as a whole would be able to
+> encompass itself and all of its PV guests inside one single SME instance.
+
+Yes, that is correct.
+
+Thanks,
+Tom
+
 > 
-> v4: - use pud_bad/pmd_bad instead of pud_huge/pmd_huge, which don't require
->       changes to hugetlb.h, and give us what we need on all architectures
->     - move WARN_ON_ONCE() calls out of conditionals
->     - add explanatory comment
-> 
->  mm/vmalloc.c | 15 +++++++++++++--
->  1 file changed, 13 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 34a1c3e46ed7..0fcd371266a4 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -287,10 +287,21 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->  	if (p4d_none(*p4d))
->  		return NULL;
->  	pud = pud_offset(p4d, addr);
-> -	if (pud_none(*pud))
-> +
-> +	/*
-> +	 * Don't dereference bad PUD or PMD (below) entries. This will also
-> +	 * identify huge mappings, which we may encounter on architectures
-> +	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
-> +	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
-> +	 * not [unambiguously] associated with a struct page, so there is
-> +	 * no correct value to return for them.
-> +	 */
-> +	WARN_ON_ONCE(pud_bad(*pud));
-> +	if (pud_none(*pud) || pud_bad(*pud))
->  		return NULL;
->  	pmd = pmd_offset(pud, addr);
-> -	if (pmd_none(*pmd))
-> +	WARN_ON_ONCE(pmd_bad(*pmd));
-> +	if (pmd_none(*pmd) || pmd_bad(*pmd))
->  		return NULL;
->  
->  	ptep = pte_offset_map(pmd, addr);
+> ~Andrew
 > 
 
 --
