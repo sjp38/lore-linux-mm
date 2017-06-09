@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2766B0311
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 06:49:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a3so5351773wma.12
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 03:49:52 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t20si776335wra.224.2017.06.09.03.49.50
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Jun 2017 03:49:51 -0700 (PDT)
-Date: Fri, 9 Jun 2017 12:49:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v4 0/14] mm: make movable onlining suck less
-Message-ID: <20170609104947.GD21764@dhcp22.suse.cz>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <CADZGycZvW1pTxt_NifTVmO3u_4694=JHe3k8xbESmhu4aonF-w@mail.gmail.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CEB6B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 06:55:56 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id c52so7712612wra.12
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 03:55:56 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id 20si1707085wmg.38.2017.06.09.03.55.55
+        for <linux-mm@kvack.org>;
+        Fri, 09 Jun 2017 03:55:55 -0700 (PDT)
+Date: Fri, 9 Jun 2017 12:55:40 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 04/34] x86/CPU/AMD: Add the Secure Memory Encryption
+ CPU feature
+Message-ID: <20170609105540.jpkle2qja4kyin6i@pd.tnic>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191353.28645.85058.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CADZGycZvW1pTxt_NifTVmO3u_4694=JHe3k8xbESmhu4aonF-w@mail.gmail.com>
+In-Reply-To: <20170607191353.28645.85058.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Tobias Regnery <tobias.regnery@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Fri 09-06-17 17:51:24, Wei Yang wrote:
-> Hi, Michal
+On Wed, Jun 07, 2017 at 02:13:53PM -0500, Tom Lendacky wrote:
+> Update the CPU features to include identifying and reporting on the
+> Secure Memory Encryption (SME) feature.  SME is identified by CPUID
+> 0x8000001f, but requires BIOS support to enable it (set bit 23 of
+> MSR_K8_SYSCFG).  Only show the SME feature as available if reported by
+> CPUID and enabled by BIOS.
 > 
-> I am not that familiar with hotplug and trying to catch up the issue
->  and your solution.
-> 
-> One potential issue I found is we don't check the physical boundary
-> when add_memory_resource().
-> 
-> For example, on x86-64, only 64T physical memory is supported currently.
-> Looks it is expanded after 5-level pagetable is introduced. While there is
-> still some limitations on this. But we don't check the boundary I think.
-> 
-> During the bootup, this is ensured by the max_pfn which is guaranteed to
-> be under MAX_ARCH_PFN. I don't see some limitation on this when doing
->  hotplug.
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/cpufeatures.h |    1 +
+>  arch/x86/include/asm/msr-index.h   |    2 ++
+>  arch/x86/kernel/cpu/amd.c          |   13 +++++++++++++
+>  arch/x86/kernel/cpu/scattered.c    |    1 +
+>  4 files changed, 17 insertions(+)
 
-This might be true and I would have to double check but this rework
-doesn't change anything in that regards. Or do I miss something?
+Reviewed-by: Borislav Petkov <bp@suse.de>
+
 -- 
-Michal Hocko
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
