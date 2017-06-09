@@ -1,42 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 889B36B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 18:38:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c75so19988307pfk.3
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 15:38:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y19sor1547543pgj.126.2017.06.09.15.38.45
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D85436B02B4
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 18:46:41 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id k26so23274213iti.5
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 15:46:41 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id y64si2366025ioy.15.2017.06.09.15.46.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Jun 2017 15:38:45 -0700 (PDT)
-Date: Fri, 9 Jun 2017 15:38:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Sleeping BUG in khugepaged for i586
-In-Reply-To: <20170608203046.GB5535@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1706091537020.66176@chino.kir.corp.google.com>
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net> <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org> <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz> <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net> <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com> <20170608144831.GA19903@dhcp22.suse.cz> <20170608170557.GA8118@bombadil.infradead.org> <20170608201822.GA5535@dhcp22.suse.cz> <20170608203046.GB5535@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Jun 2017 15:46:41 -0700 (PDT)
+Subject: Re: [patch v2 -mm] mm, hugetlb: schedule when potentially allocating
+ many hugepages
+References: <alpine.DEB.2.10.1706072102560.29060@chino.kir.corp.google.com>
+ <52ee0233-c3cd-d33a-a33b-50d49e050d5c@oracle.com>
+ <alpine.DEB.2.10.1706091534580.66176@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <f8117b6d-b122-2a8a-eece-3c3fe44a0b13@oracle.com>
+Date: Fri, 9 Jun 2017 15:43:36 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 8 Jun 2017, Michal Hocko wrote:
+On 06/09/2017 03:36 PM, David Rientjes wrote:
+> A few hugetlb allocators loop while calling the page allocator and can
+> potentially prevent rescheduling if the page allocator slowpath is not
+> utilized.
+> 
+> Conditionally schedule when large numbers of hugepages can be allocated.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-> I would just pull the cond_resched out of __collapse_huge_page_copy
-> right after pte_unmap. But I am not really sure why this cond_resched is
-> really needed because the changelog of the patch which adds is is quite
-> terse on details.
+Thanks for doing this.
 
-I'm not sure what could possibly be added to the changelog.  We have 
-encountered need_resched warnings during the iteration.  We fix these 
-because need_resched warnings suppress future warnings of the same type 
-for issues that are more important.
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-I can fix the i386 issue but removing the cond_resched() entirely isn't 
-really suitable.
+-- 
+Mike Kravetz
+
+> ---
+>  Based on -mm only to prevent merge conflicts with
+>  "mm/hugetlb.c: warn the user when issues arise on boot due to hugepages"
+> 
+>  v2: removed redundant cond_resched() per Mike
+> 
+>  mm/hugetlb.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1754,6 +1754,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+>  			break;
+>  		}
+>  		list_add(&page->lru, &surplus_list);
+> +		cond_resched();
+>  	}
+>  	allocated += i;
+>  
+> @@ -2222,6 +2223,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+>  		} else if (!alloc_fresh_huge_page(h,
+>  					 &node_states[N_MEMORY]))
+>  			break;
+> +		cond_resched();
+>  	}
+>  	if (i < h->max_huge_pages) {
+>  		char buf[32];
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
