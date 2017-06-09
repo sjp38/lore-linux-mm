@@ -1,88 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 120126B0279
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 03:32:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 77so4952285wmm.13
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 00:32:49 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 530B46B0279
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 03:43:52 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g15so4977501wmc.8
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 00:43:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o32si378453wrb.186.2017.06.09.00.32.47
+        by mx.google.com with ESMTPS id t2si409509wrb.3.2017.06.09.00.43.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Jun 2017 00:32:47 -0700 (PDT)
-Date: Fri, 9 Jun 2017 09:32:44 +0200
+        Fri, 09 Jun 2017 00:43:50 -0700 (PDT)
+Date: Fri, 9 Jun 2017 09:43:48 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/4] mm, tree wide: replace __GFP_REPEAT by
- __GFP_RETRY_MAYFAIL with more useful semantic
-Message-ID: <20170609073244.GA21764@dhcp22.suse.cz>
-References: <20170307154843.32516-1-mhocko@kernel.org>
- <20170307154843.32516-3-mhocko@kernel.org>
- <20170603022440.GA11080@WeideMacBook-Pro.local>
- <20170605064343.GE9248@dhcp22.suse.cz>
- <20170606030401.GA2259@WeideMacBook-Pro.local>
- <20170606120314.GL1189@dhcp22.suse.cz>
- <20170607015909.GA6596@WeideMBP.lan>
+Subject: Re: Sleeping BUG in khugepaged for i586
+Message-ID: <20170609074348.GB21764@dhcp22.suse.cz>
+References: <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
+ <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
+ <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
+ <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
+ <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
+ <20170608144831.GA19903@dhcp22.suse.cz>
+ <20170608170557.GA8118@bombadil.infradead.org>
+ <20170608201822.GA5535@dhcp22.suse.cz>
+ <20170608203046.GB5535@dhcp22.suse.cz>
+ <d348054d-3857-65bb-e896-c4bd2ea6ee85@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170607015909.GA6596@WeideMBP.lan>
+In-Reply-To: <d348054d-3857-65bb-e896-c4bd2ea6ee85@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Matthew Wilcox <willy@infradead.org>, David Rientjes <rientjes@google.com>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 07-06-17 10:10:36, Wei Yang wrote:
-[...]
-> Hmm... Let me be more specific. With two factors, costly or not, flag set or
-> not, we have four combinations. Here it is classified into two categories.
+On Fri 09-06-17 08:48:58, Vlastimil Babka wrote:
+> On 06/08/2017 10:30 PM, Michal Hocko wrote:
+> > But I guess you are primary after syncing the preemptive mode for 64 and
+> > 32b systems, right? I agree that having a different model is more than
+> > unfortunate because 32b gets much less testing coverage and so a risk of
+> > introducing a new bug is just a matter of time. Maybe we should make
+> > pte_offset_map disable preemption and currently noop pte_unmap to
+> > preempt_enable. The overhead should be pretty marginal on x86_64 but not
+> > all arches have per-cpu preempt count. So I am not sure we really want
+> > to add this to just for the debugging purposes...
 > 
-> 1. __GFP_RETRY_MAYFAIL not set
-> 
-> Brief description on behavior:
->     costly: pick up the shortcut, so no OOM
->     !costly: no shortcut and will OOM I think
-> 
-> Impact from this patch set:
->     No.
+> I think adding that overhead for everyone would be unfortunate. It would
+> be acceptable, if it was done only for the config option that enables
+> the might_sleep() checks (CONFIG_DEBUG_ATOMIC_SLEEP?)
 
-true
-
-> My personal understanding:
->     The allocation without __GFP_RETRY_MAYFAIL is not effected by this patch
->     set.  Since !costly allocation will trigger OOM, this is the reason why
->     "small allocations never fail _practically_", as mentioned in
->     https://lwn.net/Articles/723317/.
-> 
-> 
-> 3. __GFP_RETRY_MAYFAIL set
-> 
-> Brief description on behavior:
->     costly/!costly: no shortcut here and no OOM invoked
-> 
-> Impact from this patch set:
->     For those allocations with __GFP_RETRY_MAYFAIL, OOM is not invoked for
->     both.
-
-yes
-
-> My personal understanding:
->     This is the semantic you are willing to introduce in this patch set. By
->     cutting off the OOM invoke when __GFP_RETRY_MAYFAIL is set, you makes this
->     a middle situation between NOFAIL and NORETRY.
-
-yes
-
->     page_alloc will try some luck to get some free pages without disturb other
->     part of the system. By doing so, the never fail allocation for !costly
->     pages will be "fixed". If I understand correctly, you are willing to make
->     this the default behavior in the future?
-
-I do not think we can make this a default in a foreseeable future
-unfortunately. That's why I've made it a gfp modifier in the first
-place. I assume many users will opt in by using the flag. In future we
-can even help by adding a highlevel GFP_$FOO flag but I am worried that
-this would just add to the explosion of existing highlevel gfp masks
-(e.g. do we want GFP_NOFS_MAY_FAIL, GFP_USER_MAY_FAIL,
-GFP_USER_HIGH_MOVABLE_MAYFAIL etc...)
+That is certainly possible. But is it worth it?
+arch/alpha/include/asm/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel((dir),(addr))
+arch/arc/include/asm/pgtable.h:#define pte_offset_map(dir, addr)		pte_offset(dir, addr)
+arch/arm/include/asm/pgtable.h:#define pte_offset_map(pmd,addr)	(__pte_map(pmd) + pte_index(addr))
+arch/arm64/include/asm/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
+arch/arm64/include/asm/pgtable.h:#define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
+arch/cris/include/asm/pgtable.h:#define pte_offset_map(dir, address) \
+arch/frv/include/asm/pgtable.h:#define pte_offset_map(dir, address) \
+arch/frv/include/asm/pgtable.h:#define pte_offset_map(dir, address) \
+arch/hexagon/include/asm/pgtable.h:#define pte_offset_map(dir, address)                                    \
+arch/hexagon/include/asm/pgtable.h:#define pte_offset_map_nested(pmd, addr) pte_offset_map(pmd, addr)
+arch/ia64/include/asm/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel(dir, addr)
+arch/m32r/include/asm/pgtable.h:#define pte_offset_map(dir, address)	\
+arch/m68k/include/asm/mcf_pgtable.h:#define pte_offset_map(pmdp, addr) ((pte_t *)__pmd_page(*pmdp) + \
+arch/m68k/include/asm/motorola_pgtable.h:#define pte_offset_map(pmdp,address) ((pte_t *)__pmd_page(*pmdp) + (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
+arch/m68k/include/asm/sun3_pgtable.h:#define pte_offset_map(pmd, address) ((pte_t *)page_address(pmd_page(*pmd)) + pte_index(address))
+arch/metag/include/asm/pgtable.h:#define pte_offset_map(dir, address)		pte_offset_kernel(dir, address)
+arch/metag/include/asm/pgtable.h:#define pte_offset_map_nested(dir, address)	pte_offset_kernel(dir, address)
+arch/microblaze/include/asm/pgtable.h:#define pte_offset_map(dir, addr)		\
+arch/mips/include/asm/pgtable-32.h:#define pte_offset_map(dir, address)					\
+arch/mips/include/asm/pgtable-64.h:#define pte_offset_map(dir, address)					\
+arch/mn10300/include/asm/pgtable.h:#define pte_offset_map(dir, address) \
+arch/nios2/include/asm/pgtable.h:#define pte_offset_map(dir, addr)			\
+arch/openrisc/include/asm/pgtable.h:#define pte_offset_map(dir, address)	        \
+arch/openrisc/include/asm/pgtable.h:#define pte_offset_map_nested(dir, address)     \
+arch/parisc/include/asm/pgtable.h:#define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
+arch/powerpc/include/asm/book3s/32/pgtable.h:#define pte_offset_map(dir, addr)		\
+arch/powerpc/include/asm/book3s/64/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
+arch/powerpc/include/asm/nohash/32/pgtable.h:#define pte_offset_map(dir, addr)		\
+arch/powerpc/include/asm/nohash/64/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
+arch/s390/include/asm/pgtable.h:#define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
+arch/score/include/asm/pgtable.h:#define pte_offset_map(dir, address)	\
+arch/sh/include/asm/pgtable_32.h:#define pte_offset_map(dir, address)		pte_offset_kernel(dir, address)
+arch/sh/include/asm/pgtable_64.h:#define pte_offset_map(dir,addr)	pte_offset_kernel(dir, addr)
+arch/sparc/include/asm/pgtable_32.h:#define pte_offset_map(d, a)		pte_offset_kernel(d,a)
+arch/sparc/include/asm/pgtable_64.h:#define pte_offset_map			pte_index
+arch/tile/include/asm/pgtable.h:#define pte_offset_map(dir, address) pte_offset_kernel(dir, address)
+arch/um/include/asm/pgtable.h:#define pte_offset_map(dir, address) \
+arch/unicore32/include/asm/pgtable.h:#define pte_offset_map(dir, addr)	(pmd_page_vaddr(*(dir)) \
+arch/x86/include/asm/pgtable_32.h:#define pte_offset_map(dir, address)					\
+arch/x86/include/asm/pgtable_32.h:#define pte_offset_map(dir, address)					\
+arch/x86/include/asm/pgtable_64.h:#define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
+arch/xtensa/include/asm/pgtable.h:#define pte_offset_map(dir,addr)	pte_offset_kernel((dir),(addr))
+include/linux/mm.h:#define pte_offset_map_lock(mm, pmd, address, ptlp)	\
 -- 
 Michal Hocko
 SUSE Labs
