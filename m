@@ -1,103 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E1A6B02F4
-	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 10:46:47 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v102so8767369wrc.8
-        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 07:46:47 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C30596B02F4
+	for <linux-mm@kvack.org>; Fri,  9 Jun 2017 11:01:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y39so8840974wry.10
+        for <linux-mm@kvack.org>; Fri, 09 Jun 2017 08:01:33 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d101si1766330wma.156.2017.06.09.07.46.45
+        by mx.google.com with ESMTPS id u67si1466094wrc.66.2017.06.09.08.01.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Jun 2017 07:46:45 -0700 (PDT)
-Date: Fri, 9 Jun 2017 16:46:42 +0200
+        Fri, 09 Jun 2017 08:01:30 -0700 (PDT)
+Date: Fri, 9 Jun 2017 17:01:27 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
- #PF
-Message-ID: <20170609144642.GH21764@dhcp22.suse.cz>
-References: <20170519112604.29090-1-mhocko@kernel.org>
- <20170519112604.29090-3-mhocko@kernel.org>
- <20170608143606.GK19866@dhcp22.suse.cz>
- <20170609140853.GA14760@cmpxchg.org>
+Subject: Re: [RFC v4 00/20] Speculative page faults
+Message-ID: <20170609150126.GI21764@dhcp22.suse.cz>
+References: <1497018069-17790-1-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170609140853.GA14760@cmpxchg.org>
+In-Reply-To: <1497018069-17790-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com
 
-On Fri 09-06-17 10:08:53, Johannes Weiner wrote:
-> On Thu, Jun 08, 2017 at 04:36:07PM +0200, Michal Hocko wrote:
-> > Does anybody see any problem with the patch or I can send it for the
-> > inclusion?
-> > 
-> > On Fri 19-05-17 13:26:04, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Any allocation failure during the #PF path will return with VM_FAULT_OOM
-> > > which in turn results in pagefault_out_of_memory. This can happen for
-> > > 2 different reasons. a) Memcg is out of memory and we rely on
-> > > mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
-> > > normal allocation fails.
-> > > 
-> > > The later is quite problematic because allocation paths already trigger
-> > > out_of_memory and the page allocator tries really hard to not fail
-> > > allocations. Anyway, if the OOM killer has been already invoked there
-> > > is no reason to invoke it again from the #PF path. Especially when the
-> > > OOM condition might be gone by that time and we have no way to find out
-> > > other than allocate.
-> > > 
-> > > Moreover if the allocation failed and the OOM killer hasn't been
-> > > invoked then we are unlikely to do the right thing from the #PF context
-> > > because we have already lost the allocation context and restictions and
-> > > therefore might oom kill a task from a different NUMA domain.
-> > > 
-> > > An allocation might fail also when the current task is the oom victim
-> > > and there are no memory reserves left and we should simply bail out
-> > > from the #PF rather than invoking out_of_memory.
-> > > 
-> > > This all suggests that there is no legitimate reason to trigger
-> > > out_of_memory from pagefault_out_of_memory so drop it. Just to be sure
-> > > that no #PF path returns with VM_FAULT_OOM without allocation print a
-> > > warning that this is happening before we restart the #PF.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Fri 09-06-17 16:20:49, Laurent Dufour wrote:
+> This is a port on kernel 4.12 of the work done by Peter Zijlstra to
+> handle page fault without holding the mm semaphore.
 > 
-> I don't agree with this patch.
+> http://linux-kernel.2935.n7.nabble.com/RFC-PATCH-0-6-Another-go-at-speculative-page-faults-tt965642.html#none
 > 
-> The warning you replace the oom call with indicates that we never
-> expect a VM_FAULT_OOM to leak to this point. But should there be a
-> leak, it's infinitely better to tickle the OOM killer again - even if
-> that call is then fairly inaccurate and without alloc context - than
-> infinite re-invocations of the #PF when the VM_FAULT_OOM comes from a
-> context - existing or future - that isn't allowed to trigger the OOM.
+> Compared to the Peter initial work, this series introduce a try spin
+> lock when dealing with speculative page fault. This is required to
+> avoid dead lock when handling a page fault while a TLB invalidate is
+> requested by an other CPU holding the PTE. Another change due to a
+> lock dependency issue with mapping->i_mmap_rwsem.
+> 
+> This series also protect changes to VMA's data which are read or
+> change by the page fault handler. The protections is done through the
+> VMA's sequence number.
+> 
+> This series is functional on x86 and PowerPC.
+> 
+> It's building on top of v4.12-rc4 and relies on the change done by
+> Paul McKenney to the SRCU code allowing better performance by
+> maintaining per-CPU callback lists:
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=da915ad5cf25b5f5d358dd3670c3378d8ae8c03e
+> 
+> Tests have been made using a large commercial in-memory database on a
+> PowerPC system with 752 CPUs. The results are very encouraging since
+> the loading of the 2TB database was faster by 20% with the speculative
+> page fault.
+> 
+> Since tests are encouraging and running test suite didn't raise any
+> issue, I'd like this request for comment series to move to a patch
+> series soon. So please feel free to comment.
 
-I disagree. Retrying the page fault while dropping all the locks
-on the way and still being in the killable context should be preferable
-to a system wide disruptive action like the OOM killer. If something
-goes wrong the admin can kill the process easily and keep the problem
-isolated to a single place which to me sounds like much better than a
-random shooting...
+What other testing have you done? Other benchmarks (some numbers)? What
+about some standard worklaods like kbench? This is a pretty invasive
+change so I would expect much more numbers.
 
-As I've already pointed out to Tetsuo. If we have an allocation which is
-not allowed to trigger the OOM killer and still fails for some reason
-and gets up to pagefault_out_of_memory then we basically break that
-do-not-trigger-oom-killer promise which is an incorrect behavior as well.
+It would also help to describe the highlevel design of the change here
+in the cover letter. This would make the review of specifics much
+easier.
 
-> I'm not a fan of defensive programming, but is this call to OOM more
-> expensive than the printk() somehow? And how certain are you that no
-> VM_FAULT_OOMs will leak, given how spread out page fault handlers and
-> how complex the different allocation contexts inside them are?
-
-Yes, checking this will be really unfeasible. On the other hand a leaked
-VM_FAULT_OOM will become a PF retry (maybe endless which is a fair
-point) but the same leak would mean shutting down a large part of the
-system (until the current context itself is killed) and that sounds more
-dangerous to me.
-
-I am not insisting on this patch but to me it sounds like it implements
-a more sensible and less dangerous system wide behavior.
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
