@@ -1,66 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E2ACA6B0292
-	for <linux-mm@kvack.org>; Sat, 10 Jun 2017 04:09:46 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g76so12191392wrd.3
-        for <linux-mm@kvack.org>; Sat, 10 Jun 2017 01:09:46 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7316B0292
+	for <linux-mm@kvack.org>; Sat, 10 Jun 2017 04:49:06 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w91so12301204wrb.13
+        for <linux-mm@kvack.org>; Sat, 10 Jun 2017 01:49:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j22si3385337wre.322.2017.06.10.01.09.45
+        by mx.google.com with ESMTPS id g26si3783560wrg.287.2017.06.10.01.49.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 10 Jun 2017 01:09:45 -0700 (PDT)
-Date: Sat, 10 Jun 2017 10:09:42 +0200
+        Sat, 10 Jun 2017 01:49:05 -0700 (PDT)
+Date: Sat, 10 Jun 2017 10:49:01 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Sleeping BUG in khugepaged for i586
-Message-ID: <20170610080941.GA12347@dhcp22.suse.cz>
-References: <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
- <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
- <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
- <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
- <20170608144831.GA19903@dhcp22.suse.cz>
- <20170608170557.GA8118@bombadil.infradead.org>
- <20170608201822.GA5535@dhcp22.suse.cz>
- <20170608203046.GB5535@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706091537020.66176@chino.kir.corp.google.com>
+Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
+ #PF
+Message-ID: <20170610084901.GB12347@dhcp22.suse.cz>
+References: <20170519112604.29090-1-mhocko@kernel.org>
+ <20170519112604.29090-3-mhocko@kernel.org>
+ <20170608143606.GK19866@dhcp22.suse.cz>
+ <20170609140853.GA14760@cmpxchg.org>
+ <20170609144642.GH21764@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706091537020.66176@chino.kir.corp.google.com>
+In-Reply-To: <20170609144642.GH21764@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 09-06-17 15:38:44, David Rientjes wrote:
-> On Thu, 8 Jun 2017, Michal Hocko wrote:
+On Fri 09-06-17 16:46:42, Michal Hocko wrote:
+> On Fri 09-06-17 10:08:53, Johannes Weiner wrote:
+> > On Thu, Jun 08, 2017 at 04:36:07PM +0200, Michal Hocko wrote:
+> > > Does anybody see any problem with the patch or I can send it for the
+> > > inclusion?
+> > > 
+> > > On Fri 19-05-17 13:26:04, Michal Hocko wrote:
+> > > > From: Michal Hocko <mhocko@suse.com>
+> > > > 
+> > > > Any allocation failure during the #PF path will return with VM_FAULT_OOM
+> > > > which in turn results in pagefault_out_of_memory. This can happen for
+> > > > 2 different reasons. a) Memcg is out of memory and we rely on
+> > > > mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
+> > > > normal allocation fails.
+> > > > 
+> > > > The later is quite problematic because allocation paths already trigger
+> > > > out_of_memory and the page allocator tries really hard to not fail
+> > > > allocations. Anyway, if the OOM killer has been already invoked there
+> > > > is no reason to invoke it again from the #PF path. Especially when the
+> > > > OOM condition might be gone by that time and we have no way to find out
+> > > > other than allocate.
+> > > > 
+> > > > Moreover if the allocation failed and the OOM killer hasn't been
+> > > > invoked then we are unlikely to do the right thing from the #PF context
+> > > > because we have already lost the allocation context and restictions and
+> > > > therefore might oom kill a task from a different NUMA domain.
+> > > > 
+> > > > An allocation might fail also when the current task is the oom victim
+> > > > and there are no memory reserves left and we should simply bail out
+> > > > from the #PF rather than invoking out_of_memory.
+> > > > 
+> > > > This all suggests that there is no legitimate reason to trigger
+> > > > out_of_memory from pagefault_out_of_memory so drop it. Just to be sure
+> > > > that no #PF path returns with VM_FAULT_OOM without allocation print a
+> > > > warning that this is happening before we restart the #PF.
+> > > > 
+> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > 
+> > I don't agree with this patch.
+> > 
+> > The warning you replace the oom call with indicates that we never
+> > expect a VM_FAULT_OOM to leak to this point. But should there be a
+> > leak, it's infinitely better to tickle the OOM killer again - even if
+> > that call is then fairly inaccurate and without alloc context - than
+> > infinite re-invocations of the #PF when the VM_FAULT_OOM comes from a
+> > context - existing or future - that isn't allowed to trigger the OOM.
 > 
-> > I would just pull the cond_resched out of __collapse_huge_page_copy
-> > right after pte_unmap. But I am not really sure why this cond_resched is
-> > really needed because the changelog of the patch which adds is is quite
-> > terse on details.
-> 
-> I'm not sure what could possibly be added to the changelog.  We have 
-> encountered need_resched warnings during the iteration.
+> I disagree. Retrying the page fault while dropping all the locks
+> on the way and still being in the killable context should be preferable
+> to a system wide disruptive action like the OOM killer.
 
-Well, the part the changelog is not really clear about is whether the
-HPAGE_PMD_NR loops itself is the source of the stall. This would be
-quite surprising because doing 512 iterations taking up to 20+s sounds
-way to much. So is it possible that we are missing a cond_resched
-somewhere up the __collapse_huge_page_copy call path? Or do we really do
-something stupidly expensive here?
+And just to clarify a bit. The OOM killer should be invoked whenever
+appropriate from the allocation context. If we decide to fail the
+allocation in the PF path then we can safely roll back and retry the
+whole PF. This has an advantage that any locks held while doing the
+allocation will be released and that alone can help to make a further
+progress. Moreover we can relax retry-for-ever _inside_ the allocator
+semantic for the PF path and fail allocations when we cannot make
+further progress even after we hit the OOM condition or we do stall for
+too long. This would have a nice side effect that PF would be a killable
+context from the page allocator POV. From the user space POV there is no
+difference between retrying the PF and looping inside the allocator,
+right?
 
-> We fix these 
-> because need_resched warnings suppress future warnings of the same type 
-> for issues that are more important.
+That being said, late just-in-case OOM killer invocation is not only
+suboptimal it also disallows us to make further changes in that area.
 
-Sure thing. I do care about soft lockups as well.
-
-> I can fix the i386 issue but removing the cond_resched() entirely isn't 
-> really suitable.
-
-I am not calling for a complete removal. I just do not yet see what is
-the source of the long processing of the the loop.
+Or am I oversimplifying or missing something here?
 -- 
 Michal Hocko
 SUSE Labs
