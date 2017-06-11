@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF966B0292
-	for <linux-mm@kvack.org>; Sat, 10 Jun 2017 21:45:37 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o74so38925337pfi.6
-        for <linux-mm@kvack.org>; Sat, 10 Jun 2017 18:45:37 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 32sor588095pld.5.2017.06.10.18.45.36
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C07A6B0292
+	for <linux-mm@kvack.org>; Sun, 11 Jun 2017 03:58:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u101so16528645wrc.2
+        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 00:58:04 -0700 (PDT)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id b8si6321911wra.249.2017.06.11.00.58.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 10 Jun 2017 18:45:36 -0700 (PDT)
-Date: Sun, 11 Jun 2017 09:45:35 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
- nodes
-Message-ID: <20170611014535.GA6206@WeideMBP.lan>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170608122318.31598-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 11 Jun 2017 00:58:02 -0700 (PDT)
+Received: by mail-wr0-x244.google.com with SMTP id u101so15394579wrc.1
+        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 00:58:02 -0700 (PDT)
+Date: Sun, 11 Jun 2017 09:57:59 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] x86, mm: disable 1GB direct mapping when disabling 2MB
+ mapping
+Message-ID: <20170611075759.aiesval452dbgfpr@gmail.com>
+References: <20170609135743.9920-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="AhhlLboLdkugWU4S"
-Content-Disposition: inline
-In-Reply-To: <20170608122318.31598-1-mhocko@kernel.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
-
-
---AhhlLboLdkugWU4S
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
->From: Michal Hocko <mhocko@suse.com>
->
->movable_node kernel parameter allows to make hotplugable NUMA
->nodes to put all the hotplugable memory into movable zone which
->allows more or less reliable memory hotremove.  At least this
->is the case for the NUMA nodes present during the boot (see
->find_zone_movable_pfns_for_nodes).
->
->This is not the case for the memory hotplug, though.
->
->	echo online > /sys/devices/system/memory/memoryXYZ/status
->
->will default to a kernel zone (usually ZONE_NORMAL) unless the
->particular memblock is already in the movable zone range which is not
->the case normally when onlining the memory from the udev rule context
->for a freshly hotadded NUMA node. The only option currently is to have a
->special udev rule to echo online_movable to all memblocks belonging to
->such a node which is rather clumsy. Not the mention this is inconsistent
->as well because what ended up in the movable zone during the boot will
->end up in a kernel zone after hotremove & hotadd without special care.
->
-
-A kernel zone here means? Which is the counterpart in zone_type? or a
-combination of several zone_type?
+In-Reply-To: <20170609135743.9920-1-vbabka@suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>
 
 
---=20
-Wei Yang
-Help you, Help me
+* Vlastimil Babka <vbabka@suse.cz> wrote:
 
---AhhlLboLdkugWU4S
-Content-Type: application/pgp-signature; name="signature.asc"
+> The kmemleak and debug_pagealloc features both disable using huge pages for
+> direct mapping so they can do cpa() on page level granularity in any context.
+> However they only do that for 2MB pages, which means 1GB pages can still be
+> used if the CPU supports it, unless disabled by a boot param, which is
+> non-obvious. Disable also 1GB pages when disabling 2MB pages.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  arch/x86/mm/init.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+> index cbc87ea98751..20282dfce0fa 100644
+> --- a/arch/x86/mm/init.c
+> +++ b/arch/x86/mm/init.c
+> @@ -170,6 +170,10 @@ static void __init probe_page_size_mask(void)
+>  	 */
+>  	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
+>  		page_size_mask |= 1 << PG_LEVEL_2M;
+> +	else
+> +		direct_gbpages = 0;
+> +#else
+> +	direct_gbpages = 0;
+>  #endif
+>  
+>  	/* Enable PSE if available */
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+So I agree with the fix, but I think it would be much cleaner to eliminate the 
+outer #ifdef:
 
-iQIcBAEBCAAGBQJZPKC/AAoJEKcLNpZP5cTd7wsP/RLDVLblTyjPE11IV+fnDbRG
-/P+/D7b28yLzKQ/LCL6knjX07rL1F3cB99wdn9M87MDDNiBwXgqW1A2wIlKMsvdr
-03ZByuGnL+iBtqoLUhUqHm2rRxEWmLBnG/d3Xa8ZGOm2v6dKkxbshMswyj0b3T58
-2uKL4Tsn7sGekJGmIt2Nibdzkw8sWzgIxiENwgTQfedbC1OUUal5hWPHFBPzzQCB
-Ouoi+NX3ETOwxhO1SO12CqR4QEhtZVcc+NXdQ/GgcBbtXuFO6S68N30dxlkC6QED
-HILWJd63RLOIDU3PBQWt2SULiS4tzRmVQd4q1DwQr6YJQT2QrY+b/MQ3Exgd9SbL
-deYpnLTFmIau3f7WynsllsJaM7MuZHnHFVYxboudvDhxApt4I057nGmX8MHp2Oii
-f3XdWlNXLbG+14EgR0WBkPJSk4yJnmzmcGLtDPdlg/C8D55kimTCd9QhkU76BWEE
-8L1TP1dhR/QdMPApYDHbjOF7WDxoL05d2AUaqz9BiwE/HP7GWsVnCfSPuIEhMOE5
-ZzQuhqhs/wuu+fsIZ7l0W8+SdILqSJSLj5Z2h3B8R8PTnkC0Jyzm9jGpwSmnMpdj
-OPly4r2kg1fWzc0rx1b7UbSvWHC6fsq6asMNL0Dz3FGe7eE5cHkELPZmyo3mDo6R
-ko9Hi1cVkH+p/Tz7z3iW
-=fEc5
------END PGP SIGNATURE-----
+	#if !defined(CONFIG_KMEMCHECK)
 
---AhhlLboLdkugWU4S--
+and put it into the condition, like this:
+
+	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() && !IS_ENABLED(CONFIG_KMEMCHECK))
+		page_size_mask |= 1 << PG_LEVEL_2M;
+	else
+		direct_gbpages = 0;
+
+without any #ifdeffery. This makes it much more readable all around, and also 
+makes it obvious that when the 2MB size bit is not set then gbpages are disabled 
+as well.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
