@@ -1,53 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E09B6B0292
-	for <linux-mm@kvack.org>; Sun, 11 Jun 2017 15:44:33 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w91so18706636wrb.13
-        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 12:44:33 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id t31si7967883wrc.248.2017.06.11.12.44.31
-        for <linux-mm@kvack.org>;
-        Sun, 11 Jun 2017 12:44:31 -0700 (PDT)
-Date: Sun, 11 Jun 2017 21:44:11 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 18/34] x86/efi: Update EFI pagetable creation to work
- with SME
-Message-ID: <20170611194411.shbwwf34ftumipab@pd.tnic>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191627.28645.4398.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C4E136B0279
+	for <linux-mm@kvack.org>; Sun, 11 Jun 2017 19:28:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a82so45933285pfc.8
+        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 16:28:13 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m132sor4010416pfc.31.2017.06.11.16.28.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 11 Jun 2017 16:28:13 -0700 (PDT)
+Date: Sun, 11 Jun 2017 16:28:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Sleeping BUG in khugepaged for i586
+In-Reply-To: <20170610080941.GA12347@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1706111621330.36347@chino.kir.corp.google.com>
+References: <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org> <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz> <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net> <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz> <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
+ <20170608144831.GA19903@dhcp22.suse.cz> <20170608170557.GA8118@bombadil.infradead.org> <20170608201822.GA5535@dhcp22.suse.cz> <20170608203046.GB5535@dhcp22.suse.cz> <alpine.DEB.2.10.1706091537020.66176@chino.kir.corp.google.com>
+ <20170610080941.GA12347@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170607191627.28645.4398.stgit@tlendack-t1.amdoffice.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Jun 07, 2017 at 02:16:27PM -0500, Tom Lendacky wrote:
-> When SME is active, pagetable entries created for EFI need to have the
-> encryption mask set as necessary.
+On Sat, 10 Jun 2017, Michal Hocko wrote:
+
+> > > I would just pull the cond_resched out of __collapse_huge_page_copy
+> > > right after pte_unmap. But I am not really sure why this cond_resched is
+> > > really needed because the changelog of the patch which adds is is quite
+> > > terse on details.
+> > 
+> > I'm not sure what could possibly be added to the changelog.  We have 
+> > encountered need_resched warnings during the iteration.
 > 
-> When the new pagetable pages are allocated they are mapped encrypted. So,
-> update the efi_pgt value that will be used in cr3 to include the encryption
-> mask so that the PGD table can be read successfully. The pagetable mapping
-> as well as the kernel are also added to the pagetable mapping as encrypted.
-> All other EFI mappings are mapped decrypted (tables, etc.).
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/platform/efi/efi_64.c |   15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
+> Well, the part the changelog is not really clear about is whether the
+> HPAGE_PMD_NR loops itself is the source of the stall. This would be
+> quite surprising because doing 512 iterations taking up to 20+s sounds
+> way to much.
 
-patches 15-18:
+I have no idea where you come up with 20+ seconds.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+These are not soft lockups, these are need_resched warnings.  We monitor 
+how long need_resched has been set and when a thread takes an excessive 
+amount of time to reschedule after it has been set.  A loop of 512 pages 
+with ptl contention and doing {clear,copy}_user_highpage() shows that 
+need_resched can sit without scheduling for an excessive amount of time.
 
--- 
-Regards/Gruss,
-    Boris.
+> So is it possible that we are missing a cond_resched
+> somewhere up the __collapse_huge_page_copy call path?
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+No.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
