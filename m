@@ -1,123 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A617D6B02F3
-	for <linux-mm@kvack.org>; Sat, 10 Jun 2017 17:56:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n81so37711745pfb.14
-        for <linux-mm@kvack.org>; Sat, 10 Jun 2017 14:56:06 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 94si3847853ple.515.2017.06.10.14.56.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF966B0292
+	for <linux-mm@kvack.org>; Sat, 10 Jun 2017 21:45:37 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o74so38925337pfi.6
+        for <linux-mm@kvack.org>; Sat, 10 Jun 2017 18:45:37 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 32sor588095pld.5.2017.06.10.18.45.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Jun 2017 14:56:05 -0700 (PDT)
-Subject: [PATCH 2/2] mm: always enable thp for dax mappings
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sat, 10 Jun 2017 14:49:37 -0700
-Message-ID: <149713137723.17377.8854203820807564559.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <149713136649.17377.3742583729924020371.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <149713136649.17377.3742583729924020371.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Sat, 10 Jun 2017 18:45:36 -0700 (PDT)
+Date: Sun, 11 Jun 2017 09:45:35 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
+ nodes
+Message-ID: <20170611014535.GA6206@WeideMBP.lan>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170608122318.31598-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="AhhlLboLdkugWU4S"
+Content-Disposition: inline
+In-Reply-To: <20170608122318.31598-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-The madvise policy for transparent huge pages is meant to avoid unwanted
-allocations of transparent huge pages. It allows a policy of disabling
-the extra memory pressure and effort to arrange for a huge page when it
-is not needed.
 
-DAX by definition never incurs this overhead since it is statically
-allocated. The policy choice makes even less sense for device-dax which
-tries to guarantee a given tlb-fault size. Specifically, the following
-setting:
+--AhhlLboLdkugWU4S
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-	echo never > /sys/kernel/mm/transparent_hugepage/enabled
+On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+>movable_node kernel parameter allows to make hotplugable NUMA
+>nodes to put all the hotplugable memory into movable zone which
+>allows more or less reliable memory hotremove.  At least this
+>is the case for the NUMA nodes present during the boot (see
+>find_zone_movable_pfns_for_nodes).
+>
+>This is not the case for the memory hotplug, though.
+>
+>	echo online > /sys/devices/system/memory/memoryXYZ/status
+>
+>will default to a kernel zone (usually ZONE_NORMAL) unless the
+>particular memblock is already in the movable zone range which is not
+>the case normally when onlining the memory from the udev rule context
+>for a freshly hotadded NUMA node. The only option currently is to have a
+>special udev rule to echo online_movable to all memblocks belonging to
+>such a node which is rather clumsy. Not the mention this is inconsistent
+>as well because what ended up in the movable zone during the boot will
+>end up in a kernel zone after hotremove & hotadd without special care.
+>
 
-...violates that guarantee and silently disables all device-dax
-instances with a 2M or 1G alignment. So, let's avoid that non-obvious
-side effect by force enabling thp for dax mappings in all cases.
+A kernel zone here means? Which is the counterpart in zone_type? or a
+combination of several zone_type?
 
-It is worth noting that the reason this uses vma_is_dax(), and the
-resulting header include changes, is that previous attempts to add a
-VM_DAX flag were NAKd.
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/dax.h     |    5 -----
- include/linux/fs.h      |    6 ++++++
- include/linux/huge_mm.h |    5 +++++
- 3 files changed, 11 insertions(+), 5 deletions(-)
+--=20
+Wei Yang
+Help you, Help me
 
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 1f6b6072af64..cbaf3d53d66b 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -151,11 +151,6 @@ static inline unsigned int dax_radix_order(void *entry)
- #endif
- int dax_pfn_mkwrite(struct vm_fault *vmf);
- 
--static inline bool vma_is_dax(struct vm_area_struct *vma)
--{
--	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
--}
--
- static inline bool dax_mapping(struct address_space *mapping)
- {
- 	return mapping->host && IS_DAX(mapping->host);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 803e5a9b2654..5916ab3a12d5 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -18,6 +18,7 @@
- #include <linux/bug.h>
- #include <linux/mutex.h>
- #include <linux/rwsem.h>
-+#include <linux/mm_types.h>
- #include <linux/capability.h>
- #include <linux/semaphore.h>
- #include <linux/fiemap.h>
-@@ -3042,6 +3043,11 @@ static inline bool io_is_direct(struct file *filp)
- 	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
- }
- 
-+static inline bool vma_is_dax(struct vm_area_struct *vma)
-+{
-+	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
-+}
-+
- static inline int iocb_flags(struct file *file)
- {
- 	int res = 0;
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index c4706e2c3358..901ed3767d1b 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -1,6 +1,8 @@
- #ifndef _LINUX_HUGE_MM_H
- #define _LINUX_HUGE_MM_H
- 
-+#include <linux/fs.h>
-+
- extern int do_huge_pmd_anonymous_page(struct vm_fault *vmf);
- extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
-@@ -92,6 +94,9 @@ static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
- 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
- 		return true;
- 
-+	if (vma_is_dax(vma))
-+		return true;
-+
- 	if (transparent_hugepage_flags
- 			& (1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
- 		/* check vma flags */;
+--AhhlLboLdkugWU4S
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZPKC/AAoJEKcLNpZP5cTd7wsP/RLDVLblTyjPE11IV+fnDbRG
+/P+/D7b28yLzKQ/LCL6knjX07rL1F3cB99wdn9M87MDDNiBwXgqW1A2wIlKMsvdr
+03ZByuGnL+iBtqoLUhUqHm2rRxEWmLBnG/d3Xa8ZGOm2v6dKkxbshMswyj0b3T58
+2uKL4Tsn7sGekJGmIt2Nibdzkw8sWzgIxiENwgTQfedbC1OUUal5hWPHFBPzzQCB
+Ouoi+NX3ETOwxhO1SO12CqR4QEhtZVcc+NXdQ/GgcBbtXuFO6S68N30dxlkC6QED
+HILWJd63RLOIDU3PBQWt2SULiS4tzRmVQd4q1DwQr6YJQT2QrY+b/MQ3Exgd9SbL
+deYpnLTFmIau3f7WynsllsJaM7MuZHnHFVYxboudvDhxApt4I057nGmX8MHp2Oii
+f3XdWlNXLbG+14EgR0WBkPJSk4yJnmzmcGLtDPdlg/C8D55kimTCd9QhkU76BWEE
+8L1TP1dhR/QdMPApYDHbjOF7WDxoL05d2AUaqz9BiwE/HP7GWsVnCfSPuIEhMOE5
+ZzQuhqhs/wuu+fsIZ7l0W8+SdILqSJSLj5Z2h3B8R8PTnkC0Jyzm9jGpwSmnMpdj
+OPly4r2kg1fWzc0rx1b7UbSvWHC6fsq6asMNL0Dz3FGe7eE5cHkELPZmyo3mDo6R
+ko9Hi1cVkH+p/Tz7z3iW
+=fEc5
+-----END PGP SIGNATURE-----
+
+--AhhlLboLdkugWU4S--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
