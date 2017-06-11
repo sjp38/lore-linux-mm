@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C07A6B0292
-	for <linux-mm@kvack.org>; Sun, 11 Jun 2017 03:58:04 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u101so16528645wrc.2
-        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 00:58:04 -0700 (PDT)
-Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
-        by mx.google.com with ESMTPS id b8si6321911wra.249.2017.06.11.00.58.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Jun 2017 00:58:02 -0700 (PDT)
-Received: by mail-wr0-x244.google.com with SMTP id u101so15394579wrc.1
-        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 00:58:02 -0700 (PDT)
-Date: Sun, 11 Jun 2017 09:57:59 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] x86, mm: disable 1GB direct mapping when disabling 2MB
- mapping
-Message-ID: <20170611075759.aiesval452dbgfpr@gmail.com>
-References: <20170609135743.9920-1-vbabka@suse.cz>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E09B6B0292
+	for <linux-mm@kvack.org>; Sun, 11 Jun 2017 15:44:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w91so18706636wrb.13
+        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 12:44:33 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id t31si7967883wrc.248.2017.06.11.12.44.31
+        for <linux-mm@kvack.org>;
+        Sun, 11 Jun 2017 12:44:31 -0700 (PDT)
+Date: Sun, 11 Jun 2017 21:44:11 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 18/34] x86/efi: Update EFI pagetable creation to work
+ with SME
+Message-ID: <20170611194411.shbwwf34ftumipab@pd.tnic>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191627.28645.4398.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170609135743.9920-1-vbabka@suse.cz>
+In-Reply-To: <20170607191627.28645.4398.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-
-* Vlastimil Babka <vbabka@suse.cz> wrote:
-
-> The kmemleak and debug_pagealloc features both disable using huge pages for
-> direct mapping so they can do cpa() on page level granularity in any context.
-> However they only do that for 2MB pages, which means 1GB pages can still be
-> used if the CPU supports it, unless disabled by a boot param, which is
-> non-obvious. Disable also 1GB pages when disabling 2MB pages.
+On Wed, Jun 07, 2017 at 02:16:27PM -0500, Tom Lendacky wrote:
+> When SME is active, pagetable entries created for EFI need to have the
+> encryption mask set as necessary.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> When the new pagetable pages are allocated they are mapped encrypted. So,
+> update the efi_pgt value that will be used in cr3 to include the encryption
+> mask so that the PGD table can be read successfully. The pagetable mapping
+> as well as the kernel are also added to the pagetable mapping as encrypted.
+> All other EFI mappings are mapped decrypted (tables, etc.).
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->  arch/x86/mm/init.c | 4 ++++
->  1 file changed, 4 insertions(+)
-> 
-> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-> index cbc87ea98751..20282dfce0fa 100644
-> --- a/arch/x86/mm/init.c
-> +++ b/arch/x86/mm/init.c
-> @@ -170,6 +170,10 @@ static void __init probe_page_size_mask(void)
->  	 */
->  	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
->  		page_size_mask |= 1 << PG_LEVEL_2M;
-> +	else
-> +		direct_gbpages = 0;
-> +#else
-> +	direct_gbpages = 0;
->  #endif
->  
->  	/* Enable PSE if available */
+>  arch/x86/platform/efi/efi_64.c |   15 +++++++++++----
+>  1 file changed, 11 insertions(+), 4 deletions(-)
 
-So I agree with the fix, but I think it would be much cleaner to eliminate the 
-outer #ifdef:
+patches 15-18:
 
-	#if !defined(CONFIG_KMEMCHECK)
+Reviewed-by: Borislav Petkov <bp@suse.de>
 
-and put it into the condition, like this:
+-- 
+Regards/Gruss,
+    Boris.
 
-	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() && !IS_ENABLED(CONFIG_KMEMCHECK))
-		page_size_mask |= 1 << PG_LEVEL_2M;
-	else
-		direct_gbpages = 0;
-
-without any #ifdeffery. This makes it much more readable all around, and also 
-makes it obvious that when the 2MB size bit is not set then gbpages are disabled 
-as well.
-
-Thanks,
-
-	Ingo
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
