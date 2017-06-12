@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6DB6B03A7
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:46 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m57so42582340qta.9
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:46 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BAAE96B03A8
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:47 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id u51so11519145qte.15
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:47 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t207si8498423qke.312.2017.06.12.05.23.45
+        by mx.google.com with ESMTPS id s4si8381195qkf.202.2017.06.12.05.23.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:23:45 -0700 (PDT)
+        Mon, 12 Jun 2017 05:23:47 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v6 14/20] dax: set errors in mapping when writeback fails
-Date: Mon, 12 Jun 2017 08:23:10 -0400
-Message-Id: <20170612122316.13244-19-jlayton@redhat.com>
+Subject: [PATCH v6 15/20] fs: have call_fsync call filemap_report_wb_err if FS_WB_ERRSEQ is set
+Date: Mon, 12 Jun 2017 08:23:11 -0400
+Message-Id: <20170612122316.13244-20-jlayton@redhat.com>
 In-Reply-To: <20170612122316.13244-1-jlayton@redhat.com>
 References: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,67 +20,53 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-Jan Kara's description for this patch is much better than mine, so I'm
-quoting it verbatim here:
-
------------------8<-----------------
-DAX currently doesn't set errors in the mapping when cache flushing
-fails in dax_writeback_mapping_range(). Since this function can get
-called only from fsync(2) or sync(2), this is actually as good as it can
-currently get since we correctly propagate the error up from
-dax_writeback_mapping_range() to filemap_fdatawrite()
-
-However, in the future better writeback error handling will enable us to
-properly report these errors on fsync(2) even if there are multiple file
-descriptors open against the file or if sync(2) gets called before
-fsync(2). So convert DAX to using standard error reporting through the
-mapping.
------------------8<-----------------
-
-For now, only do this when the FS_WB_ERRSEQ flag is set. The
-AS_EIO/AS_ENOSPC flags are not currently cleared in the older code when
-writeback initiation fails, only when we discover an error after waiting
-on writeback to complete, so we only want to do this with errseq_t based
-error handling to prevent seeing duplicate errors on fsync.
+Allow filesystems to opt-in to a final check of wb_err if FS_WB_ERRSEQ
+is set. Technically, we could just plumb these calls into all of the
+fsync operations, but I think this means less code, changes and churn.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-and-Tested-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/dax.c | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ include/linux/fs.h | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 2a6889b3585f..ba3b17eefcfc 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -856,8 +856,24 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 17ba6284ab14..ef3feeec80b2 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1742,12 +1742,6 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
+ 	return file->f_op->mmap(file, vma);
+ }
  
- 			ret = dax_writeback_one(bdev, dax_dev, mapping,
- 					indices[i], pvec.pages[i]);
--			if (ret < 0)
-+			if (ret < 0) {
-+				/*
-+				 * For fs' that use errseq_t based error
-+				 * tracking, we must call mapping_set_error
-+				 * here to ensure that fsync on all open fds
-+				 * get back an error. Doing this with the old
-+				 * wb error tracking infrastructure is
-+				 * problematic though, as DAX writeback is
-+				 * synchronous, and the error flags are not
-+				 * cleared when initiation fails, only when
-+				 * it fails after the write has been submitted
-+				 * to the backing store.
-+				 */
-+				if (mapping->host->i_sb->s_type->fs_flags &
-+						FS_WB_ERRSEQ)
-+					mapping_set_error(mapping, ret);
- 				goto out;
-+			}
- 		}
- 	}
- out:
+-static inline int call_fsync(struct file *file, loff_t start, loff_t end,
+-			     int datasync)
+-{
+-	return file->f_op->fsync(file, start, end, datasync);
+-}
+-
+ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
+ 			      unsigned long nr_segs, unsigned long fast_segs,
+ 			      struct iovec *fast_pointer,
+@@ -2583,6 +2577,20 @@ static inline errseq_t filemap_sample_wb_err(struct address_space *mapping)
+ 	return errseq_sample(&mapping->wb_err);
+ }
+ 
++static inline int call_fsync(struct file *file, loff_t start, loff_t end,
++			     int datasync)
++{
++	int ret;
++
++	ret = file->f_op->fsync(file, start, end, datasync);
++	if (file->f_mapping->host->i_sb->s_type->fs_flags & FS_WB_ERRSEQ) {
++		int ret2 = filemap_report_wb_err(file);
++		if (!ret)
++			ret = ret2;
++	}
++	return ret;
++}
++
+ extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
+ 			   int datasync);
+ extern int vfs_fsync(struct file *file, int datasync);
 -- 
 2.13.0
 
