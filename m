@@ -1,53 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 093A96B02B4
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 10:10:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b74so36434728pfj.5
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 07:10:15 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 1si9472863pgv.218.2017.06.12.07.10.14
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D1836B0279
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 10:31:58 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id l128so35717207iol.12
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 07:31:58 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g197sor3019312itg.37.2017.06.12.07.31.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 07:10:14 -0700 (PDT)
-Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
- list
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
- <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b92af473-f00e-b956-ea97-eb4626601789@intel.com>
-Date: Mon, 12 Jun 2017 07:10:12 -0700
+        (Google Transport Security);
+        Mon, 12 Jun 2017 07:31:57 -0700 (PDT)
+Date: Mon, 12 Jun 2017 08:31:55 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [RFC v4 3/3] xpfo: add support for hugepages
+Message-ID: <20170612143155.j6f63nijpij77a7t@smitten>
+References: <20170607211653.14536-1-tycho@docker.com>
+ <20170607211653.14536-4-tycho@docker.com>
+ <d8d4070e-a97d-c431-74ad-5ba1a30b5e18@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d8d4070e-a97d-c431-74ad-5ba1a30b5e18@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+To: Laura Abbott <labbott@redhat.com>
+Cc: linux-mm@kvack.org, Juerg Haefliger <juergh@gmail.com>, kernel-hardening@lists.openwall.com
 
-Please stop cc'ing me on things also sent to closed mailing lists
-(virtio-dev@lists.oasis-open.org).  I'm happy to review things on open
-lists, but I'm not fond of the closed lists bouncing things at me.
+Hi Laura,
 
-On 06/09/2017 03:41 AM, Wei Wang wrote:
-> Add a function to find a page block on the free list specified by the
-> caller. Pages from the page block may be used immediately after the
-> function returns. The caller is responsible for detecting or preventing
-> the use of such pages.
+Thanks for taking a look.
 
-This description doesn't tell me very much about what's going on here.
-Neither does the comment.
+On Fri, Jun 09, 2017 at 05:23:06PM -0700, Laura Abbott wrote:
+> > -	set_pte_atomic(pte, pfn_pte(page_to_pfn(page), canon_pgprot(prot)));
+> > +
+> > +	BUG_ON(!pte);
+> > +
+> > +	switch (level) {
+> > +	case PG_LEVEL_4K:
+> > +		set_pte_atomic(pte, pfn_pte(page_to_pfn(page), canon_pgprot(prot)));
+> > +		break;
+> > +	case PG_LEVEL_2M:
+> > +	case PG_LEVEL_1G: {
+> > +		struct cpa_data cpa;
+> > +		int do_split;
+> > +
+> > +		memset(&cpa, 0, sizeof(cpa));
+> > +		cpa.vaddr = kaddr;
+> > +		cpa.pages = &page;
+> > +		cpa.mask_set = prot;
+> > +		pgprot_val(cpa.mask_clr) = ~pgprot_val(prot);
+> > +		cpa.numpages = 1;
+> > +		cpa.flags = 0;
+> > +		cpa.curpage = 0;
+> > +		cpa.force_split = 0;
+> > +
+> > +		do_split = try_preserve_large_page(pte, (unsigned long)kaddr, &cpa);
+> > +		if (do_split < 0)
+> 
+> I can't reproduce the failure you describe in the cover letter but are you sure this
+> check is correct?
 
-"Pages from the page block may be used immediately after the
- function returns".
+The check seems to only happen when splitting up a large page,
+indicating that...
 
-Used by who?  Does the "may" here mean that it is OK, or is it a warning
-that the contents will be thrown away immediately?
+> It looks like try_preserve_large_page can return 1 on failure
+> and you still need to call split_large_page.
 
-The hypervisor is going to throw away the contents of these pages,
-right?  As soon as the spinlock is released, someone can allocate a
-page, and put good data in it.  What keeps the hypervisor from throwing
-away good data?
+...yes, you're absolutely right. When I fix this, it now fails to
+boot, stalling on unpacking the initramfs. So it seems something else
+is wrong too.
+
+Cheers,
+
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
