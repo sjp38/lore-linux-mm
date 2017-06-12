@@ -1,95 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDF46B02F4
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 09:11:16 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id q97so22782845wrb.14
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 06:11:16 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j22si8993956wre.322.2017.06.12.06.11.14
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B52C66B0314
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 09:32:10 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id e1so32130723oig.12
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 06:32:10 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0049.outbound.protection.outlook.com. [104.47.37.49])
+        by mx.google.com with ESMTPS id v65si3062108oia.270.2017.06.12.06.32.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Jun 2017 06:11:15 -0700 (PDT)
-Date: Mon, 12 Jun 2017 15:11:12 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm/list_lru.c: use cond_resched_lock() for nlru->lock
-Message-ID: <20170612131112.GF22728@quack2.suse.cz>
-References: <1497228440-10349-1-git-send-email-stummala@codeaurora.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 12 Jun 2017 06:32:09 -0700 (PDT)
+Subject: Re: [PATCH v6 14/34] x86/mm: Insure that boot memory areas are mapped
+ properly
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191539.28645.70161.stgit@tlendack-t1.amdoffice.net>
+ <20170610160119.bnx5ir5dj3i27igx@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <64d7cb4e-64fe-0882-ad17-fc3918c3a09a@amd.com>
+Date: Mon, 12 Jun 2017 08:31:58 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1497228440-10349-1-git-send-email-stummala@codeaurora.org>
+In-Reply-To: <20170610160119.bnx5ir5dj3i27igx@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sahitya Tummala <stummala@codeaurora.org>
-Cc: Alexander Polakov <apolyakov@beget.ru>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Mon 12-06-17 06:17:20, Sahitya Tummala wrote:
-> __list_lru_walk_one() can hold the spin lock for longer duration
-> if there are more number of entries to be isolated.
+On 6/10/2017 11:01 AM, Borislav Petkov wrote:
+> On Wed, Jun 07, 2017 at 02:15:39PM -0500, Tom Lendacky wrote:
+>> The boot data and command line data are present in memory in a decrypted
+>> state and are copied early in the boot process.  The early page fault
+>> support will map these areas as encrypted, so before attempting to copy
+>> them, add decrypted mappings so the data is accessed properly when copied.
+>>
+>> For the initrd, encrypt this data in place. Since the future mapping of the
+>> initrd area will be mapped as encrypted the data will be accessed properly.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/include/asm/mem_encrypt.h |   11 +++++
+>>   arch/x86/include/asm/pgtable.h     |    3 +
+>>   arch/x86/kernel/head64.c           |   30 ++++++++++++--
+>>   arch/x86/kernel/setup.c            |    9 ++++
+>>   arch/x86/mm/mem_encrypt.c          |   77 ++++++++++++++++++++++++++++++++++++
+>>   5 files changed, 126 insertions(+), 4 deletions(-)
 > 
-> This results in "BUG: spinlock lockup suspected" in the below path -
-> 
-> [<ffffff8eca0fb0bc>] spin_bug+0x90
-> [<ffffff8eca0fb220>] do_raw_spin_lock+0xfc
-> [<ffffff8ecafb7798>] _raw_spin_lock+0x28
-> [<ffffff8eca1ae884>] list_lru_add+0x28
-> [<ffffff8eca1f5dac>] dput+0x1c8
-> [<ffffff8eca1eb46c>] path_put+0x20
-> [<ffffff8eca1eb73c>] terminate_walk+0x3c
-> [<ffffff8eca1eee58>] path_lookupat+0x100
-> [<ffffff8eca1f00fc>] filename_lookup+0x6c
-> [<ffffff8eca1f0264>] user_path_at_empty+0x54
-> [<ffffff8eca1e066c>] SyS_faccessat+0xd0
-> [<ffffff8eca084e30>] el0_svc_naked+0x24
-> 
-> This nlru->lock has been acquired by another CPU in this path -
-> 
-> [<ffffff8eca1f5fd0>] d_lru_shrink_move+0x34
-> [<ffffff8eca1f6180>] dentry_lru_isolate_shrink+0x48
-> [<ffffff8eca1aeafc>] __list_lru_walk_one.isra.10+0x94
-> [<ffffff8eca1aec34>] list_lru_walk_node+0x40
-> [<ffffff8eca1f6620>] shrink_dcache_sb+0x60
-> [<ffffff8eca1e56a8>] do_remount_sb+0xbc
-> [<ffffff8eca1e583c>] do_emergency_remount+0xb0
-> [<ffffff8eca0ba510>] process_one_work+0x228
-> [<ffffff8eca0bb158>] worker_thread+0x2e0
-> [<ffffff8eca0c040c>] kthread+0xf4
-> [<ffffff8eca084dd0>] ret_from_fork+0x10
-> 
-> Link: http://marc.info/?t=149511514800002&r=1&w=2
-> Fix-suggested-by: Jan kara <jack@suse.cz>
-> Signed-off-by: Sahitya Tummala <stummala@codeaurora.org>
+> Some cleanups ontop in case you get to send v7:
 
-Looks good to me. You can add:
+There will be a v7.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  mm/list_lru.c | 2 ++
->  1 file changed, 2 insertions(+)
 > 
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> index 5d8dffd..1af0709 100644
-> --- a/mm/list_lru.c
-> +++ b/mm/list_lru.c
-> @@ -249,6 +249,8 @@ restart:
->  		default:
->  			BUG();
->  		}
-> +		if (cond_resched_lock(&nlru->lock))
-> +			goto restart;
->  	}
->  
->  	spin_unlock(&nlru->lock);
-> -- 
-> Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
-> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
+> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+> index 61a704945294..5959a42dd4d5 100644
+> --- a/arch/x86/include/asm/mem_encrypt.h
+> +++ b/arch/x86/include/asm/mem_encrypt.h
+> @@ -45,13 +45,8 @@ static inline void __init sme_early_decrypt(resource_size_t paddr,
+>   {
+>   }
+>   
+> -static inline void __init sme_map_bootdata(char *real_mode_data)
+> -{
+> -}
+> -
+> -static inline void __init sme_unmap_bootdata(char *real_mode_data)
+> -{
+> -}
+> +static inline void __init sme_map_bootdata(char *real_mode_data)	{ }
+> +static inline void __init sme_unmap_bootdata(char *real_mode_data)	{ }
+>   
+>   static inline void __init sme_early_init(void)
+>   {
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 2321f05045e5..32ebbe0ab04d 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -132,6 +132,10 @@ static void __init __sme_map_unmap_bootdata(char *real_mode_data, bool map)
+>   	struct boot_params *boot_data;
+>   	unsigned long cmdline_paddr;
+>   
+> +	/* If SME is not active, the bootdata is in the correct state */
+> +	if (!sme_active())
+> +		return;
+> +
+>   	__sme_early_map_unmap_mem(real_mode_data, sizeof(boot_params), map);
+>   	boot_data = (struct boot_params *)real_mode_data;
+>   
+> @@ -142,40 +146,22 @@ static void __init __sme_map_unmap_bootdata(char *real_mode_data, bool map)
+>   	cmdline_paddr = boot_data->hdr.cmd_line_ptr |
+>   			((u64)boot_data->ext_cmd_line_ptr << 32);
+>   
+> -	if (cmdline_paddr)
+> -		__sme_early_map_unmap_mem(__va(cmdline_paddr),
+> -					  COMMAND_LINE_SIZE, map);
+> +	if (!cmdline_paddr)
+> +		return;
+> +
+> +	__sme_early_map_unmap_mem(__va(cmdline_paddr), COMMAND_LINE_SIZE, map);
+> +
+> +	sme_early_pgtable_flush();
+
+Yup, overall it definitely simplifies things.
+
+I have to call sme_early_pgtable_flush() even if cmdline_paddr is NULL,
+so I'll either keep the if and have one flush at the end or I can move
+the flush into __sme_early_map_unmap_mem(). I'm leaning towards the
+latter.
+
+Thanks,
+Tom
+
+>   }
+>   
+>   void __init sme_unmap_bootdata(char *real_mode_data)
+>   {
+> -	/* If SME is not active, the bootdata is in the correct state */
+> -	if (!sme_active())
+> -		return;
+> -
+> -	/*
+> -	 * The bootdata and command line aren't needed anymore so clear
+> -	 * any mapping of them.
+> -	 */
+>   	__sme_map_unmap_bootdata(real_mode_data, false);
+> -
+> -	sme_early_pgtable_flush();
+>   }
+>   
+>   void __init sme_map_bootdata(char *real_mode_data)
+>   {
+> -	/* If SME is not active, the bootdata is in the correct state */
+> -	if (!sme_active())
+> -		return;
+> -
+> -	/*
+> -	 * The bootdata and command line will not be encrypted, so they
+> -	 * need to be mapped as decrypted memory so they can be copied
+> -	 * properly.
+> -	 */
+>   	__sme_map_unmap_bootdata(real_mode_data, true);
+> -
+> -	sme_early_pgtable_flush();
+>   }
+>   
+>   void __init sme_early_init(void)
 > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
