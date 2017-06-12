@@ -1,77 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AE2166B02C3
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 06:48:21 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 193so29816036itr.10
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 03:48:21 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f87si8128843iod.231.2017.06.12.03.48.19
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 316976B02F4
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 06:57:17 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f100so34556696iod.14
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 03:57:17 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id h131si6892983itb.6.2017.06.12.03.57.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Jun 2017 03:48:20 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the #PF
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170609140853.GA14760@cmpxchg.org>
-	<20170609144642.GH21764@dhcp22.suse.cz>
-	<20170610084901.GB12347@dhcp22.suse.cz>
-	<201706102057.GGG13003.OtFMJSQOVLFOHF@I-love.SAKURA.ne.jp>
-	<20170612073922.GA7476@dhcp22.suse.cz>
-In-Reply-To: <20170612073922.GA7476@dhcp22.suse.cz>
-Message-Id: <201706121948.CEC81794.OFMLFSJOtHOQFV@I-love.SAKURA.ne.jp>
-Date: Mon, 12 Jun 2017 19:48:03 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Mon, 12 Jun 2017 03:57:16 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] exit: avoid undefined behaviour when call wait4
+Date: Mon, 12 Jun 2017 18:50:18 +0800
+Message-ID: <1497264618-20212-1-git-send-email-zhongjiang@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: oleg@redhat.com, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, qiuxishi@huawei.com, zhongjiang@huawei.com
 
-Michal Hocko wrote:
-> On Sat 10-06-17 20:57:46, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > And just to clarify a bit. The OOM killer should be invoked whenever
-> > > appropriate from the allocation context. If we decide to fail the
-> > > allocation in the PF path then we can safely roll back and retry the
-> > > whole PF. This has an advantage that any locks held while doing the
-> > > allocation will be released and that alone can help to make a further
-> > > progress. Moreover we can relax retry-for-ever _inside_ the allocator
-> > > semantic for the PF path and fail allocations when we cannot make
-> > > further progress even after we hit the OOM condition or we do stall for
-> > > too long.
-> > 
-> > What!? Are you saying that leave the allocator loop rather than invoke
-> > the OOM killer if it is from page fault event without __GFP_FS set?
-> > With below patch applied (i.e. ignore __GFP_FS for emulation purpose),
-> > I can trivially observe systemwide lockup where the OOM killer is
-> > never called.
-> 
-> Because you have ruled the OOM out of the game completely from the PF
-> path AFICS.
+wait4(-2147483648, 0x20, 0, 0xdd0000) triggers:
+UBSAN: Undefined behaviour in kernel/exit.c:1651:9
 
-Yes, I know.
+The related calltrace is as follows:
 
->             So that is clearly _not_ what I meant (read the second
-> sentence). What I meant was that page fault allocations _could_ fail
-> _after_ we have used _all_ the reclaim opportunities.
+[518871.435738] negation of -2147483648 cannot be represented in type 'int':
+[518871.442618] CPU: 9 PID: 16482 Comm: zj Tainted: G    B          ---- -------   3.10.0-327.53.58.71.x86_64+ #66
+[518871.452874] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285          /BC11BTSA              , BIOS CTSAV036 04/27/2011
+[518871.464690]  ffffffff82599190 000000008b740a25 ffff880112447d90 ffffffff81d6eb16
+[518871.472395]  ffff880112447da8 ffffffff81d6ebc9 ffffffff82599180 ffff880112447e98
+[518871.480101]  ffffffff81d6fc99 0000000041b58ab3 ffffffff8228d698 ffffffff81d6fb90
+[518871.487801] Call Trace:
+[518871.490435]  [<ffffffff81d6eb16>] dump_stack+0x19/0x1b
+[518871.495751]  [<ffffffff81d6ebc9>] ubsan_epilogue+0xd/0x50
+[518871.501328]  [<ffffffff81d6fc99>] __ubsan_handle_negate_overflow+0x109/0x14e
+[518871.508548]  [<ffffffff81d6fb90>] ? __ubsan_handle_divrem_overflow+0x1df/0x1df
+[518871.516041]  [<ffffffff8116e0d4>] ? lg_local_lock+0x24/0xb0
+[518871.521785]  [<ffffffff8116e640>] ? lg_local_unlock+0x20/0xd0
+[518871.527708]  [<ffffffff81366fa0>] ? __pmd_alloc+0x180/0x180
+[518871.533458]  [<ffffffff8143f81b>] ? mntput+0x3b/0x70
+[518871.538598]  [<ffffffff8110d7bb>] SyS_wait4+0x1cb/0x1e0
+[518871.543999]  [<ffffffff8110d5f0>] ? SyS_waitid+0x220/0x220
+[518871.549661]  [<ffffffff8123bb57>] ? __audit_syscall_entry+0x1f7/0x2a0
+[518871.556278]  [<ffffffff81d91109>] system_call_fastpath+0x16/0x1b
 
-I used this patch for demonstrating what will happen if page fault
-allocations failed but the OOM killer does not trigger.
+The patch by excluding the overflow to avoid the UBSAN warning.
 
->                                                       Without this patch
-> this would be impossible.
+Signed-off-by: zhongjiang <zhongjiang@huawei.com>
+---
+ kernel/exit.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-What I wanted to say is that, with this patch, you are introducing possibility
-of lockup. "Retrying the whole page fault path when page fault allocations
-failed but the OOM killer does not trigger" helps nothing. It will just spin
-wasting CPU time until somebody else invokes the OOM killer.
-
->                           Note that I am not proposing that change now
-> because that would require a deeper audit but it sounds like a viable
-> way to go long term.
-
-I don't think introducing possibility of "page fault allocations failed
-but the OOM killer does not trigger" makes sense. Thus, this patch does not
-make sense unless we invoke the OOM killer before returning VM_FAULT_OOM.
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 516acdb..f21b40e 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -1698,6 +1698,10 @@ static long do_wait(struct wait_opts *wo)
+ 			__WNOTHREAD|__WCLONE|__WALL))
+ 		return -EINVAL;
+ 
++	/* -INT_MIN is not defined */
++	if (upid == INT_MIN)
++		return -ESRCH;
++
+ 	if (upid == -1)
+ 		type = PIDTYPE_MAX;
+ 	else if (upid < 0) {
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
