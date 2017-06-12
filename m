@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2F26B0343
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:07:28 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t30so52465653pgo.0
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:07:28 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id a33si6793666plc.382.2017.06.12.05.07.27
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 995466B0365
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:09:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p22so52489658pgn.3
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:09:36 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 82si12810263pga.93.2017.06.12.05.09.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:07:27 -0700 (PDT)
-Date: Mon, 12 Jun 2017 15:07:14 +0300
+        Mon, 12 Jun 2017 05:09:35 -0700 (PDT)
+Date: Mon, 12 Jun 2017 15:08:30 +0300
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 2/2] mm: always enable thp for dax mappings
-Message-ID: <20170612120714.zypyvp3e4zypqfvf@black.fi.intel.com>
+Subject: Re: [PATCH 1/2] mm: improve readability of
+ transparent_hugepage_enabled()
+Message-ID: <20170612120829.2qrkjnp3nrgybfla@black.fi.intel.com>
 References: <149713136649.17377.3742583729924020371.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149713137723.17377.8854203820807564559.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149713137177.17377.6712234218256825718.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <149713137723.17377.8854203820807564559.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <149713137177.17377.6712234218256825718.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de
 
-On Sat, Jun 10, 2017 at 02:49:37PM -0700, Dan Williams wrote:
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index c4706e2c3358..901ed3767d1b 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -1,6 +1,8 @@
->  #ifndef _LINUX_HUGE_MM_H
->  #define _LINUX_HUGE_MM_H
->  
-> +#include <linux/fs.h>
-> +
+On Sat, Jun 10, 2017 at 02:49:31PM -0700, Dan Williams wrote:
+> Turn the macro into a static inline and rewrite the condition checks for
+> better readability in preparation for adding another condition.
+> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-It means <linux/mm.h> now depends on <linux/fs.h>. I don't think it's a
-good idea.
+Looks good (unless it breaks build somewhere).
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
  Kirill A. Shutemov
