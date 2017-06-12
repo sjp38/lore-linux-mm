@@ -1,138 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F235D6B0292
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 10:36:16 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b74so36640690pfj.5
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 07:36:16 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 79si12991693pga.195.2017.06.12.07.36.15
-        for <linux-mm@kvack.org>;
-        Mon, 12 Jun 2017 07:36:16 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v4.1 4/8] mm, gup: Ensure real head page is ref-counted when using hugepages
-References: <20170524115409.31309-5-punit.agrawal@arm.com>
-	<20170605125112.19530-1-punit.agrawal@arm.com>
-Date: Mon, 12 Jun 2017 15:36:12 +0100
-In-Reply-To: <20170605125112.19530-1-punit.agrawal@arm.com> (Punit Agrawal's
-	message of "Mon, 5 Jun 2017 13:51:12 +0100")
-Message-ID: <87r2ypz31f.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA236B0279
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 10:47:21 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id 106so35326580otc.14
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 07:47:21 -0700 (PDT)
+Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
+        by mx.google.com with ESMTPS id e206si3184335oib.0.2017.06.12.07.47.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Jun 2017 07:47:20 -0700 (PDT)
+Received: by mail-oi0-x22a.google.com with SMTP id b6so2337532oia.1
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 07:47:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170612120714.zypyvp3e4zypqfvf@black.fi.intel.com>
+References: <149713136649.17377.3742583729924020371.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149713137723.17377.8854203820807564559.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170612120714.zypyvp3e4zypqfvf@black.fi.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 12 Jun 2017 07:47:19 -0700
+Message-ID: <CAPcyv4jb6Vqvm-rZ84z44LaoerMcJUZiR59TAiQ2itTqwb0j7A@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: always enable thp for dax mappings
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, ynorov@caviumnetworks.com, Michal Hocko <mhocko@suse.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-Punit Agrawal <punit.agrawal@arm.com> writes:
+On Mon, Jun 12, 2017 at 5:07 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> On Sat, Jun 10, 2017 at 02:49:37PM -0700, Dan Williams wrote:
+>> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+>> index c4706e2c3358..901ed3767d1b 100644
+>> --- a/include/linux/huge_mm.h
+>> +++ b/include/linux/huge_mm.h
+>> @@ -1,6 +1,8 @@
+>>  #ifndef _LINUX_HUGE_MM_H
+>>  #define _LINUX_HUGE_MM_H
+>>
+>> +#include <linux/fs.h>
+>> +
+>
+> It means <linux/mm.h> now depends on <linux/fs.h>. I don't think it's a
+> good idea.
 
-> When speculatively taking references to a hugepage using
-> page_cache_add_speculative() in gup_huge_pmd(), it is assumed that the
-> page returned by pmd_page() is the head page. Although normally true,
-> this assumption doesn't hold when the hugepage comprises of successive
-> page table entries such as when using contiguous bit on arm64 at PTE or
-> PMD levels.
->
-> This can be addressed by ensuring that the page passed to
-> page_cache_add_speculative() is the real head or by de-referencing the
-> head page within the function.
->
-> We take the first approach to keep the usage pattern aligned with
-> page_cache_get_speculative() where users already pass the appropriate
-> page, i.e., the de-referenced head.
->
-> Apply the same logic to fix gup_huge_[pud|pgd]() as well.
->
-> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Steve Capper <steve.capper@arm.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->
-> Hi Andrew,
->
-> Please update the patch in your queue with this version.
->
-> It fixes the ltp failures reported by Yury[0]. The original patch led
-> to incorrect ref-count on certain pages due to taking a referencing on
-> the following page in some instances. Should be fixed with this
-> version.
-
-Gentle ping!
-
-Andrew, please update to this version of the patch - it fixes a breakage
-on arm64.
-
-Alternately, if you're OK with it, we could take the whole series via
-the arm64 tree.
-
->
-> Thanks,
-> Punit
->
-> [0] http://lists.infradead.org/pipermail/linux-arm-kernel/2017-June/510318.html
->
->  mm/gup.c | 12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
->
-> diff --git a/mm/gup.c b/mm/gup.c
-> index e74e0b5a0c7c..6bd39264d0e7 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1354,8 +1354,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		return __gup_device_huge_pmd(orig, addr, end, pages, nr);
->  
->  	refs = 0;
-> -	head = pmd_page(orig);
-> -	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
->  	do {
->  		pages[*nr] = page;
->  		(*nr)++;
-> @@ -1363,6 +1362,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	head = compound_head(pmd_page(orig));
->  	if (!page_cache_add_speculative(head, refs)) {
->  		*nr -= refs;
->  		return 0;
-> @@ -1392,8 +1392,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  		return __gup_device_huge_pud(orig, addr, end, pages, nr);
->  
->  	refs = 0;
-> -	head = pud_page(orig);
-> -	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> +	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
->  	do {
->  		pages[*nr] = page;
->  		(*nr)++;
-> @@ -1401,6 +1400,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	head = compound_head(pud_page(orig));
->  	if (!page_cache_add_speculative(head, refs)) {
->  		*nr -= refs;
->  		return 0;
-> @@ -1429,8 +1429,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
->  
->  	BUILD_BUG_ON(pgd_devmap(orig));
->  	refs = 0;
-> -	head = pgd_page(orig);
-> -	page = head + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
-> +	page = pgd_page(orig) + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
->  	do {
->  		pages[*nr] = page;
->  		(*nr)++;
-> @@ -1438,6 +1437,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	head = compound_head(pgd_page(orig));
->  	if (!page_cache_add_speculative(head, refs)) {
->  		*nr -= refs;
->  		return 0;
+Seems to be ok as far as 0day-kbuild-robot is concerned. The
+alternative is to move vma_is_dax() out of line. I think
+transparent_hugepage_enabled() is called frequently enough to make it
+worth it to keep it inline.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
