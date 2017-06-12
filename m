@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A74B56B037C
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:27 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id s33so42639682qtg.1
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 21A836B037E
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:29 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 20so42717350qtq.2
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r66si8354122qkb.243.2017.06.12.05.23.26
+        by mx.google.com with ESMTPS id 135si1615706qkl.313.2017.06.12.05.23.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:23:26 -0700 (PDT)
+        Mon, 12 Jun 2017 05:23:28 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v6 05/20] mm: don't TestClearPageError in __filemap_fdatawait_range
-Date: Mon, 12 Jun 2017 08:22:57 -0400
-Message-Id: <20170612122316.13244-6-jlayton@redhat.com>
+Subject: [PATCH v6 06/20] mm: drop "wait" parameter from write_one_page
+Date: Mon, 12 Jun 2017 08:22:58 -0400
+Message-Id: <20170612122316.13244-7-jlayton@redhat.com>
 In-Reply-To: <20170612122316.13244-1-jlayton@redhat.com>
 References: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,172 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-The -EIO returned here can end up overriding whatever error is marked in
-the address space, and be returned at fsync time, even when there is a
-more appropriate error stored in the mapping.
+The callers all set it to 1.
 
-Read errors are also sometimes tracked on a per-page level using
-PG_error. Suppose we have a read error on a page, and then that page is
-subsequently dirtied by overwriting the whole page. Writeback doesn't
-clear PG_error, so we can then end up successfully writing back that
-page and still return -EIO on fsync.
+Also, make it clear that this function will not set any sort of AS_*
+error, and that the caller must do so if necessary. No existing caller
+uses this on normal files, so none of them need it.
 
-Worse yet, PG_error is cleared during a sync() syscall, but the -EIO
-return from that is silently discarded. Any subsystem that is relying on
-PG_error to report errors during fsync can easily lose writeback errors
-due to this. All you need is a stray sync() call to wait for writeback
-to complete and you've lost the error.
-
-Since the handling of the PG_error flag is somewhat inconsistent across
-subsystems, let's just rely on marking the address space when there are
-writeback errors. Change the TestClearPageError call to ClearPageError,
-and make __filemap_fdatawait_range a void return function.
+Also, add __must_check here since, in general, the callers need to
+handle an error here in some fashion.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/filemap.c | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ fs/exofs/dir.c        |  2 +-
+ fs/ext2/dir.c         |  2 +-
+ fs/jfs/jfs_metapage.c |  4 ++--
+ fs/minix/dir.c        |  2 +-
+ fs/sysv/dir.c         |  2 +-
+ fs/ufs/dir.c          |  2 +-
+ include/linux/mm.h    |  2 +-
+ mm/page-writeback.c   | 14 +++++++-------
+ 8 files changed, 15 insertions(+), 15 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 6f1be573a5e6..1de71753de28 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -376,17 +376,16 @@ int filemap_flush(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_flush);
+diff --git a/fs/exofs/dir.c b/fs/exofs/dir.c
+index 8eeb694332fe..98233a97b7b8 100644
+--- a/fs/exofs/dir.c
++++ b/fs/exofs/dir.c
+@@ -72,7 +72,7 @@ static int exofs_commit_chunk(struct page *page, loff_t pos, unsigned len)
+ 	set_page_dirty(page);
  
--static int __filemap_fdatawait_range(struct address_space *mapping,
-+static void __filemap_fdatawait_range(struct address_space *mapping,
- 				     loff_t start_byte, loff_t end_byte)
- {
- 	pgoff_t index = start_byte >> PAGE_SHIFT;
- 	pgoff_t end = end_byte >> PAGE_SHIFT;
- 	struct pagevec pvec;
- 	int nr_pages;
--	int ret = 0;
+ 	if (IS_DIRSYNC(dir))
+-		err = write_one_page(page, 1);
++		err = write_one_page(page);
+ 	else
+ 		unlock_page(page);
  
- 	if (end_byte < start_byte)
--		goto out;
-+		return;
- 
- 	pagevec_init(&pvec, 0);
- 	while ((index <= end) &&
-@@ -403,14 +402,11 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- 				continue;
- 
- 			wait_on_page_writeback(page);
--			if (TestClearPageError(page))
--				ret = -EIO;
-+			ClearPageError(page);
- 		}
- 		pagevec_release(&pvec);
- 		cond_resched();
+diff --git a/fs/ext2/dir.c b/fs/ext2/dir.c
+index d9650c9508e4..e2709695b177 100644
+--- a/fs/ext2/dir.c
++++ b/fs/ext2/dir.c
+@@ -100,7 +100,7 @@ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
  	}
--out:
--	return ret;
+ 
+ 	if (IS_DIRSYNC(dir)) {
+-		err = write_one_page(page, 1);
++		err = write_one_page(page);
+ 		if (!err)
+ 			err = sync_inode_metadata(dir, 1);
+ 	} else {
+diff --git a/fs/jfs/jfs_metapage.c b/fs/jfs/jfs_metapage.c
+index 489aaa1403e5..744fa3c079e6 100644
+--- a/fs/jfs/jfs_metapage.c
++++ b/fs/jfs/jfs_metapage.c
+@@ -711,7 +711,7 @@ void force_metapage(struct metapage *mp)
+ 	get_page(page);
+ 	lock_page(page);
+ 	set_page_dirty(page);
+-	write_one_page(page, 1);
++	write_one_page(page);
+ 	clear_bit(META_forcewrite, &mp->flag);
+ 	put_page(page);
+ }
+@@ -756,7 +756,7 @@ void release_metapage(struct metapage * mp)
+ 		set_page_dirty(page);
+ 		if (test_bit(META_sync, &mp->flag)) {
+ 			clear_bit(META_sync, &mp->flag);
+-			write_one_page(page, 1);
++			write_one_page(page);
+ 			lock_page(page); /* write_one_page unlocks the page */
+ 		}
+ 	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
+diff --git a/fs/minix/dir.c b/fs/minix/dir.c
+index 7edc9b395700..baa9721f1299 100644
+--- a/fs/minix/dir.c
++++ b/fs/minix/dir.c
+@@ -57,7 +57,7 @@ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+ 		mark_inode_dirty(dir);
+ 	}
+ 	if (IS_DIRSYNC(dir))
+-		err = write_one_page(page, 1);
++		err = write_one_page(page);
+ 	else
+ 		unlock_page(page);
+ 	return err;
+diff --git a/fs/sysv/dir.c b/fs/sysv/dir.c
+index 5bdae85ceef7..f5191cb2c947 100644
+--- a/fs/sysv/dir.c
++++ b/fs/sysv/dir.c
+@@ -45,7 +45,7 @@ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+ 		mark_inode_dirty(dir);
+ 	}
+ 	if (IS_DIRSYNC(dir))
+-		err = write_one_page(page, 1);
++		err = write_one_page(page);
+ 	else
+ 		unlock_page(page);
+ 	return err;
+diff --git a/fs/ufs/dir.c b/fs/ufs/dir.c
+index de01b8f2aa78..48609f1d9580 100644
+--- a/fs/ufs/dir.c
++++ b/fs/ufs/dir.c
+@@ -53,7 +53,7 @@ static int ufs_commit_chunk(struct page *page, loff_t pos, unsigned len)
+ 		mark_inode_dirty(dir);
+ 	}
+ 	if (IS_DIRSYNC(dir))
+-		err = write_one_page(page, 1);
++		err = write_one_page(page);
+ 	else
+ 		unlock_page(page);
+ 	return err;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b892e95d4929..c0b1759304ec 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2199,7 +2199,7 @@ extern void filemap_map_pages(struct vm_fault *vmf,
+ extern int filemap_page_mkwrite(struct vm_fault *vmf);
+ 
+ /* mm/page-writeback.c */
+-int write_one_page(struct page *page, int wait);
++int __must_check write_one_page(struct page *page);
+ void task_dirty_inc(struct task_struct *tsk);
+ 
+ /* readahead.c */
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 143c1c25d680..b901fe52b153 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2366,15 +2366,16 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
  }
  
  /**
-@@ -430,14 +426,8 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
- 			    loff_t end_byte)
+- * write_one_page - write out a single page and optionally wait on I/O
++ * write_one_page - write out a single page and wait on I/O
+  * @page: the page to write
+- * @wait: if true, wait on writeout
+  *
+  * The page must be locked by the caller and will be unlocked upon return.
+  *
+- * write_one_page() returns a negative error code if I/O failed.
++ * write_one_page() returns a negative error code if I/O failed. Note that
++ * the address_space is not marked for error. The caller must do this if
++ * needed.
+  */
+-int write_one_page(struct page *page, int wait)
++int write_one_page(struct page *page)
  {
--	int ret, ret2;
--
--	ret = __filemap_fdatawait_range(mapping, start_byte, end_byte);
--	ret2 = filemap_check_errors(mapping);
--	if (!ret)
--		ret = ret2;
--
--	return ret;
-+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-+	return filemap_check_errors(mapping);
- }
- EXPORT_SYMBOL(filemap_fdatawait_range);
+ 	struct address_space *mapping = page->mapping;
+ 	int ret = 0;
+@@ -2385,13 +2386,12 @@ int write_one_page(struct page *page, int wait)
  
+ 	BUG_ON(!PageLocked(page));
+ 
+-	if (wait)
+-		wait_on_page_writeback(page);
++	wait_on_page_writeback(page);
+ 
+ 	if (clear_page_dirty_for_io(page)) {
+ 		get_page(page);
+ 		ret = mapping->a_ops->writepage(page, &wbc);
+-		if (ret == 0 && wait) {
++		if (ret == 0) {
+ 			wait_on_page_writeback(page);
+ 			if (PageError(page))
+ 				ret = -EIO;
 -- 
 2.13.0
 
