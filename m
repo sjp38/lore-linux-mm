@@ -1,64 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6186B0279
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 02:49:58 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v102so20883752wrc.8
-        for <linux-mm@kvack.org>; Sun, 11 Jun 2017 23:49:58 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 483C86B0279
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 03:21:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id s4so21014603wrc.15
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 00:21:33 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j67si6626309wmg.92.2017.06.11.23.49.57
+        by mx.google.com with ESMTPS id s70si6416937wme.6.2017.06.12.00.21.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 11 Jun 2017 23:49:57 -0700 (PDT)
-Date: Mon, 12 Jun 2017 08:49:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 04/14] mm, memory_hotplug: get rid of
- is_zone_device_section
-Message-ID: <20170612064952.GE4145@dhcp22.suse.cz>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <20170515085827.16474-5-mhocko@kernel.org>
- <CADZGycawwb8FBqj=4g3NThvT-uKREbaH+kYAxvXRrW1Vd5wsvA@mail.gmail.com>
- <CADZGycZtBzA7E_nsKSxYZ8HFGQ2cpQqN62G4MfU1E9vwC2UfcQ@mail.gmail.com>
+        Mon, 12 Jun 2017 00:21:31 -0700 (PDT)
+Subject: Re: [PATCH] x86, mm: disable 1GB direct mapping when disabling 2MB
+ mapping
+References: <20170609135743.9920-1-vbabka@suse.cz>
+ <20170611075759.aiesval452dbgfpr@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2be70c78-6130-855d-3dfa-d87bd1dd4fda@suse.cz>
+Date: Mon, 12 Jun 2017 09:21:30 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CADZGycZtBzA7E_nsKSxYZ8HFGQ2cpQqN62G4MfU1E9vwC2UfcQ@mail.gmail.com>
+In-Reply-To: <20170611075759.aiesval452dbgfpr@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-On Sat 10-06-17 22:58:21, Wei Yang wrote:
-> On Sat, Jun 10, 2017 at 5:56 PM, Wei Yang <richard.weiyang@gmail.com> wrote:
-[...]
-> > Hmm... one question about the memory_block behavior.
-> >
-> > In case one memory_block contains more than one memory section.
-> > If one section is "device zone", the whole memory_block is not visible
-> > in sysfs. Or until the whole memory_block is full, the sysfs is visible.
-> >
+On 06/11/2017 09:57 AM, Ingo Molnar wrote:
+> So I agree with the fix, but I think it would be much cleaner to eliminate the 
+> outer #ifdef:
 > 
-> Ok, I made a mistake here. The memory_block device is visible in this
-> case, while the sysfs link between memory_block and node is not visible
-> for the whole memory_block device.
-
-yes the behavior is quite messy
-
+> 	#if !defined(CONFIG_KMEMCHECK)
 > 
-> BTW, current register_mem_sect_under_node() will create the sysfs
-> link between memory_block and node for each pfn, while actually
-> we only need one link between them. If I am correct.
+> and put it into the condition, like this:
 > 
-> If you think it is fine, I would like to change this one to create the link
-> on section base.
+> 	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() && !IS_ENABLED(CONFIG_KMEMCHECK))
 
-My longer term plan was to unify all the code to be either memory block
-or memory section oriented. The first sounds more logical from the user
-visible granularity point of view but there might be some corner cases
-which would require to use section based approach. I didn't have time to
-study that. If you want to play with that, feel free of course.
+Right, that's better, thanks.
+
+----8<----
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Fri, 9 Jun 2017 15:41:22 +0200
+Subject: [PATCH v2] x86, mm: disable 1GB direct mapping when disabling 2MB
+ mapping
+
+The kmemleak and debug_pagealloc features both disable using huge pages for
+direct mapping so they can do cpa() on page level granularity in any context.
+However they only do that for 2MB pages, which means 1GB pages can still be
+used if the CPU supports it, unless disabled by a boot param, which is
+non-obvious. Disable also 1GB pages when disabling 2MB pages.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ arch/x86/mm/init.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index cbc87ea98751..b11afaf04c9d 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -161,16 +161,17 @@ static int page_size_mask;
+ 
+ static void __init probe_page_size_mask(void)
+ {
+-#if !defined(CONFIG_KMEMCHECK)
+ 	/*
+ 	 * For CONFIG_KMEMCHECK or pagealloc debugging, identity mapping will
+ 	 * use small pages.
+ 	 * This will simplify cpa(), which otherwise needs to support splitting
+ 	 * large pages into small in interrupt context, etc.
+ 	 */
+-	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
++	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled() &&
++						!IS_ENABLED(CONFIG_KMEMCHECK))
+ 		page_size_mask |= 1 << PG_LEVEL_2M;
+-#endif
++	else
++		direct_gbpages = 0;
+ 
+ 	/* Enable PSE if available */
+ 	if (boot_cpu_has(X86_FEATURE_PSE))
 -- 
-Michal Hocko
-SUSE Labs
+2.13.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
