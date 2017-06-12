@@ -1,76 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EFF6B0279
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 03:39:28 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v104so21122675wrb.6
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 00:39:28 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D2F756B0279
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 04:58:58 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g36so21517532wrg.4
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 01:58:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y16si8538622wrb.0.2017.06.12.00.39.26
+        by mx.google.com with ESMTPS id a104si9361814wrc.132.2017.06.12.01.58.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Jun 2017 00:39:27 -0700 (PDT)
-Date: Mon, 12 Jun 2017 09:39:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the#PF
-Message-ID: <20170612073922.GA7476@dhcp22.suse.cz>
-References: <20170519112604.29090-3-mhocko@kernel.org>
- <20170608143606.GK19866@dhcp22.suse.cz>
- <20170609140853.GA14760@cmpxchg.org>
- <20170609144642.GH21764@dhcp22.suse.cz>
- <20170610084901.GB12347@dhcp22.suse.cz>
- <201706102057.GGG13003.OtFMJSQOVLFOHF@I-love.SAKURA.ne.jp>
+        Mon, 12 Jun 2017 01:58:57 -0700 (PDT)
+Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
+ nodes
+References: <20170608122318.31598-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <40d41b19-607f-fbe4-d133-f1aecd548d7e@suse.cz>
+Date: Mon, 12 Jun 2017 10:58:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201706102057.GGG13003.OtFMJSQOVLFOHF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170608122318.31598-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, guro@fb.com, vdavydov.dev@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Sat 10-06-17 20:57:46, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > And just to clarify a bit. The OOM killer should be invoked whenever
-> > appropriate from the allocation context. If we decide to fail the
-> > allocation in the PF path then we can safely roll back and retry the
-> > whole PF. This has an advantage that any locks held while doing the
-> > allocation will be released and that alone can help to make a further
-> > progress. Moreover we can relax retry-for-ever _inside_ the allocator
-> > semantic for the PF path and fail allocations when we cannot make
-> > further progress even after we hit the OOM condition or we do stall for
-> > too long.
+On 06/08/2017 02:23 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> What!? Are you saying that leave the allocator loop rather than invoke
-> the OOM killer if it is from page fault event without __GFP_FS set?
-> With below patch applied (i.e. ignore __GFP_FS for emulation purpose),
-> I can trivially observe systemwide lockup where the OOM killer is
-> never called.
+> movable_node kernel parameter allows to make hotplugable NUMA
+> nodes to put all the hotplugable memory into movable zone which
+> allows more or less reliable memory hotremove.  At least this
+> is the case for the NUMA nodes present during the boot (see
+> find_zone_movable_pfns_for_nodes).
+> 
+> This is not the case for the memory hotplug, though.
+> 
+> 	echo online > /sys/devices/system/memory/memoryXYZ/status
+> 
+> will default to a kernel zone (usually ZONE_NORMAL) unless the
+> particular memblock is already in the movable zone range which is not
+> the case normally when onlining the memory from the udev rule context
+> for a freshly hotadded NUMA node. The only option currently is to have a
+> special udev rule to echo online_movable to all memblocks belonging to
+> such a node which is rather clumsy. Not the mention this is inconsistent
+> as well because what ended up in the movable zone during the boot will
+> end up in a kernel zone after hotremove & hotadd without special care.
+> 
+> It would be nice to reuse memblock_is_hotpluggable but the runtime
+> hotplug doesn't have that information available because the boot and
+> hotplug paths are not shared and it would be really non trivial to
+> make them use the same code path because the runtime hotplug doesn't
+> play with the memblock allocator at all.
+> 
+> Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
+> movable_node is enabled and the range doesn't overlap with the existing
+> normal zone. This should provide a reasonable default onlining strategy.
+> 
+> Strictly speaking the semantic is not identical with the boot time
+> initialization because find_zone_movable_pfns_for_nodes covers only the
+> hotplugable range as described by the BIOS/FW. From my experience this
+> is usually a full node though (except for Node0 which is special and
+> never goes away completely). If this turns out to be a problem in the
+> real life we can tweak the code to store hotplug flag into memblocks
+> but let's keep this simple now.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Because you have ruled the OOM out of the game completely from the PF
-path AFICS. So that is clearly _not_ what I meant (read the second
-sentence). What I meant was that page fault allocations _could_ fail
-_after_ we have used _all_ the reclaim opportunities. Without this patch
-this would be impossible. Note that I am not proposing that change now
-because that would require a deeper audit but it sounds like a viable
-way to go long term.
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b896897..c79dfd5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3255,6 +3255,9 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  
->  	*did_some_progress = 0;
->  
-> +	if (current->in_pagefault)
-> +		return NULL;
-> +
->  	/*
->  	 * Acquire the oom lock.  If that fails, somebody else is
->  	 * making progress for us.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
