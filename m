@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 608286B03AA
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:51 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o41so42579034qtf.8
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:51 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 61C5E6B03AB
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:52 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x58so42682407qtc.0
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:52 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 13si8603709qtn.172.2017.06.12.05.23.50
+        by mx.google.com with ESMTPS id x30si8885057qte.171.2017.06.12.05.23.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:23:50 -0700 (PDT)
+        Mon, 12 Jun 2017 05:23:51 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v6 17/20] fs: add f_md_wb_err field to struct file for tracking metadata errors
-Date: Mon, 12 Jun 2017 08:23:13 -0400
-Message-Id: <20170612122316.13244-22-jlayton@redhat.com>
+Subject: [PATCH v6 18/20] ext4: use errseq_t based error handling for reporting data writeback errors
+Date: Mon, 12 Jun 2017 08:23:14 -0400
+Message-Id: <20170612122316.13244-23-jlayton@redhat.com>
 In-Reply-To: <20170612122316.13244-1-jlayton@redhat.com>
 References: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,150 +20,153 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-Some filesystems keep a different mapping for metadata writeback. Add a
-second errseq_t to struct file for tracking metadata writeback errors.
-Also add a new function for checking a mapping of the caller's choosing
-vs. the f_md_wb_err value.
+Add the FS_WB_ERRSEQ flag to indicate to other subsystems that errseq_t
+based error reporting for data writeback is in effect, and to opt-in to
+reporting those errors in call_fsync.
+
+ext4 uses the blockdev mapping for tracking metadata stored in the
+pagecache. Sample its wb_err when opening a file and store that in
+the f_md_wb_err field. Ensure that we check and advance the metadata
+before returning in fsync.
+
+Note that because metadata writeback errors are only tracked on a
+per-device level, this does mean that we'll end up reporting an error on
+all open file descriptors on this fs when there is a metadata writeback
+failure.  That's not ideal, but we can possibly improve upon it in the
+future.
+
+ext4 also has several calls to filemap_fdatawait and
+filemap_write_and_wait. Those will also be changed in a later patch to
+versions that use errseq_t based reporting.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- include/linux/fs.h             |  3 +++
- include/trace/events/filemap.h | 23 ++++++++++-------------
- mm/filemap.c                   | 40 +++++++++++++++++++++++++++++++---------
- 3 files changed, 44 insertions(+), 22 deletions(-)
+ fs/ext4/dir.c   |  8 ++++++--
+ fs/ext4/file.c  |  5 ++++-
+ fs/ext4/fsync.c | 23 +++++++++++++++++++----
+ fs/ext4/super.c |  6 +++---
+ 4 files changed, 32 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index ef3feeec80b2..e366835c93b3 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -871,6 +871,7 @@ struct file {
- 	struct list_head	f_tfile_llink;
- #endif /* #ifdef CONFIG_EPOLL */
- 	struct address_space	*f_mapping;
-+	errseq_t		f_md_wb_err; /* optional metadata wb error tracking */
- } __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
+diff --git a/fs/ext4/dir.c b/fs/ext4/dir.c
+index e8b365000d73..6bbb19510f74 100644
+--- a/fs/ext4/dir.c
++++ b/fs/ext4/dir.c
+@@ -611,9 +611,13 @@ static int ext4_dx_readdir(struct file *file, struct dir_context *ctx)
  
- struct file_handle {
-@@ -2525,6 +2526,8 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
- extern int filemap_check_errors(struct address_space *mapping);
- 
- extern int __must_check filemap_report_wb_err(struct file *file);
-+extern int __must_check filemap_report_md_wb_err(struct file *file,
-+					struct address_space *mapping);
- extern void __filemap_set_wb_err(struct address_space *mapping, int err);
- 
- /**
-diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
-index 2af66920f267..6e0d78c01a2e 100644
---- a/include/trace/events/filemap.h
-+++ b/include/trace/events/filemap.h
-@@ -79,12 +79,11 @@ TRACE_EVENT(filemap_set_wb_err,
- );
- 
- TRACE_EVENT(filemap_report_wb_err,
--		TP_PROTO(struct file *file, errseq_t old),
-+		TP_PROTO(struct address_space *mapping, errseq_t old, errseq_t new),
- 
--		TP_ARGS(file, old),
-+		TP_ARGS(mapping, old, new),
- 
- 		TP_STRUCT__entry(
--			__field(struct file *, file);
- 			__field(unsigned long, i_ino)
- 			__field(dev_t, s_dev)
- 			__field(errseq_t, old)
-@@ -92,20 +91,18 @@ TRACE_EVENT(filemap_report_wb_err,
- 		),
- 
- 		TP_fast_assign(
--			__entry->file = file;
--			__entry->i_ino = file->f_mapping->host->i_ino;
--			if (file->f_mapping->host->i_sb)
--				__entry->s_dev = file->f_mapping->host->i_sb->s_dev;
-+			__entry->i_ino = mapping->host->i_ino;
-+			if (mapping->host->i_sb)
-+				__entry->s_dev = mapping->host->i_sb->s_dev;
- 			else
--				__entry->s_dev = file->f_mapping->host->i_rdev;
-+				__entry->s_dev = mapping->host->i_rdev;
- 			__entry->old = old;
--			__entry->new = file->f_wb_err;
-+			__entry->new = new;
- 		),
- 
--		TP_printk("file=%p dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
--			__entry->file, MAJOR(__entry->s_dev),
--			MINOR(__entry->s_dev), __entry->i_ino, __entry->old,
--			__entry->new)
-+		TP_printk("dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
-+			MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
-+			__entry->i_ino, __entry->old, __entry->new)
- );
- #endif /* _TRACE_FILEMAP_H */
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c5e19ea0bf12..ef0ff6b87759 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -564,27 +564,49 @@ EXPORT_SYMBOL(__filemap_set_wb_err);
-  * value is protected by the f_lock since we must ensure that it reflects
-  * the latest value swapped in for this file descriptor.
-  */
--int filemap_report_wb_err(struct file *file)
-+static int __filemap_report_wb_err(errseq_t *cursor, spinlock_t *lock,
-+				struct address_space *mapping)
+ static int ext4_dir_open(struct inode * inode, struct file * filp)
  {
- 	int err = 0;
--	errseq_t old = READ_ONCE(file->f_wb_err);
--	struct address_space *mapping = file->f_mapping;
-+	errseq_t old = READ_ONCE(*cursor);
- 
- 	/* Locklessly handle the common case where nothing has changed */
- 	if (errseq_check(&mapping->wb_err, old)) {
- 		/* Something changed, must use slow path */
--		spin_lock(&file->f_lock);
--		old = file->f_wb_err;
--		err = errseq_check_and_advance(&mapping->wb_err,
--						&file->f_wb_err);
--		trace_filemap_report_wb_err(file, old);
--		spin_unlock(&file->f_lock);
-+		spin_lock(lock);
-+		old = *cursor;
-+		err = errseq_check_and_advance(&mapping->wb_err, cursor);
-+		trace_filemap_report_wb_err(mapping, old, *cursor);
-+		spin_unlock(lock);
- 	}
- 	return err;
++	int ret = 0;
++
+ 	if (ext4_encrypted_inode(inode))
+-		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
+-	return 0;
++		ret = fscrypt_get_encryption_info(inode) ? -EACCES : 0;
++	if (!ret)
++		filp->f_md_wb_err = filemap_sample_wb_err(inode->i_sb->s_bdev->bd_inode->i_mapping);
++	return ret;
  }
-+EXPORT_SYMBOL(__filemap_report_wb_err);
-+
-+int filemap_report_wb_err(struct file *file)
-+{
-+	return __filemap_report_wb_err(&file->f_wb_err, &file->f_lock,
-+					file->f_mapping);
-+}
- EXPORT_SYMBOL(filemap_report_wb_err);
  
- /**
-+ * filemap_report_md_wb_err - report wb error (if any) that was previously set
-+ * @file: struct file on which the error is being reported
-+ * @mapping: pointer to metadata mapping to check
-+ *
-+ * Many filesystems keep inode metadata in the pagecache, and will use the
-+ * cache to write it back to the backing store. This function is for these
-+ * callers to track metadata writeback.
-+ */
-+int filemap_report_md_wb_err(struct file *file, struct address_space *mapping)
-+{
-+	return __filemap_report_wb_err(&file->f_md_wb_err, &file->f_lock,
-+					mapping);
-+}
-+EXPORT_SYMBOL(filemap_report_md_wb_err);
+ static int ext4_release_dir(struct inode *inode, struct file *filp)
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 02ce7e7bbdf5..6e505269132c 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -435,7 +435,10 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
+ 		if (ret < 0)
+ 			return ret;
+ 	}
+-	return dquot_file_open(inode, filp);
++	ret = dquot_file_open(inode, filp);
++	if (!ret)
++		filp->f_md_wb_err = filemap_sample_wb_err(sb->s_bdev->bd_inode->i_mapping);
++	return ret;
+ }
+ 
+ /*
+diff --git a/fs/ext4/fsync.c b/fs/ext4/fsync.c
+index 9d549608fd30..09e28b7fd3f6 100644
+--- a/fs/ext4/fsync.c
++++ b/fs/ext4/fsync.c
+@@ -100,8 +100,10 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ 	tid_t commit_tid;
+ 	bool needs_barrier = false;
+ 
+-	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+-		return -EIO;
++	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb)))) {
++		ret = -EIO;
++		goto out;
++	}
+ 
+ 	J_ASSERT(ext4_journal_current_handle() == NULL);
+ 
+@@ -126,7 +128,8 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ 
+ 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+ 	if (ret)
+-		return ret;
++		goto out;
 +
-+/**
-  * replace_page_cache_page - replace a pagecache page with a new one
-  * @old:	page to be replaced
-  * @new:	page to replace with
+ 	/*
+ 	 * data=writeback,ordered:
+ 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
+@@ -152,12 +155,24 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ 		needs_barrier = true;
+ 	ret = jbd2_complete_transaction(journal, commit_tid);
+ 	if (needs_barrier) {
+-	issue_flush:
++issue_flush:
+ 		err = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+ 		if (!ret)
+ 			ret = err;
+ 	}
+ out:
++	/*
++	 * Was there a metadata writeback error since last fsync?
++	 *
++	 * FIXME: ext4 tracks metadata with a whole-block device mapping. So,
++	 * if there is any sort of metadata writeback error, we'll report an
++	 * error on all open fds, even ones not associated with the inode
++	 */
++	err = filemap_report_md_wb_err(file,
++				inode->i_sb->s_bdev->bd_inode->i_mapping);
++	if (!ret)
++		ret = err;
++
+ 	trace_ext4_sync_file_exit(inode, ret);
+ 	return ret;
+ }
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index d37c81f327e7..e98791ebee6f 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -119,7 +119,7 @@ static struct file_system_type ext2_fs_type = {
+ 	.name		= "ext2",
+ 	.mount		= ext4_mount,
+ 	.kill_sb	= kill_block_super,
+-	.fs_flags	= FS_REQUIRES_DEV,
++	.fs_flags	= FS_REQUIRES_DEV|FS_WB_ERRSEQ,
+ };
+ MODULE_ALIAS_FS("ext2");
+ MODULE_ALIAS("ext2");
+@@ -134,7 +134,7 @@ static struct file_system_type ext3_fs_type = {
+ 	.name		= "ext3",
+ 	.mount		= ext4_mount,
+ 	.kill_sb	= kill_block_super,
+-	.fs_flags	= FS_REQUIRES_DEV,
++	.fs_flags	= FS_REQUIRES_DEV|FS_WB_ERRSEQ,
+ };
+ MODULE_ALIAS_FS("ext3");
+ MODULE_ALIAS("ext3");
+@@ -5689,7 +5689,7 @@ static struct file_system_type ext4_fs_type = {
+ 	.name		= "ext4",
+ 	.mount		= ext4_mount,
+ 	.kill_sb	= kill_block_super,
+-	.fs_flags	= FS_REQUIRES_DEV,
++	.fs_flags	= FS_REQUIRES_DEV|FS_WB_ERRSEQ,
+ };
+ MODULE_ALIAS_FS("ext4");
+ 
 -- 
 2.13.0
 
