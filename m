@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F68F6B039F
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:35 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id m57so42581082qta.9
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:35 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5316B03A0
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:36 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n40so42658282qtb.4
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:36 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y74si8441472qky.95.2017.06.12.05.23.33
+        by mx.google.com with ESMTPS id o190si8445748qkc.114.2017.06.12.05.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:23:34 -0700 (PDT)
+        Mon, 12 Jun 2017 05:23:35 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v6 10/13] ext4: add more robust reporting of metadata writeback errors
-Date: Mon, 12 Jun 2017 08:23:02 -0400
-Message-Id: <20170612122316.13244-11-jlayton@redhat.com>
+Subject: [PATCH v6 10/20] mm: tracepoints for writeback error events
+Date: Mon, 12 Jun 2017 08:23:03 -0400
+Message-Id: <20170612122316.13244-12-jlayton@redhat.com>
 In-Reply-To: <20170612122316.13244-1-jlayton@redhat.com>
 References: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,85 +20,225 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-ext4 uses the blockdev mapping for tracking metadata stored in the
-pagecache. Sample its wb_err when opening a file and store that in
-the f_md_wb_err field.
-
-Change ext4_sync_file to check for data errors first, and then check the
-blockdev mapping for metadata errors afterward.
-
-Note that because metadata writeback errors are only tracked on a
-per-device level, this does mean that we'll end up reporting an error on
-all open file descriptors when there is a metadata writeback failure.
-That's not ideal, but we can possibly improve upon it in the future.
+To enable that, make __errseq_set return the value that it was set to
+when we exit the loop. Take heed that that value is not suitable as a
+later "since" value, as it will not have been marked seen.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- fs/ext4/dir.c   |  8 ++++++--
- fs/ext4/file.c  |  5 ++++-
- fs/ext4/fsync.c | 13 +++++++++++++
- 3 files changed, 23 insertions(+), 3 deletions(-)
+ include/linux/errseq.h         |  2 +-
+ include/linux/fs.h             |  5 +++-
+ include/trace/events/filemap.h | 55 ++++++++++++++++++++++++++++++++++++++++++
+ lib/errseq.c                   | 20 ++++++++++-----
+ mm/filemap.c                   | 13 +++++++++-
+ 5 files changed, 86 insertions(+), 9 deletions(-)
 
-diff --git a/fs/ext4/dir.c b/fs/ext4/dir.c
-index e8b365000d73..6bbb19510f74 100644
---- a/fs/ext4/dir.c
-+++ b/fs/ext4/dir.c
-@@ -611,9 +611,13 @@ static int ext4_dx_readdir(struct file *file, struct dir_context *ctx)
+diff --git a/include/linux/errseq.h b/include/linux/errseq.h
+index 0d2555f310cd..9e0d444ac88d 100644
+--- a/include/linux/errseq.h
++++ b/include/linux/errseq.h
+@@ -5,7 +5,7 @@
  
- static int ext4_dir_open(struct inode * inode, struct file * filp)
+ typedef u32	errseq_t;
+ 
+-void __errseq_set(errseq_t *eseq, int err);
++errseq_t __errseq_set(errseq_t *eseq, int err);
+ static inline void errseq_set(errseq_t *eseq, int err)
  {
-+	int ret = 0;
-+
- 	if (ext4_encrypted_inode(inode))
--		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
--	return 0;
-+		ret = fscrypt_get_encryption_info(inode) ? -EACCES : 0;
-+	if (!ret)
-+		filp->f_md_wb_err = filemap_sample_wb_err(inode->i_sb->s_bdev->bd_inode->i_mapping);
-+	return ret;
+ 	/* Optimize for the common case of no error */
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index e57321b7ee2a..6cd87887430b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2530,6 +2530,7 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
+ extern int filemap_check_errors(struct address_space *mapping);
+ 
+ extern int __must_check filemap_report_wb_err(struct file *file);
++extern void __filemap_set_wb_err(struct address_space *mapping, int err);
+ 
+ /**
+  * filemap_set_wb_err - set a writeback error on an address_space
+@@ -2549,7 +2550,9 @@ extern int __must_check filemap_report_wb_err(struct file *file);
+  */
+ static inline void filemap_set_wb_err(struct address_space *mapping, int err)
+ {
+-	errseq_set(&mapping->wb_err, err);
++	/* Fastpath for common case of no error */
++	if (unlikely(err))
++		__filemap_set_wb_err(mapping, err);
  }
  
- static int ext4_release_dir(struct inode *inode, struct file *filp)
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 831fd6beebf0..fe0d6e01c4b7 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -435,7 +435,10 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
- 		if (ret < 0)
- 			return ret;
+ /**
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+index 42febb6bc1d5..2af66920f267 100644
+--- a/include/trace/events/filemap.h
++++ b/include/trace/events/filemap.h
+@@ -10,6 +10,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/device.h>
+ #include <linux/kdev_t.h>
++#include <linux/errseq.h>
+ 
+ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 
+@@ -52,6 +53,60 @@ DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_add_to_page_cache,
+ 	TP_ARGS(page)
+ 	);
+ 
++TRACE_EVENT(filemap_set_wb_err,
++		TP_PROTO(struct address_space *mapping, errseq_t eseq),
++
++		TP_ARGS(mapping, eseq),
++
++		TP_STRUCT__entry(
++			__field(unsigned long, i_ino)
++			__field(dev_t, s_dev)
++			__field(errseq_t, errseq)
++		),
++
++		TP_fast_assign(
++			__entry->i_ino = mapping->host->i_ino;
++			__entry->errseq = eseq;
++			if (mapping->host->i_sb)
++				__entry->s_dev = mapping->host->i_sb->s_dev;
++			else
++				__entry->s_dev = mapping->host->i_rdev;
++		),
++
++		TP_printk("dev=%d:%d ino=0x%lx errseq=0x%x",
++			MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++			__entry->i_ino, __entry->errseq)
++);
++
++TRACE_EVENT(filemap_report_wb_err,
++		TP_PROTO(struct file *file, errseq_t old),
++
++		TP_ARGS(file, old),
++
++		TP_STRUCT__entry(
++			__field(struct file *, file);
++			__field(unsigned long, i_ino)
++			__field(dev_t, s_dev)
++			__field(errseq_t, old)
++			__field(errseq_t, new)
++		),
++
++		TP_fast_assign(
++			__entry->file = file;
++			__entry->i_ino = file->f_mapping->host->i_ino;
++			if (file->f_mapping->host->i_sb)
++				__entry->s_dev = file->f_mapping->host->i_sb->s_dev;
++			else
++				__entry->s_dev = file->f_mapping->host->i_rdev;
++			__entry->old = old;
++			__entry->new = file->f_wb_err;
++		),
++
++		TP_printk("file=%p dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
++			__entry->file, MAJOR(__entry->s_dev),
++			MINOR(__entry->s_dev), __entry->i_ino, __entry->old,
++			__entry->new)
++);
+ #endif /* _TRACE_FILEMAP_H */
+ 
+ /* This part must be outside protection */
+diff --git a/lib/errseq.c b/lib/errseq.c
+index d129c0611c1f..009972d3000c 100644
+--- a/lib/errseq.c
++++ b/lib/errseq.c
+@@ -52,10 +52,14 @@
+  *
+  * Most callers will want to use the errseq_set inline wrapper to efficiently
+  * handle the common case where err is 0.
++ *
++ * We do return an errseq_t here, primarily for debugging purposes. The return
++ * value should not be used as a previously sampled value in later calls as it
++ * will not have the SEEN flag set.
+  */
+-void __errseq_set(errseq_t *eseq, int err)
++errseq_t __errseq_set(errseq_t *eseq, int err)
+ {
+-	errseq_t old;
++	errseq_t cur, old;
+ 
+ 	/* MAX_ERRNO must be able to serve as a mask */
+ 	BUILD_BUG_ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
+@@ -66,13 +70,14 @@ void __errseq_set(errseq_t *eseq, int err)
+ 	 * also don't accept zero here as that would effectively clear a
+ 	 * previous error.
+ 	 */
++	old = READ_ONCE(*eseq);
++
+ 	if (WARN(unlikely(err == 0 || (unsigned int)-err > MAX_ERRNO),
+ 				"err = %d\n", err))
+-		return;
++		return old;
+ 
+-	old = READ_ONCE(*eseq);
+ 	for (;;) {
+-		errseq_t new, cur;
++		errseq_t new;
+ 
+ 		/* Clear out error bits and set new error */
+ 		new = (old & ~(MAX_ERRNO|ERRSEQ_SEEN)) | -err;
+@@ -82,8 +87,10 @@ void __errseq_set(errseq_t *eseq, int err)
+ 			new += ERRSEQ_CTR_INC;
+ 
+ 		/* If there would be no change, then call it done */
+-		if (new == old)
++		if (new == old) {
++			cur = new;
+ 			break;
++		}
+ 
+ 		/* Try to swap the new value into place */
+ 		cur = cmpxchg(eseq, old, new);
+@@ -98,6 +105,7 @@ void __errseq_set(errseq_t *eseq, int err)
+ 		/* Raced with an update, try again */
+ 		old = cur;
  	}
--	return dquot_file_open(inode, filp);
-+	ret = dquot_file_open(inode, filp);
-+	if (!ret)
-+		filp->f_md_wb_err = filemap_sample_wb_err(sb->s_bdev->bd_inode->i_mapping);
-+	return ret;
++	return cur;
  }
+ EXPORT_SYMBOL(__errseq_set);
  
- /*
-diff --git a/fs/ext4/fsync.c b/fs/ext4/fsync.c
-index 03d6259d8662..36363a6730d7 100644
---- a/fs/ext4/fsync.c
-+++ b/fs/ext4/fsync.c
-@@ -165,6 +165,19 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- 	err = filemap_report_wb_err(file);
- 	if (!ret)
- 		ret = err;
-+
-+	/*
-+	 * Was there a metadata writeback error since last fsync?
-+	 *
-+	 * FIXME: ext4 tracks metadata with a whole-block device mapping. So,
-+	 * if there is any sort of metadata writeback error, we'll report an
-+	 * error on all open fds, even ones not associated with the inode
-+	 */
-+	err = filemap_report_md_wb_err(file,
-+				inode->i_sb->s_bdev->bd_inode->i_mapping);
-+	if (!ret)
-+		ret = err;
-+
- 	trace_ext4_sync_file_exit(inode, ret);
- 	return ret;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index aeb58db10688..c5e19ea0bf12 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -535,6 +535,14 @@ int filemap_write_and_wait_range(struct address_space *mapping,
  }
+ EXPORT_SYMBOL(filemap_write_and_wait_range);
+ 
++void __filemap_set_wb_err(struct address_space *mapping, int err)
++{
++	errseq_t eseq = __errseq_set(&mapping->wb_err, err);
++	trace_filemap_set_wb_err(mapping, eseq);
++
++}
++EXPORT_SYMBOL(__filemap_set_wb_err);
++
+ /**
+  * filemap_report_wb_err - report wb error (if any) that was previously set
+  * @file: struct file on which the error is being reported
+@@ -559,14 +567,17 @@ EXPORT_SYMBOL(filemap_write_and_wait_range);
+ int filemap_report_wb_err(struct file *file)
+ {
+ 	int err = 0;
++	errseq_t old = READ_ONCE(file->f_wb_err);
+ 	struct address_space *mapping = file->f_mapping;
+ 
+ 	/* Locklessly handle the common case where nothing has changed */
+-	if (errseq_check(&mapping->wb_err, READ_ONCE(file->f_wb_err))) {
++	if (errseq_check(&mapping->wb_err, old)) {
+ 		/* Something changed, must use slow path */
+ 		spin_lock(&file->f_lock);
++		old = file->f_wb_err;
+ 		err = errseq_check_and_advance(&mapping->wb_err,
+ 						&file->f_wb_err);
++		trace_filemap_report_wb_err(file, old);
+ 		spin_unlock(&file->f_lock);
+ 	}
+ 	return err;
 -- 
 2.13.0
 
