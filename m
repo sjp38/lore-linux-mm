@@ -1,89 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F07476B0292
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:20:38 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v104so22571749wrb.6
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:20:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o81si9820657wrb.203.2017.06.12.05.20.37
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 392CF6B0314
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:21 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o41so42575669qtf.8
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b46si8612978qtb.40.2017.06.12.05.23.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Jun 2017 05:20:37 -0700 (PDT)
-Date: Mon, 12 Jun 2017 14:20:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 4/4] hugetlb: add support for preferred node to
- alloc_huge_page_nodemask
-Message-ID: <20170612122035.GL7476@dhcp22.suse.cz>
-References: <20170608074553.22152-1-mhocko@kernel.org>
- <20170608074553.22152-5-mhocko@kernel.org>
- <a41926b2-1e49-d6a6-f92e-5ebf2fa101e3@suse.cz>
- <20170612090656.GD7476@dhcp22.suse.cz>
- <cb18b8ad-af25-b269-3808-5a7452ee2d60@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cb18b8ad-af25-b269-3808-5a7452ee2d60@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Jun 2017 05:23:19 -0700 (PDT)
+From: Jeff Layton <jlayton@redhat.com>
+Subject: [PATCH v6 00/20] fs: enhanced writeback error reporting with errseq_t (pile #1)
+Date: Mon, 12 Jun 2017 08:22:52 -0400
+Message-Id: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Xishi Qiu <qiuxishi@huawei.com>, zhong jiang <zhongjiang@huawei.com>, Joonsoo Kim <js1304@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Mon 12-06-17 13:53:51, Vlastimil Babka wrote:
-> On 06/12/2017 11:06 AM, Michal Hocko wrote:
-[...]
-> > -/* Movability of hugepages depends on migration support. */
-> > -static inline gfp_t htlb_alloc_mask(struct hstate *h)
-> > +static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
-> >  {
-> > -	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
-> > -		return GFP_HIGHUSER_MOVABLE;
-> > -	else
-> > -		return GFP_HIGHUSER;
-> > +	if (nid != NUMA_NO_NODE)
-> > +		return dequeue_huge_page_node_exact(h, nid);
-> > +
-> > +	return dequeue_huge_page_nodemask(h, nid, NULL);
-> 
-> This with nid == NUMA_NO_NODE will break at node_zonelist(nid,
-> gfp_mask); in dequeue_huge_page_nodemask(). I guess just use the local
-> node as preferred.
+v6:
+===
+This is the sixth posting of the patchset to revamp the way writeback
+errors are tracked and reported.
 
-You are right. Anyway I have a patch to remove this helper altogether.
+This is a smaller set than the last one. The main difference from the
+last set is that this one just adds errseq_t based error reporting for
+the purposes of fsync, while leaving the internal callers of filemap_*
+functions and the like largely untouched.
 
-> > -retry_cpuset:
-> > -	cpuset_mems_cookie = read_mems_allowed_begin();
-> > -	gfp_mask = htlb_alloc_mask(h);
-> > -	nid = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
-> > -	zonelist = node_zonelist(nid, gfp_mask);
-> > -
-> > -	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> > -						MAX_NR_ZONES - 1, nodemask) {
-> > -		if (cpuset_zone_allowed(zone, gfp_mask)) {
-> > -			page = dequeue_huge_page_node(h, zone_to_nid(zone));
-> > -			if (page) {
-> > -				if (avoid_reserve)
-> > -					break;
-> > -				if (!vma_has_reserves(vma, chg))
-> > -					break;
-> > -
-> > -				SetPagePrivate(page);
-> > -				h->resv_huge_pages--;
-> > -				break;
-> > -			}
-> > -		}
-> > +	nid = huge_node(vma, address, htlb_alloc_mask(h), &mpol, &nodemask);
-> > +	page = dequeue_huge_page_nodemask(h, nid, nodemask);
-> > +	if (page && !(avoid_reserve || (!vma_has_reserves(vma, chg)))) {
-> 
-> Ugh that's hard to parse.
-> What about: if (page && !avoid_reserve && vma_has_reserves(...)) ?
+Some of these patches have been posted separately, but I'm re-posting
+them here to make it clear that they're prerequisites to the later
+patches in the series.
 
-Yeah, I have just translated the two breaks into a single condition
-without scratching my head to much. If you think that this face of De Morgan
-is nicer I can use it.
+Background:
+===========
+The basic problem is that we have (for a very long time) tracked and
+reported writeback errors based on two flags in the address_space:
+AS_EIO and AS_ENOSPC. Those flags are cleared when they are checked,
+so only the first caller to check them is able to consume them.
+
+That model is quite unreliable though, for several related reasons:
+
+* only the first fsync caller on the inode will see the error. In a
+  world of containerized setups, that's no longer viable. Applications
+  need to know that their writes are safely stored, and they can
+  currently miss seeing errors that they should be aware of when
+  they're not.
+
+* there are a lot of internal callers to filemap_fdatawait* and
+  filemap_write_and_wait* that clear the error flags but then never
+  report them to userland in any fashion.
+
+* Some internal callers report writeback errors, but can do so at
+  non-sensical times. For instance, we might want to truncate a file,
+  which triggers a pagecache flush. If that writeback fails, we might
+  report that error to the truncate caller, but a subsequent fsync
+  will likely not see it.
+
+* Some internal callers try to reset the error flags after clearing
+  them, but that's racy. Another task could check the flags between
+  those two events.
+
+Solution:
+=========
+This patchset adds a new datatype called an errseq_t that represents a
+sequence of errors. It's a u32, with a field for a POSIX-flavor error
+and a counter, managed with atomics. We can sample that value at a
+particular point in time, and can later tell whether there have been any
+errors since that point.
+
+That allows us to provide traditional check-and-clear fsync semantics
+on every open file description in a lightweight fashion. fsync callers
+no longer need to coordinate between one another in order to ensure
+that errors at fsync time are handled correctly.
+
+Strategy:
+=========
+The aim with this set is to do the minimum possible to support for
+reliable reporting of errors on fsync, without substantially changing
+the internals of the filesystems themselves.
+
+Most of the internal calls to filemap_fdatawait are left alone, so all
+of the internal error error checking is done using the traditional flag
+based checks. The only real difference here is more reliable reporting
+of errors at fsync.
+
+I think that we probably will want to eventually convert all of the
+internal callers to use errseq_t based reporting too, but that can be
+done in an incremental fashion in follow-on patchsets.
+
+Testing:
+========
+I've primarily been testing this with a couple of new xfstests that I
+will post separately. These tests use dm-error fault injection to flip
+the underlying block device to start throwing I/O errors, and then test
+the behavior of the filesystem layer on top of that.
+
+Jeff Layton (20):
+  mm: fix mapping_set_error call in me_pagecache_dirty
+  buffer: use mapping_set_error instead of setting the flag
+  fs: check for writeback errors after syncing out buffers in
+    generic_file_fsync
+  buffer: set errors in mapping at the time that the error occurs
+  mm: don't TestClearPageError in __filemap_fdatawait_range
+  mm: drop "wait" parameter from write_one_page
+  mm: clean up error handling in write_one_page
+  lib: add errseq_t type and infrastructure for handling it
+  fs: new infrastructure for writeback error handling and reporting
+  mm: tracepoints for writeback error events
+  mm: set both AS_EIO/AS_ENOSPC and errseq_t in mapping_set_error
+  fs: add a new fstype flag to indicate how writeback errors are tracked
+  Documentation: flesh out the section in vfs.txt on storing and
+    reporting writeback errors
+  dax: set errors in mapping when writeback fails
+  fs: have call_fsync call filemap_report_wb_err if FS_WB_ERRSEQ is set
+  block: convert to errseq_t based writeback error tracking
+  fs: add f_md_wb_err field to struct file for tracking metadata errors
+  ext4: use errseq_t based error handling for reporting data writeback
+    errors
+  xfs: minimal conversion to errseq_t writeback error reporting
+  btrfs: minimal conversion to errseq_t writeback error reporting on
+    fsync
+
+ Documentation/filesystems/vfs.txt |  48 ++++++++-
+ drivers/dax/device.c              |   1 +
+ fs/block_dev.c                    |   2 +
+ fs/btrfs/super.c                  |   2 +-
+ fs/buffer.c                       |  20 ++--
+ fs/dax.c                          |  18 +++-
+ fs/exofs/dir.c                    |   2 +-
+ fs/ext2/dir.c                     |   2 +-
+ fs/ext2/file.c                    |   2 +-
+ fs/ext4/dir.c                     |   8 +-
+ fs/ext4/file.c                    |   5 +-
+ fs/ext4/fsync.c                   |  23 ++++-
+ fs/ext4/super.c                   |   6 +-
+ fs/file_table.c                   |   1 +
+ fs/gfs2/lops.c                    |   2 +-
+ fs/jfs/jfs_metapage.c             |   4 +-
+ fs/libfs.c                        |   3 +-
+ fs/minix/dir.c                    |   2 +-
+ fs/open.c                         |   3 +
+ fs/sysv/dir.c                     |   2 +-
+ fs/ufs/dir.c                      |   2 +-
+ fs/xfs/xfs_super.c                |   2 +-
+ include/linux/buffer_head.h       |   1 +
+ include/linux/errseq.h            |  19 ++++
+ include/linux/fs.h                |  80 +++++++++++++--
+ include/linux/mm.h                |   2 +-
+ include/linux/pagemap.h           |  31 ++++--
+ include/trace/events/filemap.h    |  52 ++++++++++
+ lib/Makefile                      |   2 +-
+ lib/errseq.c                      | 208 ++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                      |  91 ++++++++++++++---
+ mm/memory-failure.c               |   2 +-
+ mm/page-writeback.c               |  21 ++--
+ 33 files changed, 595 insertions(+), 74 deletions(-)
+ create mode 100644 include/linux/errseq.h
+ create mode 100644 lib/errseq.c
+
 -- 
-Michal Hocko
-SUSE Labs
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
