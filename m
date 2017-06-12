@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF0FA6B03A6
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:44 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id d4so42635235qte.11
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6DB6B03A7
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 08:23:46 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id m57so42582340qta.9
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 05:23:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s34si8617474qtd.18.2017.06.12.05.23.43
+        by mx.google.com with ESMTPS id t207si8498423qke.312.2017.06.12.05.23.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 05:23:43 -0700 (PDT)
+        Mon, 12 Jun 2017 05:23:45 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v6 13/20] Documentation: flesh out the section in vfs.txt on storing and reporting writeback errors
-Date: Mon, 12 Jun 2017 08:23:09 -0400
-Message-Id: <20170612122316.13244-18-jlayton@redhat.com>
+Subject: [PATCH v6 14/20] dax: set errors in mapping when writeback fails
+Date: Mon, 12 Jun 2017 08:23:10 -0400
+Message-Id: <20170612122316.13244-19-jlayton@redhat.com>
 In-Reply-To: <20170612122316.13244-1-jlayton@redhat.com>
 References: <20170612122316.13244-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,90 +20,67 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-Let's try to make this extra clear for fs authors.
+Jan Kara's description for this patch is much better than mine, so I'm
+quoting it verbatim here:
 
-Also, although I think we'll eventually remove it once the transition is
-complete, I've gone ahead and documented the FS_WB_ERRSEQ flag as well.
+-----------------8<-----------------
+DAX currently doesn't set errors in the mapping when cache flushing
+fails in dax_writeback_mapping_range(). Since this function can get
+called only from fsync(2) or sync(2), this is actually as good as it can
+currently get since we correctly propagate the error up from
+dax_writeback_mapping_range() to filemap_fdatawrite()
 
-Cc: Jan Kara <jack@suse.cz>
+However, in the future better writeback error handling will enable us to
+properly report these errors on fsync(2) even if there are multiple file
+descriptors open against the file or if sync(2) gets called before
+fsync(2). So convert DAX to using standard error reporting through the
+mapping.
+-----------------8<-----------------
+
+For now, only do this when the FS_WB_ERRSEQ flag is set. The
+AS_EIO/AS_ENOSPC flags are not currently cleared in the older code when
+writeback initiation fails, only when we discover an error after waiting
+on writeback to complete, so we only want to do this with errseq_t based
+error handling to prevent seeing duplicate errors on fsync.
+
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-and-Tested-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- Documentation/filesystems/vfs.txt | 48 ++++++++++++++++++++++++++++++++++++---
- 1 file changed, 45 insertions(+), 3 deletions(-)
+ fs/dax.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-index f42b90687d40..0f6415c26385 100644
---- a/Documentation/filesystems/vfs.txt
-+++ b/Documentation/filesystems/vfs.txt
-@@ -576,7 +576,47 @@ should clear PG_Dirty and set PG_Writeback.  It can be actually
- written at any point after PG_Dirty is clear.  Once it is known to be
- safe, PG_Writeback is cleared.
+diff --git a/fs/dax.c b/fs/dax.c
+index 2a6889b3585f..ba3b17eefcfc 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -856,8 +856,24 @@ int dax_writeback_mapping_range(struct address_space *mapping,
  
--Writeback makes use of a writeback_control structure...
-+Writeback makes use of a writeback_control structure to direct the
-+operations.  This gives the the writepage and writepages operations some
-+information about the nature of and reason for the writeback request,
-+and the constraints under which it is being done.  It is also used to
-+return information back to the caller about the result of a writepage or
-+writepages request.
-+
-+Handling errors during writeback
-+--------------------------------
-+Most applications that utilize the pagecache will periodically call
-+fsync to ensure that data written has made it to the backing store.
-+When there is an error during writeback, expect that error to be
-+reported when fsync is called.  After an error has been reported to
-+fsync, subsequent fsync calls on the same file descriptor should return
-+0, unless further writeback errors have occurred since the previous
-+fsync.
-+
-+Ideally, the kernel would report an error only on file descriptions on
-+which writes were done that subsequently failed to be written back.  The
-+generic pagecache infrastructure does not track the file descriptions
-+that have dirtied each individual page however, so determining which
-+file descriptors should get back an error is not possible.
-+
-+Instead, the generic writeback error tracking infrastructure in the
-+kernel settles for reporting errors to fsync on all file descriptions
-+that were open at the time that the error occurred.  In a situation with
-+multiple writers, all of them will get back an error on a subsequent fsync,
-+even if all of the writes done through that particular file descriptor
-+succeeded (or even if there were no writes on that file descriptor at all).
-+
-+Filesystems that wish to use this infrastructure need to do two things:
-+
-+1) call mapping_set_error to record the error in the address_space when
-+one occurs.
-+
-+2) set FS_WB_ERRSEQ in the fs_flags field in the file_system_type to
-+indicate to other subsystems that the filesystem wants to use errseq_t
-+based error reporting for writeback.
-+
-+The flag may go away in the future or moved to an opt-out flag once
-+the majority of filesystems are converted to use errseq_t based reporting.
- 
- struct address_space_operations
- -------------------------------
-@@ -804,7 +844,8 @@ struct address_space_operations {
- The File Object
- ===============
- 
--A file object represents a file opened by a process.
-+A file object represents a file opened by a process. This is also known
-+as an "open file description" in POSIX parlance.
- 
- 
- struct file_operations
-@@ -887,7 +928,8 @@ otherwise noted.
- 
-   release: called when the last reference to an open file is closed
- 
--  fsync: called by the fsync(2) system call
-+  fsync: called by the fsync(2) system call. Also see the section above
-+	 entitled "Handling errors during writeback".
- 
-   fasync: called by the fcntl(2) system call when asynchronous
- 	(non-blocking) mode is enabled for a file
+ 			ret = dax_writeback_one(bdev, dax_dev, mapping,
+ 					indices[i], pvec.pages[i]);
+-			if (ret < 0)
++			if (ret < 0) {
++				/*
++				 * For fs' that use errseq_t based error
++				 * tracking, we must call mapping_set_error
++				 * here to ensure that fsync on all open fds
++				 * get back an error. Doing this with the old
++				 * wb error tracking infrastructure is
++				 * problematic though, as DAX writeback is
++				 * synchronous, and the error flags are not
++				 * cleared when initiation fails, only when
++				 * it fails after the write has been submitted
++				 * to the backing store.
++				 */
++				if (mapping->host->i_sb->s_type->fs_flags &
++						FS_WB_ERRSEQ)
++					mapping_set_error(mapping, ret);
+ 				goto out;
++			}
+ 		}
+ 	}
+ out:
 -- 
 2.13.0
 
