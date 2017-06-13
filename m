@@ -1,68 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 58C9F6B0365
-	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 06:27:25 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id z22so59210327qtz.10
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 03:27:25 -0700 (PDT)
-Received: from mail-qt0-f182.google.com (mail-qt0-f182.google.com. [209.85.216.182])
-        by mx.google.com with ESMTPS id y3si11426743qta.82.2017.06.13.03.27.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 03:27:24 -0700 (PDT)
-Received: by mail-qt0-f182.google.com with SMTP id u19so164910850qta.3
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 03:27:24 -0700 (PDT)
-Message-ID: <1497349642.5762.3.camel@redhat.com>
-Subject: Re: [PATCH v6 19/20] xfs: minimal conversion to errseq_t writeback
- error reporting
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 13 Jun 2017 06:27:22 -0400
-In-Reply-To: <20170613043056.GO4530@birch.djwong.org>
-References: <20170612122316.13244-1-jlayton@redhat.com>
-	 <20170612122316.13244-24-jlayton@redhat.com>
-	 <20170613043056.GO4530@birch.djwong.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2146B0372
+	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 06:28:37 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id o74so71476701pfi.6
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 03:28:37 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g8si9038620plk.293.2017.06.13.03.28.36
+        for <linux-mm@kvack.org>;
+        Tue, 13 Jun 2017 03:28:36 -0700 (PDT)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v2 2/3] mm/page_ref: Ensure page_ref_unfreeze is ordered against prior accesses
+Date: Tue, 13 Jun 2017 11:28:41 +0100
+Message-Id: <1497349722-6731-3-git-send-email-will.deacon@arm.com>
+In-Reply-To: <1497349722-6731-1-git-send-email-will.deacon@arm.com>
+References: <1497349722-6731-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com, vbabka@suse.cz, Will Deacon <will.deacon@arm.com>
 
-On Mon, 2017-06-12 at 21:30 -0700, Darrick J. Wong wrote:
-> On Mon, Jun 12, 2017 at 08:23:15AM -0400, Jeff Layton wrote:
-> > Just set the FS_WB_ERRSEQ flag to indicate that we want to use errseq_t
-> > based error reporting. Internal filemap_* calls are left as-is for now.
-> > 
-> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> > ---
-> >  fs/xfs/xfs_super.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-> > index 455a575f101d..28d3be187025 100644
-> > --- a/fs/xfs/xfs_super.c
-> > +++ b/fs/xfs/xfs_super.c
-> > @@ -1758,7 +1758,7 @@ static struct file_system_type xfs_fs_type = {
-> >  	.name			= "xfs",
-> >  	.mount			= xfs_fs_mount,
-> >  	.kill_sb		= kill_block_super,
-> > -	.fs_flags		= FS_REQUIRES_DEV,
-> > +	.fs_flags		= FS_REQUIRES_DEV | FS_WB_ERRSEQ,
-> 
-> Huh?  Why are there two patches with the same subject line?  And this
-> same bit of code too?  Or ... 11/13, 11/20?  What's going on here?
-> 
-> <confused>
-> 
-> --D
+page_ref_freeze and page_ref_unfreeze are designed to be used as a pair,
+wrapping a critical section where struct pages can be modified without
+having to worry about consistency for a concurrent fast-GUP.
 
-Oh my -- sorry about that. I ended up with two different interleaved
-patchsets. The /20 series is the one I meant to send.
+Whilst page_ref_freeze has full barrier semantics due to its use of
+atomic_cmpxchg, page_ref_unfreeze is implemented using atomic_set, which
+doesn't provide any barrier semantics and allows the operation to be
+reordered with respect to page modifications in the critical section.
 
-Just ignore these for now though, as I'll be sending a v7 (at least) to
-address HCH's comments.
+This patch ensures that page_ref_unfreeze is ordered after any critical
+section updates, by invoking smp_mb() prior to the atomic_set.
+
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Acked-by: Steve Capper <steve.capper@arm.com>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+ include/linux/page_ref.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+index 610e13271918..1fd71733aa68 100644
+--- a/include/linux/page_ref.h
++++ b/include/linux/page_ref.h
+@@ -174,6 +174,7 @@ static inline void page_ref_unfreeze(struct page *page, int count)
+ 	VM_BUG_ON_PAGE(page_count(page) != 0, page);
+ 	VM_BUG_ON(count == 0);
+ 
++	smp_mb();
+ 	atomic_set(&page->_refcount, count);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_unfreeze))
+ 		__page_ref_unfreeze(page, count);
 -- 
-Jeff Layton <jlayton@redhat.com>
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
