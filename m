@@ -1,105 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A3326B03A3
-	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 06:36:54 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b13so73904691pgn.4
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 03:36:54 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v1si3355734plb.188.2017.06.13.03.28.36
-        for <linux-mm@kvack.org>;
-        Tue, 13 Jun 2017 03:28:36 -0700 (PDT)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v2 1/3] mm: numa: avoid waiting on freed migrated pages
-Date: Tue, 13 Jun 2017 11:28:40 +0100
-Message-Id: <1497349722-6731-2-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1497349722-6731-1-git-send-email-will.deacon@arm.com>
-References: <1497349722-6731-1-git-send-email-will.deacon@arm.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BBD66B0372
+	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 07:35:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z70so29300916wrc.1
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 04:35:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i5si11164411wmh.10.2017.06.13.04.35.51
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 13 Jun 2017 04:35:51 -0700 (PDT)
+Date: Tue, 13 Jun 2017 13:35:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] memcg: refactor mem_cgroup_resize_limit()
+Message-ID: <20170613113545.GH10819@dhcp22.suse.cz>
+References: <20170601230212.30578-1-yuzhao@google.com>
+ <20170604211807.32685-1-yuzhao@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170604211807.32685-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: mark.rutland@arm.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, Punit.Agrawal@arm.com, mgorman@suse.de, steve.capper@arm.com, vbabka@suse.cz, Will Deacon <will.deacon@arm.com>
+To: Yu Zhao <yuzhao@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n.borisov.lkml@gmail.com
 
-From: Mark Rutland <mark.rutland@arm.com>
+[Sorry for a late reponse]
 
-In do_huge_pmd_numa_page(), we attempt to handle a migrating thp pmd by
-waiting until the pmd is unlocked before we return and retry. However,
-we can race with migrate_misplaced_transhuge_page():
+On Sun 04-06-17 14:18:07, Yu Zhao wrote:
+> mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
+> identical logics. Refactor code so we don't need to keep two pieces
+> of code that does same thing.
+> 
+> Signed-off-by: Yu Zhao <yuzhao@google.com>
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-// do_huge_pmd_numa_page                // migrate_misplaced_transhuge_page()
-// Holds 0 refs on page                 // Holds 2 refs on page
+It is nice to see removal of the code duplication. I have one comment
+though
 
-vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
-/* ... */
-if (pmd_trans_migrating(*vmf->pmd)) {
-        page = pmd_page(*vmf->pmd);
-        spin_unlock(vmf->ptl);
-                                        ptl = pmd_lock(mm, pmd);
-                                        if (page_count(page) != 2)) {
-                                                /* roll back */
-                                        }
-                                        /* ... */
-                                        mlock_migrate_page(new_page, page);
-                                        /* ... */
-                                        spin_unlock(ptl);
-                                        put_page(page);
-                                        put_page(page); // page freed here
-        wait_on_page_locked(page);
-        goto out;
-}
+[...]
 
-This can result in the freed page having its waiters flag set
-unexpectedly, which trips the PAGE_FLAGS_CHECK_AT_PREP checks in the
-page alloc/free functions. This has been observed on arm64 KVM guests.
+> @@ -2498,22 +2449,24 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  		}
+>  
+>  		mutex_lock(&memcg_limit_mutex);
+> -		if (limit < memcg->memory.limit) {
+> +		inverted = memsw ? limit < memcg->memory.limit :
+> +				   limit > memcg->memsw.limit;
+> +		if (inverted) {
+>  			mutex_unlock(&memcg_limit_mutex);
+>  			ret = -EINVAL;
+>  			break;
+>  		}
 
-We can avoid this by having do_huge_pmd_numa_page() take a reference on
-the page before dropping the pmd lock, mirroring what we do in
-__migration_entry_wait().
+This is just too ugly and hard to understand. inverted just doesn't give
+you a good clue what is going on. What do you think about something like
 
-When we hit the race, migrate_misplaced_transhuge_page() will see the
-reference and abort the migration, as it may do today in other cases.
+		/*
+		 * Make sure that the new limit (memsw or hard limit) doesn't
+		 * break our basic invariant that memory.limit <= memsw.limit
+		 */
+		limits_invariant = memsw ? limit >= memcg->memory.limit :
+					limit <= mmecg->memsw.limit;
+		if (!limits_invariant) {
+			mutex_unlock(&memcg_limit_mutex);
+			ret = -EINVAL;
+			break;
+		}
 
-Acked-by: Steve Capper <steve.capper@arm.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Fixes: b8916634b77bffb2 ("mm: Prevent parallel splits during THP migration")
-Signed-off-by: Mark Rutland <mark.rutland@arm.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
- mm/huge_memory.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a84909cf20d3..88c6167f194d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1426,8 +1426,11 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 	 */
- 	if (unlikely(pmd_trans_migrating(*vmf->pmd))) {
- 		page = pmd_page(*vmf->pmd);
-+		if (!get_page_unless_zero(page))
-+			goto out_unlock;
- 		spin_unlock(vmf->ptl);
- 		wait_on_page_locked(page);
-+		put_page(page);
- 		goto out;
- 	}
- 
-@@ -1459,9 +1462,12 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 
- 	/* Migration could have started since the pmd_trans_migrating check */
- 	if (!page_locked) {
-+		page_nid = -1;
-+		if (!get_page_unless_zero(page))
-+			goto out_unlock;
- 		spin_unlock(vmf->ptl);
- 		wait_on_page_locked(page);
--		page_nid = -1;
-+		put_page(page);
- 		goto out;
- 	}
- 
+with that feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
