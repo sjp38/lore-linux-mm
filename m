@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9B56B0279
-	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 19:14:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o74so87990498pfi.6
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 16:14:49 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s14si892005pfj.100.2017.06.13.16.14.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B18B26B0292
+	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 19:14:54 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d191so7337657pga.15
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 16:14:54 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id g14si871015plm.218.2017.06.13.16.14.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 16:14:48 -0700 (PDT)
-Subject: [PATCH v2 0/2] mm: force enable thp for dax
+        Tue, 13 Jun 2017 16:14:54 -0700 (PDT)
+Subject: [PATCH v2 1/2] mm: improve readability of
+ transparent_hugepage_enabled()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 13 Jun 2017 16:08:20 -0700
-Message-ID: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 13 Jun 2017 16:08:26 -0700
+Message-ID: <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,40 +24,76 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Changes since v1 [1]:
-1/ Fix the transparent_hugepage_enabled() rewrite to be functionally
-   equivalent to the old state (Ross)
+Turn the macro into a static inline and rewrite the condition checks for
+better readability in preparation for adding another condition.
 
-2/ Add a note as to why we are including fs.h in huge_mm.h so that we
-   remember to clean this up if vma_is_dax() is ever moved, or we add a
-   VM_* flag for this case. (prompted by Kirill's feedback).
-
-3/ Add some ack and review tags.
-
-[1]: https://www.spinics.net/lists/linux-mm/msg128852.html
-
+Cc: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+[ross: fix logic to make conversion equivalent]
+Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ include/linux/huge_mm.h |   32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)
 
-Hi Andrew,
-
-Please consider taking these 2 patches for 4.13. I spent some time
-debugging why a user's device-dax configuration was always failing and
-it turned out that their thp policy was set to 'never'. DAX should be
-exempt from the policy since it is statically allocated and does not
-suffer from any of the potentially negative side effects of thp. More
-details in patch 2.
-
----
-
-Dan Williams (2):
-      mm: improve readability of transparent_hugepage_enabled()
-      mm: always enable thp for dax mappings
-
-
- include/linux/dax.h     |    5 -----
- include/linux/fs.h      |    6 ++++++
- include/linux/huge_mm.h |   37 ++++++++++++++++++++++++++-----------
- 3 files changed, 32 insertions(+), 16 deletions(-)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a3762d49ba39..c8119e856eb1 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -85,14 +85,23 @@ extern struct kobj_attribute shmem_enabled_attr;
+ 
+ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 
+-#define transparent_hugepage_enabled(__vma)				\
+-	((transparent_hugepage_flags &					\
+-	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+-	  (transparent_hugepage_flags &					\
+-	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+-	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+-	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+-	 !is_vma_temporary_stack(__vma))
++extern unsigned long transparent_hugepage_flags;
++
++static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
++{
++	if ((vma->vm_flags & VM_NOHUGEPAGE) || is_vma_temporary_stack(vma))
++		return false;
++
++	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
++		return true;
++
++	if (transparent_hugepage_flags &
++				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
++		return !!(vma->vm_flags & VM_HUGEPAGE);
++
++	return false;
++}
++
+ #define transparent_hugepage_use_zero_page()				\
+ 	(transparent_hugepage_flags &					\
+ 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
+@@ -104,8 +113,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ #define transparent_hugepage_debug_cow() 0
+ #endif /* CONFIG_DEBUG_VM */
+ 
+-extern unsigned long transparent_hugepage_flags;
+-
+ extern unsigned long thp_get_unmapped_area(struct file *filp,
+ 		unsigned long addr, unsigned long len, unsigned long pgoff,
+ 		unsigned long flags);
+@@ -223,7 +230,10 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
+ 
+ #define hpage_nr_pages(x) 1
+ 
+-#define transparent_hugepage_enabled(__vma) 0
++static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
++{
++	return false;
++}
+ 
+ static inline void prep_transhuge_page(struct page *page) {}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
