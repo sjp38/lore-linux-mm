@@ -1,114 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEA26B0292
-	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 21:35:31 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id i65so44057966ioo.6
-        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 18:35:31 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v195si8854070itv.57.2017.06.12.18.35.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B0D3B6B02C3
+	for <linux-mm@kvack.org>; Mon, 12 Jun 2017 22:54:04 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b9so64495193pfl.0
+        for <linux-mm@kvack.org>; Mon, 12 Jun 2017 19:54:04 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id p25si345698pge.487.2017.06.12.19.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jun 2017 18:35:30 -0700 (PDT)
-Date: Mon, 12 Jun 2017 21:35:17 -0400
-From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-Message-ID: <20170613013516.7fcmvmoltwhxmtmp@oracle.com>
-References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
- <20170605045725.GA9248@dhcp22.suse.cz>
- <20170605151541.avidrotxpoiekoy5@oracle.com>
- <20170606054917.GA1189@dhcp22.suse.cz>
- <20170606060147.GB1189@dhcp22.suse.cz>
- <20170612172829.bzjfmm7navnobh4t@oracle.com>
- <20170612174911.GA23493@dhcp22.suse.cz>
- <20170612183717.qgcusdfvdfcj7zr7@oracle.com>
- <20170612185208.GC23493@dhcp22.suse.cz>
+        Mon, 12 Jun 2017 19:54:03 -0700 (PDT)
+Message-ID: <593F5452.2090109@intel.com>
+Date: Tue, 13 Jun 2017 10:56:18 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170612185208.GC23493@dhcp22.suse.cz>
+Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
+ list
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com> <1497004901-30593-5-git-send-email-wei.w.wang@intel.com> <b92af473-f00e-b956-ea97-eb4626601789@intel.com> <20170612181354-mutt-send-email-mst@kernel.org> <9d0900f3-9df5-ac63-4069-2d796f2a5bc7@intel.com> <20170612194438-mutt-send-email-mst@kernel.org> <d0811862-6633-a43c-90a5-629fe9b6d150@intel.com>
+In-Reply-To: <d0811862-6633-a43c-90a5-629fe9b6d150@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mike.kravetz@Oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Dave Hansen <dave.hansen@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
 
-* Michal Hocko <mhocko@suse.com> [170612 14:52]:
-> On Mon 12-06-17 14:37:18, Liam R. Howlett wrote:
-> > * Michal Hocko <mhocko@suse.com> [170612 13:49]:
-> > > On Mon 12-06-17 13:28:30, Liam R. Howlett wrote:
-> > > > * Michal Hocko <mhocko@suse.com> [170606 02:01]:
-> > > [..]
-> > > > > And just to be more clear. I do not _object_ to the warning I just
-> > > > > _think_ it is not very useful actually. If somebody misconfigure so
-> > > > > badly that hugetlb allocations fail during the boot then it will be
-> > > > > very likely visible. But if somebody misconfigures slightly less to not
-> > > > > fail the system is very likely to not work properly and there will be no
-> > > > > warning that this might be the source of problems. So is it worth adding
-> > > > > more code with that limited usefulness?
-> > > > 
-> > > > I think telling the user that something failed is very useful.  This
-> > > > obviously does not cover off all failure cases as you have pointed out,
-> > > > but it is certainly better than silently continuing as is the case
-> > > > today.
-> > > > 
-> > > > Are you suggesting that the error message be provided if the failure
-> > > > happens after boot as well?
-> > > 
-> > > No, I am just suggesting that the warning as proposed is not useful and
-> > > it is worth the additional (aleit little) code. It doesn't cover many
-> > > other miscofigurations which might be even more serious because there
-> > > would be still _some_ memory left while the system would crawl to death.
-> > 
-> > There is already some memory left as long as the huge page size doesn't
-> > work out to be exactly the amount of free pages.  This is why it's so
-> > annoying as the OOM kicks in much later in the boot process and leaves
-> > it up to the user to debug a kernel dump with zero error or warning
-> > messages about what happened before things went bad.
-> 
-> Exactly. And I my argument is that this won't get handled by your patch.
+On 06/13/2017 04:54 AM, Dave Hansen wrote:
+> On 06/12/2017 01:34 PM, Michael S. Tsirkin wrote:
+>> On Mon, Jun 12, 2017 at 09:42:36AM -0700, Dave Hansen wrote:
+>>> On 06/12/2017 09:28 AM, Michael S. Tsirkin wrote:
+>>>>> The hypervisor is going to throw away the contents of these pages,
+>>>>> right?
+>>>> It should be careful and only throw away contents that was there before
+>>>> report_unused_page_block was invoked.  Hypervisor is responsible for not
+>>>> corrupting guest memory.  But that's not something an mm patch should
+>>>> worry about.
+>>> That makes sense.  I'm struggling to imagine how the hypervisor makes
+>>> use of this information, though.  Does it make the pages read-only
+>>> before this, and then it knows if there has not been a write *and* it
+>>> gets notified via this new mechanism that it can throw the page away?
+>> Yes, and specifically, this is how it works for migration.  Normally you
+>> start by migrating all of memory, then send updates incrementally if
+>> pages have been modified.  This mechanism allows skipping some pages in
+>> the 1st stage, if they get changed they will be migrated in the 2nd
+>> stage.
+> OK, so the migration starts and marks everything read-only.  All the
+> pages now have read-only valuable data, or read-only worthless data in
+> the case that the page is in the free lists.  In order for a page to
+> become non-worthless, it has to have a write done to it, which the
+> hypervisor obviously knows about.
+>
+> With this mechanism, the hypervisor knows it can discard pages which
+> have not had a write since they were known to have worthless contents.
+>
+> Correct?
+Right. By the way, ready-only is one of the dirty page logging
+methods that a hypervisor uses to capture the pages that are
+written by the VM.
 
-Right, but it was more explicit on an error that did occur.  More in
-line with an invalid hugepagesz error message from platform specific
-code.
+>
+> That also seems like pretty good information to include in the
+> changelog.  Otherwise, folks are going to be left wondering what good
+> the mechanism is.  It's pretty non-trivial to figure out. :)
+If necessary, I think it's better to keep the introduction at high-level:
 
-> 
-> > Worse yet, I've
-> > seen several pages of OOMs scroll by as each processor takes turns
-> > telling the user it is out of memory.
-> 
-> This is not how the oom report works. We only report when _killing_ a
-> task. And the reason you have seen so many of them is that killing any
-> number of processes will not help. Yes this is quite subtimal and it
-> would be great to see that the OOM is due to hugetlb configuration or
-> e.g. too large ramdisk or unreclaimable shmem. Fixing that would be much
-> more reasonable than sticking a warning that will almost never trigger
-> unless somebody messed up royally.
+Examples of using this API by a hypervisor:
+To live migrate a VM from one physical machine to another,
+the hypervisor usually transfers all the VM's memory content.
+An optimization here is to skip the transfer of memory that are not
+in use by the VM, because the content of the unused memory is
+worthless.
+This API is the used to report the unused pages to the hypervisor.
+The pages that have been reported to the hypervisor as unused
+pages may be used by the VM after the report. The hypervisor
+has a good mechanism (i.e. dirty page logging) to capture
+the change. Therefore, if the new used pages are written into some
+data, the hypervisor will still transfer them to the destination machine.
 
-Thanks, I appreciate you taking the time to explain this to me.
+What do you guys think?
 
-> 
-> > If there's no message stating any
-> > configuration issue, then many admins would probably think something is
-> > seriously broken and it's not just a simple typo of K vs M.
-> > 
-> > Even though this doesn't catch all errors, I think it's a worth while
-> > change since this is currently a silent failure which results in a
-> > system crash.
-> 
-> Seriously, this warning just doesn't help in _most_ miscofigurations. It
-> just focuses on one particular which really requires to misconfigure
-> really badly. And there are way too many other ways to screw your system
-> that way, yet we do not warn about many of those. So just try to step
-> back and think whether this is something we actually do care about and
-> if yes then try to come up with a more reasonable warning which would
-> cover a wider range of misconfigurations.
-
-Understood.  Again, I appreciate all the time you have taken on my
-patch and explaining your points.  I will look at this again as you
-have suggested.
-
-Thanks,
-Liam
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
