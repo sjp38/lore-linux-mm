@@ -1,77 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BBD66B0372
-	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 07:35:52 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z70so29300916wrc.1
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 04:35:52 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si11164411wmh.10.2017.06.13.04.35.51
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1EE6B0372
+	for <linux-mm@kvack.org>; Tue, 13 Jun 2017 08:02:02 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u51so31519354qte.15
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 05:02:02 -0700 (PDT)
+Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
+        by mx.google.com with ESMTPS id u65si11401768qkf.84.2017.06.13.05.01.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Jun 2017 04:35:51 -0700 (PDT)
-Date: Tue, 13 Jun 2017 13:35:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] memcg: refactor mem_cgroup_resize_limit()
-Message-ID: <20170613113545.GH10819@dhcp22.suse.cz>
-References: <20170601230212.30578-1-yuzhao@google.com>
- <20170604211807.32685-1-yuzhao@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jun 2017 05:02:00 -0700 (PDT)
+Received: by mail-qt0-x243.google.com with SMTP id x58so33526075qtc.2
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 05:01:59 -0700 (PDT)
+Date: Tue, 13 Jun 2017 08:01:57 -0400
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
+ calculation
+Message-ID: <20170613120156.GA16003@destiny>
+References: <1496949546-2223-1-git-send-email-jbacik@fb.com>
+ <20170613052802.GA16061@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170604211807.32685-1-yuzhao@google.com>
+In-Reply-To: <20170613052802.GA16061@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, n.borisov.lkml@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: josef@toxicpanda.com, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
 
-[Sorry for a late reponse]
-
-On Sun 04-06-17 14:18:07, Yu Zhao wrote:
-> mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
-> identical logics. Refactor code so we don't need to keep two pieces
-> of code that does same thing.
+On Tue, Jun 13, 2017 at 02:28:02PM +0900, Minchan Kim wrote:
+> Hello,
 > 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+> On Thu, Jun 08, 2017 at 03:19:05PM -0400, josef@toxicpanda.com wrote:
+> > From: Josef Bacik <jbacik@fb.com>
+> > 
+> > When testing a slab heavy workload I noticed that we often would barely
+> > reclaim anything at all from slab when kswapd started doing reclaim.
+> > This is because we use the ratio of nr_scanned / nr_lru to determine how
+> > much of slab we should reclaim.  But in a slab only/mostly workload we
+> > will not have much page cache to reclaim, and thus our ratio will be
+> > really low and not at all related to where the memory on the system is.
+> 
+> I want to understand this clearly.
+> Why nr_scanned / nr_lru is low if system doesnt' have much page cache?
+> Could you elaborate it a bit?
+> 
 
-It is nice to see removal of the code duplication. I have one comment
-though
+Yeah so for example on my freshly booted test box I have this
 
-[...]
+Active:            58840 kB
+Inactive:          46860 kB
 
-> @@ -2498,22 +2449,24 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		}
->  
->  		mutex_lock(&memcg_limit_mutex);
-> -		if (limit < memcg->memory.limit) {
-> +		inverted = memsw ? limit < memcg->memory.limit :
-> +				   limit > memcg->memsw.limit;
-> +		if (inverted) {
->  			mutex_unlock(&memcg_limit_mutex);
->  			ret = -EINVAL;
->  			break;
->  		}
+Every time we do a get_scan_count() we do this
 
-This is just too ugly and hard to understand. inverted just doesn't give
-you a good clue what is going on. What do you think about something like
+scan = size >> sc->priority
 
-		/*
-		 * Make sure that the new limit (memsw or hard limit) doesn't
-		 * break our basic invariant that memory.limit <= memsw.limit
-		 */
-		limits_invariant = memsw ? limit >= memcg->memory.limit :
-					limit <= mmecg->memsw.limit;
-		if (!limits_invariant) {
-			mutex_unlock(&memcg_limit_mutex);
-			ret = -EINVAL;
-			break;
-		}
+where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop through
+reclaim would result in a scan target of 2 pages to 11715 total inactive pages,
+and 3 pages to 14710 total active pages.  This is a really really small target
+for a system that is entirely slab pages.  And this is super optimistic, this
+assumes we even get to scan these pages.  We don't increment sc->nr_scanned
+unless we 1) isolate the page, which assumes it's not in use, and 2) can lock
+the page.  Under pressure these numbers could probably go down, I'm sure there's
+some random pages from daemons that aren't actually in use, so the targets get
+even smaller.
 
-with that feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+We have to get sc->priority down a lot before we start to get to the 1:1 ratio
+that would even start to be useful for reclaim in this scenario.  Add to this
+that most shrinkable slabs have this idea that their objects have to loop
+through the LRU twice (no longer icache/dcache as Al took my patch to fix that
+thankfully) and you end up spending a lot of time looping and reclaiming
+nothing.  Basing it on actual slab usage makes more sense logically and avoids
+this kind of problem.  Thanks,
+
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
