@@ -1,49 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F19476B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 05:51:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 56so37147160wrx.5
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:51:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DA1496B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 06:00:53 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g36so37231710wrg.4
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 03:00:53 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s24si461604wra.76.2017.06.14.02.51.49
+        by mx.google.com with ESMTPS id f46si527702wrf.312.2017.06.14.03.00.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 02:51:49 -0700 (PDT)
-Date: Wed, 14 Jun 2017 11:51:39 +0200
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [RFC 08/11] x86/mm: Add nopcid to turn off PCID
-Message-ID: <20170614095139.nk7nf4oilc36mi2b@pd.tnic>
-References: <cover.1496701658.git.luto@kernel.org>
- <d4eafd524ee51d003d7f7302d5e4e44dc4919e08.1496701658.git.luto@kernel.org>
- <87wp8pol4u.fsf@firstfloor.org>
- <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
+        Wed, 14 Jun 2017 03:00:52 -0700 (PDT)
+Date: Wed, 14 Jun 2017 12:00:51 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 1/2] mm: improve readability of
+ transparent_hugepage_enabled()
+Message-ID: <20170614100051.GB20247@quack2.suse.cz>
+References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
+In-Reply-To: <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <andi@firstfloor.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Jun 13, 2017 at 09:52:03PM -0700, Andy Lutomirski wrote:
-> It is.  OTOH, there are lots of noxyz options, and they're easier to
-> type and to remember.  Borislav?  Sometime I wonder whether we should
-> autogenerate noxyz options from the capflags table.
+On Tue 13-06-17 16:08:26, Dan Williams wrote:
+> Turn the macro into a static inline and rewrite the condition checks for
+> better readability in preparation for adding another condition.
+> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> [ross: fix logic to make conversion equivalent]
+> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Maybe.
+Looks good. You can add:
 
-Although, last time hpa said that all those old chicken bits can simply
-be removed now that they're not really needed anymore. I even had a
-patch somewhere but then something more important happened...
+Reviewed-by: Jan Kara <jack@suse.cz>
 
+								Honza
+
+> ---
+>  include/linux/huge_mm.h |   32 +++++++++++++++++++++-----------
+>  1 file changed, 21 insertions(+), 11 deletions(-)
+> 
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index a3762d49ba39..c8119e856eb1 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -85,14 +85,23 @@ extern struct kobj_attribute shmem_enabled_attr;
+>  
+>  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>  
+> -#define transparent_hugepage_enabled(__vma)				\
+> -	((transparent_hugepage_flags &					\
+> -	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+> -	  (transparent_hugepage_flags &					\
+> -	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+> -	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+> -	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+> -	 !is_vma_temporary_stack(__vma))
+> +extern unsigned long transparent_hugepage_flags;
+> +
+> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	if ((vma->vm_flags & VM_NOHUGEPAGE) || is_vma_temporary_stack(vma))
+> +		return false;
+> +
+> +	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
+> +		return true;
+> +
+> +	if (transparent_hugepage_flags &
+> +				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
+> +		return !!(vma->vm_flags & VM_HUGEPAGE);
+> +
+> +	return false;
+> +}
+> +
+>  #define transparent_hugepage_use_zero_page()				\
+>  	(transparent_hugepage_flags &					\
+>  	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
+> @@ -104,8 +113,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>  #define transparent_hugepage_debug_cow() 0
+>  #endif /* CONFIG_DEBUG_VM */
+>  
+> -extern unsigned long transparent_hugepage_flags;
+> -
+>  extern unsigned long thp_get_unmapped_area(struct file *filp,
+>  		unsigned long addr, unsigned long len, unsigned long pgoff,
+>  		unsigned long flags);
+> @@ -223,7 +230,10 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
+>  
+>  #define hpage_nr_pages(x) 1
+>  
+> -#define transparent_hugepage_enabled(__vma) 0
+> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	return false;
+> +}
+>  
+>  static inline void prep_transhuge_page(struct page *page) {}
+>  
+> 
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
