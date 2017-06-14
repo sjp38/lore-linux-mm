@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF8C6B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 03:27:29 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g46so5249278wrd.3
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:27:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m32si114450wrm.214.2017.06.14.00.27.27
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A82E76B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:22:37 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w91so36598903wrb.13
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 01:22:37 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
+        by mx.google.com with ESMTPS id f46si254238wrf.312.2017.06.14.01.22.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 00:27:27 -0700 (PDT)
-Date: Wed, 14 Jun 2017 09:27:25 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-Message-ID: <20170614072725.GH6045@dhcp22.suse.cz>
-References: <20170606054917.GA1189@dhcp22.suse.cz>
- <20170606060147.GB1189@dhcp22.suse.cz>
- <20170612172829.bzjfmm7navnobh4t@oracle.com>
- <20170612174911.GA23493@dhcp22.suse.cz>
- <20170612183717.qgcusdfvdfcj7zr7@oracle.com>
- <20170612185208.GC23493@dhcp22.suse.cz>
- <20170613013516.7fcmvmoltwhxmtmp@oracle.com>
- <20170613054204.GB5363@dhcp22.suse.cz>
- <20170613152501.w27r2q2agy4sue5x@oracle.com>
- <a855a155-c952-ac6b-04b9-aa7869403c52@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a855a155-c952-ac6b-04b9-aa7869403c52@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Jun 2017 01:22:36 -0700 (PDT)
+Received: by mail-wr0-f195.google.com with SMTP id u101so37433117wrc.1
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 01:22:35 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH] mmap, aslr: do not enforce legacy mmap on unlimited stacks
+Date: Wed, 14 Jun 2017 10:22:18 +0200
+Message-Id: <20170614082218.12450-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "Liam R. Howlett" <Liam.Howlett@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+Cc: Jiri Kosina <jkosina@suse.cz>, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, x86@kernel.org, Michal Hocko <mhocko@suse.com>
 
-On Tue 13-06-17 09:26:15, Mike Kravetz wrote:
-> A thought somewhat related to this discussion:
-> 
-> I noticed that huge pages specified on the kernel command line are allocated
-> via 'subsys_initcall'.  This is before 'fs_initcall', even though these huge
-> pages are only used by hugetlbfs.  Was just thinking that it might be better
-> to move huge page allocations to later in the init process.  At least make
-> them part of fs_initcall if not late_initcall?
-> 
-> Only reason for doing this is because huge page allocations are fairly
-> tolerant of allocation failure.
+From: Michal Hocko <mhocko@suse.com>
 
-I am not really familiar with the initcall hierarchy to be honest. I
-even do not understand what relattion does fs_initcall have to
-allocation failures. Could you be more specific?
+Since cc503c1b43e0 ("x86: PIE executable randomization") we treat
+applications with RLIMIT_STACK configured to unlimited as legacy
+and so we a) set the mmap_base to 1/3 of address space + randomization
+and b) mmap from bottom to top. This makes some sense as it allows the
+stack to grow really large. On the other hand it reduces the address
+space usable for default mmaps (wihout address hint) quite a lot. We
+have received a bug report that SAP HANA workload has hit into this
+limitation.
 
+We could argue that the user just got what he asked for when setting
+up the unlimited stack but to be realistic growing stack up to 1/6
+TASK_SIZE (allowed by mmap_base) is pretty much unimited in the real
+life. This would give mmap 20TB of additional address space which is
+quite nice. Especially when it is much more likely to use that address
+space than the reserved stack.
+
+Digging into the history the original implementation of the
+randomization 8817210d4d96 ("[PATCH] x86_64: Flexmap for 32bit and
+randomized mappings for 64bit") didn't have this restriction.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I am sending this as a RFC because I am not really sure how to deal with
+this. We might as well ignore the reported issue and claim "do not use
+unlimited stacks" and be done with it. I just stroke me as an unexpected
+behavior.
+
+ arch/x86/mm/mmap.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 19ad095b41df..797295e792b2 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -74,9 +74,6 @@ static int mmap_is_legacy(void)
+ 	if (current->personality & ADDR_COMPAT_LAYOUT)
+ 		return 1;
+ 
+-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+-		return 1;
+-
+ 	return sysctl_legacy_va_layout;
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
