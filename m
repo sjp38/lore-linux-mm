@@ -1,75 +1,369 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A82E76B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:22:37 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w91so36598903wrb.13
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 01:22:37 -0700 (PDT)
-Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
-        by mx.google.com with ESMTPS id f46si254238wrf.312.2017.06.14.01.22.35
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EF106B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 05:05:47 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g36so36889074wrg.4
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:05:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v8si331071wrd.294.2017.06.14.02.05.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 01:22:36 -0700 (PDT)
-Received: by mail-wr0-f195.google.com with SMTP id u101so37433117wrc.1
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 01:22:35 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Jun 2017 02:05:45 -0700 (PDT)
+Date: Wed, 14 Jun 2017 11:05:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] mmap, aslr: do not enforce legacy mmap on unlimited stacks
-Date: Wed, 14 Jun 2017 10:22:18 +0200
-Message-Id: <20170614082218.12450-1-mhocko@kernel.org>
+Subject: Re: [patch] mm, vmpressure: pass-through notification support
+Message-ID: <20170614090540.GJ6045@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1705311421320.8946@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1705311421320.8946@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
-Cc: Jiri Kosina <jkosina@suse.cz>, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, x86@kernel.org, Michal Hocko <mhocko@suse.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Jonathan Corbet <corbet@lwn.net>, Anton Vorontsov <anton@enomsg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+This is a user API visible change and as such linux-api should be CCed.
 
-Since cc503c1b43e0 ("x86: PIE executable randomization") we treat
-applications with RLIMIT_STACK configured to unlimited as legacy
-and so we a) set the mmap_base to 1/3 of address space + randomization
-and b) mmap from bottom to top. This makes some sense as it allows the
-stack to grow really large. On the other hand it reduces the address
-space usable for default mmaps (wihout address hint) quite a lot. We
-have received a bug report that SAP HANA workload has hit into this
-limitation.
+On Wed 31-05-17 14:22:30, David Rientjes wrote:
+> By default, vmpressure events are not pass-through, i.e. they propagate
+> up through the memcg hierarchy until an event notifier is found for any
+> threshold level.
+> 
+> This presents a difficulty when a thread waiting on a read(2) for a
+> vmpressure event cannot distinguish between local memory pressure and
+> memory pressure in a descendant memcg, especially when that thread may
+> not control the memcg hierarchy.
+> 
+> Consider a user-controlled child memcg with a smaller limit than a
+> top-level memcg controlled by the "Activity Manager" specified in
+> Documentation/cgroup-v1/memory.txt.  It may register for memory pressure
+> notification for descendant memcgs to make a policy decision: oom kill a
+> low priority job, increase the limit, decrease other limits, etc.
+> If it registers for memory pressure notification on the top-level memcg,
+> it currently cannot distinguish between memory pressure in its own memcg
+> or a descendant memcg, which is user-controlled.
+> 
+> Conversely, if a user registers for memory pressure notification on their
+> own descendant memcg, the Activity Manager does not receive any pressure
+> notification for that child memcg hierarchy.  Vmpressure events are not
+> received for ancestor memcgs if the memcg experiencing pressure have
+> notifiers registered, perhaps outside the knowledge of the thread
+> waiting on read(2) at the top level.
+> 
+> Both of these are consequences of vmpressure notification not being
+> pass-through.
+> 
+> This implements a pass-through behavior for vmpressure events.  When
+> writing to control.event_control, vmpressure event handlers may
+> optionally specify a mode.  There are two new modes:
+> 
+>  - "hierarchy": always propagate memory pressure events up the
+>    hierarchy regardless if descendant memcgs have their own notifiers
+>    registered, and
+> 
+>  - "local": only receive notifications when the memcg for which the
+>    event is registered experiences memory pressure.
+> 
+> Of course, processes may register for one notification of "low,local",
+> for example, and another for "low".
+> 
+> If no mode is specified, the current behavior is maintained for
+> backwards compatibility.
+> 
+> See the change to Documentation/cgroup-v1/memory.txt for full
+> specification.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  Documentation/cgroup-v1/memory.txt |  47 ++++++++++----
+>  mm/vmpressure.c                    | 122 ++++++++++++++++++++++++++++---------
+>  2 files changed, 128 insertions(+), 41 deletions(-)
+> 
+> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+> --- a/Documentation/cgroup-v1/memory.txt
+> +++ b/Documentation/cgroup-v1/memory.txt
+> @@ -789,23 +789,46 @@ way to trigger. Applications should do whatever they can to help the
+>  system. It might be too late to consult with vmstat or any other
+>  statistics, so it's advisable to take an immediate action.
+>  
+> -The events are propagated upward until the event is handled, i.e. the
+> -events are not pass-through. Here is what this means: for example you have
+> -three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
+> -and C, and suppose group C experiences some pressure. In this situation,
+> -only group C will receive the notification, i.e. groups A and B will not
+> -receive it. This is done to avoid excessive "broadcasting" of messages,
+> -which disturbs the system and which is especially bad if we are low on
+> -memory or thrashing. So, organize the cgroups wisely, or propagate the
+> -events manually (or, ask us to implement the pass-through events,
+> -explaining why would you need them.)
+> +By default, events are propagated upward until the event is handled, i.e. the
+> +events are not pass-through. For example, you have three cgroups: A->B->C. Now
+> +you set up an event listener on cgroups A, B and C, and suppose group C
+> +experiences some pressure. In this situation, only group C will receive the
+> +notification, i.e. groups A and B will not receive it. This is done to avoid
+> +excessive "broadcasting" of messages, which disturbs the system and which is
+> +especially bad if we are low on memory or thrashing. Group B, will receive
+> +notification only if there are no event listers for group C.
+> +
+> +There are three optional modes that specify different propagation behavior:
+> +
+> + - "default": this is the default behavior specified above. This mode is the
+> +   same as omitting the optional mode parameter, preserved by backwards
+> +   compatibility.
+> +
+> + - "hierarchy": events always propagate up to the root, similar to the default
+> +   behavior, except that propagation continues regardless of whether there are
+> +   event listeners at each level, with the "hierarchy" mode. In the above
+> +   example, groups A, B, and C will receive notification of memory pressure.
+> +
+> + - "local": events are pass-through, i.e. they only receive notifications when
+> +   memory pressure is experienced in the memcg for which the notification is
+> +   registered. In the above example, group C will receive notification if
+> +   registered for "local" notification and the group experiences memory
+> +   pressure. However, group B will never receive notification, regardless if
+> +   there is an event listener for group C or not, if group B is registered for
+> +   local notification.
+> +
+> +The level and event notification mode ("hierarchy" or "local", if necessary) are
+> +specified by a comma-delimited string, i.e. "low,hierarchy" specifies
+> +hierarchical, pass-through, notification for all ancestor memcgs. Notification
+> +that is the default, non pass-through behavior, does not specify a mode.
+> +"medium,local" specifies pass-through notification for the medium level.
+>  
+>  The file memory.pressure_level is only used to setup an eventfd. To
+>  register a notification, an application must:
+>  
+>  - create an eventfd using eventfd(2);
+>  - open memory.pressure_level;
+> -- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+> +- write string as "<event_fd> <fd of memory.pressure_level> <level[,mode]>"
+>    to cgroup.event_control.
+>  
+>  Application will be notified through eventfd when memory pressure is at
+> @@ -821,7 +844,7 @@ Test:
+>     # cd /sys/fs/cgroup/memory/
+>     # mkdir foo
+>     # cd foo
+> -   # cgroup_event_listener memory.pressure_level low &
+> +   # cgroup_event_listener memory.pressure_level low,hierarchy &
+>     # echo 8000000 > memory.limit_in_bytes
+>     # echo 8000000 > memory.memsw.limit_in_bytes
+>     # echo $$ > tasks
+> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> --- a/mm/vmpressure.c
+> +++ b/mm/vmpressure.c
+> @@ -93,12 +93,25 @@ enum vmpressure_levels {
+>  	VMPRESSURE_NUM_LEVELS,
+>  };
+>  
+> +enum vmpressure_modes {
+> +	VMPRESSURE_NO_PASSTHROUGH = 0,
+> +	VMPRESSURE_HIERARCHY,
+> +	VMPRESSURE_LOCAL,
+> +	VMPRESSURE_NUM_MODES,
+> +};
+> +
+>  static const char * const vmpressure_str_levels[] = {
+>  	[VMPRESSURE_LOW] = "low",
+>  	[VMPRESSURE_MEDIUM] = "medium",
+>  	[VMPRESSURE_CRITICAL] = "critical",
+>  };
+>  
+> +static const char * const vmpressure_str_modes[] = {
+> +	[VMPRESSURE_NO_PASSTHROUGH] = "default",
+> +	[VMPRESSURE_HIERARCHY] = "hierarchy",
+> +	[VMPRESSURE_LOCAL] = "local",
+> +};
+> +
+>  static enum vmpressure_levels vmpressure_level(unsigned long pressure)
+>  {
+>  	if (pressure >= vmpressure_level_critical)
+> @@ -141,27 +154,31 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+>  struct vmpressure_event {
+>  	struct eventfd_ctx *efd;
+>  	enum vmpressure_levels level;
+> +	enum vmpressure_modes mode;
+>  	struct list_head node;
+>  };
+>  
+>  static bool vmpressure_event(struct vmpressure *vmpr,
+> -			     enum vmpressure_levels level)
+> +			     const enum vmpressure_levels level,
+> +			     bool ancestor, bool signalled)
+>  {
+>  	struct vmpressure_event *ev;
+> -	bool signalled = false;
+> +	bool ret = false;
+>  
+>  	mutex_lock(&vmpr->events_lock);
+> -
+>  	list_for_each_entry(ev, &vmpr->events, node) {
+> -		if (level >= ev->level) {
+> -			eventfd_signal(ev->efd, 1);
+> -			signalled = true;
+> -		}
+> +		if (ancestor && ev->mode == VMPRESSURE_LOCAL)
+> +			continue;
+> +		if (signalled && ev->mode == VMPRESSURE_NO_PASSTHROUGH)
+> +			continue;
+> +		if (level < ev->level)
+> +			continue;
+> +		eventfd_signal(ev->efd, 1);
+> +		ret = true;
+>  	}
+> -
+>  	mutex_unlock(&vmpr->events_lock);
+>  
+> -	return signalled;
+> +	return ret;
+>  }
+>  
+>  static void vmpressure_work_fn(struct work_struct *work)
+> @@ -170,6 +187,8 @@ static void vmpressure_work_fn(struct work_struct *work)
+>  	unsigned long scanned;
+>  	unsigned long reclaimed;
+>  	enum vmpressure_levels level;
+> +	bool ancestor = false;
+> +	bool signalled = false;
+>  
+>  	spin_lock(&vmpr->sr_lock);
+>  	/*
+> @@ -194,12 +213,9 @@ static void vmpressure_work_fn(struct work_struct *work)
+>  	level = vmpressure_calc_level(scanned, reclaimed);
+>  
+>  	do {
+> -		if (vmpressure_event(vmpr, level))
+> -			break;
+> -		/*
+> -		 * If not handled, propagate the event upward into the
+> -		 * hierarchy.
+> -		 */
+> +		if (vmpressure_event(vmpr, level, ancestor, signalled))
+> +			signalled = true;
+> +		ancestor = true;
+>  	} while ((vmpr = vmpressure_parent(vmpr)));
+>  }
+>  
+> @@ -326,17 +342,40 @@ void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+>  	vmpressure(gfp, memcg, true, vmpressure_win, 0);
+>  }
+>  
+> +static enum vmpressure_levels str_to_level(const char *arg)
+> +{
+> +	enum vmpressure_levels level;
+> +
+> +	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++)
+> +		if (!strcmp(vmpressure_str_levels[level], arg))
+> +			return level;
+> +	return -1;
+> +}
+> +
+> +static enum vmpressure_modes str_to_mode(const char *arg)
+> +{
+> +	enum vmpressure_modes mode;
+> +
+> +	for (mode = 0; mode < VMPRESSURE_NUM_MODES; mode++)
+> +		if (!strcmp(vmpressure_str_modes[mode], arg))
+> +			return mode;
+> +	return -1;
+> +}
+> +
+> +#define MAX_VMPRESSURE_ARGS_LEN	(strlen("critical") + strlen("hierarchy") + 2)
+> +
+>  /**
+>   * vmpressure_register_event() - Bind vmpressure notifications to an eventfd
+>   * @memcg:	memcg that is interested in vmpressure notifications
+>   * @eventfd:	eventfd context to link notifications with
+> - * @args:	event arguments (used to set up a pressure level threshold)
+> + * @args:	event arguments (pressure level threshold, optional mode)
+>   *
+>   * This function associates eventfd context with the vmpressure
+>   * infrastructure, so that the notifications will be delivered to the
+> - * @eventfd. The @args parameter is a string that denotes pressure level
+> - * threshold (one of vmpressure_str_levels, i.e. "low", "medium", or
+> - * "critical").
+> + * @eventfd. The @args parameter is a comma-delimited string that denotes a
+> + * pressure level threshold (one of vmpressure_str_levels, i.e. "low", "medium",
+> + * or "critical") and an optional mode (one of vmpressure_str_modes, i.e.
+> + * "hierarchy" or "local").
+>   *
+>   * To be used as memcg event method.
+>   */
+> @@ -345,28 +384,53 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
+>  {
+>  	struct vmpressure *vmpr = memcg_to_vmpressure(memcg);
+>  	struct vmpressure_event *ev;
+> -	int level;
+> +	enum vmpressure_modes mode = VMPRESSURE_NO_PASSTHROUGH;
+> +	enum vmpressure_levels level = -1;
+> +	char *spec = NULL;
+> +	char *token;
+> +	int ret = 0;
+> +
+> +	spec = kzalloc(MAX_VMPRESSURE_ARGS_LEN + 1, GFP_KERNEL);
+> +	if (!spec) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+> +	strncpy(spec, args, MAX_VMPRESSURE_ARGS_LEN);
+>  
+> -	for (level = 0; level < VMPRESSURE_NUM_LEVELS; level++) {
+> -		if (!strcmp(vmpressure_str_levels[level], args))
+> -			break;
+> +	/* Find required level */
+> +	token = strsep(&spec, ",");
+> +	level = str_to_level(token);
+> +	if (level == -1) {
+> +		ret = -EINVAL;
+> +		goto out;
+>  	}
+>  
+> -	if (level >= VMPRESSURE_NUM_LEVELS)
+> -		return -EINVAL;
+> +	/* Find optional mode */
+> +	token = strsep(&spec, ",");
+> +	if (token) {
+> +		mode = str_to_mode(token);
+> +		if (mode == -1) {
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +	}
+>  
+>  	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+> -	if (!ev)
+> -		return -ENOMEM;
+> +	if (!ev) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+>  
+>  	ev->efd = eventfd;
+>  	ev->level = level;
+> +	ev->mode = mode;
+>  
+>  	mutex_lock(&vmpr->events_lock);
+>  	list_add(&ev->node, &vmpr->events);
+>  	mutex_unlock(&vmpr->events_lock);
+> -
+> -	return 0;
+> +out:
+> +	kfree(spec);
+> +	return ret;
+>  }
+>  
+>  /**
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-We could argue that the user just got what he asked for when setting
-up the unlimited stack but to be realistic growing stack up to 1/6
-TASK_SIZE (allowed by mmap_base) is pretty much unimited in the real
-life. This would give mmap 20TB of additional address space which is
-quite nice. Especially when it is much more likely to use that address
-space than the reserved stack.
-
-Digging into the history the original implementation of the
-randomization 8817210d4d96 ("[PATCH] x86_64: Flexmap for 32bit and
-randomized mappings for 64bit") didn't have this restriction.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-I am sending this as a RFC because I am not really sure how to deal with
-this. We might as well ignore the reported issue and claim "do not use
-unlimited stacks" and be done with it. I just stroke me as an unexpected
-behavior.
-
- arch/x86/mm/mmap.c | 3 ---
- 1 file changed, 3 deletions(-)
-
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 19ad095b41df..797295e792b2 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -74,9 +74,6 @@ static int mmap_is_legacy(void)
- 	if (current->personality & ADDR_COMPAT_LAYOUT)
- 		return 1;
- 
--	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
--		return 1;
--
- 	return sysctl_legacy_va_layout;
- }
- 
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
