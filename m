@@ -1,83 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7186B02F4
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:02:35 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id g66so1794043vki.0
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:02:35 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t29si254989uaa.241.2017.06.14.10.02.33
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D62466B02FA
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:02:37 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s3so3338434oia.4
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:02:37 -0700 (PDT)
+Received: from mail-ot0-x236.google.com (mail-ot0-x236.google.com. [2607:f8b0:4003:c0f::236])
+        by mx.google.com with ESMTPS id 72si242848otc.327.2017.06.14.10.02.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 10:02:34 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-References: <20170606054917.GA1189@dhcp22.suse.cz>
- <20170606060147.GB1189@dhcp22.suse.cz>
- <20170612172829.bzjfmm7navnobh4t@oracle.com>
- <20170612174911.GA23493@dhcp22.suse.cz>
- <20170612183717.qgcusdfvdfcj7zr7@oracle.com>
- <20170612185208.GC23493@dhcp22.suse.cz>
- <20170613013516.7fcmvmoltwhxmtmp@oracle.com>
- <20170613054204.GB5363@dhcp22.suse.cz>
- <20170613152501.w27r2q2agy4sue5x@oracle.com>
- <a855a155-c952-ac6b-04b9-aa7869403c52@oracle.com>
- <20170614072725.GH6045@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <045d8438-0cb1-8346-b911-3475d6799709@oracle.com>
-Date: Wed, 14 Jun 2017 10:02:20 -0700
+        Wed, 14 Jun 2017 10:02:37 -0700 (PDT)
+Received: by mail-ot0-x236.google.com with SMTP id k4so5126056otd.0
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:02:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170614072725.GH6045@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <e944ba00-3139-8da0-a1f9-642be9300c7c@suse.cz>
+References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <e944ba00-3139-8da0-a1f9-642be9300c7c@suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 14 Jun 2017 10:02:36 -0700
+Message-ID: <CAPcyv4h2GfqK3o4WdrKuhKnmjWeXBjeCOCsMv4M-xg9PViLbFw@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: improve readability of transparent_hugepage_enabled()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: "Liam R. Howlett" <Liam.Howlett@oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 06/14/2017 12:27 AM, Michal Hocko wrote:
-> On Tue 13-06-17 09:26:15, Mike Kravetz wrote:
->> A thought somewhat related to this discussion:
+On Wed, Jun 14, 2017 at 9:53 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 06/14/2017 01:08 AM, Dan Williams wrote:
+>> Turn the macro into a static inline and rewrite the condition checks for
+>> better readability in preparation for adding another condition.
 >>
->> I noticed that huge pages specified on the kernel command line are allocated
->> via 'subsys_initcall'.  This is before 'fs_initcall', even though these huge
->> pages are only used by hugetlbfs.  Was just thinking that it might be better
->> to move huge page allocations to later in the init process.  At least make
->> them part of fs_initcall if not late_initcall?
->>
->> Only reason for doing this is because huge page allocations are fairly
->> tolerant of allocation failure.
-> 
-> I am not really familiar with the initcall hierarchy to be honest. I
-> even do not understand what relattion does fs_initcall have to
-> allocation failures. Could you be more specific?
+>> Cc: Jan Kara <jack@suse.cz>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> [ross: fix logic to make conversion equivalent]
+>> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
+>
+> vbabka@gusiac:~/wrk/cbmc> cbmc test-thp.c
+> CBMC version 5.3 64-bit x86_64 linux
+> Parsing test-thp.c
+> file <command-line> line 0: <command-line>:0:0: warning:
+> "__STDC_VERSION__" redefined
+> file <command-line> line 0: <built-in>: note: this is the location of
+> the previous definition
+> Converting
+> Type-checking test-thp
+> file test-thp.c line 75 function main: function `assert' is not declared
+> Generating GOTO Program
+> Adding CPROVER library
+> Function Pointer Removal
+> Partial Inlining
+> Generic Property Instrumentation
+> Starting Bounded Model Checking
+> size of program expression: 171 steps
+> simple slicing removed 3 assignments
+> Generated 1 VCC(s), 1 remaining after simplification
+> Passing problem to propositional reduction
+> converting SSA
+> Running propositional reduction
+> Post-processing
+> Solving with MiniSAT 2.2.0 with simplifier
+> 4899 variables, 13228 clauses
+> SAT checker: negated claim is UNSATISFIABLE, i.e., holds
+> Runtime decision procedure: 0.008s
+> VERIFICATION SUCCESSFUL
+>
+> (and yeah, the v1 version fails :)
 
-The short answer is never mind.  We can not easily change where huge pages
-are allocated as pointed out here:
-https://patchwork.kernel.org/patch/7837381/
-
-The longer explanation of my thoughts on moving location of allocations:
-Liam was saying that someone was getting OOMs because they allocated too
-many huge pages.  It also seems that this happened during boot.  I may be
-reading too much into his comments.
-
-My thought is that this 'may' not happen if huge pages were allocated
-later in the boot process.  If they were allocated after boot, this would
-not even be an issue.  So, I started looking at where they were allocated
-in the initcall hierarchy.  huge pages are allocated via subsys_initcall
-which (IIUC) happens before fs_initcall.  It seems to me that perhaps
-huge page allocation belongs in fs_initcall as the pre-allocated pages
-are only used by hugetlbfs.
-
-Moving huge page allocation from subsys_initcall to fs_initcall is unlikely
-to have any impact on the OOMs that Liam was trying to flag.  In fact
-it may not have an impact on any such issues.  But, in a way it does seem
-'more correct'.  Nobody in the init process should be depending on huge
-page allocation (I think), so what if we moved it all the way to the end
-of initcall processing: late_initcall.  Then perhaps it might have an 
-impact on such issues.
-
--- 
-Mike Kravetz
+Can you share the test-thp.c so I can add this to my test collection?
+I'm assuming cbmc is "Bounded Model Checker for C/C++"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
