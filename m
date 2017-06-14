@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 969C86B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:24:47 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id v20so3881348qtg.3
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:24:47 -0700 (PDT)
-Received: from mail-qt0-f172.google.com (mail-qt0-f172.google.com. [209.85.216.172])
-        by mx.google.com with ESMTPS id c12si535703qkg.20.2017.06.14.10.24.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 10:24:46 -0700 (PDT)
-Received: by mail-qt0-f172.google.com with SMTP id u19so7946761qta.3
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:24:46 -0700 (PDT)
-Message-ID: <1497461083.6752.7.camel@redhat.com>
-Subject: Re: [PATCH v6 12/20] fs: add a new fstype flag to indicate how
- writeback errors are tracked
-From: Jeff Layton <jlayton@redhat.com>
-Date: Wed, 14 Jun 2017 13:24:43 -0400
-In-Reply-To: <20170614064731.GB3598@infradead.org>
-References: <20170612122316.13244-1-jlayton@redhat.com>
-	 <20170612122316.13244-15-jlayton@redhat.com>
-	 <20170612124513.GC18360@infradead.org> <1497349472.5762.1.camel@redhat.com>
-	 <20170614064731.GB3598@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B42536B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:27:28 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x23so1526634wrb.6
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:27:28 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id j23si769184wra.238.2017.06.14.10.27.26
+        for <linux-mm@kvack.org>;
+        Wed, 14 Jun 2017 10:27:26 -0700 (PDT)
+Date: Wed, 14 Jun 2017 19:27:18 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 20/34] x86, mpparse: Use memremap to map the mpf and
+ mpc data
+Message-ID: <20170614172718.3opzawxsgobiy2li@pd.tnic>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191643.28645.91679.stgit@tlendack-t1.amdoffice.net>
+ <20170614160754.c4ywbf5ktqwgc4ij@pd.tnic>
+ <86f31710-76d0-5fee-f4a7-8cdb4b9b9a8e@amd.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <86f31710-76d0-5fee-f4a7-8cdb4b9b9a8e@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue, 2017-06-13 at 23:47 -0700, Christoph Hellwig wrote:
-> On Tue, Jun 13, 2017 at 06:24:32AM -0400, Jeff Layton wrote:
-> > That's definitely what I want for the endgame here. My plan was to add
-> > this flag for now, and then eventually reverse it (or drop it) once all
-> > or most filesystems are converted.
-> > 
-> > We can do it that way from the get-go if you like. It'll mean tossing in
-> >  a patch add this flag to all filesystems that have an fsync operation
-> > and that use the pagecache, and then gradually remove it from them as we
-> > convert them.
-> > 
-> > Which method do you prefer?
-> 
-> Please do it from the get-go.  Or in fact figure out if we can get
-> away without it entirely.  Moving the error reporting into ->fsync
-> should help greatly with that, so what's missing after that?
+On Wed, Jun 14, 2017 at 12:06:54PM -0500, Tom Lendacky wrote:
+> This isn't new...  there are a number of messages issued in this file
+> with that prefix, so I was just following convention.
 
-In this smaller set, it's only really used for DAX. In the larger patch
-series I have (which needs updating on top of this), there are other
-things that key off of it:
+The "convention" that some of the messages are prefixed and some aren't?
 
-sync_file_range: ->fsync isn't called directly there, and I think we
-probably want similar semantics to fsync() for it
+:-)
 
-JBD2: will try to re-set the error after clearing it with
-filemap_fdatawait. That's problematic with the new infrastructure so we
-need some way to avoid it.
+> Changing the prefix could be a follow-on patch.
 
-What I think I'll do for now is add a new FS_DAX_WB_ERRSEQ flag that
-will go away by the end of the series. As the need arises for a similar
-flag in other areas, I'll add them then.
+Ok. As some of those print statements have prefixes and some don't,
+let's unify them.
 
-The overall goal is not to need these flags. It may take a bit of time
-to get there though.
+Thanks.
 
-Thanks for the review so far!
 -- 
-Jeff Layton <jlayton@redhat.com>
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
