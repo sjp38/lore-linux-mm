@@ -1,77 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 77AE083292
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:23:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y39so1505749wry.10
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:23:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b51si470547wrd.208.2017.06.14.09.23.00
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 09:23:01 -0700 (PDT)
-Subject: Re: [RFC PATCH 4/4] mm, hugetlb, soft_offline: use new_page_nodemask
- for soft offline migration
-References: <20170613090039.14393-1-mhocko@kernel.org>
- <20170613090039.14393-5-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <1fdaa94e-33a7-f280-d682-1ffb0b8547db@suse.cz>
-Date: Wed, 14 Jun 2017 18:22:21 +0200
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E69583292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:24:25 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id n18so1512159wra.11
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:24:25 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id g51si489266wra.242.2017.06.14.09.24.24
+        for <linux-mm@kvack.org>;
+        Wed, 14 Jun 2017 09:24:24 -0700 (PDT)
+Date: Wed, 14 Jun 2017 18:24:16 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v6 23/34] x86, realmode: Decrypt trampoline area if
+ memory encryption is active
+Message-ID: <20170614162416.ksa54esy5ql7sjgz@pd.tnic>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191709.28645.69034.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-In-Reply-To: <20170613090039.14393-5-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20170607191709.28645.69034.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 06/13/2017 11:00 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed, Jun 07, 2017 at 02:17:09PM -0500, Tom Lendacky wrote:
+> When Secure Memory Encryption is enabled, the trampoline area must not
+> be encrypted. A CPU running in real mode will not be able to decrypt
+> memory that has been encrypted because it will not be able to use addresses
+> with the memory encryption mask.
 > 
-> new_page is yet another duplication of the migration callback which has
-> to handle hugetlb migration specially. We can safely use the generic
-> new_page_nodemask for the same purpose.
-> 
-> Please note that gigantic hugetlb pages do not need any special handling
-> because alloc_huge_page_nodemask will make sure to check pages in all
-> per node pools. The reason this was done previously was that
-> alloc_huge_page_node treated NO_NUMA_NODE and a specific node
-> differently and so alloc_huge_page_node(nid) would check on this
-> specific node.
-> 
-> Noticed-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> A recent change that added a new system_state value exposed a warning
+> issued by early_ioreamp() when the system_state was not SYSTEM_BOOTING.
+> At the stage where the trampoline area is decrypted, the system_state is
+> now SYSTEM_SCHEDULING. The check was changed to issue a warning if the
+> system_state is greater than or equal to SYSTEM_RUNNING.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+This piece along with the hunk touching system_state absolutely needs to
+be a separate patch as it is unrelated.
 
-> ---
->  mm/memory-failure.c | 10 +---------
->  1 file changed, 1 insertion(+), 9 deletions(-)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 3615bffbd269..7040f60ecb71 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1487,16 +1487,8 @@ EXPORT_SYMBOL(unpoison_memory);
->  static struct page *new_page(struct page *p, unsigned long private, int **x)
->  {
->  	int nid = page_to_nid(p);
-> -	if (PageHuge(p)) {
-> -		struct hstate *hstate = page_hstate(compound_head(p));
->  
-> -		if (hstate_is_gigantic(hstate))
-> -			return alloc_huge_page_node(hstate, NUMA_NO_NODE);
-> -
-> -		return alloc_huge_page_node(hstate, nid);
-> -	} else {
-> -		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-> -	}
-> +	return new_page_nodemask(p, nid, &node_states[N_MEMORY]);
->  }
->  
->  /*
-> 
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
