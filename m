@@ -1,88 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 416B76B02FA
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:40:48 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b13so97636279pgn.4
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:40:48 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id s9si12752pgd.34.2017.06.13.23.40.46
-        for <linux-mm@kvack.org>;
-        Tue, 13 Jun 2017 23:40:47 -0700 (PDT)
-Date: Wed, 14 Jun 2017 15:40:45 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
- calculation
-Message-ID: <20170614064045.GA19843@bbox>
-References: <1496949546-2223-1-git-send-email-jbacik@fb.com>
- <20170613052802.GA16061@bbox>
- <20170613120156.GA16003@destiny>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2093C6B02C3
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:47:59 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s65so27626707pfi.14
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:47:59 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id l67si4079pgl.376.2017.06.13.23.47.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jun 2017 23:47:58 -0700 (PDT)
+Date: Tue, 13 Jun 2017 23:47:31 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v6 12/20] fs: add a new fstype flag to indicate how
+ writeback errors are tracked
+Message-ID: <20170614064731.GB3598@infradead.org>
+References: <20170612122316.13244-1-jlayton@redhat.com>
+ <20170612122316.13244-15-jlayton@redhat.com>
+ <20170612124513.GC18360@infradead.org>
+ <1497349472.5762.1.camel@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170613120156.GA16003@destiny>
+In-Reply-To: <1497349472.5762.1.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Tue, Jun 13, 2017 at 08:01:57AM -0400, Josef Bacik wrote:
-> On Tue, Jun 13, 2017 at 02:28:02PM +0900, Minchan Kim wrote:
-> > Hello,
-> > 
-> > On Thu, Jun 08, 2017 at 03:19:05PM -0400, josef@toxicpanda.com wrote:
-> > > From: Josef Bacik <jbacik@fb.com>
-> > > 
-> > > When testing a slab heavy workload I noticed that we often would barely
-> > > reclaim anything at all from slab when kswapd started doing reclaim.
-> > > This is because we use the ratio of nr_scanned / nr_lru to determine how
-> > > much of slab we should reclaim.  But in a slab only/mostly workload we
-> > > will not have much page cache to reclaim, and thus our ratio will be
-> > > really low and not at all related to where the memory on the system is.
-> > 
-> > I want to understand this clearly.
-> > Why nr_scanned / nr_lru is low if system doesnt' have much page cache?
-> > Could you elaborate it a bit?
-> > 
+On Tue, Jun 13, 2017 at 06:24:32AM -0400, Jeff Layton wrote:
+> That's definitely what I want for the endgame here. My plan was to add
+> this flag for now, and then eventually reverse it (or drop it) once all
+> or most filesystems are converted.
 > 
-> Yeah so for example on my freshly booted test box I have this
+> We can do it that way from the get-go if you like. It'll mean tossing in
+>  a patch add this flag to all filesystems that have an fsync operation
+> and that use the pagecache, and then gradually remove it from them as we
+> convert them.
 > 
-> Active:            58840 kB
-> Inactive:          46860 kB
-> 
-> Every time we do a get_scan_count() we do this
-> 
-> scan = size >> sc->priority
-> 
-> where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop through
-> reclaim would result in a scan target of 2 pages to 11715 total inactive pages,
-> and 3 pages to 14710 total active pages.  This is a really really small target
-> for a system that is entirely slab pages.  And this is super optimistic, this
-> assumes we even get to scan these pages.  We don't increment sc->nr_scanned
-> unless we 1) isolate the page, which assumes it's not in use, and 2) can lock
-> the page.  Under pressure these numbers could probably go down, I'm sure there's
-> some random pages from daemons that aren't actually in use, so the targets get
-> even smaller.
-> 
-> We have to get sc->priority down a lot before we start to get to the 1:1 ratio
-> that would even start to be useful for reclaim in this scenario.  Add to this
-> that most shrinkable slabs have this idea that their objects have to loop
-> through the LRU twice (no longer icache/dcache as Al took my patch to fix that
-> thankfully) and you end up spending a lot of time looping and reclaiming
-> nothing.  Basing it on actual slab usage makes more sense logically and avoids
-> this kind of problem.  Thanks,
+> Which method do you prefer?
 
-Thanks. I got understood now.
-
-As I see your change, it seems to be rather aggressive to me.
-
-        node_slab = lruvec_page_state(lruvec, NR_SLAB_RECLAIMABLE);
-        shrink_slab(,,, node_slab >> sc->priority, node_slab);
-
-The point is when we finish reclaiming from direct/background(ie, kswapd),
-it makes sure that VM scanned slab object up to twice of the size which
-is consistent with LRU pages.
-
-What do you think about this?
+Please do it from the get-go.  Or in fact figure out if we can get
+away without it entirely.  Moving the error reporting into ->fsync
+should help greatly with that, so what's missing after that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
