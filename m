@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB8AF6B02FD
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:56:41 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id a2so64774664oth.10
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:56:41 -0700 (PDT)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D7516B0311
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:56:42 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id i42so64879677otb.0
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:56:42 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m4si1095758oig.39.2017.06.13.21.56.40
+        by mx.google.com with ESMTPS id r48si1148774otb.25.2017.06.13.21.56.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 21:56:40 -0700 (PDT)
+        Tue, 13 Jun 2017 21:56:41 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 06/10] x86/mm: Stop calling leave_mm() in idle code
-Date: Tue, 13 Jun 2017 21:56:24 -0700
-Message-Id: <f48afbbfc246354c3696af035aacdac659ff9054.1497415951.git.luto@kernel.org>
+Subject: [PATCH v2 07/10] x86/mm: Disable PCID on 32-bit kernels
+Date: Tue, 13 Jun 2017 21:56:25 -0700
+Message-Id: <40dd3241c8f56825bdcf5a83f61e7cdeacf723cc.1497415951.git.luto@kernel.org>
 In-Reply-To: <cover.1497415951.git.luto@kernel.org>
 References: <cover.1497415951.git.luto@kernel.org>
 In-Reply-To: <cover.1497415951.git.luto@kernel.org>
@@ -22,132 +22,62 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
 
-Now that lazy TLB suppresses all flush IPIs (as opposed to all but
-the first), there's no need to leave_mm() when going idle.
-
-This means we can get rid of the rcuidle hack in
-switch_mm_irqs_off() and we can unexport leave_mm().
-
-This also removes acpi_unlazy_tlb() from the x86 and ia64 headers,
-since it has no callers any more.
+32-bit kernels on new hardware will see PCID in CPUID, but PCID can
+only be used in 64-bit mode.  Rather than making all PCID code
+conditional, just disable the feature on 32-bit builds.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/ia64/include/asm/acpi.h  |  2 --
- arch/x86/include/asm/acpi.h   |  2 --
- arch/x86/mm/tlb.c             | 19 +++----------------
- drivers/acpi/processor_idle.c |  2 --
- drivers/idle/intel_idle.c     |  9 ++++-----
- 5 files changed, 7 insertions(+), 27 deletions(-)
+ arch/x86/include/asm/disabled-features.h | 4 +++-
+ arch/x86/kernel/cpu/bugs.c               | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
 
-diff --git a/arch/ia64/include/asm/acpi.h b/arch/ia64/include/asm/acpi.h
-index a3d0211970e9..c86a947f5368 100644
---- a/arch/ia64/include/asm/acpi.h
-+++ b/arch/ia64/include/asm/acpi.h
-@@ -112,8 +112,6 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
- 	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
- }
+diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
+index 5dff775af7cd..c10c9128f54e 100644
+--- a/arch/x86/include/asm/disabled-features.h
++++ b/arch/x86/include/asm/disabled-features.h
+@@ -21,11 +21,13 @@
+ # define DISABLE_K6_MTRR	(1<<(X86_FEATURE_K6_MTRR & 31))
+ # define DISABLE_CYRIX_ARR	(1<<(X86_FEATURE_CYRIX_ARR & 31))
+ # define DISABLE_CENTAUR_MCR	(1<<(X86_FEATURE_CENTAUR_MCR & 31))
++# define DISABLE_PCID		0
+ #else
+ # define DISABLE_VME		0
+ # define DISABLE_K6_MTRR	0
+ # define DISABLE_CYRIX_ARR	0
+ # define DISABLE_CENTAUR_MCR	0
++# define DISABLE_PCID		(1<<(X86_FEATURE_PCID & 31))
+ #endif /* CONFIG_X86_64 */
  
--#define acpi_unlazy_tlb(x)
--
- #ifdef CONFIG_ACPI_NUMA
- extern cpumask_t early_cpu_possible_map;
- #define for_each_possible_early_cpu(cpu)  \
-diff --git a/arch/x86/include/asm/acpi.h b/arch/x86/include/asm/acpi.h
-index 2efc768e4362..562286fa151f 100644
---- a/arch/x86/include/asm/acpi.h
-+++ b/arch/x86/include/asm/acpi.h
-@@ -150,8 +150,6 @@ static inline void disable_acpi(void) { }
- extern int x86_acpi_numa_init(void);
- #endif /* CONFIG_ACPI_NUMA */
+ #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+@@ -49,7 +51,7 @@
+ #define DISABLED_MASK1	0
+ #define DISABLED_MASK2	0
+ #define DISABLED_MASK3	(DISABLE_CYRIX_ARR|DISABLE_CENTAUR_MCR|DISABLE_K6_MTRR)
+-#define DISABLED_MASK4	0
++#define DISABLED_MASK4	(DISABLE_PCID)
+ #define DISABLED_MASK5	0
+ #define DISABLED_MASK6	0
+ #define DISABLED_MASK7	0
+diff --git a/arch/x86/kernel/cpu/bugs.c b/arch/x86/kernel/cpu/bugs.c
+index 0af86d9242da..db684880d74a 100644
+--- a/arch/x86/kernel/cpu/bugs.c
++++ b/arch/x86/kernel/cpu/bugs.c
+@@ -21,6 +21,14 @@
  
--#define acpi_unlazy_tlb(x)	leave_mm(x)
--
- #ifdef CONFIG_ACPI_APEI
- static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
+ void __init check_bugs(void)
  {
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index fea2b07ac7d8..5f932fd80881 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -50,7 +50,6 @@ void leave_mm(int cpu)
++#ifdef CONFIG_X86_32
++	/*
++	 * Regardless of whether PCID is enumerated, the SDM says
++	 * that it can't be enabled in 32-bit mode.
++	 */
++	setup_clear_cpu_cap(X86_FEATURE_PCID);
++#endif
++
+ 	identify_boot_cpu();
  
- 	switch_mm(NULL, &init_mm, NULL);
- }
--EXPORT_SYMBOL_GPL(leave_mm);
- 
- void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 	       struct task_struct *tsk)
-@@ -113,14 +112,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
- 				       next_tlb_gen);
- 			write_cr3(__pa(next->pgd));
--			/*
--			 * This gets called via leave_mm() in the idle path
--			 * where RCU functions differently.  Tracing normally
--			 * uses RCU, so we have to call the tracepoint
--			 * specially here.
--			 */
--			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
--						TLB_FLUSH_ALL);
-+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
-+					TLB_FLUSH_ALL);
- 		}
- 
- 		/*
-@@ -166,13 +159,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 		this_cpu_write(cpu_tlbstate.loaded_mm, next);
- 		write_cr3(__pa(next->pgd));
- 
--		/*
--		 * This gets called via leave_mm() in the idle path where RCU
--		 * functions differently.  Tracing normally uses RCU, so we
--		 * have to call the tracepoint specially here.
--		 */
--		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
--					TLB_FLUSH_ALL);
-+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 	}
- 
- 	load_mm_cr4(next);
-diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c
-index 5c8aa9cf62d7..fe3d2a40f311 100644
---- a/drivers/acpi/processor_idle.c
-+++ b/drivers/acpi/processor_idle.c
-@@ -708,8 +708,6 @@ static DEFINE_RAW_SPINLOCK(c3_lock);
- static void acpi_idle_enter_bm(struct acpi_processor *pr,
- 			       struct acpi_processor_cx *cx, bool timer_bc)
- {
--	acpi_unlazy_tlb(smp_processor_id());
--
- 	/*
- 	 * Must be done before busmaster disable as we might need to
- 	 * access HPET !
-diff --git a/drivers/idle/intel_idle.c b/drivers/idle/intel_idle.c
-index 216d7ec88c0c..2ae43f59091d 100644
---- a/drivers/idle/intel_idle.c
-+++ b/drivers/idle/intel_idle.c
-@@ -912,16 +912,15 @@ static __cpuidle int intel_idle(struct cpuidle_device *dev,
- 	struct cpuidle_state *state = &drv->states[index];
- 	unsigned long eax = flg2MWAIT(state->flags);
- 	unsigned int cstate;
--	int cpu = smp_processor_id();
- 
- 	cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) + 1;
- 
- 	/*
--	 * leave_mm() to avoid costly and often unnecessary wakeups
--	 * for flushing the user TLB's associated with the active mm.
-+	 * NB: if CPUIDLE_FLAG_TLB_FLUSHED is set, this idle transition
-+	 * will probably flush the TLB.  It's not guaranteed to flush
-+	 * the TLB, though, so it's not clear that we can do anything
-+	 * useful with this knowledge.
- 	 */
--	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
--		leave_mm(cpu);
- 
- 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
- 		tick_broadcast_enter();
+ 	if (!IS_ENABLED(CONFIG_SMP)) {
 -- 
 2.9.4
 
