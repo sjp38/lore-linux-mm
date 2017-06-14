@@ -1,91 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBB86B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:19:08 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 56so536129wrx.5
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 07:19:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o19si176743wro.99.2017.06.14.07.19.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 26A826B0292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 11:07:30 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id n7so986394wrb.0
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 08:07:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g18si296952wrg.233.2017.06.14.08.07.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 07:19:07 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5EEDnNK052932
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:19:06 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2b35c7wqc4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 10:19:05 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Wed, 14 Jun 2017 15:19:02 +0100
-Date: Wed, 14 Jun 2017 16:18:57 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 3/3] mm, thp: Do not loose dirty bit in
- __split_huge_pmd_locked()
-In-Reply-To: <20170614135143.25068-4-kirill.shutemov@linux.intel.com>
-References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
-	<20170614135143.25068-4-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Jun 2017 08:07:28 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/4] mm, hugetlb: unclutter hugetlb allocation layers
+References: <20170613090039.14393-1-mhocko@kernel.org>
+ <20170613090039.14393-2-mhocko@kernel.org>
+ <1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz>
+ <20170614134258.GP6045@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <115a973d-6ede-7fcf-d1c6-8a62194cff59@suse.cz>
+Date: Wed, 14 Jun 2017 17:06:47 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20170614134258.GP6045@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <20170614161857.69d54338@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S.
- Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 14 Jun 2017 16:51:43 +0300
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On 06/14/2017 03:42 PM, Michal Hocko wrote:
+> On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:
+>> On 06/13/2017 11:00 AM, Michal Hocko wrote:
+> [...]
+>>> @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>>>  		page = dequeue_huge_page_node(h, nid);
+>>>  	spin_unlock(&hugetlb_lock);
+>>>  
+>>> -	if (!page)
+>>> -		page = __alloc_buddy_huge_page_no_mpol(h, nid);
+>>> +	if (!page) {
+>>> +		nodemask_t nmask;
+>>> +
+>>> +		if (nid != NUMA_NO_NODE) {
+>>> +			nmask = NODE_MASK_NONE;
+>>> +			node_set(nid, nmask);
+>>
+>> TBH I don't like this hack too much, and would rather see __GFP_THISNODE
+>> involved, which picks a different (short) zonelist. Also it's allocating
+>> nodemask on stack, which we generally avoid? Although the callers
+>> currently seem to be shallow.
+> 
+> Fair enough. That would require pulling gfp mask handling up the call
+> chain. This on top of this patch + refreshes for other patches later in
+> the series as they will conflict now?
 
-> Until pmdp_invalidate() pmd entry is present and CPU can update it,
-> setting dirty. Currently, we tranfer dirty bit to page too early and
-> there is window when we can miss dirty bit.
+For the orig patch + fold (squashed locally from your mmotm/... branch)
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Please update the commit description which still mentions the nodemask
+emulation of __GFP_THISNODE.
+
+Also I noticed that the goal of patch 2 is already partially achieved
+here, because alloc_huge_page_nodemask() will now allocate using
+zonelist. It won't dequeue that way yet, though.
+
+> ---
+> commit dcd863b48fb2c93e5aebce818e75c30978e26cf1
+> Author: Michal Hocko <mhocko@suse.com>
+> Date:   Wed Jun 14 15:41:07 2017 +0200
 > 
-> Let's call SetPageDirty() after pmdp_invalidate().
+>     fold me
+>     
+>     - pull gfp mask out of __hugetlb_alloc_buddy_huge_page and make it an
+>       explicit argument to allow __GFP_THISNODE in alloc_huge_page_node per
+>       Vlastimil
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ...
-> @@ -2046,6 +2043,14 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	 * pmd_populate.
->  	 */
->  	pmdp_invalidate(vma, haddr, pmd);
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3d5f25d589b3..afc87de5de5c 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1532,17 +1532,18 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  }
+>  
+>  static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+> -		int nid, nodemask_t *nmask)
+> +		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+>  {
+>  	int order = huge_page_order(h);
+> -	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+>  
+> +	gfp_mask |= __GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+>  	if (nid == NUMA_NO_NODE)
+>  		nid = numa_mem_id();
+> -	return __alloc_pages_nodemask(gfp, order, nid, nmask);
+> +	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+>  }
+>  
+> -static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_t *nmask)
+> +static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+> +		int nid, nodemask_t *nmask)
+>  {
+>  	struct page *page;
+>  	unsigned int r_nid;
+> @@ -1583,7 +1584,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_
+>  	}
+>  	spin_unlock(&hugetlb_lock);
+>  
+> -	page = __hugetlb_alloc_buddy_huge_page(h, nid, nmask);
+> +	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
+>  
+>  	spin_lock(&hugetlb_lock);
+>  	if (page) {
+> @@ -1616,11 +1617,12 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+>  {
+>  	struct page *page;
+>  	struct mempolicy *mpol;
+> +	gfp_t gfp_mask = htlb_alloc_mask(h);
+>  	int nid;
+>  	nodemask_t *nodemask;
+>  
+> -	nid = huge_node(vma, addr, htlb_alloc_mask(h), &mpol, &nodemask);
+> -	page = __alloc_buddy_huge_page(h, nid, nodemask);
+> +	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
+> +	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
+>  	mpol_cond_put(mpol);
+>  
+>  	return page;
+> @@ -1633,30 +1635,26 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+>   */
+>  struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>  {
+> +	gfp_t gfp_mask = htlb_alloc_mask(h);
+>  	struct page *page = NULL;
+>  
+> +	if (nid != NUMA_NO_NODE)
+> +		gfp_mask |= __GFP_THISNODE;
 > +
-> +	/*
-> +	 * Transfer dirty bit to page after pmd invalidated, so CPU would not
-> +	 * be able to set it under us.
-> +	 */
-> +	if (pmd_dirty(*pmd))
-> +		SetPageDirty(page);
-> +
->  	pmd_populate(mm, pmd, pgtable);
+>  	spin_lock(&hugetlb_lock);
+>  	if (h->free_huge_pages - h->resv_huge_pages > 0)
+>  		page = dequeue_huge_page_node(h, nid);
+>  	spin_unlock(&hugetlb_lock);
+>  
+> -	if (!page) {
+> -		nodemask_t nmask;
+> -
+> -		if (nid != NUMA_NO_NODE) {
+> -			nmask = NODE_MASK_NONE;
+> -			node_set(nid, nmask);
+> -		} else {
+> -			nmask = node_states[N_MEMORY];
+> -		}
+> -		page = __alloc_buddy_huge_page(h, nid, &nmask);
+> -	}
+> +	if (!page)
+> +		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
+>  
+>  	return page;
+>  }
+>  
+>  struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+>  {
+> +	gfp_t gfp_mask = htlb_alloc_mask(h);
+>  	struct page *page = NULL;
+>  	int node;
+>  
+> @@ -1673,7 +1671,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+>  		return page;
+>  
+>  	/* No reservations, try to overcommit */
+> -	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);
+> +	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);
+>  }
+>  
+>  /*
+> @@ -1701,7 +1699,8 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+>  retry:
+>  	spin_unlock(&hugetlb_lock);
+>  	for (i = 0; i < needed; i++) {
+> -		page = __alloc_buddy_huge_page(h, NUMA_NO_NODE, NULL);
+> +		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
+> +				NUMA_NO_NODE, NULL);
+>  		if (!page) {
+>  			alloc_ok = false;
+>  			break;
 > 
->  	if (freeze) {
-
-That won't work on s390. After pmdp_invalidate the pmd entry is gone,
-it has been replaced with _SEGMENT_ENTRY_EMPTY. This includes the
-dirty and referenced bits. The old scheme is
-
-        entry = *pmd;
-        pmdp_invalidate(vma, addr, pmd);
-	if (pmd_dirty(entry))
-		...
-
-Could we change pmdp_invalidate to make it return the old pmd entry?
-The pmdp_xchg_direct function already returns it, for s390 that would
-be an easy change. The above code snippet would change like this:
-
-	entry = pmdp_invalidate(vma, addr, pmd);
-	if (pmd_dirty(entry))
-		...
-
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
