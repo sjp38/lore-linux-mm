@@ -1,118 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BEAC76B0292
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 15:49:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b74so8253447pfj.5
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:49:12 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0045.outbound.protection.outlook.com. [104.47.38.45])
-        by mx.google.com with ESMTPS id d4si601561pgc.141.2017.06.14.12.49.11
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4606B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 16:12:00 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o41so6972917qtf.8
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:12:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u48si885707qtc.278.2017.06.14.13.11.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 12:49:11 -0700 (PDT)
-Subject: Re: [PATCH v6 25/34] swiotlb: Add warnings for use of bounce buffers
- with SME
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
- <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <33d1debc-c684-cba1-7d95-493678f086d0@amd.com>
-Date: Wed, 14 Jun 2017 14:49:02 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Jun 2017 13:11:59 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [HMM-CDM 0/5] Cache coherent device memory (CDM) with HMM
+Date: Wed, 14 Jun 2017 16:11:39 -0400
+Message-Id: <20170614201144.9306-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, cgroups@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On 6/14/2017 11:50 AM, Borislav Petkov wrote:
-> On Wed, Jun 07, 2017 at 02:17:32PM -0500, Tom Lendacky wrote:
->> Add warnings to let the user know when bounce buffers are being used for
->> DMA when SME is active.  Since the bounce buffers are not in encrypted
->> memory, these notifications are to allow the user to determine some
->> appropriate action - if necessary.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>   arch/x86/include/asm/mem_encrypt.h |    8 ++++++++
->>   include/asm-generic/mem_encrypt.h  |    5 +++++
->>   include/linux/dma-mapping.h        |    9 +++++++++
->>   lib/swiotlb.c                      |    3 +++
->>   4 files changed, 25 insertions(+)
->>
->> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
->> index f1215a4..c7a2525 100644
->> --- a/arch/x86/include/asm/mem_encrypt.h
->> +++ b/arch/x86/include/asm/mem_encrypt.h
->> @@ -69,6 +69,14 @@ static inline bool sme_active(void)
->>   	return !!sme_me_mask;
->>   }
->>   
->> +static inline u64 sme_dma_mask(void)
->> +{
->> +	if (!sme_me_mask)
->> +		return 0ULL;
->> +
->> +	return ((u64)sme_me_mask << 1) - 1;
->> +}
->> +
->>   /*
->>    * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when
->>    * writing to or comparing values from the cr3 register.  Having the
->> diff --git a/include/asm-generic/mem_encrypt.h b/include/asm-generic/mem_encrypt.h
->> index b55c3f9..fb02ff0 100644
->> --- a/include/asm-generic/mem_encrypt.h
->> +++ b/include/asm-generic/mem_encrypt.h
->> @@ -22,6 +22,11 @@ static inline bool sme_active(void)
->>   	return false;
->>   }
->>   
->> +static inline u64 sme_dma_mask(void)
->> +{
->> +	return 0ULL;
->> +}
->> +
->>   /*
->>    * The __sme_set() and __sme_clr() macros are useful for adding or removing
->>    * the encryption mask from a value (e.g. when dealing with pagetable
->> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
->> index 4f3eece..e2c5fda 100644
->> --- a/include/linux/dma-mapping.h
->> +++ b/include/linux/dma-mapping.h
->> @@ -10,6 +10,7 @@
->>   #include <linux/scatterlist.h>
->>   #include <linux/kmemcheck.h>
->>   #include <linux/bug.h>
->> +#include <linux/mem_encrypt.h>
->>   
->>   /**
->>    * List of possible attributes associated with a DMA mapping. The semantics
->> @@ -577,6 +578,10 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
->>   
->>   	if (!dev->dma_mask || !dma_supported(dev, mask))
->>   		return -EIO;
->> +
->> +	if (sme_active() && (mask < sme_dma_mask()))
->> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
-> 
-> Something looks strange here:
-> 
-> you're checking sme_active() before calling sme_dma_mask() and yet in
-> it, you're checking !sme_me_mask again. What gives?
-> 
+Cache coherent device memory apply to architecture with system bus
+like CAPI or CCIX. Device connected to such system bus can expose
+their memory to the system and allow cache coherent access to it
+from the CPU.
 
-I guess I don't need the sme_active() check since the second part of the
-if statement can only ever be true if SME is active (since mask is
-unsigned).
+Even if for all intent and purposes device memory behave like regular
+memory, we still want to manage it in isolation from regular memory.
+Several reasons for that, first and foremost this memory is less
+reliable than regular memory if the device hangs because of invalid
+commands we can loose access to device memory. Second CPU access to
+this memory is expected to be slower than to regular memory. Third
+having random memory into device means that some of the bus bandwith
+wouldn't be available to the device but would be use by CPU access.
 
-Thanks,
-Tom
+This is why we want to manage such memory in isolation from regular
+memory. Kernel should not try to use this memory as last resort
+when running out of memory, at least for now.
 
-> Why not move the sme_active() check into sme_dma_mask() and thus
-> simplify callers?
-> 
+This patchset add a new type of ZONE_DEVICE memory (DEVICE_PUBLIC)
+that is use to represent CDM memory. This patchset build on top of
+the HMM patchset that already introduce a new type of ZONE_DEVICE
+memory for private device memory (see HMM patchset).
+
+The end result is that with this patch if a device is in use in
+a process you might have private anonymous memory or file back
+page memory using ZONE_DEVICE (MEMORY_PUBLIC). Thus care must be
+taken to not overwritte lru fields of such pages.
+
+Hence all core mm changes are done to address assumption that any
+process memory is back by a regular struct page that is part of
+the lru. ZONE_DEVICE page are not on the lru and the lru pointer
+of struct page are use to store device specific informations.
+
+Thus this patch update all code path that would make assumptions
+about lruness of a process page.
+
+patch 01 - deals with all the core mm functions
+patch 02 - add an helper to HMM for hotplug of CDM memory
+patch 03 - preparatory patch for memory controller changes
+patch 04 - update memory controller to properly handle
+           ZONE_DEVICE pages when uncharging
+patch 05 - kernel configuration updates and cleanup
+
+git tree:
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v2
+
+
+Cc: cgroups@vger.kernel.org
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Balbir Singh <balbirs@au1.ibm.com>
+Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+
+JA(C)rA'me Glisse (5):
+  mm/device-public-memory: device memory cache coherent with CPU
+  mm/hmm: add new helper to hotplug CDM memory region
+  mm/memcontrol: allow to uncharge page without using page->lru field
+  mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC
+  mm/hmm: simplify kconfig and enable HMM and DEVICE_PUBLIC for ppc64
+
+ fs/proc/task_mmu.c       |   2 +-
+ include/linux/hmm.h      |   7 +-
+ include/linux/ioport.h   |   1 +
+ include/linux/memremap.h |  21 +++++
+ include/linux/mm.h       |  16 ++--
+ kernel/memremap.c        |  13 ++-
+ mm/Kconfig               |  30 +++----
+ mm/gup.c                 |   7 ++
+ mm/hmm.c                 |  89 +++++++++++++++++--
+ mm/madvise.c             |   2 +-
+ mm/memcontrol.c          | 226 ++++++++++++++++++++++++++++++-----------------
+ mm/memory.c              |  46 ++++++++--
+ mm/migrate.c             |  60 ++++++++-----
+ mm/swap.c                |  11 +++
+ 14 files changed, 389 insertions(+), 142 deletions(-)
+
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
