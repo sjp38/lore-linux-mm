@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A3DC6B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 05:24:43 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 56so36982045wrx.5
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:24:43 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F19476B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 05:51:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 56so37147160wrx.5
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:51:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y57si416130wry.133.2017.06.14.02.24.41
+        by mx.google.com with ESMTPS id s24si461604wra.76.2017.06.14.02.51.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 02:24:42 -0700 (PDT)
-Date: Wed, 14 Jun 2017 11:24:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 04/14] mm, memory_hotplug: get rid of
- is_zone_device_section
-Message-ID: <20170614092438.GM6045@dhcp22.suse.cz>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <20170515085827.16474-5-mhocko@kernel.org>
- <CADZGycawwb8FBqj=4g3NThvT-uKREbaH+kYAxvXRrW1Vd5wsvA@mail.gmail.com>
- <20170614061259.GB14009@WeideMBP.lan>
- <20170614063206.GF6045@dhcp22.suse.cz>
- <20170614091206.GA15768@WeideMacBook-Pro.local>
+        Wed, 14 Jun 2017 02:51:49 -0700 (PDT)
+Date: Wed, 14 Jun 2017 11:51:39 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC 08/11] x86/mm: Add nopcid to turn off PCID
+Message-ID: <20170614095139.nk7nf4oilc36mi2b@pd.tnic>
+References: <cover.1496701658.git.luto@kernel.org>
+ <d4eafd524ee51d003d7f7302d5e4e44dc4919e08.1496701658.git.luto@kernel.org>
+ <87wp8pol4u.fsf@firstfloor.org>
+ <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170614091206.GA15768@WeideMacBook-Pro.local>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <andi@firstfloor.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Wed 14-06-17 17:12:06, Wei Yang wrote:
-> On Wed, Jun 14, 2017 at 08:32:06AM +0200, Michal Hocko wrote:
-> >On Wed 14-06-17 14:12:59, Wei Yang wrote:
-> >[...]
-> >> Hi, Michal
-> >> 
-> >> Not sure you missed this one or you think this is fine.
-> >> 
-> >> Hmm... this will not happen since we must offline a whole memory_block?
-> >
-> >yes
-> >
-> >> So the memory_hotplug/unplug unit is memory_block instead of mem_section?
-> >
-> >yes.
-> 
-> If this is true, the check_hotplug_memory_range() should be fixed too.
+On Tue, Jun 13, 2017 at 09:52:03PM -0700, Andy Lutomirski wrote:
+> It is.  OTOH, there are lots of noxyz options, and they're easier to
+> type and to remember.  Borislav?  Sometime I wonder whether we should
+> autogenerate noxyz options from the capflags table.
 
-as I've said earlier. There are many code paths which are quite
-confusing and they expect sub-section granularity while they in fact
-won't work with sub memblock granularity. This is a larger project
-I am afraid and it would be great if you are willing to try to
-consolidate that code. I have that on my todo list but there are more
-pressing things to address first for me now.
+Maybe.
+
+Although, last time hpa said that all those old chicken bits can simply
+be removed now that they're not really needed anymore. I even had a
+patch somewhere but then something more important happened...
 
 -- 
-Michal Hocko
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
