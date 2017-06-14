@@ -1,143 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA5BF6B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:54:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id n18so1710356wra.11
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:54:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z79si542604wmz.9.2017.06.14.09.54.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 09:54:20 -0700 (PDT)
-Subject: Re: [PATCH v2 1/2] mm: improve readability of
- transparent_hugepage_enabled()
-References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e944ba00-3139-8da0-a1f9-642be9300c7c@suse.cz>
-Date: Wed, 14 Jun 2017 18:53:40 +0200
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C23A26B0292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:55:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o74so4812484pfi.6
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:55:05 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b8si342356pga.232.2017.06.14.09.55.04
+        for <linux-mm@kvack.org>;
+        Wed, 14 Jun 2017 09:55:05 -0700 (PDT)
+Date: Wed, 14 Jun 2017 17:55:13 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [HELP-NEEDED, PATCH 0/3] Do not loose dirty bit on THP pages
+Message-ID: <20170614165513.GD17632@arm.com>
+References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
+ <eed279c6-bf61-f2f3-c9f2-d9a94568e2e3@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <eed279c6-bf61-f2f3-c9f2-d9a94568e2e3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com
 
-On 06/14/2017 01:08 AM, Dan Williams wrote:
-> Turn the macro into a static inline and rewrite the condition checks for
-> better readability in preparation for adding another condition.
+Hi Aneesh,
+
+On Wed, Jun 14, 2017 at 08:55:26PM +0530, Aneesh Kumar K.V wrote:
+> On Wednesday 14 June 2017 07:21 PM, Kirill A. Shutemov wrote:
+> >Vlastimil noted that pmdp_invalidate() is not atomic and we can loose
+> >dirty and access bits if CPU sets them after pmdp dereference, but
+> >before set_pmd_at().
+> >
+> >The bug doesn't lead to user-visible misbehaviour in current kernel, but
+> >fixing this would be critical for future work on THP: both huge-ext4 and THP
+> >swap out rely on proper dirty tracking.
+> >
+> >Unfortunately, there's no way to address the issue in a generic way. We need to
+> >fix all architectures that support THP one-by-one.
+> >
+> >All architectures that have THP supported have to provide atomic
+> >pmdp_invalidate(). If generic implementation of pmdp_invalidate() is used,
+> >architecture needs to provide atomic pmdp_mknonpresent().
+> >
+> >I've fixed the issue for x86, but I need help with the rest.
+> >
+> >So far THP is supported on 8 architectures. Power and S390 already provides
+> >atomic pmdp_invalidate(). x86 is fixed by this patches, so 5 architectures
+> >left:
+> >
+> >  - arc;
+> >  - arm;
+> >  - arm64;
+> >  - mips;
+> >  - sparc -- it has custom pmdp_invalidate(), but it's racy too;
+> >
+> >Please, help me with them.
+> >
+> >Kirill A. Shutemov (3):
+> >   x86/mm: Provide pmdp_mknotpresent() helper
+> >   mm: Do not loose dirty and access bits in pmdp_invalidate()
+> >   mm, thp: Do not loose dirty bit in __split_huge_pmd_locked()
+> >
 > 
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> [ross: fix logic to make conversion equivalent]
-> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-
-Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
-
-vbabka@gusiac:~/wrk/cbmc> cbmc test-thp.c
-CBMC version 5.3 64-bit x86_64 linux
-Parsing test-thp.c
-file <command-line> line 0: <command-line>:0:0: warning:
-"__STDC_VERSION__" redefined
-file <command-line> line 0: <built-in>: note: this is the location of
-the previous definition
-Converting
-Type-checking test-thp
-file test-thp.c line 75 function main: function `assert' is not declared
-Generating GOTO Program
-Adding CPROVER library
-Function Pointer Removal
-Partial Inlining
-Generic Property Instrumentation
-Starting Bounded Model Checking
-size of program expression: 171 steps
-simple slicing removed 3 assignments
-Generated 1 VCC(s), 1 remaining after simplification
-Passing problem to propositional reduction
-converting SSA
-Running propositional reduction
-Post-processing
-Solving with MiniSAT 2.2.0 with simplifier
-4899 variables, 13228 clauses
-SAT checker: negated claim is UNSATISFIABLE, i.e., holds
-Runtime decision procedure: 0.008s
-VERIFICATION SUCCESSFUL
-
-(and yeah, the v1 version fails :)
-
-> ---
->  include/linux/huge_mm.h |   32 +++++++++++++++++++++-----------
->  1 file changed, 21 insertions(+), 11 deletions(-)
 > 
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index a3762d49ba39..c8119e856eb1 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -85,14 +85,23 @@ extern struct kobj_attribute shmem_enabled_attr;
->  
->  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
->  
-> -#define transparent_hugepage_enabled(__vma)				\
-> -	((transparent_hugepage_flags &					\
-> -	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
-> -	  (transparent_hugepage_flags &					\
-> -	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
-> -	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
-> -	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
-> -	 !is_vma_temporary_stack(__vma))
-> +extern unsigned long transparent_hugepage_flags;
-> +
-> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-> +{
-> +	if ((vma->vm_flags & VM_NOHUGEPAGE) || is_vma_temporary_stack(vma))
-> +		return false;
-> +
-> +	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
-> +		return true;
-> +
-> +	if (transparent_hugepage_flags &
-> +				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
-> +		return !!(vma->vm_flags & VM_HUGEPAGE);
-> +
-> +	return false;
-> +}
-> +
->  #define transparent_hugepage_use_zero_page()				\
->  	(transparent_hugepage_flags &					\
->  	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
-> @@ -104,8 +113,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
->  #define transparent_hugepage_debug_cow() 0
->  #endif /* CONFIG_DEBUG_VM */
->  
-> -extern unsigned long transparent_hugepage_flags;
-> -
->  extern unsigned long thp_get_unmapped_area(struct file *filp,
->  		unsigned long addr, unsigned long len, unsigned long pgoff,
->  		unsigned long flags);
-> @@ -223,7 +230,10 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
->  
->  #define hpage_nr_pages(x) 1
->  
-> -#define transparent_hugepage_enabled(__vma) 0
-> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-> +{
-> +	return false;
-> +}
->  
->  static inline void prep_transhuge_page(struct page *page) {}
->  
+> But in __split_huge_pmd_locked() we collected the dirty bit early. So even
+> if we made pmdp_invalidate() atomic, if we had marked the pmd pte entry
+> dirty after we collected the dirty bit, we still loose it right ?
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
+> May be we should relook at pmd PTE udpate interface. We really need an
+> interface that can update pmd entries such that we don't clear it in
+> between. IMHO, we can avoid the pmdp_invalidate() completely, if we can
+> switch from a pmd PTE entry to a pointer to PTE page (pgtable_t). We also
+> need this interface to avoid the madvise race fixed by
+
+There's a good chance I'm not following your suggestion here, but it's
+probably worth me pointing out that swizzling a page table entry from a
+block mapping (e.g. a huge page mapped at the PMD level) to a table entry
+(e.g. a pointer to a page of PTEs) can lead to all sorts of horrible
+problems on ARM, including amalgamation of TLB entries and fatal aborts.
+
+So we really need to go via an invalid entry, with appropriate TLB
+invalidation before installing the new entry.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
