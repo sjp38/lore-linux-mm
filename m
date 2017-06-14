@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 82E276B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:52:27 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id i42so64841743otb.0
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:52:27 -0700 (PDT)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A486B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:56:36 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id r9so39608077oth.11
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:56:36 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u30si1157453otd.142.2017.06.13.21.52.25
+        by mx.google.com with ESMTPS id x1si1070314oif.157.2017.06.13.21.56.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 21:52:25 -0700 (PDT)
-Received: from mail-ua0-f173.google.com (mail-ua0-f173.google.com [209.85.217.173])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E524B239B5
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:52:24 +0000 (UTC)
-Received: by mail-ua0-f173.google.com with SMTP id m31so87834447uam.1
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:52:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <87wp8pol4u.fsf@firstfloor.org>
-References: <cover.1496701658.git.luto@kernel.org> <d4eafd524ee51d003d7f7302d5e4e44dc4919e08.1496701658.git.luto@kernel.org>
- <87wp8pol4u.fsf@firstfloor.org>
+        Tue, 13 Jun 2017 21:56:35 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 13 Jun 2017 21:52:03 -0700
-Message-ID: <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
-Subject: Re: [RFC 08/11] x86/mm: Add nopcid to turn off PCID
-Content-Type: text/plain; charset="UTF-8"
+Subject: [PATCH v2 00/10] PCID and improved laziness
+Date: Tue, 13 Jun 2017 21:56:18 -0700
+Message-Id: <cover.1497415951.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
 
-On Mon, Jun 5, 2017 at 8:22 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> Andy Lutomirski <luto@kernel.org> writes:
->
->> The parameter is only present on x86_64 systems to save a few bytes,
->> as PCID is always disabled on x86_32.
->
-> Seems redundant with clearcpuid.
->
+There are three performance benefits here:
 
-It is.  OTOH, there are lots of noxyz options, and they're easier to
-type and to remember.  Borislav?  Sometime I wonder whether we should
-autogenerate noxyz options from the capflags table.
+1. TLB flushing is slow.  (I.e. the flush itself takes a while.)
+   This avoids many of them when switching tasks by using PCID.  In
+   a stupid little benchmark I did, it saves about 100ns on my laptop
+   per context switch.  I'll try to improve that benchmark.
 
-> -Andi
+2. Mms that have been used recently on a given CPU might get to keep
+   their TLB entries alive across process switches with this patch
+   set.  TLB fills are pretty fast on modern CPUs, but they're even
+   faster when they don't happen.
+
+3. Lazy TLB is way better.  We used to do two stupid things when we
+   ran kernel threads: we'd send IPIs to flush user contexts on their
+   CPUs and then we'd write to CR3 for no particular reason as an excuse
+   to stop further IPIs.  With this patch, we do neither.
+
+This will, in general, perform suboptimally if paravirt TLB flushing
+is in use (currently just Xen, I think, but Hyper-V is in the works).
+The code is structured so we could fix it in one of two ways: we
+could take a spinlock when touching the percpu state so we can update
+it remotely after a paravirt flush, or we could be more careful about
+our exactly how we access the state and use cmpxchg16b to do atomic
+remote updates.  (On SMP systems without cmpxchg16b, we'd just skip
+the optimization entirely.)
+
+This is based on tip:x86/mm.  The branch is here if you want to play:
+https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=x86/pcid
+
+Changes from RFC:
+ - flush_tlb_func_common() no longer gets reentered (Nadav)
+ - Fix ASID corruption on unlazying (kbuild bot)
+ - Move Xen init to the right place
+ - Misc cleanups
+
+Andy Lutomirski (10):
+  x86/ldt: Simplify LDT switching logic
+  x86/mm: Remove reset_lazy_tlbstate()
+  x86/mm: Give each mm TLB flush generation a unique ID
+  x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
+  x86/mm: Rework lazy TLB mode and TLB freshness tracking
+  x86/mm: Stop calling leave_mm() in idle code
+  x86/mm: Disable PCID on 32-bit kernels
+  x86/mm: Add nopcid to turn off PCID
+  x86/mm: Enable CR4.PCIDE on supported systems
+  x86/mm: Try to preserve old TLB entries using PCID
+
+ Documentation/admin-guide/kernel-parameters.txt |   2 +
+ arch/ia64/include/asm/acpi.h                    |   2 -
+ arch/x86/include/asm/acpi.h                     |   2 -
+ arch/x86/include/asm/disabled-features.h        |   4 +-
+ arch/x86/include/asm/mmu.h                      |  25 +-
+ arch/x86/include/asm/mmu_context.h              |  40 ++-
+ arch/x86/include/asm/processor-flags.h          |   2 +
+ arch/x86/include/asm/tlbflush.h                 |  89 +++++-
+ arch/x86/kernel/cpu/bugs.c                      |   8 +
+ arch/x86/kernel/cpu/common.c                    |  33 +++
+ arch/x86/kernel/smpboot.c                       |   1 -
+ arch/x86/mm/init.c                              |   2 +-
+ arch/x86/mm/tlb.c                               | 368 +++++++++++++++---------
+ arch/x86/xen/enlighten_pv.c                     |   6 +
+ drivers/acpi/processor_idle.c                   |   2 -
+ drivers/idle/intel_idle.c                       |   9 +-
+ 16 files changed, 429 insertions(+), 166 deletions(-)
+
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
