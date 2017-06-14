@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C5F16B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 15:11:59 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id v184so6478213itc.15
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:11:59 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0087.outbound.protection.outlook.com. [104.47.32.87])
-        by mx.google.com with ESMTPS id x75si883403itb.48.2017.06.14.12.11.57
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 71A626B02B4
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 15:26:48 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p66so5243871oia.0
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:26:48 -0700 (PDT)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id a16si386814oth.242.2017.06.14.12.26.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 12:11:58 -0700 (PDT)
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH tip/sched/core] mm/early_ioremap: Adjust early_ioremap
- system_state check
-Date: Wed, 14 Jun 2017 14:11:52 -0500
-Message-ID: <20170614191152.28089.65392.stgit@tlendack-t1.amdoffice.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Jun 2017 12:26:47 -0700 (PDT)
+Received: by mail-oi0-x230.google.com with SMTP id s3so6401016oia.0
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:26:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170614124520.GA8537@dhcp22.suse.cz>
+References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170614124520.GA8537@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 14 Jun 2017 12:26:46 -0700
+Message-ID: <CAPcyv4hEYJrW=Pv+ON5+EG4iLUjX2XRW3u+kSsMa8J5qh-KeVg@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm: improve readability of transparent_hugepage_enabled()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Ingo Molnar <mingo@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-A recent change added a new system_state value, SYSTEM_SCHEDULING, which
-exposed a warning issued by early_ioreamp() when the system_state was not
-SYSTEM_BOOTING. Since early_ioremap() can be called when the system_state
-is SYSTEM_SCHEDULING, the check to issue the warning is changed from
-system_state != SYSTEM_BOOTING to system_state >= SYSTEM_RUNNING.
+On Wed, Jun 14, 2017 at 5:45 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Tue 13-06-17 16:08:26, Dan Williams wrote:
+>> Turn the macro into a static inline and rewrite the condition checks for
+>> better readability in preparation for adding another condition.
+>>
+>> Cc: Jan Kara <jack@suse.cz>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> [ross: fix logic to make conversion equivalent]
+>> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+>
+> This is really a nice deobfuscation! Please note this will conflict with
+> http://lkml.kernel.org/r/1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com
+>
+>
+> Trivial to resolve but I thought I should give you a heads up.
 
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
----
- mm/early_ioremap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Hmm, I'm assuming that vma_is_dax() should override PRCTL_THP_DISABLE?
+...and while we're there should vma_is_dax() also override
+VM_NOHUGEPAGE? This is with the assumption that the reason to turn off
+huge pages is to avoid mm pressure, dax exerts no such pressure.
 
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index 6d5717b..57540de 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -103,7 +103,7 @@ static int __init check_early_ioremap_leak(void)
- 	enum fixed_addresses idx;
- 	int i, slot;
- 
--	WARN_ON(system_state != SYSTEM_BOOTING);
-+	WARN_ON(system_state >= SYSTEM_RUNNING);
- 
- 	slot = -1;
- 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks for the heads up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
