@@ -1,175 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DD06B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 17:20:16 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id k71so10894334pgd.6
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 14:20:16 -0700 (PDT)
-Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
-        by mx.google.com with ESMTPS id q1si788711plb.7.2017.06.14.14.20.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C1AE883292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 17:20:26 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s74so9999160pfe.10
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 14:20:26 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id k79si734349pfk.328.2017.06.14.14.20.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 14:20:15 -0700 (PDT)
-Received: by mail-pg0-x22a.google.com with SMTP id f185so5515072pgc.0
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 14:20:15 -0700 (PDT)
-From: Yu Zhao <yuzhao@google.com>
-Subject: [PATCH v4] memcg: refactor mem_cgroup_resize_limit()
-Date: Wed, 14 Jun 2017 14:20:11 -0700
-Message-Id: <20170614212011.25284-1-yuzhao@google.com>
-In-Reply-To: <20170601230212.30578-1-yuzhao@google.com>
-References: <20170601230212.30578-1-yuzhao@google.com>
+        Wed, 14 Jun 2017 14:20:26 -0700 (PDT)
+Subject: Re: [HMM-CDM 0/5] Cache coherent device memory (CDM) with HMM
+References: <20170614201144.9306-1-jglisse@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <8219f8fb-65bb-7c6b-6c4c-acc0601c1e0f@intel.com>
+Date: Wed, 14 Jun 2017 14:20:23 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170614201144.9306-1-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: n.borisov.lkml@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, cgroups@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
-identical logics. Refactor code so we don't need to keep two pieces
-of code that does same thing.
+On 06/14/2017 01:11 PM, JA(C)rA'me Glisse wrote:
+> Cache coherent device memory apply to architecture with system bus
+> like CAPI or CCIX. Device connected to such system bus can expose
+> their memory to the system and allow cache coherent access to it
+> from the CPU.
 
-Signed-off-by: Yu Zhao <yuzhao@google.com>
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
-Changelog since v1:
-* minor style change
-Changelog since v2:
-* fix build error
-Changelog since v3:
-* minor style change
+How does this interact with device memory that's enumerated in the new
+ACPI 6.2 HMAT?  That stuff is also in the normal e820 and, by default,
+treated as normal system RAM.  Would this mechanism be used for those
+devices as well?
 
- mm/memcontrol.c | 77 +++++++++++++--------------------------------------------
- 1 file changed, 17 insertions(+), 60 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 94172089f52f..401f64a3dda1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2422,13 +2422,15 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
- static DEFINE_MUTEX(memcg_limit_mutex);
- 
- static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
--				   unsigned long limit)
-+				   unsigned long limit, bool memsw)
- {
- 	unsigned long curusage;
- 	unsigned long oldusage;
- 	bool enlarge = false;
- 	int retry_count;
- 	int ret;
-+	bool limits_invariant;
-+	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
- 
- 	/*
- 	 * For keeping hierarchical_reclaim simple, how long we should retry
-@@ -2438,7 +2440,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
- 		      mem_cgroup_count_children(memcg);
- 
--	oldusage = page_counter_read(&memcg->memory);
-+	oldusage = page_counter_read(counter);
- 
- 	do {
- 		if (signal_pending(current)) {
-@@ -2447,73 +2449,28 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 		}
- 
- 		mutex_lock(&memcg_limit_mutex);
--		if (limit > memcg->memsw.limit) {
--			mutex_unlock(&memcg_limit_mutex);
--			ret = -EINVAL;
--			break;
--		}
--		if (limit > memcg->memory.limit)
--			enlarge = true;
--		ret = page_counter_limit(&memcg->memory, limit);
--		mutex_unlock(&memcg_limit_mutex);
--
--		if (!ret)
--			break;
--
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
--
--		curusage = page_counter_read(&memcg->memory);
--		/* Usage is reduced ? */
--		if (curusage >= oldusage)
--			retry_count--;
--		else
--			oldusage = curusage;
--	} while (retry_count);
--
--	if (!ret && enlarge)
--		memcg_oom_recover(memcg);
--
--	return ret;
--}
--
--static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
--					 unsigned long limit)
--{
--	unsigned long curusage;
--	unsigned long oldusage;
--	bool enlarge = false;
--	int retry_count;
--	int ret;
--
--	/* see mem_cgroup_resize_res_limit */
--	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
--		      mem_cgroup_count_children(memcg);
--
--	oldusage = page_counter_read(&memcg->memsw);
--
--	do {
--		if (signal_pending(current)) {
--			ret = -EINTR;
--			break;
--		}
--
--		mutex_lock(&memcg_limit_mutex);
--		if (limit < memcg->memory.limit) {
-+		/*
-+		 * Make sure that the new limit (memsw or memory limit) doesn't
-+		 * break our basic invariant rule memory.limit <= memsw.limit.
-+		 */
-+		limits_invariant = memsw ? limit >= memcg->memory.limit :
-+					   limit <= memcg->memsw.limit;
-+		if (!limits_invariant) {
- 			mutex_unlock(&memcg_limit_mutex);
- 			ret = -EINVAL;
- 			break;
- 		}
--		if (limit > memcg->memsw.limit)
-+		if (limit > counter->limit)
- 			enlarge = true;
--		ret = page_counter_limit(&memcg->memsw, limit);
-+		ret = page_counter_limit(counter, limit);
- 		mutex_unlock(&memcg_limit_mutex);
- 
- 		if (!ret)
- 			break;
- 
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
- 
--		curusage = page_counter_read(&memcg->memsw);
-+		curusage = page_counter_read(counter);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
- 			retry_count--;
-@@ -2975,10 +2932,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
- 		}
- 		switch (MEMFILE_TYPE(of_cft(of)->private)) {
- 		case _MEM:
--			ret = mem_cgroup_resize_limit(memcg, nr_pages);
-+			ret = mem_cgroup_resize_limit(memcg, nr_pages, false);
- 			break;
- 		case _MEMSWAP:
--			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
-+			ret = mem_cgroup_resize_limit(memcg, nr_pages, true);
- 			break;
- 		case _KMEM:
- 			ret = memcg_update_kmem_limit(memcg, nr_pages);
--- 
-2.13.1.508.gb3defc5cc-goog
+http://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
