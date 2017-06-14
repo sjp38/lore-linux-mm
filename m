@@ -1,86 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE1A6B02F3
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:17:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a82so94353486pfc.8
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:17:34 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA8806B02F3
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 02:20:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h21so94237675pfk.13
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:20:02 -0700 (PDT)
 Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id o13si913586pgr.169.2017.06.13.23.17.33
+        by mx.google.com with ESMTPS id e27si1590229pfk.188.2017.06.13.23.20.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 23:17:33 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id d5so12963812pfe.1
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:17:33 -0700 (PDT)
-Date: Wed, 14 Jun 2017 14:17:31 +0800
+        Tue, 13 Jun 2017 23:20:02 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id y7so25206404pfd.3
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 23:20:01 -0700 (PDT)
+Date: Wed, 14 Jun 2017 14:19:59 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 04/14] mm, memory_hotplug: get rid of
- is_zone_device_section
-Message-ID: <20170614061731.GC14009@WeideMBP.lan>
+Subject: Re: [RESEND PATCH] base/memory: pass the base_section in
+ add_memory_block
+Message-ID: <20170614061959.GD14009@WeideMBP.lan>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <20170515085827.16474-5-mhocko@kernel.org>
- <CADZGycawwb8FBqj=4g3NThvT-uKREbaH+kYAxvXRrW1Vd5wsvA@mail.gmail.com>
- <CADZGycZtBzA7E_nsKSxYZ8HFGQ2cpQqN62G4MfU1E9vwC2UfcQ@mail.gmail.com>
- <20170612064952.GE4145@dhcp22.suse.cz>
+References: <20170614054550.14469-1-richard.weiyang@gmail.com>
+ <20170614055925.GA6045@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="xesSdrSSBC0PokLI"
+	protocol="application/pgp-signature"; boundary="RhUH2Ysw6aD5utA4"
 Content-Disposition: inline
-In-Reply-To: <20170612064952.GE4145@dhcp22.suse.cz>
+In-Reply-To: <20170614055925.GA6045@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
---xesSdrSSBC0PokLI
+--RhUH2Ysw6aD5utA4
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Mon, Jun 12, 2017 at 08:49:53AM +0200, Michal Hocko wrote:
->On Sat 10-06-17 22:58:21, Wei Yang wrote:
->> On Sat, Jun 10, 2017 at 5:56 PM, Wei Yang <richard.weiyang@gmail.com> wr=
-ote:
->[...]
->> > Hmm... one question about the memory_block behavior.
->> >
->> > In case one memory_block contains more than one memory section.
->> > If one section is "device zone", the whole memory_block is not visible
->> > in sysfs. Or until the whole memory_block is full, the sysfs is visibl=
-e.
->> >
->>=20
->> Ok, I made a mistake here. The memory_block device is visible in this
->> case, while the sysfs link between memory_block and node is not visible
->> for the whole memory_block device.
+On Wed, Jun 14, 2017 at 07:59:25AM +0200, Michal Hocko wrote:
+>On Wed 14-06-17 13:45:50, Wei Yang wrote:
+>> Based on Greg's comment, cc it to mm list.
+>> The original thread could be found https://lkml.org/lkml/2017/6/7/202
 >
->yes the behavior is quite messy
+
+Wow, you are still working~ I just moved your response in this thread~
+
+So that other audience would be convenient to see the whole story.
+
+>I have already given you feedback
+>http://lkml.kernel.org/r/20170613114842.GI10819@dhcp22.suse.cz
+>and you seemed to ignore it completely.
 >
+>> The second parameter of init_memory_block() is used to calculate the
+>> start_section_nr of this block, which means any section in the same block
+>> would get the same start_section_nr.
 >>=20
->> BTW, current register_mem_sect_under_node() will create the sysfs
->> link between memory_block and node for each pfn, while actually
->> we only need one link between them. If I am correct.
+>> This patch passes the base_section to init_memory_block(), so that to
+>> reduce a local variable and a check in every loop.
 >>=20
->> If you think it is fine, I would like to change this one to create the l=
-ink
->> on section base.
+>> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+>> ---
+>>  drivers/base/memory.c | 7 +++----
+>>  1 file changed, 3 insertions(+), 4 deletions(-)
+>>=20
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index cc4f1d0cbffe..1e903aba2aa1 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -664,21 +664,20 @@ static int init_memory_block(struct memory_block *=
+*memory,
+>>  static int add_memory_block(int base_section_nr)
+>>  {
+>>  	struct memory_block *mem;
+>> -	int i, ret, section_count =3D 0, section_nr;
+>> +	int i, ret, section_count =3D 0;
+>> =20
+>>  	for (i =3D base_section_nr;
+>>  	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
+>>  	     i++) {
+>>  		if (!present_section_nr(i))
+>>  			continue;
+>> -		if (section_count =3D=3D 0)
+>> -			section_nr =3D i;
+>>  		section_count++;
+>>  	}
+>> =20
+>>  	if (section_count =3D=3D 0)
+>>  		return 0;
+>> -	ret =3D init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLIN=
+E);
+>> +	ret =3D init_memory_block(&mem, __nr_to_section(base_section_nr),
+>> +				MEM_ONLINE);
+>>  	if (ret)
+>>  		return ret;
+>>  	mem->section_count =3D section_count;
+>> --=20
+>> 2.11.0
 >
->My longer term plan was to unify all the code to be either memory block
->or memory section oriented. The first sounds more logical from the user
->visible granularity point of view but there might be some corner cases
-
-This means the granularity of hotplug is memory_block instead of mem_sectio=
-n?
-
-While I see the alignment check of add_memory_resource() is SECTION size.
-
->which would require to use section based approach. I didn't have time to
->study that. If you want to play with that, feel free of course.
-
-Yep, I am really want to help, while these inter-connected concepts makes me
-confused. I need to learn more on these.
-
 >--=20
 >Michal Hocko
 >SUSE Labs
@@ -89,28 +103,28 @@ confused. I need to learn more on these.
 Wei Yang
 Help you, Help me
 
---xesSdrSSBC0PokLI
+--RhUH2Ysw6aD5utA4
 Content-Type: application/pgp-signature; name="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJZQNT7AAoJEKcLNpZP5cTdJuAP/0ltP8WW1G18Ba5A0Jwo2QfO
-Mqwxct1XLdHDcmWfq3fqHwY1HlZevqn7Hd3kkJ76DAx6u2VtcY23A7Q7jVaTagNV
-rUL4Iqdc4EK8gBhB7rWfV5XwVhASi8dx8AjMGckTA1Kt0k/8K7D8cixENJYbhdS/
-z2IGTP1xkqz3I0o1JPE7BX7uCRBwEgjMiLY6/BcujR8+KmyCyQjrGIAIzUpDw/EX
-QmF3F25rYD/hs1zKW50bnSjssPhVNHhz+o0iU8vvjkF4yuNACkW+yNhnF2ySpfT5
-yoeQ4TX8gyKtzZx/zlMN99MumqaW/4EW3A9haAEamar6EGyn9CdEDWC6pKqIkvSV
-rFm059XAW17KBv1iWbiRF4rMBzfJlK/GVuVs44VWeMxHxzNl3eFPA3kNuetegTMr
-Yl2zL9+ZiDUxOdoR5dzMNu9QZy4oZDWll/bQG4XOleWVeyDLeAHbuS22QrroX0Gu
-yWv8qj4DqVFEqnFsOveydewZSKmp7350bu14dy2tLceyESr/1SVW+FmHQngJ2R3m
-hObKsB9fg3Q/FU8wPUt3IEF6pAaBtOPAAur5Rnf9dboeTjkeSGJjj1D2ubk8yD60
-RNQcbq29tD5cCHGcRbQCZhgOqYtKHbVb1ZCgf8NNA7MBlIfIjV+k338YKdphroh0
-4TyWm9VTEP4P/wn7tmgy
-=Qtse
+iQIcBAEBCAAGBQJZQNWPAAoJEKcLNpZP5cTdhrMP/jKTVLGQMtrcpVaqAFQpN8Wq
+J0kd6J1jlAYeLkK12UUQ3zr9PYvsj5AHG4LLTYmO4KtGp6xUTfKLRfT440AjaVuV
+78jXupMQxeASgqn7N54m182eDZ7zg4RWcRnqU0k5fxdHUeuQ74MiEoIx8/U4ced0
+ap8Ifv+XJwTRI2wBna5V5l2GsbihYu3RAYaQCK7au/384HiOXJSRU0C566mOwecY
+OrFEVmHmYz+Pcvj++BksmfQFsJistimn2sw+sQptzp8IXU7dnWyiDfvnZ1cFU3gE
+kCcrPnnDTgwkYOZkwJPtbk1moJKv9tmYrhDNwKH47VTCXXbGIs+e41hr+Q4l0jUR
+pxPj6vylcAy/99Z38Soe5G6P1yQ7rcDtRklUA+Stx4ZTszj8sS+tVQV7+Rt76XGi
+kapg7XbuOE3SeC6mxZ6JIomaQDTc0aMvi600kjqHd5CC9gDePU9YBRZZaaSRgX9R
+DD9eGCQOCr141TDKqguERToaso9D9O70OrWWoGB4ZzXf3H133u43JnQ5ypgYLCTA
+BDTRDkyeUqYLIhHquC0W7SLExlZstAkH5/d3wY/MOQFpuGdWmccGMMu/nLWJxz3S
+F7LPnBt/IFrKYjpI3PWUk4KiB2q8egQeo5eCQ9ZsFjdccJ2R7+5rYcorWO8HqxlC
+rBqpLRhhh3eZc+2ASq+q
+=Hr3K
 -----END PGP SIGNATURE-----
 
---xesSdrSSBC0PokLI--
+--RhUH2Ysw6aD5utA4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
