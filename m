@@ -1,137 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B596D6B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:19:09 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q97so39991wrb.14
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 06:19:09 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 429A86B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:43:03 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g36so224287wrg.4
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 06:43:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c195si10912wmc.103.2017.06.14.06.19.07
+        by mx.google.com with ESMTPS id 77si88811wmq.37.2017.06.14.06.43.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 06:19:07 -0700 (PDT)
+        Wed, 14 Jun 2017 06:43:01 -0700 (PDT)
+Date: Wed, 14 Jun 2017 15:42:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [RFC PATCH 1/4] mm, hugetlb: unclutter hugetlb allocation layers
+Message-ID: <20170614134258.GP6045@dhcp22.suse.cz>
 References: <20170613090039.14393-1-mhocko@kernel.org>
  <20170613090039.14393-2-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz>
-Date: Wed, 14 Jun 2017 15:18:26 +0200
+ <1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170613090039.14393-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/13/2017 11:00 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:
+> On 06/13/2017 11:00 AM, Michal Hocko wrote:
+[...]
+> > @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+> >  		page = dequeue_huge_page_node(h, nid);
+> >  	spin_unlock(&hugetlb_lock);
+> >  
+> > -	if (!page)
+> > -		page = __alloc_buddy_huge_page_no_mpol(h, nid);
+> > +	if (!page) {
+> > +		nodemask_t nmask;
+> > +
+> > +		if (nid != NUMA_NO_NODE) {
+> > +			nmask = NODE_MASK_NONE;
+> > +			node_set(nid, nmask);
 > 
-> Hugetlb allocation path for fresh huge pages is unnecessarily complex
-> and it mixes different interfaces between layers. __alloc_buddy_huge_page
-> is the central place to perform a new allocation. It checks for the
-> hugetlb overcommit and then relies on __hugetlb_alloc_buddy_huge_page to
-> invoke the page allocator. This is all good except that
-> __alloc_buddy_huge_page pushes vma and address down the callchain and
-> so __hugetlb_alloc_buddy_huge_page has to deal with two different
-> allocation modes - one for memory policy and other node specific (or to
-> make it more obscure node non-specific) requests. This just screams for a
-> reorganization.
-> 
-> This patch pulls out all the vma specific handling up to
-> __alloc_buddy_huge_page_with_mpol where it belongs.
-> __alloc_buddy_huge_page will get nodemask argument and
-> __hugetlb_alloc_buddy_huge_page will become a trivial wrapper over the
-> page allocator.
-> 
-> In short:
-> __alloc_buddy_huge_page_with_mpol - memory policy handling
->   __alloc_buddy_huge_page - overcommit handling and accounting
->     __hugetlb_alloc_buddy_huge_page - page allocator layer
-> 
-> Also note that __hugetlb_alloc_buddy_huge_page and its cpuset retry loop
-> is not really needed because the page allocator already handles the
-> cpusets update.
-> 
-> Finally __hugetlb_alloc_buddy_huge_page had a special case for node
-> specific allocations (when no policy is applied and there is a node
-> given). This has relied on __GFP_THISNODE to not fallback to a different
-> node. alloc_huge_page_node is the only caller which relies on this
-> behavior. Keep it for now and emulate it by a proper nodemask.
-> 
-> Not only this removes quite some code it also should make those layers
-> easier to follow and clear wrt responsibilities.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  include/linux/hugetlb.h |   2 +-
->  mm/hugetlb.c            | 134 +++++++++++-------------------------------------
->  2 files changed, 31 insertions(+), 105 deletions(-)
+> TBH I don't like this hack too much, and would rather see __GFP_THISNODE
+> involved, which picks a different (short) zonelist. Also it's allocating
+> nodemask on stack, which we generally avoid? Although the callers
+> currently seem to be shallow.
 
-Very nice cleanup indeed!
+Fair enough. That would require pulling gfp mask handling up the call
+chain. This on top of this patch + refreshes for other patches later in
+the series as they will conflict now?
+---
+commit dcd863b48fb2c93e5aebce818e75c30978e26cf1
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Wed Jun 14 15:41:07 2017 +0200
 
-> @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
->  		page = dequeue_huge_page_node(h, nid);
->  	spin_unlock(&hugetlb_lock);
->  
-> -	if (!page)
-> -		page = __alloc_buddy_huge_page_no_mpol(h, nid);
-> +	if (!page) {
-> +		nodemask_t nmask;
-> +
-> +		if (nid != NUMA_NO_NODE) {
-> +			nmask = NODE_MASK_NONE;
-> +			node_set(nid, nmask);
+    fold me
+    
+    - pull gfp mask out of __hugetlb_alloc_buddy_huge_page and make it an
+      explicit argument to allow __GFP_THISNODE in alloc_huge_page_node per
+      Vlastimil
 
-TBH I don't like this hack too much, and would rather see __GFP_THISNODE
-involved, which picks a different (short) zonelist. Also it's allocating
-nodemask on stack, which we generally avoid? Although the callers
-currently seem to be shallow.
-
-> +		} else {
-> +			nmask = node_states[N_MEMORY];
-
-If nothing, this case could pass NULL? Although that would lead to
-uglier code too...
-
-> +		}
-> +		page = __alloc_buddy_huge_page(h, nid, &nmask);
-> +	}
->  
->  	return page;
->  }
->  
-> -struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask)
-> +struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
->  {
->  	struct page *page = NULL;
->  	int node;
-> @@ -1741,13 +1673,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask)
->  		return page;
->  
->  	/* No reservations, try to overcommit */
-> -	for_each_node_mask(node, *nmask) {
-> -		page = __alloc_buddy_huge_page_no_mpol(h, node);
-> -		if (page)
-> -			return page;
-> -	}
-> -
-> -	return NULL;
-> +	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);
->  }
->  
->  /*
-> @@ -1775,7 +1701,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
->  retry:
->  	spin_unlock(&hugetlb_lock);
->  	for (i = 0; i < needed; i++) {
-> -		page = __alloc_buddy_huge_page_no_mpol(h, NUMA_NO_NODE);
-> +		page = __alloc_buddy_huge_page(h, NUMA_NO_NODE, NULL);
->  		if (!page) {
->  			alloc_ok = false;
->  			break;
-> 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 3d5f25d589b3..afc87de5de5c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1532,17 +1532,18 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+-		int nid, nodemask_t *nmask)
++		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+ {
+ 	int order = huge_page_order(h);
+-	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+ 
++	gfp_mask |= __GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+ 	if (nid == NUMA_NO_NODE)
+ 		nid = numa_mem_id();
+-	return __alloc_pages_nodemask(gfp, order, nid, nmask);
++	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+ }
+ 
+-static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_t *nmask)
++static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
++		int nid, nodemask_t *nmask)
+ {
+ 	struct page *page;
+ 	unsigned int r_nid;
+@@ -1583,7 +1584,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	page = __hugetlb_alloc_buddy_huge_page(h, nid, nmask);
++	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (page) {
+@@ -1616,11 +1617,12 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+ {
+ 	struct page *page;
+ 	struct mempolicy *mpol;
++	gfp_t gfp_mask = htlb_alloc_mask(h);
+ 	int nid;
+ 	nodemask_t *nodemask;
+ 
+-	nid = huge_node(vma, addr, htlb_alloc_mask(h), &mpol, &nodemask);
+-	page = __alloc_buddy_huge_page(h, nid, nodemask);
++	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
++	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
+ 	mpol_cond_put(mpol);
+ 
+ 	return page;
+@@ -1633,30 +1635,26 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+  */
+ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ {
++	gfp_t gfp_mask = htlb_alloc_mask(h);
+ 	struct page *page = NULL;
+ 
++	if (nid != NUMA_NO_NODE)
++		gfp_mask |= __GFP_THISNODE;
++
+ 	spin_lock(&hugetlb_lock);
+ 	if (h->free_huge_pages - h->resv_huge_pages > 0)
+ 		page = dequeue_huge_page_node(h, nid);
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	if (!page) {
+-		nodemask_t nmask;
+-
+-		if (nid != NUMA_NO_NODE) {
+-			nmask = NODE_MASK_NONE;
+-			node_set(nid, nmask);
+-		} else {
+-			nmask = node_states[N_MEMORY];
+-		}
+-		page = __alloc_buddy_huge_page(h, nid, &nmask);
+-	}
++	if (!page)
++		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
+ 
+ 	return page;
+ }
+ 
+ struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+ {
++	gfp_t gfp_mask = htlb_alloc_mask(h);
+ 	struct page *page = NULL;
+ 	int node;
+ 
+@@ -1673,7 +1671,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+ 		return page;
+ 
+ 	/* No reservations, try to overcommit */
+-	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);
++	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);
+ }
+ 
+ /*
+@@ -1701,7 +1699,8 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = __alloc_buddy_huge_page(h, NUMA_NO_NODE, NULL);
++		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
++				NUMA_NO_NODE, NULL);
+ 		if (!page) {
+ 			alloc_ok = false;
+ 			break;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
