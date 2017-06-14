@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E04B36B02B4
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 15:38:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b74so8086913pfj.5
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:38:57 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0051.outbound.protection.outlook.com. [104.47.40.51])
-        by mx.google.com with ESMTPS id 1si595523plx.88.2017.06.14.12.38.56
+	by kanga.kvack.org (Postfix) with ESMTP id BEAC76B0292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 15:49:12 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b74so8253447pfj.5
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:49:12 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0045.outbound.protection.outlook.com. [104.47.38.45])
+        by mx.google.com with ESMTPS id d4si601561pgc.141.2017.06.14.12.49.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 14 Jun 2017 12:38:57 -0700 (PDT)
-Subject: Re: [PATCH v6 24/34] x86, swiotlb: Add memory encryption support
+        Wed, 14 Jun 2017 12:49:11 -0700 (PDT)
+Subject: Re: [PATCH v6 25/34] swiotlb: Add warnings for use of bounce buffers
+ with SME
 References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191721.28645.96519.stgit@tlendack-t1.amdoffice.net>
- <20170614164553.jwcfgugpizz5pc2e@pd.tnic>
+ <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
+ <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <c1a59a06-2850-b215-5c08-27adff6fecde@amd.com>
-Date: Wed, 14 Jun 2017 14:38:48 -0500
+Message-ID: <33d1debc-c684-cba1-7d95-493678f086d0@amd.com>
+Date: Wed, 14 Jun 2017 14:49:02 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170614164553.jwcfgugpizz5pc2e@pd.tnic>
+In-Reply-To: <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -26,86 +27,91 @@ List-ID: <linux-mm.kvack.org>
 To: Borislav Petkov <bp@alien8.de>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 6/14/2017 11:45 AM, Borislav Petkov wrote:
-> On Wed, Jun 07, 2017 at 02:17:21PM -0500, Tom Lendacky wrote:
->> Since DMA addresses will effectively look like 48-bit addresses when the
->> memory encryption mask is set, SWIOTLB is needed if the DMA mask of the
->> device performing the DMA does not support 48-bits. SWIOTLB will be
->> initialized to create decrypted bounce buffers for use by these devices.
+On 6/14/2017 11:50 AM, Borislav Petkov wrote:
+> On Wed, Jun 07, 2017 at 02:17:32PM -0500, Tom Lendacky wrote:
+>> Add warnings to let the user know when bounce buffers are being used for
+>> DMA when SME is active.  Since the bounce buffers are not in encrypted
+>> memory, these notifications are to allow the user to determine some
+>> appropriate action - if necessary.
 >>
 >> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 >> ---
-> 
-> ...
-> 
-> 
->> diff --git a/init/main.c b/init/main.c
->> index df58a41..7125b5f 100644
->> --- a/init/main.c
->> +++ b/init/main.c
->> @@ -488,6 +488,10 @@ void __init __weak thread_stack_cache_init(void)
+>>   arch/x86/include/asm/mem_encrypt.h |    8 ++++++++
+>>   include/asm-generic/mem_encrypt.h  |    5 +++++
+>>   include/linux/dma-mapping.h        |    9 +++++++++
+>>   lib/swiotlb.c                      |    3 +++
+>>   4 files changed, 25 insertions(+)
+>>
+>> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+>> index f1215a4..c7a2525 100644
+>> --- a/arch/x86/include/asm/mem_encrypt.h
+>> +++ b/arch/x86/include/asm/mem_encrypt.h
+>> @@ -69,6 +69,14 @@ static inline bool sme_active(void)
+>>   	return !!sme_me_mask;
 >>   }
->>   #endif
 >>   
->> +void __init __weak mem_encrypt_init(void)
+>> +static inline u64 sme_dma_mask(void)
 >> +{
+>> +	if (!sme_me_mask)
+>> +		return 0ULL;
+>> +
+>> +	return ((u64)sme_me_mask << 1) - 1;
 >> +}
+>> +
+>>   /*
+>>    * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when
+>>    * writing to or comparing values from the cr3 register.  Having the
+>> diff --git a/include/asm-generic/mem_encrypt.h b/include/asm-generic/mem_encrypt.h
+>> index b55c3f9..fb02ff0 100644
+>> --- a/include/asm-generic/mem_encrypt.h
+>> +++ b/include/asm-generic/mem_encrypt.h
+>> @@ -22,6 +22,11 @@ static inline bool sme_active(void)
+>>   	return false;
+>>   }
+>>   
+>> +static inline u64 sme_dma_mask(void)
+>> +{
+>> +	return 0ULL;
+>> +}
+>> +
+>>   /*
+>>    * The __sme_set() and __sme_clr() macros are useful for adding or removing
+>>    * the encryption mask from a value (e.g. when dealing with pagetable
+>> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+>> index 4f3eece..e2c5fda 100644
+>> --- a/include/linux/dma-mapping.h
+>> +++ b/include/linux/dma-mapping.h
+>> @@ -10,6 +10,7 @@
+>>   #include <linux/scatterlist.h>
+>>   #include <linux/kmemcheck.h>
+>>   #include <linux/bug.h>
+>> +#include <linux/mem_encrypt.h>
+>>   
+>>   /**
+>>    * List of possible attributes associated with a DMA mapping. The semantics
+>> @@ -577,6 +578,10 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
+>>   
+>>   	if (!dev->dma_mask || !dma_supported(dev, mask))
+>>   		return -EIO;
+>> +
+>> +	if (sme_active() && (mask < sme_dma_mask()))
+>> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
 > 
-> void __init __weak mem_encrypt_init(void) { }
+> Something looks strange here:
 > 
-> saves some real estate. Please do that for the rest of the stubs you're
-> adding, for the next version.
+> you're checking sme_active() before calling sme_dma_mask() and yet in
+> it, you're checking !sme_me_mask again. What gives?
+> 
 
-Ok, will do.
+I guess I don't need the sme_active() check since the second part of the
+if statement can only ever be true if SME is active (since mask is
+unsigned).
 
 Thanks,
 Tom
 
-> 
->> +
->>   /*
->>    * Set up kernel memory allocators
->>    */
->> @@ -640,6 +644,15 @@ asmlinkage __visible void __init start_kernel(void)
->>   	 */
->>   	locking_selftest();
->>   
->> +	/*
->> +	 * This needs to be called before any devices perform DMA
->> +	 * operations that might use the SWIOTLB bounce buffers.
->> +	 * This call will mark the bounce buffers as decrypted so
->> +	 * that their usage will not cause "plain-text" data to be
->> +	 * decrypted when accessed.
-> 
-> s/This call/It/
-> 
->> +	 */
->> +	mem_encrypt_init();
->> +
->>   #ifdef CONFIG_BLK_DEV_INITRD
->>   	if (initrd_start && !initrd_below_start_ok &&
->>   	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
->> diff --git a/lib/swiotlb.c b/lib/swiotlb.c
->> index a8d74a7..74d6557 100644
->> --- a/lib/swiotlb.c
->> +++ b/lib/swiotlb.c
->> @@ -30,6 +30,7 @@
->>   #include <linux/highmem.h>
->>   #include <linux/gfp.h>
->>   #include <linux/scatterlist.h>
->> +#include <linux/mem_encrypt.h>
->>   
->>   #include <asm/io.h>
->>   #include <asm/dma.h>
->> @@ -155,6 +156,17 @@ unsigned long swiotlb_size_or_default(void)
->>   	return size ? size : (IO_TLB_DEFAULT_SIZE);
->>   }
->>   
->> +void __weak swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
->> +{
->> +}
-> 
-> As above.
+> Why not move the sme_active() check into sme_dma_mask() and thus
+> simplify callers?
 > 
 
 --
