@@ -1,64 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4AA83292
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:09:13 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o21so2395467qtb.13
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:09:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f8si331284qkb.268.2017.06.14.09.09.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5604483292
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 12:18:00 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v60so1492219wrc.7
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 09:18:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i9si457930wmb.35.2017.06.14.09.17.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 09:09:12 -0700 (PDT)
-Date: Wed, 14 Jun 2017 18:09:09 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/3] x86/mm: Provide pmdp_mknotpresent() helper
-Message-ID: <20170614160909.GE5847@redhat.com>
-References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
- <20170614135143.25068-2-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Jun 2017 09:17:58 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/4] hugetlb: add support for preferred node to
+ alloc_huge_page_nodemask
+References: <20170613090039.14393-1-mhocko@kernel.org>
+ <20170613090039.14393-3-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1b208520-8d4b-9a58-7384-1a031b610e15@suse.cz>
+Date: Wed, 14 Jun 2017 18:17:18 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170614135143.25068-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170613090039.14393-3-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jun 14, 2017 at 04:51:41PM +0300, Kirill A. Shutemov wrote:
-> We need an atomic way to make pmd page table entry not-present.
-> This is required to implement pmdp_invalidate() that doesn't loose dirty
-> or access bits.
+On 06/13/2017 11:00 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> alloc_huge_page_nodemask tries to allocate from any numa node in the
+> allowed node mask starting from lower numa nodes. This might lead to
+> filling up those low NUMA nodes while others are not used. We can reduce
+> this risk by introducing a concept of the preferred node similar to what
+> we have in the regular page allocator. We will start allocating from the
+> preferred nid and then iterate over all allowed nodes in the zonelist
+> order until we try them all.
+> 
+> This is mimicking the page allocator logic except it operates on
+> per-node mempools. dequeue_huge_page_vma already does this so distill
+> the zonelist logic into a more generic dequeue_huge_page_nodemask
+> and use it in alloc_huge_page_nodemask.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-What does the cmpxchg() loop achieves compared to xchg() and then
-return the old value (potentially with the dirty bit set when it was
-not before we called xchg)?
+I've reviewed the current version in git, where patch 3/4 is folded.
 
-> index f5af95a0c6b8..576420df12b8 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -1092,6 +1092,19 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
->  	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+Noticed some things below, but after fixing:
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -897,29 +897,58 @@ static struct page *dequeue_huge_page_node_exact(struct hstate *h, int nid)
+>  	return page;
 >  }
 >  
-> +#ifndef pmdp_mknotpresent
-> +#define pmdp_mknotpresent pmdp_mknotpresent
-> +static inline void pmdp_mknotpresent(pmd_t *pmdp)
-> +{
-> +	pmd_t old, new;
-> +
-> +	{
-> +		old = *pmdp;
-> +		new = pmd_mknotpresent(old);
-> +	} while (pmd_val(cmpxchg(pmdp, old, new)) != pmd_val(old));
+> -static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+> +/* Movability of hugepages depends on migration support. */
+> +static inline gfp_t htlb_alloc_mask(struct hstate *h)
+>  {
+> -	struct page *page;
+> -	int node;
+> +	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
+> +		return GFP_HIGHUSER_MOVABLE;
+> +	else
+> +		return GFP_HIGHUSER;
 > +}
-> +#endif
+>  
+> -	if (nid != NUMA_NO_NODE)
+> -		return dequeue_huge_page_node_exact(h, nid);
+> +static struct page *dequeue_huge_page_nodemask(struct hstate *h, int nid,
+> +		nodemask_t *nmask)
+> +{
+> +	unsigned int cpuset_mems_cookie;
+> +	struct zonelist *zonelist;
+> +	struct page *page = NULL;
+> +	struct zone *zone;
+> +	struct zoneref *z;
+> +	gfp_t gfp_mask;
+> +	int node = -1;
+> +
+> +	gfp_mask = htlb_alloc_mask(h);
+> +	zonelist = node_zonelist(nid, gfp_mask);
+> +
+> +retry_cpuset:
+> +	cpuset_mems_cookie = read_mems_allowed_begin();
+> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), nmask) {
+> +		if (!cpuset_zone_allowed(zone, gfp_mask))
+> +			continue;
+> +		/*
+> +		 * no need to ask again on the same node. Pool is node rather than
+> +		 * zone aware
+> +		 */
+> +		if (zone_to_nid(zone) == node)
+> +			continue;
+> +		node = zone_to_nid(zone);
+>  
+> -	for_each_online_node(node) {
+>  		page = dequeue_huge_page_node_exact(h, node);
+>  		if (page)
+> -			return page;
+> +			break;
 
-Isn't it faster to do xchg(&xp->pmd, pmd_mknotpresent(pmd)) and have
-the pmdp_invalidate caller can set the dirty bit in the page if it was
-found set in the returned old pmd value (and skip the loop and cmpxchg)?
+Either keep return page here...
 
-Thanks,
-Andrea
+>  	}
+> +	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+> +		goto retry_cpuset;
+> +
+>  	return NULL;
+
+... or return page here.
+
+>  }
+>  
+> -/* Movability of hugepages depends on migration support. */
+> -static inline gfp_t htlb_alloc_mask(struct hstate *h)
+> +static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+>  {
+> -	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
+> -		return GFP_HIGHUSER_MOVABLE;
+> -	else
+> -		return GFP_HIGHUSER;
+> +	if (nid != NUMA_NO_NODE)
+> +		return dequeue_huge_page_node_exact(h, nid);
+> +
+> +	return dequeue_huge_page_nodemask(h, nid, NULL);
+>  }
+>  
+
+...
+
+> @@ -1655,25 +1661,25 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>  	return page;
+>  }
+>  
+> -struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+> +
+> +struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+> +		nodemask_t *nmask)
+>  {
+>  	struct page *page = NULL;
+> -	int node;
+>  
+>  	spin_lock(&hugetlb_lock);
+>  	if (h->free_huge_pages - h->resv_huge_pages > 0) {
+> -		for_each_node_mask(node, *nmask) {
+> -			page = dequeue_huge_page_node_exact(h, node);
+> -			if (page)
+> -				break;
+> -		}
+> +		page = dequeue_huge_page_nodemask(h, preferred_nid, nmask);
+
+
+
+> +		if (page)
+> +			goto unlock;
+>  	}
+> +unlock:
+
+This doesn't seem needed?
+
+>  	spin_unlock(&hugetlb_lock);
+>  	if (page)
+>  		return page;
+>  
+>  	/* No reservations, try to overcommit */
+> -	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);
+> +	return __alloc_buddy_huge_page(h, preferred_nid, nmask);
+>  }
+>  
+>  /*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
