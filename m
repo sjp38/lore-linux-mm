@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E40166B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:45:40 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id f185so95364852pgc.10
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:45:40 -0700 (PDT)
-Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
-        by mx.google.com with ESMTPS id n9si880312pgt.139.2017.06.13.21.45.40
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E276B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 00:52:27 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id i42so64841743otb.0
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:52:27 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u30si1157453otd.142.2017.06.13.21.52.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jun 2017 21:45:40 -0700 (PDT)
-Received: by mail-pg0-x230.google.com with SMTP id k71so69985377pgd.2
-        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:45:40 -0700 (PDT)
-Date: Wed, 14 Jun 2017 13:45:30 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: [RFC][PATCH] slub: Introduce 'alternate' per cpu partial lists
-Message-ID: <20170614044528.GA5924@js1304-desktop>
-References: <1496965984-21962-1-git-send-email-labbott@redhat.com>
+        Tue, 13 Jun 2017 21:52:25 -0700 (PDT)
+Received: from mail-ua0-f173.google.com (mail-ua0-f173.google.com [209.85.217.173])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id E524B239B5
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:52:24 +0000 (UTC)
+Received: by mail-ua0-f173.google.com with SMTP id m31so87834447uam.1
+        for <linux-mm@kvack.org>; Tue, 13 Jun 2017 21:52:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1496965984-21962-1-git-send-email-labbott@redhat.com>
+In-Reply-To: <87wp8pol4u.fsf@firstfloor.org>
+References: <cover.1496701658.git.luto@kernel.org> <d4eafd524ee51d003d7f7302d5e4e44dc4919e08.1496701658.git.luto@kernel.org>
+ <87wp8pol4u.fsf@firstfloor.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 13 Jun 2017 21:52:03 -0700
+Message-ID: <CALCETrV-Wkqt89fJmjgK_BAdmzvXG8Vr1aTXDSnLRPO1NhwYYA@mail.gmail.com>
+Subject: Re: [RFC 08/11] x86/mm: Add nopcid to turn off PCID
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, Jun 08, 2017 at 04:53:04PM -0700, Laura Abbott wrote:
-> SLUB debugging features (poisoning, red zoning etc.) skip the fast path
-> completely. This ensures there is a single place to do all checks and
-> take any locks that may be necessary for debugging. The overhead of some
-> of the debugging features (e.g. poisoning) ends up being comparatively
-> small vs the overhead of not using the fast path.
-> 
-> We don't want to impose any kind of overhead on the fast path so
-> introduce the notion of an alternate fast path. This is essentially the
-> same idea as the existing fast path (store partially used pages on the
-> per-cpu list) but it happens after the real fast path. Debugging that
-> doesn't require locks (poisoning/red zoning) can happen on this path to
-> avoid the penalty of always needing to go for the slow path.
-> 
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
-> This is a follow up to my previous proposal to speed up slub_debug=P
-> https://marc.info/?l=linux-mm&m=145920558822958&w=2 . The current approach
-> is hopelessly slow and can't really be used outside of limited debugging.
-> The goal is to make slub_debug=P more usable for general use.
-> 
-> Joonsoo Kim pointed out that my previous attempt still wouldn't scale
-> as it still involved taking the list_lock for every allocation. He suggested
-> adding per-cpu support, as did Christoph Lameter in a separate thread. This
-> proposal adds a separate per-cpu list for use when poisoning is enabled.
-> For this version, I'm mostly looking for general feedback about how reasonable
-> this approach is before trying to clean it up more.
-> 
-> - Some of this code is redundant and can probably be combined.
-> - The fast path is very sensitive and it was suggested I leave it alone. The
-> approach I took means the fastpath cmpxchg always fails before trying the
-> alternate cmpxchg. From some of my profiling, the cmpxchg seemed to be fairly
-> expensive.
+On Mon, Jun 5, 2017 at 8:22 PM, Andi Kleen <andi@firstfloor.org> wrote:
+> Andy Lutomirski <luto@kernel.org> writes:
+>
+>> The parameter is only present on x86_64 systems to save a few bytes,
+>> as PCID is always disabled on x86_32.
+>
+> Seems redundant with clearcpuid.
+>
 
-It looks better to modify the fastpath for non-debuging poisoning. If
-we use the jump label, it doesn't cause any overhead to the fastpath
-for the user who doesn't use this feature. It really makes thing
-simpler. Only a few more lines will be needed in the fastpath.
+It is.  OTOH, there are lots of noxyz options, and they're easier to
+type and to remember.  Borislav?  Sometime I wonder whether we should
+autogenerate noxyz options from the capflags table.
 
-Christoph, any opinion?
-
-Thanks.
+> -Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
