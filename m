@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0D46B02FD
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 16:12:05 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o41so6973857qtf.8
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:12:05 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 713BF6B0311
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 16:12:07 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id s33so7006561qtg.1
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 13:12:07 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w28si885386qta.233.2017.06.14.13.12.03
+        by mx.google.com with ESMTPS id a7si819291qkb.250.2017.06.14.13.12.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 13:12:04 -0700 (PDT)
+        Wed, 14 Jun 2017 13:12:06 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM-CDM 4/5] mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC
-Date: Wed, 14 Jun 2017 16:11:43 -0400
-Message-Id: <20170614201144.9306-5-jglisse@redhat.com>
+Subject: [HMM-CDM 5/5] mm/hmm: simplify kconfig and enable HMM and DEVICE_PUBLIC for ppc64
+Date: Wed, 14 Jun 2017 16:11:44 -0400
+Message-Id: <20170614201144.9306-6-jglisse@redhat.com>
 In-Reply-To: <20170614201144.9306-1-jglisse@redhat.com>
 References: <20170614201144.9306-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,187 +21,131 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-HMM pages (private or public device pages) are ZONE_DEVICE page and
-thus need special handling when it comes to lru or refcount. This
-patch make sure that memcontrol properly handle those when it face
-them. Those pages are use like regular pages in a process address
-space either as anonymous page or as file back page. So from memcg
-point of view we want to handle them like regular page for now at
-least.
+This just simplify kconfig and allow HMM and DEVICE_PUBLIC to be
+selected for ppc64 once ZONE_DEVICE is allowed on ppc64 (different
+patchset).
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Cc: Balbir Singh <balbirs@au1.ibm.com>
+Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- kernel/memremap.c |  2 ++
- mm/memcontrol.c   | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 55 insertions(+), 5 deletions(-)
+ include/linux/hmm.h |  4 ++--
+ mm/Kconfig          | 27 ++++++---------------------
+ mm/hmm.c            |  4 ++--
+ 3 files changed, 10 insertions(+), 25 deletions(-)
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index da74775..584984c 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -479,6 +479,8 @@ void put_zone_device_private_or_public_page(struct page *page)
- 		__ClearPageActive(page);
- 		__ClearPageWaiters(page);
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index f6713b2..720d18c 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -327,7 +327,7 @@ int hmm_vma_fault(struct vm_area_struct *vma,
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
  
-+		mem_cgroup_uncharge(page);
-+
- 		page->pgmap->page_free(page, page->pgmap->data);
- 	}
- 	else if (!count)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b93f5fe..171b638 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4391,12 +4391,13 @@ enum mc_target_type {
- 	MC_TARGET_NONE = 0,
- 	MC_TARGET_PAGE,
- 	MC_TARGET_SWAP,
-+	MC_TARGET_DEVICE,
- };
  
- static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- 						unsigned long addr, pte_t ptent)
+-#if IS_ENABLED(CONFIG_HMM_DEVMEM)
++#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) || IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+ struct hmm_devmem;
+ 
+ struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+@@ -456,7 +456,7 @@ struct hmm_device {
+  */
+ struct hmm_device *hmm_device_new(void *drvdata);
+ void hmm_device_put(struct hmm_device *hmm_device);
+-#endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
++#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ 
+ 
+ /* Below are for HMM internal use only! Not to be used by device driver! */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ad082b9..7de939a 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -265,7 +265,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+ config ARCH_HAS_HMM
+ 	bool
+ 	default y
+-	depends on X86_64
++	depends on X86_64 || PPC64
+ 	depends on ZONE_DEVICE
+ 	depends on MMU && 64BIT
+ 	depends on MEMORY_HOTPLUG
+@@ -277,7 +277,7 @@ config HMM
+ 
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+-	depends on ARCH_HAS_HMM
++	depends on ARCH_HAS_HMM && X86_64
+ 	select MMU_NOTIFIER
+ 	select HMM
+ 	help
+@@ -287,15 +287,6 @@ config HMM_MIRROR
+ 	  page tables (at PAGE_SIZE granularity), and must be able to recover from
+ 	  the resulting potential page faults.
+ 
+-config HMM_DEVMEM
+-	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
+-	depends on ARCH_HAS_HMM
+-	select HMM
+-	help
+-	  HMM devmem is a set of helper routines to leverage the ZONE_DEVICE
+-	  feature. This is just to avoid having device drivers to replicating a lot
+-	  of boiler plate code.  See Documentation/vm/hmm.txt.
+-
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ 
+@@ -720,11 +711,8 @@ config ZONE_DEVICE
+ 
+ config DEVICE_PRIVATE
+ 	bool "Unaddressable device memory (GPU memory, ...)"
+-	depends on X86_64
+-	depends on ZONE_DEVICE
+-	depends on MEMORY_HOTPLUG
+-	depends on MEMORY_HOTREMOVE
+-	depends on SPARSEMEM_VMEMMAP
++	depends on ARCH_HAS_HMM && X86_64
++	select HMM
+ 
+ 	help
+ 	  Allows creation of struct pages to represent unaddressable device
+@@ -733,11 +721,8 @@ config DEVICE_PRIVATE
+ 
+ config DEVICE_PUBLIC
+ 	bool "Unaddressable device memory (GPU memory, ...)"
+-	depends on X86_64
+-	depends on ZONE_DEVICE
+-	depends on MEMORY_HOTPLUG
+-	depends on MEMORY_HOTREMOVE
+-	depends on SPARSEMEM_VMEMMAP
++	depends on ARCH_HAS_HMM
++	select HMM
+ 
+ 	help
+ 	  Allows creation of struct pages to represent addressable device
+diff --git a/mm/hmm.c b/mm/hmm.c
+index aed110e..085cc06 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -747,7 +747,7 @@ EXPORT_SYMBOL(hmm_vma_fault);
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ 
+ 
+-#if IS_ENABLED(CONFIG_HMM_DEVMEM)
++#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) || IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+ struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+ 				       unsigned long addr)
  {
--	struct page *page = vm_normal_page(vma, addr, ptent);
-+	struct page *page = _vm_normal_page(vma, addr, ptent, true);
- 
- 	if (!page || !page_mapped(page))
- 		return NULL;
-@@ -4407,13 +4408,20 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- 		if (!(mc.flags & MOVE_FILE))
- 			return NULL;
- 	}
--	if (!get_page_unless_zero(page))
-+	if (is_device_public_page(page)) {
-+		/*
-+		 * MEMORY_DEVICE_PUBLIC means ZONE_DEVICE page and which have a
-+		 * refcount of 1 when free (unlike normal page)
-+		 */
-+		if (!page_ref_add_unless(page, 1, 1))
-+			return NULL;
-+	} else if (!get_page_unless_zero(page))
- 		return NULL;
- 
- 	return page;
+@@ -1306,4 +1306,4 @@ static int __init hmm_init(void)
  }
  
--#ifdef CONFIG_SWAP
-+#if defined(CONFIG_SWAP) || defined(CONFIG_DEVICE_PRIVATE)
- static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 			pte_t ptent, swp_entry_t *entry)
- {
-@@ -4422,6 +4430,23 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 
- 	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
- 		return NULL;
-+
-+	/*
-+	 * Handle MEMORY_DEVICE_PRIVATE which are ZONE_DEVICE page belonging to
-+	 * a device and because they are not accessible by CPU they are store
-+	 * as special swap entry in the CPU page table.
-+	 */
-+	if (is_device_private_entry(ent)) {
-+		page = device_private_entry_to_page(ent);
-+		/*
-+		 * MEMORY_DEVICE_PRIVATE means ZONE_DEVICE page and which have
-+		 * a refcount of 1 when free (unlike normal page)
-+		 */
-+		if (!page_ref_add_unless(page, 1, 1))
-+			return NULL;
-+		return page;
-+	}
-+
- 	/*
- 	 * Because lookup_swap_cache() updates some statistics counter,
- 	 * we call find_get_page() with swapper_space directly.
-@@ -4582,6 +4607,8 @@ static int mem_cgroup_move_account(struct page *page,
-  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-  *     target for charge migration. if @target is not NULL, the entry is stored
-  *     in target->ent.
-+ *   3(MC_TARGET_DEVICE): like MC_TARGET_PAGE  but page is MEMORY_DEVICE_PUBLIC
-+ *     or MEMORY_DEVICE_PRIVATE (so ZONE_DEVICE page and thus not on the lru).
-  *
-  * Called with pte lock held.
-  */
-@@ -4610,6 +4637,9 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 		 */
- 		if (page->mem_cgroup == mc.from) {
- 			ret = MC_TARGET_PAGE;
-+			if (is_device_private_page(page) ||
-+			    is_device_public_page(page))
-+				ret = MC_TARGET_DEVICE;
- 			if (target)
- 				target->page = page;
- 		}
-@@ -4669,6 +4699,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
-+		/*
-+		 * Note their can not be MC_TARGET_DEVICE for now as we do not
-+		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
-+		 * MEMORY_DEVICE_PRIVATE but this might change.
-+		 */
- 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
- 			mc.precharge += HPAGE_PMD_NR;
- 		spin_unlock(ptl);
-@@ -4884,6 +4919,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 				putback_lru_page(page);
- 			}
- 			put_page(page);
-+		} else if (target_type == MC_TARGET_DEVICE) {
-+			page = target.page;
-+			if (!mem_cgroup_move_account(page, true,
-+						     mc.from, mc.to)) {
-+				mc.precharge -= HPAGE_PMD_NR;
-+				mc.moved_charge += HPAGE_PMD_NR;
-+			}
-+			put_page(page);
- 		}
- 		spin_unlock(ptl);
- 		return 0;
-@@ -4895,12 +4938,16 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		pte_t ptent = *(pte++);
-+		bool device = false;
- 		swp_entry_t ent;
- 
- 		if (!mc.precharge)
- 			break;
- 
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
-+		case MC_TARGET_DEVICE:
-+			device = true;
-+			/* fall through */
- 		case MC_TARGET_PAGE:
- 			page = target.page;
- 			/*
-@@ -4911,7 +4958,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 			 */
- 			if (PageTransCompound(page))
- 				goto put;
--			if (isolate_lru_page(page))
-+			if (!device && isolate_lru_page(page))
- 				goto put;
- 			if (!mem_cgroup_move_account(page, false,
- 						mc.from, mc.to)) {
-@@ -4919,7 +4966,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 				/* we uncharge from mc.from later. */
- 				mc.moved_charge++;
- 			}
--			putback_lru_page(page);
-+			if (!device)
-+				putback_lru_page(page);
- put:			/* get_mctgt_type() gets the page */
- 			put_page(page);
- 			break;
+ device_initcall(hmm_init);
+-#endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
++#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 -- 
 2.9.3
 
