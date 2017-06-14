@@ -1,180 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 931446B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 07:55:23 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 20so79634404qtq.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:55:23 -0700 (PDT)
-Received: from mail-qt0-f177.google.com (mail-qt0-f177.google.com. [209.85.216.177])
-        by mx.google.com with ESMTPS id m10si472408qta.186.2017.06.14.04.55.22
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7931B6B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 08:45:25 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v104so38190343wrb.6
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 05:45:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b39si900533wrd.211.2017.06.14.05.45.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 04:55:22 -0700 (PDT)
-Received: by mail-qt0-f177.google.com with SMTP id w1so201003926qtg.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 04:55:22 -0700 (PDT)
-Message-ID: <1497441317.6752.2.camel@redhat.com>
-Subject: Re: [xfstests PATCH v4 5/5] btrfs: make a btrfs version of
- writeback error reporting test
-From: Jeff Layton <jlayton@redhat.com>
-Date: Wed, 14 Jun 2017 07:55:17 -0400
-In-Reply-To: <20170613084034.GE4788@eguan.usersys.redhat.com>
-References: <20170612124213.14855-1-jlayton@redhat.com>
-	 <20170612124213.14855-6-jlayton@redhat.com>
-	 <20170613084034.GE4788@eguan.usersys.redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Jun 2017 05:45:23 -0700 (PDT)
+Date: Wed, 14 Jun 2017 14:45:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/2] mm: improve readability of
+ transparent_hugepage_enabled()
+Message-ID: <20170614124520.GA8537@dhcp22.suse.cz>
+References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eryu Guan <eguan@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, 2017-06-13 at 16:40 +0800, Eryu Guan wrote:
-> On Mon, Jun 12, 2017 at 08:42:13AM -0400, Jeff Layton wrote:
-> > Make a new btrfs/999 test that works the way Chris Mason suggested:
-> > 
-> > Build a filesystem with 2 devices that stripes the data across
-> > both devices, but mirrors metadata across both. Then, make one
-> > of the devices fail and see how fsync is handled.
-> > 
-> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> > ---
-> >  tests/btrfs/999   | 93 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+On Tue 13-06-17 16:08:26, Dan Williams wrote:
+> Turn the macro into a static inline and rewrite the condition checks for
+> better readability in preparation for adding another condition.
 > 
-> Missing btrfs/999.out file
-> 
-> >  tests/btrfs/group |  1 +
-> >  2 files changed, 94 insertions(+)
-> >  create mode 100755 tests/btrfs/999
-> > 
-> > diff --git a/tests/btrfs/999 b/tests/btrfs/999
-> > new file mode 100755
-> > index 000000000000..84031cc0d913
-> > --- /dev/null
-> > +++ b/tests/btrfs/999
-> > @@ -0,0 +1,93 @@
-> > +#! /bin/bash
-> > +# FS QA Test No. 999
-> > +#
-> > +# Open a file several times, write to it, fsync on all fds and make sure that
-> > +# they all return 0. Change the device to start throwing errors. Write again
-> > +# on all fds and fsync on all fds. Ensure that we get errors on all of them.
-> > +# Then fsync on all one last time and verify that all return 0.
-> > +#
-> > +#-----------------------------------------------------------------------
-> > +# Copyright (c) 2017, Jeff Layton <jlayton@redhat.com>
-> > +#
-> > +# This program is free software; you can redistribute it and/or
-> > +# modify it under the terms of the GNU General Public License as
-> > +# published by the Free Software Foundation.
-> > +#
-> > +# This program is distributed in the hope that it would be useful,
-> > +# but WITHOUT ANY WARRANTY; without even the implied warranty of
-> > +# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> > +# GNU General Public License for more details.
-> > +#
-> > +# You should have received a copy of the GNU General Public License
-> > +# along with this program; if not, write the Free Software Foundation,
-> > +# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-> > +#-----------------------------------------------------------------------
-> > +
-> > +seq=`basename $0`
-> > +seqres=$RESULT_DIR/$seq
-> > +echo "QA output created by $seq"
-> > +
-> > +here=`pwd`
-> > +tmp=/tmp/$$
-> > +status=1    # failure is the default!
-> > +trap "_cleanup; exit \$status" 0 1 2 3 15
-> > +
-> > +_cleanup()
-> > +{
-> > +    cd /
-> > +    rm -rf $tmp.* $testdir
-> > +    _dmerror_cleanup
-> > +}
-> > +
-> > +# get standard environment, filters and checks
-> > +. ./common/rc
-> > +. ./common/filter
-> > +. ./common/dmerror
-> > +
-> > +# real QA test starts here
-> > +_supported_os Linux
-> > +_require_dm_target error
-> > +_require_test_program fsync-err
-> > +_require_test_program dmerror
-> > +
-> > +# bring up dmerror device
-> > +_scratch_unmount
-> > +_dmerror_init
-> > +
-> > +# Replace first device with error-test device
-> > +old_SCRATCH_DEV=$SCRATCH_DEV
-> > +SCRATCH_DEV_POOL=`echo $SCRATCH_DEV_POOL | perl -pe "s#$SCRATCH_DEV#$DMERROR_DEV#"`
-> > +SCRATCH_DEV=$DMERROR_DEV
-> > +
-> > +_require_scratch
-> > +_require_scratch_dev_pool
-> 
-> Need "_require_scratch_dev_pool_equal_size" too, since test creates
-> raid1 profile for metadata.
-> 
-> Thanks,
-> Eryu
-> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> [ross: fix logic to make conversion equivalent]
+> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Is this really needed?
+This is really a nice deobfuscation! Please note this will conflict with
+http://lkml.kernel.org/r/1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com
 
-I've been running this test on btrfs with devices that are not of equal
-size, and it seems to work just fine. The test doesn't write a lot of
-data (just a few megs at most), so I don't think we'll run out of space
-unless you have some really small devices in there.
+Trivial to resolve but I thought I should give you a heads up.
 
-> > +
-> > +rm -f $seqres.full
-> > +
-> > +echo "Format and mount"
-> > +
-> > +_scratch_pool_mkfs "-d raid0 -m raid1" > $seqres.full 2>&1
-> > +_scratch_mount
-> > +
-> > +# How much do we need to write? We need to hit all of the stripes. btrfs uses
-> > +# a fixed 64k stripesize, so write enough to hit each one
-> > +number_of_devices=`echo $SCRATCH_DEV_POOL | wc -w`
-> > +write_kb=$(($number_of_devices * 64))
-> > +_require_fs_space $SCRATCH_MNT $write_kb
-> > +
-> > +testfile=$SCRATCH_MNT/fsync-err-test
-> > +
-> > +SCRATCH_DEV=$old_SCRATCH_DEV
-> > +$here/src/fsync-err -b $(($write_kb * 1024)) -d $here/src/dmerror $testfile
-> > +
-> > +# success, all done
-> > +_dmerror_load_working_table
-> > +
-> > +# fs may be corrupt after this -- attempt to repair it
-> > +_repair_scratch_fs >> $seqres.full
-> > +
-> > +# remove dmerror device
-> > +_dmerror_cleanup
-> > +
-> > +status=0
-> > +exit
-> > diff --git a/tests/btrfs/group b/tests/btrfs/group
-> > index 6f19619e877c..8dbdfbfe29fd 100644
-> > --- a/tests/btrfs/group
-> > +++ b/tests/btrfs/group
-> > @@ -145,3 +145,4 @@
-> >  141 auto quick
-> >  142 auto quick
-> >  143 auto quick
-> > +999 auto quick
-> > -- 
-> > 2.13.0
-> > 
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/huge_mm.h |   32 +++++++++++++++++++++-----------
+>  1 file changed, 21 insertions(+), 11 deletions(-)
+> 
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index a3762d49ba39..c8119e856eb1 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -85,14 +85,23 @@ extern struct kobj_attribute shmem_enabled_attr;
+>  
+>  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>  
+> -#define transparent_hugepage_enabled(__vma)				\
+> -	((transparent_hugepage_flags &					\
+> -	  (1<<TRANSPARENT_HUGEPAGE_FLAG) ||				\
+> -	  (transparent_hugepage_flags &					\
+> -	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+> -	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+> -	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+> -	 !is_vma_temporary_stack(__vma))
+> +extern unsigned long transparent_hugepage_flags;
+> +
+> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	if ((vma->vm_flags & VM_NOHUGEPAGE) || is_vma_temporary_stack(vma))
+> +		return false;
+> +
+> +	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
+> +		return true;
+> +
+> +	if (transparent_hugepage_flags &
+> +				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
+> +		return !!(vma->vm_flags & VM_HUGEPAGE);
+> +
+> +	return false;
+> +}
+> +
+>  #define transparent_hugepage_use_zero_page()				\
+>  	(transparent_hugepage_flags &					\
+>  	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
+> @@ -104,8 +113,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>  #define transparent_hugepage_debug_cow() 0
+>  #endif /* CONFIG_DEBUG_VM */
+>  
+> -extern unsigned long transparent_hugepage_flags;
+> -
+>  extern unsigned long thp_get_unmapped_area(struct file *filp,
+>  		unsigned long addr, unsigned long len, unsigned long pgoff,
+>  		unsigned long flags);
+> @@ -223,7 +230,10 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
+>  
+>  #define hpage_nr_pages(x) 1
+>  
+> -#define transparent_hugepage_enabled(__vma) 0
+> +static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
+> +{
+> +	return false;
+> +}
+>  
+>  static inline void prep_transhuge_page(struct page *page) {}
+>  
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Jeff Layton <jlayton@redhat.com>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
