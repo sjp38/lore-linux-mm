@@ -1,101 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F63C6B0343
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 06:39:13 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n7so2660688wrb.0
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 03:39:13 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j1si184729wmd.124.2017.06.15.03.39.11
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F60B83292
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 06:42:17 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u51so8516918qte.15
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 03:42:17 -0700 (PDT)
+Received: from mail-qt0-f178.google.com (mail-qt0-f178.google.com. [209.85.216.178])
+        by mx.google.com with ESMTPS id 24si2639221qtz.150.2017.06.15.03.42.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 03:39:11 -0700 (PDT)
-Date: Thu, 15 Jun 2017 12:39:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
- freed
-Message-ID: <20170615103909.GG1486@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 03:42:16 -0700 (PDT)
+Received: by mail-qt0-f178.google.com with SMTP id c10so14675230qtd.1
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 03:42:16 -0700 (PDT)
+Message-ID: <1497523332.4556.1.camel@redhat.com>
+Subject: Re: [PATCH v6 12/20] fs: add a new fstype flag to indicate how
+ writeback errors are tracked
+From: Jeff Layton <jlayton@redhat.com>
+Date: Thu, 15 Jun 2017 06:42:12 -0400
+In-Reply-To: <20170615082221.GA22809@infradead.org>
+References: <20170612122316.13244-1-jlayton@redhat.com>
+	 <20170612122316.13244-15-jlayton@redhat.com>
+	 <20170612124513.GC18360@infradead.org> <1497349472.5762.1.camel@redhat.com>
+	 <20170614064731.GB3598@infradead.org> <1497461083.6752.7.camel@redhat.com>
+	 <20170615082221.GA22809@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Wed 14-06-17 16:43:03, David Rientjes wrote:
-> If mm->mm_users is not incremented because it is already zero by the oom
-> reaper, meaning the final refcount has been dropped, do not set
-> MMF_OOM_SKIP prematurely.
+On Thu, 2017-06-15 at 01:22 -0700, Christoph Hellwig wrote:
+> On Wed, Jun 14, 2017 at 01:24:43PM -0400, Jeff Layton wrote:
+> > In this smaller set, it's only really used for DAX.
 > 
-> __mmput() may not have had a chance to do exit_mmap() yet, so memory from
-> a previous oom victim is still mapped.
-
-true and do we have a _guarantee_ it will do it? E.g. can somebody block
-exit_aio from completing? Or can somebody hold mmap_sem and thus block
-ksm_exit resp. khugepaged_exit from completing? The reason why I was
-conservative and set such a mm as MMF_OOM_SKIP was because I couldn't
-give a definitive answer to those questions. And we really _want_ to
-have a guarantee of a forward progress here. Killing an additional
-proecess is a price to pay and if that doesn't trigger normall it sounds
-like a reasonable compromise to me.
-
-> __mput() naturally requires no
-> references on mm->mm_users to do exit_mmap().
+> DAX only is implemented by three filesystems, please just fix them
+> up in one go.
 > 
-> Without this, several processes can be oom killed unnecessarily and the
-> oom log can show an abundance of memory available if exit_mmap() is in
-> progress at the time the process is skipped.
 
-Have you seen this happening in the real life?
+Ok.
 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/oom_kill.c | 13 ++++++-------
->  1 file changed, 6 insertions(+), 7 deletions(-)
+> > sync_file_range: ->fsync isn't called directly there, and I think we
+> > probably want similar semantics to fsync() for it
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -531,6 +531,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
->  					 NULL);
->  	}
->  	tlb_finish_mmu(&tlb, 0, -1);
-> +	set_bit(MMF_OOM_SKIP, &mm->flags);
->  	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
->  			task_pid_nr(tsk), tsk->comm,
->  			K(get_mm_counter(mm, MM_ANONPAGES)),
-> @@ -562,7 +563,11 @@ static void oom_reap_task(struct task_struct *tsk)
->  	if (attempts <= MAX_OOM_REAP_RETRIES)
->  		goto done;
->  
-> -
-> +	/*
-> +	 * Hide this mm from OOM killer because it cannot be reaped since
-> +	 * mm->mmap_sem cannot be acquired.
-> +	 */
-> +	set_bit(MMF_OOM_SKIP, &mm->flags);
->  	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
->  		task_pid_nr(tsk), tsk->comm);
->  	debug_show_all_locks();
-> @@ -570,12 +575,6 @@ static void oom_reap_task(struct task_struct *tsk)
->  done:
->  	tsk->oom_reaper_list = NULL;
->  
-> -	/*
-> -	 * Hide this mm from OOM killer because it has been either reaped or
-> -	 * somebody can't call up_write(mmap_sem).
-> -	 */
-> -	set_bit(MMF_OOM_SKIP, &mm->flags);
-> -
->  	/* Drop a reference taken by wake_oom_reaper */
->  	put_task_struct(tsk);
->  }
+> sync_file_range is only supposed to sync data, so it should not call
+> ->fsync.
+> 
 
+Correct.
+
+But if there is a data writeback error, should we report an error on all
+open fds at that time (like we will for fsync)?
+
+I think we probably do want to do that, but like you say...there is no
+file op for sync_file_range. It'll need some way to figure out what sort
+of error tracking is in play.
+
+> > JBD2: will try to re-set the error after clearing it with
+> > filemap_fdatawait. That's problematic with the new infrastructure so we
+> > need some way to avoid it.
+> 
+> JBD2 only has two users, please fix them up in one go.
+
+I came up with a fix yesterday that makes the flag unnecessary there.
+
+Thanks,
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
