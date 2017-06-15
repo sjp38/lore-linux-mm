@@ -1,82 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D68716B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 19:43:05 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a82so12487179pfc.8
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 16:43:05 -0700 (PDT)
-Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
-        by mx.google.com with ESMTPS id a20si956692pfc.137.2017.06.14.16.43.05
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB006B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:12:42 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id l6so3026799iti.0
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 17:12:42 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j74si1556565itb.73.2017.06.14.17.12.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 16:43:05 -0700 (PDT)
-Received: by mail-pg0-x236.google.com with SMTP id k71so6740699pgd.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 16:43:05 -0700 (PDT)
-Date: Wed, 14 Jun 2017 16:43:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, oom: prevent additional oom kills before memory is
- freed
-Message-ID: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
+        Wed, 14 Jun 2017 17:12:41 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/4] hugetlb: add support for preferred node to
+ alloc_huge_page_nodemask
+References: <20170613090039.14393-1-mhocko@kernel.org>
+ <20170613090039.14393-3-mhocko@kernel.org>
+ <bd8baf55-8816-452c-5249-904a5f208fb8@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <3ac3d6a8-b62f-2386-cb04-f32b3bebffe7@oracle.com>
+Date: Wed, 14 Jun 2017 17:12:31 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <bd8baf55-8816-452c-5249-904a5f208fb8@oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-If mm->mm_users is not incremented because it is already zero by the oom
-reaper, meaning the final refcount has been dropped, do not set
-MMF_OOM_SKIP prematurely.
+On 06/14/2017 03:12 PM, Mike Kravetz wrote:
+> On 06/13/2017 02:00 AM, Michal Hocko wrote:
+>> From: Michal Hocko <mhocko@suse.com>
+>>
+>> alloc_huge_page_nodemask tries to allocate from any numa node in the
+>> allowed node mask starting from lower numa nodes. This might lead to
+>> filling up those low NUMA nodes while others are not used. We can reduce
+>> this risk by introducing a concept of the preferred node similar to what
+>> we have in the regular page allocator. We will start allocating from the
+>> preferred nid and then iterate over all allowed nodes in the zonelist
+>> order until we try them all.
+>>
+>> This is mimicking the page allocator logic except it operates on
+>> per-node mempools. dequeue_huge_page_vma already does this so distill
+>> the zonelist logic into a more generic dequeue_huge_page_nodemask
+>> and use it in alloc_huge_page_nodemask.
+>>
+>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>> ---
+> 
+> 
+> I built attempts/hugetlb-zonelists, threw it on a test machine, ran the
+> libhugetlbfs test suite and saw failures.  The failures started with this
+> patch: commit 7e8b09f14495 in your tree.  I have not yet started to look
+> into the failures.  It is even possible that the tests are making bad
+> assumptions, but there certainly appears to be changes in behavior visible
+> to the application(s).
 
-__mmput() may not have had a chance to do exit_mmap() yet, so memory from
-a previous oom victim is still mapped.  __mput() naturally requires no
-references on mm->mm_users to do exit_mmap().
+nm.  The failures were the result of dequeue_huge_page_nodemask() always
+returning NULL.  Vlastimil already noticed this issue and provided a
+solution.
 
-Without this, several processes can be oom killed unnecessarily and the
-oom log can show an abundance of memory available if exit_mmap() is in
-progress at the time the process is skipped.
+-- 
+Mike Kravetz
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -531,6 +531,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 					 NULL);
- 	}
- 	tlb_finish_mmu(&tlb, 0, -1);
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
- 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
- 			task_pid_nr(tsk), tsk->comm,
- 			K(get_mm_counter(mm, MM_ANONPAGES)),
-@@ -562,7 +563,11 @@ static void oom_reap_task(struct task_struct *tsk)
- 	if (attempts <= MAX_OOM_REAP_RETRIES)
- 		goto done;
- 
--
-+	/*
-+	 * Hide this mm from OOM killer because it cannot be reaped since
-+	 * mm->mmap_sem cannot be acquired.
-+	 */
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
- 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
- 		task_pid_nr(tsk), tsk->comm);
- 	debug_show_all_locks();
-@@ -570,12 +575,6 @@ static void oom_reap_task(struct task_struct *tsk)
- done:
- 	tsk->oom_reaper_list = NULL;
- 
--	/*
--	 * Hide this mm from OOM killer because it has been either reaped or
--	 * somebody can't call up_write(mmap_sem).
--	 */
--	set_bit(MMF_OOM_SKIP, &mm->flags);
--
- 	/* Drop a reference taken by wake_oom_reaper */
- 	put_task_struct(tsk);
- }
+> 
+> FYI - My 'test machine' is an x86 KVM insatnce with 8GB memory simulating
+> 2 nodes.  Huge page allocations before running tests:
+> node0
+> 512	free_hugepages
+> 512	nr_hugepages
+> 0	surplus_hugepages
+> node1
+> 512	free_hugepages
+> 512	nr_hugepages
+> 0	surplus_hugepages
+> 
+> I can take a closer look at the failures tomorrow.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
