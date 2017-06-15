@@ -1,73 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B960A6B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:33:32 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id n18so4053048wra.11
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 08:33:32 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id i62si430018wmd.155.2017.06.15.08.33.31
-        for <linux-mm@kvack.org>;
-        Thu, 15 Jun 2017 08:33:31 -0700 (PDT)
-Date: Thu, 15 Jun 2017 17:33:22 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
- memory encryption
-Message-ID: <20170615153322.nwylo3dzn4fdx6n6@pd.tnic>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
- <20170614174208.p2yr5exs4b6pjxhf@pd.tnic>
- <0611d01a-19f8-d6ae-2682-932789855518@amd.com>
- <20170615094111.wga334kg2bhxqib3@pd.tnic>
- <921153f5-1528-31d8-b815-f0419e819aeb@amd.com>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 293736B0292
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:35:39 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id o41so13471768qtf.8
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 08:35:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u35si420212qtd.228.2017.06.15.08.35.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 08:35:38 -0700 (PDT)
+Date: Thu, 15 Jun 2017 11:35:34 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM-CDM 3/5] mm/memcontrol: allow to uncharge page without
+ using page->lru field
+Message-ID: <20170615153533.GA3837@redhat.com>
+References: <20170614201144.9306-1-jglisse@redhat.com>
+ <20170614201144.9306-4-jglisse@redhat.com>
+ <20170615133128.2fe2c33f@firefly.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <921153f5-1528-31d8-b815-f0419e819aeb@amd.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170615133128.2fe2c33f@firefly.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-On Thu, Jun 15, 2017 at 09:59:45AM -0500, Tom Lendacky wrote:
-> Actually the detection routine, amd_iommu_detect(), is part of the
-> IOMMU_INIT_FINISH macro support which is called early through mm_init()
-> from start_kernel() and that routine is called before init_amd().
-
-Ah, we do that there too:
-
-	for (p = __iommu_table; p < __iommu_table_end; p++) {
-
-Can't say that that code with the special section and whatnot is
-obvious. :-\
-
-Oh, well, early_init_amd() then. That is called in
-start_kernel->setup_arch->early_cpu_init and thus before mm_init().
-
-> > If so, it did work fine until now, without the volatile. Why is it
-> > needed now, all of a sudden?
+On Thu, Jun 15, 2017 at 01:31:28PM +1000, Balbir Singh wrote:
+> On Wed, 14 Jun 2017 16:11:42 -0400
+> Jerome Glisse <jglisse@redhat.com> wrote:
 > 
-> If you run checkpatch against the whole amd_iommu.c file you'll see that
+> > HMM pages (private or public device pages) are ZONE_DEVICE page and
+> > thus you can not use page->lru fields of those pages. This patch
+> > re-arrange the uncharge to allow single page to be uncharge without
+> > modifying the lru field of the struct page.
+> > 
+> > There is no change to memcontrol logic, it is the same as it was
+> > before this patch.
+> > 
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > Cc: cgroups@vger.kernel.org
+> > ---
+> >  mm/memcontrol.c | 168 +++++++++++++++++++++++++++++++-------------------------
+> >  1 file changed, 92 insertions(+), 76 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index e3fe4d0..b93f5fe 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5509,48 +5509,102 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+> >  	cancel_charge(memcg, nr_pages);
+> >  }
+> >  
+> > -static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+> > -			   unsigned long nr_anon, unsigned long nr_file,
+> > -			   unsigned long nr_kmem, unsigned long nr_huge,
+> > -			   unsigned long nr_shmem, struct page *dummy_page)
+> > +struct uncharge_gather {
+> > +	struct mem_cgroup *memcg;
+> > +	unsigned long pgpgout;
+> > +	unsigned long nr_anon;
+> > +	unsigned long nr_file;
+> > +	unsigned long nr_kmem;
+> > +	unsigned long nr_huge;
+> > +	unsigned long nr_shmem;
+> > +	struct page *dummy_page;
+> > +};
+> > +
+> > +static inline void uncharge_gather_clear(struct uncharge_gather *ug)
+> >  {
+> > -	unsigned long nr_pages = nr_anon + nr_file + nr_kmem;
+> > +	memset(ug, 0, sizeof(*ug));
+> > +}
+> > +
+> > +static void uncharge_batch(const struct uncharge_gather *ug)
+> > +{
+> 
+> Can we pass page as an argument so that we can do check events on the page?
 
-I'm, of course, not talking about the signature change: I'm *actually*
-questioning the need to make this argument volatile, all of a sudden.
+Well it is what dummy page is for, i wanted to keep code as close
+to existing to make it easier for people to see that there was no
+logic change with that patch.
 
-If there's a need, please explain why. It worked fine until now. If it
-didn't, we would've seen it.
 
-If it is a bug, then it needs a proper explanation, a *separate* patch
-and so on. But not like now, a drive-by change in an IOMMU enablement
-patch.
+[...]
 
-If it is wrong, then wait_on_sem() needs to be fixed too. AFAICT,
-wait_on_sem() gets called in both cases with interrupts disabled, while
-holding a lock so I'd like to pls know why, even in that case, does this
-variable need to be volatile.
+> > +static void uncharge_page(struct page *page, struct uncharge_gather *ug)
+> > +{
+> > +	VM_BUG_ON_PAGE(PageLRU(page), page);
+> > +	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> > +
+> > +	if (!page->mem_cgroup)
+> > +		return;
+> > +
+> > +	/*
+> > +	 * Nobody should be changing or seriously looking at
+> > +	 * page->mem_cgroup at this point, we have fully
+> > +	 * exclusive access to the page.
+> > +	 */
+> > +
+> > +	if (ug->memcg != page->mem_cgroup) {
+> > +		if (ug->memcg) {
+> > +			uncharge_batch(ug);
+> 
+> What is ug->dummy_page set to at this point? ug->dummy_page is assigned below
 
--- 
-Regards/Gruss,
-    Boris.
+So at begining ug->memcg is NULL and so is ug->dummy_page, after first
+call to uncharge_page() if ug->memcg isn't NULL then ug->dummy_page
+points to a valid page. So uncharge_batch() can never be call with
+dummy_page == NULL same as before this patch.
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+
+[...]
+
+> >  static void uncharge_list(struct list_head *page_list)
+> >  {
+> > -	struct mem_cgroup *memcg = NULL;
+> > -	unsigned long nr_shmem = 0;
+> > -	unsigned long nr_anon = 0;
+> > -	unsigned long nr_file = 0;
+> > -	unsigned long nr_huge = 0;
+> > -	unsigned long nr_kmem = 0;
+> > -	unsigned long pgpgout = 0;
+> > +	struct uncharge_gather ug;
+> >  	struct list_head *next;
+> > -	struct page *page;
+> > +
+> > +	uncharge_gather_clear(&ug);
+> >  
+> >  	/*
+> >  	 * Note that the list can be a single page->lru; hence the
+> > @@ -5558,57 +5612,16 @@ static void uncharge_list(struct list_head *page_list)
+> >  	 */
+> >  	next = page_list->next;
+> >  	do {
+> > +		struct page *page;
+> > +
+> 
+> Nit pick
+> 
+> VM_WARN_ON(is_zone_device_page(page));
+
+Yeah probably good thing to add. I will add it as part of the
+other memcontrol patch as i want to keep this one about moving
+stuff around with no logic change.
+
+Thanks for reviewing
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
