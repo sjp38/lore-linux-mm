@@ -1,51 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 154946B02B4
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:12:09 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id o62so316108pga.0
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:12:09 -0700 (PDT)
-Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
-        by mx.google.com with ESMTPS id s22si1100513pfk.417.2017.06.14.18.12.08
+	by kanga.kvack.org (Postfix) with ESMTP id 9CFDD6B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:36:38 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g7so626277pgr.3
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:36:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u18si1212536plj.51.2017.06.14.18.36.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 18:12:08 -0700 (PDT)
-Received: by mail-pg0-x22a.google.com with SMTP id a70so104623pge.3
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:12:08 -0700 (PDT)
-Date: Wed, 14 Jun 2017 18:12:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Sleeping BUG in khugepaged for i586
-In-Reply-To: <20170608144831.GA19903@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1706141809390.124136@chino.kir.corp.google.com>
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net> <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org> <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz> <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net> <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com> <20170608144831.GA19903@dhcp22.suse.cz>
+        Wed, 14 Jun 2017 18:36:37 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5F1YGSx085317
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:36:36 -0400
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2b3ek3c6us-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:36:36 -0400
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 Jun 2017 19:36:35 -0600
+Subject: Re: [HELP-NEEDED, PATCH 0/3] Do not loose dirty bit on THP pages
+References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
+ <eed279c6-bf61-f2f3-c9f2-d9a94568e2e3@linux.vnet.ibm.com>
+ <20170614165513.GD17632@arm.com>
+ <d589ad0a-d5d4-927a-597c-4b094285d4b1@suse.cz>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 15 Jun 2017 07:06:16 +0530
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <d589ad0a-d5d4-927a-597c-4b094285d4b1@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <694d801a-cc15-d871-7951-97a7d33dc285@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will.deacon@arm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com
 
-On Thu, 8 Jun 2017, Michal Hocko wrote:
 
-> collapse_huge_page
->   pte_offset_map
->     kmap_atomic
->       kmap_atomic_prot
->         preempt_disable
->   __collapse_huge_page_copy
->   pte_unmap
->     kunmap_atomic
->       __kunmap_atomic
->         preempt_enable
+
+On Wednesday 14 June 2017 10:30 PM, Vlastimil Babka wrote:
+> On 06/14/2017 06:55 PM, Will Deacon wrote:
+>>>
+>>> May be we should relook at pmd PTE udpate interface. We really need an
+>>> interface that can update pmd entries such that we don't clear it in
+>>> between. IMHO, we can avoid the pmdp_invalidate() completely, if we can
+>>> switch from a pmd PTE entry to a pointer to PTE page (pgtable_t). We also
+>>> need this interface to avoid the madvise race fixed by
+>>
+>> There's a good chance I'm not following your suggestion here, but it's
+>> probably worth me pointing out that swizzling a page table entry from a
+>> block mapping (e.g. a huge page mapped at the PMD level) to a table entry
+>> (e.g. a pointer to a page of PTEs) can lead to all sorts of horrible
+>> problems on ARM, including amalgamation of TLB entries and fatal aborts.
 > 
-> I suspect, so cond_resched seems indeed inappropriate on 32b systems.
+> AFAIK some AMD x86_64 CPU's had the same problem and generated MCE's,
+> and on Intel there are some restrictions when you can do that. See the
+> large comment in __split_huge_pmd_locked().
 > 
 
-Seems to be an issue for i386 and arm with ARM_LPAE.  I'm slightly 
-surprised we can get away with __collapse_huge_page_swapin() for 
-VM_FAULT_RETRY, unless that hasn't been encountered yet.  I think the 
-cond_resched() in __collapse_huge_page_copy() could be done only for 
-!in_atomic() if we choose.
+I was wondering whether we can do pmdp_establish(pgtable); and document 
+all quirks needed for that in the per arch implementation of 
+pmdp_establish(). We could also then switch all the 
+pmdp_clear/set_pmd_at() usage to pmdp_establish().
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
