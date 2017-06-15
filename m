@@ -1,89 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D23EF6B0292
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 16:07:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id n18so4880270wra.11
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 13:07:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 69si211647wra.135.2017.06.15.13.07.01
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B7DDC6B0292
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 16:14:10 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id i7so20278244ita.10
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 13:14:10 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r77si210854ioe.110.2017.06.15.13.14.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 13:07:01 -0700 (PDT)
-Date: Thu, 15 Jun 2017 13:06:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/2] mm: improve readability of
- transparent_hugepage_enabled()
-Message-Id: <20170615130658.009629c1fdeb087058b78333@linux-foundation.org>
-In-Reply-To: <20170615080738.GB1486@dhcp22.suse.cz>
-References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20170614124520.GA8537@dhcp22.suse.cz>
-	<CAPcyv4hEYJrW=Pv+ON5+EG4iLUjX2XRW3u+kSsMa8J5qh-KeVg@mail.gmail.com>
-	<20170615080738.GB1486@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 15 Jun 2017 13:14:10 -0700 (PDT)
+Date: Thu, 15 Jun 2017 16:13:29 -0400
+In-Reply-To: <20170615153322.nwylo3dzn4fdx6n6@pd.tnic>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net> <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net> <20170614174208.p2yr5exs4b6pjxhf@pd.tnic> <0611d01a-19f8-d6ae-2682-932789855518@amd.com> <20170615094111.wga334kg2bhxqib3@pd.tnic> <921153f5-1528-31d8-b815-f0419e819aeb@amd.com> <20170615153322.nwylo3dzn4fdx6n6@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with memory encryption
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Message-ID: <C1A52990-84AA-4258-B864-0121F5F5C4B5@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Borislav Petkov <bp@alien8.de>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, 15 Jun 2017 10:07:39 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On June 15, 2017 11:33:22 AM EDT, Borislav Petkov <bp@alien8=2Ede> wrote:
+>On Thu, Jun 15, 2017 at 09:59:45AM -0500, Tom Lendacky wrote:
+>> Actually the detection routine, amd_iommu_detect(), is part of the
+>> IOMMU_INIT_FINISH macro support which is called early through
+>mm_init()
+>> from start_kernel() and that routine is called before init_amd()=2E
+>
+>Ah, we do that there too:
+>
+>	for (p =3D __iommu_table; p < __iommu_table_end; p++) {
+>
+>Can't say that that code with the special section and whatnot is
+>obvious=2E :-\
+>
 
-> On Wed 14-06-17 12:26:46, Dan Williams wrote:
-> > On Wed, Jun 14, 2017 at 5:45 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Tue 13-06-17 16:08:26, Dan Williams wrote:
-> > >> Turn the macro into a static inline and rewrite the condition checks for
-> > >> better readability in preparation for adding another condition.
-> > >>
-> > >> Cc: Jan Kara <jack@suse.cz>
-> > >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> > >> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > >> [ross: fix logic to make conversion equivalent]
-> > >> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> > >
-> > > This is really a nice deobfuscation! Please note this will conflict with
-> > > http://lkml.kernel.org/r/1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com
-> > >
-> > >
-> > > Trivial to resolve but I thought I should give you a heads up.
-> > 
-> > Hmm, I'm assuming that vma_is_dax() should override PRCTL_THP_DISABLE?
-> > ...and while we're there should vma_is_dax() also override
-> > VM_NOHUGEPAGE? This is with the assumption that the reason to turn off
-> > huge pages is to avoid mm pressure, dax exerts no such pressure.
-> 
-> As the changelog of the referenced patch says another reason is to stop
-> khugepaged from interfering and collapsing smaller pages into THP. If
-> DAX mappings are subject to khugepaged then we really need to exclude
-> it. Why would you want to override user's decision to disable THP
-> anyway? I can see why the global knob should be ignored but if the
-> disable is targeted for the specific VMA or the process then we should
-> obey that, no?
+Patches to make it more obvious would be always welcome!
 
-So... Like this?
 
-static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-{
-	if (vma->vm_flags & VM_NOHUGEPAGE))
-		return false;
 
-	if (is_vma_temporary_stack(vma))
-		return false;
-
-	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-		return false;
-
-	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
-		return true;
-
-	if (transparent_hugepage_flags &
-				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
-		return !!(vma->vm_flags & VM_HUGEPAGE);
-
-	return false;
-}
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
