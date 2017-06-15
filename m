@@ -1,51 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0B66B0313
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 04:22:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s65so5805928pfi.14
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 01:22:44 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h6si1821756pfg.189.2017.06.15.01.22.44
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA8F6B0315
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 04:24:14 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x23so1849630wrb.6
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 01:24:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v200si2671503wmv.51.2017.06.15.01.24.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 01:22:44 -0700 (PDT)
-Date: Thu, 15 Jun 2017 01:22:21 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v6 12/20] fs: add a new fstype flag to indicate how
- writeback errors are tracked
-Message-ID: <20170615082221.GA22809@infradead.org>
-References: <20170612122316.13244-1-jlayton@redhat.com>
- <20170612122316.13244-15-jlayton@redhat.com>
- <20170612124513.GC18360@infradead.org>
- <1497349472.5762.1.camel@redhat.com>
- <20170614064731.GB3598@infradead.org>
- <1497461083.6752.7.camel@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 01:24:13 -0700 (PDT)
+Date: Thu, 15 Jun 2017 10:24:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
+ nodes
+Message-ID: <20170615082410.GE1486@dhcp22.suse.cz>
+References: <20170608122318.31598-1-mhocko@kernel.org>
+ <20170615032927.GA17971@WeideMacBook-Pro.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1497461083.6752.7.camel@redhat.com>
+In-Reply-To: <20170615032927.GA17971@WeideMacBook-Pro.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 14, 2017 at 01:24:43PM -0400, Jeff Layton wrote:
-> In this smaller set, it's only really used for DAX.
+On Thu 15-06-17 11:29:27, Wei Yang wrote:
+[...]
+> >+static inline bool movable_pfn_range(int nid, struct zone *default_zone,
+> >+		unsigned long start_pfn, unsigned long nr_pages)
+> >+{
+> >+	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+> >+				MMOP_ONLINE_KERNEL))
+> >+		return true;
+> >+
+> >+	if (!movable_node_is_enabled())
+> >+		return false;
+> >+
+> >+	return !zone_intersects(default_zone, start_pfn, nr_pages);
+> >+}
+> >+
+> 
+> To be honest, I don't understand this clearly.
+> 
+> move_pfn_range() will choose and move the range to a zone based on the
+> online_type, where we have two cases:
+> 1. ONLINE_MOVABLE -> ZONE_MOVABLE will be chosen
+> 2. ONLINE_KEEP    -> ZONE_NORMAL is the default while ZONE_MOVABLE will be
+> chosen in case movable_pfn_range() returns true.
+> 
+> There are three conditions in movable_pfn_range():
+> 1. Not allowed in kernel_zone, returns true
+> 2. Movable_node not enabled, return false 
+> 3. Range [start_pfn, start_pfn + nr_pages) doesn't intersect with
+> default_zone, return true
+> 
+> The first one is inherited from original code, so lets look at the other two.
+> 
+> Number 3 is easy to understand, if the hot-added range is already part of
+> ZONE_NORMAL, use it.
+> 
+> Number 2 makes me confused. If movable_node is not enabled, ZONE_NORMAL will
+> be chosen. If movable_node is enabled, it still depends on other two
+> condition. So how a memory_block is onlined to ZONE_MOVABLE because
+> movable_node is enabled?
 
-DAX only is implemented by three filesystems, please just fix them
-up in one go.
+This is simple. If the movable_node is set then ONLINE_KEEP defaults to
+the movable zone unless the range is already covered by a kernel zone
+(read Normal zone most of the time).
 
-> sync_file_range: ->fsync isn't called directly there, and I think we
-> probably want similar semantics to fsync() for it
+> What I see is you would forbid a memory_block to be
+> onlined to ZONE_MOVABLE when movable_node is not enabled.
 
-sync_file_range is only supposed to sync data, so it should not call
-->fsync.
+Please note that this is ONLINE_KEEP not ONLINE_MOVABLE and as such the
+movable zone is used only if we are withing the movable zone range
+already (test 1).
 
-> JBD2: will try to re-set the error after clearing it with
-> filemap_fdatawait. That's problematic with the new infrastructure so we
-> need some way to avoid it.
+> Instead of you would
+> online a memory_block to ZONE_MOVABLE when movable_node is enabled, which is
+> implied in your change log.
+> 
+> BTW, would you mind giving me these two information?
+> 1. Which branch your code is based on? I have cloned your
+> git(//git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git), while still see
+> some difference.
 
-JBD2 only has two users, please fix them up in one go.
+yes this is based on the mmotm tree (use since-4.11 or auto-latest
+branch)
+
+> 2. Any example or test case I could try your patch and see the difference? It
+> would be better if it could run in qemu+kvm.
+
+See http://lkml.kernel.org/r/20170421120512.23960-1-mhocko@kernel.org
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
