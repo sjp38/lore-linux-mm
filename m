@@ -1,159 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 737FB6B02B4
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 23:10:41 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d191so1811825pga.15
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:10:41 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id x65si1311421pgb.475.2017.06.14.20.10.40
+	by kanga.kvack.org (Postfix) with ESMTP id 6599E6B02F3
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 23:13:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u8so1910565pgo.11
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:13:58 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id j61si1333396plb.197.2017.06.14.20.13.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 20:10:40 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id s66so312988pfs.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:10:40 -0700 (PDT)
-Date: Thu, 15 Jun 2017 13:10:30 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [HMM-CDM 4/5] mm/memcontrol: support MEMORY_DEVICE_PRIVATE and
- MEMORY_DEVICE_PUBLIC
-Message-ID: <20170615131030.35fe8d57@firefly.ozlabs.ibm.com>
-In-Reply-To: <20170615020454.GA4666@redhat.com>
-References: <20170614201144.9306-1-jglisse@redhat.com>
-	<20170614201144.9306-5-jglisse@redhat.com>
-	<20170615114159.11a1eece@firefly.ozlabs.ibm.com>
-	<20170615020454.GA4666@redhat.com>
+        Wed, 14 Jun 2017 20:13:57 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id s66so321807pfs.2
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:13:57 -0700 (PDT)
+Date: Thu, 15 Jun 2017 11:13:54 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
+ nodes
+Message-ID: <20170615031354.GC16833@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170608122318.31598-1-mhocko@kernel.org>
+ <20170612042832.GA7429@WeideMBP.lan>
+ <20170612064502.GD4145@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="m51xatjYGsM+13rf"
+Content-Disposition: inline
+In-Reply-To: <20170612064502.GD4145@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 14 Jun 2017 22:04:55 -0400
-Jerome Glisse <jglisse@redhat.com> wrote:
 
-> On Thu, Jun 15, 2017 at 11:41:59AM +1000, Balbir Singh wrote:
-> > On Wed, 14 Jun 2017 16:11:43 -0400
-> > J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
-> >  =20
-> > > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > > thus need special handling when it comes to lru or refcount. This
-> > > patch make sure that memcontrol properly handle those when it face
-> > > them. Those pages are use like regular pages in a process address
-> > > space either as anonymous page or as file back page. So from memcg
-> > > point of view we want to handle them like regular page for now at
-> > > least.
-> > >=20
-> > > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > > Cc: cgroups@vger.kernel.org
-> > > ---
-> > >  kernel/memremap.c |  2 ++
-> > >  mm/memcontrol.c   | 58 +++++++++++++++++++++++++++++++++++++++++++++=
-+++++-----
-> > >  2 files changed, 55 insertions(+), 5 deletions(-)
-> > >=20
-> > > diff --git a/kernel/memremap.c b/kernel/memremap.c
-> > > index da74775..584984c 100644
-> > > --- a/kernel/memremap.c
-> > > +++ b/kernel/memremap.c
-> > > @@ -479,6 +479,8 @@ void put_zone_device_private_or_public_page(struc=
-t page *page)
-> > >  		__ClearPageActive(page);
-> > >  		__ClearPageWaiters(page);
-> > > =20
-> > > +		mem_cgroup_uncharge(page);
-> > > + =20
-> >=20
-> > A zone device page could have a mem_cgroup charge if
-> >=20
-> > 1. The old page was charged to a cgroup and the new page from ZONE_DEVI=
-CE then
-> > gets the charge that we need to drop here
-> >=20
-> > And should not be charged
-> >=20
-> > 2. If the driver allowed mmap based allocation (these pages are not on =
-LRU
-> >=20
-> >=20
-> > Since put_zone_device_private_or_public_page() is called from release_p=
-ages(),
-> > I think the assumption is that 2 is not a problem? I've not tested the =
-mmap
-> > bits yet. =20
->=20
-> Well that is one of the big question. Do we care about memory cgroup desp=
-ite
-> page not being on lru and thus not being reclaimable through the usual pa=
-th ?
->=20
-> I believe we do want to keep charging ZONE_DEVICE page against memory cgr=
-oup
-> so that userspace limit are enforced. This is important especialy for dev=
-ice
-> private when migrating back to system memory due to CPU page fault. We do=
- not
-> want the migration back to fail because of memory cgroup limit.
->=20
-> Hence why i do want to charge ZONE_DEVICE page just like regular page. If=
- we
-> have people that run into OOM because of this then we can start thinking =
-about
-> how to account those pages slightly differently inside the memory cgroup.
->=20
-> For now i believe we do want this patch.
->=20
+--m51xatjYGsM+13rf
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Yes, we do need the patch, I was trying to check if we'll end up trying to =
-uncharge
-a page that is not charged, just double checking
+On Mon, Jun 12, 2017 at 08:45:02AM +0200, Michal Hocko wrote:
+>On Mon 12-06-17 12:28:32, Wei Yang wrote:
+>> On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
+>> >From: Michal Hocko <mhocko@suse.com>
+>> >
+>> >movable_node kernel parameter allows to make hotplugable NUMA
+>> >nodes to put all the hotplugable memory into movable zone which
+>> >allows more or less reliable memory hotremove.  At least this
+>> >is the case for the NUMA nodes present during the boot (see
+>> >find_zone_movable_pfns_for_nodes).
+>> >
+>>=20
+>> When movable_node is enabled, we would have overlapped zones, right?
+>
+>It won't based on this patch. See movable_pfn_range
+>
 
->=20
-> [...]
->=20
-> > > @@ -4610,6 +4637,9 @@ static enum mc_target_type get_mctgt_type(struc=
-t vm_area_struct *vma,
-> > >  		 */
-> > >  		if (page->mem_cgroup =3D=3D mc.from) {
-> > >  			ret =3D MC_TARGET_PAGE;
-> > > +			if (is_device_private_page(page) ||
-> > > +			    is_device_public_page(page))
-> > > +				ret =3D MC_TARGET_DEVICE;
-> > >  			if (target)
-> > >  				target->page =3D page;
-> > >  		}
-> > > @@ -4669,6 +4699,11 @@ static int mem_cgroup_count_precharge_pte_rang=
-e(pmd_t *pmd,
-> > > =20
-> > >  	ptl =3D pmd_trans_huge_lock(pmd, vma);
-> > >  	if (ptl) {
-> > > +		/*
-> > > +		 * Note their can not be MC_TARGET_DEVICE for now as we do not =20
-> >                         there =20
-> > > +		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
-> > > +		 * MEMORY_DEVICE_PRIVATE but this might change. =20
-> >=20
-> > I am trying to remind myself why THP and MEMORY_DEVICE_* pages don't wo=
-rk well
-> > together today, the driver could allocate a THP size set of pages and m=
-igrate it.
-> > There are patches to do THP migration, not upstream yet. Could you remi=
-nd me
-> > of any other limitations? =20
->=20
-> No there is nothing that would be problematic AFAICT. Persistent memory a=
-lready
-> use huge page so we should be in the clear. But i would rather enable tha=
-t as
-> a separate patchset alltogether and have proper testing specificaly for s=
-uch
-> scenario.
+Ok, I went through the code and here maybe a question not that close related
+to this patch.
 
-Agreed
-Balbir Singh.
+I did some experiment with qemu+kvm and see this.
+
+Guest config: 8G RAM, 2 nodes with 4G on each
+Guest kernel: 4.11
+Guest kernel command: kernelcore=3D1G
+
+The log message in kernel is:
+
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+[    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+[    0.000000]   Normal   [mem 0x0000000100000000-0x000000023fffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000]   Node 0: 0x0000000100000000
+[    0.000000]   Node 1: 0x0000000140000000
+
+We see on node 2, ZONE_NORMAL overlap with ZONE_MOVABLE.=20
+[0x0000000140000000 - 0x000000023fffffff] belongs to both ZONE.
+
+My confusion is:
+
+After we enable ZONE_MOVABLE, no matter whether it is enabled by
+"movable_node" or "kernelcore", we would face this kind of overlap?=20
+Finally, the pages in the overlapped range be belongs to which ZONE?
+
+--=20
+Wei Yang
+Help you, Help me
+
+--m51xatjYGsM+13rf
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZQftyAAoJEKcLNpZP5cTdOLEP/2fxKHoMvYc3MtgnpnwRNYvB
+Yybf0HCp4bcGqjKk/vB+TKTt38UtRULjXw01OHBH0n8J9mfOVKkw/akeWsMWkCKR
+fNWtE5euTS69+ZPPUiuaAJUznCJkQjUg7MzGRdfmmfArTV7QSYKw3R64MenhHDuc
+/7o+pw4OPM7yZ+c8OqrGPaAzlakDSgZd1JgThrBc6SW5MyZeTU2abrH15GkjQZef
+AdVsf6j7vxv/UD0XrwSZzDLOxti1mvvkNhb+N7ZWB095yw0IKHLi8rSOhRi3lprl
+VGFlSb/zjvUNYh9C7Em3BwfxLaiVh6sPqu06gMx0qBWsRrpsUyQ7UH0MfmeLcR8/
+OYMEUlUlLerYzGx5uaWefL0BengUte5vcQB4ABwh0XnQwZsml3o7d4JiNnkN7REh
+maqK4M6eYatEC8HMs+cI4lJklR8rji0jvsyXAVnnqyZtnQS5+uesQrw0MiilYdzd
+3z2PtIQ7kUCXB+Eet/iYcWrJJgsu54vyBSSc0KSS4SPuOi59r3raxBaUUamCIEn8
+ohe6rWtVd4ajuQGjFUMOH8MZTW2grLxvZVKbI5rCbJaCQa2YWarY6WPcgicvPANM
+wQW4eFSE2RnLcqia1Qlbrix9VXKkYyFDiMZsczPenxnehNOT4pl/YcmAsgSS8h+7
+cbM/z3uFulZs/cBZQtuz
+=sp+C
+-----END PGP SIGNATURE-----
+
+--m51xatjYGsM+13rf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
