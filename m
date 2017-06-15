@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CF46B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 14:53:27 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id k36so14022691otb.3
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:53:27 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C198D6B0279
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:29:21 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z5so18340776qta.12
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 12:29:21 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o206si1536050oih.248.2017.06.15.11.53.26
+        by mx.google.com with ESMTPS id b199si89400qka.362.2017.06.15.12.29.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 11:53:27 -0700 (PDT)
-Message-ID: <1497552803.20270.96.camel@redhat.com>
-Subject: Re: [PATCH v2 01/10] x86/ldt: Simplify LDT switching logic
+        Thu, 15 Jun 2017 12:29:20 -0700 (PDT)
+Message-ID: <1497554957.20270.97.camel@redhat.com>
+Subject: Re: [PATCH v2 02/10] x86/mm: Remove reset_lazy_tlbstate()
 From: Rik van Riel <riel@redhat.com>
-Date: Thu, 15 Jun 2017 14:53:23 -0400
-In-Reply-To: <c1d005d9608fa44ef124910ee02765edbcb3dd99.1497415951.git.luto@kernel.org>
+Date: Thu, 15 Jun 2017 15:29:17 -0400
+In-Reply-To: <7e505cd9680b60f6995443bd1320deb7689125f0.1497415951.git.luto@kernel.org>
 References: <cover.1497415951.git.luto@kernel.org>
-	 <c1d005d9608fa44ef124910ee02765edbcb3dd99.1497415951.git.luto@kernel.org>
+	 <7e505cd9680b60f6995443bd1320deb7689125f0.1497415951.git.luto@kernel.org>
 Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-38c+EeEUFFjuMvvBynlh"
+	protocol="application/pgp-signature"; boundary="=-UpVhvwRuisgDNML3dgV2"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -25,24 +25,21 @@ To: Andy Lutomirski <luto@kernel.org>, x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
 
---=-38c+EeEUFFjuMvvBynlh
+--=-UpVhvwRuisgDNML3dgV2
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
 On Tue, 2017-06-13 at 21:56 -0700, Andy Lutomirski wrote:
-
-> Simplify the code to update LDTR if either the previous or the next
-> mm has an LDT, i.e. effectively restore the historical logic..
-> While we're at it, clean up the code by moving all the ifdeffery to
-> a header where it belongs.
+> The only call site also calls idle_task_exit(), and idle_task_exit()
+> puts us into a clean state by explicitly switching to init_mm.
 >=20
 > Signed-off-by: Andy Lutomirski <luto@kernel.org>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --=20
 All rights reversed
---=-38c+EeEUFFjuMvvBynlh
+--=-UpVhvwRuisgDNML3dgV2
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
 Content-Transfer-Encoding: 7bit
@@ -50,16 +47,16 @@ Content-Transfer-Encoding: 7bit
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAABCAAGBQJZQtejAAoJEM553pKExN6DzC0H/RAW+X88/fAzHWuc6tjYGuxM
-ybXi2RTkLPzZF9W1zD1peU65RkGXww4oWfwvwRdrumPfLNrAlciPR8MlffdPEGNc
-DuTviKThJJkYBI4Ellc472g2k8iCUDI8WxE9TRC2zC9/ZN6AXMJVg6rUn1RnYpRx
-zX4DQw7XPK5u4/QWv4ULoPVk4AS+68G+P1IaJ5ZLI9Vy1aMqDL6lYbigHcHu42tb
-QngvjbuA7RebfRSKk5zFOWAphbqW+hNTRhldLIyStmtKrPcylbyEq4uYZFUhKSlm
-imW+eUL/fegk49N9AzAsqty1a+jzlfo1zq1cA3p3F83sPn5txY3+rCo/dgATX+E=
-=OmmN
+iQEcBAABCAAGBQJZQuANAAoJEM553pKExN6D/qwIALVPG440f8JB3L77eJn4ChGr
+NCshTTb4PBT3qI3qW1pZXxybH3aJxV8UrZDo3gkRSad0lxpntKlMKWrD4ARpDGUx
+DkYhPg6SXssvTe6eeNgyax5FIgq3/kGohvf6gUJFSXBupA3Ru7ffq2SxhOmikASi
+qPz3T09hTKgvyWBJ+A68xfR4DcpHfRkTVKeMD9f02ZXuK1VkV+nOzBaV0lTD4mWy
+SJlLjio6JZ8I2dN/K1XKbarPYL176pCFhZzQLoyIqPRes0V4lb0c/OWO9uida5vX
+74etp6lclz285T2hwe9HMaZq3P/cTM2BQHp4129mb+0dF2fhbc9X2QwBzpp6bMc=
+=Iywz
 -----END PGP SIGNATURE-----
 
---=-38c+EeEUFFjuMvvBynlh--
+--=-UpVhvwRuisgDNML3dgV2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
