@@ -1,71 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FE496B02F3
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E5ED76B02FA
 	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:53:04 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w12so13295281pfk.1
+Received: by mail-pf0-f197.google.com with SMTP id h21so13177397pfk.13
         for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:53:04 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 29si244030pfq.324.2017.06.15.07.53.03
+        by mx.google.com with ESMTPS id 29si244030pfq.324.2017.06.15.07.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 07:53:03 -0700 (PDT)
+        Thu, 15 Jun 2017 07:53:04 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [HELP-NEEDED, PATCHv2 0/3] Do not loose dirty bit on THP pages
-Date: Thu, 15 Jun 2017 17:52:21 +0300
-Message-Id: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Date: Thu, 15 Jun 2017 17:52:22 +0300
+Message-Id: <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Hi,
+We need an atomic way to setup pmd page table entry, avoiding races with
+CPU setting dirty/accessed bits. This is required to implement
+pmdp_invalidate() that doesn't loose these bits.
 
-Vlastimil noted that pmdp_invalidate() is not atomic and we can loose
-dirty and access bits if CPU sets them after pmdp dereference, but
-before set_pmd_at().
+On PAE we have to use cmpxchg8b as we cannot assume what is value of new pmd and
+setting it up half-by-half can expose broken corrupted entry to CPU.
 
-The bug doesn't lead to user-visible misbehaviour in current kernel, but
-fixing this would be critical for future work on THP: both huge-ext4 and THP
-swap out rely on proper dirty tracking.
-
-Unfortunately, there's no way to address the issue in a generic way. We need to
-fix all architectures that support THP one-by-one.
-
-All architectures that have THP supported have to provide atomic
-pmdp_invalidate() that returns previous value.
-
-If generic implementation of pmdp_invalidate() is used, architecture needs to
-provide atomic pmdp_estabish().
-
-pmdp_estabish() is not used out-side generic implementation of
-pmdp_invalidate() so far, but I think this can change in the future.
-
-I've fixed the issue for x86, but I need help with the rest.
-
-So far THP is supported on 7 architectures, beyond x86:
-
- - arc;
- - arm;
- - arm64;
- - mips;
- - power;
- - s390;
- - sparc;
-
-Please, help me with them.
-
-v2:
- - Introduce pmdp_estabish(), instead of pmdp_mknonpresent();
- - Change pmdp_invalidate() to return previous value of the pmd;
-
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+---
  arch/x86/include/asm/pgtable-3level.h | 18 ++++++++++++++++++
  arch/x86/include/asm/pgtable.h        | 14 ++++++++++++++
- fs/proc/task_mmu.c                    |  8 ++++----
- include/asm-generic/pgtable.h         |  2 +-
- mm/huge_memory.c                      | 29 ++++++++++++-----------------
- mm/pgtable-generic.c                  |  9 +++++----
- 6 files changed, 54 insertions(+), 26 deletions(-)
+ 2 files changed, 32 insertions(+)
 
+diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
+index 50d35e3185f5..471c8a851363 100644
+--- a/arch/x86/include/asm/pgtable-3level.h
++++ b/arch/x86/include/asm/pgtable-3level.h
+@@ -180,6 +180,24 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
+ #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+ #endif
+ 
++#ifndef pmdp_establish
++#define pmdp_establish pmdp_establish
++static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
++{
++	pmd_t old;
++
++	/*
++	 * We cannot assume what is value of pmd here, so there's no easy way
++	 * to set if half by half. We have to fall back to cmpxchg64.
++	 */
++	{
++		old = *pmdp;
++	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
++
++	return old;
++}
++#endif
++
+ #ifdef CONFIG_SMP
+ union split_pud {
+ 	struct {
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index f5af95a0c6b8..a924fc6a96b9 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1092,6 +1092,20 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+ }
+ 
++#ifndef pmdp_establish
++#define pmdp_establish pmdp_establish
++static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
++{
++	if (IS_ENABLED(CONFIG_SMP)) {
++		return xchg(pmdp, pmd);
++	} else {
++		pmd_t old = *pmdp;
++		*pmdp = pmd;
++		return old;
++	}
++}
++#endif
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
 -- 
 2.11.0
 
