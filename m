@@ -1,84 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1206B0292
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:43:30 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w12so14231427pfk.1
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 08:43:30 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 3si307292plo.141.2017.06.15.08.43.30
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E08B6B0279
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 12:33:49 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id w207so16697526itc.1
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 09:33:49 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0063.outbound.protection.outlook.com. [104.47.41.63])
+        by mx.google.com with ESMTPS id k69si606402iod.252.2017.06.15.09.33.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 08:43:30 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5FFcqpo076086
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:43:29 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2b3spr27k7-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:43:29 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 15 Jun 2017 11:43:27 -0400
-Date: Thu, 15 Jun 2017 10:43:20 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
- nodes
-References: <20170608122318.31598-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 09:33:48 -0700 (PDT)
+Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
+ memory encryption
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+ <20170614174208.p2yr5exs4b6pjxhf@pd.tnic>
+ <0611d01a-19f8-d6ae-2682-932789855518@amd.com>
+ <20170615094111.wga334kg2bhxqib3@pd.tnic>
+ <921153f5-1528-31d8-b815-f0419e819aeb@amd.com>
+ <20170615153322.nwylo3dzn4fdx6n6@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <3db2c52d-5e63-a1df-edd4-975bce7f29c2@amd.com>
+Date: Thu, 15 Jun 2017 11:33:41 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170608122318.31598-1-mhocko@kernel.org>
-Message-Id: <20170615154320.tzpkjxeuckkua2zm@arbab-laptop.localdomain>
+In-Reply-To: <20170615153322.nwylo3dzn4fdx6n6@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
->movable_node kernel parameter allows to make hotplugable NUMA
->nodes to put all the hotplugable memory into movable zone which
->allows more or less reliable memory hotremove.  At least this
->is the case for the NUMA nodes present during the boot (see
->find_zone_movable_pfns_for_nodes).
->
->This is not the case for the memory hotplug, though.
->
->	echo online > /sys/devices/system/memory/memoryXYZ/status
->
->will default to a kernel zone (usually ZONE_NORMAL) unless the
->particular memblock is already in the movable zone range which is not
->the case normally when onlining the memory from the udev rule context
->for a freshly hotadded NUMA node. The only option currently is to have a
->special udev rule to echo online_movable to all memblocks belonging to
->such a node which is rather clumsy. Not the mention this is inconsistent
->as well because what ended up in the movable zone during the boot will
->end up in a kernel zone after hotremove & hotadd without special care.
->
->It would be nice to reuse memblock_is_hotpluggable but the runtime
->hotplug doesn't have that information available because the boot and
->hotplug paths are not shared and it would be really non trivial to
->make them use the same code path because the runtime hotplug doesn't
->play with the memblock allocator at all.
->
->Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
->movable_node is enabled and the range doesn't overlap with the existing
->normal zone. This should provide a reasonable default onlining strategy.
->
->Strictly speaking the semantic is not identical with the boot time
->initialization because find_zone_movable_pfns_for_nodes covers only the
->hotplugable range as described by the BIOS/FW. From my experience this
->is usually a full node though (except for Node0 which is special and
->never goes away completely). If this turns out to be a problem in the
->real life we can tweak the code to store hotplug flag into memblocks
->but let's keep this simple now.
->
->Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 6/15/2017 10:33 AM, Borislav Petkov wrote:
+> On Thu, Jun 15, 2017 at 09:59:45AM -0500, Tom Lendacky wrote:
+>> Actually the detection routine, amd_iommu_detect(), is part of the
+>> IOMMU_INIT_FINISH macro support which is called early through mm_init()
+>> from start_kernel() and that routine is called before init_amd().
+> 
+> Ah, we do that there too:
+> 
+> 	for (p = __iommu_table; p < __iommu_table_end; p++) {
+> 
+> Can't say that that code with the special section and whatnot is
+> obvious. :-\
+> 
+> Oh, well, early_init_amd() then. That is called in
+> start_kernel->setup_arch->early_cpu_init and thus before mm_init().
+> 
+>>> If so, it did work fine until now, without the volatile. Why is it
+>>> needed now, all of a sudden?
+>>
+>> If you run checkpatch against the whole amd_iommu.c file you'll see that
+> 
+> I'm, of course, not talking about the signature change: I'm *actually*
+> questioning the need to make this argument volatile, all of a sudden.
 
-Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+Understood.
 
--- 
-Reza Arbab
+> 
+> If there's a need, please explain why. It worked fine until now. If it
+> didn't, we would've seen it.
+
+The original reason for the change was to try and make the use of
+iommu_virt_to_phys() straight forward.  Removing the cast and changing
+build_completion_wait() to take a u64 * (without volatile) resulted in a
+warning because cmd_sem is defined in the amd_iommu struct as volatile,
+which required a cast on the call to iommu_virt_to_phys() anyway. Since
+it worked fine previously and the whole volatile thing is beyond the
+scope of this patchset, I'll change back to the original method of how
+the function was called.
+
+> 
+> If it is a bug, then it needs a proper explanation, a *separate* patch
+> and so on. But not like now, a drive-by change in an IOMMU enablement
+> patch.
+> 
+> If it is wrong, then wait_on_sem() needs to be fixed too. AFAICT,
+> wait_on_sem() gets called in both cases with interrupts disabled, while
+> holding a lock so I'd like to pls know why, even in that case, does this
+> variable need to be volatile
+
+Changing the signature back reverts to the original way, so this can be
+looked at separate from this patchset then.
+
+Thanks,
+Tom
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
