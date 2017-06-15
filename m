@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 235336B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 18:11:57 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v14so1489681wmf.6
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:11:57 -0700 (PDT)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id p91si391557wrc.257.2017.06.15.15.11.55
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 516C26B02C3
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 18:12:41 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 70so1480435wme.7
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:12:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c62si423722wmc.161.2017.06.15.15.12.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 15:11:55 -0700 (PDT)
-Received: by mail-wm0-x22b.google.com with SMTP id m125so11145097wmm.1
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:11:55 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-In-Reply-To: <20170615142439.7a431065465c5b4691aed1cc@linux-foundation.org>
-Date: Fri, 16 Jun 2017 00:11:53 +0200
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <BE70CA51-B790-456E-B31C-399632B4DCD1@linaro.org>
-References: <20170609082226.26152-1-ard.biesheuvel@linaro.org> <20170615142439.7a431065465c5b4691aed1cc@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 15:12:40 -0700 (PDT)
+Date: Fri, 16 Jun 2017 00:12:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
+ freed
+Message-ID: <20170615221236.GB22341@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
+ <20170615103909.GG1486@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
+ <20170615214133.GB20321@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1706151459530.64172@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1706151459530.64172@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, mhocko@suse.com, zhongjiang@huawei.com, labbott@fedoraproject.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, dave.hansen@intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Thu 15-06-17 15:03:17, David Rientjes wrote:
+> On Thu, 15 Jun 2017, Michal Hocko wrote:
+> 
+> > > Yes, quite a bit in testing.
+> > > 
+> > > One oom kill shows the system to be oom:
+> > > 
+> > > [22999.488705] Node 0 Normal free:90484kB min:90500kB ...
+> > > [22999.488711] Node 1 Normal free:91536kB min:91948kB ...
+> > > 
+> > > followed up by one or more unnecessary oom kills showing the oom killer 
+> > > racing with memory freeing of the victim:
+> > > 
+> > > [22999.510329] Node 0 Normal free:229588kB min:90500kB ...
+> > > [22999.510334] Node 1 Normal free:600036kB min:91948kB ...
+> > > 
+> > > The patch is absolutely required for us to prevent continuous oom killing 
+> > > of processes after a single process has been oom killed and its memory is 
+> > > in the process of being freed.
+> > 
+> > OK, could you play with the patch/idea suggested in
+> > http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?
+> > 
+> 
+> I cannot, I am trying to unblock a stable kernel release to my production 
+> that is obviously fixed with this patch and cannot experiment with 
+> uncompiled and untested patches that introduce otherwise unnecessary 
+> locking into the __mmput() path and is based on speculation rather than 
+> hard data that __mmput() for some reason stalls for the oom victim's mm.  
+> I was hoping that this fix could make it in time for 4.12 since 4.12 kills 
+> 1-4 processes unnecessarily for each oom condition and then can review any 
+> tested solution you may propose at a later time.
 
-
-> On 15 Jun 2017, at 23:24, Andrew Morton <akpm@linux-foundation.org> wrote:=
-
->=20
->> On Fri,  9 Jun 2017 08:22:26 +0000 Ard Biesheuvel <ard.biesheuvel@linaro.=
-org> wrote:
->>=20
->> Existing code that uses vmalloc_to_page() may assume that any
->> address for which is_vmalloc_addr() returns true may be passed
->> into vmalloc_to_page() to retrieve the associated struct page.
->>=20
->> This is not un unreasonable assumption to make, but on architectures
->> that have CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy, it no longer holds, and we
->> need to ensure that vmalloc_to_page() does not go off into the weeds
->> trying to dereference huge PUDs or PMDs as table entries.
->>=20
->> Given that vmalloc() and vmap() themselves never create huge
->> mappings or deal with compound pages at all, there is no correct
->> answer in this case, so return NULL instead, and issue a warning.
->=20
-> Is this patch known to fix any current user-visible problem?
-
-Yes. When reading /proc/kcore on arm64, you will hit an oops as soon as you h=
-it the huge mappings used for the various segments that make up the mapping o=
-f vmlinux. With this patch applied, you will no longer hit the oops, but the=
- kcore contents willl be incorrect (these regions will be zeroed out)
-
-We are fixing this for kcore specifically, so it avoids vread() for  those r=
-egions. At least one other problematic user exists, i.e., /dev/kmem, but tha=
-t is currently broken on arm64 for other reasons.
-
+I am sorry but I have really hard to make the oom reaper a reliable way
+to stop all the potential oom lockups go away. I do not want to
+reintroduce another potential lockup now. I also do not see why any
+solution should be rushed into. I have proposed a way to go and unless
+it is clear that this is not a way forward then I simply do not agree
+with any partial workarounds or shortcuts.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
