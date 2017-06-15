@@ -1,97 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E5ED76B02FA
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:53:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h21so13177397pfk.13
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:53:04 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 29si244030pfq.324.2017.06.15.07.53.04
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D8DEF6B0292
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:57:33 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id g4so7815285ybh.5
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:57:33 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id e130si101387ywc.39.2017.06.15.07.57.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 07:53:04 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
-Date: Thu, 15 Jun 2017 17:52:22 +0300
-Message-Id: <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+        Thu, 15 Jun 2017 07:57:32 -0700 (PDT)
+Date: Thu, 15 Jun 2017 07:57:24 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v6 12/20] fs: add a new fstype flag to indicate how
+ writeback errors are tracked
+Message-ID: <20170615145724.GB14028@infradead.org>
+References: <20170612122316.13244-1-jlayton@redhat.com>
+ <20170612122316.13244-15-jlayton@redhat.com>
+ <20170612124513.GC18360@infradead.org>
+ <1497349472.5762.1.camel@redhat.com>
+ <20170614064731.GB3598@infradead.org>
+ <1497461083.6752.7.camel@redhat.com>
+ <20170615082221.GA22809@infradead.org>
+ <1497523332.4556.1.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1497523332.4556.1.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-We need an atomic way to setup pmd page table entry, avoiding races with
-CPU setting dirty/accessed bits. This is required to implement
-pmdp_invalidate() that doesn't loose these bits.
+On Thu, Jun 15, 2017 at 06:42:12AM -0400, Jeff Layton wrote:
+> Correct.
+> 
+> But if there is a data writeback error, should we report an error on all
+> open fds at that time (like we will for fsync)?
 
-On PAE we have to use cmpxchg8b as we cannot assume what is value of new pmd and
-setting it up half-by-half can expose broken corrupted entry to CPU.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
----
- arch/x86/include/asm/pgtable-3level.h | 18 ++++++++++++++++++
- arch/x86/include/asm/pgtable.h        | 14 ++++++++++++++
- 2 files changed, 32 insertions(+)
-
-diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
-index 50d35e3185f5..471c8a851363 100644
---- a/arch/x86/include/asm/pgtable-3level.h
-+++ b/arch/x86/include/asm/pgtable-3level.h
-@@ -180,6 +180,24 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
- #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
- #endif
- 
-+#ifndef pmdp_establish
-+#define pmdp_establish pmdp_establish
-+static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
-+{
-+	pmd_t old;
-+
-+	/*
-+	 * We cannot assume what is value of pmd here, so there's no easy way
-+	 * to set if half by half. We have to fall back to cmpxchg64.
-+	 */
-+	{
-+		old = *pmdp;
-+	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
-+
-+	return old;
-+}
-+#endif
-+
- #ifdef CONFIG_SMP
- union split_pud {
- 	struct {
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index f5af95a0c6b8..a924fc6a96b9 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1092,6 +1092,20 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
- 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
- }
- 
-+#ifndef pmdp_establish
-+#define pmdp_establish pmdp_establish
-+static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
-+{
-+	if (IS_ENABLED(CONFIG_SMP)) {
-+		return xchg(pmdp, pmd);
-+	} else {
-+		pmd_t old = *pmdp;
-+		*pmdp = pmd;
-+		return old;
-+	}
-+}
-+#endif
-+
- /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
-  *
--- 
-2.11.0
+We should in theory, but I don't see how to properly do it.  In addition
+sync_file_range just can't be used for data integrity to start with, so
+I don't think it's worth it.  At some point we should add a proper
+fsync_range syscall, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
