@@ -1,103 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 934DE6B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 09:22:07 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v60so3583819wrc.7
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 06:22:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j199si136023wmd.133.2017.06.15.06.22.05
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED56A6B02B4
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 09:23:29 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id z22so11191960qtz.10
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 06:23:29 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0059.outbound.protection.outlook.com. [104.47.33.59])
+        by mx.google.com with ESMTPS id t20si130113qtg.226.2017.06.15.06.23.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 06:22:06 -0700 (PDT)
-Date: Thu, 15 Jun 2017 15:22:03 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
- freed
-Message-ID: <20170615132203.GM1486@dhcp22.suse.cz>
-References: <201706151953.HFH78657.tFFLOOOQHSMVFJ@I-love.SAKURA.ne.jp>
- <20170615110119.GI1486@dhcp22.suse.cz>
- <201706152032.BFE21313.MSHQOtLVFFJOOF@I-love.SAKURA.ne.jp>
- <20170615120335.GJ1486@dhcp22.suse.cz>
- <20170615121315.GK1486@dhcp22.suse.cz>
- <201706152201.CAB48456.FtHOJMFOVLSFQO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 06:23:28 -0700 (PDT)
+Subject: Re: [PATCH v6 25/34] swiotlb: Add warnings for use of bounce buffers
+ with SME
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
+ <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
+ <33d1debc-c684-cba1-7d95-493678f086d0@amd.com>
+ <20170615090832.ncmq2kgom32cchhw@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <a6fb0334-42e4-a08f-ac95-f33c48b0711f@amd.com>
+Date: Thu, 15 Jun 2017 08:23:17 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201706152201.CAB48456.FtHOJMFOVLSFQO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170615090832.ncmq2kgom32cchhw@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Thu 15-06-17 22:01:33, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 15-06-17 14:03:35, Michal Hocko wrote:
-> > > On Thu 15-06-17 20:32:39, Tetsuo Handa wrote:
-> > > > @@ -556,25 +553,21 @@ static void oom_reap_task(struct task_struct *tsk)
-> > > >  	struct mm_struct *mm = tsk->signal->oom_mm;
-> > > >  
-> > > >  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> > > > -	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
-> > > > +	while (__oom_reap_task_mm(tsk, mm), !test_bit(MMF_OOM_SKIP, &mm->flags)
-> > > > +	       && attempts++ < MAX_OOM_REAP_RETRIES)
-> > > >  		schedule_timeout_idle(HZ/10);
-> > > >  
-> > > > -	if (attempts <= MAX_OOM_REAP_RETRIES)
-> > > > -		goto done;
-> > > > -
-> > > > -
-> > > > -	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> > > > -		task_pid_nr(tsk), tsk->comm);
-> > > > -	debug_show_all_locks();
-> > > > -
-> > > > -done:
-> > > > -	tsk->oom_reaper_list = NULL;
-> > > > -
-> > > >  	/*
-> > > >  	 * Hide this mm from OOM killer because it has been either reaped or
-> > > >  	 * somebody can't call up_write(mmap_sem).
-> > > >  	 */
-> > > > -	set_bit(MMF_OOM_SKIP, &mm->flags);
-> > > > +	if (!test_and_set_bit(MMF_OOM_SKIP, &mm->flags)) {
-> > > > +		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> > > > +			task_pid_nr(tsk), tsk->comm);
-> > > > +		debug_show_all_locks();
-> > > > +	}
-> > > > +
-> > > 
-> > > How does this _solve_ anything? Why would you even retry when you
-> > > _know_ that the reference count dropped to zero. It will never
-> > > increment. So the above is basically just schedule_timeout_idle(HZ/10) *
-> > > MAX_OOM_REAP_RETRIES before we set MMF_OOM_SKIP.
+On 6/15/2017 4:08 AM, Borislav Petkov wrote:
+> On Wed, Jun 14, 2017 at 02:49:02PM -0500, Tom Lendacky wrote:
+>> I guess I don't need the sme_active() check since the second part of the
+>> if statement can only ever be true if SME is active (since mask is
+>> unsigned).
 > 
-> If the OOM reaper knows that mm->users == 0, it gives __mmput() some time
-> to "complete exit_mmap() etc. and set MMF_OOM_SKIP". If __mmput() released
-> some memory, subsequent OOM killer invocation is automatically avoided.
-> If __mmput() did not release some memory, let the OOM killer invoke again.
+> ... and you can define sme_me_mask as an u64 directly (it is that already,
+> practically, as we don't do SME on 32-bit) and then get rid of the cast.
+
+Let me look into that. There are so many places that are expecting an
+unsigned long I'll have to see how that all works out from a build
+perspective.
+
+Thanks,
+Tom
+
 > 
-> > 
-> > Just to make myself more clear. The above assumes that the victim hasn't
-> > passed exit_mmap and MMF_OOM_SKIP in __mmput. Which is the case we want to
-> > address here.
-> 
-> David is trying to avoid setting MMF_OOM_SKIP when the OOM reaper found that
-> mm->users == 0. But we must not wait forever because __mmput() might fail to
-> release some memory immediately. If __mmput() did not release some memory within
-> schedule_timeout_idle(HZ/10) * MAX_OOM_REAP_RETRIES sleep, let the OOM killer
-> invoke again. So, this is the case we want to address here, isn't it?
-
-And we are back with a timeout based approach... Sigh. Just imagine that
-you have a really large process which will take some time to tear down.
-While it frees memory that might be in a different oom domain. Now you
-pretend to keep retrying and eventually give up to allow a new oom
-victim from that oom domain.
-
-If we want to handle oom victims with mm_users == 0 then let's do it
-properly, please.
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
