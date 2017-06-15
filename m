@@ -1,188 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 06E136B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:42:09 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id b15so3429421wrb.1
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:42:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k6si285344wme.117.2017.06.15.07.42.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C4D506B0292
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:52:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o74so13250427pfi.6
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:52:33 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id y14si242047pgq.414.2017.06.15.07.52.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 07:42:07 -0700 (PDT)
-Date: Thu, 15 Jun 2017 16:42:04 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
-Message-ID: <20170615144204.GN1764@quack2.suse.cz>
-References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
- <20170614172211.19820-2-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170614172211.19820-2-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 07:52:32 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 3/3] mm: Use updated pmdp_invalidate() inteface to track dirty/accessed bits
+Date: Thu, 15 Jun 2017 17:52:24 +0300
+Message-Id: <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
-> To be able to use the common 4k zero page in DAX we need to have our PTE
-> fault path look more like our PMD fault path where a PTE entry can be
-> marked as dirty and writeable as it is first inserted, rather than waiting
-> for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> 
-> Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> distinguish between these two cases in do_wp_page():
-> 
-> 	case 1: 4k zero page => writable DAX storage
-> 	case 2: read-only DAX storage => writeable DAX storage
-> 
-> This distinction is made by via vm_normal_page().  vm_normal_page() returns
-> false for the common 4k zero page, though, just as it does for DAX ptes.
-> Instead of special casing the DAX + 4k zero page case, we will simplify our
-> DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
-> get rid of dax_pfn_mkwrite() completely.
-> 
-> This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
-> will do the work that was previously done by wp_page_reuse() as part of the
-> dax_pfn_mkwrite() call path.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+This patch uses modifed pmdp_invalidate(), that return previous value of pmd,
+to transfer dirty and accessed bits.
 
-So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
-that case is a way to go. However I somewhat dislike the
-vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
-we have a similar thing for PMD which is ugly as well. Besides being ugly
-I'm also concerned that when 'mkwrite' is set, we just silently overwrite
-whatever PTE was installed at that position. Not that I'd see how that
-could screw us for DAX but still a concern that e.g. some PTE flag could
-get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
-architectures, you will leak zero page references by just overwriting the
-PTE - for those archs you really need to unmap zero page before replacing
-PTE (and the same for PMD I suppose).
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ fs/proc/task_mmu.c |  8 ++++----
+ mm/huge_memory.c   | 29 ++++++++++++-----------------
+ 2 files changed, 16 insertions(+), 21 deletions(-)
 
-So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
-properly detect PTE / PMD case, read / write case etc., check that PTE did
-not change from orig_pte, and handle all the nasty details instead of
-messing with insert_pfn?
-
-								Honza
-
-> ---
->  include/linux/mm.h |  2 ++
->  mm/memory.c        | 49 +++++++++++++++++++++++++++++++++++++++++++++----
->  2 files changed, 47 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index b892e95..0ea79e6 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2296,6 +2296,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
->  			unsigned long pfn, pgprot_t pgprot);
->  int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->  			pfn_t pfn);
-> +int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
-> +			pfn_t pfn);
->  int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
->  
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 2e65df1..38d7c4f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1646,7 +1646,7 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  EXPORT_SYMBOL(vm_insert_page);
->  
->  static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
-> -			pfn_t pfn, pgprot_t prot)
-> +			pfn_t pfn, pgprot_t prot, bool mkwrite)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  	int retval;
-> @@ -1658,7 +1658,7 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	if (!pte)
->  		goto out;
->  	retval = -EBUSY;
-> -	if (!pte_none(*pte))
-> +	if (!pte_none(*pte) && !mkwrite)
->  		goto out_unlock;
->  
->  	/* Ok, finally just insert the thing.. */
-> @@ -1666,6 +1666,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  		entry = pte_mkdevmap(pfn_t_pte(pfn, prot));
->  	else
->  		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
-> +
-> +	if (mkwrite) {
-> +		entry = pte_mkyoung(entry);
-> +		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> +	}
-> +
->  	set_pte_at(mm, addr, pte, entry);
->  	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
->  
-> @@ -1736,7 +1742,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
->  
->  	track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV));
->  
-> -	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
-> +	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot,
-> +			false);
->  
->  	return ret;
->  }
-> @@ -1772,10 +1779,44 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->  		page = pfn_to_page(pfn_t_to_pfn(pfn));
->  		return insert_page(vma, addr, page, pgprot);
->  	}
-> -	return insert_pfn(vma, addr, pfn, pgprot);
-> +	return insert_pfn(vma, addr, pfn, pgprot, false);
->  }
->  EXPORT_SYMBOL(vm_insert_mixed);
->  
-> +int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
-> +			pfn_t pfn)
-> +{
-> +	pgprot_t pgprot = vma->vm_page_prot;
-> +
-> +	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
-> +
-> +	if (addr < vma->vm_start || addr >= vma->vm_end)
-> +		return -EFAULT;
-> +
-> +	track_pfn_insert(vma, &pgprot, pfn);
-> +
-> +	/*
-> +	 * If we don't have pte special, then we have to use the pfn_valid()
-> +	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
-> +	 * refcount the page if pfn_valid is true (hence insert_page rather
-> +	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
-> +	 * without pte special, it would there be refcounted as a normal page.
-> +	 */
-> +	if (!HAVE_PTE_SPECIAL && !pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
-> +		struct page *page;
-> +
-> +		/*
-> +		 * At this point we are committed to insert_page()
-> +		 * regardless of whether the caller specified flags that
-> +		 * result in pfn_t_has_page() == false.
-> +		 */
-> +		page = pfn_to_page(pfn_t_to_pfn(pfn));
-> +		return insert_page(vma, addr, page, pgprot);
-> +	}
-> +	return insert_pfn(vma, addr, pfn, pgprot, true);
-> +}
-> +EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
-> +
->  /*
->   * maps a range of physical memory into the requested pages. the old
->   * mappings are removed. any references to nonexistent pages results
-> -- 
-> 2.9.4
-> 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index f0c8b33d99b1..f2fc1ef5bba2 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -906,13 +906,13 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+ 		unsigned long addr, pmd_t *pmdp)
+ {
+-	pmd_t pmd = *pmdp;
++	pmd_t old, pmd = *pmdp;
+ 
+ 	/* See comment in change_huge_pmd() */
+-	pmdp_invalidate(vma, addr, pmdp);
+-	if (pmd_dirty(*pmdp))
++	old = pmdp_invalidate(vma, addr, pmdp);
++	if (pmd_dirty(old))
+ 		pmd = pmd_mkdirty(pmd);
+-	if (pmd_young(*pmdp))
++	if (pmd_young(old))
+ 		pmd = pmd_mkyoung(pmd);
+ 
+ 	pmd = pmd_wrprotect(pmd);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a84909cf20d3..0433e73531bf 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1777,17 +1777,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	 * pmdp_invalidate() is required to make sure we don't miss
+ 	 * dirty/young flags set by hardware.
+ 	 */
+-	entry = *pmd;
+-	pmdp_invalidate(vma, addr, pmd);
+-
+-	/*
+-	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
+-	 * corrupt them.
+-	 */
+-	if (pmd_dirty(*pmd))
+-		entry = pmd_mkdirty(entry);
+-	if (pmd_young(*pmd))
+-		entry = pmd_mkyoung(entry);
++	entry = pmdp_invalidate(vma, addr, pmd);
+ 
+ 	entry = pmd_modify(entry, newprot);
+ 	if (preserve_write)
+@@ -1927,8 +1917,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct page *page;
+ 	pgtable_t pgtable;
+-	pmd_t _pmd;
+-	bool young, write, dirty, soft_dirty;
++	pmd_t old, _pmd;
++	bool young, write, soft_dirty;
+ 	unsigned long addr;
+ 	int i;
+ 
+@@ -1965,7 +1955,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	page_ref_add(page, HPAGE_PMD_NR - 1);
+ 	write = pmd_write(*pmd);
+ 	young = pmd_young(*pmd);
+-	dirty = pmd_dirty(*pmd);
+ 	soft_dirty = pmd_soft_dirty(*pmd);
+ 
+ 	pmdp_huge_split_prepare(vma, haddr, pmd);
+@@ -1995,8 +1984,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 			if (soft_dirty)
+ 				entry = pte_mksoft_dirty(entry);
+ 		}
+-		if (dirty)
+-			SetPageDirty(page + i);
+ 		pte = pte_offset_map(&_pmd, addr);
+ 		BUG_ON(!pte_none(*pte));
+ 		set_pte_at(mm, addr, pte, entry);
+@@ -2045,7 +2032,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 	 * and finally we write the non-huge version of the pmd entry with
+ 	 * pmd_populate.
+ 	 */
+-	pmdp_invalidate(vma, haddr, pmd);
++	old = pmdp_invalidate(vma, haddr, pmd);
++
++	/*
++	 * Transfer dirty bit using value returned by pmd_invalidate() to be
++	 * sure we don't race with CPU that can set the bit under us.
++	 */
++	if (pmd_dirty(old))
++		SetPageDirty(page);
++
+ 	pmd_populate(mm, pmd, pgtable);
+ 
+ 	if (freeze) {
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
