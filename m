@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C629F6B0338
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 04:32:29 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u101so1909112wrc.2
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 01:32:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 2si2905549wrk.174.2017.06.15.01.32.28
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AE25B6B0279
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 04:47:00 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id u62so1872422lfg.6
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 01:47:00 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id 10si1422247ljt.12.2017.06.15.01.46.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 01:32:28 -0700 (PDT)
-Date: Thu, 15 Jun 2017 10:32:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Sleeping BUG in khugepaged for i586
-Message-ID: <20170615083226.GA4649@dhcp22.suse.cz>
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
- <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
- <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
- <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
- <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
- <20170608144831.GA19903@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706141809390.124136@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 01:46:58 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id v20so713570lfa.2
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 01:46:58 -0700 (PDT)
+Date: Thu, 15 Jun 2017 11:46:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 3/3] mm, thp: Do not loose dirty bit in
+ __split_huge_pmd_locked()
+Message-ID: <20170615084656.bqevrlwtyyyxdbmd@node.shutemov.name>
+References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
+ <20170614135143.25068-4-kirill.shutemov@linux.intel.com>
+ <20170614161857.69d54338@mschwideX1>
+ <20170614153131.GC5847@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706141809390.124136@chino.kir.corp.google.com>
+In-Reply-To: <20170614153131.GC5847@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Larry Finger <Larry.Finger@lwfinger.net>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 14-06-17 18:12:06, David Rientjes wrote:
-> On Thu, 8 Jun 2017, Michal Hocko wrote:
+On Wed, Jun 14, 2017 at 05:31:31PM +0200, Andrea Arcangeli wrote:
+> Hello,
 > 
-> > collapse_huge_page
-> >   pte_offset_map
-> >     kmap_atomic
-> >       kmap_atomic_prot
-> >         preempt_disable
-> >   __collapse_huge_page_copy
-> >   pte_unmap
-> >     kunmap_atomic
-> >       __kunmap_atomic
-> >         preempt_enable
-> > 
-> > I suspect, so cond_resched seems indeed inappropriate on 32b systems.
-> > 
+> On Wed, Jun 14, 2017 at 04:18:57PM +0200, Martin Schwidefsky wrote:
+> > Could we change pmdp_invalidate to make it return the old pmd entry?
 > 
-> Seems to be an issue for i386 and arm with ARM_LPAE.  I'm slightly 
-> surprised we can get away with __collapse_huge_page_swapin() for 
-> VM_FAULT_RETRY, unless that hasn't been encountered yet.
+> That to me seems the simplest fix to avoid losing the dirty bit.
+> 
+> I earlier suggested to replace pmdp_invalidate with something like
+> old_pmd = pmdp_establish(pmd_mknotpresent(pmd)) (then tlb flush could
+> then be conditional to the old pmd being present). Making
+> pmdp_invalidate return the old pmd entry would be mostly equivalent to
+> that.
+> 
+> The advantage of not changing pmdp_invalidate is that we could skip a
+> xchg which is more costly in __split_huge_pmd_locked and
+> madvise_free_huge_pmd so perhaps there's a point to keep a variant of
+> pmdp_invalidate that doesn't use xchg internally (and in turn can't
+> return the old pmd value atomically).
+> 
+> If we don't want new messy names like pmdp_establish we could have a
+> __pmdp_invalidate that returns void, and pmdp_invalidate that returns
+> the old pmd and uses xchg (and it'd also be backwards compatible as
+> far as the callers are concerned). So those places that don't need the
+> old value returned and can skip the xchg, could simply
+> s/pmdp_invalidate/__pmdp_invalidate/ to optimize.
 
-I do not see what you mean here or how is it related.
-__collapse_huge_page_swapin is called outside of
-pte_offset_map/pte_unmap section
+We have few pmdp_invalidate() callers:
 
-> I think the cond_resched() in __collapse_huge_page_copy() could be
-> done only for !in_atomic() if we choose.
+ - clear_soft_dirty_pmd();
+ - madvise_free_huge_pmd();
+ - change_huge_pmd();
+ - __split_huge_pmd_locked();
 
-in_atomic() depends on having PREEMPT_COUNT enabled to work properly AFAIR.
-I haven't double checked and something might have changed since I've
-looked the last time.
+Only madvise_free_huge_pmd() doesn't care about old pmd.
+
+__split_huge_pmd_locked() actually needs to check dirty after
+pmdp_invalidate(), see patch 3/3 of the patchset.
+
+I don't think it worth introduce one more primitive only for
+madvise_free_huge_pmd().
+
+I'll stick with single pmdp_invalidate() that returns old value.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
