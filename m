@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B73C6B02F4
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 05:08:42 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g46so2120109wrd.3
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 02:08:42 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id n19si2519150wra.31.2017.06.15.02.08.40
-        for <linux-mm@kvack.org>;
-        Thu, 15 Jun 2017 02:08:40 -0700 (PDT)
-Date: Thu, 15 Jun 2017 11:08:32 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v6 25/34] swiotlb: Add warnings for use of bounce buffers
- with SME
-Message-ID: <20170615090832.ncmq2kgom32cchhw@pd.tnic>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191732.28645.42876.stgit@tlendack-t1.amdoffice.net>
- <20170614165052.fyn5t4gkq5leczcc@pd.tnic>
- <33d1debc-c684-cba1-7d95-493678f086d0@amd.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 8C13A6B02FD
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 05:37:46 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k30so2275675wrc.9
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 02:37:46 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 75si69900wma.1.2017.06.15.02.37.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 02:37:45 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5F9Xo0u051978
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 05:37:02 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2b3q4n9jty-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 05:37:02 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 15 Jun 2017 03:37:01 -0600
+Subject: Re: [HELP-NEEDED, PATCH 0/3] Do not loose dirty bit on THP pages
+References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
+ <eed279c6-bf61-f2f3-c9f2-d9a94568e2e3@linux.vnet.ibm.com>
+ <20170614165513.GD17632@arm.com>
+ <548e33cb-e737-bb39-91a3-f66ee9211262@linux.vnet.ibm.com>
+ <20170615084851.if6sntxo5tswhlk5@node.shutemov.name>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 15 Jun 2017 15:06:49 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <33d1debc-c684-cba1-7d95-493678f086d0@amd.com>
+In-Reply-To: <20170615084851.if6sntxo5tswhlk5@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <2a54d607-6e46-3693-158b-5e8101010ce2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com
 
-On Wed, Jun 14, 2017 at 02:49:02PM -0500, Tom Lendacky wrote:
-> I guess I don't need the sme_active() check since the second part of the
-> if statement can only ever be true if SME is active (since mask is
-> unsigned).
 
-... and you can define sme_me_mask as an u64 directly (it is that already,
-practically, as we don't do SME on 32-bit) and then get rid of the cast.
 
--- 
-Regards/Gruss,
-    Boris.
+On Thursday 15 June 2017 02:18 PM, Kirill A. Shutemov wrote:
+> O
+>> I am not suggesting we don't do the invalidate (the need for that is
+>> documented in __split_huge_pmd_locked(). I am suggesting we need a new
+>> interface, something like Andrea suggested.
+>>
+>> old_pmd = pmdp_establish(pmd_mknotpresent());
+>>
+>> instead of pmdp_invalidate(). We can then use this in scenarios where we
+>> want to update pmd PTE entries, where right now we go through a pmdp_clear
+>> and set_pmd path. We should really not do that for THP entries.
+> 
+> Which cases are you talking about? When do we need to clear pmd and set
+> later?
+> 
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+With the latest upstream I am finding the usage when we mark pte clean 
+page_mkclean_one . Also there is a similar usage in 
+migrate_misplaced_transhuge_page(). I haven't really verified whether 
+they do cause any race. But my suggestion is, we should avoid the usage 
+of set_pmd_at() unless we are creating a new pmd PTE entry. If we can 
+provide pmdp_establish() we can achieve that easily.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
