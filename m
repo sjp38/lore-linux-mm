@@ -1,98 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A86C96B02B4
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:03:44 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id f185so2668pgc.10
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:03:44 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id a11si1077625pgd.459.2017.06.14.18.03.43
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A1E6B02B4
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:05:39 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id s4so4221572wrc.15
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:05:39 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e27si1678779wre.324.2017.06.14.18.05.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 18:03:44 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id s66so12117pfs.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 18:03:43 -0700 (PDT)
-Date: Thu, 15 Jun 2017 09:03:41 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
- nodes
-Message-ID: <20170615010341.GB16833@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170608122318.31598-1-mhocko@kernel.org>
- <20170612042832.GA7429@WeideMBP.lan>
- <20170612064502.GD4145@dhcp22.suse.cz>
- <20170614090651.GA15288@WeideMacBook-Pro.local>
- <3e0a47c9-d51d-3d73-e876-abc1c5c81080@suse.cz>
+        Wed, 14 Jun 2017 18:05:38 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5F13bxt036130
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:05:36 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2b3fhy1cah-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 21:05:36 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 Jun 2017 19:05:35 -0600
+Subject: Re: [HELP-NEEDED, PATCH 0/3] Do not loose dirty bit on THP pages
+References: <20170614135143.25068-1-kirill.shutemov@linux.intel.com>
+ <eed279c6-bf61-f2f3-c9f2-d9a94568e2e3@linux.vnet.ibm.com>
+ <20170614165513.GD17632@arm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 15 Jun 2017 06:35:21 +0530
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="O5XBE6gyVG5Rl6Rj"
-Content-Disposition: inline
-In-Reply-To: <3e0a47c9-d51d-3d73-e876-abc1c5c81080@suse.cz>
+In-Reply-To: <20170614165513.GD17632@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <548e33cb-e737-bb39-91a3-f66ee9211262@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mark.rutland@arm.com
 
 
---O5XBE6gyVG5Rl6Rj
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Wed, Jun 14, 2017 at 11:07:31AM +0200, Vlastimil Babka wrote:
->On 06/14/2017 11:06 AM, Wei Yang wrote:
->> On Mon, Jun 12, 2017 at 08:45:02AM +0200, Michal Hocko wrote:
->>> On Mon 12-06-17 12:28:32, Wei Yang wrote:
->>>> On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
->>>>> From: Michal Hocko <mhocko@suse.com>
->>>>>
->>>>> movable_node kernel parameter allows to make hotplugable NUMA
->>>>> nodes to put all the hotplugable memory into movable zone which
->>>>> allows more or less reliable memory hotremove.  At least this
->>>>> is the case for the NUMA nodes present during the boot (see
->>>>> find_zone_movable_pfns_for_nodes).
->>>>>
->>>>
->>>> When movable_node is enabled, we would have overlapped zones, right?
+On Wednesday 14 June 2017 10:25 PM, Will Deacon wrote:
+> Hi Aneesh,
+> 
+> On Wed, Jun 14, 2017 at 08:55:26PM +0530, Aneesh Kumar K.V wrote:
+>> On Wednesday 14 June 2017 07:21 PM, Kirill A. Shutemov wrote:
+>>> Vlastimil noted that pmdp_invalidate() is not atomic and we can loose
+>>> dirty and access bits if CPU sets them after pmdp dereference, but
+>>> before set_pmd_at().
 >>>
->>> It won't based on this patch. See movable_pfn_range
->>=20
->> I did grep in source code, but not find movable_pfn_range.
->
->This patch is adding it.
->
-
-Oops, what a shame.
-
->> Could you share some light on that?
->>=20
+>>> The bug doesn't lead to user-visible misbehaviour in current kernel, but
+>>> fixing this would be critical for future work on THP: both huge-ext4 and THP
+>>> swap out rely on proper dirty tracking.
 >>>
+>>> Unfortunately, there's no way to address the issue in a generic way. We need to
+>>> fix all architectures that support THP one-by-one.
+>>>
+>>> All architectures that have THP supported have to provide atomic
+>>> pmdp_invalidate(). If generic implementation of pmdp_invalidate() is used,
+>>> architecture needs to provide atomic pmdp_mknonpresent().
+>>>
+>>> I've fixed the issue for x86, but I need help with the rest.
+>>>
+>>> So far THP is supported on 8 architectures. Power and S390 already provides
+>>> atomic pmdp_invalidate(). x86 is fixed by this patches, so 5 architectures
+>>> left:
+>>>
+>>>   - arc;
+>>>   - arm;
+>>>   - arm64;
+>>>   - mips;
+>>>   - sparc -- it has custom pmdp_invalidate(), but it's racy too;
+>>>
+>>> Please, help me with them.
+>>>
+>>> Kirill A. Shutemov (3):
+>>>    x86/mm: Provide pmdp_mknotpresent() helper
+>>>    mm: Do not loose dirty and access bits in pmdp_invalidate()
+>>>    mm, thp: Do not loose dirty bit in __split_huge_pmd_locked()
+>>>
+>>
+>>
+>> But in __split_huge_pmd_locked() we collected the dirty bit early. So even
+>> if we made pmdp_invalidate() atomic, if we had marked the pmd pte entry
+>> dirty after we collected the dirty bit, we still loose it right ?
+>>
+>>
+>> May be we should relook at pmd PTE udpate interface. We really need an
+>> interface that can update pmd entries such that we don't clear it in
+>> between. IMHO, we can avoid the pmdp_invalidate() completely, if we can
+>> switch from a pmd PTE entry to a pointer to PTE page (pgtable_t). We also
+>> need this interface to avoid the madvise race fixed by
+> 
+> There's a good chance I'm not following your suggestion here, but it's
+> probably worth me pointing out that swizzling a page table entry from a
+> block mapping (e.g. a huge page mapped at the PMD level) to a table entry
+> (e.g. a pointer to a page of PTEs) can lead to all sorts of horrible
+> problems on ARM, including amalgamation of TLB entries and fatal aborts.
+> 
+> So we really need to go via an invalid entry, with appropriate TLB
+> invalidation before installing the new entry.
+> 
 
---=20
-Wei Yang
-Help you, Help me
+I am not suggesting we don't do the invalidate (the need for that is 
+documented in __split_huge_pmd_locked(). I am suggesting we need a new 
+interface, something like Andrea suggested.
 
---O5XBE6gyVG5Rl6Rj
-Content-Type: application/pgp-signature; name="signature.asc"
+old_pmd = pmdp_establish(pmd_mknotpresent());
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+instead of pmdp_invalidate(). We can then use this in scenarios where we 
+want to update pmd PTE entries, where right now we go through a 
+pmdp_clear and set_pmd path. We should really not do that for THP entries.
 
-iQIcBAEBCAAGBQJZQdztAAoJEKcLNpZP5cTdvtUP/ivNRBF8J0M48Hv8o2CoS4sV
-7F9mU++NrxwRo4EVHg9eZxOFw5CVVq4pJUrx41b0wLTGGYSv/WMqWmmPYEwW/cL/
-qXUZD+lHNcJYqvXVl39mWv3dLytrdo9kpdZ1BsYCsRyavkRwfl3KSkkpfAiXsOCC
-62v25qYz8Gl0hQlMU4Hb2P0mSCgRStqZfz5vKe3/3qC+FuPCHFXwC0NI+TcxFGNe
-rcUXfCdQOhloWFT+XDlLnPj3cHU7s4KeqKQ9VYokLWWoS061yucmhfajk9twAcXh
-TKTp+jn34X7Xp0DCBQ5smJapbWK5yvacvRr7HcLJUCXsyWVbVuT6/gx//jZCUtOW
-HQTSQyl1j1q+RcugsG3rtotbBFGPnDH74jPVciGmRc6q8BmuoObsCtU4x/T4YyaC
-utJONKxzrTX5JzlQDvHnqaBJ8F0sdv2CANLd8Ya9T90mcQ0jbjvIDvHxzAq3wN5M
-QzNLYJ65iXZkxVBzNO4nKvN9Ad55Fbi1YcmA6Zc1wtcykISQZ323Fgk59g7AlCqL
-/iSeizg61oocg4nMRMj93Mg9qW9i1W6N4xuG+ccPMasjvG7+Tvhm0AE2bn5GZGKf
-Vsod126/0/EpCnQY+P6/nDCGs9YGSDY+4zREPnV/g/cW9dLVraGr5wlr16kqUiMs
-sIrDALMbc3pJhMluZNHQ
-=djpe
------END PGP SIGNATURE-----
 
---O5XBE6gyVG5Rl6Rj--
+W.r.t pmdp_invalidate() usage, I was wondering whether we can do that 
+early in __split_huge_pmd_locked().
+
+-aneesh
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
