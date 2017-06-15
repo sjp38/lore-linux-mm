@@ -1,87 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 56F556B0292
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 17:41:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b19so1394014wmb.8
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 14:41:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t131si319364wmt.160.2017.06.15.14.41.35
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 204D56B02B4
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 17:43:53 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id u127so21803101itg.11
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 14:43:53 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p134si406396iod.36.2017.06.15.14.43.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 14:41:36 -0700 (PDT)
-Date: Thu, 15 Jun 2017 23:41:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
- freed
-Message-ID: <20170615214133.GB20321@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
- <20170615103909.GG1486@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
-MIME-Version: 1.0
+        Thu, 15 Jun 2017 14:43:51 -0700 (PDT)
+Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is freed
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201706152032.BFE21313.MSHQOtLVFFJOOF@I-love.SAKURA.ne.jp>
+	<20170615120335.GJ1486@dhcp22.suse.cz>
+	<20170615121315.GK1486@dhcp22.suse.cz>
+	<201706152201.CAB48456.FtHOJMFOVLSFQO@I-love.SAKURA.ne.jp>
+	<20170615132203.GM1486@dhcp22.suse.cz>
+In-Reply-To: <20170615132203.GM1486@dhcp22.suse.cz>
+Message-Id: <201706160643.CAB86439.JOMFOtOQVFFLHS@I-love.SAKURA.ne.jp>
+Date: Fri, 16 Jun 2017 06:43:41 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 15-06-17 14:26:26, David Rientjes wrote:
-> On Thu, 15 Jun 2017, Michal Hocko wrote:
-> 
-> > > If mm->mm_users is not incremented because it is already zero by the oom
-> > > reaper, meaning the final refcount has been dropped, do not set
-> > > MMF_OOM_SKIP prematurely.
+Michal Hocko wrote:
+> On Thu 15-06-17 22:01:33, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Thu 15-06-17 14:03:35, Michal Hocko wrote:
+> > > > On Thu 15-06-17 20:32:39, Tetsuo Handa wrote:
+> > > > > @@ -556,25 +553,21 @@ static void oom_reap_task(struct task_struct *tsk)
+> > > > >  	struct mm_struct *mm = tsk->signal->oom_mm;
+> > > > >  
+> > > > >  	/* Retry the down_read_trylock(mmap_sem) a few times */
+> > > > > -	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
+> > > > > +	while (__oom_reap_task_mm(tsk, mm), !test_bit(MMF_OOM_SKIP, &mm->flags)
+> > > > > +	       && attempts++ < MAX_OOM_REAP_RETRIES)
+> > > > >  		schedule_timeout_idle(HZ/10);
+> > > > >  
+> > > > > -	if (attempts <= MAX_OOM_REAP_RETRIES)
+> > > > > -		goto done;
+> > > > > -
+> > > > > -
+> > > > > -	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+> > > > > -		task_pid_nr(tsk), tsk->comm);
+> > > > > -	debug_show_all_locks();
+> > > > > -
+> > > > > -done:
+> > > > > -	tsk->oom_reaper_list = NULL;
+> > > > > -
+> > > > >  	/*
+> > > > >  	 * Hide this mm from OOM killer because it has been either reaped or
+> > > > >  	 * somebody can't call up_write(mmap_sem).
+> > > > >  	 */
+> > > > > -	set_bit(MMF_OOM_SKIP, &mm->flags);
+> > > > > +	if (!test_and_set_bit(MMF_OOM_SKIP, &mm->flags)) {
+> > > > > +		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+> > > > > +			task_pid_nr(tsk), tsk->comm);
+> > > > > +		debug_show_all_locks();
+> > > > > +	}
+> > > > > +
+> > > > 
+> > > > How does this _solve_ anything? Why would you even retry when you
+> > > > _know_ that the reference count dropped to zero. It will never
+> > > > increment. So the above is basically just schedule_timeout_idle(HZ/10) *
+> > > > MAX_OOM_REAP_RETRIES before we set MMF_OOM_SKIP.
+> > 
+> > If the OOM reaper knows that mm->users == 0, it gives __mmput() some time
+> > to "complete exit_mmap() etc. and set MMF_OOM_SKIP". If __mmput() released
+> > some memory, subsequent OOM killer invocation is automatically avoided.
+> > If __mmput() did not release some memory, let the OOM killer invoke again.
+> > 
 > > > 
-> > > __mmput() may not have had a chance to do exit_mmap() yet, so memory from
-> > > a previous oom victim is still mapped.
+> > > Just to make myself more clear. The above assumes that the victim hasn't
+> > > passed exit_mmap and MMF_OOM_SKIP in __mmput. Which is the case we want to
+> > > address here.
 > > 
-> > true and do we have a _guarantee_ it will do it? E.g. can somebody block
-> > exit_aio from completing? Or can somebody hold mmap_sem and thus block
-> > ksm_exit resp. khugepaged_exit from completing? The reason why I was
-> > conservative and set such a mm as MMF_OOM_SKIP was because I couldn't
-> > give a definitive answer to those questions. And we really _want_ to
-> > have a guarantee of a forward progress here. Killing an additional
-> > proecess is a price to pay and if that doesn't trigger normall it sounds
-> > like a reasonable compromise to me.
-> > 
+> > David is trying to avoid setting MMF_OOM_SKIP when the OOM reaper found that
+> > mm->users == 0. But we must not wait forever because __mmput() might fail to
+> > release some memory immediately. If __mmput() did not release some memory within
+> > schedule_timeout_idle(HZ/10) * MAX_OOM_REAP_RETRIES sleep, let the OOM killer
+> > invoke again. So, this is the case we want to address here, isn't it?
 > 
-> I have not seen any issues where __mmput() stalls and exit_mmap() fails to 
-> free its mapped memory once mm->mm_users has dropped to 0.
-> 
-> > > __mput() naturally requires no
-> > > references on mm->mm_users to do exit_mmap().
-> > > 
-> > > Without this, several processes can be oom killed unnecessarily and the
-> > > oom log can show an abundance of memory available if exit_mmap() is in
-> > > progress at the time the process is skipped.
-> > 
-> > Have you seen this happening in the real life?
-> > 
-> 
-> Yes, quite a bit in testing.
-> 
-> One oom kill shows the system to be oom:
-> 
-> [22999.488705] Node 0 Normal free:90484kB min:90500kB ...
-> [22999.488711] Node 1 Normal free:91536kB min:91948kB ...
-> 
-> followed up by one or more unnecessary oom kills showing the oom killer 
-> racing with memory freeing of the victim:
-> 
-> [22999.510329] Node 0 Normal free:229588kB min:90500kB ...
-> [22999.510334] Node 1 Normal free:600036kB min:91948kB ...
-> 
-> The patch is absolutely required for us to prevent continuous oom killing 
-> of processes after a single process has been oom killed and its memory is 
-> in the process of being freed.
+> And we are back with a timeout based approach... Sigh. Just imagine that
+> you have a really large process which will take some time to tear down.
+> While it frees memory that might be in a different oom domain. Now you
+> pretend to keep retrying and eventually give up to allow a new oom
+> victim from that oom domain.
 
-OK, could you play with the patch/idea suggested in
-http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?
+We are already using timeout based approach at down_read_trylock(&mm->mmap_sem)
+in __oom_reap_task_mm(). It is possible that down_read_trylock(&mm->mmap_sem)
+succeeds if the OOM reaper waited for one more second, for the thread which is
+holding mmap_sem for write could just be failing to get TIF_MEMDIE due to
+oom_lock contention among unrelated threads, but we allow the OOM reaper to
+give up after one second.
 
--- 
-Michal Hocko
-SUSE Labs
+Even if the victim is a really large process which will take some time to tear
+down """inside __mmput()""", subsequent OOM killer invocation will be _automatically
+avoided_ if __mmput() released _some_ memory. Thus, giving up __mmput() after one
+second as well as giving up down_read_trylock(&mm->mmap_sem) after one second is
+reasonable.
+
+> 
+> If we want to handle oom victims with mm_users == 0 then let's do it
+> properly, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
