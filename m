@@ -1,241 +1,289 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 412136B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 23:29:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h21so1869917pfk.13
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:29:31 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id 9si908650pld.517.2017.06.14.20.29.30
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0A56B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 23:31:41 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r70so2014617pfb.7
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:31:41 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id z86si1364265pfd.125.2017.06.14.20.31.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 20:29:30 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id s66so362192pfs.2
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:29:30 -0700 (PDT)
-Date: Thu, 15 Jun 2017 11:29:27 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] mm, memory_hotplug: support movable_node for hotplugable
- nodes
-Message-ID: <20170615032927.GA17971@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170608122318.31598-1-mhocko@kernel.org>
+        Wed, 14 Jun 2017 20:31:40 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id y7so365310pfd.3
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 20:31:40 -0700 (PDT)
+Date: Thu, 15 Jun 2017 13:31:28 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [HMM-CDM 3/5] mm/memcontrol: allow to uncharge page without
+ using page->lru field
+Message-ID: <20170615133128.2fe2c33f@firefly.ozlabs.ibm.com>
+In-Reply-To: <20170614201144.9306-4-jglisse@redhat.com>
+References: <20170614201144.9306-1-jglisse@redhat.com>
+	<20170614201144.9306-4-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="bg08WKrSYDhXBjb5"
-Content-Disposition: inline
-In-Reply-To: <20170608122318.31598-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
+On Wed, 14 Jun 2017 16:11:42 -0400
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
 
---bg08WKrSYDhXBjb5
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, Jun 08, 2017 at 02:23:18PM +0200, Michal Hocko wrote:
->From: Michal Hocko <mhocko@suse.com>
->
->movable_node kernel parameter allows to make hotplugable NUMA
->nodes to put all the hotplugable memory into movable zone which
->allows more or less reliable memory hotremove.  At least this
->is the case for the NUMA nodes present during the boot (see
->find_zone_movable_pfns_for_nodes).
->
->This is not the case for the memory hotplug, though.
->
->	echo online > /sys/devices/system/memory/memoryXYZ/status
->
->will default to a kernel zone (usually ZONE_NORMAL) unless the
->particular memblock is already in the movable zone range which is not
->the case normally when onlining the memory from the udev rule context
->for a freshly hotadded NUMA node. The only option currently is to have a
->special udev rule to echo online_movable to all memblocks belonging to
->such a node which is rather clumsy. Not the mention this is inconsistent
->as well because what ended up in the movable zone during the boot will
->end up in a kernel zone after hotremove & hotadd without special care.
->
->It would be nice to reuse memblock_is_hotpluggable but the runtime
->hotplug doesn't have that information available because the boot and
->hotplug paths are not shared and it would be really non trivial to
->make them use the same code path because the runtime hotplug doesn't
->play with the memblock allocator at all.
->
->Teach move_pfn_range that MMOP_ONLINE_KEEP can use the movable zone if
->movable_node is enabled and the range doesn't overlap with the existing
->normal zone. This should provide a reasonable default onlining strategy.
->
->Strictly speaking the semantic is not identical with the boot time
->initialization because find_zone_movable_pfns_for_nodes covers only the
->hotplugable range as described by the BIOS/FW. From my experience this
->is usually a full node though (except for Node0 which is special and
->never goes away completely). If this turns out to be a problem in the
->real life we can tweak the code to store hotplug flag into memblocks
->but let's keep this simple now.
->
->Signed-off-by: Michal Hocko <mhocko@suse.com>
->---
->
->Hi Andrew,
->I've posted this as an RFC previously [1] and there haven't been any
->objections to the approach so I've dropped the RFC and sending it for
->inclusion. The only change since the last time is the update of the
->documentation to clarify the semantic as suggested by Reza Arbab.
->
->[1] http://lkml.kernel.org/r/20170601122004.32732-1-mhocko@kernel.org
->
-> Documentation/memory-hotplug.txt | 12 +++++++++---
-> mm/memory_hotplug.c              | 19 ++++++++++++++++---
-> 2 files changed, 25 insertions(+), 6 deletions(-)
->
->diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotpl=
-ug.txt
->index 670f3ded0802..5c628e19d6cd 100644
->--- a/Documentation/memory-hotplug.txt
->+++ b/Documentation/memory-hotplug.txt
->@@ -282,20 +282,26 @@ offlined it is possible to change the individual blo=
-ck's state by writing to the
-> % echo online > /sys/devices/system/memory/memoryXXX/state
+> HMM pages (private or public device pages) are ZONE_DEVICE page and
+> thus you can not use page->lru fields of those pages. This patch
+> re-arrange the uncharge to allow single page to be uncharge without
+> modifying the lru field of the struct page.
 >=20
-> This onlining will not change the ZONE type of the target memory block,
->-If the memory block is in ZONE_NORMAL, you can change it to ZONE_MOVABLE:
->+If the memory block doesn't belong to any zone an appropriate kernel zone
->+(usually ZONE_NORMAL) will be used unless movable_node kernel command line
->+option is specified when ZONE_MOVABLE will be used.
->+
->+You can explicitly request to associate it with ZONE_MOVABLE by
+> There is no change to memcontrol logic, it is the same as it was
+> before this patch.
 >=20
-> % echo online_movable > /sys/devices/system/memory/memoryXXX/state
-> (NOTE: current limit: this memory block must be adjacent to ZONE_MOVABLE)
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: cgroups@vger.kernel.org
+> ---
+>  mm/memcontrol.c | 168 +++++++++++++++++++++++++++++++-------------------=
+------
+>  1 file changed, 92 insertions(+), 76 deletions(-)
 >=20
->-And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NOR=
-MAL:
->+Or you can explicitly request a kernel zone (usually ZONE_NORMAL) by:
->=20
-> % echo online_kernel > /sys/devices/system/memory/memoryXXX/state
-> (NOTE: current limit: this memory block must be adjacent to ZONE_NORMAL)
->=20
->+An explicit zone onlining can fail (e.g. when the range is already within
->+and existing and incompatible zone already).
->+
-> After this, memory block XXX's state will be 'online' and the amount of
-> available memory will be increased.
->=20
->-Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_=
-DMA).
-> This may be changed in future.
->=20
->=20
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index b98fb0b3ae11..74d75583736c 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -943,6 +943,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned l=
-ong start_pfn,
-> 	return &pgdat->node_zones[ZONE_NORMAL];
-> }
->=20
->+static inline bool movable_pfn_range(int nid, struct zone *default_zone,
->+		unsigned long start_pfn, unsigned long nr_pages)
->+{
->+	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
->+				MMOP_ONLINE_KERNEL))
->+		return true;
->+
->+	if (!movable_node_is_enabled())
->+		return false;
->+
->+	return !zone_intersects(default_zone, start_pfn, nr_pages);
->+}
->+
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e3fe4d0..b93f5fe 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5509,48 +5509,102 @@ void mem_cgroup_cancel_charge(struct page *page,=
+ struct mem_cgroup *memcg,
+>  	cancel_charge(memcg, nr_pages);
+>  }
+> =20
+> -static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgo=
+ut,
+> -			   unsigned long nr_anon, unsigned long nr_file,
+> -			   unsigned long nr_kmem, unsigned long nr_huge,
+> -			   unsigned long nr_shmem, struct page *dummy_page)
+> +struct uncharge_gather {
+> +	struct mem_cgroup *memcg;
+> +	unsigned long pgpgout;
+> +	unsigned long nr_anon;
+> +	unsigned long nr_file;
+> +	unsigned long nr_kmem;
+> +	unsigned long nr_huge;
+> +	unsigned long nr_shmem;
+> +	struct page *dummy_page;
+> +};
+> +
+> +static inline void uncharge_gather_clear(struct uncharge_gather *ug)
+>  {
+> -	unsigned long nr_pages =3D nr_anon + nr_file + nr_kmem;
+> +	memset(ug, 0, sizeof(*ug));
+> +}
+> +
+> +static void uncharge_batch(const struct uncharge_gather *ug)
+> +{
 
-To be honest, I don't understand this clearly.
+Can we pass page as an argument so that we can do check events on the page?
 
-move_pfn_range() will choose and move the range to a zone based on the
-online_type, where we have two cases:
-1. ONLINE_MOVABLE -> ZONE_MOVABLE will be chosen
-2. ONLINE_KEEP    -> ZONE_NORMAL is the default while ZONE_MOVABLE will be
-chosen in case movable_pfn_range() returns true.
+> +	unsigned long nr_pages =3D ug->nr_anon + ug->nr_file + ug->nr_kmem;
+>  	unsigned long flags;
+> =20
+> -	if (!mem_cgroup_is_root(memcg)) {
+> -		page_counter_uncharge(&memcg->memory, nr_pages);
+> +	if (!mem_cgroup_is_root(ug->memcg)) {
+> +		page_counter_uncharge(&ug->memcg->memory, nr_pages);
+>  		if (do_memsw_account())
+> -			page_counter_uncharge(&memcg->memsw, nr_pages);
+> -		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && nr_kmem)
+> -			page_counter_uncharge(&memcg->kmem, nr_kmem);
+> -		memcg_oom_recover(memcg);
+> +			page_counter_uncharge(&ug->memcg->memsw, nr_pages);
+> +		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && ug->nr_kmem)
+> +			page_counter_uncharge(&ug->memcg->kmem, ug->nr_kmem);
+> +		memcg_oom_recover(ug->memcg);
+>  	}
+> =20
+>  	local_irq_save(flags);
+> -	__this_cpu_sub(memcg->stat->count[MEMCG_RSS], nr_anon);
+> -	__this_cpu_sub(memcg->stat->count[MEMCG_CACHE], nr_file);
+> -	__this_cpu_sub(memcg->stat->count[MEMCG_RSS_HUGE], nr_huge);
+> -	__this_cpu_sub(memcg->stat->count[NR_SHMEM], nr_shmem);
+> -	__this_cpu_add(memcg->stat->events[PGPGOUT], pgpgout);
+> -	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
+> -	memcg_check_events(memcg, dummy_page);
+> +	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS], ug->nr_anon);
+> +	__this_cpu_sub(ug->memcg->stat->count[MEMCG_CACHE], ug->nr_file);
+> +	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS_HUGE], ug->nr_huge);
+> +	__this_cpu_sub(ug->memcg->stat->count[NR_SHMEM], ug->nr_shmem);
+> +	__this_cpu_add(ug->memcg->stat->events[PGPGOUT], ug->pgpgout);
+> +	__this_cpu_add(ug->memcg->stat->nr_page_events, nr_pages);
+> +	memcg_check_events(ug->memcg, ug->dummy_page);
+>  	local_irq_restore(flags);
+> =20
+> -	if (!mem_cgroup_is_root(memcg))
+> -		css_put_many(&memcg->css, nr_pages);
+> +	if (!mem_cgroup_is_root(ug->memcg))
+> +		css_put_many(&ug->memcg->css, nr_pages);
+> +}
+> +
+> +static void uncharge_page(struct page *page, struct uncharge_gather *ug)
+> +{
+> +	VM_BUG_ON_PAGE(PageLRU(page), page);
+> +	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> +
+> +	if (!page->mem_cgroup)
+> +		return;
+> +
+> +	/*
+> +	 * Nobody should be changing or seriously looking at
+> +	 * page->mem_cgroup at this point, we have fully
+> +	 * exclusive access to the page.
+> +	 */
+> +
+> +	if (ug->memcg !=3D page->mem_cgroup) {
+> +		if (ug->memcg) {
+> +			uncharge_batch(ug);
 
-There are three conditions in movable_pfn_range():
-1. Not allowed in kernel_zone, returns true
-2. Movable_node not enabled, return false=20
-3. Range [start_pfn, start_pfn + nr_pages) doesn't intersect with
-default_zone, return true
+What is ug->dummy_page set to at this point? ug->dummy_page is assigned bel=
+ow
 
-The first one is inherited from original code, so lets look at the other tw=
-o.
+> +			uncharge_gather_clear(ug);
+> +		}
+> +		ug->memcg =3D page->mem_cgroup;
+> +	}
+> +
+> +	if (!PageKmemcg(page)) {
+> +		unsigned int nr_pages =3D 1;
+> +
+> +		if (PageTransHuge(page)) {
+> +			nr_pages <<=3D compound_order(page);
+> +			ug->nr_huge +=3D nr_pages;
+> +		}
+> +		if (PageAnon(page))
+> +			ug->nr_anon +=3D nr_pages;
+> +		else {
+> +			ug->nr_file +=3D nr_pages;
+> +			if (PageSwapBacked(page))
+> +				ug->nr_shmem +=3D nr_pages;
+> +		}
+> +		ug->pgpgout++;
+> +	} else {
+> +		ug->nr_kmem +=3D 1 << compound_order(page);
+> +		__ClearPageKmemcg(page);
+> +	}
+> +
+> +	ug->dummy_page =3D page;
+> +	page->mem_cgroup =3D NULL;
+>  }
+> =20
+>  static void uncharge_list(struct list_head *page_list)
+>  {
+> -	struct mem_cgroup *memcg =3D NULL;
+> -	unsigned long nr_shmem =3D 0;
+> -	unsigned long nr_anon =3D 0;
+> -	unsigned long nr_file =3D 0;
+> -	unsigned long nr_huge =3D 0;
+> -	unsigned long nr_kmem =3D 0;
+> -	unsigned long pgpgout =3D 0;
+> +	struct uncharge_gather ug;
+>  	struct list_head *next;
+> -	struct page *page;
+> +
+> +	uncharge_gather_clear(&ug);
+> =20
+>  	/*
+>  	 * Note that the list can be a single page->lru; hence the
+> @@ -5558,57 +5612,16 @@ static void uncharge_list(struct list_head *page_=
+list)
+>  	 */
+>  	next =3D page_list->next;
+>  	do {
+> +		struct page *page;
+> +
 
-Number 3 is easy to understand, if the hot-added range is already part of
-ZONE_NORMAL, use it.
+Nit pick
 
-Number 2 makes me confused. If movable_node is not enabled, ZONE_NORMAL will
-be chosen. If movable_node is enabled, it still depends on other two
-condition. So how a memory_block is onlined to ZONE_MOVABLE because
-movable_node is enabled? What I see is you would forbid a memory_block to be
-onlined to ZONE_MOVABLE when movable_node is not enabled. Instead of you wo=
-uld
-online a memory_block to ZONE_MOVABLE when movable_node is enabled, which is
-implied in your change log.
+VM_WARN_ON(is_zone_device_page(page));
 
-BTW, would you mind giving me these two information?
-1. Which branch your code is based on? I have cloned your
-git(//git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git), while still s=
-ee
-some difference.
-2. Any example or test case I could try your patch and see the difference? =
-It
-would be better if it could run in qemu+kvm.
+>  		page =3D list_entry(next, struct page, lru);
+>  		next =3D page->lru.next;
+> =20
+> -		VM_BUG_ON_PAGE(PageLRU(page), page);
+> -		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> -
+> -		if (!page->mem_cgroup)
+> -			continue;
+> -
+> -		/*
+> -		 * Nobody should be changing or seriously looking at
+> -		 * page->mem_cgroup at this point, we have fully
+> -		 * exclusive access to the page.
+> -		 */
+> -
+> -		if (memcg !=3D page->mem_cgroup) {
+> -			if (memcg) {
+> -				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+> -					       nr_kmem, nr_huge, nr_shmem, page);
+> -				pgpgout =3D nr_anon =3D nr_file =3D nr_kmem =3D 0;
+> -				nr_huge =3D nr_shmem =3D 0;
+> -			}
+> -			memcg =3D page->mem_cgroup;
+> -		}
+> -
+> -		if (!PageKmemcg(page)) {
+> -			unsigned int nr_pages =3D 1;
+> -
+> -			if (PageTransHuge(page)) {
+> -				nr_pages <<=3D compound_order(page);
+> -				nr_huge +=3D nr_pages;
+> -			}
+> -			if (PageAnon(page))
+> -				nr_anon +=3D nr_pages;
+> -			else {
+> -				nr_file +=3D nr_pages;
+> -				if (PageSwapBacked(page))
+> -					nr_shmem +=3D nr_pages;
+> -			}
+> -			pgpgout++;
+> -		} else {
+> -			nr_kmem +=3D 1 << compound_order(page);
+> -			__ClearPageKmemcg(page);
+> -		}
+> -
+> -		page->mem_cgroup =3D NULL;
+> +		uncharge_page(page, &ug);
+>  	} while (next !=3D page_list);
+> =20
+> -	if (memcg)
+> -		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+> -			       nr_kmem, nr_huge, nr_shmem, page);
+> +	if (ug.memcg)
+> +		uncharge_batch(&ug);
+>  }
+> =20
+>  /**
+> @@ -5620,6 +5633,8 @@ static void uncharge_list(struct list_head *page_li=
+st)
+>   */
+>  void mem_cgroup_uncharge(struct page *page)
+>  {
+> +	struct uncharge_gather ug;
+> +
+>  	if (mem_cgroup_disabled())
+>  		return;
+> =20
+> @@ -5627,8 +5642,9 @@ void mem_cgroup_uncharge(struct page *page)
+>  	if (!page->mem_cgroup)
+>  		return;
+> =20
+> -	INIT_LIST_HEAD(&page->lru);
+> -	uncharge_list(&page->lru);
+> +	uncharge_gather_clear(&ug);
+> +	uncharge_page(page, &ug);
+> +	uncharge_batch(&ug);
+>  }
 
-> /*
->  * Associates the given pfn range with the given node and the zone approp=
-riate
->  * for the given online type.
->@@ -958,10 +971,10 @@ static struct zone * __meminit move_pfn_range(int on=
-line_type, int nid,
-> 		/*
-> 		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
-> 		 * movable zone if that is not possible (e.g. we are within
->-		 * or past the existing movable zone)
->+		 * or past the existing movable zone). movable_node overrides
->+		 * this default and defaults to movable zone
-> 		 */
->-		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
->-					MMOP_ONLINE_KERNEL))
->+		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
-> 			zone =3D movable_zone;
-> 	} else if (online_type =3D=3D MMOP_ONLINE_MOVABLE) {
-> 		zone =3D &pgdat->node_zones[ZONE_MOVABLE];
->--=20
->2.11.0
 
---=20
-Wei Yang
-Help you, Help me
-
---bg08WKrSYDhXBjb5
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJZQf8XAAoJEKcLNpZP5cTdViwP/RTalTg0bdCKOuTe6wNSBJfE
-gmYHDvjQ0zTO3KOHVXTpa6bwGej0NRF1c6lOVI2EwXu5mck/UHWAhrmAAwCYK9FZ
-JR3BqzkxNYKo+Y9EGxDir4Rw7YtE9FtuDWhIYog+NFdYjTkJAAj+ewnUpLYytS9n
-ruiE63qTrqnUhZXnaskV0Wg4BnMPnRVlnVeaS9stkXY+EmVc+ZkaYdjKvx/yLfjg
-WDQBCgIk5GCECLXC+dMBkx3awOYvydHnIMuvuupaurJyijBl3dpStEMfRwTgQOSB
-c3B5IVBTR4GPnPgPP1nLy60kTUWfqds0nw7Th990FH9lGxGNCy8Bpqq9vHI4tArj
-lGeWhwd5NCJQ4QEeWCj3WVyOH+3mhm2D75p5ddlMJXFsaqM8zDDjiuCfSCFoqHbm
-BtFiuISaWUvE6sTxI+PxIskgDQnc/f+XnKGaoeG7cejZ3w949PaMJ6zc2Zy2pKEQ
-phvqyAkJ4mVu1ku3kwLQhZrCSE9l7bISzRnyC4miCecubRBfRrKJr3ZYcPxnSRvC
-hARdqQGpaCvoQ+gyQ8F1dZHvSaf81Nf2uDfi7TUR9o1N77HypocQ1N4/RJ7cKvHn
-xljhLbmVAtxIlYmwJ42pqSwzhShFmTrWxr53IVOgSKQhcP5TysU9nmuNzBlfy/8o
-9o64zrVBesqY130GYxOc
-=a6hU
------END PGP SIGNATURE-----
-
---bg08WKrSYDhXBjb5--
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
