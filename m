@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD37B6B02F3
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 18:23:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p190so1515214wme.3
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:23:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g51si427976wra.242.2017.06.15.15.23.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B6246B0279
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 18:29:07 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id n7so5270995wrb.0
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:29:07 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id v17si399349wra.229.2017.06.15.15.29.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 15:23:23 -0700 (PDT)
-Date: Fri, 16 Jun 2017 00:23:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm: improve readability of
- transparent_hugepage_enabled()
-Message-ID: <20170615222321.GE22341@dhcp22.suse.cz>
-References: <149739530052.20686.9000645746376519779.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149739530612.20686.14760671150202647861.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170614124520.GA8537@dhcp22.suse.cz>
- <CAPcyv4hEYJrW=Pv+ON5+EG4iLUjX2XRW3u+kSsMa8J5qh-KeVg@mail.gmail.com>
- <20170615080738.GB1486@dhcp22.suse.cz>
- <20170615130658.009629c1fdeb087058b78333@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170615130658.009629c1fdeb087058b78333@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 15:29:05 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id m125so11384308wmm.1
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 15:29:05 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+In-Reply-To: <20170615151637.77babb9a1b65c878f4235f65@linux-foundation.org>
+Date: Fri, 16 Jun 2017 00:29:03 +0200
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <F0D43B2F-6811-4FEA-9152-75BD0792BD83@linaro.org>
+References: <20170609082226.26152-1-ard.biesheuvel@linaro.org> <20170615142439.7a431065465c5b4691aed1cc@linux-foundation.org> <BE70CA51-B790-456E-B31C-399632B4DCD1@linaro.org> <20170615151637.77babb9a1b65c878f4235f65@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, mhocko@suse.com, zhongjiang@huawei.com, labbott@fedoraproject.org, mark.rutland@arm.com, linux-arm-kernel@lists.infradead.org, dave.hansen@intel.com
 
-On Thu 15-06-17 13:06:58, Andrew Morton wrote:
-> On Thu, 15 Jun 2017 10:07:39 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > On Wed 14-06-17 12:26:46, Dan Williams wrote:
-> > > On Wed, Jun 14, 2017 at 5:45 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > > On Tue 13-06-17 16:08:26, Dan Williams wrote:
-> > > >> Turn the macro into a static inline and rewrite the condition checks for
-> > > >> better readability in preparation for adding another condition.
-> > > >>
-> > > >> Cc: Jan Kara <jack@suse.cz>
-> > > >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > >> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > > >> [ross: fix logic to make conversion equivalent]
-> > > >> Acked-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > >> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> > > >
-> > > > This is really a nice deobfuscation! Please note this will conflict with
-> > > > http://lkml.kernel.org/r/1496415802-30944-1-git-send-email-rppt@linux.vnet.ibm.com
-> > > >
-> > > >
-> > > > Trivial to resolve but I thought I should give you a heads up.
-> > > 
-> > > Hmm, I'm assuming that vma_is_dax() should override PRCTL_THP_DISABLE?
-> > > ...and while we're there should vma_is_dax() also override
-> > > VM_NOHUGEPAGE? This is with the assumption that the reason to turn off
-> > > huge pages is to avoid mm pressure, dax exerts no such pressure.
-> > 
-> > As the changelog of the referenced patch says another reason is to stop
-> > khugepaged from interfering and collapsing smaller pages into THP. If
-> > DAX mappings are subject to khugepaged then we really need to exclude
-> > it. Why would you want to override user's decision to disable THP
-> > anyway? I can see why the global knob should be ignored but if the
-> > disable is targeted for the specific VMA or the process then we should
-> > obey that, no?
-> 
-> So... Like this?
-> 
-> static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
-> {
-> 	if (vma->vm_flags & VM_NOHUGEPAGE))
-> 		return false;
-> 
-> 	if (is_vma_temporary_stack(vma))
-> 		return false;
-> 
-> 	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-> 		return false;
-> 
-> 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
-> 		return true;
-> 
-> 	if (transparent_hugepage_flags &
-> 				(1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
-> 		return !!(vma->vm_flags & VM_HUGEPAGE);
-> 
-> 	return false;
-> }
 
-yes
+> On 16 Jun 2017, at 00:16, Andrew Morton <akpm@linux-foundation.org> wrote:=
 
--- 
-Michal Hocko
-SUSE Labs
+>=20
+>> On Fri, 16 Jun 2017 00:11:53 +0200 Ard Biesheuvel <ard.biesheuvel@linaro.=
+org> wrote:
+>>=20
+>>=20
+>>=20
+>>>> On 15 Jun 2017, at 23:24, Andrew Morton <akpm@linux-foundation.org> wro=
+te:
+>>>>=20
+>>>> On Fri,  9 Jun 2017 08:22:26 +0000 Ard Biesheuvel <ard.biesheuvel@linar=
+o.org> wrote:
+>>>>=20
+>>>> Existing code that uses vmalloc_to_page() may assume that any
+>>>> address for which is_vmalloc_addr() returns true may be passed
+>>>> into vmalloc_to_page() to retrieve the associated struct page.
+>>>>=20
+>>>> This is not un unreasonable assumption to make, but on architectures
+>>>> that have CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy, it no longer holds, and we
+>>>> need to ensure that vmalloc_to_page() does not go off into the weeds
+>>>> trying to dereference huge PUDs or PMDs as table entries.
+>>>>=20
+>>>> Given that vmalloc() and vmap() themselves never create huge
+>>>> mappings or deal with compound pages at all, there is no correct
+>>>> answer in this case, so return NULL instead, and issue a warning.
+>>>=20
+>>> Is this patch known to fix any current user-visible problem?
+>>=20
+>> Yes. When reading /proc/kcore on arm64, you will hit an oops as soon as y=
+ou hit the huge mappings used for the various segments that make up the mapp=
+ing of vmlinux. With this patch applied, you will no longer hit the oops, bu=
+t the kcore contents willl be incorrect (these regions will be zeroed out)
+>>=20
+>> We are fixing this for kcore specifically, so it avoids vread() for  thos=
+e regions. At least one other problematic user exists, i.e., /dev/kmem, but t=
+hat is currently broken on arm64 for other reasons.
+>>=20
+>=20
+> Do you have any suggestions regarding which kernel version(s) should
+> get this patch?
+>=20
+
+Good question. v4.6 was the first one to enable the huge vmap feature on arm=
+64 iirc, but that does not necessarily mean it needs to be backported at all=
+ imo. What is kcore used for? Production grade stuff?=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
