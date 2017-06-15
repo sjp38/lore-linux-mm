@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3A86B0292
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 13:43:28 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n40so16325071qtb.4
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:43:28 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CF46B0279
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 14:53:27 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id k36so14022691otb.3
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 11:53:27 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 67si781209qkv.175.2017.06.15.10.43.27
+        by mx.google.com with ESMTPS id o206si1536050oih.248.2017.06.15.11.53.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 10:43:27 -0700 (PDT)
-Date: Thu, 15 Jun 2017 13:43:25 -0400 (EDT)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <1982176625.36197567.1497548604992.JavaMail.zimbra@redhat.com>
-In-Reply-To: <59420204.905@huawei.com>
-References: <20170524172024.30810-1-jglisse@redhat.com> <20170524172024.30810-8-jglisse@redhat.com> <59420204.905@huawei.com>
-Subject: Re: [HMM 07/15] mm/ZONE_DEVICE: new type of ZONE_DEVICE for
- unaddressable memory v3
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Thu, 15 Jun 2017 11:53:27 -0700 (PDT)
+Message-ID: <1497552803.20270.96.camel@redhat.com>
+Subject: Re: [PATCH v2 01/10] x86/ldt: Simplify LDT switching logic
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 15 Jun 2017 14:53:23 -0400
+In-Reply-To: <c1d005d9608fa44ef124910ee02765edbcb3dd99.1497415951.git.luto@kernel.org>
+References: <cover.1497415951.git.luto@kernel.org>
+	 <c1d005d9608fa44ef124910ee02765edbcb3dd99.1497415951.git.luto@kernel.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-38c+EeEUFFjuMvvBynlh"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andy Lutomirski <luto@kernel.org>, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-> On 2017/5/25 1:20, J=C3=A9r=C3=B4me Glisse wrote:
 
-[...]
+--=-38c+EeEUFFjuMvvBynlh
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index d744cff..f5357ff 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -736,6 +736,19 @@ config ZONE_DEVICE
-> > =20
-> >  =09  If FS_DAX is enabled, then say Y.
-> > =20
-> > +config DEVICE_PRIVATE
-> > +=09bool "Unaddressable device memory (GPU memory, ...)"
-> > +=09depends on X86_64
-> > +=09depends on ZONE_DEVICE
-> > +=09depends on MEMORY_HOTPLUG
-> > +=09depends on MEMORY_HOTREMOVE
-> > +=09depends on SPARSEMEM_VMEMMAP
-> > +
->  maybe just depends on ARCH_HAS_HMM is enough.
+On Tue, 2017-06-13 at 21:56 -0700, Andy Lutomirski wrote:
 
-I have updated that as part of HMM CDM patchset.
+> Simplify the code to update LDTR if either the previous or the next
+> mm has an LDT, i.e. effectively restore the historical logic..
+> While we're at it, clean up the code by moving all the ifdeffery to
+> a header where it belongs.
+>=20
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+--=20
+All rights reversed
+--=-38c+EeEUFFjuMvvBynlh
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJZQtejAAoJEM553pKExN6DzC0H/RAW+X88/fAzHWuc6tjYGuxM
+ybXi2RTkLPzZF9W1zD1peU65RkGXww4oWfwvwRdrumPfLNrAlciPR8MlffdPEGNc
+DuTviKThJJkYBI4Ellc472g2k8iCUDI8WxE9TRC2zC9/ZN6AXMJVg6rUn1RnYpRx
+zX4DQw7XPK5u4/QWv4ULoPVk4AS+68G+P1IaJ5ZLI9Vy1aMqDL6lYbigHcHu42tb
+QngvjbuA7RebfRSKk5zFOWAphbqW+hNTRhldLIyStmtKrPcylbyEq4uYZFUhKSlm
+imW+eUL/fegk49N9AzAsqty1a+jzlfo1zq1cA3p3F83sPn5txY3+rCo/dgATX+E=
+=OmmN
+-----END PGP SIGNATURE-----
+
+--=-38c+EeEUFFjuMvvBynlh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
