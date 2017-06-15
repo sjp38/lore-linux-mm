@@ -1,125 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4656B0279
-	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 22:05:00 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 48so847439qts.7
-        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 19:05:00 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BA2D6B0279
+	for <linux-mm@kvack.org>; Wed, 14 Jun 2017 22:07:15 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w1so866120qtg.6
+        for <linux-mm@kvack.org>; Wed, 14 Jun 2017 19:07:15 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g2si1589151qke.317.2017.06.14.19.04.59
+        by mx.google.com with ESMTPS id u67si1760734qkb.59.2017.06.14.19.07.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jun 2017 19:04:59 -0700 (PDT)
-Date: Wed, 14 Jun 2017 22:04:55 -0400
+        Wed, 14 Jun 2017 19:07:14 -0700 (PDT)
+Date: Wed, 14 Jun 2017 22:07:09 -0400
 From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM-CDM 4/5] mm/memcontrol: support MEMORY_DEVICE_PRIVATE and
- MEMORY_DEVICE_PUBLIC
-Message-ID: <20170615020454.GA4666@redhat.com>
+Subject: Re: [HMM-CDM 5/5] mm/hmm: simplify kconfig and enable HMM and
+ DEVICE_PUBLIC for ppc64
+Message-ID: <20170615020709.GB4666@redhat.com>
 References: <20170614201144.9306-1-jglisse@redhat.com>
- <20170614201144.9306-5-jglisse@redhat.com>
- <20170615114159.11a1eece@firefly.ozlabs.ibm.com>
+ <20170614201144.9306-6-jglisse@redhat.com>
+ <20170615114611.34e8f2a7@firefly.ozlabs.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170615114159.11a1eece@firefly.ozlabs.ibm.com>
+In-Reply-To: <20170615114611.34e8f2a7@firefly.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-On Thu, Jun 15, 2017 at 11:41:59AM +1000, Balbir Singh wrote:
-> On Wed, 14 Jun 2017 16:11:43 -0400
+On Thu, Jun 15, 2017 at 11:46:11AM +1000, Balbir Singh wrote:
+> On Wed, 14 Jun 2017 16:11:44 -0400
 > Jerome Glisse <jglisse@redhat.com> wrote:
 > 
-> > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > thus need special handling when it comes to lru or refcount. This
-> > patch make sure that memcontrol properly handle those when it face
-> > them. Those pages are use like regular pages in a process address
-> > space either as anonymous page or as file back page. So from memcg
-> > point of view we want to handle them like regular page for now at
-> > least.
+> > This just simplify kconfig and allow HMM and DEVICE_PUBLIC to be
+> > selected for ppc64 once ZONE_DEVICE is allowed on ppc64 (different
+> > patchset).
 > > 
 > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: cgroups@vger.kernel.org
+> > Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Balbir Singh <balbirs@au1.ibm.com>
+> > Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+> > Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> > Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 > > ---
-> >  kernel/memremap.c |  2 ++
-> >  mm/memcontrol.c   | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
-> >  2 files changed, 55 insertions(+), 5 deletions(-)
+> >  include/linux/hmm.h |  4 ++--
+> >  mm/Kconfig          | 27 ++++++---------------------
+> >  mm/hmm.c            |  4 ++--
+> >  3 files changed, 10 insertions(+), 25 deletions(-)
 > > 
-> > diff --git a/kernel/memremap.c b/kernel/memremap.c
-> > index da74775..584984c 100644
-> > --- a/kernel/memremap.c
-> > +++ b/kernel/memremap.c
-> > @@ -479,6 +479,8 @@ void put_zone_device_private_or_public_page(struct page *page)
-> >  		__ClearPageActive(page);
-> >  		__ClearPageWaiters(page);
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index f6713b2..720d18c 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> > @@ -327,7 +327,7 @@ int hmm_vma_fault(struct vm_area_struct *vma,
+> >  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 > >  
-> > +		mem_cgroup_uncharge(page);
-> > +
-> 
-> A zone device page could have a mem_cgroup charge if
-> 
-> 1. The old page was charged to a cgroup and the new page from ZONE_DEVICE then
-> gets the charge that we need to drop here
-> 
-> And should not be charged
-> 
-> 2. If the driver allowed mmap based allocation (these pages are not on LRU
-> 
-> 
-> Since put_zone_device_private_or_public_page() is called from release_pages(),
-> I think the assumption is that 2 is not a problem? I've not tested the mmap
-> bits yet.
-
-Well that is one of the big question. Do we care about memory cgroup despite
-page not being on lru and thus not being reclaimable through the usual path ?
-
-I believe we do want to keep charging ZONE_DEVICE page against memory cgroup
-so that userspace limit are enforced. This is important especialy for device
-private when migrating back to system memory due to CPU page fault. We do not
-want the migration back to fail because of memory cgroup limit.
-
-Hence why i do want to charge ZONE_DEVICE page just like regular page. If we
-have people that run into OOM because of this then we can start thinking about
-how to account those pages slightly differently inside the memory cgroup.
-
-For now i believe we do want this patch.
-
-
-[...]
-
-> > @@ -4610,6 +4637,9 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
-> >  		 */
-> >  		if (page->mem_cgroup == mc.from) {
-> >  			ret = MC_TARGET_PAGE;
-> > +			if (is_device_private_page(page) ||
-> > +			    is_device_public_page(page))
-> > +				ret = MC_TARGET_DEVICE;
-> >  			if (target)
-> >  				target->page = page;
-> >  		}
-> > @@ -4669,6 +4699,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 > >  
-> >  	ptl = pmd_trans_huge_lock(pmd, vma);
-> >  	if (ptl) {
-> > +		/*
-> > +		 * Note their can not be MC_TARGET_DEVICE for now as we do not
->                         there
-> > +		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
-> > +		 * MEMORY_DEVICE_PRIVATE but this might change.
+> > -#if IS_ENABLED(CONFIG_HMM_DEVMEM)
+> > +#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) || IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+> >  struct hmm_devmem;
+> >  
+> >  struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+> > @@ -456,7 +456,7 @@ struct hmm_device {
+> >   */
+> >  struct hmm_device *hmm_device_new(void *drvdata);
+> >  void hmm_device_put(struct hmm_device *hmm_device);
+> > -#endif /* IS_ENABLED(CONFIG_HMM_DEVMEM) */
+> > +#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+> >  
+> >  
+> >  /* Below are for HMM internal use only! Not to be used by device driver! */
+> > diff --git a/mm/Kconfig b/mm/Kconfig
+> > index ad082b9..7de939a 100644
+> > --- a/mm/Kconfig
+> > +++ b/mm/Kconfig
+> > @@ -265,7 +265,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+> >  config ARCH_HAS_HMM
+> >  	bool
+> >  	default y
+> > -	depends on X86_64
+> > +	depends on X86_64 || PPC64
 > 
-> I am trying to remind myself why THP and MEMORY_DEVICE_* pages don't work well
-> together today, the driver could allocate a THP size set of pages and migrate it.
-> There are patches to do THP migration, not upstream yet. Could you remind me
-> of any other limitations?
+> Ideally we want to make this (PPC64 && PPC_BOOK3S)
 
-No there is nothing that would be problematic AFAICT. Persistent memory already
-use huge page so we should be in the clear. But i would rather enable that as
-a separate patchset alltogether and have proper testing specificaly for such
-scenario.
+BOOK3S really ? :)
+
+> 
+> >  	depends on ZONE_DEVICE
+> >  	depends on MMU && 64BIT
+> >  	depends on MEMORY_HOTPLUG
+> > @@ -277,7 +277,7 @@ config HMM
+> >  
+> >  config HMM_MIRROR
+> >  	bool "HMM mirror CPU page table into a device page table"
+> > -	depends on ARCH_HAS_HMM
+> > +	depends on ARCH_HAS_HMM && X86_64
+> 
+> We would need HMM_MIRROR for the generation of hardware that does
+> not have CDM
+
+That would require could change to mirror code mostly ppc is missing
+something like pmd_index() iirc. So best to tackle that as separate
+patchset.
+
+> 
+> >  	select MMU_NOTIFIER
+> >  	select HMM
+> >  	help
+> > @@ -287,15 +287,6 @@ config HMM_MIRROR
+> >  	  page tables (at PAGE_SIZE granularity), and must be able to recover from
+> >  	  the resulting potential page faults.
+> >  
+> > -config HMM_DEVMEM
+> > -	bool "HMM device memory helpers (to leverage ZONE_DEVICE)"
+> > -	depends on ARCH_HAS_HMM
+> > -	select HMM
+> > -	help
+> > -	  HMM devmem is a set of helper routines to leverage the ZONE_DEVICE
+> > -	  feature. This is just to avoid having device drivers to replicating a lot
+> > -	  of boiler plate code.  See Documentation/vm/hmm.txt.
+> > -
+> >  config PHYS_ADDR_T_64BIT
+> >  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+> >  
+> > @@ -720,11 +711,8 @@ config ZONE_DEVICE
+> >  
+> >  config DEVICE_PRIVATE
+> >  	bool "Unaddressable device memory (GPU memory, ...)"
+> > -	depends on X86_64
+> > -	depends on ZONE_DEVICE
+> > -	depends on MEMORY_HOTPLUG
+> > -	depends on MEMORY_HOTREMOVE
+> > -	depends on SPARSEMEM_VMEMMAP
+> > +	depends on ARCH_HAS_HMM && X86_64
+> 
+> Same as above
+> 
+> > +	select HMM
+> >  
+> >  	help
+> >  	  Allows creation of struct pages to represent unaddressable device
+> > @@ -733,11 +721,8 @@ config DEVICE_PRIVATE
+> >  
+> >  config DEVICE_PUBLIC
+> >  	bool "Unaddressable device memory (GPU memory, ...)"
+> 
+> The unaddressable is a typo from above.
+
+Yup cut and paste thank for catching that.
 
 Jerome
 
