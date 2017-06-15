@@ -1,185 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 619536B0292
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:59:02 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f90so227365wmh.10
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:59:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f3si357819wmf.25.2017.06.15.07.58.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2120F6B02F3
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 10:59:55 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m19so14977276pgd.14
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 07:59:55 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0053.outbound.protection.outlook.com. [104.47.38.53])
+        by mx.google.com with ESMTPS id a24si244285pfg.381.2017.06.15.07.59.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Jun 2017 07:58:58 -0700 (PDT)
-Date: Thu, 15 Jun 2017 16:58:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 3/3] dax: use common 4k zero page for dax mmap reads
-Message-ID: <20170615145856.GO1764@quack2.suse.cz>
-References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
- <20170614172211.19820-4-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 07:59:54 -0700 (PDT)
+Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
+ memory encryption
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+ <20170614174208.p2yr5exs4b6pjxhf@pd.tnic>
+ <0611d01a-19f8-d6ae-2682-932789855518@amd.com>
+ <20170615094111.wga334kg2bhxqib3@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <921153f5-1528-31d8-b815-f0419e819aeb@amd.com>
+Date: Thu, 15 Jun 2017 09:59:45 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170614172211.19820-4-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170615094111.wga334kg2bhxqib3@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed 14-06-17 11:22:11, Ross Zwisler wrote:
-> When servicing mmap() reads from file holes the current DAX code allocates
-> a page cache page of all zeroes and places the struct page pointer in the
-> mapping->page_tree radix tree.  This has two major drawbacks:
+On 6/15/2017 4:41 AM, Borislav Petkov wrote:
+> On Wed, Jun 14, 2017 at 03:40:28PM -0500, Tom Lendacky wrote:
+>> I was trying to keep all the logic for it here in the SME related files
+>> rather than put it in the iommu code itself. But it is easy enough to
+>> move if you think it's worth it.
 > 
-> 1) It consumes memory unnecessarily.  For every 4k page that is read via a
-> DAX mmap() over a hole, we allocate a new page cache page.  This means that
-> if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
-> This is easily visible by looking at the overall memory consumption of the
-> system or by looking at /proc/[pid]/smaps:
-> 
-> 	7f62e72b3000-7f63272b3000 rw-s 00000000 103:00 12   /root/dax/data
-> 	Size:            1048576 kB
-> 	Rss:             1048576 kB
-> 	Pss:             1048576 kB
-> 	Shared_Clean:          0 kB
-> 	Shared_Dirty:          0 kB
-> 	Private_Clean:   1048576 kB
-> 	Private_Dirty:         0 kB
-> 	Referenced:      1048576 kB
-> 	Anonymous:             0 kB
-> 	LazyFree:              0 kB
-> 	AnonHugePages:         0 kB
-> 	ShmemPmdMapped:        0 kB
-> 	Shared_Hugetlb:        0 kB
-> 	Private_Hugetlb:       0 kB
-> 	Swap:                  0 kB
-> 	SwapPss:               0 kB
-> 	KernelPageSize:        4 kB
-> 	MMUPageSize:           4 kB
-> 	Locked:                0 kB
-> 
-> 2) The fact that we had to check for both DAX exceptional entries and for
-> page cache pages in the radix tree made the DAX code more complex.
-> 
-> Solve these issues by following the lead of the DAX PMD code and using a
-> common 4k zero page instead.  As with the PMD code we will now insert a DAX
-> exceptional entry into the radix tree instead of a struct page pointer
-> which allows us to remove all the special casing in the DAX code.
-> 
-> Note that we do still pretty aggressively check for regular pages in the
-> DAX radix tree, especially where we take action based on the bits set in
-> the page.  If we ever find a regular page in our radix tree now that most
-> likely means that someone besides DAX is inserting pages (which has
-> happened lots of times in the past), and we want to find that out early and
-> fail loudly.
-> 
-> This solution also removes the extra memory consumption.  Here is that same
-> /proc/[pid]/smaps after 1GiB of reading from a hole with the new code:
-> 
-> 	7f2054a74000-7f2094a74000 rw-s 00000000 103:00 12   /root/dax/data
-> 	Size:            1048576 kB
-> 	Rss:                   0 kB
-> 	Pss:                   0 kB
-> 	Shared_Clean:          0 kB
-> 	Shared_Dirty:          0 kB
-> 	Private_Clean:         0 kB
-> 	Private_Dirty:         0 kB
-> 	Referenced:            0 kB
-> 	Anonymous:             0 kB
-> 	LazyFree:              0 kB
-> 	AnonHugePages:         0 kB
-> 	ShmemPmdMapped:        0 kB
-> 	Shared_Hugetlb:        0 kB
-> 	Private_Hugetlb:       0 kB
-> 	Swap:                  0 kB
-> 	SwapPss:               0 kB
-> 	KernelPageSize:        4 kB
-> 	MMUPageSize:           4 kB
-> 	Locked:                0 kB
-> 
-> Overall system memory consumption is similarly improved.
-> 
-> Another major change is that we remove dax_pfn_mkwrite() from our fault
-> flow, and instead rely on the page fault itself to make the PTE dirty and
-> writeable.  The following description from the patch adding the
-> vm_insert_mixed_mkwrite() call explains this a little more:
-> 
-> ***
->   To be able to use the common 4k zero page in DAX we need to have our PTE
->   fault path look more like our PMD fault path where a PTE entry can be
->   marked as dirty and writeable as it is first inserted, rather than
->   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> 
->   Right now we can rely on having a dax_pfn_mkwrite() call because we can
->   distinguish between these two cases in do_wp_page():
-> 
->       case 1: 4k zero page => writable DAX storage
->       case 2: read-only DAX storage => writeable DAX storage
-> 
->   This distinction is made by via vm_normal_page().  vm_normal_page()
->   returns false for the common 4k zero page, though, just as it does for
->   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
->   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
->   sequence, and get rid of dax_pfn_mkwrite() completely.
-> 
->   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
->   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
->   insert_pfn() will do the work that was previously done by wp_page_reuse()
->   as part of the dax_pfn_mkwrite() call path.
-> ***
+> Yes please - the less needlessly global symbols, the better.
 
-This looks generally fine. Just two small comments below.
+Ok.
 
-> @@ -216,17 +217,6 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
->  	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
->  }
->  
-> -static void put_locked_mapping_entry(struct address_space *mapping,
-> -				     pgoff_t index, void *entry)
-> -{
-> -	if (!radix_tree_exceptional_entry(entry)) {
-> -		unlock_page(entry);
-> -		put_page(entry);
-> -	} else {
-> -		dax_unlock_mapping_entry(mapping, index);
-> -	}
-> -}
-> -
+> 
+>>> Also, you said in another mail on this subthread that c->microcode
+>>> is not yet set. Are you saying, that the iommu init gunk runs before
+>>> init_amd(), where we do set c->microcode?
+>>>
+>>> If so, we can move the setting to early_init_amd() or so.
+>>
+>> I'll look into that.
+> 
+> And I don't think c->microcode is not set by the time we init the iommu
+> because, AFAICT, we do the latter in pci_iommu_init() and that's a
+> rootfs_initcall() which happens later then the CPU init stuff.
 
-The naming becomes asymetric with this. So I'd prefer keeping
-put_locked_mapping_entry() as a trivial wrapper around
-dax_unlock_mapping_entry() unless we can craft more sensible naming / API
-for entry grabbing (and that would be a separate patch anyway).
+Actually the detection routine, amd_iommu_detect(), is part of the
+IOMMU_INIT_FINISH macro support which is called early through mm_init()
+from start_kernel() and that routine is called before init_amd().
 
-> -static int dax_load_hole(struct address_space *mapping, void **entry,
-> +static int dax_load_hole(struct address_space *mapping, void *entry,
->  			 struct vm_fault *vmf)
->  {
->  	struct inode *inode = mapping->host;
-> -	struct page *page;
-> -	int ret;
-> -
-> -	/* Hole page already exists? Return it...  */
-> -	if (!radix_tree_exceptional_entry(*entry)) {
-> -		page = *entry;
-> -		goto finish_fault;
-> -	}
-> +	unsigned long vaddr = vmf->address;
-> +	int ret = VM_FAULT_NOPAGE;
-> +	struct page *zero_page;
-> +	void *entry2;
->  
-> -	/* This will replace locked radix tree entry with a hole page */
-> -	page = find_or_create_page(mapping, vmf->pgoff,
-> -				   vmf->gfp_mask | __GFP_ZERO);
+> 
+>> I'll look into simplifying the checks.
+> 
+> Something like this maybe?
+> 
+> 	if (rev >= 0x1205)
+> 		return true;
+> 
+> 	if (rev <= 0x11ff && rev >= 0x1126)
+> 		return true;
+> 
+> 	return false;
 
-With this gone, you can also remove the special DAX handling from
-mm/filemap.c: page_cache_tree_insert() and remove from dax.h
-dax_wake_mapping_entry_waiter(), dax_radix_locked_entry() and RADIX_DAX
-definitions. Yay! As a separate patch please.
+Yup, something like that.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> 
+>>> WARNING: Use of volatile is usually wrong: see Documentation/process/volatile-considered-harmful.rst
+>>> #134: FILE: drivers/iommu/amd_iommu.c:866:
+>>> +static void build_completion_wait(struct iommu_cmd *cmd, volatile u64 *sem)
+>>>
+>>
+>> The semaphore area is written to by the device so the use of volatile is
+>> appropriate in this case.
+> 
+> Do you mean this is like the last exception case in that document above:
+> 
+> "
+>    - Pointers to data structures in coherent memory which might be modified
+>      by I/O devices can, sometimes, legitimately be volatile.  A ring buffer
+>      used by a network adapter, where that adapter changes pointers to
+>      indicate which descriptors have been processed, is an example of this
+>      type of situation."
+> 
+> ?
+> 
+> If so, it did work fine until now, without the volatile. Why is it
+> needed now, all of a sudden?
+
+If you run checkpatch against the whole amd_iommu.c file you'll see that
+same warning for the wait_on_sem() function.  The checkpatch warning
+shows up now because I modified the build_completion_wait() function as
+part of the support to use iommu_virt_to_phys().
+
+Since I'm casting the arg to iommu_virt_to_phys() no matter what I can
+avoid the signature change to the build_completion_wait() function and
+avoid this confusion in the future.
+
+Thanks,
+Tom
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
