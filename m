@@ -1,112 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 463846B02C3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 09:15:59 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id d4so35001784qte.11
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 06:15:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y53si2012436qty.197.2017.06.16.06.15.57
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EEF3A6B02F4
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 09:19:12 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x23so7450127wrb.6
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 06:19:12 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id d9si1930779wra.169.2017.06.16.06.19.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 06:15:57 -0700 (PDT)
-Date: Fri, 16 Jun 2017 15:15:54 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH RFC] hugetlbfs 'noautofill' mount option
-Message-ID: <20170616131554.GD11676@redhat.com>
-References: <326e38dd-b4a8-e0ca-6ff7-af60e8045c74@oracle.com>
- <b0efc671-0d7a-0aef-5646-a635478c31b0@oracle.com>
- <7ff6fb32-7d16-af4f-d9d5-698ab7e9e14b@intel.com>
- <03127895-3c5a-5182-82de-3baa3116749e@oracle.com>
- <22557bf3-14bb-de02-7b1b-a79873c583f1@intel.com>
- <7677d20e-5d53-1fb7-5dac-425edda70b7b@oracle.com>
- <48a544c4-61b3-acaf-0386-649f073602b6@intel.com>
- <476ea1b6-36d1-bc86-fa99-b727e3c2650d@oracle.com>
- <20170509085825.GB32555@infradead.org>
- <1031e0d4-cdbb-db8b-dae7-7c733921e20e@oracle.com>
+        Fri, 16 Jun 2017 06:19:11 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id d17so5010110wme.3
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 06:19:11 -0700 (PDT)
+Date: Fri, 16 Jun 2017 16:19:08 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 3/3] mm: Use updated pmdp_invalidate() inteface to
+ track dirty/accessed bits
+Message-ID: <20170616131908.3rxtm2w73gdfex4a@node.shutemov.name>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
+ <20170616030250.GA27637@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1031e0d4-cdbb-db8b-dae7-7c733921e20e@oracle.com>
+In-Reply-To: <20170616030250.GA27637@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Prakash,
-
-On Tue, May 09, 2017 at 01:59:34PM -0700, Prakash Sangappa wrote:
+On Fri, Jun 16, 2017 at 12:02:50PM +0900, Minchan Kim wrote:
+> Hello,
 > 
+> On Thu, Jun 15, 2017 at 05:52:24PM +0300, Kirill A. Shutemov wrote:
+> > This patch uses modifed pmdp_invalidate(), that return previous value of pmd,
+> > to transfer dirty and accessed bits.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  fs/proc/task_mmu.c |  8 ++++----
+> >  mm/huge_memory.c   | 29 ++++++++++++-----------------
+> >  2 files changed, 16 insertions(+), 21 deletions(-)
+> > 
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index f0c8b33d99b1..f2fc1ef5bba2 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -906,13 +906,13 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+> >  static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
+> >  		unsigned long addr, pmd_t *pmdp)
+> >  {
+> > -	pmd_t pmd = *pmdp;
+> > +	pmd_t old, pmd = *pmdp;
+> >  
+> >  	/* See comment in change_huge_pmd() */
+> > -	pmdp_invalidate(vma, addr, pmdp);
+> > -	if (pmd_dirty(*pmdp))
+> > +	old = pmdp_invalidate(vma, addr, pmdp);
+> > +	if (pmd_dirty(old))
+> >  		pmd = pmd_mkdirty(pmd);
+> > -	if (pmd_young(*pmdp))
+> > +	if (pmd_young(old))
+> >  		pmd = pmd_mkyoung(pmd);
+> >  
+> >  	pmd = pmd_wrprotect(pmd);
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index a84909cf20d3..0433e73531bf 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1777,17 +1777,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> >  	 * pmdp_invalidate() is required to make sure we don't miss
+> >  	 * dirty/young flags set by hardware.
+> >  	 */
+> > -	entry = *pmd;
+> > -	pmdp_invalidate(vma, addr, pmd);
+> > -
+> > -	/*
+> > -	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
+> > -	 * corrupt them.
+> > -	 */
+> > -	if (pmd_dirty(*pmd))
+> > -		entry = pmd_mkdirty(entry);
+> > -	if (pmd_young(*pmd))
+> > -		entry = pmd_mkyoung(entry);
+> > +	entry = pmdp_invalidate(vma, addr, pmd);
+> >  
+> >  	entry = pmd_modify(entry, newprot);
+> >  	if (preserve_write)
+> > @@ -1927,8 +1917,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+> >  	struct mm_struct *mm = vma->vm_mm;
+> >  	struct page *page;
+> >  	pgtable_t pgtable;
+> > -	pmd_t _pmd;
+> > -	bool young, write, dirty, soft_dirty;
+> > +	pmd_t old, _pmd;
+> > +	bool young, write, soft_dirty;
+> >  	unsigned long addr;
+> >  	int i;
+> >  
+> > @@ -1965,7 +1955,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+> >  	page_ref_add(page, HPAGE_PMD_NR - 1);
+> >  	write = pmd_write(*pmd);
+> >  	young = pmd_young(*pmd);
+> > -	dirty = pmd_dirty(*pmd);
+> >  	soft_dirty = pmd_soft_dirty(*pmd);
+> >  
+> >  	pmdp_huge_split_prepare(vma, haddr, pmd);
+> > @@ -1995,8 +1984,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+> >  			if (soft_dirty)
+> >  				entry = pte_mksoft_dirty(entry);
+> >  		}
+> > -		if (dirty)
+> > -			SetPageDirty(page + i);
+> >  		pte = pte_offset_map(&_pmd, addr);
+> >  		BUG_ON(!pte_none(*pte));
+> >  		set_pte_at(mm, addr, pte, entry);
+> > @@ -2045,7 +2032,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+> >  	 * and finally we write the non-huge version of the pmd entry with
+> >  	 * pmd_populate.
+> >  	 */
+> > -	pmdp_invalidate(vma, haddr, pmd);
+> > +	old = pmdp_invalidate(vma, haddr, pmd);
+> > +
+> > +	/*
+> > +	 * Transfer dirty bit using value returned by pmd_invalidate() to be
+> > +	 * sure we don't race with CPU that can set the bit under us.
+> > +	 */
+> > +	if (pmd_dirty(old))
+> > +		SetPageDirty(page);
+> > +
 > 
-> On 5/9/17 1:58 AM, Christoph Hellwig wrote:
-> > On Mon, May 08, 2017 at 03:12:42PM -0700, prakash.sangappa wrote:
-> >> Regarding #3 as a general feature, do we want to
-> >> consider this and the complexity associated with the
-> >> implementation?
-> > We have to.  Given that no one has exclusive access to hugetlbfs
-> > a mount option is fundamentally the wrong interface.
-> 
-> 
-> A hugetlbfs filesystem may need to be mounted for exclusive use by
-> an application. Note, recently the 'min_size' mount option was added
-> to hugetlbfs, which would reserve minimum number of huge pages
-> for that filesystem for use by an application. If the filesystem with
-> min size specified, is not setup for exclusive use by an application,
-> then the purpose of reserving huge pages is defeated.  The
-> min_size option was for use by applications like the database.
-> 
-> Also, I am investigating enabling hugetlbfs mounts within user
-> namespace's mount namespace. That would allow an application
-> to mount a hugetlbfs filesystem inside a namespace exclusively for
-> its use, running as a non root user. For this it seems like the 'min_size'
-> should be subject to some user limits. Anyways, mounting inside
-> user namespaces is  a different discussion.
-> 
-> So, if a filesystem has to be setup for exclusive use by an application,
-> then different mount options can be used for that filesystem.
+> When I see this, without this patch, MADV_FREE has been broken because
+> it can lose dirty bit by early checking. Right?
+> If so, isn't it a candidate for -stable?
 
-Before userfaultfd I used a madvise that triggered SIGBUS. Aside from
-performance that is much lower than userfaultfd because of the return
-to userland, SIGBUS handling and new enter kernel to communicate
-through a pipe with a memory manager, it couldn't work reliably
-because you're not going to get exact information on the virtual
-address that triggered the fault if the SIGBUS triggers in some random
-in a copy-user of some random syscall, depending on the syscall some
-random error will be returned. So it couldn't work transparently to
-the app as far as syscalls and get_user_pages drivers were concerned.
+Actually, I don't see how MADV_FREE supposed to work: vmscan splits THP on
+reclaim and split_huge_page() would set unconditionally, so MADV_FREE
+seems no effect on THP.
 
-With your solution if you pass a corrupted pointer to a random read()
-syscall you're going to get a error, but supposedly you already handle
-any syscall error and stop the app.
+Or have I missed anything?
 
-This is a special case because you don't care about performance and
-you don't care about not returning random EFAULT errors from syscalls
-like read().
-
-This mount option seems non intrusive enough and hugetlbfs is quite
-special already, so I'm not particularly concerned by the fact it's
-one more special tweak.
-
-If it would be enough to convert the SIGBUS into a (killable) process
-hang, you could still use uffd and there would be no need to send the
-uffd to a manager. You'd find the corrupting buggy process stuck in
-handle_userfault().
-
-As an alternative to the mount option we could consider adding
-UFFD_FEATURE_SIGBUS that tells the handle_userfault() to simply return
-VM_FAULT_SIGBUS in presence of a pagefault event. You'd still get
-weird EFAULT or erratic retvals from syscalls so it would only be
-usable in for your robustness feature. Then you could use UFFDIO_COPY
-too to fill the memory atomically which runs faster than a page fault
-(fallocate punch hole still required to zap it).
-
-Adding a single if (ctx->feature & UFFD_FEATURE_SIGBUS) goto out,
-branch for this corner case to handle_userfault() isn't great and the
-hugetlbfs mount option is absolutely zero cost to the handle_userfault
-which is primarily why I'm not against it.. although it's not going to
-be measurable so it would be ok also to add such feature.
-
-Thanks,
-Andrea
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
