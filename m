@@ -1,149 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23D716B02C3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 09:52:12 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id d13so42598953pgf.12
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 06:52:12 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 72si2023136plb.547.2017.06.16.06.52.10
-        for <linux-mm@kvack.org>;
-        Fri, 16 Jun 2017 06:52:11 -0700 (PDT)
-Date: Fri, 16 Jun 2017 22:52:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2 3/3] mm: Use updated pmdp_invalidate() inteface to
- track dirty/accessed bits
-Message-ID: <20170616135209.GA29542@bbox>
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
- <20170616030250.GA27637@bbox>
- <20170616131908.3rxtm2w73gdfex4a@node.shutemov.name>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C29CA6B0279
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:12:59 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id n18so7636209wra.11
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 07:12:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e68si3159416wmc.117.2017.06.16.07.12.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Jun 2017 07:12:58 -0700 (PDT)
+Date: Fri, 16 Jun 2017 16:12:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
+ freed
+Message-ID: <20170616141255.GN30580@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
+ <20170615103909.GG1486@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
+ <20170615214133.GB20321@dhcp22.suse.cz>
+ <201706162122.ACE95321.tOFLOOVFFHMSJQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170616131908.3rxtm2w73gdfex4a@node.shutemov.name>
+In-Reply-To: <201706162122.ACE95321.tOFLOOVFFHMSJQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 16, 2017 at 04:19:08PM +0300, Kirill A. Shutemov wrote:
-> On Fri, Jun 16, 2017 at 12:02:50PM +0900, Minchan Kim wrote:
-> > Hello,
-> > 
-> > On Thu, Jun 15, 2017 at 05:52:24PM +0300, Kirill A. Shutemov wrote:
-> > > This patch uses modifed pmdp_invalidate(), that return previous value of pmd,
-> > > to transfer dirty and accessed bits.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > ---
-> > >  fs/proc/task_mmu.c |  8 ++++----
-> > >  mm/huge_memory.c   | 29 ++++++++++++-----------------
-> > >  2 files changed, 16 insertions(+), 21 deletions(-)
-> > > 
-> > > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > > index f0c8b33d99b1..f2fc1ef5bba2 100644
-> > > --- a/fs/proc/task_mmu.c
-> > > +++ b/fs/proc/task_mmu.c
-> > > @@ -906,13 +906,13 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
-> > >  static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-> > >  		unsigned long addr, pmd_t *pmdp)
-> > >  {
-> > > -	pmd_t pmd = *pmdp;
-> > > +	pmd_t old, pmd = *pmdp;
-> > >  
-> > >  	/* See comment in change_huge_pmd() */
-> > > -	pmdp_invalidate(vma, addr, pmdp);
-> > > -	if (pmd_dirty(*pmdp))
-> > > +	old = pmdp_invalidate(vma, addr, pmdp);
-> > > +	if (pmd_dirty(old))
-> > >  		pmd = pmd_mkdirty(pmd);
-> > > -	if (pmd_young(*pmdp))
-> > > +	if (pmd_young(old))
-> > >  		pmd = pmd_mkyoung(pmd);
-> > >  
-> > >  	pmd = pmd_wrprotect(pmd);
-> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > index a84909cf20d3..0433e73531bf 100644
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -1777,17 +1777,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  	 * pmdp_invalidate() is required to make sure we don't miss
-> > >  	 * dirty/young flags set by hardware.
-> > >  	 */
-> > > -	entry = *pmd;
-> > > -	pmdp_invalidate(vma, addr, pmd);
-> > > -
-> > > -	/*
-> > > -	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
-> > > -	 * corrupt them.
-> > > -	 */
-> > > -	if (pmd_dirty(*pmd))
-> > > -		entry = pmd_mkdirty(entry);
-> > > -	if (pmd_young(*pmd))
-> > > -		entry = pmd_mkyoung(entry);
-> > > +	entry = pmdp_invalidate(vma, addr, pmd);
-> > >  
-> > >  	entry = pmd_modify(entry, newprot);
-> > >  	if (preserve_write)
-> > > @@ -1927,8 +1917,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  	struct mm_struct *mm = vma->vm_mm;
-> > >  	struct page *page;
-> > >  	pgtable_t pgtable;
-> > > -	pmd_t _pmd;
-> > > -	bool young, write, dirty, soft_dirty;
-> > > +	pmd_t old, _pmd;
-> > > +	bool young, write, soft_dirty;
-> > >  	unsigned long addr;
-> > >  	int i;
-> > >  
-> > > @@ -1965,7 +1955,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  	page_ref_add(page, HPAGE_PMD_NR - 1);
-> > >  	write = pmd_write(*pmd);
-> > >  	young = pmd_young(*pmd);
-> > > -	dirty = pmd_dirty(*pmd);
-> > >  	soft_dirty = pmd_soft_dirty(*pmd);
-> > >  
-> > >  	pmdp_huge_split_prepare(vma, haddr, pmd);
-> > > @@ -1995,8 +1984,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  			if (soft_dirty)
-> > >  				entry = pte_mksoft_dirty(entry);
-> > >  		}
-> > > -		if (dirty)
-> > > -			SetPageDirty(page + i);
-> > >  		pte = pte_offset_map(&_pmd, addr);
-> > >  		BUG_ON(!pte_none(*pte));
-> > >  		set_pte_at(mm, addr, pte, entry);
-> > > @@ -2045,7 +2032,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  	 * and finally we write the non-huge version of the pmd entry with
-> > >  	 * pmd_populate.
-> > >  	 */
-> > > -	pmdp_invalidate(vma, haddr, pmd);
-> > > +	old = pmdp_invalidate(vma, haddr, pmd);
-> > > +
-> > > +	/*
-> > > +	 * Transfer dirty bit using value returned by pmd_invalidate() to be
-> > > +	 * sure we don't race with CPU that can set the bit under us.
-> > > +	 */
-> > > +	if (pmd_dirty(old))
-> > > +		SetPageDirty(page);
-> > > +
-> > 
-> > When I see this, without this patch, MADV_FREE has been broken because
-> > it can lose dirty bit by early checking. Right?
-> > If so, isn't it a candidate for -stable?
+On Fri 16-06-17 21:22:20, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > OK, could you play with the patch/idea suggested in
+> > http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?
 > 
-> Actually, I don't see how MADV_FREE supposed to work: vmscan splits THP on
-> reclaim and split_huge_page() would set unconditionally, so MADV_FREE
-> seems no effect on THP.
+> I think we don't need to worry about mmap_sem dependency inside __mmput().
+> Since the OOM killer checks for !MMF_OOM_SKIP mm rather than TIF_MEMDIE thread,
+> we can keep the OOM killer disabled until we set MMF_OOM_SKIP to the victim's mm.
+> That is, elevating mm_users throughout the reaping procedure does not cause
+> premature victim selection, even after TIF_MEMDIE is cleared from the victim's
+> thread. Then, we don't need to use down_write()/up_write() for non OOM victim's mm
+> (nearly 100% of exit_mmap() calls), and can force partial reaping of OOM victim's mm
+> (nearly 0% of exit_mmap() calls) before __mmput() starts doing exit_aio() etc.
+> Patch is shown below. Only compile tested.
 
-split_huge_page set PG_dirty to all subpages unconditionally?
-If it's true, yes, it doesn't break MADV_FREE. However, I didn't spot
-that piece of code. What I found one is just __split_huge_page_tail
-which set PG_dirty to subpage if head page is dirty. IOW, if the head
-page is not dirty, tail page will be clean, too.
-Could you point out what routine set PG_dirty to all subpages unconditionally?
+Yes, that would be another approach.
+ 
+>  include/linux/sched/coredump.h |  1 +
+>  mm/oom_kill.c                  | 80 ++++++++++++++++++++----------------------
+>  2 files changed, 40 insertions(+), 41 deletions(-)
+> 
+> diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
+> index 98ae0d0..6b6237b 100644
+> --- a/include/linux/sched/coredump.h
+> +++ b/include/linux/sched/coredump.h
+> @@ -62,6 +62,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+>   * on NFS restore
+>   */
+>  //#define MMF_EXE_FILE_CHANGED	18	/* see prctl_set_mm_exe_file() */
+> +#define MMF_OOM_REAPING		18	/* mm is supposed to be reaped */
 
-Thanks.
+A new flag is not really needed. We can increase it for _each_ reapable
+oom victim.
+
+> @@ -658,6 +643,13 @@ static void mark_oom_victim(struct task_struct *tsk)
+>  	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
+>  		mmgrab(tsk->signal->oom_mm);
+>  
+> +#ifdef CONFIG_MMU
+> +	if (!test_bit(MMF_OOM_REAPING, &mm->flags)) {
+> +		set_bit(MMF_OOM_REAPING, &mm->flags);
+> +		mmget(mm);
+> +	}
+> +#endif
+
+This would really need a big fat warning explaining why we do not need
+mmget_not_zero. We rely on exit_mm doing both mmput and tsk->mm = NULL
+under the task_lock and mark_oom_victim is called under this lock as
+well and task_will_free_mem resp. find_lock_task_mm makes sure we do not
+even consider tasks wihout mm.
+
+I agree that a solution which is fully contained inside the oom proper
+would be preferable to touching __mmput path.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
