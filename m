@@ -1,138 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2323B83293
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:59:13 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o41so38112243qtf.8
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:59:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p35si2335286qtd.379.2017.06.16.08.59.11
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2873783293
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:06:38 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k71so45182740pgd.6
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 09:06:38 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0128.outbound.protection.outlook.com. [104.47.0.128])
+        by mx.google.com with ESMTPS id z3si2196476plb.1.2017.06.16.09.06.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 08:59:12 -0700 (PDT)
-Subject: Re: [RFC] virtio-mem: paravirtualized memory
-References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
- <20170616175748-mutt-send-email-mst@kernel.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <4cdf547c-079b-6b44-484f-e1132e960364@redhat.com>
-Date: Fri, 16 Jun 2017 17:59:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 16 Jun 2017 09:06:37 -0700 (PDT)
+Subject: Re: [PATCH v3 6/7] asm-generic: add KASAN instrumentation to atomic
+ operations
+References: <cover.1496743523.git.dvyukov@google.com>
+ <116e9ee125e74b1fbb35244c845cec1a5ec89355.1496743523.git.dvyukov@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <52c19a08-0aaa-8ed3-1bca-782bf9cfbe90@virtuozzo.com>
+Date: Fri, 16 Jun 2017 19:08:36 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170616175748-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <116e9ee125e74b1fbb35244c845cec1a5ec89355.1496743523.git.dvyukov@google.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Dmitry Vyukov <dvyukov@google.com>, mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On 16.06.2017 17:04, Michael S. Tsirkin wrote:
-> On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
->> Hi,
->>
->> this is an idea that is based on Andrea Arcangeli's original idea to
->> host enforce guest access to memory given up using virtio-balloon using
->> userfaultfd in the hypervisor. While looking into the details, I
->> realized that host-enforcing virtio-balloon would result in way too many
->> problems (mainly backwards compatibility) and would also have some
->> conceptual restrictions that I want to avoid. So I developed the idea of
->> virtio-mem - "paravirtualized memory".
+
+
+On 06/06/2017 01:11 PM, Dmitry Vyukov wrote:
+> KASAN uses compiler instrumentation to intercept all memory accesses.
+> But it does not see memory accesses done in assembly code.
+> One notable user of assembly code is atomic operations. Frequently,
+> for example, an atomic reference decrement is the last access to an
+> object and a good candidate for a racy use-after-free.
 > 
-> Thanks! I went over this quickly, will read some more in the
-> coming days. I would like to ask for some clarifications
-> on one part meanwhile:
-
-Thanks for looking into it that fast! :)
-
-In general, what this section is all about: Why to not simply host
-enforce virtio-balloon.
-
+> Add manual KASAN checks to atomic operations.
 > 
->> Q: Why not reuse virtio-balloon?
->>
->> A: virtio-balloon is for cooperative memory management. It has a fixed
->>    page size
-> 
-> We are fixing that with VIRTIO_BALLOON_F_PAGE_CHUNKS btw.
-> I would appreciate you looking into that patchset.
+> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Will Deacon <will.deacon@arm.com>,
+> Cc: Andrew Morton <akpm@linux-foundation.org>,
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+> Cc: Ingo Molnar <mingo@redhat.com>,
+> Cc: kasan-dev@googlegroups.com
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: x86@kernel.org
+> ---
 
-Will do, thanks. Problem is that there is no "enforcement" on the page
-size. VIRTIO_BALLOON_F_PAGE_CHUNKS simply allows to send bigger chunks.
-Nobody hinders the guest (especially legacy virtio-balloon drivers) from
-sending 4k pages.
-
-So this doesn't really fix the issue (we have here), it just allows to
-speed up transfer. Which is a good thing, but does not help for
-enforcement at all. So, yes support for page sizes > 4k, but no way to
-enforce it.
-
-> 
->> and will deflate in certain situations.
-> 
-> What does this refer to?
-
-A Linux guest will deflate the balloon (all or some pages) in the
-following scenarios:
-a) page migration
-b) unload virtio-balloon kernel module
-c) hibernate/suspension
-d) (DEFLATE_ON_OOM)
-
-A Linux guest will touch memory without deflating:
-a) During a kexec() dump
-d) On reboots (regular, after kexec(), system_reset)
-
-> 
->> Any change we
->>    introduce will break backwards compatibility.
-> 
-> Why does this have to be the case
-If we suddenly enforce the existing virtio-balloon, we will break legacy
-guests.
-
-Simple example:
-Guest with inflated virtio-balloon reboots. Touches inflated memory.
-Gets killed at some random point.
-
-Of course, another discussion would be "can't we move virtio-mem
-functionality into virtio-balloon instead of changing virtio-balloon".
-With the current concept this is also not possible (one region per
-device vs. one virtio-balloon device). And I think while similar, these
-are two different concepts.
-
-> 
->> virtio-balloon was not
->>    designed to give guarantees. Nobody can hinder the guest from
->>    deflating/reusing inflated memory.
-> 
-> Reusing without deflate is forbidden with TELL_HOST, right?
-
-TELL_HOST just means "please inform me". There is no way to NACK a
-request. It is not a permission to do so, just a "friendly
-notification". And this is exactly not what we want when host enforcing
-memory access.
-
-
-> 
->>    In addition, it might make perfect
->>    sense to have both, virtio-balloon and virtio-mem at the same time,
->>    especially looking at the DEFLATE_ON_OOM or STATS features of
->>    virtio-balloon. While virtio-mem is all about guarantees, virtio-
->>    balloon is about cooperation.
-> 
-> Thanks, and I intend to look more into this next week.
-> 
-
-I know that it is tempting to force this concept into virtio-balloon. I
-spent quite some time thinking about this (and possible other techniques
-like implicit memory deflation on reboots) and decided not to do it. We
-just end up trying to hack around all possible things that could go
-wrong, while still not being able to handle all requirements properly.
-
--- 
-
-Thanks,
-
-David
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
