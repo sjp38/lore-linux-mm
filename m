@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 408F844043B
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:35:46 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id z22so42272580qtz.10
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:35:46 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 765AA832A0
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:35:49 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o41so42343398qtf.8
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:35:49 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t11si2718051qke.198.2017.06.16.12.35.45
+        by mx.google.com with ESMTPS id r126si2707444qkd.48.2017.06.16.12.35.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:35:45 -0700 (PDT)
+        Fri, 16 Jun 2017 12:35:47 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v7 13/22] mm: set both AS_EIO/AS_ENOSPC and errseq_t in mapping_set_error
-Date: Fri, 16 Jun 2017 15:34:18 -0400
-Message-Id: <20170616193427.13955-14-jlayton@redhat.com>
+Subject: [PATCH v7 14/22] Documentation: flesh out the section in vfs.txt on storing and reporting writeback errors
+Date: Fri, 16 Jun 2017 15:34:19 -0400
+Message-Id: <20170616193427.13955-15-jlayton@redhat.com>
 In-Reply-To: <20170616193427.13955-1-jlayton@redhat.com>
 References: <20170616193427.13955-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,66 +20,82 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-When a writeback error occurs, we want later callers to be able to pick
-up that fact when they go to wait on that writeback to complete.
-Traditionally, we've used AS_EIO/AS_ENOSPC flags to track that, but
-that's problematic since only one "checker" will be informed when an
-error occurs.
+Let's try to make this extra clear for fs authors.
 
-In later patches, we're going to want to convert many of these callers
-to check for errors since a well-defined point in time. For now, ensure
-that we can handle both sorts of checks by both setting errors in both
-places when there is a writeback failure.
-
+Cc: Jan Kara <jack@suse.cz>
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- include/linux/pagemap.h | 31 +++++++++++++++++++++++++------
- 1 file changed, 25 insertions(+), 6 deletions(-)
+ Documentation/filesystems/vfs.txt | 43 ++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 40 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 316a19f6b635..28acc94e0f81 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -28,14 +28,33 @@ enum mapping_flags {
- 	AS_NO_WRITEBACK_TAGS = 5,
- };
+diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+index f42b90687d40..f3702d5c6f2f 100644
+--- a/Documentation/filesystems/vfs.txt
++++ b/Documentation/filesystems/vfs.txt
+@@ -576,7 +576,42 @@ should clear PG_Dirty and set PG_Writeback.  It can be actually
+ written at any point after PG_Dirty is clear.  Once it is known to be
+ safe, PG_Writeback is cleared.
  
-+/**
-+ * mapping_set_error - record a writeback error in the address_space
-+ * @mapping - the mapping in which an error should be set
-+ * @error - the error to set in the mapping
-+ *
-+ * When writeback fails in some way, we must record that error so that
-+ * userspace can be informed when fsync and the like are called.  We endeavor
-+ * to report errors on any file that was open at the time of the error.  Some
-+ * internal callers also need to know when writeback errors have occurred.
-+ *
-+ * When a writeback error occurs, most filesystems will want to call
-+ * mapping_set_error to record the error in the mapping so that it can be
-+ * reported when the application calls fsync(2).
-+ */
- static inline void mapping_set_error(struct address_space *mapping, int error)
- {
--	if (unlikely(error)) {
--		if (error == -ENOSPC)
--			set_bit(AS_ENOSPC, &mapping->flags);
--		else
--			set_bit(AS_EIO, &mapping->flags);
--	}
-+	if (likely(!error))
-+		return;
+-Writeback makes use of a writeback_control structure...
++Writeback makes use of a writeback_control structure to direct the
++operations.  This gives the the writepage and writepages operations some
++information about the nature of and reason for the writeback request,
++and the constraints under which it is being done.  It is also used to
++return information back to the caller about the result of a writepage or
++writepages request.
 +
-+	/* Record in wb_err for checkers using errseq_t based tracking */
-+	filemap_set_wb_err(mapping, error);
++Handling errors during writeback
++--------------------------------
++Most applications that utilize the pagecache will periodically call
++fsync to ensure that data written has made it to the backing store.
++When there is an error during writeback, they expect that error to be
++reported when fsync is called.  After an error has been reported on one
++fsync, subsequent fsync calls on the same file descriptor should return
++0, unless further writeback errors have occurred since the previous
++fsync.
 +
-+	/* Record it in flags for now, for legacy callers */
-+	if (error == -ENOSPC)
-+		set_bit(AS_ENOSPC, &mapping->flags);
-+	else
-+		set_bit(AS_EIO, &mapping->flags);
- }
++Ideally, the kernel would report an error only on file descriptions on
++which writes were done that subsequently failed to be written back.  The
++generic pagecache infrastructure does not track the file descriptions
++that have dirtied each individual page however, so determining which
++file descriptors should get back an error is not possible.
++
++Instead, the generic writeback error tracking infrastructure in the
++kernel settles for reporting errors to fsync on all file descriptions
++that were open at the time that the error occurred.  In a situation with
++multiple writers, all of them will get back an error on a subsequent fsync,
++even if all of the writes done through that particular file descriptor
++succeeded (or even if there were no writes on that file descriptor at all).
++
++Filesystems that wish to use this infrastructure should call
++mapping_set_error to record the error in the address_space when it
++occurs.  Then, at the end of their fsync operation, they should call
++filemap_report_wb_err to ensure that the struct file's error cursor
++has advanced to the correct point in the stream of errors emitted by
++the backing device(s).
  
- static inline void mapping_set_unevictable(struct address_space *mapping)
+ struct address_space_operations
+ -------------------------------
+@@ -804,7 +839,8 @@ struct address_space_operations {
+ The File Object
+ ===============
+ 
+-A file object represents a file opened by a process.
++A file object represents a file opened by a process. This is also known
++as an "open file description" in POSIX parlance.
+ 
+ 
+ struct file_operations
+@@ -887,7 +923,8 @@ otherwise noted.
+ 
+   release: called when the last reference to an open file is closed
+ 
+-  fsync: called by the fsync(2) system call
++  fsync: called by the fsync(2) system call. Also see the section above
++	 entitled "Handling errors during writeback".
+ 
+   fasync: called by the fcntl(2) system call when asynchronous
+ 	(non-blocking) mode is enabled for a file
 -- 
 2.13.0
 
