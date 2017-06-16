@@ -1,66 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C974440419
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:07:59 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d184so4798168wmd.15
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:07:59 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g10si3778792wmc.16.2017.06.16.12.07.57
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D80D83294
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:34:34 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m57so42131703qta.9
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:34:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a23si2725695qkc.122.2017.06.16.12.34.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:07:58 -0700 (PDT)
-Date: Fri, 16 Jun 2017 12:07:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlb: Warn the user when issues arise on boot due
- to hugepages
-Message-Id: <20170616120755.c56d205f49d93a6e3dffb14f@linux-foundation.org>
-In-Reply-To: <20170613013516.7fcmvmoltwhxmtmp@oracle.com>
-References: <20170603005413.10380-1-Liam.Howlett@Oracle.com>
-	<20170605045725.GA9248@dhcp22.suse.cz>
-	<20170605151541.avidrotxpoiekoy5@oracle.com>
-	<20170606054917.GA1189@dhcp22.suse.cz>
-	<20170606060147.GB1189@dhcp22.suse.cz>
-	<20170612172829.bzjfmm7navnobh4t@oracle.com>
-	<20170612174911.GA23493@dhcp22.suse.cz>
-	<20170612183717.qgcusdfvdfcj7zr7@oracle.com>
-	<20170612185208.GC23493@dhcp22.suse.cz>
-	<20170613013516.7fcmvmoltwhxmtmp@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 16 Jun 2017 12:34:33 -0700 (PDT)
+From: Jeff Layton <jlayton@redhat.com>
+Subject: [PATCH v7 00/22] fs: enhanced writeback error reporting with errseq_t (pile #1)
+Date: Fri, 16 Jun 2017 15:34:05 -0400
+Message-Id: <20170616193427.13955-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, mike.kravetz@Oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, zhongjiang@huawei.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
+Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Mon, 12 Jun 2017 21:35:17 -0400 "Liam R. Howlett" <Liam.Howlett@Oracle.com> wrote:
+v7:
+===
+This is the seventh posting of the patchset to revamp the way writeback
+errors are tracked and reported.
 
-> > 
-> > > If there's no message stating any
-> > > configuration issue, then many admins would probably think something is
-> > > seriously broken and it's not just a simple typo of K vs M.
-> > > 
-> > > Even though this doesn't catch all errors, I think it's a worth while
-> > > change since this is currently a silent failure which results in a
-> > > system crash.
-> > 
-> > Seriously, this warning just doesn't help in _most_ miscofigurations. It
-> > just focuses on one particular which really requires to misconfigure
-> > really badly. And there are way too many other ways to screw your system
-> > that way, yet we do not warn about many of those. So just try to step
-> > back and think whether this is something we actually do care about and
-> > if yes then try to come up with a more reasonable warning which would
-> > cover a wider range of misconfigurations.
-> 
-> Understood.  Again, I appreciate all the time you have taken on my
-> patch and explaining your points.  I will look at this again as you
-> have suggested.
+The main difference from the v6 posting is the removal of the
+FS_WB_ERRSEQ flag. That requires a few other incremental patches in the
+writeback code to ensure that both error tracking models are handled
+in a suitable way.
 
-So do we want to drop
-mm-hugetlb-warn-the-user-when-issues-arise-on-boot-due-to-hugepages.patch?
+Also, a bit more cleanup of the metadata writeback codepaths, and some
+documentation updates.
 
-I'd be inclined to keep it if Liam found it a bit useful - it does have
-some overhead, but half the patch is in __init code...
+Some of these patches have been posted separately, but I'm re-posting
+them here to make it clear that they're prerequisites of the later
+patches in the series.
+
+This series is based on top of linux-next from a day or so ago. I'd like
+to have this picked up by linux-next in the near future so we can get
+some more extensive testing with it. Should I just plan to maintain a
+topic branch on top of -next and ask Stephen to pick it up?
+
+Background:
+===========
+The basic problem is that we have (for a very long time) tracked and
+reported writeback errors based on two flags in the address_space:
+AS_EIO and AS_ENOSPC. Those flags are cleared when they are checked,
+so only the first caller to check them is able to consume them.
+
+That model is quite unreliable, for several related reasons:
+
+* only the first fsync caller on the inode will see the error. In a
+  world of containerized setups, that's no longer viable. Applications
+  need to know that their writes are safely stored, and they can
+  currently miss seeing errors that they should be aware of when
+  they're not.
+
+* there are a lot of internal callers to filemap_fdatawait* and
+  filemap_write_and_wait* that clear these errors but then never report
+  them to userland in any fashion.
+
+* Some internal callers report writeback errors, but can do so at
+  non-sensical times. For instance, we might want to truncate a file,
+  which triggers a pagecache flush. If that writeback fails, we might
+  report that error to the truncate caller, but a subsequent fsync
+  will likely not see it.
+
+* Some internal callers try to reset the error flags after clearing
+  them, but that's racy. Another task could check the flags between
+  those two events.
+
+Solution:
+=========
+This patchset adds a new datatype called an errseq_t that represents a
+sequence of errors. It's a u32, with a field for a POSIX-flavor error
+and a counter, managed with atomics. We can sample that value at a
+particular point in time, and can later tell whether there have been any
+errors since that point.
+
+That allows us to provide traditional check-and-clear fsync semantics
+on every open file description in a lightweight fashion. fsync callers
+no longer need to coordinate between one another in order to ensure
+that errors at fsync time are handled correctly.
+
+Strategy:
+=========
+The aim with this pile is to do the minimum possible to support for
+reliable reporting of errors on fsync, without substantially changing
+the internals of the filesystems themselves.
+
+Most of the internal calls to filemap_fdatawait are left alone, so all
+of the internal error checkers are using the same error handling they
+always have. The only real difference here is that we're better
+reporting errors at fsync.
+
+I think that we probably will want to eventually convert all of those
+internal callers to use errseq_t based reporting, but that can be done
+in an incremental fashion in follow-on patchsets.
+
+Testing:
+========
+I've primarily been testing this with some new xfstests that I will post
+in a separate series. These tests use dm-error fault injection to make
+the underlying block device start throwing I/O errors, and then test the
+how the filesystem layer reports errors after that.
+
+Jeff Layton (22):
+  fs: remove call_fsync helper function
+  buffer: use mapping_set_error instead of setting the flag
+  fs: check for writeback errors after syncing out buffers in
+    generic_file_fsync
+  buffer: set errors in mapping at the time that the error occurs
+  jbd2: don't clear and reset errors after waiting on writeback
+  mm: clear AS_EIO/AS_ENOSPC when writeback initiation fails
+  mm: don't TestClearPageError in __filemap_fdatawait_range
+  mm: clean up error handling in write_one_page
+  fs: always sync metadata in __generic_file_fsync
+  lib: add errseq_t type and infrastructure for handling it
+  fs: new infrastructure for writeback error handling and reporting
+  mm: tracepoints for writeback error events
+  mm: set both AS_EIO/AS_ENOSPC and errseq_t in mapping_set_error
+  Documentation: flesh out the section in vfs.txt on storing and
+    reporting writeback errors
+  dax: set errors in mapping when writeback fails
+  block: convert to errseq_t based writeback error tracking
+  ext4: use errseq_t based error handling for reporting data writeback
+    errors
+  fs: add f_md_wb_err field to struct file for tracking metadata errors
+  ext4: add more robust reporting of metadata writeback errors
+  ext2: convert to errseq_t based writeback error tracking
+  xfs: minimal conversion to errseq_t writeback error reporting
+  btrfs: minimal conversion to errseq_t writeback error reporting on
+    fsync
+
+ Documentation/filesystems/vfs.txt |  43 +++++++-
+ drivers/dax/device.c              |   1 +
+ fs/block_dev.c                    |   9 +-
+ fs/btrfs/file.c                   |   7 +-
+ fs/buffer.c                       |  20 ++--
+ fs/dax.c                          |   4 +-
+ fs/ext2/dir.c                     |   8 ++
+ fs/ext2/file.c                    |  26 ++++-
+ fs/ext4/dir.c                     |   8 +-
+ fs/ext4/file.c                    |   5 +-
+ fs/ext4/fsync.c                   |  28 ++++-
+ fs/file_table.c                   |   1 +
+ fs/gfs2/lops.c                    |   2 +-
+ fs/jbd2/commit.c                  |  15 +--
+ fs/libfs.c                        |  12 +--
+ fs/open.c                         |   3 +
+ fs/sync.c                         |   2 +-
+ fs/xfs/xfs_file.c                 |  15 ++-
+ include/linux/buffer_head.h       |   1 +
+ include/linux/errseq.h            |  19 ++++
+ include/linux/fs.h                |  67 ++++++++++--
+ include/linux/pagemap.h           |  31 ++++--
+ include/trace/events/filemap.h    |  52 ++++++++++
+ ipc/shm.c                         |   2 +-
+ lib/Makefile                      |   2 +-
+ lib/errseq.c                      | 208 ++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                      | 113 +++++++++++++++++----
+ mm/page-writeback.c               |  15 ++-
+ 28 files changed, 628 insertions(+), 91 deletions(-)
+ create mode 100644 include/linux/errseq.h
+ create mode 100644 lib/errseq.c
+
+-- 
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
