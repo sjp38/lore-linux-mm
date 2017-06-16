@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E732683293
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:27:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b9so41571656pfl.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 09:27:47 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0134.outbound.protection.outlook.com. [104.47.0.134])
-        by mx.google.com with ESMTPS id r69si2278906pfg.481.2017.06.16.09.27.46
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A3966B0292
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:33:54 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id n18so8306292wra.11
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:33:54 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y12si1118875wrd.240.2017.06.16.10.33.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 09:27:47 -0700 (PDT)
-Subject: Re: [PATCH v3 7/7] asm-generic, x86: add comments for atomic
- instrumentation
-References: <cover.1496743523.git.dvyukov@google.com>
- <658c169bdc4d486b19d161579168a425b064b6f5.1496743523.git.dvyukov@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <96e64715-20b7-0aba-6bf8-ede926c804fb@virtuozzo.com>
-Date: Fri, 16 Jun 2017 19:29:28 +0300
-MIME-Version: 1.0
-In-Reply-To: <658c169bdc4d486b19d161579168a425b064b6f5.1496743523.git.dvyukov@google.com>
-Content-Type: text/plain; charset=windows-1252
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Jun 2017 10:33:53 -0700 (PDT)
+Date: Fri, 16 Jun 2017 10:33:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm/memory_hotplug: remove duplicate call for
+ set_page_links
+Message-Id: <20170616103350.e065a9838bb50c2dc70a41d8@linux-foundation.org>
+In-Reply-To: <20170616092335.5177-2-richard.weiyang@gmail.com>
+References: <20170616092335.5177-1-richard.weiyang@gmail.com>
+	<20170616092335.5177-2-richard.weiyang@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: mhocko@kernel.org, linux-mm@kvack.org
 
-On 06/06/2017 01:11 PM, Dmitry Vyukov wrote:
-> The comments are factored out from the code changes to make them
-> easier to read. Add them separately to explain some non-obvious
-> aspects.
+On Fri, 16 Jun 2017 17:23:35 +0800 Wei Yang <richard.weiyang@gmail.com> wrote:
+
+> In function move_pfn_range_to_zone(), memmap_init_zone() will call
+> set_page_links for each page.
+
+Well, no.  There are several types of pfn's for which
+memmap_init_zone() will not call
+__init_single_page()->set_page_links().  Probably the code is OK, as
+those are pretty screwy pfn types.  But I'd like to see some
+confirmation that this patch is OK for all such pfns, now and in the
+future?
+
+> This means we don't need to call it on each
+> page explicitly.
 > 
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: kasan-dev@googlegroups.com
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: x86@kernel.org
-> ---
->  arch/x86/include/asm/atomic.h             |  7 +++++++
->  include/asm-generic/atomic-instrumented.h | 30 ++++++++++++++++++++++++++++++
->  2 files changed, 37 insertions(+)
+> This patch just removes the loop.
 > 
-> diff --git a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
-> index b7900346c77e..8a9e65e585db 100644
-> --- a/arch/x86/include/asm/atomic.h
-> +++ b/arch/x86/include/asm/atomic.h
-> @@ -23,6 +23,13 @@
->   */
->  static __always_inline int arch_atomic_read(const atomic_t *v)
->  {
-> +	/*
-> +	 * Note: READ_ONCE() here leads to double instrumentation as
-> +	 * both READ_ONCE() and atomic_read() contain instrumentation.
-> +	 * This is a deliberate choice. READ_ONCE_NOCHECK() is compiled to a
-> +	 * non-inlined function call that considerably increases binary size
-> +	 * and stack usage under KASAN.
-> +	 */
-
-
-Not sure that this worth commenting. Whoever is looking into arch_atomic_read() internals
-probably don't even think about KASAN instrumentation, so I'd remove this comment.
-
-
->  	return READ_ONCE((v)->counter);
->  }
+> ...
+>
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -914,10 +914,6 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+>  	 * are reserved so nobody should be touching them so we should be safe
+>  	 */
+>  	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLUG);
+> -	for (i = 0; i < nr_pages; i++) {
+> -		unsigned long pfn = start_pfn + i;
+> -		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+> -	}
 >  
+>  	set_zone_contiguous(zone);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
