@@ -1,143 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C989A83293
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:55 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b15so7874275wrb.1
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:52:55 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e66si2693360wmc.167.2017.06.16.10.52.54
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C7F583293
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:57 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 33so22207493pgx.14
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:52:57 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p125si2376945pfb.8.2017.06.16.10.52.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 10:52:54 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5GHnD2A042932
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:53 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2b4hqpwe7n-1
+        Fri, 16 Jun 2017 10:52:56 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5GHnZ78138819
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:56 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2b4ktp8m1r-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:53 -0400
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:52:56 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 16 Jun 2017 18:52:51 +0100
+	Fri, 16 Jun 2017 18:52:53 +0100
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [RFC v5 04/11] mm: VMA sequence count
-Date: Fri, 16 Jun 2017 19:52:28 +0200
+Subject: [RFC v5 05/11] mm: fix lock dependency against mapping->i_mmap_rwsem
+Date: Fri, 16 Jun 2017 19:52:29 +0200
 In-Reply-To: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1497635555-25679-5-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-From: Peter Zijlstra <peterz@infradead.org>
+kworker/32:1/819 is trying to acquire lock:
+ (&vma->vm_sequence){+.+...}, at: [<c0000000002f20e0>]
+zap_page_range_single+0xd0/0x1a0
 
-Wrap the VMA modifications (vma_adjust/unmap_page_range) with sequence
-counts such that we can easily test if a VMA is changed.
+but task is already holding lock:
+ (&mapping->i_mmap_rwsem){++++..}, at: [<c0000000002f229c>]
+unmap_mapping_range+0x7c/0x160
 
-The unmap_page_range() one allows us to make assumptions about
-page-tables; when we find the seqcount hasn't changed we can assume
-page-tables are still valid.
+which lock already depends on the new lock.
 
-The flip side is that we cannot distinguish between a vma_adjust() and
-the unmap_page_range() -- where with the former we could have
-re-checked the vma bounds against the address.
+the existing dependency chain (in reverse order) is:
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+-> #2 (&mapping->i_mmap_rwsem){++++..}:
+       down_write+0x84/0x130
+       __vma_adjust+0x1f4/0xa80
+       __split_vma.isra.2+0x174/0x290
+       do_munmap+0x13c/0x4e0
+       vm_munmap+0x64/0xb0
+       elf_map+0x11c/0x130
+       load_elf_binary+0x6f0/0x15f0
+       search_binary_handler+0xe0/0x2a0
+       do_execveat_common.isra.14+0x7fc/0xbe0
+       call_usermodehelper_exec_async+0x14c/0x1d0
+       ret_from_kernel_thread+0x5c/0x68
 
-[port to 4.12 kernel]
+-> #1 (&vma->vm_sequence/1){+.+...}:
+       __vma_adjust+0x124/0xa80
+       __split_vma.isra.2+0x174/0x290
+       do_munmap+0x13c/0x4e0
+       vm_munmap+0x64/0xb0
+       elf_map+0x11c/0x130
+       load_elf_binary+0x6f0/0x15f0
+       search_binary_handler+0xe0/0x2a0
+       do_execveat_common.isra.14+0x7fc/0xbe0
+       call_usermodehelper_exec_async+0x14c/0x1d0
+       ret_from_kernel_thread+0x5c/0x68
+
+-> #0 (&vma->vm_sequence){+.+...}:
+       lock_acquire+0xf4/0x310
+       unmap_page_range+0xcc/0xfa0
+       zap_page_range_single+0xd0/0x1a0
+       unmap_mapping_range+0x138/0x160
+       truncate_pagecache+0x50/0xa0
+       put_aio_ring_file+0x48/0xb0
+       aio_free_ring+0x40/0x1b0
+       free_ioctx+0x38/0xc0
+       process_one_work+0x2cc/0x8a0
+       worker_thread+0xac/0x580
+       kthread+0x164/0x1b0
+       ret_from_kernel_thread+0x5c/0x68
+
+other info that might help us debug this:
+
+Chain exists of:
+  &vma->vm_sequence --> &vma->vm_sequence/1 --> &mapping->i_mmap_rwsem
+
+ Possible unsafe locking scenario:
+
+       CPU0                    CPU1
+       ----                    ----
+  lock(&mapping->i_mmap_rwsem);
+                               lock(&vma->vm_sequence/1);
+                               lock(&mapping->i_mmap_rwsem);
+  lock(&vma->vm_sequence);
+
+ *** DEADLOCK ***
+
+To fix that we must grab the vm_sequence lock after any mapping one in
+__vma_adjust().
+
 Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 ---
- include/linux/mm_types.h |  1 +
- mm/memory.c              |  2 ++
- mm/mmap.c                | 13 +++++++++++++
- 3 files changed, 16 insertions(+)
+ mm/mmap.c | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 45cdb27791a3..8945743e4609 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -342,6 +342,7 @@ struct vm_area_struct {
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
- 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
-+	seqcount_t vm_sequence;
- };
- 
- struct core_thread {
-diff --git a/mm/memory.c b/mm/memory.c
-index f1132f7931ef..5d259cd67a83 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1379,6 +1379,7 @@ void unmap_page_range(struct mmu_gather *tlb,
- 	unsigned long next;
- 
- 	BUG_ON(addr >= end);
-+	write_seqcount_begin(&vma->vm_sequence);
- 	tlb_start_vma(tlb, vma);
- 	pgd = pgd_offset(vma->vm_mm, addr);
- 	do {
-@@ -1388,6 +1389,7 @@ void unmap_page_range(struct mmu_gather *tlb,
- 		next = zap_p4d_range(tlb, vma, pgd, addr, next, details);
- 	} while (pgd++, addr = next, addr != end);
- 	tlb_end_vma(tlb, vma);
-+	write_seqcount_end(&vma->vm_sequence);
- }
- 
- 
 diff --git a/mm/mmap.c b/mm/mmap.c
-index f82741e199c0..9f86356d0012 100644
+index 9f86356d0012..ad85f210a92c 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -543,6 +543,8 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
- 	else
- 		mm->highest_vm_end = vma->vm_end;
- 
-+	seqcount_init(&vma->vm_sequence);
-+
- 	/*
- 	 * vma->vm_prev wasn't known when we followed the rbtree to find the
- 	 * correct insertion point for that vma. As a result, we could not
-@@ -677,6 +679,10 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+@@ -679,10 +679,6 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
  	long adjust_next = 0;
  	int remove_next = 0;
  
-+	write_seqcount_begin(&vma->vm_sequence);
-+	if (next)
-+		write_seqcount_begin_nested(&next->vm_sequence, SINGLE_DEPTH_NESTING);
-+
+-	write_seqcount_begin(&vma->vm_sequence);
+-	if (next)
+-		write_seqcount_begin_nested(&next->vm_sequence, SINGLE_DEPTH_NESTING);
+-
  	if (next && !insert) {
  		struct vm_area_struct *exporter = NULL, *importer = NULL;
  
-@@ -888,6 +894,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 		mm->map_count--;
- 		mpol_put(vma_policy(next));
- 		kmem_cache_free(vm_area_cachep, next);
-+		write_seqcount_end(&next->vm_sequence);
- 		/*
- 		 * In mprotect's case 6 (see comments on vma_merge),
- 		 * we must remove another next too. It would clutter
-@@ -901,6 +908,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+@@ -790,6 +786,11 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 		}
+ 	}
+ 
++	write_seqcount_begin(&vma->vm_sequence);
++	if (next)
++		write_seqcount_begin_nested(&next->vm_sequence,
++					    SINGLE_DEPTH_NESTING);
++
+ 	anon_vma = vma->anon_vma;
+ 	if (!anon_vma && adjust_next)
+ 		anon_vma = next->anon_vma;
+@@ -908,8 +909,6 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
  			 * "vma->vm_next" gap must be updated.
  			 */
  			next = vma->vm_next;
-+			if (next)
-+				write_seqcount_begin_nested(&next->vm_sequence, SINGLE_DEPTH_NESTING);
+-			if (next)
+-				write_seqcount_begin_nested(&next->vm_sequence, SINGLE_DEPTH_NESTING);
  		} else {
  			/*
  			 * For the scope of the comment "next" and
-@@ -947,6 +956,10 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+@@ -926,11 +925,14 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 		if (remove_next == 2) {
+ 			remove_next = 1;
+ 			end = next->vm_end;
++			write_seqcount_end(&vma->vm_sequence);
+ 			goto again;
+-		}
+-		else if (next)
++		} else if (next) {
++			if (next != vma)
++				write_seqcount_begin_nested(&next->vm_sequence,
++							    SINGLE_DEPTH_NESTING);
+ 			vma_gap_update(next);
+-		else {
++		} else {
+ 			/*
+ 			 * If remove_next == 2 we obviously can't
+ 			 * reach this path.
+@@ -956,7 +958,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
  	if (insert && file)
  		uprobe_mmap(insert);
  
-+	if (next)
-+		write_seqcount_end(&next->vm_sequence);
-+	write_seqcount_end(&vma->vm_sequence);
-+
- 	validate_mm(mm);
+-	if (next)
++	if (next && next != vma)
+ 		write_seqcount_end(&next->vm_sequence);
+ 	write_seqcount_end(&vma->vm_sequence);
  
- 	return 0;
 -- 
 2.7.4
 
