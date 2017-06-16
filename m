@@ -1,65 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F9D44043B
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:36:07 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id x58so42650217qtc.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:36:07 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 060B744043B
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:36:27 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id z22so42285720qtz.10
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:36:27 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e55si2784654qte.49.2017.06.16.12.36.06
+        by mx.google.com with ESMTPS id u55si2761139qth.202.2017.06.16.12.36.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:36:06 -0700 (PDT)
+        Fri, 16 Jun 2017 12:36:26 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [PATCH v7 22/22] btrfs: minimal conversion to errseq_t writeback error reporting on fsync
-Date: Fri, 16 Jun 2017 15:34:27 -0400
-Message-Id: <20170616193427.13955-23-jlayton@redhat.com>
-In-Reply-To: <20170616193427.13955-1-jlayton@redhat.com>
-References: <20170616193427.13955-1-jlayton@redhat.com>
+Subject: [xfstests PATCH v5 0/5] new tests for writeback error reporting behavior
+Date: Fri, 16 Jun 2017 15:36:14 -0400
+Message-Id: <20170616193619.14576-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-Just check and advance the errseq_t in the file before returning.
-Internal callers of filemap_* functions are left as-is.
+The main changes in this set from the last are:
 
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- fs/btrfs/file.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+- add a btrfs/999.out file
+- use _supported_fs to whitelist fs' on which the tests should run
+- fix the ext3/4 mount option handling when creating journal device
+- ensure that dmerror is installed on make install
 
-diff --git a/fs/btrfs/file.c b/fs/btrfs/file.c
-index 0f102a1b851f..609226beea43 100644
---- a/fs/btrfs/file.c
-+++ b/fs/btrfs/file.c
-@@ -2017,7 +2017,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- 	struct btrfs_root *root = BTRFS_I(inode)->root;
- 	struct btrfs_trans_handle *trans;
- 	struct btrfs_log_ctx ctx;
--	int ret = 0;
-+	int ret = 0, err;
- 	bool full_sync = 0;
- 	u64 len;
- 
-@@ -2036,7 +2036,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- 	 */
- 	ret = start_ordered_ops(inode, start, end);
- 	if (ret)
--		return ret;
-+		goto out;
- 
- 	inode_lock(inode);
- 	atomic_inc(&root->log_batch);
-@@ -2233,6 +2233,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
- 		ret = btrfs_end_transaction(trans);
- 	}
- out:
-+	err = filemap_report_wb_err(file);
-+	if (!ret)
-+		ret = err;
- 	return ret > 0 ? -EIO : ret;
- }
- 
+These tests are intended to test the new writeback error reporting
+introduced by this kernel patchset:
+
+    [PATCH v7 00/22] fs: enhanced writeback error reporting with errseq_t (pile #1)
+
+It adds 3 new xfstests for testing kernel behavior when writeback from
+the pagecache fails: one generic filesystem test, one test for raw block
+devices and one test for btrfs.
+
+The tests work with dmerror to make data writeback from the pagecache
+fail, and then tests how the kernel reports errors afterward.
+
+xfs, ext2/3/4 and btrfs all pass on a kernel with the patchset above. "Bare"
+block devices also work correctly.
+
+Jeff Layton (5):
+  ext4: allow ext4 to use $SCRATCH_LOGDEV
+  ext3: allow it to put journal on a separate device when doing
+    scratch_mkfs
+  generic: add a writeback error handling test
+  generic: test writeback error handling on dmerror devices
+  btrfs: make a btrfs version of writeback error reporting test
+
+ .gitignore                 |   1 +
+ common/dmerror             |  13 ++-
+ common/rc                  |  14 ++-
+ doc/auxiliary-programs.txt |  16 ++++
+ src/Makefile               |   4 +-
+ src/dmerror                |  44 +++++++++
+ src/fsync-err.c            | 223 +++++++++++++++++++++++++++++++++++++++++++++
+ tests/btrfs/999            |  94 +++++++++++++++++++
+ tests/btrfs/999.out        |   3 +
+ tests/btrfs/group          |   1 +
+ tests/generic/998          |  63 +++++++++++++
+ tests/generic/998.out      |   2 +
+ tests/generic/999          |  84 +++++++++++++++++
+ tests/generic/999.out      |   3 +
+ tests/generic/group        |   2 +
+ 15 files changed, 559 insertions(+), 8 deletions(-)
+ create mode 100755 src/dmerror
+ create mode 100644 src/fsync-err.c
+ create mode 100755 tests/btrfs/999
+ create mode 100644 tests/btrfs/999.out
+ create mode 100755 tests/generic/998
+ create mode 100644 tests/generic/998.out
+ create mode 100755 tests/generic/999
+ create mode 100644 tests/generic/999.out
+
 -- 
 2.13.0
 
