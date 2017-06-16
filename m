@@ -1,36 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 899A483292
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:01:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id d64so4075931wmf.9
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:01:01 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w205si2507947wma.191.2017.06.16.08.00.59
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 033D283292
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:04:15 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z5so37222889qta.12
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:04:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 12si2232645qtq.325.2017.06.16.08.04.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 08:01:00 -0700 (PDT)
-Date: Fri, 16 Jun 2017 17:00:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] ubsan: signed integer overflow in
- mem_cgroup_event_ratelimit
-Message-ID: <20170616150057.GQ30580@dhcp22.suse.cz>
-References: <20170616122653.GF20222@alitoo>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Jun 2017 08:04:14 -0700 (PDT)
+Date: Fri, 16 Jun 2017 18:04:06 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC] virtio-mem: paravirtualized memory
+Message-ID: <20170616175748-mutt-send-email-mst@kernel.org>
+References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170616122653.GF20222@alitoo>
+In-Reply-To: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alice Ferrazzi <alicef@gentoo.org>
-Cc: hannes@cmpxchg.org, vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-[CC Andrew]
-
-On Fri 16-06-17 21:26:53, Alice Ferrazzi wrote:
-> Hello,
+On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
+> Hi,
 > 
-> a user reported a UBSAN signed integer overflow in memcontrol.c
-> Shall we change something in mem_cgroup_event_ratelimit()?
+> this is an idea that is based on Andrea Arcangeli's original idea to
+> host enforce guest access to memory given up using virtio-balloon using
+> userfaultfd in the hypervisor. While looking into the details, I
+> realized that host-enforcing virtio-balloon would result in way too many
+> problems (mainly backwards compatibility) and would also have some
+> conceptual restrictions that I want to avoid. So I developed the idea of
+> virtio-mem - "paravirtualized memory".
 
-It took me quite some staring but it seems the report is correct.
----
+Thanks! I went over this quickly, will read some more in the
+coming days. I would like to ask for some clarifications
+on one part meanwhile:
+
+> Q: Why not reuse virtio-balloon?
+> 
+> A: virtio-balloon is for cooperative memory management. It has a fixed
+>    page size
+
+We are fixing that with VIRTIO_BALLOON_F_PAGE_CHUNKS btw.
+I would appreciate you looking into that patchset.
+
+> and will deflate in certain situations.
+
+What does this refer to?
+
+> Any change we
+>    introduce will break backwards compatibility.
+
+Why does this have to be the case?
+
+> virtio-balloon was not
+>    designed to give guarantees. Nobody can hinder the guest from
+>    deflating/reusing inflated memory.
+
+Reusing without deflate is forbidden with TELL_HOST, right?
+
+>    In addition, it might make perfect
+>    sense to have both, virtio-balloon and virtio-mem at the same time,
+>    especially looking at the DEFLATE_ON_OOM or STATS features of
+>    virtio-balloon. While virtio-mem is all about guarantees, virtio-
+>    balloon is about cooperation.
+
+Thanks, and I intend to look more into this next week.
+
+-- 
+MST
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
