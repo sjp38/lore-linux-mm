@@ -1,162 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C95B4404A3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:37:19 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id o21so42464789qtb.13
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:37:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 38si3245733qkp.394.2017.06.16.12.37.17
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCA34404A3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:44:40 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id o62so50941181pga.0
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:44:40 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id q127si2615562pga.353.2017.06.16.12.44.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:37:18 -0700 (PDT)
-From: Jeff Layton <jlayton@redhat.com>
-Subject: [xfstests PATCH v5 5/5] btrfs: make a btrfs version of writeback error reporting test
-Date: Fri, 16 Jun 2017 15:36:19 -0400
-Message-Id: <20170616193619.14576-6-jlayton@redhat.com>
-In-Reply-To: <20170616193619.14576-1-jlayton@redhat.com>
-References: <20170616193619.14576-1-jlayton@redhat.com>
+        Fri, 16 Jun 2017 12:44:39 -0700 (PDT)
+Date: Fri, 16 Jun 2017 13:44:37 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170616194437.GA20742@linux.intel.com>
+References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
+ <20170614172211.19820-2-ross.zwisler@linux.intel.com>
+ <20170615144204.GN1764@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170615144204.GN1764@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
-Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-For btrfs, we can test how it reports data writeback errors on fsync by
-implementing a suggestion from Chris Mason:
+On Thu, Jun 15, 2017 at 04:42:04PM +0200, Jan Kara wrote:
+> On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
+> > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > fault path look more like our PMD fault path where a PTE entry can be
+> > marked as dirty and writeable as it is first inserted, rather than waiting
+> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > 
+> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > distinguish between these two cases in do_wp_page():
+> > 
+> > 	case 1: 4k zero page => writable DAX storage
+> > 	case 2: read-only DAX storage => writeable DAX storage
+> > 
+> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > get rid of dax_pfn_mkwrite() completely.
+> > 
+> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > will do the work that was previously done by wp_page_reuse() as part of the
+> > dax_pfn_mkwrite() call path.
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> 
+> So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
+> that case is a way to go. However I somewhat dislike the
+> vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
+> we have a similar thing for PMD which is ugly as well. Besides being ugly
+> I'm also concerned that when 'mkwrite' is set, we just silently overwrite
+> whatever PTE was installed at that position. Not that I'd see how that
+> could screw us for DAX but still a concern that e.g. some PTE flag could
+> get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
+> architectures, you will leak zero page references by just overwriting the
+> PTE - for those archs you really need to unmap zero page before replacing
+> PTE (and the same for PMD I suppose).
+> 
+> So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
+> properly detect PTE / PMD case, read / write case etc., check that PTE did
+> not change from orig_pte, and handle all the nasty details instead of
+> messing with insert_pfn?
+> 
+> 								Honza
 
-Build a filesystem with 2 devices that stripes the data across
-both devices, but mirrors metadata across both. Then, make one
-of the devices fail and test what it does.
+Sounds good, I'll figure this out for v3.
 
-Cc: Chris Mason <clm@fb.com>
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- tests/btrfs/999     | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- tests/btrfs/999.out |  3 ++
- tests/btrfs/group   |  1 +
- 3 files changed, 98 insertions(+)
- create mode 100755 tests/btrfs/999
- create mode 100644 tests/btrfs/999.out
-
-diff --git a/tests/btrfs/999 b/tests/btrfs/999
-new file mode 100755
-index 000000000000..903e36526708
---- /dev/null
-+++ b/tests/btrfs/999
-@@ -0,0 +1,94 @@
-+#! /bin/bash
-+# FS QA Test No. 999
-+#
-+# Open a file several times, write to it, fsync on all fds and make sure that
-+# they all return 0. Change the device to start throwing errors. Write again
-+# on all fds and fsync on all fds. Ensure that we get errors on all of them.
-+# Then fsync on all one last time and verify that all return 0.
-+#
-+#-----------------------------------------------------------------------
-+# Copyright (c) 2017, Jeff Layton <jlayton@redhat.com>
-+#
-+# This program is free software; you can redistribute it and/or
-+# modify it under the terms of the GNU General Public License as
-+# published by the Free Software Foundation.
-+#
-+# This program is distributed in the hope that it would be useful,
-+# but WITHOUT ANY WARRANTY; without even the implied warranty of
-+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+# GNU General Public License for more details.
-+#
-+# You should have received a copy of the GNU General Public License
-+# along with this program; if not, write the Free Software Foundation,
-+# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-+#-----------------------------------------------------------------------
-+
-+seq=`basename $0`
-+seqres=$RESULT_DIR/$seq
-+echo "QA output created by $seq"
-+
-+here=`pwd`
-+tmp=/tmp/$$
-+status=1    # failure is the default!
-+trap "_cleanup; exit \$status" 0 1 2 3 15
-+
-+_cleanup()
-+{
-+    cd /
-+    rm -rf $tmp.* $testdir
-+    _dmerror_cleanup
-+}
-+
-+# get standard environment, filters and checks
-+. ./common/rc
-+. ./common/filter
-+. ./common/dmerror
-+
-+# real QA test starts here
-+_supported_os Linux
-+_supported_fs btrfs
-+_require_dm_target error
-+_require_test_program fsync-err
-+_require_test_program dmerror
-+
-+# bring up dmerror device
-+_scratch_unmount
-+_dmerror_init
-+
-+# Replace first device with error-test device
-+old_SCRATCH_DEV=$SCRATCH_DEV
-+SCRATCH_DEV_POOL=`echo $SCRATCH_DEV_POOL | perl -pe "s#$SCRATCH_DEV#$DMERROR_DEV#"`
-+SCRATCH_DEV=$DMERROR_DEV
-+
-+_require_scratch
-+_require_scratch_dev_pool
-+
-+rm -f $seqres.full
-+
-+echo "Format and mount"
-+
-+_scratch_pool_mkfs "-d raid0 -m raid1" > $seqres.full 2>&1
-+_scratch_mount
-+
-+# How much do we need to write? We need to hit all of the stripes. btrfs uses
-+# a fixed 64k stripesize, so write enough to hit each one
-+number_of_devices=`echo $SCRATCH_DEV_POOL | wc -w`
-+write_kb=$(($number_of_devices * 64))
-+_require_fs_space $SCRATCH_MNT $write_kb
-+
-+testfile=$SCRATCH_MNT/fsync-err-test
-+
-+SCRATCH_DEV=$old_SCRATCH_DEV
-+$here/src/fsync-err -b $(($write_kb * 1024)) -d $here/src/dmerror $testfile
-+
-+# success, all done
-+_dmerror_load_working_table
-+
-+# fs may be corrupt after this -- attempt to repair it
-+_repair_scratch_fs >> $seqres.full
-+
-+# remove dmerror device
-+_dmerror_cleanup
-+
-+status=0
-+exit
-diff --git a/tests/btrfs/999.out b/tests/btrfs/999.out
-new file mode 100644
-index 000000000000..2e48492ff6d1
---- /dev/null
-+++ b/tests/btrfs/999.out
-@@ -0,0 +1,3 @@
-+QA output created by 999
-+Format and mount
-+Test passed!
-diff --git a/tests/btrfs/group b/tests/btrfs/group
-index be0548796260..c9063f0a4087 100644
---- a/tests/btrfs/group
-+++ b/tests/btrfs/group
-@@ -147,3 +147,4 @@
- 142 auto quick
- 143 auto quick
- 144 auto quick send
-+999 auto quick
--- 
-2.13.0
+Thanks for the review!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
