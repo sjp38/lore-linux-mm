@@ -1,78 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DCA34404A3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:44:40 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id o62so50941181pga.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:44:40 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id q127si2615562pga.353.2017.06.16.12.44.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A77CA4404A3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:45:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b13so51150961pgn.4
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:45:42 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q125si2588026pgq.187.2017.06.16.12.45.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:44:39 -0700 (PDT)
-Date: Fri, 16 Jun 2017 13:44:37 -0600
+        Fri, 16 Jun 2017 12:45:42 -0700 (PDT)
+Date: Fri, 16 Jun 2017 13:45:40 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
-Message-ID: <20170616194437.GA20742@linux.intel.com>
+Subject: Re: [PATCH v2 3/3] dax: use common 4k zero page for dax mmap reads
+Message-ID: <20170616194540.GB20742@linux.intel.com>
 References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
- <20170614172211.19820-2-ross.zwisler@linux.intel.com>
- <20170615144204.GN1764@quack2.suse.cz>
+ <20170614172211.19820-4-ross.zwisler@linux.intel.com>
+ <20170615145856.GO1764@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170615144204.GN1764@quack2.suse.cz>
+In-Reply-To: <20170615145856.GO1764@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Thu, Jun 15, 2017 at 04:42:04PM +0200, Jan Kara wrote:
-> On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
-> > To be able to use the common 4k zero page in DAX we need to have our PTE
-> > fault path look more like our PMD fault path where a PTE entry can be
-> > marked as dirty and writeable as it is first inserted, rather than waiting
-> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> > 
-> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> > distinguish between these two cases in do_wp_page():
-> > 
-> > 	case 1: 4k zero page => writable DAX storage
-> > 	case 2: read-only DAX storage => writeable DAX storage
-> > 
-> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
-> > false for the common 4k zero page, though, just as it does for DAX ptes.
-> > Instead of special casing the DAX + 4k zero page case, we will simplify our
-> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
-> > get rid of dax_pfn_mkwrite() completely.
-> > 
-> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
-> > will do the work that was previously done by wp_page_reuse() as part of the
-> > dax_pfn_mkwrite() call path.
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On Thu, Jun 15, 2017 at 04:58:56PM +0200, Jan Kara wrote:
+> On Wed 14-06-17 11:22:11, Ross Zwisler wrote:
+> > @@ -216,17 +217,6 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
+> >  	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+> >  }
+> >  
+> > -static void put_locked_mapping_entry(struct address_space *mapping,
+> > -				     pgoff_t index, void *entry)
+> > -{
+> > -	if (!radix_tree_exceptional_entry(entry)) {
+> > -		unlock_page(entry);
+> > -		put_page(entry);
+> > -	} else {
+> > -		dax_unlock_mapping_entry(mapping, index);
+> > -	}
+> > -}
+> > -
 > 
-> So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
-> that case is a way to go. However I somewhat dislike the
-> vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
-> we have a similar thing for PMD which is ugly as well. Besides being ugly
-> I'm also concerned that when 'mkwrite' is set, we just silently overwrite
-> whatever PTE was installed at that position. Not that I'd see how that
-> could screw us for DAX but still a concern that e.g. some PTE flag could
-> get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
-> architectures, you will leak zero page references by just overwriting the
-> PTE - for those archs you really need to unmap zero page before replacing
-> PTE (and the same for PMD I suppose).
-> 
-> So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
-> properly detect PTE / PMD case, read / write case etc., check that PTE did
-> not change from orig_pte, and handle all the nasty details instead of
-> messing with insert_pfn?
-> 
-> 								Honza
+> The naming becomes asymetric with this. So I'd prefer keeping
+> put_locked_mapping_entry() as a trivial wrapper around
+> dax_unlock_mapping_entry() unless we can craft more sensible naming / API
+> for entry grabbing (and that would be a separate patch anyway).
 
-Sounds good, I'll figure this out for v3.
+Sure, that works for me.  I'll fix for v3.
 
-Thanks for the review!
+> > -static int dax_load_hole(struct address_space *mapping, void **entry,
+> > +static int dax_load_hole(struct address_space *mapping, void *entry,
+> >  			 struct vm_fault *vmf)
+> >  {
+> >  	struct inode *inode = mapping->host;
+> > -	struct page *page;
+> > -	int ret;
+> > -
+> > -	/* Hole page already exists? Return it...  */
+> > -	if (!radix_tree_exceptional_entry(*entry)) {
+> > -		page = *entry;
+> > -		goto finish_fault;
+> > -	}
+> > +	unsigned long vaddr = vmf->address;
+> > +	int ret = VM_FAULT_NOPAGE;
+> > +	struct page *zero_page;
+> > +	void *entry2;
+> >  
+> > -	/* This will replace locked radix tree entry with a hole page */
+> > -	page = find_or_create_page(mapping, vmf->pgoff,
+> > -				   vmf->gfp_mask | __GFP_ZERO);
+> 
+> With this gone, you can also remove the special DAX handling from
+> mm/filemap.c: page_cache_tree_insert() and remove from dax.h
+> dax_wake_mapping_entry_waiter(), dax_radix_locked_entry() and RADIX_DAX
+> definitions. Yay! As a separate patch please.
+
+Oh, yay!  :)  Sure, I'll have this patch for v3.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
