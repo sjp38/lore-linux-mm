@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4EA844041A
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 14:52:18 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p4so44198508pfk.15
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:52:18 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0055.outbound.protection.outlook.com. [104.47.40.55])
-        by mx.google.com with ESMTPS id c2si2713247plb.121.2017.06.16.11.52.17
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C03644041A
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 14:52:30 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b9so44404393pfl.0
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:52:30 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0045.outbound.protection.outlook.com. [104.47.38.45])
+        by mx.google.com with ESMTPS id d27si2302699pgn.350.2017.06.16.11.52.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 11:52:17 -0700 (PDT)
+        Fri, 16 Jun 2017 11:52:29 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v7 12/36] x86/mm: Extend early_memremap() support with
- additional attrs
-Date: Fri, 16 Jun 2017 13:52:08 -0500
-Message-ID: <20170616185208.18967.72141.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v7 13/36] x86/mm: Add support for early encrypt/decrypt of
+ memory
+Date: Fri, 16 Jun 2017 13:52:20 -0500
+Message-ID: <20170616185220.18967.78204.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
 References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,185 +24,142 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Add early_memremap() support to be able to specify encrypted and
-decrypted mappings with and without write-protection. The use of
-write-protection is necessary when encrypting data "in place". The
-write-protect attribute is considered cacheable for loads, but not
-stores. This implies that the hardware will never give the core a
-dirty line with this memtype.
+Add support to be able to either encrypt or decrypt data in place during
+the early stages of booting the kernel. This does not change the memory
+encryption attribute - it is used for ensuring that data present in either
+an encrypted or decrypted memory area is in the proper state (for example
+the initrd will have been loaded by the boot loader and will not be
+encrypted, but the memory that it resides in is marked as encrypted).
 
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/Kconfig                     |    4 +++
- arch/x86/include/asm/fixmap.h        |   13 ++++++++++
- arch/x86/include/asm/pgtable_types.h |    8 ++++++
- arch/x86/mm/ioremap.c                |   44 ++++++++++++++++++++++++++++++++++
- include/asm-generic/early_ioremap.h  |    2 ++
- mm/early_ioremap.c                   |   10 ++++++++
- 6 files changed, 81 insertions(+)
+ arch/x86/include/asm/mem_encrypt.h |   10 +++++
+ arch/x86/mm/mem_encrypt.c          |   76 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index cf74791..0b09b88 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1433,6 +1433,10 @@ config AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT
- 	  If set to N, then the encryption of system memory can be
- 	  activated with the mem_encrypt=on command line option.
+diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+index faae4e1..6508ec9 100644
+--- a/arch/x86/include/asm/mem_encrypt.h
++++ b/arch/x86/include/asm/mem_encrypt.h
+@@ -21,6 +21,11 @@
  
-+config ARCH_USE_MEMREMAP_PROT
-+	def_bool y
-+	depends on AMD_MEM_ENCRYPT
+ extern unsigned long sme_me_mask;
+ 
++void __init sme_early_encrypt(resource_size_t paddr,
++			      unsigned long size);
++void __init sme_early_decrypt(resource_size_t paddr,
++			      unsigned long size);
 +
- # Common NUMA Features
- config NUMA
- 	bool "Numa Memory Allocation and Scheduler Support"
-diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
-index d9ff226..dcd9fb5 100644
---- a/arch/x86/include/asm/fixmap.h
-+++ b/arch/x86/include/asm/fixmap.h
-@@ -164,6 +164,19 @@ static inline void __set_fixmap(enum fixed_addresses idx,
-  */
- #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_IO_NOCACHE
+ void __init sme_early_init(void);
  
-+/*
-+ * Early memremap routines used for in-place encryption. The mappings created
-+ * by these routines are intended to be used as temporary mappings.
-+ */
-+void __init *early_memremap_encrypted(resource_size_t phys_addr,
-+				      unsigned long size);
-+void __init *early_memremap_encrypted_wp(resource_size_t phys_addr,
-+					 unsigned long size);
-+void __init *early_memremap_decrypted(resource_size_t phys_addr,
-+				      unsigned long size);
-+void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
-+					 unsigned long size);
+ void __init sme_enable(void);
+@@ -29,6 +34,11 @@
+ 
+ #define sme_me_mask	0UL
+ 
++static inline void __init sme_early_encrypt(resource_size_t paddr,
++					    unsigned long size) { }
++static inline void __init sme_early_decrypt(resource_size_t paddr,
++					    unsigned long size) { }
 +
- #include <asm-generic/fixmap.h>
+ static inline void __init sme_early_init(void) { }
  
- #define __late_set_fixmap(idx, phys, flags) __set_fixmap(idx, phys, flags)
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index de32ca3..32095af 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -161,6 +161,7 @@ enum page_cache_mode {
+ static inline void __init sme_enable(void) { }
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index b2d1cdf..b7671b9 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -17,6 +17,9 @@
  
- #define _PAGE_CACHE_MASK	(_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)
- #define _PAGE_NOCACHE		(cachemode2protval(_PAGE_CACHE_MODE_UC))
-+#define _PAGE_CACHE_WP		(cachemode2protval(_PAGE_CACHE_MODE_WP))
+ #include <linux/mm.h>
  
- #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
- #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
-@@ -189,6 +190,7 @@ enum page_cache_mode {
- #define __PAGE_KERNEL_VVAR		(__PAGE_KERNEL_RO | _PAGE_USER)
- #define __PAGE_KERNEL_LARGE		(__PAGE_KERNEL | _PAGE_PSE)
- #define __PAGE_KERNEL_LARGE_EXEC	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
-+#define __PAGE_KERNEL_WP		(__PAGE_KERNEL | _PAGE_CACHE_WP)
- 
- #define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
- #define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE)
-@@ -202,6 +204,12 @@ enum page_cache_mode {
- #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
- 			 _PAGE_DIRTY | _PAGE_ENC)
- 
-+#define __PAGE_KERNEL_ENC	(__PAGE_KERNEL | _PAGE_ENC)
-+#define __PAGE_KERNEL_ENC_WP	(__PAGE_KERNEL_WP | _PAGE_ENC)
++#include <asm/tlbflush.h>
++#include <asm/fixmap.h>
 +
-+#define __PAGE_KERNEL_NOENC	(__PAGE_KERNEL)
-+#define __PAGE_KERNEL_NOENC_WP	(__PAGE_KERNEL_WP)
-+
- #define PAGE_KERNEL		__pgprot(__PAGE_KERNEL | _PAGE_ENC)
- #define PAGE_KERNEL_RO		__pgprot(__PAGE_KERNEL_RO | _PAGE_ENC)
- #define PAGE_KERNEL_EXEC	__pgprot(__PAGE_KERNEL_EXEC | _PAGE_ENC)
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index a382ba9..4feda83 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -422,6 +422,50 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
- 	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
- }
+ /*
+  * Since SME related variables are set early in the boot process they must
+  * reside in the .data section so as not to be zeroed out when the .bss
+@@ -25,6 +28,79 @@
+ unsigned long sme_me_mask __section(.data) = 0;
+ EXPORT_SYMBOL_GPL(sme_me_mask);
  
-+#ifdef CONFIG_ARCH_USE_MEMREMAP_PROT
-+/* Remap memory with encryption */
-+void __init *early_memremap_encrypted(resource_size_t phys_addr,
-+				      unsigned long size)
-+{
-+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_ENC);
-+}
++/* Buffer used for early in-place encryption by BSP, no locking needed */
++static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
 +
 +/*
-+ * Remap memory with encryption and write-protected - cannot be called
-+ * before pat_init() is called
++ * This routine does not change the underlying encryption setting of the
++ * page(s) that map this memory. It assumes that eventually the memory is
++ * meant to be accessed as either encrypted or decrypted but the contents
++ * are currently not in the desired state.
++ *
++ * This routine follows the steps outlined in the AMD64 Architecture
++ * Programmer's Manual Volume 2, Section 7.10.8 Encrypt-in-Place.
 + */
-+void __init *early_memremap_encrypted_wp(resource_size_t phys_addr,
-+					 unsigned long size)
++static void __init __sme_early_enc_dec(resource_size_t paddr,
++				       unsigned long size, bool enc)
 +{
-+	/* Be sure the write-protect PAT entry is set for write-protect */
-+	if (__pte2cachemode_tbl[_PAGE_CACHE_MODE_WP] != _PAGE_CACHE_MODE_WP)
-+		return NULL;
++	void *src, *dst;
++	size_t len;
 +
-+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_ENC_WP);
++	if (!sme_me_mask)
++		return;
++
++	local_flush_tlb();
++	wbinvd();
++
++	/*
++	 * There are limited number of early mapping slots, so map (at most)
++	 * one page at time.
++	 */
++	while (size) {
++		len = min_t(size_t, sizeof(sme_early_buffer), size);
++
++		/*
++		 * Create mappings for the current and desired format of
++		 * the memory. Use a write-protected mapping for the source.
++		 */
++		src = enc ? early_memremap_decrypted_wp(paddr, len) :
++			    early_memremap_encrypted_wp(paddr, len);
++
++		dst = enc ? early_memremap_encrypted(paddr, len) :
++			    early_memremap_decrypted(paddr, len);
++
++		/*
++		 * If a mapping can't be obtained to perform the operation,
++		 * then eventual access of that area in the desired mode
++		 * will cause a crash.
++		 */
++		BUG_ON(!src || !dst);
++
++		/*
++		 * Use a temporary buffer, of cache-line multiple size, to
++		 * avoid data corruption as documented in the APM.
++		 */
++		memcpy(sme_early_buffer, src, len);
++		memcpy(dst, sme_early_buffer, len);
++
++		early_memunmap(dst, len);
++		early_memunmap(src, len);
++
++		paddr += len;
++		size -= len;
++	}
 +}
 +
-+/* Remap memory without encryption */
-+void __init *early_memremap_decrypted(resource_size_t phys_addr,
-+				      unsigned long size)
++void __init sme_early_encrypt(resource_size_t paddr, unsigned long size)
 +{
-+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_NOENC);
++	__sme_early_enc_dec(paddr, size, true);
 +}
 +
-+/*
-+ * Remap memory without encryption and write-protected - cannot be called
-+ * before pat_init() is called
-+ */
-+void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
-+					 unsigned long size)
++void __init sme_early_decrypt(resource_size_t paddr, unsigned long size)
 +{
-+	/* Be sure the write-protect PAT entry is set for write-protect */
-+	if (__pte2cachemode_tbl[_PAGE_CACHE_MODE_WP] != _PAGE_CACHE_MODE_WP)
-+		return NULL;
-+
-+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_NOENC_WP);
++	__sme_early_enc_dec(paddr, size, false);
 +}
-+#endif	/* CONFIG_ARCH_USE_MEMREMAP_PROT */
 +
- static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)] __page_aligned_bss;
- 
- static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
-diff --git a/include/asm-generic/early_ioremap.h b/include/asm-generic/early_ioremap.h
-index 734ad4d..2edef8d 100644
---- a/include/asm-generic/early_ioremap.h
-+++ b/include/asm-generic/early_ioremap.h
-@@ -13,6 +13,8 @@ extern void *early_memremap(resource_size_t phys_addr,
- 			    unsigned long size);
- extern void *early_memremap_ro(resource_size_t phys_addr,
- 			       unsigned long size);
-+extern void *early_memremap_prot(resource_size_t phys_addr,
-+				 unsigned long size, unsigned long prot_val);
- extern void early_iounmap(void __iomem *addr, unsigned long size);
- extern void early_memunmap(void *addr, unsigned long size);
- 
-diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
-index 6d5717b..d7d30da 100644
---- a/mm/early_ioremap.c
-+++ b/mm/early_ioremap.c
-@@ -226,6 +226,16 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
- }
- #endif
- 
-+#ifdef CONFIG_ARCH_USE_MEMREMAP_PROT
-+void __init *
-+early_memremap_prot(resource_size_t phys_addr, unsigned long size,
-+		    unsigned long prot_val)
-+{
-+	return (__force void *)__early_ioremap(phys_addr, size,
-+					       __pgprot(prot_val));
-+}
-+#endif
-+
- #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
- 
- void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+ void __init sme_early_init(void)
+ {
+ 	unsigned int i;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
