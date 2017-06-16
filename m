@@ -1,304 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1512D6B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 20:45:49 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o41so23629744qtf.8
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 17:45:49 -0700 (PDT)
-Received: from maile-ce.linkedin.com (maile-ce.linkedin.com. [2620:109:c003:104::197])
-        by mx.google.com with ESMTPS id u128si695700qkd.390.2017.06.15.17.45.47
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 712646B02C3
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 20:54:48 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id l45so19138923ote.1
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 17:54:48 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id e185si1818436oif.86.2017.06.15.17.54.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jun 2017 17:45:48 -0700 (PDT)
-From: Jason Weeks <messages-noreply@linkedin.com>
-Message-ID: <1239006494.2297439.1497573946419.JavaMail.app@lor1-app12467.prod.linkedin.com>
-Subject: I'd like to add you to my professional network on LinkedIn
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 15 Jun 2017 17:54:46 -0700 (PDT)
+Message-Id: <201706160054.v5G0sY7c064781@www262.sakura.ne.jp>
+Subject: Re: Re: [patch] mm, oom: prevent additional oom kills before memory is
+ freed
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_Part_2297437_8760861.1497573946417"
-Date: Fri, 16 Jun 2017 00:45:46 +0000 (UTC)
-List-Unsubscribe: <https://www.linkedin.com/e/v2?e=r05g9-j3z4uws2-ha&t=lun&midToken=AQFmrFVhGEd36Q&ek=invite_guest&li=429&m=unsub&ts=unsub&loid=AQF2XQyZnofUygAAAVyuXPPpFKXXFbnQCOzilEoRcCMwuYfvVirskncohVhz6aj9D2R3fJIsjRgiA0G1mNtaAyn4EiUoncNE4Ao&eid=r05g9-j3z4uws2-ha>
+Date: Fri, 16 Jun 2017 09:54:34 +0900
+References: <alpine.DEB.2.10.1706151459530.64172@chino.kir.corp.google.com> <20170615221236.GB22341@dhcp22.suse.cz>
+In-Reply-To: <20170615221236.GB22341@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-------=_Part_2297437_8760861.1497573946417
-Content-Type: text/plain;charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Content-ID: text-body
+Michal Hocko wrote:
+> On Thu 15-06-17 15:03:17, David Rientjes wrote:
+> > On Thu, 15 Jun 2017, Michal Hocko wrote:
+> > 
+> > > > Yes, quite a bit in testing.
+> > > > 
+> > > > One oom kill shows the system to be oom:
+> > > > 
+> > > > [22999.488705] Node 0 Normal free:90484kB min:90500kB ...
+> > > > [22999.488711] Node 1 Normal free:91536kB min:91948kB ...
+> > > > 
+> > > > followed up by one or more unnecessary oom kills showing the oom killer 
+> > > > racing with memory freeing of the victim:
+> > > > 
+> > > > [22999.510329] Node 0 Normal free:229588kB min:90500kB ...
+> > > > [22999.510334] Node 1 Normal free:600036kB min:91948kB ...
+> > > > 
+> > > > The patch is absolutely required for us to prevent continuous oom killing 
+> > > > of processes after a single process has been oom killed and its memory is 
+> > > > in the process of being freed.
+> > > 
+> > > OK, could you play with the patch/idea suggested in
+> > > http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?
+> > > 
+> > 
+> > I cannot, I am trying to unblock a stable kernel release to my production 
+> > that is obviously fixed with this patch and cannot experiment with 
+> > uncompiled and untested patches that introduce otherwise unnecessary 
+> > locking into the __mmput() path and is based on speculation rather than 
+> > hard data that __mmput() for some reason stalls for the oom victim's mm.  
+> > I was hoping that this fix could make it in time for 4.12 since 4.12 kills 
+> > 1-4 processes unnecessarily for each oom condition and then can review any 
+> > tested solution you may propose at a later time.
+> 
+> I am sorry but I have really hard to make the oom reaper a reliable way
+> to stop all the potential oom lockups go away. I do not want to
+> reintroduce another potential lockup now. I also do not see why any
+> solution should be rushed into. I have proposed a way to go and unless
+> it is clear that this is not a way forward then I simply do not agree
+> with any partial workarounds or shortcuts.
 
-.....................................
+And the patch you proposed is broken.
 
-Jason would like to stay in touch on LinkedIn.
+----------
+[  161.846202] Out of memory: Kill process 6331 (a.out) score 999 or sacrifice child
+[  161.850327] Killed process 6331 (a.out) total-vm:4172kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  161.858503] ------------[ cut here ]------------
+[  161.861512] kernel BUG at mm/memory.c:1381!
+[  161.864154] invalid opcode: 0000 [#1] SMP
+[  161.866599] Modules linked in: nf_conntrack_netbios_ns nf_conntrack_broadcast ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6table_raw iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw ebtable_filter ebtables ip6table_filter ip6_tables coretemp crct10dif_pclmul crc32_pclmul ghash_clmulni_intel vmw_balloon pcspkr ppdev shpchp parport_pc i2c_piix4 parport vmw_vmci xfs libcrc32c vmwgfx crc32c_intel drm_kms_helper serio_raw ttm drm e1000 mptspi scsi_transport_spi mptscsih mptbase ata_generic pata_acpi floppy
+[  161.896811] CPU: 1 PID: 43 Comm: oom_reaper Not tainted 4.12.0-rc5+ #221
+[  161.900458] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[  161.905588] task: ffff937bb1c13200 task.stack: ffffa13cc0b94000
+[  161.908876] RIP: 0010:unmap_page_range+0xa19/0xa60
+[  161.911739] RSP: 0000:ffffa13cc0b97d08 EFLAGS: 00010282
+[  161.914767] RAX: 0000000000000000 RBX: ffff937ba9e89300 RCX: 0000000000401000
+[  161.918543] RDX: ffff937baf707440 RSI: ffff937baf707680 RDI: ffffa13cc0b97df0
+[  161.922314] RBP: ffffa13cc0b97de0 R08: 0000000000000000 R09: 0000000000000000
+[  161.926059] R10: 0000000000000000 R11: 000000001f1e8b15 R12: ffff937ba9e893c0
+[  161.929789] R13: ffff937ba4198000 R14: ffff937baf707440 R15: ffff937ba9e89300
+[  161.933509] FS:  0000000000000000(0000) GS:ffff937bb3800000(0000) knlGS:0000000000000000
+[  161.937615] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  161.940774] CR2: 0000561fb93c1b00 CR3: 000000009ee11000 CR4: 00000000001406e0
+[  161.944477] Call Trace:
+[  161.946333]  ? __mutex_lock+0x574/0x950
+[  161.948678]  ? __mutex_lock+0xce/0x950
+[  161.950996]  ? __oom_reap_task_mm+0x49/0x170
+[  161.953485]  __oom_reap_task_mm+0xd8/0x170
+[  161.955893]  oom_reaper+0xac/0x1c0
+[  161.957992]  ? remove_wait_queue+0x60/0x60
+[  161.960688]  kthread+0x117/0x150
+[  161.962719]  ? trace_event_raw_event_oom_score_adj_update+0xe0/0xe0
+[  161.965920]  ? kthread_create_on_node+0x70/0x70
+[  161.968417]  ret_from_fork+0x2a/0x40
+[  161.970530] Code: 13 fb ff ff e9 25 fc ff ff 48 83 e8 01 e9 77 fc ff ff 48 83 e8 01 e9 62 fe ff ff e8 22 0a e6 ff 48 8b 7d 98 e8 09 ba ff ff 0f 0b <0f> 0b 48 83 e9 01 e9 a1 fb ff ff e8 03 a5 06 00 48 83 e9 01 e9 
+[  161.979386] RIP: unmap_page_range+0xa19/0xa60 RSP: ffffa13cc0b97d08
+[  161.982611] ---[ end trace ef2b349884b0aaa4 ]---
+----------
 
-Jason Weeks
-Google LLC (Legacy)
-Melbourne, Australia
+Please carefully consider the reason why there is VM_BUG_ON() in __mmput(),
+and clarify in your patch that what are possible side effects of racing
+uprobe_clear_state()/exit_aio()/ksm_exit()/exit_mmap() etc. with
+__oom_reap_task_mm() and clarify in your patch that there is no possibility
+of waiting for direct/indirect memory allocation inside free_pgtables(),
+in addition to fixing the bug above.
 
-View profile https://www.linkedin.com/comm/in/googlelegacy?trk=3Deml-guest-=
-invite-pprofile-link-cta&trkEmail=3Deml-invite_guest-null-414-null-null-r05=
-g9%7Ej3z4uws2%7Eha-null-neptune%2Fprofile%7Evanity%2Eview&lipi=3Durn%3Ali%3=
-Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D
+----------
+	VM_BUG_ON(atomic_read(&mm->mm_users));
 
-Confirm that you know Jason https://www.linkedin.com/comm/start/accept-invi=
-tation?sharedKey=3DSCuFE6Zp&invitationId=3D6281279800363614217&trk=3Deml-gu=
-est-invite-cta&trkEmail=3Deml-invite_guest-null-412-null-null-r05g9%7Ej3z4u=
-ws2%7Eha-ssuw-start%7Esignup%7Ewarm&lipi=3Durn%3Ali%3Apage%3Aemail_invite_g=
-uest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D
-
-
-.....................................
-
-Unsubscribe: https://www.linkedin.com/e/v2?e=3Dr05g9-j3z4uws2-ha&t=3Dlun&mi=
-dToken=3DAQFmrFVhGEd36Q&ek=3Dinvite_guest&li=3D429&m=3Dunsub&ts=3Dunsub&loi=
-d=3DAQF2XQyZnofUygAAAVyuXPPpFKXXFbnQCOzilEoRcCMwuYfvVirskncohVhz6aj9D2R3fJI=
-sjRgiA0G1mNtaAyn4EiUoncNE4Ao&eid=3Dr05g9-j3z4uws2-ha
-
-Help: https://www.linkedin.com/e/v2?e=3Dr05g9-j3z4uws2-ha&lipi=3Durn%3Ali%3=
-Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D&a=3Dcusto=
-merServiceUrl&ek=3Dinvite_guest&li=3D428&m=3Dfooter&ts=3Dhelp&articleId=3D6=
-7
-
-
-You are receiving Invitation emails. LinkedIn will use your email address t=
-o make suggestions to our members in features like People You May Know.
-
-This email was sent to linux-mm@kvack.org.
-
-=C2=A9 2017 LinkedIn Ireland Unlimited Company, Wilton Plaza, Wilton Place,=
- Dublin 2. LinkedIn is a registered business name of LinkedIn Ireland Unlim=
-ited Company. LinkedIn and the LinkedIn logo are registered trademarks of L=
-inkedIn.
-------=_Part_2297437_8760861.1497573946417
-Content-Type: text/html;charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-Content-ID: html-body
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
-w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> <html xmlns=3D"http://www.w3=
-.org/1999/xhtml" lang=3D"en" xml:lang=3D"en"> <head> <meta http-equiv=3D"Co=
-ntent-Type" content=3D"text/html;charset=3Dutf-8"> <meta name=3D"HandheldFr=
-iendly" content=3D"true"> <meta name=3D"viewport" content=3D"width=3Ddevice=
--width; initial-scale=3D0.666667; maximum-scale=3D0.666667; user-scalable=
-=3D0"> <meta name=3D"viewport" content=3D"width=3Ddevice-width"> <title></t=
-itle> <!--[if mso]><style type=3D"text/css">body {font-family: 'Helvetica N=
-eue', Helvetica, Arial, sans-serif;}.phoenix-email-container {width: 512px =
-!important;}</style><![endif]--> <!--[if IE]><style type=3D"text/css">.phoe=
-nix-email-container {width: 512px !important;}</style><![endif]--> <style t=
-ype=3D"text/css">@media only screen and (max-width:32em) { .phoenix-email-c=
-ontainer { width:100% !important; } } @media only screen and (max-width:20e=
-m) {} @media only screen and (max-device-width:30em) {} @media screen and (=
-device-width:30em) and (device-height:22.5em), screen and (device-width:22.=
-5em) and (device-height:30em), screen and (device-width:20em) and (device-h=
-eight:15em) {} @media screen and (-webkit-min-device-pixel-ratio:0) {} @med=
-ia screen and (max-device-width:25.88em) and (max-device-height:48.5em) {} =
-</style> </head> <body style=3D"padding:0;margin:0 auto;-webkit-text-size-a=
-djust:100%;width:100% !important;-ms-text-size-adjust:100%;font-family:'Hel=
-vetica Neue',Helvetica,Arial,sans-serif;"> <div style=3D"overflow:hidden;co=
-lor:transparent;visibility:hidden;mso-hide:all;width:0;font-size:0;opacity:=
-0;height:0;"></div> <table align=3D"center" border=3D"0" cellspacing=3D"0" =
-cellpadding=3D"0" width=3D"100%" bgcolor=3D"#EDF0F3" style=3D"background-co=
-lor:#EDF0F3;table-layout:fixed;-webkit-text-size-adjust:100%;mso-table-rspa=
-ce:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <tbody> <tr> <td a=
-lign=3D"center" style=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt=
-;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <center style=3D"width:1=
-00%;"> <table border=3D"0" class=3D"phoenix-email-container" cellspacing=3D=
-"0" cellpadding=3D"0" width=3D"512" bgcolor=3D"#FFFFFF" style=3D"background=
--color:#FFFFFF;margin:0 auto;max-width:512px;-webkit-text-size-adjust:100%;=
-mso-table-rspace:0pt;width:inherit;mso-table-lspace:0pt;-ms-text-size-adjus=
-t:100%;"> <tbody> <tr> <td bgcolor=3D"#F6F8FA" style=3D"background-color:#F=
-6F8FA;padding:28px 0 20px 0;-webkit-text-size-adjust:100%;mso-table-rspace:=
-0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <table border=3D"0" c=
-ellspacing=3D"0" cellpadding=3D"0" width=3D"100%" style=3D"-webkit-text-siz=
-e-adjust:100%;mso-table-rspace:0pt;width:100% !important;mso-table-lspace:0=
-pt;-ms-text-size-adjust:100%;min-width:100% !important;"> <tbody> <tr> <td =
-align=3D"center" width=3D"100%" style=3D"-webkit-text-size-adjust:100%;mso-=
-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"><a href=
-=3D"https://www.linkedin.com/comm/feed/?trk=3Deml-invite_guest-header-424-h=
-ome&amp;trkEmail=3Deml-invite_guest-header-424-home-null-r05g9%7Ej3z4uws2%7=
-Eha-null-neptune%2Ffeed&amp;lipi=3Durn%3Ali%3Apage%3Aemail_invite_guest%3Bd=
-7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D" style=3D"cursor:pointer;color:#008CC9;=
--webkit-text-size-adjust:100%;display:inline-block;text-decoration:none;-ms=
--text-size-adjust:100%;"> <img alt=3D"LinkedIn" border=3D"0" src=3D"https:/=
-/static.licdn.com/scds/common/u/images/email/phoenix/logos/logo_linkedin_tm=
-_242x59_v1.png" height=3D"20" width=3D"83" style=3D"outline:none;-ms-interp=
-olation-mode:bicubic;color:#FFFFFF;text-decoration:none;"></a></td> </tr> <=
-tr> <td align=3D"center" width=3D"100%" style=3D"padding:16px 24px 0 24px;-=
-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-=
-text-size-adjust:100%;"> <table border=3D"0" cellspacing=3D"0" cellpadding=
-=3D"0" width=3D"100%" style=3D"-webkit-text-size-adjust:100%;mso-table-rspa=
-ce:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <tbody> <tr> <td a=
-lign=3D"center" style=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt=
-;mso-table-lspace:0pt;-ms-text-size-adjust:100%;text-align:center;"> <h2 st=
-yle=3D"margin:0;color:#262626;font-weight:200;font-size:20px;line-height:1.=
-2;margin-bottom:10px;">Jason would like to stay in touch on LinkedIn.</h2><=
-/td> </tr> </tbody> </table></td> </tr> </tbody> </table></td> </tr> <tr> <=
-td style=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-ls=
-pace:0pt;-ms-text-size-adjust:100%;"> <table border=3D"0" cellspacing=3D"0"=
- cellpadding=3D"0" width=3D"100%" style=3D"-webkit-text-size-adjust:100%;ms=
-o-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <tbody=
-> <tr> <td style=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-=
-table-lspace:0pt;-ms-text-size-adjust:100%;"> <table border=3D"0" cellspaci=
-ng=3D"0" cellpadding=3D"0" width=3D"100%" style=3D"-webkit-text-size-adjust=
-:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"=
-> <tbody> <tr> <td style=3D"padding:24px 24px 32px 24px;-webkit-text-size-a=
-djust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:1=
-00%;"> <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" width=3D"100=
-%" style=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-ls=
-pace:0pt;-ms-text-size-adjust:100%;"> <tbody> <tr> <td align=3D"center" sty=
-le=3D"margin-left:auto;-webkit-text-size-adjust:100%;mso-table-rspace:0pt;m=
-so-table-lspace:0pt;-ms-text-size-adjust:100%;margin-right:auto;text-align:=
-center;"> <a href=3D"https://www.linkedin.com/comm/start/accept-invitation?=
-sharedKey=3DSCuFE6Zp&amp;invitationId=3D6281279800363614217&amp;trk=3Deml-g=
-uest-invite-cta&amp;trkEmail=3Deml-invite_guest-null-412-null-null-r05g9%7E=
-j3z4uws2%7Eha-ssuw-start%7Esignup%7Ewarm&amp;lipi=3Durn%3Ali%3Apage%3Aemail=
-_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D" style=3D"border-radiu=
-s:50%;cursor:pointer;color:#008CC9;-webkit-text-size-adjust:100%;display:in=
-line-block;text-decoration:none;-ms-text-size-adjust:100%;"><img alt=3D"Jas=
-on Weeks" border=3D"0" height=3D"70" width=3D"70" src=3D"https://media.licd=
-n.com/mpr/mpr/shrinknp_100_100/AAEAAQAAAAAAAAhVAAAAJGU0ZTM5ZmExLWM4OWMtNGM3=
-Yi05NjEzLTNkZDkyOThiMjIwNQ.jpg" style=3D"border-radius:50%;outline:none;-ms=
--interpolation-mode:bicubic;color:#FFFFFF;text-decoration:none;"></a></td> =
-</tr> <tr> <td align=3D"center" style=3D"margin-left:auto;-webkit-text-size=
--adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust=
-:100%;margin-right:auto;text-align:center;"><a href=3D"https://www.linkedin=
-.com/comm/start/accept-invitation?sharedKey=3DSCuFE6Zp&amp;invitationId=3D6=
-281279800363614217&amp;trk=3Deml-guest-invite-cta&amp;trkEmail=3Deml-invite=
-_guest-null-412-null-null-r05g9%7Ej3z4uws2%7Eha-ssuw-start%7Esignup%7Ewarm&=
-amp;lipi=3Durn%3Ali%3Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2=
-FelEw%3D%3D" style=3D"cursor:pointer;color:#008CC9;-webkit-text-size-adjust=
-:100%;display:inline-block;text-decoration:none;-ms-text-size-adjust:100%;"=
-> <h2 style=3D"margin:0;word-wrap:break-word;color:#262626;word-break:break=
--word;font-weight:700;-ms-word-break:break-all;font-size:14px;line-height:1=
-.429;overflow-wrap:break-word;">Jason Weeks</h2></a> <h2 style=3D"margin:0;=
-color:#737373;font-weight:400;font-size:12px;line-height:1.333;">Google LLC=
- (Legacy)</h2> <span style=3D"color:#737373;font-weight:400;font-size:12px;=
-line-height:1.333;">Melbourne, Australia =C2=B7 1,092 connections</span></t=
-d> </tr> <tr> <td align=3D"center" style=3D"margin-left:auto;-webkit-text-s=
-ize-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adj=
-ust:100%;margin-right:auto;text-align:center;"> <!--[if mso]><table border=
-=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"auto"><tr><td><![endif]=
---><span style=3D"display:inline-block;margin-top:16px;"> <table border=3D"=
-0" cellpadding=3D"0" cellspacing=3D"0" style=3D"-webkit-text-size-adjust:10=
-0%;mso-table-rspace:0pt;display:inline-block;mso-table-lspace:0pt;-ms-text-=
-size-adjust:100%;"> <tbody> <tr> <td align=3D"center" valign=3D"middle" sty=
-le=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0=
-pt;-ms-text-size-adjust:100%;"><a href=3D"https://www.linkedin.com/comm/sta=
-rt/accept-invitation?sharedKey=3DSCuFE6Zp&amp;invitationId=3D62812798003636=
-14217&amp;trk=3Deml-guest-invite-cta&amp;trkEmail=3Deml-invite_guest-null-4=
-12-null-null-r05g9%7Ej3z4uws2%7Eha-ssuw-start%7Esignup%7Ewarm&amp;lipi=3Dur=
-n%3Ali%3Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D" =
-target=3D"_blank" style=3D"cursor:pointer;word-wrap:normal;color:#008CC9;wo=
-rd-break:normal;white-space:nowrap;-webkit-text-size-adjust:100%;display:bl=
-ock;text-decoration:none;-ms-text-size-adjust:100%;overflow-wrap:normal;"> =
-<table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" width=3D"auto" styl=
-e=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0p=
-t;-ms-text-size-adjust:100%;"> <tbody> <tr> <td bgcolor=3D"#008CC9" style=
-=3D"padding:6px 16px;color:#FFFFFF;-webkit-text-size-adjust:100%;font-weigh=
-t:500;font-size:16px;-ms-text-size-adjust:100%;border-color:#008CC9;backgro=
-und-color:#008CC9;border-radius:2px;mso-table-rspace:0pt;mso-table-lspace:0=
-pt;border-width:1px;border-style:solid;"><a href=3D"https://www.linkedin.co=
-m/comm/start/accept-invitation?sharedKey=3DSCuFE6Zp&amp;invitationId=3D6281=
-279800363614217&amp;trk=3Deml-guest-invite-cta&amp;trkEmail=3Deml-invite_gu=
-est-null-412-null-null-r05g9%7Ej3z4uws2%7Eha-ssuw-start%7Esignup%7Ewarm&amp=
-;lipi=3Durn%3Ali%3Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2Fel=
-Ew%3D%3D" target=3D"_blank" style=3D"cursor:pointer;color:#FFFFFF;-webkit-t=
-ext-size-adjust:100%;display:inline-block;text-decoration:none;-ms-text-siz=
-e-adjust:100%;">Confirm that you know Jason</a></td> </tr> </tbody> </table=
-></a></td> </tr> </tbody> </table></span> <!--[if mso]></td></tr></table><!=
-[endif]--></td> </tr> </tbody> </table></td> </tr> <tr> <td align=3D"center=
-" style=3D"border-top:1px solid #d0d0d0;margin-left:auto;-webkit-text-size-=
-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:=
-100%;height:48px;margin-right:auto;text-align:center;"> <!--[if mso]><table=
- border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"auto"><tr><td><!=
-[endif]--> <span style=3D"color:#737373;font-weight:400;font-size:12px;line=
--height:1.333;">LinkedIn is a social network and online platform for profes=
-sionals.</span> <a href=3D"https://www.linkedin.com/e/v2?e=3Dr05g9-j3z4uws2=
--ha&amp;lipi=3Durn%3Ali%3Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9=
-NM%2FelEw%3D%3D&amp;t=3Dsgh&amp;tracking=3Deml-guest-invite-footer-learn-mo=
-re&amp;ek=3Dinvite_guest" style=3D"cursor:pointer;color:#008CC9;-webkit-tex=
-t-size-adjust:100%;display:inline-block;text-decoration:none;-ms-text-size-=
-adjust:100%;"> <span style=3D"color:#008cc9;font-weight:700;font-size:12px;=
-line-height:1.333;">Learn More</span></a> <!--[if mso]></td></tr></table><!=
-[endif]--></td> </tr> </tbody> </table> <div itemscope itemtype=3D"http://s=
-chema.org/EmailMessage"> <div itemprop=3D"potentialAction" itemscope itemty=
-pe=3D"http://schema.org/ViewAction"> <link itemprop=3D"target url" href=3D"=
-https://www.linkedin.com/comm/start/accept-invitation?sharedKey=3DSCuFE6Zp&=
-amp;invitationId=3D6281279800363614217&amp;trk=3Deml-guest-invite-gmailquic=
-kaction&amp;trkEmail=3Deml-invite_guest-null-413-null-null-r05g9%7Ej3z4uws2=
-%7Eha-ssuw-start%7Esignup%7Ewarm&amp;lipi=3Durn%3Ali%3Apage%3Aemail_invite_=
-guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D"> <meta itemprop=3D"name" cont=
-ent=3D"Accept Invitation"> </div> <meta itemprop=3D"description" content=3D=
-"Accept Jason's invitation to LinkedIn."> <div itemprop=3D"publisher" items=
-cope itemtype=3D"http://schema.org/Organization"> <meta itemprop=3D"name" c=
-ontent=3D"LinkedIn"> <link itemprop=3D"url" href=3D"https://www.linkedin.co=
-m"> </div> </div></td> </tr> </tbody> </table></td> </tr> <tr> <td style=3D=
-"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-m=
-s-text-size-adjust:100%;"> <table border=3D"0" cellspacing=3D"0" cellpaddin=
-g=3D"0" width=3D"100%" bgcolor=3D"#EDF0F3" align=3D"center" style=3D"backgr=
-ound-color:#EDF0F3;padding:0 24px;color:#999999;-webkit-text-size-adjust:10=
-0%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;text=
--align:center;"> <tbody> <tr> <td align=3D"center" style=3D"padding:16px 0 =
-0 0;-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt=
-;-ms-text-size-adjust:100%;text-align:center;"> <table align=3D"center" bor=
-der=3D"0" cellspacing=3D"0" cellpadding=3D"0" width=3D"100%" style=3D"-webk=
-it-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text=
--size-adjust:100%;"> <tbody> <tr> <td valign=3D"middle" align=3D"center" st=
-yle=3D"padding:0 0 16px 0;-webkit-text-size-adjust:100%;mso-table-rspace:0p=
-t;vertical-align:middle;mso-table-lspace:0pt;-ms-text-size-adjust:100%;text=
--align:center;"><a href=3D"https://www.linkedin.com/e/v2?e=3Dr05g9-j3z4uws2=
--ha&amp;t=3Dlun&amp;midToken=3DAQFmrFVhGEd36Q&amp;ek=3Dinvite_guest&amp;li=
-=3D429&amp;m=3Dunsub&amp;ts=3Dunsub&amp;loid=3DAQF2XQyZnofUygAAAVyuXPPpFKXX=
-FbnQCOzilEoRcCMwuYfvVirskncohVhz6aj9D2R3fJIsjRgiA0G1mNtaAyn4EiUoncNE4Ao&amp=
-;eid=3Dr05g9-j3z4uws2-ha" style=3D"cursor:pointer;color:#737373;-webkit-tex=
-t-size-adjust:100%;text-decoration:underline;display:inline-block;-ms-text-=
-size-adjust:100%;"> <span style=3D"color:#737373;font-weight:400;text-decor=
-ation:underline;font-size:12px;line-height:1.333;">Unsubscribe</span></a>&n=
-bsp;&nbsp;|&nbsp;&nbsp;<a href=3D"https://www.linkedin.com/e/v2?e=3Dr05g9-j=
-3z4uws2-ha&amp;lipi=3Durn%3Ali%3Apage%3Aemail_invite_guest%3Bd7%2BwD%2BmVQQ=
-2%2BZz9NM%2FelEw%3D%3D&amp;a=3DcustomerServiceUrl&amp;ek=3Dinvite_guest&amp=
-;li=3D428&amp;m=3Dfooter&amp;ts=3Dhelp&amp;articleId=3D67" style=3D"cursor:=
-pointer;color:#737373;-webkit-text-size-adjust:100%;text-decoration:underli=
-ne;display:inline-block;-ms-text-size-adjust:100%;"> <span style=3D"color:#=
-737373;font-weight:400;text-decoration:underline;font-size:12px;line-height=
-:1.333;">Help</span></a></td> </tr> </tbody> </table></td> </tr> <tr> <td s=
-tyle=3D"-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-table-lspace=
-:0pt;-ms-text-size-adjust:100%;"> <table border=3D"0" cellspacing=3D"0" cel=
-lpadding=3D"0" width=3D"100%" style=3D"-webkit-text-size-adjust:100%;mso-ta=
-ble-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;"> <tbody> <t=
-r> <td align=3D"center" style=3D"padding:0 0 12px 0;-webkit-text-size-adjus=
-t:100%;mso-table-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;=
-text-align:center;"> <p style=3D"margin:0;color:#737373;font-weight:400;fon=
-t-size:12px;line-height:1.333;">You are receiving Invitation emails. Linked=
-In will use your email address to make suggestions to our members in featur=
-es like People You May Know.</p></td> </tr> <tr> <td align=3D"center" style=
-=3D"padding:0 0 12px 0;-webkit-text-size-adjust:100%;mso-table-rspace:0pt;m=
-so-table-lspace:0pt;-ms-text-size-adjust:100%;text-align:center;"> <p style=
-=3D"margin:0;color:#737373;font-weight:400;font-size:12px;line-height:1.333=
-;">This email was sent to linux-mm@kvack.org.</p></td> </tr> <tr> <td align=
-=3D"center" style=3D"padding:0 0 8px 0;-webkit-text-size-adjust:100%;mso-ta=
-ble-rspace:0pt;mso-table-lspace:0pt;-ms-text-size-adjust:100%;text-align:ce=
-nter;"><a href=3D"https://www.linkedin.com/comm/feed/?trk=3Deml-invite_gues=
-t-footer-426-home&amp;trkEmail=3Deml-invite_guest-footer-426-home-null-r05g=
-9%7Ej3z4uws2%7Eha-null-neptune%2Ffeed&amp;lipi=3Durn%3Ali%3Apage%3Aemail_in=
-vite_guest%3Bd7%2BwD%2BmVQQ2%2BZz9NM%2FelEw%3D%3D" style=3D"cursor:pointer;=
-color:#737373;-webkit-text-size-adjust:100%;text-decoration:underline;displ=
-ay:inline-block;-ms-text-size-adjust:100%;"><img alt=3D"LinkedIn" border=3D=
-"0" height=3D"14" src=3D"https://static.licdn.com/scds/common/u/images/emai=
-l/phoenix/logos/logo_phoenix_footer_gray_197x48_v1.png" width=3D"58" style=
-=3D"outline:none;-ms-interpolation-mode:bicubic;color:#FFFFFF;display:block=
-;text-decoration:none;"></a></td> </tr> <tr> <td align=3D"center" style=3D"=
-padding:0 0 12px 0;-webkit-text-size-adjust:100%;mso-table-rspace:0pt;mso-t=
-able-lspace:0pt;-ms-text-size-adjust:100%;text-align:center;"> <p style=3D"=
-margin:0;color:#737373;font-weight:400;font-size:12px;line-height:1.333;">=
-=C2=A9 2017 LinkedIn Ireland Unlimited Company, Wilton Plaza, Wilton Place,=
- Dublin 2. LinkedIn is a registered business name of LinkedIn Ireland Unlim=
-ited Company. LinkedIn and the LinkedIn logo are registered trademarks of L=
-inkedIn.</p></td> </tr> </tbody> </table></td> </tr> </tbody> </table></td>=
- </tr> </tbody> </table> </center></td> </tr> </tbody> </table> <img src=3D=
-"http://www.linkedin.com/emimp/ip_Y2pBMVp6a3Rhak42TkhWM2N6SXRhR0U9OmFXNTJhW=
-FJsWDJkMVpYTjA6.gif" style=3D"outline:none;-ms-interpolation-mode:bicubic;c=
-olor:#FFFFFF;text-decoration:none;width:1px;height:1px;"> </body> </html>
-------=_Part_2297437_8760861.1497573946417--
+	uprobe_clear_state(mm);
+	exit_aio(mm);
+	ksm_exit(mm);
+	khugepaged_exit(mm); /* must run before exit_mmap */
+	exit_mmap(mm);
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
