@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C9A6B0279
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 03:22:20 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id d5so30706747pfe.2
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 00:22:20 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0062.outbound.protection.outlook.com. [104.47.33.62])
-        by mx.google.com with ESMTPS id p25si1300448pli.644.2017.06.16.00.22.15
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E64F36B02C3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:05:07 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 12so2727778wmn.1
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:05:07 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p73si401981wmf.62.2017.06.16.01.05.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 00:22:15 -0700 (PDT)
-From: "Bridgman, John" <John.Bridgman@amd.com>
-Subject: RE: [HMM 00/15] HMM (Heterogeneous Memory Management) v23
-Date: Fri, 16 Jun 2017 07:22:05 +0000
-Message-ID: <BN6PR12MB134879159CFDA7B7C4F78E2CE8C10@BN6PR12MB1348.namprd12.prod.outlook.com>
-References: <20170524172024.30810-1-jglisse@redhat.com>
-In-Reply-To: <20170524172024.30810-1-jglisse@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Jun 2017 01:05:06 -0700 (PDT)
+Date: Fri, 16 Jun 2017 10:05:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 11/14] mm, memory_hotplug: do not associate hotadded
+ memory to zones until online
+Message-ID: <20170616080502.GA30580@dhcp22.suse.cz>
+References: <20170515085827.16474-1-mhocko@kernel.org>
+ <20170515085827.16474-12-mhocko@kernel.org>
+ <20170616042058.GA3976@WeideMacBook-Pro.local>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170616042058.GA3976@WeideMacBook-Pro.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>, "Sander, Ben" <ben.sander@amd.com>, "Kuehling, Felix" <Felix.Kuehling@amd.com>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-SGkgSmVyb21lLCANCg0KSSdtIGp1c3QgZ2V0dGluZyBiYWNrIHRvIHRoaXM7IHNvcnJ5IGZvciB0
-aGUgbGF0ZSByZXNwb25zZXMuIA0KDQpZb3VyIGRlc2NyaXB0aW9uIG9mIEhNTSB0YWxrcyBhYm91
-dCBibG9ja2luZyBDUFUgYWNjZXNzZXMgd2hlbiBhIHBhZ2UgaGFzIGJlZW4gbWlncmF0ZWQgdG8g
-ZGV2aWNlIG1lbW9yeSwgYW5kIHlvdSB0cmVhdCB0aGF0IGFzIGEgImdpdmVuIiBpbiB0aGUgSE1N
-IGRlc2lnbi4gT3RoZXIgdGhhbiBCQVIgbGltaXRzLCBjb2hlcmVuY3kgYmV0d2VlbiBDUFUgYW5k
-IGRldmljZSBjYWNoZXMgYW5kIHBlcmZvcm1hbmNlIG9uIHJlYWQtaW50ZW5zaXZlIENQVSBhY2Nl
-c3NlcyB0byBkZXZpY2UgbWVtb3J5IGFyZSB0aGVyZSBhbnkgb3RoZXIgcmVhc29ucyBmb3IgdGhp
-cyA/DQoNClRoZSByZWFzb24gSSdtIGFza2luZyBpcyB0aGF0IHdlIG1ha2UgZmFpcmx5IGhlYXZ5
-IHVzZSBvZiBsYXJnZSBCQVIgc3VwcG9ydCB3aGljaCBhbGxvd3MgdGhlIENQVSB0byBkaXJlY3Rs
-eSBhY2Nlc3MgYWxsIG9mIHRoZSBkZXZpY2UgbWVtb3J5IG9uIGVhY2ggb2YgdGhlIEdQVXMsIGFs
-YmVpdCB3aXRob3V0IGNhY2hlIGNvaGVyZW5jeSwgYW5kIHRoZXJlIGFyZSBzb21lIGNhc2VzIHdo
-ZXJlIGl0IGFwcGVhcnMgdGhhdCBhbGxvd2luZyBDUFUgYWNjZXNzIHRvIHRoZSBwYWdlIGluIGRl
-dmljZSBtZW1vcnkgd291bGQgYmUgbW9yZSBlZmZpY2llbnQgdGhhbiBjb25zdGFudGx5IG1pZ3Jh
-dGluZyBiYWNrIGFuZCBmb3J0aC4NCg0KTWlncmF0aW5nIHRoZSBwYWdlIGJhY2sgYW5kIGZvcnRo
-IGJldHdlZW4gZGV2aWNlIHN5c3RlbSBtZW1vcnkgYXBwZWFycyBhdCBmaXJzdCBnbGFuY2UgdG8g
-cHJvdmlkZSB0aHJlZSBiZW5lZml0cyAoYWxiZWl0IGF0IGEgY29zdCk6DQoNCjEuIEJBUiBsaW1p
-dCAtIHRoaXMgaXMga2luZCBvZiBhIG5vLWJyYWluZXIsIGluIHRoZSBzZW5zZSB0aGF0IGlmIHRo
-ZSBDUFUgY2FuIG5vdCBhY2Nlc3MgdGhlIFZSQU0gdGhlbiB5b3UgaGF2ZSB0byBtaWdyYXRlIGl0
-DQoNCjIuIGNvaGVyZW5jeSAtIGhhdmluZyB0aGUgQ1BVIGZhdWx0IHdoZW4gcGFnZSBpcyBpbiBk
-ZXZpY2UgbWVtb3J5IG9yIHZpY2UgdmVyc2EgZ2l2ZXMgeW91IGFuIGV2ZW50IHdoaWNoIGNhbiBi
-ZSB1c2VkIHRvIGFsbG93IGNhY2hlIGZsdXNoaW5nIG9uIG9uZSBkZXZpY2UgYmVmb3JlIGhhbmRp
-bmcgb3duZXJzaGlwIChmcm9tIGEgY2FjaGUgcGVyc3BlY3RpdmUpIHRvIHRoZSBvdGhlciBkZXZp
-Y2UgLSBidXQgYXQgZmlyc3QgZ2xhbmNlIHlvdSBkb24ndCBhY3R1YWxseSBoYXZlIHRvIG1vdmUg
-dGhlIHBhZ2UgdG8gZ2V0IHRoYXQgYmVuZWZpdA0KDQozLiBwZXJmb3JtYW5jZSAtIENQVSB3cml0
-ZXMgdG8gZGV2aWNlIG1lbW9yeSBjYW4gYmUgcHJldHR5IGZhc3Qgc2luY2UgdGhlIHRyYW5zZmVy
-cyBjYW4gYmUgImZpcmUgYW5kIGZvcmdldCIgYnV0IHJlYWRzIGFyZSBhbHdheXMgZ29pbmcgdG8g
-YmUgc2xvdyBiZWNhdXNlIG9mIHRoZSByb3VuZC10cmlwIG5hdHVyZS4uLiBidXQgdGhlIHRyYWRl
-b2ZmIGJldHdlZW4gYWNjZXNzIHBlcmZvcm1hbmNlIGFuZCBtaWdyYXRpb24gb3ZlcmhlYWQgaXMg
-bW9yZSBvZiBhIGhldXJpc3RpYyB0aGluZyB0aGFuIGEgYmxhY2stYW5kLXdoaXRlIHRoaW5nDQoN
-CkRvIHlvdSBzZWUgYW55IEhNTS1yZWxhdGVkIHByb2JsZW1zIGluIHByaW5jaXBsZSB3aXRoIG9w
-dGlvbmFsbHkgbGVhdmluZyBhIHBhZ2UgaW4gZGV2aWNlIG1lbW9yeSB3aGlsZSB0aGUgQ1BVIGlz
-IGFjY2Vzc2luZyBpdCBhc3N1bWluZyB0aGF0IG9ubHkgb25lIENQVS9kZXZpY2UgIm93bnMiIHRo
-ZSBwYWdlIGZyb20gYSBjYWNoZSBQT1YgYXQgYW55IGdpdmVuIHRpbWUgPyANCg0KVGhhbmtzLA0K
-Sm9obg0KDQooYnR3IGFwb2xvZ2llcyBmb3Igd2hhdCBsb29rcyBsaWtlIHRvcC1wb3N0aW5nIC0g
-SSB0cmllZCBpbnNlcnRpbmcgdGhlIHF1ZXN0aW9ucyBhIGZldyBkaWZmZXJlbnQgcGxhY2VzIGlu
-IHlvdXIgcGF0Y2hlcyBidXQgZWFjaCB0aW1lIGVuZGVkIHVwIG1lc3N5KQ0KDQo+LS0tLS1Pcmln
-aW5hbCBNZXNzYWdlLS0tLS0NCj5Gcm9tOiBvd25lci1saW51eC1tbUBrdmFjay5vcmcgW21haWx0
-bzpvd25lci1saW51eC1tbUBrdmFjay5vcmddIE9uDQo+QmVoYWxmIE9mIErDqXLDtG1lIEdsaXNz
-ZQ0KPlNlbnQ6IFdlZG5lc2RheSwgTWF5IDI0LCAyMDE3IDE6MjAgUE0NCj5UbzogYWtwbUBsaW51
-eC1mb3VuZGF0aW9uLm9yZzsgbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtDQo+
-bW1Aa3ZhY2sub3JnDQo+Q2M6IERhbiBXaWxsaWFtczsgS2lyaWxsIEEgLiBTaHV0ZW1vdjsgSm9o
-biBIdWJiYXJkOyBKw6lyw7RtZSBHbGlzc2UNCj5TdWJqZWN0OiBbSE1NIDAwLzE1XSBITU0gKEhl
-dGVyb2dlbmVvdXMgTWVtb3J5IE1hbmFnZW1lbnQpIHYyMw0KPg0KPlBhdGNoc2V0IGlzIG9uIHRv
-cCBvZiBnaXQ6Ly9naXQuY21weGNoZy5vcmcvbGludXgtbW1vdG0uZ2l0IHNvIGkgdGVzdCBzYW1l
-DQo+a2VybmVsIGFzIGtidWlsZCBzeXN0ZW0sIGdpdCBicmFuY2g6DQo+DQo+aHR0cHM6Ly9jZ2l0
-LmZyZWVkZXNrdG9wLm9yZy9+Z2xpc3NlL2xpbnV4L2xvZy8/aD1obW0tdjIzDQo+DQo+Q2hhbmdl
-IHNpbmNlIHYyMiBpcyB1c2Ugb2Ygc3RhdGljIGtleSBmb3Igc3BlY2lhbCBaT05FX0RFVklDRSBj
-YXNlIGluDQo+cHV0X3BhZ2UoKSBhbmQgYnVpbGQgZml4IGZvciBhcmNoaXRlY3R1cmUgd2l0aCBu
-byBtbXUuDQo+DQo+RXZlcnl0aGluZyBlbHNlIGlzIHRoZSBzYW1lLiBCZWxvdyBpcyB0aGUgbG9u
-ZyBkZXNjcmlwdGlvbiBvZiB3aGF0IEhNTSBpcw0KPmFib3V0IGFuZCB3aHkuIEF0IHRoZSBlbmQg
-b2YgdGhpcyBlbWFpbCBpIGRlc2NyaWJlIGJyaWVmbHkgZWFjaCBwYXRjaCBhbmQNCj5zdWdnZXN0
-IHJldmlld2VycyBmb3IgZWFjaCBvZiB0aGVtLg0KDQo=
+[Please try to trim the context you are replying to]
+
+On Fri 16-06-17 12:20:58, Wei Yang wrote:
+> On Mon, May 15, 2017 at 10:58:24AM +0200, Michal Hocko wrote:
+[...]
+> > /*
+> >+ * Return true if [start_pfn, start_pfn + nr_pages) range has a non-empty
+> >+ * intersection with the given zone
+> >+ */
+> >+static inline bool zone_intersects(struct zone *zone,
+> >+		unsigned long start_pfn, unsigned long nr_pages)
+> >+{
+> >+	if (zone_is_empty(zone))
+> >+		return false;
+> >+	if (start_pfn >= zone_end_pfn(zone))
+> >+		return false;
+> >+
+> >+	if (zone->zone_start_pfn <= start_pfn)
+> >+		return true;
+> >+	if (start_pfn + nr_pages > zone->zone_start_pfn)
+> >+		return true;
+> >+
+> >+	return false;
+> >+}
+> 
+> I think this could be simplified as:
+> 
+> static inline bool zone_intersects(struct zone *zone,
+> 		unsigned long start_pfn, unsigned long nr_pages)
+> {
+> 	if (zone_is_empty(zone))
+> 		return false;
+> 
+> 	if (start_pfn >= zone_end_pfn(zone) ||
+> 	    start_pfn + nr_pages <= zone->zone_start_pfn)
+> 		return false;
+> 
+> 	return true;
+> }
+
+Feel free to send a patch.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
