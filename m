@@ -1,76 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 033D283292
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:04:15 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id z5so37222889qta.12
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:04:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 12si2232645qtq.325.2017.06.16.08.04.14
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB886B02FA
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:39:35 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s12so45328358pgc.2
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:39:35 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0119.outbound.protection.outlook.com. [104.47.1.119])
+        by mx.google.com with ESMTPS id d6si2110107pln.412.2017.06.16.08.39.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 08:04:14 -0700 (PDT)
-Date: Fri, 16 Jun 2017 18:04:06 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [RFC] virtio-mem: paravirtualized memory
-Message-ID: <20170616175748-mutt-send-email-mst@kernel.org>
-References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 16 Jun 2017 08:39:35 -0700 (PDT)
+Subject: Re: [PATCH v3 2/7] x86: use s64* for old arg of
+ atomic64_try_cmpxchg()
+References: <cover.1496743523.git.dvyukov@google.com>
+ <626e9ec17fd70591a6560e75df80dc372dc4f486.1496743523.git.dvyukov@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <4201c3bf-1e00-e98d-e5ae-4de2976b4a1d@virtuozzo.com>
+Date: Fri, 16 Jun 2017 18:41:35 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+In-Reply-To: <626e9ec17fd70591a6560e75df80dc372dc4f486.1496743523.git.dvyukov@google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Dmitry Vyukov <dvyukov@google.com>, mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
-> Hi,
+On 06/06/2017 01:11 PM, Dmitry Vyukov wrote:
+> atomic64_try_cmpxchg() declares old argument as long*,
+> this makes it impossible to use it in portable code.
+> If caller passes long*, it becomes 32-bits on 32-bit arches.
+> If caller passes s64*, it does not compile on x86_64.
 > 
-> this is an idea that is based on Andrea Arcangeli's original idea to
-> host enforce guest access to memory given up using virtio-balloon using
-> userfaultfd in the hypervisor. While looking into the details, I
-> realized that host-enforcing virtio-balloon would result in way too many
-> problems (mainly backwards compatibility) and would also have some
-> conceptual restrictions that I want to avoid. So I developed the idea of
-> virtio-mem - "paravirtualized memory".
-
-Thanks! I went over this quickly, will read some more in the
-coming days. I would like to ask for some clarifications
-on one part meanwhile:
-
-> Q: Why not reuse virtio-balloon?
+> Change type of old arg to s64*.
 > 
-> A: virtio-balloon is for cooperative memory management. It has a fixed
->    page size
+> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: kasan-dev@googlegroups.com
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: x86@kernel.org
+> ---
 
-We are fixing that with VIRTIO_BALLOON_F_PAGE_CHUNKS btw.
-I would appreciate you looking into that patchset.
-
-> and will deflate in certain situations.
-
-What does this refer to?
-
-> Any change we
->    introduce will break backwards compatibility.
-
-Why does this have to be the case?
-
-> virtio-balloon was not
->    designed to give guarantees. Nobody can hinder the guest from
->    deflating/reusing inflated memory.
-
-Reusing without deflate is forbidden with TELL_HOST, right?
-
->    In addition, it might make perfect
->    sense to have both, virtio-balloon and virtio-mem at the same time,
->    especially looking at the DEFLATE_ON_OOM or STATS features of
->    virtio-balloon. While virtio-mem is all about guarantees, virtio-
->    balloon is about cooperation.
-
-Thanks, and I intend to look more into this next week.
-
--- 
-MST
+Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
