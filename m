@@ -1,115 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DE68B83293
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:57:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d21so4265902wme.2
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:57:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k19si2687473wrd.349.2017.06.16.08.57.25
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2323B83293
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:59:13 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o41so38112243qtf.8
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 08:59:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p35si2335286qtd.379.2017.06.16.08.59.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 08:57:25 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5GFrkWe056954
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:57:24 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2b4hqpsp2a-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 11:57:23 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 16 Jun 2017 11:57:23 -0400
-Subject: Re: [PATCHv2 3/3] mm: Use updated pmdp_invalidate() inteface to track
- dirty/accessed bits
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
- <87bmpob23x.fsf@skywalker.in.ibm.com>
- <20170616132143.cdr4qt5hzvgxsnek@node.shutemov.name>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Date: Fri, 16 Jun 2017 21:27:04 +0530
+        Fri, 16 Jun 2017 08:59:12 -0700 (PDT)
+Subject: Re: [RFC] virtio-mem: paravirtualized memory
+References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+ <20170616175748-mutt-send-email-mst@kernel.org>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <4cdf547c-079b-6b44-484f-e1132e960364@redhat.com>
+Date: Fri, 16 Jun 2017 17:59:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170616132143.cdr4qt5hzvgxsnek@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20170616175748-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <f662e44c-4dd9-a301-8b6c-8cee572f6465@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-
-
-On Friday 16 June 2017 06:51 PM, Kirill A. Shutemov wrote:
-> On Fri, Jun 16, 2017 at 05:01:30PM +0530, Aneesh Kumar K.V wrote:
->> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On 16.06.2017 17:04, Michael S. Tsirkin wrote:
+> On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
+>> Hi,
 >>
->>> This patch uses modifed pmdp_invalidate(), that return previous value of pmd,
->>> to transfer dirty and accessed bits.
->>>
->>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>> ---
->>>   fs/proc/task_mmu.c |  8 ++++----
->>>   mm/huge_memory.c   | 29 ++++++++++++-----------------
->>>   2 files changed, 16 insertions(+), 21 deletions(-)
->>>
->>> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->>> index f0c8b33d99b1..f2fc1ef5bba2 100644
->>> --- a/fs/proc/task_mmu.c
->>> +++ b/fs/proc/task_mmu.c
->>
->> .....
->>
->>> @@ -1965,7 +1955,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->>>   	page_ref_add(page, HPAGE_PMD_NR - 1);
->>>   	write = pmd_write(*pmd);
->>>   	young = pmd_young(*pmd);
->>> -	dirty = pmd_dirty(*pmd);
->>>   	soft_dirty = pmd_soft_dirty(*pmd);
->>>
->>>   	pmdp_huge_split_prepare(vma, haddr, pmd);
->>> @@ -1995,8 +1984,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->>>   			if (soft_dirty)
->>>   				entry = pte_mksoft_dirty(entry);
->>>   		}
->>> -		if (dirty)
->>> -			SetPageDirty(page + i);
->>>   		pte = pte_offset_map(&_pmd, addr);
->>>   		BUG_ON(!pte_none(*pte));
->>>   		set_pte_at(mm, addr, pte, entry);
->>> @@ -2045,7 +2032,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->>>   	 * and finally we write the non-huge version of the pmd entry with
->>>   	 * pmd_populate.
->>>   	 */
->>> -	pmdp_invalidate(vma, haddr, pmd);
->>> +	old = pmdp_invalidate(vma, haddr, pmd);
->>> +
->>> +	/*
->>> +	 * Transfer dirty bit using value returned by pmd_invalidate() to be
->>> +	 * sure we don't race with CPU that can set the bit under us.
->>> +	 */
->>> +	if (pmd_dirty(old))
->>> +		SetPageDirty(page);
->>> +
->>>   	pmd_populate(mm, pmd, pgtable);
->>>
->>>   	if (freeze) {
->>
->>
->> Can we invalidate the pmd early here ? ie, do pmdp_invalidate instead of
->> pmdp_huge_split_prepare() ?
+>> this is an idea that is based on Andrea Arcangeli's original idea to
+>> host enforce guest access to memory given up using virtio-balloon using
+>> userfaultfd in the hypervisor. While looking into the details, I
+>> realized that host-enforcing virtio-balloon would result in way too many
+>> problems (mainly backwards compatibility) and would also have some
+>> conceptual restrictions that I want to avoid. So I developed the idea of
+>> virtio-mem - "paravirtualized memory".
 > 
-> I think we can. But it means we would block access to the page for longer
-> than it's necessary on most architectures. I guess it's not a bit deal.
+> Thanks! I went over this quickly, will read some more in the
+> coming days. I would like to ask for some clarifications
+> on one part meanwhile:
+
+Thanks for looking into it that fast! :)
+
+In general, what this section is all about: Why to not simply host
+enforce virtio-balloon.
+
 > 
-> Maybe as separate patch on top of this patchet? Aneesh, would you take
-> care of this?
+>> Q: Why not reuse virtio-balloon?
+>>
+>> A: virtio-balloon is for cooperative memory management. It has a fixed
+>>    page size
+> 
+> We are fixing that with VIRTIO_BALLOON_F_PAGE_CHUNKS btw.
+> I would appreciate you looking into that patchset.
+
+Will do, thanks. Problem is that there is no "enforcement" on the page
+size. VIRTIO_BALLOON_F_PAGE_CHUNKS simply allows to send bigger chunks.
+Nobody hinders the guest (especially legacy virtio-balloon drivers) from
+sending 4k pages.
+
+So this doesn't really fix the issue (we have here), it just allows to
+speed up transfer. Which is a good thing, but does not help for
+enforcement at all. So, yes support for page sizes > 4k, but no way to
+enforce it.
+
+> 
+>> and will deflate in certain situations.
+> 
+> What does this refer to?
+
+A Linux guest will deflate the balloon (all or some pages) in the
+following scenarios:
+a) page migration
+b) unload virtio-balloon kernel module
+c) hibernate/suspension
+d) (DEFLATE_ON_OOM)
+
+A Linux guest will touch memory without deflating:
+a) During a kexec() dump
+d) On reboots (regular, after kexec(), system_reset)
+
+> 
+>> Any change we
+>>    introduce will break backwards compatibility.
+> 
+> Why does this have to be the case
+If we suddenly enforce the existing virtio-balloon, we will break legacy
+guests.
+
+Simple example:
+Guest with inflated virtio-balloon reboots. Touches inflated memory.
+Gets killed at some random point.
+
+Of course, another discussion would be "can't we move virtio-mem
+functionality into virtio-balloon instead of changing virtio-balloon".
+With the current concept this is also not possible (one region per
+device vs. one virtio-balloon device). And I think while similar, these
+are two different concepts.
+
+> 
+>> virtio-balloon was not
+>>    designed to give guarantees. Nobody can hinder the guest from
+>>    deflating/reusing inflated memory.
+> 
+> Reusing without deflate is forbidden with TELL_HOST, right?
+
+TELL_HOST just means "please inform me". There is no way to NACK a
+request. It is not a permission to do so, just a "friendly
+notification". And this is exactly not what we want when host enforcing
+memory access.
+
+
+> 
+>>    In addition, it might make perfect
+>>    sense to have both, virtio-balloon and virtio-mem at the same time,
+>>    especially looking at the DEFLATE_ON_OOM or STATS features of
+>>    virtio-balloon. While virtio-mem is all about guarantees, virtio-
+>>    balloon is about cooperation.
+> 
+> Thanks, and I intend to look more into this next week.
 > 
 
-Yes, I cam do that.
+I know that it is tempting to force this concept into virtio-balloon. I
+spent quite some time thinking about this (and possible other techniques
+like implicit memory deflation on reboots) and decided not to do it. We
+just end up trying to hack around all possible things that could go
+wrong, while still not being able to handle all requirements properly.
 
--aneesh
+-- 
+
+Thanks,
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
