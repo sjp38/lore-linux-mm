@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F5244404A3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:37:17 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o21so42464444qtb.13
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:37:17 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C95B4404A3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 15:37:19 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o21so42464789qtb.13
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 12:37:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r188si2729103qke.208.2017.06.16.12.37.16
+        by mx.google.com with ESMTPS id 38si3245733qkp.394.2017.06.16.12.37.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 12:37:16 -0700 (PDT)
+        Fri, 16 Jun 2017 12:37:18 -0700 (PDT)
 From: Jeff Layton <jlayton@redhat.com>
-Subject: [xfstests PATCH v5 4/5] generic: test writeback error handling on dmerror devices
-Date: Fri, 16 Jun 2017 15:36:18 -0400
-Message-Id: <20170616193619.14576-5-jlayton@redhat.com>
+Subject: [xfstests PATCH v5 5/5] btrfs: make a btrfs version of writeback error reporting test
+Date: Fri, 16 Jun 2017 15:36:19 -0400
+Message-Id: <20170616193619.14576-6-jlayton@redhat.com>
 In-Reply-To: <20170616193619.14576-1-jlayton@redhat.com>
 References: <20170616193619.14576-1-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,29 +20,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>
 Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-Ensure that we get an error back on all fds when a block device is
-open by multiple writers and writeback fails.
+For btrfs, we can test how it reports data writeback errors on fsync by
+implementing a suggestion from Chris Mason:
 
+Build a filesystem with 2 devices that stripes the data across
+both devices, but mirrors metadata across both. Then, make one
+of the devices fail and test what it does.
+
+Cc: Chris Mason <clm@fb.com>
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- tests/generic/998     | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++
- tests/generic/998.out |  2 ++
- tests/generic/group   |  1 +
- 3 files changed, 66 insertions(+)
- create mode 100755 tests/generic/998
- create mode 100644 tests/generic/998.out
+ tests/btrfs/999     | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ tests/btrfs/999.out |  3 ++
+ tests/btrfs/group   |  1 +
+ 3 files changed, 98 insertions(+)
+ create mode 100755 tests/btrfs/999
+ create mode 100644 tests/btrfs/999.out
 
-diff --git a/tests/generic/998 b/tests/generic/998
+diff --git a/tests/btrfs/999 b/tests/btrfs/999
 new file mode 100755
-index 000000000000..ef528f18986e
+index 000000000000..903e36526708
 --- /dev/null
-+++ b/tests/generic/998
-@@ -0,0 +1,63 @@
++++ b/tests/btrfs/999
+@@ -0,0 +1,94 @@
 +#! /bin/bash
-+# FS QA Test No. 998
++# FS QA Test No. 999
 +#
-+# Test writeback error handling when writing to block devices via pagecache.
-+# See src/fsync-err.c for details of what test actually does.
++# Open a file several times, write to it, fsync on all fds and make sure that
++# they all return 0. Change the device to start throwing errors. Write again
++# on all fds and fsync on all fds. Ensure that we get errors on all of them.
++# Then fsync on all one last time and verify that all return 0.
 +#
 +#-----------------------------------------------------------------------
 +# Copyright (c) 2017, Jeff Layton <jlayton@redhat.com>
@@ -84,41 +91,70 @@ index 000000000000..ef528f18986e
 +
 +# real QA test starts here
 +_supported_os Linux
-+_require_scratch
++_supported_fs btrfs
 +_require_dm_target error
 +_require_test_program fsync-err
 +_require_test_program dmerror
 +
-+rm -f $seqres.full
-+
++# bring up dmerror device
++_scratch_unmount
 +_dmerror_init
 +
-+$here/src/fsync-err -d $here/src/dmerror $DMERROR_DEV
++# Replace first device with error-test device
++old_SCRATCH_DEV=$SCRATCH_DEV
++SCRATCH_DEV_POOL=`echo $SCRATCH_DEV_POOL | perl -pe "s#$SCRATCH_DEV#$DMERROR_DEV#"`
++SCRATCH_DEV=$DMERROR_DEV
++
++_require_scratch
++_require_scratch_dev_pool
++
++rm -f $seqres.full
++
++echo "Format and mount"
++
++_scratch_pool_mkfs "-d raid0 -m raid1" > $seqres.full 2>&1
++_scratch_mount
++
++# How much do we need to write? We need to hit all of the stripes. btrfs uses
++# a fixed 64k stripesize, so write enough to hit each one
++number_of_devices=`echo $SCRATCH_DEV_POOL | wc -w`
++write_kb=$(($number_of_devices * 64))
++_require_fs_space $SCRATCH_MNT $write_kb
++
++testfile=$SCRATCH_MNT/fsync-err-test
++
++SCRATCH_DEV=$old_SCRATCH_DEV
++$here/src/fsync-err -b $(($write_kb * 1024)) -d $here/src/dmerror $testfile
 +
 +# success, all done
 +_dmerror_load_working_table
++
++# fs may be corrupt after this -- attempt to repair it
++_repair_scratch_fs >> $seqres.full
++
++# remove dmerror device
 +_dmerror_cleanup
-+_scratch_mkfs > $seqres.full 2>&1
++
 +status=0
 +exit
-diff --git a/tests/generic/998.out b/tests/generic/998.out
+diff --git a/tests/btrfs/999.out b/tests/btrfs/999.out
 new file mode 100644
-index 000000000000..658c438820e2
+index 000000000000..2e48492ff6d1
 --- /dev/null
-+++ b/tests/generic/998.out
-@@ -0,0 +1,2 @@
-+QA output created by 998
++++ b/tests/btrfs/999.out
+@@ -0,0 +1,3 @@
++QA output created by 999
++Format and mount
 +Test passed!
-diff --git a/tests/generic/group b/tests/generic/group
-index b56bae8f04f0..9c62ab13ad36 100644
---- a/tests/generic/group
-+++ b/tests/generic/group
-@@ -442,4 +442,5 @@
- 437 auto quick
- 438 auto
- 439 auto quick punch
-+998 blockdev
- 999 auto quick
+diff --git a/tests/btrfs/group b/tests/btrfs/group
+index be0548796260..c9063f0a4087 100644
+--- a/tests/btrfs/group
++++ b/tests/btrfs/group
+@@ -147,3 +147,4 @@
+ 142 auto quick
+ 143 auto quick
+ 144 auto quick send
++999 auto quick
 -- 
 2.13.0
 
