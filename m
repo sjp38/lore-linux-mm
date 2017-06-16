@@ -1,77 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B156B02FD
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:43:53 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a82so39079544pfc.8
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 07:43:53 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0085.outbound.protection.outlook.com. [104.47.40.85])
-        by mx.google.com with ESMTPS id 72si2147002plc.388.2017.06.16.07.43.50
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 159E96B0311
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 10:44:08 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id v74so25493214oie.10
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 07:44:08 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id o203si2826389oib.94.2017.06.16.07.44.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 07:43:52 -0700 (PDT)
-Subject: Re: [PATCH tip/sched/core] mm/early_ioremap: Adjust early_ioremap
- system_state check
-From: Tom Lendacky <thomas.lendacky@amd.com>
-References: <20170614191152.28089.65392.stgit@tlendack-t1.amdoffice.net>
- <alpine.DEB.2.20.1706161257250.2254@nanos>
- <dae047fa-6b09-d15b-0362-ca814822318a@amd.com>
-Message-ID: <9408c89a-8c72-32a8-9b28-87cbfcf7bcaa@amd.com>
-Date: Fri, 16 Jun 2017 09:43:40 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Jun 2017 07:44:07 -0700 (PDT)
+Subject: Re: [PATCH] mm/list_lru.c: use cond_resched_lock() for nlru->lock
+References: <1497228440-10349-1-git-send-email-stummala@codeaurora.org>
+ <20170615140523.76f8fc3ca21dae3704f06a56@linux-foundation.org>
+From: Sahitya Tummala <stummala@codeaurora.org>
+Message-ID: <3c478a65-6cd1-0ee9-2470-7ca368dd88bf@codeaurora.org>
+Date: Fri, 16 Jun 2017 20:14:00 +0530
 MIME-Version: 1.0
-In-Reply-To: <dae047fa-6b09-d15b-0362-ca814822318a@amd.com>
+In-Reply-To: <20170615140523.76f8fc3ca21dae3704f06a56@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>, Ingo Molnar <mingo@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Polakov <apolyakov@beget.ru>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On 6/16/2017 8:03 AM, Tom Lendacky wrote:
-> On 6/16/2017 5:58 AM, Thomas Gleixner wrote:
->> On Wed, 14 Jun 2017, Tom Lendacky wrote:
->>> A recent change added a new system_state value, SYSTEM_SCHEDULING, which
->>> exposed a warning issued by early_ioreamp() when the system_state was 
->>> not
->>> SYSTEM_BOOTING. Since early_ioremap() can be called when the 
->>> system_state
->>> is SYSTEM_SCHEDULING, the check to issue the warning is changed from
->>> system_state != SYSTEM_BOOTING to system_state >= SYSTEM_RUNNING.
->>
->> Errm, why is that early_ioremap() stuff called after we enabled the
->> scheduler? At that point the regular ioremap stuff is long working.
-> 
-> As part of the SME support I'm decrypting the trampoline area during
-> set_real_mode_permissions().  Since it was still valid to use the
-> early_memremap()/early_ioremap() functions I chose to use those instead
-> of creating new ioremap functions to support encrypted or decrypted
-> mappings with and without write-protection.
+On 6/16/2017 2:35 AM, Andrew Morton wrote:
 
-Looking at this again, in setup_real_mode() I can update the trampoline
-area with the proper encryption attributes using set_memory_decrypted()
-before the trampoline area is copied and thus avoid having to decrypt
-the area in-place.  With that I won't need to use the early_memremap()
-functions.
+> diff --git a/mm/list_lru.c b/mm/list_lru.c
+>> index 5d8dffd..1af0709 100644
+>> --- a/mm/list_lru.c
+>> +++ b/mm/list_lru.c
+>> @@ -249,6 +249,8 @@ restart:
+>>   		default:
+>>   			BUG();
+>>   		}
+>> +		if (cond_resched_lock(&nlru->lock))
+>> +			goto restart;
+>>   	}
+>>   
+>>   	spin_unlock(&nlru->lock);
+> This is rather worrying.
+>
+> a) Why are we spending so long holding that lock that this is occurring?
 
-So you can ignore this patch.
+At the time of crash I see that __list_lru_walk_one() shows number of
+entries isolated as 1774475 with nr_items still pending as 130748. On my
+system, I see that for dentries of 100000, it takes around 75ms for
+__list_lru_walk_one() to complete. So for a total of 1900000 dentries as
+in issue scenario, it will take upto 1425ms, which explains why the spin
+lockup condition got hit on the other CPU.
 
-Thanks,
-Tom
+It looks like __list_lru_walk_one() is expected to take more time if
+there are more number of dentries present. And I think it is a valid
+scenario to have those many number dentries.
 
-> 
-> I could look into adding new ioremap APIs, but their usage would be
-> limited to this one case.  Since the early_memremap() works I thought
-> that would be the best path and just adjust the WARNing condition.
-> 
-> Thanks,
-> Tom
-> 
->>
->> Thanks,
->>
->>     tglx
->>
->>
+> b) With this patch, we're restarting the entire scan.  Are there
+>     situations in which this loop will never terminate, or will take a
+>     very long time?  Suppose that this process is getting rescheds
+>     blasted at it for some reason?
+
+In the above scenario, I observed that the dentry entries from lru list
+are removedall the time i.e LRU_REMOVED is returned from the
+isolate (dentry_lru_isolate()) callback. I don't know if there is any case
+where we skip several entries in the lru list and restartseveral times due
+to this cond_resched_lock(). This can happen even with theexisting code
+if LRU_RETRY is returned often from the isolate callback.
+> IOW this looks like a bit of a band-aid and a deeper analysis and
+> understanding might be needed.
+
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
