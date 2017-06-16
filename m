@@ -1,132 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3002A6B0279
-	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 23:02:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id f185so29479870pgc.10
-        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 20:02:53 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l13si848480plk.441.2017.06.15.20.02.51
-        for <linux-mm@kvack.org>;
-        Thu, 15 Jun 2017 20:02:52 -0700 (PDT)
-Date: Fri, 16 Jun 2017 12:02:50 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2 3/3] mm: Use updated pmdp_invalidate() inteface to
- track dirty/accessed bits
-Message-ID: <20170616030250.GA27637@bbox>
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C9F86B02C3
+	for <linux-mm@kvack.org>; Thu, 15 Jun 2017 23:19:32 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id u51so25671765qte.15
+        for <linux-mm@kvack.org>; Thu, 15 Jun 2017 20:19:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n3si1022089qtd.367.2017.06.15.20.19.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jun 2017 20:19:31 -0700 (PDT)
+Date: Fri, 16 Jun 2017 06:19:22 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v11 3/6] virtio-balloon:
+ VIRTIO_BALLOON_F_PAGE_CHUNKS
+Message-ID: <20170616061009-mutt-send-email-mst@kernel.org>
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
+ <1497004901-30593-4-git-send-email-wei.w.wang@intel.com>
+ <20170613200049-mutt-send-email-mst@kernel.org>
+ <594240E9.2070705@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170615145224.66200-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <594240E9.2070705@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, Matthew Wilcox <willy@infradead.org>
 
-Hello,
-
-On Thu, Jun 15, 2017 at 05:52:24PM +0300, Kirill A. Shutemov wrote:
-> This patch uses modifed pmdp_invalidate(), that return previous value of pmd,
-> to transfer dirty and accessed bits.
+On Thu, Jun 15, 2017 at 04:10:17PM +0800, Wei Wang wrote:
+> On 06/14/2017 01:56 AM, Michael S. Tsirkin wrote:
+> > On Fri, Jun 09, 2017 at 06:41:38PM +0800, Wei Wang wrote:
+> > > Add a new feature, VIRTIO_BALLOON_F_PAGE_CHUNKS, which enables
+> > > the transfer of the ballooned (i.e. inflated/deflated) pages in
+> > > chunks to the host.
+> > so now these chunks are just s/g list entry.
+> > So let's rename this VIRTIO_BALLOON_F_SG with a comment:
+> > * Use standard virtio s/g instead of PFN lists *
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/proc/task_mmu.c |  8 ++++----
->  mm/huge_memory.c   | 29 ++++++++++++-----------------
->  2 files changed, 16 insertions(+), 21 deletions(-)
+> Actually, it's not using the standard s/g list in the implementation,
+> because:
+> using the standard s/g will need kmalloc() the indirect table on
+> demand (i.e. when virtqueue_add() converts s/g to indirect table);
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index f0c8b33d99b1..f2fc1ef5bba2 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -906,13 +906,13 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
->  static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
->  		unsigned long addr, pmd_t *pmdp)
->  {
-> -	pmd_t pmd = *pmdp;
-> +	pmd_t old, pmd = *pmdp;
->  
->  	/* See comment in change_huge_pmd() */
-> -	pmdp_invalidate(vma, addr, pmdp);
-> -	if (pmd_dirty(*pmdp))
-> +	old = pmdp_invalidate(vma, addr, pmdp);
-> +	if (pmd_dirty(old))
->  		pmd = pmd_mkdirty(pmd);
-> -	if (pmd_young(*pmdp))
-> +	if (pmd_young(old))
->  		pmd = pmd_mkyoung(pmd);
->  
->  	pmd = pmd_wrprotect(pmd);
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a84909cf20d3..0433e73531bf 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1777,17 +1777,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  	 * pmdp_invalidate() is required to make sure we don't miss
->  	 * dirty/young flags set by hardware.
->  	 */
-> -	entry = *pmd;
-> -	pmdp_invalidate(vma, addr, pmd);
-> -
-> -	/*
-> -	 * Recover dirty/young flags.  It relies on pmdp_invalidate to not
-> -	 * corrupt them.
-> -	 */
-> -	if (pmd_dirty(*pmd))
-> -		entry = pmd_mkdirty(entry);
-> -	if (pmd_young(*pmd))
-> -		entry = pmd_mkyoung(entry);
-> +	entry = pmdp_invalidate(vma, addr, pmd);
->  
->  	entry = pmd_modify(entry, newprot);
->  	if (preserve_write)
-> @@ -1927,8 +1917,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	struct mm_struct *mm = vma->vm_mm;
->  	struct page *page;
->  	pgtable_t pgtable;
-> -	pmd_t _pmd;
-> -	bool young, write, dirty, soft_dirty;
-> +	pmd_t old, _pmd;
-> +	bool young, write, soft_dirty;
->  	unsigned long addr;
->  	int i;
->  
-> @@ -1965,7 +1955,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	page_ref_add(page, HPAGE_PMD_NR - 1);
->  	write = pmd_write(*pmd);
->  	young = pmd_young(*pmd);
-> -	dirty = pmd_dirty(*pmd);
->  	soft_dirty = pmd_soft_dirty(*pmd);
->  
->  	pmdp_huge_split_prepare(vma, haddr, pmd);
-> @@ -1995,8 +1984,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  			if (soft_dirty)
->  				entry = pte_mksoft_dirty(entry);
->  		}
-> -		if (dirty)
-> -			SetPageDirty(page + i);
->  		pte = pte_offset_map(&_pmd, addr);
->  		BUG_ON(!pte_none(*pte));
->  		set_pte_at(mm, addr, pte, entry);
-> @@ -2045,7 +2032,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	 * and finally we write the non-huge version of the pmd entry with
->  	 * pmd_populate.
->  	 */
-> -	pmdp_invalidate(vma, haddr, pmd);
-> +	old = pmdp_invalidate(vma, haddr, pmd);
-> +
-> +	/*
-> +	 * Transfer dirty bit using value returned by pmd_invalidate() to be
-> +	 * sure we don't race with CPU that can set the bit under us.
-> +	 */
-> +	if (pmd_dirty(old))
-> +		SetPageDirty(page);
-> +
+> The implementation directly pre-allocates an indirect desc table,
+> and uses a entry (i.e. vring_desc) to describe a chunk. This
+> avoids the overhead of kmalloc() the indirect table.
 
-When I see this, without this patch, MADV_FREE has been broken because
-it can lose dirty bit by early checking. Right?
-If so, isn't it a candidate for -stable?
+It's a separate API but the host/guest interface is standard.
+
+> 
+> > > +/*
+> > > + * Callulates how many pfns can a page_bmap record. A bit corresponds to a
+> > > + * page of PAGE_SIZE.
+> > > + */
+> > > +#define VIRTIO_BALLOON_PFNS_PER_PAGE_BMAP \
+> > > +	(VIRTIO_BALLOON_PAGE_BMAP_SIZE * BITS_PER_BYTE)
+> > > +
+> > > +/* The number of page_bmap to allocate by default. */
+> > > +#define VIRTIO_BALLOON_PAGE_BMAP_DEFAULT_NUM	1
+> > It's not by default, it's at probe time, right?
+> It is the number of page bitmap being kept throughout the whole
+> lifecycle of the driver. The page bmap will be temporarily extended
+> due to insufficiency during a ballooning process, but when that
+> ballooning finishes, the extended part will be freed.
+> > > +/* The maximum number of page_bmap that can be allocated. */
+> > Not really, this is the size of the array we use to keep them.
+> 
+> This is the max number of the page bmap that can be
+> extended temporarily.
+
+That's just a confusing way to say the same.
+
+> > > +#define VIRTIO_BALLOON_PAGE_BMAP_MAX_NUM	32
+> > > +
+> > So you still have a home-grown bitmap. I'd like to know why
+> > isn't xbitmap suggested for this purpose by Matthew Wilcox
+> > appropriate. Please add a comment explaining the requirements
+> > from the data structure.
+> 
+> I didn't find his xbitmap being upstreamed, did you?
+
+It's from dax tree - Matthew?
+
+> > > +/*
+> > > + * QEMU virtio implementation requires the desc table size less than
+> > > + * VIRTQUEUE_MAX_SIZE, so minus 1 here.
+> > I think it doesn't, the issue is probably that you add a header
+> > as a separate s/g. In any case see below.
+> > 
+> > > + */
+> > > +#define VIRTIO_BALLOON_MAX_PAGE_CHUNKS (VIRTQUEUE_MAX_SIZE - 1)
+> > This is wrong, virtio spec says s/g size should not exceed VQ size.
+> > If you want to support huge VQ sizes, you can add a fallback to
+> > smaller sizes until it fits in 1 page.
+> 
+> Probably no need for huge VQ size, 1024 queue size should be
+> enough. And we can have 1024 descriptors in the indirect
+> table, so the above size doesn't exceed the vq size, right?
+
+You need to look at vq size, you shouldn't assume it's > 1024.
+
+
+> 
+> > +static unsigned int extend_page_bmap_size(struct virtio_balloon *vb,
+> > +					  unsigned long pfn_num)
+> > what's this API doing?  Pls add comments. this seems to assume
+> > it will only be called once.
+> OK, I will add some comments here. This is the function to extend
+> the number of page bitmap when the original 1 page bmap is
+> not sufficient during a ballooning process. As mentioned above,
+> at the end of this ballooning process, the extended part will be freed.
+> 
+> > it would be better to avoid making
+> > this assumption, just look at what has been allocated
+> > and extend it.
+> Actually it's not an assumption. The rule here is that we always keep
+> "1" page bmap. "1" is defined by the
+> VIRTIO_BALLOON_PAGE_BMAP_DEFAULT_NUM. So when freeing, it also
+> references VIRTIO_BALLOON_PAGE_BMAP_DEFAULT_NUM (not assuming
+> any number)
+
+When allocating, why don't you check what's allocated already?
+why assume VIRTIO_BALLOON_PAGE_BMAP_DEFAULT_NUM was allocated?
+Then calling extend_page_bmap_size many times would be idempotent.
+
+> > +}
+> > +
+> > +/* Add a chunk to the buffer. */
+> > +static void add_one_chunk(struct virtio_balloon *vb, struct virtqueue *vq,
+> > +			  u64 base_addr, u32 size)
+> > +{
+> > +	unsigned int *num = &vb->balloon_page_chunk.chunk_num;
+> > +	struct vring_desc *desc = &vb->balloon_page_chunk.desc_table[*num];
+> > +
+> > +	desc->addr = cpu_to_virtio64(vb->vdev, base_addr);
+> > +	desc->len = cpu_to_virtio32(vb->vdev, size);
+> > +	*num += 1;
+> > +	if (*num == VIRTIO_BALLOON_MAX_PAGE_CHUNKS)
+> > +		send_page_chunks(vb, vq);
+> > +}
+> > +
+> > Poking at virtio internals like this is not nice. Pls move to virtio
+> > code.  Also, pages must be read descriptors as host might modify them.
+> > 
+> > This also lacks viommu support but this is not mandatory as
+> > that is borken atm anyway. I'll send a patch to at least fail cleanly.
+> OK, thanks.
+> 
+> > > +static void convert_bmap_to_chunks(struct virtio_balloon *vb,
+> > > +				   struct virtqueue *vq,
+> > > +				   unsigned long *bmap,
+> > > +				   unsigned long pfn_start,
+> > > +				   unsigned long size)
+> > > +{
+> > > +	unsigned long next_one, next_zero, pos = 0;
+> > > +	u64 chunk_base_addr;
+> > > +	u32 chunk_size;
+> > > +
+> > > +	while (pos < size) {
+> > > +		next_one = find_next_bit(bmap, size, pos);
+> > > +		/*
+> > > +		 * No "1" bit found, which means that there is no pfn
+> > > +		 * recorded in the rest of this bmap.
+> > > +		 */
+> > > +		if (next_one == size)
+> > > +			break;
+> > > +		next_zero = find_next_zero_bit(bmap, size, next_one + 1);
+> > > +		/*
+> > > +		 * A bit in page_bmap corresponds to a page of PAGE_SIZE.
+> > > +		 * Convert it to be pages of 4KB balloon page size when
+> > > +		 * adding it to a chunk.
+> > This looks wrong. add_one_chunk assumes size in bytes. So should be just
+> > PAGE_SIZE.
+> 
+> It's intended to be "chunk size", which is the number of pfns. The benefit
+> is
+> that the 32-bit desc->len won't be overflow, as you mentioned below.
+> 
+
+You can safely assume PAGE_SIZE >= 4K. Just pass # of pages.
+
+> > 
+> > > +		 */
+> > > +		chunk_size = (next_zero - next_one) *
+> > > +			     VIRTIO_BALLOON_PAGES_PER_PAGE;
+> > How do you know this won't overflow a 32 bit integer? Needs a comment.
+> 
+> If it stores size in bytes, it has the possibility to overflow.
+> If storing number of pfns, the 32-bit value can support 2^32*4KB=8TB
+> memory, unlikely to overflow.
+
+Do you put in len in the descriptor in 4K chunks then? That
+needs some thought. Also, processors support up to 256TB now,
+I don't think we can just assume it won't overflow anymore.
+All in all I'd prefer we just split everything up to 2G chunks.
+We can discuss extending len to more bits or specifying alignment
+in the descriptor separately down the road.
+
+> > +
+> > +static int balloon_page_chunk_init(struct virtio_balloon *vb)
+> > +{
+> > +	int i;
+> > +
+> > +	vb->balloon_page_chunk.desc_table = alloc_indirect(vb->vdev,
+> > +						VIRTIO_BALLOON_MAX_PAGE_CHUNKS,
+> > +						GFP_KERNEL);
+> > This one's problematic, you aren't supposed to use APIs when device
+> > is not inited yet. Seems to work by luck here. I suggest moving
+> > this to probe, that's where we do a bunch of inits.
+> > And then you can move private init back to allocate too.
+> 
+> This is just to allocate an indirect desc table. If allocation fails, we
+> need to clear
+> the related feature bit in ->validate(), right?
+
+Failing probe on OOM is ok too.
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
