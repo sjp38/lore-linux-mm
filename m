@@ -1,57 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 428DD83292
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 05:24:06 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id d13so36978012pgf.12
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 02:24:06 -0700 (PDT)
-Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
-        by mx.google.com with ESMTPS id 102si1584372plf.599.2017.06.16.02.24.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E308C83292
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 05:24:09 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g78so33031357pfg.4
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 02:24:09 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id x84si1585271pgx.145.2017.06.16.02.24.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 02:24:05 -0700 (PDT)
-Received: by mail-pg0-x244.google.com with SMTP id a70so5095927pge.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 02:24:05 -0700 (PDT)
+        Fri, 16 Jun 2017 02:24:09 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id y7so5291014pfd.3
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 02:24:09 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH 1/2] mmzone: simplify zone_intersects()
-Date: Fri, 16 Jun 2017 17:23:34 +0800
-Message-Id: <20170616092335.5177-1-richard.weiyang@gmail.com>
+Subject: [PATCH 2/2] mm/memory_hotplug: remove duplicate call for set_page_links
+Date: Fri, 16 Jun 2017 17:23:35 +0800
+Message-Id: <20170616092335.5177-2-richard.weiyang@gmail.com>
+In-Reply-To: <20170616092335.5177-1-richard.weiyang@gmail.com>
+References: <20170616092335.5177-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mhocko@kernel.org
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Wei Yang <richard.weiyang@gmail.com>
 
-To make sure a range intersects a zone, only two comparison is necessary.
+In function move_pfn_range_to_zone(), memmap_init_zone() will call
+set_page_links for each page. This means we don't need to call it on each
+page explicitly.
 
-This patch simplifies the function a little.
+This patch just removes the loop.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- include/linux/mmzone.h | 10 +++-------
- 1 file changed, 3 insertions(+), 7 deletions(-)
+ mm/memory_hotplug.c | 4 ----
+ 1 file changed, 4 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 0176a2933c61..7e8f100cb56d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -541,15 +541,11 @@ static inline bool zone_intersects(struct zone *zone,
- {
- 	if (zone_is_empty(zone))
- 		return false;
--	if (start_pfn >= zone_end_pfn(zone))
-+	if (start_pfn >= zone_end_pfn(zone) ||
-+	    start_pfn + nr_pages <= zone->zone_start_pfn)
- 		return false;
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d61509752112..4fb1fb2b2b53 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -914,10 +914,6 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+ 	 * are reserved so nobody should be touching them so we should be safe
+ 	 */
+ 	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLUG);
+-	for (i = 0; i < nr_pages; i++) {
+-		unsigned long pfn = start_pfn + i;
+-		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+-	}
  
--	if (zone->zone_start_pfn <= start_pfn)
--		return true;
--	if (start_pfn + nr_pages > zone->zone_start_pfn)
--		return true;
--
--	return false;
-+	return true;
+ 	set_zone_contiguous(zone);
  }
- 
- /*
 -- 
 2.11.0
 
