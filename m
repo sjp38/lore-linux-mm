@@ -1,113 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41E866B02C3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:11:46 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 33so9486434pgx.14
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:11:46 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id y10si1361139pgo.124.2017.06.16.01.11.45
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A646B02F4
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:38:18 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id k93so25532410ioi.1
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:38:18 -0700 (PDT)
+Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
+        by mx.google.com with ESMTPS id m10si1563514ioa.287.2017.06.16.01.38.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 01:11:45 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id d5so4903995pfe.1
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:11:45 -0700 (PDT)
-Date: Fri, 16 Jun 2017 16:11:42 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 11/14] mm, memory_hotplug: do not associate hotadded
- memory to zones until online
-Message-ID: <20170616081142.GA3871@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170515085827.16474-1-mhocko@kernel.org>
- <20170515085827.16474-12-mhocko@kernel.org>
+        Fri, 16 Jun 2017 01:38:17 -0700 (PDT)
+Received: by mail-io0-x22f.google.com with SMTP id i7so26380700ioe.1
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:38:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="AqsLC8rIMeq19msA"
-Content-Disposition: inline
-In-Reply-To: <20170515085827.16474-12-mhocko@kernel.org>
+In-Reply-To: <F0D43B2F-6811-4FEA-9152-75BD0792BD83@linaro.org>
+References: <20170609082226.26152-1-ard.biesheuvel@linaro.org>
+ <20170615142439.7a431065465c5b4691aed1cc@linux-foundation.org>
+ <BE70CA51-B790-456E-B31C-399632B4DCD1@linaro.org> <20170615151637.77babb9a1b65c878f4235f65@linux-foundation.org>
+ <F0D43B2F-6811-4FEA-9152-75BD0792BD83@linaro.org>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Fri, 16 Jun 2017 10:38:12 +0200
+Message-ID: <CAKv+Gu_Uhrh_bE4aWKEkyJNsbH693d77tTi+fQYysof_oMzYEw@mail.gmail.com>
+Subject: Re: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Zhong Jiang <zhongjiang@huawei.com>, Laura Abbott <labbott@fedoraproject.org>, Mark Rutland <mark.rutland@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Dave Hansen <dave.hansen@intel.com>
 
-
---AqsLC8rIMeq19msA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-Well, I love this patch a lot. We don't need to put the hotadd memory in one
-zone and move it to another. This looks great!
-
-On Mon, May 15, 2017 at 10:58:24AM +0200, Michal Hocko wrote:
->From: Michal Hocko <mhocko@suse.com>
+On 16 June 2017 at 00:29, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
 >
-[...]
-+
->+void move_pfn_range_to_zone(struct zone *zone,
->+		unsigned long start_pfn, unsigned long nr_pages)
->+{
->+	struct pglist_data *pgdat =3D zone->zone_pgdat;
->+	int nid =3D pgdat->node_id;
->+	unsigned long flags;
->+	unsigned long i;
->+
->+	if (zone_is_empty(zone))
->+		init_currently_empty_zone(zone, start_pfn, nr_pages);
->+
->+	clear_zone_contiguous(zone);
->+
->+	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that =
-before */
->+	pgdat_resize_lock(pgdat, &flags);
->+	zone_span_writelock(zone);
->+	resize_zone_range(zone, start_pfn, nr_pages);
->+	zone_span_writeunlock(zone);
->+	resize_pgdat_range(pgdat, start_pfn, nr_pages);
->+	pgdat_resize_unlock(pgdat, &flags);
->+
->+	/*
->+	 * TODO now we have a visible range of pages which are not associated
->+	 * with their zone properly. Not nice but set_pfnblock_flags_mask
->+	 * expects the zone spans the pfn range. All the pages in the range
->+	 * are reserved so nobody should be touching them so we should be safe
->+	 */
->+	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLU=
-G);
->+	for (i =3D 0; i < nr_pages; i++) {
->+		unsigned long pfn =3D start_pfn + i;
->+		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
-> 	}
+>> On 16 Jun 2017, at 00:16, Andrew Morton <akpm@linux-foundation.org> wrot=
+e:
+>>
+>>> On Fri, 16 Jun 2017 00:11:53 +0200 Ard Biesheuvel <ard.biesheuvel@linar=
+o.org> wrote:
+>>>
+>>>
+>>>
+>>>>> On 15 Jun 2017, at 23:24, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+>>>>>
+>>>>> On Fri,  9 Jun 2017 08:22:26 +0000 Ard Biesheuvel <ard.biesheuvel@lin=
+aro.org> wrote:
+>>>>>
+>>>>> Existing code that uses vmalloc_to_page() may assume that any
+>>>>> address for which is_vmalloc_addr() returns true may be passed
+>>>>> into vmalloc_to_page() to retrieve the associated struct page.
+>>>>>
+>>>>> This is not un unreasonable assumption to make, but on architectures
+>>>>> that have CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy, it no longer holds, and we
+>>>>> need to ensure that vmalloc_to_page() does not go off into the weeds
+>>>>> trying to dereference huge PUDs or PMDs as table entries.
+>>>>>
+>>>>> Given that vmalloc() and vmap() themselves never create huge
+>>>>> mappings or deal with compound pages at all, there is no correct
+>>>>> answer in this case, so return NULL instead, and issue a warning.
+>>>>
+>>>> Is this patch known to fix any current user-visible problem?
+>>>
+>>> Yes. When reading /proc/kcore on arm64, you will hit an oops as soon as=
+ you hit the huge mappings used for the various segments that make up the m=
+apping of vmlinux. With this patch applied, you will no longer hit the oops=
+, but the kcore contents willl be incorrect (these regions will be zeroed o=
+ut)
+>>>
+>>> We are fixing this for kcore specifically, so it avoids vread() for  th=
+ose regions. At least one other problematic user exists, i.e., /dev/kmem, b=
+ut that is currently broken on arm64 for other reasons.
+>>>
+>>
+>> Do you have any suggestions regarding which kernel version(s) should
+>> get this patch?
+>>
+>
+> Good question. v4.6 was the first one to enable the huge vmap feature on =
+arm64 iirc, but that does not necessarily mean it needs to be backported at=
+ all imo. What is kcore used for? Production grade stuff?
 
-memmap_init_zone()->__init_single_page()->set_page_links()
+In any case, could you perhaps simply queue it for v4.13? If it needs
+to go into -stable, we can always do it later.
 
-Do I miss something that you call set_page_links() explicitly here?
-
---=20
-Wei Yang
-Help you, Help me
-
---AqsLC8rIMeq19msA
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIbBAEBCAAGBQJZQ5K9AAoJEKcLNpZP5cTdy24P+I9NC7LQ0mVVp4mF8M36iAus
-6BwFp8fa28F8Gh4np7Ksc9XbBYEqFVlJ1fE+U4bBojHslvaeZRNmKZcQHR5QgJ9Q
-tFUYVl9gs09HRIdGANhCcy2/kcjGAhJEj051UeqtSDwFBtssDqnCLJfdPa3FuZSN
-+vy3vJcUFu97GCnonS+A/HxKyovQEOQYAwufMa6GI11bdM1Ro6HUQcX2V/w2xp4c
-dOYaFhqIppzgjHK72O1o9SkAuKC903CEcJ4hEzypw01xf27CGiLq00UhbW5eDnYz
-u5kmKz2KCOCSTYTlh9IvYvQbJKd4k8o1HI/vBAREmGBWuAf/Q0aS9Xvo8EaPfCtw
-feGBW9ETLnea7LoZP1Why6qarZu/r+crJdiCTPjaPHuLaHdej4xkplnCJRALvqs3
-RjgJbcqsj5clIg11GfPgwBzU3nvyM5q1fD/TAnDIlihyRoDPnPe8fVL/xgiGh2qR
-9F/Il4OnKM9f7I6d13bcLPXEsyqjHA9L7A/a/RU+sGqH97kmHQzKpDSndHSvkOFF
-luRbnClwl6OwzLtH4HmPoXQERPnRvKEgFjXxWJHAUg/wV9oUj8qehytJhtCdL01n
-nbgJYoClzC5RLrh5G3j2bNGPrvpGWVwjU9IBkpQ4H5TZp43LOf3yId3Eq9AOk9+/
-m+4Rm2mSWEp9iQ+w61s=
-=8E87
------END PGP SIGNATURE-----
-
---AqsLC8rIMeq19msA--
+Thanks,
+Ard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
