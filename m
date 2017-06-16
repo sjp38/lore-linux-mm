@@ -1,91 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 408FD6B02C3
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:06:25 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h64so2733560wmg.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:06:25 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i12si2252305wmg.60.2017.06.16.01.06.23
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 41E866B02C3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:11:46 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 33so9486434pgx.14
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:11:46 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id y10si1361139pgo.124.2017.06.16.01.11.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 16 Jun 2017 01:06:23 -0700 (PDT)
-Date: Fri, 16 Jun 2017 10:06:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: prevent additional oom kills before memory is
- freed
-Message-ID: <20170616080620.GB30580@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com>
- <20170615103909.GG1486@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
- <20170615214133.GB20321@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706151459530.64172@chino.kir.corp.google.com>
- <20170615221236.GB22341@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706151534170.140219@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 Jun 2017 01:11:45 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id d5so4903995pfe.1
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:11:45 -0700 (PDT)
+Date: Fri, 16 Jun 2017 16:11:42 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 11/14] mm, memory_hotplug: do not associate hotadded
+ memory to zones until online
+Message-ID: <20170616081142.GA3871@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170515085827.16474-1-mhocko@kernel.org>
+ <20170515085827.16474-12-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="AqsLC8rIMeq19msA"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706151534170.140219@chino.kir.corp.google.com>
+In-Reply-To: <20170515085827.16474-12-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu 15-06-17 15:42:23, David Rientjes wrote:
-> On Fri, 16 Jun 2017, Michal Hocko wrote:
-> 
-> > I am sorry but I have really hard to make the oom reaper a reliable way
-> > to stop all the potential oom lockups go away. I do not want to
-> > reintroduce another potential lockup now.
-> 
-> Please show where this "potential lockup" ever existed in a bug report or 
-> a testcase?
 
-I am not aware of any specific bug report. But the main point of the
-reaper is to close all _possible_ lockups due to oom victim being stuck
-somewhere. exit_aio waits for all kiocbs. Can we guarantee that none
-of them will depend on an allocation (directly or via a lock chain) to
-proceed? Likewise ksm_exit/khugepaged_exit depend on mmap_sem for write
-to proceed. Are we _guaranteed_ nobody can hold mmap_sem for read at
-that time and depend on an allocation? Can we guarantee that __mmput
-path will work without any depency on allocation in future?
+--AqsLC8rIMeq19msA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> I have never seen __mmput() block when trying to free the 
-> memory it maps.
-> 
-> > I also do not see why any
-> > solution should be rushed into. I have proposed a way to go and unless
-> > it is clear that this is not a way forward then I simply do not agree
-> > with any partial workarounds or shortcuts.
-> 
-> This is not a shortcut, it is a bug fix.  4.12 kills 1-4 processes 
-> unnecessarily as a result of setting MMF_OOM_SKIP incorrectly before the 
-> mm's memory can be freed.  If you have not seen this issue before, which 
-> is why you asked if I ever observed it in practice, then you have not 
-> stress tested oom reaping.  It is very observable and reproducible.  
+Well, I love this patch a lot. We don't need to put the hotadd memory in one
+zone and move it to another. This looks great!
 
-I am not questioning that it works for your particular test. I just
-argue that it reduces the robustness of the oom reaper because it allows
-oom victim to leave the reaper without MMF_OOM_SKIP set and that is the
-core concept to guarantee a forward progress. So we should think about
-something more appropriate.
+On Mon, May 15, 2017 at 10:58:24AM +0200, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+[...]
++
+>+void move_pfn_range_to_zone(struct zone *zone,
+>+		unsigned long start_pfn, unsigned long nr_pages)
+>+{
+>+	struct pglist_data *pgdat =3D zone->zone_pgdat;
+>+	int nid =3D pgdat->node_id;
+>+	unsigned long flags;
+>+	unsigned long i;
+>+
+>+	if (zone_is_empty(zone))
+>+		init_currently_empty_zone(zone, start_pfn, nr_pages);
+>+
+>+	clear_zone_contiguous(zone);
+>+
+>+	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that =
+before */
+>+	pgdat_resize_lock(pgdat, &flags);
+>+	zone_span_writelock(zone);
+>+	resize_zone_range(zone, start_pfn, nr_pages);
+>+	zone_span_writeunlock(zone);
+>+	resize_pgdat_range(pgdat, start_pfn, nr_pages);
+>+	pgdat_resize_unlock(pgdat, &flags);
+>+
+>+	/*
+>+	 * TODO now we have a visible range of pages which are not associated
+>+	 * with their zone properly. Not nice but set_pfnblock_flags_mask
+>+	 * expects the zone spans the pfn range. All the pages in the range
+>+	 * are reserved so nobody should be touching them so we should be safe
+>+	 */
+>+	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLU=
+G);
+>+	for (i =3D 0; i < nr_pages; i++) {
+>+		unsigned long pfn =3D start_pfn + i;
+>+		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+> 	}
 
-> I do 
-> not agree that adding additional and obscure locking into __mmput() is the 
-> solution to what is plainly and obviously fixed with this simple patch.
+memmap_init_zone()->__init_single_page()->set_page_links()
 
-Well, __mmput path already depends on the mmap_sem for write. So this is
-not a new concept. I am not saying using mmap_sem is the only way. I
-will think about that more.
- 
-> 4.12 needs to stop killing 2-5 processes on every oom condition instead of 
-> 1.
+Do I miss something that you call set_page_links() explicitly here?
 
-Believe me, I am not dismissing the issue nor the fact it _has_ to be
-fixed. I just disagree we should make the oom reaper less robust.
+--=20
+Wei Yang
+Help you, Help me
 
--- 
-Michal Hocko
-SUSE Labs
+--AqsLC8rIMeq19msA
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIbBAEBCAAGBQJZQ5K9AAoJEKcLNpZP5cTdy24P+I9NC7LQ0mVVp4mF8M36iAus
+6BwFp8fa28F8Gh4np7Ksc9XbBYEqFVlJ1fE+U4bBojHslvaeZRNmKZcQHR5QgJ9Q
+tFUYVl9gs09HRIdGANhCcy2/kcjGAhJEj051UeqtSDwFBtssDqnCLJfdPa3FuZSN
++vy3vJcUFu97GCnonS+A/HxKyovQEOQYAwufMa6GI11bdM1Ro6HUQcX2V/w2xp4c
+dOYaFhqIppzgjHK72O1o9SkAuKC903CEcJ4hEzypw01xf27CGiLq00UhbW5eDnYz
+u5kmKz2KCOCSTYTlh9IvYvQbJKd4k8o1HI/vBAREmGBWuAf/Q0aS9Xvo8EaPfCtw
+feGBW9ETLnea7LoZP1Why6qarZu/r+crJdiCTPjaPHuLaHdej4xkplnCJRALvqs3
+RjgJbcqsj5clIg11GfPgwBzU3nvyM5q1fD/TAnDIlihyRoDPnPe8fVL/xgiGh2qR
+9F/Il4OnKM9f7I6d13bcLPXEsyqjHA9L7A/a/RU+sGqH97kmHQzKpDSndHSvkOFF
+luRbnClwl6OwzLtH4HmPoXQERPnRvKEgFjXxWJHAUg/wV9oUj8qehytJhtCdL01n
+nbgJYoClzC5RLrh5G3j2bNGPrvpGWVwjU9IBkpQ4H5TZp43LOf3yId3Eq9AOk9+/
+m+4Rm2mSWEp9iQ+w61s=
+=8E87
+-----END PGP SIGNATURE-----
+
+--AqsLC8rIMeq19msA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
