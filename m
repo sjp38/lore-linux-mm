@@ -1,88 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A646B02F4
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:38:18 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k93so25532410ioi.1
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:38:18 -0700 (PDT)
-Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
-        by mx.google.com with ESMTPS id m10si1563514ioa.287.2017.06.16.01.38.16
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 67FFE6B02FD
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 04:39:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v60so6545695wrc.7
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:39:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r186si2346003wmr.109.2017.06.16.01.39.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 01:38:17 -0700 (PDT)
-Received: by mail-io0-x22f.google.com with SMTP id i7so26380700ioe.1
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 01:38:16 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 16 Jun 2017 01:39:49 -0700 (PDT)
+Date: Fri, 16 Jun 2017 10:39:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Re: [patch] mm, oom: prevent additional oom kills before memory
+ is freed
+Message-ID: <20170616083946.GC30580@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1706151459530.64172@chino.kir.corp.google.com>
+ <20170615221236.GB22341@dhcp22.suse.cz>
+ <201706160054.v5G0sY7c064781@www262.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <F0D43B2F-6811-4FEA-9152-75BD0792BD83@linaro.org>
-References: <20170609082226.26152-1-ard.biesheuvel@linaro.org>
- <20170615142439.7a431065465c5b4691aed1cc@linux-foundation.org>
- <BE70CA51-B790-456E-B31C-399632B4DCD1@linaro.org> <20170615151637.77babb9a1b65c878f4235f65@linux-foundation.org>
- <F0D43B2F-6811-4FEA-9152-75BD0792BD83@linaro.org>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Fri, 16 Jun 2017 10:38:12 +0200
-Message-ID: <CAKv+Gu_Uhrh_bE4aWKEkyJNsbH693d77tTi+fQYysof_oMzYEw@mail.gmail.com>
-Subject: Re: [PATCH v5] mm: huge-vmap: fail gracefully on unexpected huge vmap mappings
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201706160054.v5G0sY7c064781@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, Zhong Jiang <zhongjiang@huawei.com>, Laura Abbott <labbott@fedoraproject.org>, Mark Rutland <mark.rutland@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Dave Hansen <dave.hansen@intel.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 16 June 2017 at 00:29, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
->
->> On 16 Jun 2017, at 00:16, Andrew Morton <akpm@linux-foundation.org> wrot=
-e:
->>
->>> On Fri, 16 Jun 2017 00:11:53 +0200 Ard Biesheuvel <ard.biesheuvel@linar=
-o.org> wrote:
->>>
->>>
->>>
->>>>> On 15 Jun 2017, at 23:24, Andrew Morton <akpm@linux-foundation.org> w=
-rote:
->>>>>
->>>>> On Fri,  9 Jun 2017 08:22:26 +0000 Ard Biesheuvel <ard.biesheuvel@lin=
-aro.org> wrote:
->>>>>
->>>>> Existing code that uses vmalloc_to_page() may assume that any
->>>>> address for which is_vmalloc_addr() returns true may be passed
->>>>> into vmalloc_to_page() to retrieve the associated struct page.
->>>>>
->>>>> This is not un unreasonable assumption to make, but on architectures
->>>>> that have CONFIG_HAVE_ARCH_HUGE_VMAP=3Dy, it no longer holds, and we
->>>>> need to ensure that vmalloc_to_page() does not go off into the weeds
->>>>> trying to dereference huge PUDs or PMDs as table entries.
->>>>>
->>>>> Given that vmalloc() and vmap() themselves never create huge
->>>>> mappings or deal with compound pages at all, there is no correct
->>>>> answer in this case, so return NULL instead, and issue a warning.
->>>>
->>>> Is this patch known to fix any current user-visible problem?
->>>
->>> Yes. When reading /proc/kcore on arm64, you will hit an oops as soon as=
- you hit the huge mappings used for the various segments that make up the m=
-apping of vmlinux. With this patch applied, you will no longer hit the oops=
-, but the kcore contents willl be incorrect (these regions will be zeroed o=
-ut)
->>>
->>> We are fixing this for kcore specifically, so it avoids vread() for  th=
-ose regions. At least one other problematic user exists, i.e., /dev/kmem, b=
-ut that is currently broken on arm64 for other reasons.
->>>
->>
->> Do you have any suggestions regarding which kernel version(s) should
->> get this patch?
->>
->
-> Good question. v4.6 was the first one to enable the huge vmap feature on =
-arm64 iirc, but that does not necessarily mean it needs to be backported at=
- all imo. What is kcore used for? Production grade stuff?
+On Fri 16-06-17 09:54:34, Tetsuo Handa wrote:
+[...]
+> And the patch you proposed is broken.
 
-In any case, could you perhaps simply queue it for v4.13? If it needs
-to go into -stable, we can always do it later.
+Thanks for your testing!
+ 
+> ----------
+> [  161.846202] Out of memory: Kill process 6331 (a.out) score 999 or sacrifice child
+> [  161.850327] Killed process 6331 (a.out) total-vm:4172kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+> [  161.858503] ------------[ cut here ]------------
+> [  161.861512] kernel BUG at mm/memory.c:1381!
 
-Thanks,
-Ard.
+BUG_ON(addr >= end) suggests our vma has trimmed. I guess I see what is
+going on here.
+__oom_reap_task_mm				exit_mmap
+						  free_pgtables
+						  up_write(mm->mmap_sem)
+  down_read_trylock(&mm->mmap_sem)
+  						  remove_vma
+    unmap_page_range
+
+So we need to extend the mmap_sem coverage. See the updated diff (not
+the full proper patch yet).
+
+> Please carefully consider the reason why there is VM_BUG_ON() in __mmput(),
+> and clarify in your patch that what are possible side effects of racing
+> uprobe_clear_state()/exit_aio()/ksm_exit()/exit_mmap() etc. with
+> __oom_reap_task_mm()
+
+Yes that definitely needs to be checked. We basically rely on the racing
+part of the __mmput to not modify the address space. oom_reaper doesn't
+touch any vma state except it unmaps pages which can run in parallel.
+exit_aio->kill_ioctx seemingly does vm_munmap but it a) uses the
+mmap_sem for write and b) it doesn't actually unmap because exit_aio
+does ctx->mmap_size = 0. {ksm,khugepaged}_exit just do some houskeeping
+which is not modifying the address space. I hope I will find some more
+time to work on this next week. Additional test would be highly
+appreciated of course.
+
+---
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3bd5ecd20d4d..ca58f8a2a217 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&tlb, vma, 0, -1);
+ 
++	/*
++	 * oom reaper might race with exit_mmap so make sure we won't free
++	 * page tables or unmap VMAs under its feet
++	 */
++	down_write(&mm->mmap_sem);
+ 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&tlb, 0, -1);
+ 
+@@ -2975,6 +2980,7 @@ void exit_mmap(struct mm_struct *mm)
+ 		vma = remove_vma(vma);
+ 	}
+ 	vm_unacct_memory(nr_accounted);
++	up_write(&mm->mmap_sem);
+ }
+ 
+ /* Insert vm structure into process list sorted by address
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 0e2c925e7826..3df464f0f48b 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -494,16 +494,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	}
+ 
+ 	/*
+-	 * increase mm_users only after we know we will reap something so
+-	 * that the mmput_async is called only when we have reaped something
+-	 * and delayed __mmput doesn't matter that much
+-	 */
+-	if (!mmget_not_zero(mm)) {
+-		up_read(&mm->mmap_sem);
+-		goto unlock_oom;
+-	}
+-
+-	/*
+ 	 * Tell all users of get_user/copy_from_user etc... that the content
+ 	 * is no longer stable. No barriers really needed because unmapping
+ 	 * should imply barriers already and the reader would hit a page fault
+@@ -537,13 +527,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 			K(get_mm_counter(mm, MM_FILEPAGES)),
+ 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+ 	up_read(&mm->mmap_sem);
+-
+-	/*
+-	 * Drop our reference but make sure the mmput slow path is called from a
+-	 * different context because we shouldn't risk we get stuck there and
+-	 * put the oom_reaper out of the way.
+-	 */
+-	mmput_async(mm);
+ unlock_oom:
+ 	mutex_unlock(&oom_lock);
+ 	return ret;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
