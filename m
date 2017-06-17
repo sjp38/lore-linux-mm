@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC73E6B0350
-	for <linux-mm@kvack.org>; Sat, 17 Jun 2017 05:15:45 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g46so10089302wrd.3
-        for <linux-mm@kvack.org>; Sat, 17 Jun 2017 02:15:45 -0700 (PDT)
-Received: from mail-wr0-x229.google.com (mail-wr0-x229.google.com. [2a00:1450:400c:c0c::229])
-        by mx.google.com with ESMTPS id q21si4651181wra.202.2017.06.17.02.15.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 607166B0365
+	for <linux-mm@kvack.org>; Sat, 17 Jun 2017 05:15:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id h64so6268343wmg.0
+        for <linux-mm@kvack.org>; Sat, 17 Jun 2017 02:15:46 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id x4si1276802wmb.93.2017.06.17.02.15.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Jun 2017 02:15:44 -0700 (PDT)
-Received: by mail-wr0-x229.google.com with SMTP id 77so48798323wrb.1
+        Sat, 17 Jun 2017 02:15:45 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id u195so27322884wmd.1
         for <linux-mm@kvack.org>; Sat, 17 Jun 2017 02:15:44 -0700 (PDT)
 From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH v4 6/7] asm-generic: add KASAN instrumentation to atomic operations
-Date: Sat, 17 Jun 2017 11:15:32 +0200
-Message-Id: <b1bbe65eaac6afb25bad4ec0587b1d6c733f88d1.1497690003.git.dvyukov@google.com>
+Subject: [PATCH v4 5/7] kasan: allow kasan_check_read/write() to accept pointers to volatiles
+Date: Sat, 17 Jun 2017 11:15:31 +0200
+Message-Id: <e5a4c25bda8eccce2317da6d97138bfbea730e64.1497690003.git.dvyukov@google.com>
 In-Reply-To: <cover.1497690003.git.dvyukov@google.com>
 References: <cover.1497690003.git.dvyukov@google.com>
 In-Reply-To: <cover.1497690003.git.dvyukov@google.com>
@@ -22,413 +22,70 @@ References: <cover.1497690003.git.dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, x86@kernel.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-KASAN uses compiler instrumentation to intercept all memory accesses.
-But it does not see memory accesses done in assembly code.
-One notable user of assembly code is atomic operations. Frequently,
-for example, an atomic reference decrement is the last access to an
-object and a good candidate for a racy use-after-free.
-
-Add manual KASAN checks to atomic operations.
+Currently kasan_check_read/write() accept 'const void*', make them
+accept 'const volatile void*'. This is required for instrumentation
+of atomic operations and there is just no reason to not allow that.
 
 Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
 Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>,
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
-Cc: Ingo Molnar <mingo@redhat.com>,
-Cc: kasan-dev@googlegroups.com
-Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org
 Cc: x86@kernel.org
+Cc: linux-mm@kvack.org
+Cc: kasan-dev@googlegroups.com
 ---
- include/asm-generic/atomic-instrumented.h | 76 +++++++++++++++++++++++++++++--
- 1 file changed, 72 insertions(+), 4 deletions(-)
+ include/linux/kasan-checks.h | 10 ++++++----
+ mm/kasan/kasan.c             |  4 ++--
+ 2 files changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/include/asm-generic/atomic-instrumented.h b/include/asm-generic/atomic-instrumented.h
-index 50401d925290..a0f5b7525bb2 100644
---- a/include/asm-generic/atomic-instrumented.h
-+++ b/include/asm-generic/atomic-instrumented.h
-@@ -1,43 +1,53 @@
- #ifndef _LINUX_ATOMIC_INSTRUMENTED_H
- #define _LINUX_ATOMIC_INSTRUMENTED_H
+diff --git a/include/linux/kasan-checks.h b/include/linux/kasan-checks.h
+index b7f8aced7870..41960fecf783 100644
+--- a/include/linux/kasan-checks.h
++++ b/include/linux/kasan-checks.h
+@@ -2,11 +2,13 @@
+ #define _LINUX_KASAN_CHECKS_H
  
-+#include <linux/kasan-checks.h>
-+
- static __always_inline int atomic_read(const atomic_t *v)
- {
-+	kasan_check_read(v, sizeof(*v));
- 	return arch_atomic_read(v);
- }
- 
- static __always_inline s64 atomic64_read(const atomic64_t *v)
- {
-+	kasan_check_read(v, sizeof(*v));
- 	return arch_atomic64_read(v);
- }
- 
- static __always_inline void atomic_set(atomic_t *v, int i)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_set(v, i);
- }
- 
- static __always_inline void atomic64_set(atomic64_t *v, s64 i)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_set(v, i);
- }
- 
- static __always_inline int atomic_xchg(atomic_t *v, int i)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_xchg(v, i);
- }
- 
- static __always_inline s64 atomic64_xchg(atomic64_t *v, s64 i)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_xchg(v, i);
- }
- 
- static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_cmpxchg(v, old, new);
- }
- 
- static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_cmpxchg(v, old, new);
- }
- 
-@@ -45,6 +55,8 @@ static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
- #define atomic_try_cmpxchg atomic_try_cmpxchg
- static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
- {
-+	kasan_check_write(v, sizeof(*v));
-+	kasan_check_read(old, sizeof(*old));
- 	return arch_atomic_try_cmpxchg(v, old, new);
- }
- #endif
-@@ -53,254 +65,310 @@ static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
- #define atomic64_try_cmpxchg atomic64_try_cmpxchg
- static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
- {
-+	kasan_check_write(v, sizeof(*v));
-+	kasan_check_read(old, sizeof(*old));
- 	return arch_atomic64_try_cmpxchg(v, old, new);
- }
+ #ifdef CONFIG_KASAN
+-void kasan_check_read(const void *p, unsigned int size);
+-void kasan_check_write(const void *p, unsigned int size);
++void kasan_check_read(const volatile void *p, unsigned int size);
++void kasan_check_write(const volatile void *p, unsigned int size);
+ #else
+-static inline void kasan_check_read(const void *p, unsigned int size) { }
+-static inline void kasan_check_write(const void *p, unsigned int size) { }
++static inline void kasan_check_read(const volatile void *p, unsigned int size)
++{ }
++static inline void kasan_check_write(const volatile void *p, unsigned int size)
++{ }
  #endif
  
- static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return __arch_atomic_add_unless(v, a, u);
+ #endif
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index c81549d5c833..edacd161c0e5 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -333,13 +333,13 @@ static void check_memory_region(unsigned long addr,
+ 	check_memory_region_inline(addr, size, write, ret_ip);
  }
  
- 
- static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
+-void kasan_check_read(const void *p, unsigned int size)
++void kasan_check_read(const volatile void *p, unsigned int size)
  {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_add_unless(v, a, u);
+ 	check_memory_region((unsigned long)p, size, false, _RET_IP_);
  }
+ EXPORT_SYMBOL(kasan_check_read);
  
- static __always_inline void atomic_inc(atomic_t *v)
+-void kasan_check_write(const void *p, unsigned int size)
++void kasan_check_write(const volatile void *p, unsigned int size)
  {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_inc(v);
+ 	check_memory_region((unsigned long)p, size, true, _RET_IP_);
  }
- 
- static __always_inline void atomic64_inc(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_inc(v);
- }
- 
- static __always_inline void atomic_dec(atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_dec(v);
- }
- 
- static __always_inline void atomic64_dec(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_dec(v);
- }
- 
- static __always_inline void atomic_add(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_add(i, v);
- }
- 
- static __always_inline void atomic64_add(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_add(i, v);
- }
- 
- static __always_inline void atomic_sub(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_sub(i, v);
- }
- 
- static __always_inline void atomic64_sub(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_sub(i, v);
- }
- 
- static __always_inline void atomic_and(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_and(i, v);
- }
- 
- static __always_inline void atomic64_and(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_and(i, v);
- }
- 
- static __always_inline void atomic_or(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_or(i, v);
- }
- 
- static __always_inline void atomic64_or(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_or(i, v);
- }
- 
- static __always_inline void atomic_xor(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic_xor(i, v);
- }
- 
- static __always_inline void atomic64_xor(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	arch_atomic64_xor(i, v);
- }
- 
- static __always_inline int atomic_inc_return(atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_inc_return(v);
- }
- 
- static __always_inline s64 atomic64_inc_return(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_inc_return(v);
- }
- 
- static __always_inline int atomic_dec_return(atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_dec_return(v);
- }
- 
- static __always_inline s64 atomic64_dec_return(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_dec_return(v);
- }
- 
- static __always_inline s64 atomic64_inc_not_zero(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_inc_not_zero(v);
- }
- 
- static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_dec_if_positive(v);
- }
- 
- static __always_inline bool atomic_dec_and_test(atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_dec_and_test(v);
- }
- 
- static __always_inline bool atomic64_dec_and_test(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_dec_and_test(v);
- }
- 
- static __always_inline bool atomic_inc_and_test(atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_inc_and_test(v);
- }
- 
- static __always_inline bool atomic64_inc_and_test(atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_inc_and_test(v);
- }
- 
- static __always_inline int atomic_add_return(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_add_return(i, v);
- }
- 
- static __always_inline s64 atomic64_add_return(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_add_return(i, v);
- }
- 
- static __always_inline int atomic_sub_return(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_sub_return(i, v);
- }
- 
- static __always_inline s64 atomic64_sub_return(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_sub_return(i, v);
- }
- 
- static __always_inline int atomic_fetch_add(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_fetch_add(i, v);
- }
- 
- static __always_inline s64 atomic64_fetch_add(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_fetch_add(i, v);
- }
- 
- static __always_inline int atomic_fetch_sub(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_fetch_sub(i, v);
- }
- 
- static __always_inline s64 atomic64_fetch_sub(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_fetch_sub(i, v);
- }
- 
- static __always_inline int atomic_fetch_and(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_fetch_and(i, v);
- }
- 
- static __always_inline s64 atomic64_fetch_and(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_fetch_and(i, v);
- }
- 
- static __always_inline int atomic_fetch_or(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_fetch_or(i, v);
- }
- 
- static __always_inline s64 atomic64_fetch_or(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_fetch_or(i, v);
- }
- 
- static __always_inline int atomic_fetch_xor(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_fetch_xor(i, v);
- }
- 
- static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_fetch_xor(i, v);
- }
- 
- static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_sub_and_test(i, v);
- }
- 
- static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_sub_and_test(i, v);
- }
- 
- static __always_inline bool atomic_add_negative(int i, atomic_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic_add_negative(i, v);
- }
- 
- static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
- {
-+	kasan_check_write(v, sizeof(*v));
- 	return arch_atomic64_add_negative(i, v);
- }
- 
- #define cmpxchg(ptr, old, new)				\
- ({							\
-+	__typeof__(ptr) ___ptr = (ptr);			\
-+	kasan_check_write(___ptr, sizeof(*___ptr));	\
- 	arch_cmpxchg((ptr), (old), (new));		\
- })
- 
- #define sync_cmpxchg(ptr, old, new)			\
- ({							\
--	arch_sync_cmpxchg((ptr), (old), (new));		\
-+	__typeof__(ptr) ___ptr = (ptr);			\
-+	kasan_check_write(___ptr, sizeof(*___ptr));	\
-+	arch_sync_cmpxchg(___ptr, (old), (new));	\
- })
- 
- #define cmpxchg_local(ptr, old, new)			\
- ({							\
--	arch_cmpxchg_local((ptr), (old), (new));	\
-+	__typeof__(ptr) ____ptr = (ptr);		\
-+	kasan_check_write(____ptr, sizeof(*____ptr));	\
-+	arch_cmpxchg_local(____ptr, (old), (new));	\
- })
- 
- #define cmpxchg64(ptr, old, new)			\
- ({							\
--	arch_cmpxchg64((ptr), (old), (new));		\
-+	__typeof__(ptr) ____ptr = (ptr);		\
-+	kasan_check_write(____ptr, sizeof(*____ptr));	\
-+	arch_cmpxchg64(____ptr, (old), (new));		\
- })
- 
- #define cmpxchg64_local(ptr, old, new)			\
- ({							\
--	arch_cmpxchg64_local((ptr), (old), (new));	\
-+	__typeof__(ptr) ____ptr = (ptr);		\
-+	kasan_check_write(____ptr, sizeof(*____ptr));	\
-+	arch_cmpxchg64_local(____ptr, (old), (new));	\
- })
- 
- #define cmpxchg_double(p1, p2, o1, o2, n1, n2)				\
 -- 
 2.13.1.518.g3df882009-goog
 
