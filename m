@@ -1,435 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C86F36B0338
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 21:22:03 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id k68so57772783pgc.13
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 18:22:03 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f35si3229146plh.332.2017.06.16.18.22.02
+	by kanga.kvack.org (Postfix) with ESMTP id CBB3F6B02F3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 22:55:53 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id e187so58934516pgc.7
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 19:55:53 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id i127si1082777pgc.170.2017.06.16.19.55.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 18:22:02 -0700 (PDT)
-Subject: [RFC PATCH 2/2] mm, fs: daxfile,
- an interface for byte-addressable updates to pmem
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 16 Jun 2017 18:15:35 -0700
-Message-ID: <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 16 Jun 2017 19:55:53 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id u62so2977905pgb.0
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 19:55:52 -0700 (PDT)
+Date: Sat, 17 Jun 2017 10:55:49 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/2] mm/memory_hotplug: remove duplicate call for
+ set_page_links
+Message-ID: <20170617025549.GA7538@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170616092335.5177-1-richard.weiyang@gmail.com>
+ <20170616092335.5177-2-richard.weiyang@gmail.com>
+ <20170616103350.e065a9838bb50c2dc70a41d8@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="3MwIy2ne0vdjdPXF"
+Content-Disposition: inline
+In-Reply-To: <20170616103350.e065a9838bb50c2dc70a41d8@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@kernel.org, linux-mm@kvack.org
 
-To date, the full promise of byte-addressable access to persistent
-memory has only been half realized via the filesystem-dax interface. The
-current filesystem-dax mechanism allows an application to consume (read)
-data from persistent storage at byte-size granularity, bypassing the
-full page reads required by traditional storage devices.
 
-Now, for writes, applications still need to contend with
-page-granularity dirtying and flushing semantics as well as filesystem
-coordination for metadata updates after any mmap write. The current
-situation precludes use cases that leverage byte-granularity / in-place
-updates to persistent media.
+--3MwIy2ne0vdjdPXF
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-To get around this limitation there are some specialized applications
-that are using the device-dax interface to bypass the overhead and
-data-safety problems of the current filesystem-dax mmap-write path.
-QEMU-KVM is forced to use device-dax to safely pass through persistent
-memory to a guest [1]. Some specialized databases are using device-dax
-for byte-granularity writes. Outside of those cases, device-dax is
-difficult for general purpose persistent memory applications to consume.
-There is demand for access to pmem without needing to contend with
-special device configuration and other device-dax limitations.
+On Fri, Jun 16, 2017 at 10:33:50AM -0700, Andrew Morton wrote:
+>On Fri, 16 Jun 2017 17:23:35 +0800 Wei Yang <richard.weiyang@gmail.com> wr=
+ote:
+>
+>> In function move_pfn_range_to_zone(), memmap_init_zone() will call
+>> set_page_links for each page.
+>
+>Well, no.  There are several types of pfn's for which
+>memmap_init_zone() will not call
+>__init_single_page()->set_page_links().  Probably the code is OK, as
+>those are pretty screwy pfn types.  But I'd like to see some
+>confirmation that this patch is OK for all such pfns, now and in the
+>future?
+>
 
-The 'daxfile' interface satisfies this demand and realizes one of Dave
-Chinner's ideas for allowing pmem applications to safely bypass
-fsync/msync requirements. The idea is to make the file immutable with
-respect to the offset-to-block mappings for every extent in the file
-[2]. It turns out that filesystems already need to make this guarantee
-today. This property is needed for files marked as swap files.
+Hmm... when memmap_init_zone() is called during hotplug, this means=20
+(context !=3D MEMMAP_EARLY).  So it will jump to the end and call
+__init_single_page().
 
-The new daxctl() syscall manages setting a file into 'static-dax' mode
-whereby it arranges for the file to be treated as a swapfile as far as
-the filesystem is concerned, but not registered with the core-mm as
-swapfile space. A file in this mode is then safe to be mapped and
-written without the requirement to fsync/msync the writes.  The cpu
-cache management for flushing data to persistence can be handled
-completely in userspace.
+Is my understanding corrent?
 
-[1]: https://lists.gnu.org/archive/html/qemu-devel/2017-06/msg01207.html
-[2]: https://lkml.org/lkml/2016/9/11/159
+>> This means we don't need to call it on each
+>> page explicitly.
+>>=20
+>> This patch just removes the loop.
+>>=20
+>> ...
+>>
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -914,10 +914,6 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+>>  	 * are reserved so nobody should be touching them so we should be safe
+>>  	 */
+>>  	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTP=
+LUG);
+>> -	for (i =3D 0; i < nr_pages; i++) {
+>> -		unsigned long pfn =3D start_pfn + i;
+>> -		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+>> -	}
+>> =20
+>>  	set_zone_contiguous(zone);
+>>  }
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- arch/x86/entry/syscalls/syscall_64.tbl |    1 
- include/linux/dax.h                    |    9 ++
- include/linux/fs.h                     |    3 +
- include/linux/syscalls.h               |    1 
- include/uapi/linux/dax.h               |    8 +
- mm/Kconfig                             |    5 +
- mm/Makefile                            |    1 
- mm/daxfile.c                           |  186 ++++++++++++++++++++++++++++++++
- mm/page_io.c                           |   31 +++++
- 9 files changed, 245 insertions(+)
- create mode 100644 include/uapi/linux/dax.h
- create mode 100644 mm/daxfile.c
+--=20
+Wei Yang
+Help you, Help me
 
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 5aef183e2f85..795eb93d6beb 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -339,6 +339,7 @@
- 330	common	pkey_alloc		sys_pkey_alloc
- 331	common	pkey_free		sys_pkey_free
- 332	common	statx			sys_statx
-+333	64	daxctl			sys_daxctl
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 5ec1f6c47716..5f1d0e0ed30f 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -4,8 +4,17 @@
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/radix-tree.h>
-+#include <uapi/linux/dax.h>
- #include <asm/pgtable.h>
- 
-+/*
-+ * TODO: make sys_daxctl() be the generic interface for toggling S_DAX
-+ * across filesystems. For now, mark DAXCTL_F_DAX as an invalid flag
-+ */
-+#define DAXCTL_VALID_FLAGS (DAXCTL_F_GET | DAXCTL_F_STATIC)
-+
-+int daxfile_activate(struct file *daxfile, unsigned align);
-+
- struct iomap_ops;
- struct dax_device;
- struct dax_operations {
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 3e68cabb8457..3af649fb669f 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1824,8 +1824,10 @@ struct super_operations {
- #define S_NOSEC		4096	/* no suid or xattr security attributes */
- #ifdef CONFIG_FS_DAX
- #define S_DAX		8192	/* Direct Access, avoiding the page cache */
-+#define S_DAXFILE	16384	/* no truncate (swapfile) semantics + dax */
- #else
- #define S_DAX		0	/* Make all the DAX code disappear */
-+#define S_DAXFILE	0
- #endif
- 
- /*
-@@ -1865,6 +1867,7 @@ struct super_operations {
- #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
- #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
- #define IS_DAX(inode)		((inode)->i_flags & S_DAX)
-+#define IS_DAXFILE(inode)	((inode)->i_flags & S_DAXFILE)
- 
- #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
- 				 (inode)->i_rdev == WHITEOUT_DEV)
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 980c3c9b06f8..49e5cc4c192e 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -701,6 +701,7 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
- 			unsigned long arg4, unsigned long arg5);
- asmlinkage long sys_swapon(const char __user *specialfile, int swap_flags);
- asmlinkage long sys_swapoff(const char __user *specialfile);
-+asmlinkage long sys_daxctl(const char __user *path, int flags, int align);
- asmlinkage long sys_sysctl(struct __sysctl_args __user *args);
- asmlinkage long sys_sysinfo(struct sysinfo __user *info);
- asmlinkage long sys_sysfs(int option,
-diff --git a/include/uapi/linux/dax.h b/include/uapi/linux/dax.h
-new file mode 100644
-index 000000000000..78a41bb392c0
---- /dev/null
-+++ b/include/uapi/linux/dax.h
-@@ -0,0 +1,8 @@
-+#ifndef _UAPI_LINUX_DAX_H
-+#define _UAPI_LINUX_DAX_H
-+
-+#define DAXCTL_F_GET    (1 << 0)
-+#define DAXCTL_F_DAX    (1 << 1)
-+#define DAXCTL_F_STATIC (1 << 2)
-+
-+#endif /* _UAPI_LINUX_DAX_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index beb7a455915d..b874565c34eb 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -450,6 +450,11 @@ config	TRANSPARENT_HUGE_PAGECACHE
- 	def_bool y
- 	depends on TRANSPARENT_HUGEPAGE
- 
-+config DAXFILE
-+	def_bool y
-+	depends on FS_DAX
-+	depends on SWAP
-+
- #
- # UP and nommu archs use km based percpu allocator
- #
-diff --git a/mm/Makefile b/mm/Makefile
-index 026f6a828a50..38d9025a3e37 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -56,6 +56,7 @@ endif
- obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
- 
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
-+obj-$(CONFIG_DAXFILE)	+= daxfile.o
- obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
- obj-$(CONFIG_ZSWAP)	+= zswap.o
- obj-$(CONFIG_HAS_DMA)	+= dmapool.o
-diff --git a/mm/daxfile.c b/mm/daxfile.c
-new file mode 100644
-index 000000000000..fe230199c855
---- /dev/null
-+++ b/mm/daxfile.c
-@@ -0,0 +1,186 @@
-+/*
-+ * Copyright(c) 2017 Intel Corporation. All rights reserved.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of version 2 of the GNU General Public License as
-+ * published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+#include <linux/dax.h>
-+#include <linux/slab.h>
-+#include <linux/highmem.h>
-+#include <linux/pagemap.h>
-+#include <linux/syscalls.h>
-+
-+/*
-+ * TODO: a list to lookup daxfiles assumes a low number of instances,
-+ * revisit.
-+ */
-+static LIST_HEAD(daxfiles);
-+static DEFINE_SPINLOCK(dax_lock);
-+
-+struct dax_info {
-+	struct list_head list;
-+	struct file *daxfile;
-+};
-+
-+static int daxfile_disable(struct file *victim)
-+{
-+	int found = 0;
-+	struct dax_info *d;
-+	struct inode *inode;
-+	struct file *daxfile;
-+	struct address_space *mapping;
-+
-+	mapping = victim->f_mapping;
-+	spin_lock(&dax_lock);
-+	list_for_each_entry(d, &daxfiles, list)
-+		if (d->daxfile->f_mapping == mapping) {
-+			list_del(&d->list);
-+			found = 1;
-+			break;
-+		}
-+	spin_unlock(&dax_lock);
-+
-+	if (!found)
-+		return -EINVAL;
-+
-+	daxfile = d->daxfile;
-+
-+	inode = mapping->host;
-+	inode->i_flags &= ~(S_SWAPFILE | S_DAXFILE);
-+	filp_close(daxfile, NULL);
-+
-+	return 0;
-+}
-+
-+static int claim_daxfile_checks(struct inode *inode)
-+{
-+	if (!S_ISREG(inode->i_mode))
-+		return -EINVAL;
-+
-+	if (!IS_DAX(inode))
-+		return -EINVAL;
-+
-+	if (IS_SWAPFILE(inode) || IS_DAXFILE(inode))
-+		return -EBUSY;
-+
-+	return 0;
-+}
-+
-+int daxfile_enable(struct file *daxfile, int align)
-+{
-+	struct address_space *mapping;
-+	struct inode *inode;
-+	struct dax_info *d;
-+	int rc;
-+
-+	if (align < 0)
-+		return -EINVAL;
-+
-+	mapping = daxfile->f_mapping;
-+	inode = mapping->host;
-+
-+	rc = claim_daxfile_checks(inode);
-+	if (rc)
-+		return rc;
-+
-+	rc = daxfile_activate(daxfile, align);
-+	if (rc)
-+		return rc;
-+
-+	d = kzalloc(sizeof(*d), GFP_KERNEL);
-+	if (!d)
-+		return -ENOMEM;
-+	INIT_LIST_HEAD(&d->list);
-+	d->daxfile = daxfile;
-+
-+	spin_lock(&dax_lock);
-+	list_add(&d->list, &daxfiles);
-+	spin_unlock(&dax_lock);
-+
-+	/*
-+	 * We set S_SWAPFILE to gain "no truncate" / static block
-+	 * allocation semantics, and S_DAXFILE so we can differentiate
-+	 * traditional swapfiles and assume static block mappings in the
-+	 * dax mmap path.
-+	 */
-+	inode->i_flags |= S_SWAPFILE | S_DAXFILE;
-+	return 0;
-+}
-+
-+SYSCALL_DEFINE3(daxctl, const char __user *, path, int, flags, int, align)
-+{
-+	int rc;
-+	struct filename *name;
-+	struct inode *inode = NULL;
-+	struct file *daxfile = NULL;
-+	struct address_space *mapping;
-+
-+	if (flags & ~DAXCTL_VALID_FLAGS)
-+		return -EINVAL;
-+
-+	name = getname(path);
-+	if (IS_ERR(name))
-+		return PTR_ERR(name);
-+
-+	daxfile = file_open_name(name, O_RDWR|O_LARGEFILE, 0);
-+	if (IS_ERR(daxfile)) {
-+		rc = PTR_ERR(daxfile);
-+		daxfile = NULL;
-+		goto out;
-+	}
-+
-+	mapping = daxfile->f_mapping;
-+	inode = mapping->host;
-+	if (flags & DAXCTL_F_GET) {
-+		/*
-+		 * We only report the state of DAXCTL_F_STATIC since
-+		 * there is no actions for applications to take based on
-+		 * the setting of S_DAX. However, if this interface is
-+		 * used for toggling S_DAX presumably userspace would
-+		 * want to know the state of the flag.
-+		 *
-+		 * TODO: revisit whether we want to report DAXCTL_F_DAX
-+		 * in the IS_DAX() case.
-+		 */
-+		if (IS_DAXFILE(inode))
-+			rc = DAXCTL_F_STATIC;
-+		else
-+			rc = 0;
-+
-+		goto out;
-+	}
-+
-+	/*
-+	 * TODO: Should unprivileged users be allowed to control daxfile
-+	 * behavior? Perhaps a mount flag... is -o dax that flag?
-+	 */
-+	if (!capable(CAP_LINUX_IMMUTABLE)) {
-+		rc = -EPERM;
-+		goto out;
-+	}
-+
-+	inode_lock(inode);
-+	if (!IS_DAXFILE(inode) && (flags & DAXCTL_F_STATIC)) {
-+		rc = daxfile_enable(daxfile, align);
-+		/* if successfully enabled hold daxfile open */
-+		if (rc == 0)
-+			daxfile = NULL;
-+	} else if (IS_DAXFILE(inode) && !(flags & DAXCTL_F_STATIC))
-+		rc = daxfile_disable(daxfile);
-+	else
-+		rc = 0;
-+	inode_unlock(inode);
-+
-+out:
-+	if (daxfile)
-+		filp_close(daxfile, NULL);
-+	if (name)
-+		putname(name);
-+	return rc;
-+}
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 5cec9a3d49f2..35160ad9c51f 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -244,6 +244,37 @@ static int bmap_walk(struct file *file, const unsigned page_size,
- 	goto out;
- }
- 
-+static int daxfile_check(sector_t block, unsigned long page_no,
-+		enum bmap_check type, void *none)
-+{
-+	if (type == BMAP_WALK_DONE)
-+		return 0;
-+
-+	/*
-+	 * Unlike the swapfile case, fail daxfile_activate() if any file
-+	 * extent is not page aligned.
-+	 */
-+	if (type != BMAP_WALK_FULLPAGE)
-+		return -EINVAL;
-+	return 0;
-+}
-+
-+int daxfile_activate(struct file *daxfile, unsigned align)
-+{
-+	int rc;
-+
-+	if (!align)
-+		align = PAGE_SIZE;
-+
-+	if (align < PAGE_SIZE || !is_power_of_2(align))
-+		return -EINVAL;
-+
-+	rc = bmap_walk(daxfile, align, ULONG_MAX, NULL, daxfile_check, NULL);
-+	if (rc)
-+		pr_debug("daxctl: daxfile has holes\n");
-+	return rc;
-+}
-+
- static int swapfile_check(sector_t block, unsigned long page_no,
- 		enum bmap_check type, void *_sis)
- {
+--3MwIy2ne0vdjdPXF
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZRJo1AAoJEKcLNpZP5cTdGaAP/3woBTIvmTzfFxEPaOyTVz7u
+c8eS6rv4MaH78r0hJUPey2x7WYEVxNVuZP4jp2MmgpmQn3yhHSt3ssef0frkFouL
+oiICdQEwu/5lgJ7ZOEHL8So+Tvb/a4h6NPJ3BhgnvXkaOMz5kwqXSZAtZo0xehiK
+H/Vitt9Cr3aYZ9jbVl6oq2EQBIhJqzErmgI6Xe9xedS7qzLx0yA4AYFMFv6zL9/C
+etzLCNOsXubrnXUpzFeYsTjNyvE7i9NztPmZ8S7iIYhcC6JNIQqUFgEskp5zoKC4
+NMngRRmgcqiiMTTLO0QtFW3Om1HHBxihzreOrP6dNpsjw3l3RiARtztgIGmufNEr
+Jn1OFji2vSrtdYXx6Hk7spafKofdTDTt6M4iTRItO6tR1V8nkZJZERQBW/VKoPXA
+ml1kJ37vwpUYFl7Bcq5niV4n44YpvyMTmmgbGaObc3pr05S7Na0fek6n2dPQhORk
+0EJ80Rq0PGXlBOYJcXRmOD9Uw6/lTKDSewNzEzMngK0hCK9CYrgNcz3cRa8jkJL7
+Uk5NqYb+WZSoH5z2EgHlyaiXPnVFGUj6a5vJTzQEbX47ldzc6Rd4IkGXx5WX0FuO
+gqE5HHK4UTP7TtK9Fpl1GA0XgX/oMMeHCtjE7vGuiSqNKLrjo5ju/mDZ5PykYtDs
+E7XiPC/iINre09IqCFU5
+=8Xvk
+-----END PGP SIGNATURE-----
+
+--3MwIy2ne0vdjdPXF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
