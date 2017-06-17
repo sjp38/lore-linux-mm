@@ -1,414 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA126B0317
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 16:59:58 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y19so8829425wrc.8
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 13:59:58 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a5si3348344wrc.78.2017.06.16.13.59.55
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 304006B02F3
+	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 20:04:30 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u36so34360293pgn.5
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 17:04:30 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l7si3324029pln.222.2017.06.16.17.04.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 13:59:56 -0700 (PDT)
-Date: Fri, 16 Jun 2017 13:59:53 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2017-06-16-13-59 uploaded
-Message-ID: <594446c9.eAH/wqFVRkHpWQ7B%akpm@linux-foundation.org>
+        Fri, 16 Jun 2017 17:04:29 -0700 (PDT)
+Date: Sat, 17 Jun 2017 08:14:09 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 38/317] warning: (MN10300 && ..) selects
+ HAVE_NMI_WATCHDOG which has unmet direct dependencies (HAVE_NMI)
+Message-ID: <201706170807.xkDnmZ42%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="sdtB3X0nJg68CQEu"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
-
-The mm-of-the-moment snapshot 2017-06-16-13-59 has been uploaded to
-
-   http://www.ozlabs.org/~akpm/mmotm/
-
-mmotm-readme.txt says
-
-README for mm-of-the-moment:
-
-http://www.ozlabs.org/~akpm/mmotm/
-
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Don Zickus <dzickus@redhat.com>, Babu Moger <babu.moger@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+--sdtB3X0nJg68CQEu
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   8c91e2a1ea04c0c1e29415c62f151e77de2291f8
+commit: 590b165eb905ab322bb91f04f9708deb8c80f75e [38/317] kernel/watchdog: split up config options
+config: mn10300-asb2364_defconfig (attached as .config)
+compiler: am33_2.0-linux-gcc (GCC) 6.2.0
+reproduce:
+        wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        git checkout 590b165eb905ab322bb91f04f9708deb8c80f75e
+        # save the attached .config to linux build tree
+        make.cross ARCH=mn10300 
 
-To develop on top of mmotm git:
+All warnings (new ones prefixed by >>):
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+warning: (MN10300 && HAVE_HARDLOCKUP_DETECTOR_ARCH) selects HAVE_NMI_WATCHDOG which has unmet direct dependencies (HAVE_NMI)
 
-To rebase a branch with older patches to a new mmotm release:
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+--sdtB3X0nJg68CQEu
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
 
+H4sICMtzRFkAAy5jb25maWcArFxvc9s2k3//fApeenPTzlwaW3Zc527yAgJBCTVJMASoP765
+4Si20mhqS34kuW2+/e2CpAiSC6XPzHUmtYRdAAtgsfjtYqEf/vFDwF6Pu+fVcfOwenr6Fvy2
+3q73q+P6MfiyeVr/dxCqIFUmEKE0PwNzvNm+/vXueXt5cXVxEVz/fDn6+eLt/uF9cLfeb9dP
+Ad9tv2x+e4UWNrvtP374B1dpJCdlktoKH79BE3URS66uylGwOQTb3TE4rI890pVLagnX5Qha
+qb+LPGemSMpUiLA0qsxFrFhYJknBTd6ywXe356mcTBORkF2nRcKIjvO5Fkk5EanIJS91JtNY
+8bu2h4bCWSzHIJMoQxGz5ZBhOhfQuxkSxsWkLfxUSH4XS+3wsZxPyynTpYzVZFQWV6POkJTJ
+4mJS8qwgpA9FVH+ybb5597T5/O559/j6tD68+/ciZYnAqRNMi3c/P9gVfNPUlfmncq5yHCss
+5w/BxOrHEzb/+tIusEylKUU6Azmxl0Saj1ejhshzpXXJVZLJWHx886aVuy4rjdCGEBwmmcUz
+kWupUqxHFJesMKqdJhgqK2IDE6INjuvjmx+3u+36p1NdvdQzmfG2Rl2Af7mJ2/JMabkok0+F
+KARdOqhSjRNUS+XLkhnD+LQlRlOWhrFwV63QAtSF3gIFbDiXYicfFiM4vH4+fDsc18/t5Dc6
+hGulp2pO6CWqq5iJ1OhmIc3meb0/UM0ZUL5SpQKachQwVeX0HhcsgbVwVe++zKAPFUpOrGBV
+S1YDd8var7gdQf009JvAmjbygSq/M6vD78ERBA1W28fgcFwdD8Hq4WH3uj1utr/1JIYKJeNc
+FamRqbOZxjoss1xxAWsDdOMK36eVM8rsGKbvtGF27pyiao83bbqEBVEmVVc6O8icF4EerkCW
+C5FkpgSyKy18LcUCZpvaK7pibrqEFpqiU307DmyFsnDQNowxjtsldijWwGox4ePaKrVtYkfI
+YnLGBanL40LGYTmW6YiTdHlXfSANAFaPQKtlZD5eXrvluN4JW7j0UTuBMjV3pWaR6Ldxddqt
+k1wVmXYHA1uXT0gZK+ZS86kIzzFkMtTn6HlIni81NYLJvBe5KxKMUguj/XVCMZO8Y1ZqAtRE
+NTwnTSjg2CEZtMIdVXMxw+hWpoLfZQqmGvevUTm9/miHdQbaQc+MnVNrxm13NM9SRxrEhY3B
+4XQNKQWuD9xW7WLcoTN7NOVUDc5LlYHRkfeijFSOZgz+JCztTWePTcMHav/1DgOWwuEkUxUK
+x2xM2UyUhQwvbxz7lEUOorHbu/3e403gbJOgEA640RNhEjQwKADs387JBpPWFruzCaI2FGIs
+1Sl3sseninfArpcJpY3VjnNG5eIZEUdgVnLnDBgD1iijwhU3KoxYOHUy1RmMnKQsjkLHxKF4
+boE932xBqwNZdGaYGmGgs2LSARIsnEktmsqdWcD5tygjorQKmhyzPJfdbQyFIgw9tiPjlxfX
+g8O+RtTZev9lt39ebR/WgfhjvYUjkMFhyPEQhAO8OiurdmZJNQelPWZg7SilB8TFTDnOnbXS
+MRt39CMuaFSiY+UjsLG1Xng8lDkgHUXja5hPA0gaTUoJCE5GEvYzwDhSo1Qk4+qwPNVXVSm1
+Ae3eaugdrYWyscf42Eo312NArwDdJylaIo5wwNdBmshyzgyfhmrS29cWottjcKqUM722fM5g
+XRBnZiwHvWpAbdfOwAHMUVojOFhTSrlUWMQAlUAF7aZCo+eA04lhY0DTMWgBqOyoI51YwBjN
+NBess0NaycG5mNLns2awnQEgZZIQScHZDptTFzoTaXjVSlMTGDfShRO2L4CAXE1FjsoKJyJ4
+aCzrnXrIIyLQD4lMUXRm/WyTM2iimkAaUCMP2nEFZqS8E3kqYnDrFv8Sc+Ne+Cuhh6YNQG7z
+t/pw2Kul7bNXPhdXs7efVwdwyn+vjMLLfgfueYWBhy0if719YHK6pq87c41/gGvQLAhlKGF7
+yzRyzGMOAqO9dg83a9N1gofNRU9hOyCrGigcpRzBGSONaMVTpEj3Vq7I5OiAr95itN7U7QBC
+PvmRnnlqOCUNlGoymtW8ZzYcjCwTEBY2bVje9c9PB6+oru42x00qUzCDwoYd7JjdyEMLGa0q
+ZKvt6rDbbh6COuQSVL7FyV9vBa/o2DzYPj0eXV1c0SMcMr6nlmzAdnPtAJeais4WfBnN9cXF
++4shHdWXGZVIBF3aNuaMNSuGNTh42aKcj5mdlYHUNRkMX3F2dBVfCLYOLCipkh1GkVo+f48A
+I9lElOMleF2UZ+PjzsXEN0aZzr7DEcWFnnp5cG4rPp0qlfka8RBNPLbHDng4J21L1s+7/bfg
+afVt93oMdi8Y9Du0bmxjAVlS2QYWhrhHPl789eGi+q8NHwFcyQtweWf26LP8BF/dIhge02vt
+csh1LxM7qd2u31/80mlyrJSpzo1SwSkjDPBEJBmBPxAvW6JOnIlKc+uswbHbArvajwdXgHaN
+GoaZigGxsXxJ4iDL4xzzdSWL8igNLDSgpvLXnuK5ERsYAwVw7svR+06QFkquuqy9VuhmPkIz
+pzmy7t00xxgNJWxuqLhRQ52HFc5vNC5cHza/beer/TrIuAQUDB/068vLbg+i1SYQysX28WW3
+2R5dgwflsG1D6696YDhnXUexUvLakG4Qb29t6HO/gT8Dde/YONxsxix1Qhi5LsPl9xhGxGbE
+ck8x6EWqlRtw65AvqEWoKNVU355ZDpfPJxYxnqq8qnY58gowGsy9xDnfv74cg/36n6/rwxGQ
+z2a33xy/OdNvOf/n3/4XLyrEfwUseNr9ud4H29fnz+v9u6f1HwCYNtvHzcPquD4Eq+Dr5rev
+QD+19KNVYlt6OP5ncIPfsInD8aem9RL+S3fbt8+rw++rz0/rShmsYLb9AzI0zObrOviye4Im
+AKAFz68g9ec1jik47ojuj19XW+jvYfVUbvb/LB83B+zhx59szBP6fPi6eal17v+5h6Hqgmcr
+AfFiINk6ER8vqw7fuhORfGcS6jYBsxSLkseybmr0t2SHZYa9BR93+3odu8PoterGgEG5HMlP
+sUJhpngeGId204ZbzHDMJ2oUM9OJEGBBiSEd9PLLns9iATUeF0hDtGw5KTSdxQCRMhOrKmqt
+W1mtd95zmBI5yZnpOYvZdKntoVaayn2lYu95dZEEi9gECCTgdqPQm+s4yDohqjdXKeibgRCp
+7e7j9cWHG8dPiwVLLWwgLep9phSNqu/HBQ3c760DoTyR4hCgdoaHOrrZd3DKDSxGZnXmGWDw
+b+vn9dZFJe3kJYNq4q/1w+vRarWNthwdu46uT2LQ3+5EtLoBLfxWhkWSneYN/fMpeNtVDK3b
+lua5zMxAe5gq6KOprpZITR2W2Dd27WARYZoTM10f/9ztf8fNNjixQNfuREeMqgRwMAlaAY4v
+OpEw+D7gPVEXUZ7YYBkdFRboIlOAR1bSN9+yKurJWffiAcpZOMNgbVjmMG+CipcAU5ZmvWpQ
+UoZTnnn57S6mauUsp+PT1rxk8hxxgvohkmJB7VTLUZoiBdza6zexg/ME01JYe3UnPcEtbLYI
+m3a9LJGiXaOa1kpG94LLVTJP6AhpQtPzIqtho83z060SDQfgshDTdqqZoLEGY5HqTOX03uoz
++yerxzkW4kyL3m1heIYQbXJSX+rGseHhxVg6l9WNbWnoH988vH7ePLzptp6E7zV5nSaz2U1X
+vWY39eZBryKiR4NM1Q2INhgr8oRccNQ35xTh5qwm3JxVBZQhkdnNmeoeTelxfZfhX1Gbm7+v
+Nzd/V3FcRrs09eWTL0xup0ZLM1hXKCtvyIsvS05DOEwsRDHLTAxqnxsO0n1GoyF+twFr1DPM
+/cBIise0WEa/AazGKSY3ZTz/Xn+WbZowGlnAxGOWC3DxhOV0CBl3dWZg48VMaxktzzYEAM1C
+Um1YkvWAisscydh4TkiwuyHnvg0BGMLQtNxzBQ3TTQ8eUC5ZHo88PYxzGU68dzDW+mnmqlRd
+RDY2i1la3l6MLj+R5FDw1LNd4pjTCWQy88TcDYvptV2M3tNdsIy+8cqmyifWTazmGUtpyYQQ
+ONb3114V8+cYhJyWZQwLyBCfz0iyykQ603NpOG2bZ3jZ38sxcCUCl+vOf5wlmQcXTLUf+FXS
+hIIWGDniK/CvNB5M57hSrqk7qTxzIHce2dwe4VwmL7ppH3Weg93fuVRkbw5Ptf8pw4rUHDNS
+9LLsXl+PP8UddA6upJrXiXJdoB4c14dj72bHSnZnJoJWqilLchb6BPdpYh7S+3Hsud6KYGi5
+z4JE5R333PiaXLCkuvakIPpcYuqh7i5INMFNcklvSTkeEKvJampt1+vHA8YQPq+D9Radukf0
+6gIw/pbBiXvUJRjhtRegNqOoCvS2Pc4llNKmNrqTnnsjXLMPtPnkTNJQi4tsWvpSAtOInvtM
+wwkTe1JvEGFHNI06MhtDo011GeBkEuYKxOtlQlizLmZoIKigIVvaG4Oaow3h/rF5WAfhfvNH
+lb/Q5pVuHuriQPVd1aLKbJiKOHOzXzrFoGRm2skvha5NkkXUbT6seBqyGKx4J7Jum4tknswZ
+OGw2dc2J/8zthWU3tePELNP65oHoTSwATZ5YOzKeGrW+cjOUiMXxmJEXghgfmdvUJsfxd4Y8
+LuD/uZx5YEXNIGa5B3VVDJiSWzdT5iJRM1qLLBsDT5Q3zDbbwuOv6nIKYDOfSa1o4U4Jq1lR
+Z7Z5ZExYqacwlSHm9kXdoVqFGr8egkerao4WwZ/UXjC5a654eUqNbVTXdK/2TGgHSukR0kAM
+e08ERq7XyokUgpnDjpfVPe/Ht5feBsoitSEwTHTrS9FlxGQOlcY0EkV2noT26tiye7lY/suQ
+w05icYC9mFSZ4jbtyOxX28OTze4P4tW3XgISNqZU5u8Je5HoyMC6Vcf7oMucJe9ylbyLnlaH
+r4ENfj+eTIU7tEh2Z/pXAVDRKl+3HFSqJIqhPiKmOs1DD4mp0vNuhLehjPGm1ogS6f6pjzBE
+TTP22CZCJcLky64MGHYdM4BecxmaaXl5ljo6S73uj6JHv/WOoi8E7YATnFejMwOWl8PpliOi
+bCC4LfWLqzwOy6lqagBsLKho+UknEjj9BvsOKXBiULm7DbkwMh5sV0aDIkvzpMjZHTnWvUyc
+6ipy9fKCgdx6Q1hQY3fI6gHM3GArYjgFRotLgy6oz3rhXUIy1PS6uM4Y9G/pmJneMK0cev30
+5e3DbntcbbaAv4C1NsfOdu40pONzs5VNz1HhHyVDuDn8/lZt33KcowHu6LQQKj7x5L8ANQWs
+4Fe6VPTptvU4C8M8+I/q7yjIACA/VwkTnhmoKvi60RnaJD+9GEuSpmisCaa4H9uqdGxzeHAO
+zvbwFikc2hqfEF3Fs4uRx0UtkmSJd2kkVaQ8VroArKQRBHgzwn1LzUekyEJkuJkOpzyAtkNL
+KT9c8cXNoJpZ/7U6BHJ7OO5fn21i7eHrag+6esRDDpsKnkB3g0eYkc0LfmzAKns6rverIMom
+LPiy2T//ifkIj7s/t0+71WNQvaxqePEK+ylIJLeIpNK+hqY5OALD4pnKiNK2oenucPQS+Wr/
+SHXj5d+97HdoPcCW6OPquAYrc7o8+5ErnfzUx+oo36m5dq751OOBLmKbhOMlsqhowGMPPNTi
+g5Nf2452jRtdASIGSzv5y1jWe2jRJdZRDdqFr3GnewPrQA0bAaiu/lqXWaWhL8ZndwS9Gz4V
+LAZX0x8mMcJn8xjHsBkdzln4KFBLC2/8k1dpIz4yxjP8YVFlHw6lJocPngGBt+krL2d2Vu3z
+OY8EM2Ho6FUaJ924eKWT6GK3+/ixq8BwLhz3m8+v+MxV/7k5PnwN2B4O0uP64fi6Xw8BZ5ND
+0FUDcBpClYM/xngujbCv/dqQCMZ1WWk0FSd1ayfs3r3ud0mgIKmRjCbmvO+KN5QiVzmFVOwk
+g6fZe+ACajE+L+M4BwcVcEBH56/pEOaYJ+jE0YAh7BGGXYl7PpUZOWIL3mjK7ej9YkGSEpbP
+RPf5SzJLfMGyBBWRlWMqH8JtVPK8e+N4p29v31+WCfnOxKmZMlCIRJKiwsdcpeAKkNTbqw+d
+1C1QSUW+uGyroH3B13xutU9QUIreNciwag5LqJkmJckxXJyTJM0SXXRfbOjFBPyl3u4lagrx
+iW5SxSyPYpbT06IT3dkHOuEfLulgnSVdUvfv2AiS2h6akjqpXqk7ei60QV1QHQlMAtP7/RHP
+PBt7Lu/TblJGVVLO3196cjFPDFdkQqYr7zKFI3bZieKFc14u4gmtE7hViDeGtngsDXh81EUz
++A6xHJ/ShKUMoOQM/genC+vQseXaCvoZzO3F1cJLBoP0y2Jxln77yzl6bfy8DFyCUfWLFzKY
+vDPVw+z26vb69jz95hcvPZIL4Z89ybO40H4y2tRyMWdLL0sMeEmYy4vLS+7nWRgvrbbAfro1
+pmfJCs+E8xxoVb0cKauf8vgYPp2tngs8zO+8dDQWfqIRlxcLOiyBCAE2p+T+BZoBsNCYdu+h
+L/CJ3KKcwB4b5fh/2tnLPO9q427Okt2T6F68PWwe10Ghxw3itlzr9WN9lYKU5sKKPa5ewB8a
+YvM5ANGuHauuesp5SMUikP2EYcIEZry1jx2a6QItMx0+ZCarJS58cEkOviGoXGquaFIPkvRJ
+ue6GhPBXKchIoFuxRSwUUYSSeWcmZ/VFC0WrlNhD1JImuD9B4pYbD//9MmSnn3AQ9u4tmG/w
++uzHYSLiT3hHd1ivg+PXhos4G+a+C0wdDnG/3L68Hr3OokyzopsogwVlFGE+b+x7vlUxoYvj
+u4quOLS947xLPEHhiilhJpeLPtMp2P6ESd82r/rLqheAqesrfEZ2Vo5f1fI8g5h9j97bTc7U
++qNoVd07sRyr3jMKagjn5cdEMzpRo2KxOUO+HCrLoAo+1XCweK7Ma0l6+bStxU/ktfXyh8Zx
+tX+04R75TgWoXb0gmS9/YMISQQav+NfVfvWA9nNwW2VM5wcNZpTrhCm4HwA8mKUDUGMxYXzp
+LaxfDo3e33QlhwMyVWl1MepZwbScaDokYR8+l5qOqoC+VYn0LaoRs7vejzDVYWP7uGbggdfy
+CZbHS+76yzXhduQ+J3QKnV+NcO56+uO2nBHabEp8l4n3X9e4xDQvC3sHeE1Rc/zxl0ScYxEL
+A4a0e+/n0hOWYmpJTl5Fuoz2chQDsb6WQoGvzL2h2o7cnsytztxpOjrU6XL+/a7M6PZ2+AIa
+394gPajfXllEQsR766ZwgmNpyMcXFUc3ed8pdNa336rmPPUAuZqjjvngyzsU4W+wfpctpw1U
+TYZZL+Pse41gqsC48CQFgjmofruDtpMZ4OLql6voqN50fu7nHvKrDzd0mMhw+Ec8xJAjTi2s
+9Px2kM5owKv/r7Fra24b18F/xY+7M2c7Tdrudh/6QN0sNbpVl9jOi8fruImnTZyxnTmn//4A
+oGSJFMDszO6kJiCK4gUEQeADtJtvr+kwpmNGypp7Z8nYorGsg8g7EHqWGXrYlLPtz8P2B1td
+U66vPn3+rMG4ppcYWlnSJ2eK/RJdSUda0+b+fo+6FKwJevHp3fiV8zIpJHeiBe9dVRaLEHTl
+W362aGoV1sLmq+l1W5aCU0K8sKy1w4SIwypTvBDpATe49Vx7CFdTJx6tWb2HYAD8aVbvf+63
+h+eZt9n+eAHFamdIipqzeXp+pibVecfD5n57eJqdXnbb/ff9dqYyT40rw8cmA5q9/jzvv78+
+b8lZwnH3GQUTVWPorwYRQ+rEF+4m4dmbMCtT4XYywqvRPz/8/ZdIrrNP7/mZoLzlJwwKl5pG
+T6/gaCRcNkQYuktYjp+W66b24YQlM2aC2lSF8zZVjXTtiachmm6cZjU/bl4ecSIwizGopqJH
++eXsN/V6vz/M/EPZX4r9PsG0HFeC3nqMACSu6Lh52s3+ef3+HZS7YHqjGknevIj9OI+bdeoH
+3McNCuFcISyd4GwFOt70TjpOgumxCAqNU2oSoEsx7E8r8t7M58LVCzBWit/T25h1kMWqOxev
+y2LFRQXiCx9gVgc+oT7i5YrUhLXyq5a3+BK1lJwjidriuVgke2F6kwhOt0D2QWZVgqAjcgK/
+HHSavzJ5JUOKIB06f17kVSIcppAlzGo43crkNPSFnZvId1aAnkGdh5mXCMcEokeVXDVUTEc0
+mWElf9UClKeCV8ToxatqEixjMKC9Vq69WSR5LNgcdNNzxFdoHC9IfdoIZXqYF7e8wCNyMU+c
+Mz5T88SXj9GaZRWlEqITMZDVtIh40UIcBZqwHDOAQnjcwwgHHpEGYi3ktU6klipHlSAtHFOs
+DBuVrnJ58ZewAEGKyvRU4Z11nvjyMgPtWHL/RnKtEtdndDdiMr0Mw8D2RTA5mjBMUZOXIMyQ
+p83RzC/SK0kbxuWCRhJQMWRBVGdwwPharJyvaBLHjIblWodCVAvR46qtm6lHqMHU4m6zLmte
+FdKCwSXOlkmeyU28C6vC+YFo2oQlI6967SG1jgXwPNpu0pI7uLegxBaxn4A20TQpogvBvjCy
+cSC9UwTMwgvkV+wbW3hrarfavAhlnDMElpePv04IAK59erl9GN8mXq8UJdGXfpjwdkWkzlUw
+D6daGr2egvaD3U987S86/DS/XnZ/+FJL2rRMxCNtu+AHIMsEBRR2SdHemIcLENdCRJ2GCky8
+BMZNuDpqfB0vxFKDTDFO7tpFJVNeG3HoBeRrb2MgDk1ql0FSg1zj29MKejYhQ2gfrGlbbvdH
+aAU3FvhYUkDPmtV2joTb4+F0+H6exTCWxz9uZw+E4MJo4zooAA8JCO7Aq7MN7HkM3sPFHlu/
+7J/p6G1Nb58K68PrUbh6xmsh2CgEC0rcAYv42RsMWdPywYgXjibjQ2bDrGOohc0yU0nqFZzj
+QlJkWTsSDUYoDRFn5eZhp4EtLJykavd0OO/Q+Y/rFgz5aNB70p90efXydHqwu7kGxt9qjTVX
+PM/Q4/b34cBsORBeTtT1wbcr2r/Lllb50JVtvkxk91Bow1roQiTdCSelMkMLWVSFgtPqshHP
+uAT1zhvOhIVWLjjfIgUnSVDpKPosr75cjepBRA5R1JEl5i3HuyibjiGK8jHw+GAy6gJwJFmP
+xqhyqdbXn/MMjWlCTNqYCwQ2vzI8P1vfFLkiDvmNqEr7UqSFP93oxoi5T4fn/flw5IROpaaS
+Tj3fHw/7e0M+5EFVJIK3s6AX5rdSfolaCLXWfhjmOVsbEdDH2LBAjNbxMMTINXm0TrjvjhgL
+aLQH+aAnw+jOJao7JGjlj66jwyUKm8i4RenLdHCT7cXbV4dwpEg34PkzvG2iwCiLPmowOo5X
+q1JAQIjqvGiSaBQ+E9gFiS5Yd9DZQ9VKE9gx+dYWAvA5UfyGtxsgknlUf1wLiLURhkQKtAK2
+X0wpEE1npr/ZPlrmo3oCvKSn/2n3en+g9C2TEaVgt2h0KUgFN+ZtCJVd4MyHdYjFBL4EB8NE
+MskRlx8naVCF3GBhhOS4AQRSPvykaE3rJzcJNWGpmsYYz7gFFTP11qIaof/Ao2xMKN4H0zTU
+MNXGFC8qlc9D6cmvUVRfGz3bl2jflAER91K+QJ9hHbw4fs9Ax6QFhJHNT0/NWLdZpoQ96FIV
+9ZODpUevRRzc7o5U/MY77dhn1ZDeFeITFWo300eq1hNMa1WRTfp5mGCTRAMXTV1fl5jj1xOp
+QvP37bX1+4PhUE0lOOt4EY9kAcQBUff5iL8KYzdzU3bCT85UOqf7dJ1aZXSJD+LR/gntMD/E
+zuABalNVml6yVOLI/0CR6MII+IlAyP1SfKYIlERT8mDn6VQSdrj4j5vtDw2TQKUvx/3z+Qcd
+He+fdqcHFvdNZwXB6ch0uK8vftH6RjiAPdjSl78u4gGWCMq/CcfHkU5D0bn6RZQfZirJD08v
+IJv/oLw2INS3P07U7K0uP05h2nRAdgfAPSgfl1KMCm59CTRkYCPgwbeYgoWqIn5izwOvQ67j
+xIOGRF7D4/nI52KkN2h61iK4AGYOGcXVV5iCCp/8cvX+enCMaCpEeauzNYJmj78dA5+pNiV4
+o3Ro2/CcVwj4JPqbWWnewfZdmmk9U4cE0YjbRaYsVJW+6RaL7haM1TbUD/puQqR1ButruPNF
+qG5QIAhZvsgojPtpNXKkHxUOwIQ0EIhkzHFpn4GRLkUt0MAGX0zc52D3z+vDg4VVQhoCubHU
+kg1eV4mMMtQjVQM9U4OuIUVWUTWF9xX62jXEiF7vIhO4c1tLKoPmuuXnmSZ2Kb8w04zrg/XQ
+YTiumF5i1CRUBhElhpl/Y7Lry2LLu0dblnDUZulh++P1RUueePP8YJ6zi4jQSSlFkJiMovMg
+ittcp5Yaz5kuC1tPIplbtJii6b0pK0uF8OADY6nyhItDEHnXtyptTbiWb6zDwGhq4WOo6vDn
+FIN+qd4g9p9joVxrVe+XWWjLbSqldGL8CZEe0pMyzAMtgxyDjE25CUMbY4yGEwd5WKWz306d
+jez0n9nT63n3vx38Y3fevnv37nfjXpsqHlI8uKZYlwrRtTjerKQD/K9T+AwHW3c0xDwkIKXS
+aILIceGnQyhM2gZDje3cgsM8Wei2XSpzvPtGixkHB/wPK9IrhDu57hMS51vK5C2O2iUK6Syb
+WBZci8cHXSHEcBpGs8LMcLxMr0Da2InjhhmrU9pgEjjXVvbmeFAFINTcHFI1IxYUsjqXXb9O
+r6+sSsRkdZRj71vtUI11P4KQ0btyNdmPB+21Gw/MU0oRAV+1VsDbBUhisjx6cDDpIWiMzRQe
+jDB4KPNSLbmKEItIRZeTzn8XUYvl/vco3Z9Ip8EHgbl2s8Eg4xCJdC0P/vzoXpj0SXG4RAAk
+xzeDDpnPO1QlwQUS+W6AsSl4cx4xkE7Pu1IQ3UsayfOf6G0rGBGJWiH4GHm1O75Vus7X438j
++GXTyxFZyi9K3k6g2186Pq4HrnK8YXLYscdBIXjsTbgSst+gKpfrxGB+QblApJWi8c5EFYru
+RG/grGLE58Jvfq71ybnqdevVKse0U3krhLoTh0MoBGFvSWGQwMz+gIMBJRzLCL5s6mDbOcNv
+X61kB8MXST0JR4+2SprVOoDzKl0RUIIpJ6+TyB+RsKtjVcFmAuoKzi+cXusOuKowrXI2m2Aa
+pxmCPAh+q1csq3ZqUTl8p2IQknvqKG0wmZCL/gzjH3+9nA9w6j7uMNfA4+7nC+FZGMzwPXNQ
+N4bqjeLraTlmV3tiCqesXnrjJ2Vs5NHoSLjQJ7Vg4ZS1yucTTihjGS/mikkDxZbclCXzkTjJ
+jSwe/TuEOIGOHPDSq6OGfsAdpDuqTpBUTZrelXOtsZHn2Qf7jE8a3o2pZR5dXX/OWi6sv+NA
+aTFpFxZyjSrpr1wZWjD7lNP2s/RHyD7bfdTbLKpt4jDnz9wdi73j6pux1/Pj7vlMSVTuZ+Hz
+FpcP3kb9d39+nKnT6bDdEynYnDdjOdU3XoAH7bvZTfZjBf9dvy+LdHVl5R+zeevwm+mFYs+z
+WMFB/RaGTN9Fk3/A0+HevF3pX+w5u8oXzOoXsmAN7ZvC70kdOa34w/1lKrnbtnS/HPaPRcVE
+IcYIuyd2Bw8S0IsooEK3ThryRkNvrUo7iJYHUHS5JlT+ByEYZMzxBkNz9T6QQFi7GSmqW33/
+/4u5mAW8JfVCdj+dwFwNU/zrYquyAGTUWxx/8tARA8f1Jx7cb+D4cO2so47VlTw5gApvYKYH
+ED5dOccLOHifv15gzaurv501LErrFXpi7V8ejSDDy4bN7QSKUtQ7ZWveeolz0YG26ZwQXlos
+osQ973yVhWkquGteeOrGObWQwTncgWCx6cjRZB+byJdY3QmZIvphVWmt3FOql/tueS+lZO/p
+VWmBKU53PGdvNovCHpTLTc5xdzpZYSGXHsR0UcI1dCfh7wTENE3+/NE5qdM751wCcsw4b22e
+7w9Ps5ySo2lXsUlcy2U618naLysW4aX/yMpD83feTjQgotCOMF1KmmbJ1ynLpM6vCUalhOjt
+VK4YUULHXDQPviW7L4x1p/r+K+ZKuIiw+VDhd+ySC65HwlsK5vSVyi79D1XBMpyOob87ntGt
+jvLZIRoH5kTcEHIZ3Sda5iEvyVW1YgwY2ka8/+e4Of6aHQ+v5/3zOPzcSxrEw67q0DzM9Wfs
+gc58bO9HRjmImiQd3b33pKQwO8IHJREGWOhiX8Cexeecuzm8qGnXvM4NioLVhg/XrNXJZEgT
+P/RWn5lHNUVal8SiqoUsFpDDE26RgMrH8aWJ59SKfF45UG2AqXpxKLus8N3I8LY/CnJzdw/6
+huB9B8q9YbyptJOG4y5b3qHBhH2ZJq09/ytreqjR8XWcmE8XoQ9al5VvVB5kRioSRA7HDLe2
+k5rBQO7Q/O0QWi4r4yWBkdsh7XySrMne2zSNOVNUgdDbEhAsZikUkRjrueOKv0ZPSiEb35CL
+fL6m49GY6/+8r3EhJIwAAA==
 
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.12-rc5:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  i-need-old-gcc.patch
-* mm-hwpoison-use-compound_head-flags-for-huge-pages.patch
-* swap-cond_resched-in-swap_cgroup_prepare.patch
-* mm-numa-avoid-waiting-on-freed-migrated-pages.patch
-* userfaultfd-shmem-handle-coredumping-in-handle_userfault.patch
-* mm-correct-the-comment-when-reclaimed-pages-exceed-the-scanned-pages.patch
-* mm-correct-the-comment-when-reclaimed-pages-exceed-the-scanned-pages-fix.patch
-* mm-list_lruc-use-cond_resched_lock-for-nlru-lock.patch
-* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
-* mm-huge-vmap-fail-gracefully-on-unexpected-huge-vmap-mappings.patch
-* autofs-sanity-check-status-reported-with-autofs_dev_ioctl_fail.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* mn10300-remove-wrapper-header-for-asm-deviceh.patch
-* mn10300-use-generic-fbh.patch
-* tile-provide-default-ioremap-declaration.patch
-* teach-initramfs_root_uid-and-initramfs_root_gid-that-1-means-current-user.patch
-* clarify-help-text-that-compression-applies-to-ramfs-as-well-as-legacy-ramdisk.patch
-* sh-intc-delete-an-error-message-for-a-failed-memory-allocation-in-add_virq_to_pirq.patch
-* ocfs2-fix-a-static-checker-warning.patch
-* ocfs2-use-magich.patch
-* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
-* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks.patch
-* ocfs2-dlm-optimization-of-code-while-free-dead-node-locks-checkpatch-fixes.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names-v2.patch
-* ocfs2-move-some-definitions-to-header-file.patch
-* ocfs2-fix-some-small-problems.patch
-* ocfs2-add-kobject-for-online-file-check.patch
-* ocfs2-add-duplicative-ino-number-check.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* sendfile-do-not-update-file-offset-of-non-lseekable-objects.patch
-* fs-file-replace-alloc_fdmem-with-kvmalloc-alternative.patch
-* watchdog-remove-unused-declaration.patch
-* watchdog-introduce-arch_touch_nmi_watchdog.patch
-* watchdog-split-up-config-options.patch
-* watchdog-provide-watchdog_reconfigure-for-arch-watchdogs.patch
-* powerpc-64s-implement-arch-specific-hardlockup-watchdog.patch
-* powerpc-64s-implement-arch-specific-hardlockup-watchdog-checkpatch-fixes.patch
-  mm.patch
-* mm-slub-remove-a-redundant-assignment-in-___slab_alloc.patch
-* mm-slub-reset-cpu_slabs-pointer-in-deactivate_slab.patch
-* mm-slub-pack-red_left_pad-with-another-int-to-save-a-word.patch
-* mm-slub-wrap-cpu_slab-partial-in-config_slub_cpu_partial.patch
-* mm-slub-wrap-cpu_slab-partial-in-config_slub_cpu_partial-fix.patch
-* mm-slub-wrap-kmem_cache-cpu_partial-in-config-config_slub_cpu_partial.patch
-* subject-mm-slab-trivial-change-to-replace-round-up-code-with-align.patch
-* mm-sparsemem-break-out-of-loops-early.patch
-* mark-protection_map-as-__ro_after_init.patch
-* mm-vmscan-fix-unsequenced-modification-and-access-warning.patch
-* mm-nobootmem-return-0-when-start_pfn-equals-end_pfn.patch
-* ksm-introduce-ksm_max_page_sharing-per-page-deduplication-limit.patch
-* ksm-fix-use-after-free-with-merge_across_nodes-=-0.patch
-* ksm-cleanup-stable_node-chain-collapse-case.patch
-* ksm-swap-the-two-output-parameters-of-chain-chain_prune.patch
-* ksm-optimize-refile-of-stable_node_dup-at-the-head-of-the-chain.patch
-* zram-count-same-page-write-as-page_stored.patch
-* mm-vmstat-standardize-file-operations-variable-names.patch
-* mm-thp-swap-delay-splitting-thp-during-swap-out.patch
-* mm-thp-swap-delay-splitting-thp-during-swap-out-fix.patch
-* mm-thp-swap-unify-swap-slot-free-functions-to-put_swap_page.patch
-* mm-thp-swap-move-anonymous-thp-split-logic-to-vmscan.patch
-* mm-thp-swap-check-whether-thp-can-be-split-firstly.patch
-* mm-thp-swap-enable-thp-swap-optimization-only-if-has-compound-map.patch
-* mm-remove-return-value-from-init_currently_empty_zone.patch
-* mm-memory_hotplug-use-node-instead-of-zone-in-can_online_high_movable.patch
-* mm-drop-page_initialized-check-from-get_nid_for_pfn.patch
-* mm-memory_hotplug-get-rid-of-is_zone_device_section.patch
-* mm-memory_hotplug-split-up-register_one_node.patch
-* mm-memory_hotplug-consider-offline-memblocks-removable.patch
-* mm-consider-zone-which-is-not-fully-populated-to-have-holes.patch
-* mm-consider-zone-which-is-not-fully-populated-to-have-holes-fix.patch
-* mm-compaction-skip-over-holes-in-__reset_isolation_suitable.patch
-* mm-__first_valid_page-skip-over-offline-pages.patch
-* mm-vmstat-skip-reporting-offline-pages-in-pagetypeinfo.patch
-* mm-vmstat-skip-reporting-offline-pages-in-pagetypeinfo-fix.patch
-* mm-memory_hotplug-do-not-associate-hotadded-memory-to-zones-until-online.patch
-* mm-memory_hotplug-do-not-associate-hotadded-memory-to-zones-until-online-fix.patch
-* mm-memory_hotplug-fix-mmop_online_keep-behavior.patch
-* mm-memory_hotplug-do-not-assume-zone_normal-is-default-kernel-zone.patch
-* mm-memory_hotplug-replace-for_device-by-want_memblock-in-arch_add_memory.patch
-* mm-memory_hotplug-fix-the-section-mismatch-warning.patch
-* mm-memory_hotplug-remove-unused-cruft-after-memory-hotplug-rework.patch
-* exit-dont-include-unused-userfaultfd_kh.patch
-* userfaultfd-drop-dead-code.patch
-* mm-madvise-enable-softhard-offline-of-hugetlb-pages-at-pgd-level.patch
-* mm-madvise-enable-softhard-offline-of-hugetlb-pages-at-pgd-level-fix.patch
-* mm-hugetlb-migration-use-set_huge_pte_at-instead-of-set_pte_at.patch
-* mm-follow_page_mask-split-follow_page_mask-to-smaller-functions.patch
-* mm-hugetlb-export-hugetlb_entry_migration-helper.patch
-* mm-follow_page_mask-add-support-for-hugetlb-pgd-entries.patch
-* mm-hugetlb-move-default-definition-of-hugepd_t-earlier-in-the-header.patch
-* mm-follow_page_mask-add-support-for-hugepage-directory-entry.patch
-* powerpc-hugetlb-add-follow_huge_pd-implementation-for-ppc64.patch
-* powerpc-mm-hugetlb-remove-follow_huge_addr-for-powerpc.patch
-* powerpc-hugetlb-enable-hugetlb-migration-for-ppc64.patch
-* mm-zeroing-hash-tables-in-allocator.patch
-* mm-updated-callers-to-use-hash_zero-flag.patch
-* mm-adaptive-hash-table-scaling.patch
-* mm-adaptive-hash-table-scaling-fix.patch
-* mm-adaptive-hash-table-scaling-v2.patch
-* mm-adaptive-hash-table-scaling-v5.patch
-* mm-hugetlb-cleanup-arch_has_gigantic_page.patch
-* powerpc-mm-hugetlb-add-support-for-1g-huge-pages.patch
-* mm-page_alloc-mark-bad_range-and-meminit_pfn_in_nid-as-__maybe_unused.patch
-* mm-drop-null-return-check-of-pte_offset_map_lock.patch
-* arm64-hugetlb-refactor-find_num_contig.patch
-* arm64-hugetlb-remove-spurious-calls-to-huge_ptep_offset.patch
-* mm-gup-remove-broken-vm_bug_on_page-compound-check-for-hugepages.patch
-* mm-gup-ensure-real-head-page-is-ref-counted-when-using-hugepages.patch
-* mm-hugetlb-add-size-parameter-to-huge_pte_offset.patch
-* mm-hugetlb-allow-architectures-to-override-huge_pte_clear.patch
-* mm-hugetlb-introduce-set_huge_swap_pte_at-helper.patch
-* mm-hugetlb-introduce-set_huge_swap_pte_at-helper-v4.patch
-* mm-hugetlb-introduce-set_huge_swap_pte_at-helper-v41.patch
-* mm-rmap-use-correct-helper-when-poisoning-hugepages.patch
-* mm-page_alloc-fix-more-premature-oom-due-to-race-with-cpuset-update.patch
-* mm-mempolicy-stop-adjusting-current-il_next-in-mpol_rebind_nodemask.patch
-* mm-page_alloc-pass-preferred-nid-instead-of-zonelist-to-allocator.patch
-* mm-mempolicy-simplify-rebinding-mempolicies-when-updating-cpusets.patch
-* mm-cpuset-always-use-seqlock-when-changing-tasks-nodemask.patch
-* mm-mempolicy-dont-check-cpuset-seqlock-where-it-doesnt-matter.patch
-* swap-add-block-io-poll-in-swapin-path.patch
-* swap-add-block-io-poll-in-swapin-path-checkpatch-fixes.patch
-* mm-kmemleak-slightly-reduce-the-size-of-some-structures-on-64-bit-architectures.patch
-* mm-kmemleak-factor-object-reference-updating-out-of-scan_block.patch
-* mm-kmemleak-treat-vm_struct-as-alternative-reference-to-vmalloced-objects.patch
-* mm-drop-wait-parameter-from-write_one_page.patch
-* mm-drop-wait-parameter-from-write_one_page-fix.patch
-* mm-fix-mapping_set_error-call-in-me_pagecache_dirty.patch
-* mm-per-cgroup-memory-reclaim-stats.patch
-* mm-oom_kill-count-global-and-memory-cgroup-oom-kills.patch
-* mm-oom_kill-count-global-and-memory-cgroup-oom-kills-fix.patch
-* mm-oom_kill-count-global-and-memory-cgroup-oom-kills-fix-fix.patch
-* mm-swap-sort-swap-entries-before-free.patch
-* mm-swap-sort-swap-entries-before-free-fix.patch
-* zswap-delete-an-error-message-for-a-failed-memory-allocation-in-zswap_pool_create.patch
-* zswap-improve-a-size-determination-in-zswap_frontswap_init.patch
-* zswap-delete-an-error-message-for-a-failed-memory-allocation-in-zswap_dstmem_prepare.patch
-* mm-vmstat-move-slab-statistics-from-zone-to-node-counters.patch
-* mm-vmstat-move-slab-statistics-from-zone-to-node-counters-fix.patch
-* mm-memcontrol-use-the-node-native-slab-memory-counters.patch
-* mm-memcontrol-use-generic-mod_memcg_page_state-for-kmem-pages.patch
-* mm-memcontrol-per-lruvec-stats-infrastructure.patch
-* mm-memcontrol-per-lruvec-stats-infrastructure-fix.patch
-* mm-memcontrol-per-lruvec-stats-infrastructure-fix-2.patch
-* mm-memcontrol-per-lruvec-stats-infrastructure-fix-3.patch
-* mm-memcontrol-account-slab-stats-per-lruvec.patch
-* mm-memory_hotplug-drop-artificial-restriction-on-online-offline.patch
-* mm-memory_hotplug-drop-config_movable_node.patch
-* mm-memory_hotplug-move-movable_node-to-the-hotplug-proper.patch
-* mm-page_alloc-fallback-to-smallest-page-when-not-stealing-whole-pageblock.patch
-* mm-convert-to-define_debugfs_attribute.patch
-* mm-vmscan-avoid-thrashing-anon-lru-when-free-file-is-low.patch
-* mm-vmscan-avoid-thrashing-anon-lru-when-free-file-is-low-fix.patch
-* mm-add-null-check-to-avoid-potential-null-pointer-dereference.patch
-* mm-zsmalloc-fix-wunneeded-internal-declaration-warning.patch
-* fs-bufferc-make-bh_lru_install-more-efficient.patch
-* mm-hugetlb-prevent-reuse-of-hwpoisoned-free-hugepages.patch
-* mm-hugetlb-return-immediately-for-hugetlb-page-in-__delete_from_page_cache.patch
-* mm-hwpoison-change-pagehwpoison-behavior-on-hugetlb-pages.patch
-* mm-hugetlb-soft-offline-dissolve-source-hugepage-after-successful-migration.patch
-* mm-hugetlb-soft-offline-dissolve-source-hugepage-after-successful-migration-fix.patch
-* mm-soft-offline-dissolve-free-hugepage-if-soft-offlined.patch
-* mm-hwpoison-introduce-memory_failure_hugetlb.patch
-* mm-hwpoison-dissolve-in-use-hugepage-in-unrecoverable-memory-error.patch
-* mm-hwpoison-dissolve-in-use-hugepage-in-unrecoverable-memory-error-fix.patch
-* mm-hugetlb-delete-dequeue_hwpoisoned_huge_page.patch
-* mm-hwpoison-introduce-idenfity_page_state.patch
-* mm-vmpressure-pass-through-notification-support.patch
-* mm-vmpressure-pass-through-notification-support-fix.patch
-* mm-make-pr_set_thp_disable-immediately-active.patch
-* mm-memcontrol-exclude-root-from-checks-in-mem_cgroup_low.patch
-* vmalloc-show-more-detail-info-in-vmallocinfo-for-clarify.patch
-* mm-cma-warn-if-the-cma-area-could-not-be-activated.patch
-* mm-hugetlb-warn-the-user-when-issues-arise-on-boot-due-to-hugepages.patch
-* mm-hugetlb-warn-the-user-when-issues-arise-on-boot-due-to-hugepages-fix.patch
-* oom-trace-remove-enum-evaluation-of-compaction_feedback.patch
-* mm-improve-readability-of-transparent_hugepage_enabled.patch
-* mm-improve-readability-of-transparent_hugepage_enabled-fix.patch
-* mm-improve-readability-of-transparent_hugepage_enabled-fix-fix.patch
-* mm-always-enable-thp-for-dax-mappings.patch
-* mm-page_ref-ensure-page_ref_unfreeze-is-ordered-against-prior-accesses.patch
-* mm-migrate-stabilise-page-count-when-migrating-transparent-hugepages.patch
-* zram-use-__sysfs_match_string-helper.patch
-* mm-memory_hotplug-support-movable_node-for-hotplugable-nodes.patch
-* mm-memory_hotplug-simplify-empty-node-mask-handling-in-new_node_page.patch
-* hugetlb-memory_hotplug-prefer-to-use-reserved-pages-for-migration.patch
-* hugetlb-memory_hotplug-prefer-to-use-reserved-pages-for-migration-fix.patch
-* mm-unify-new_node_page-and-alloc_migrate_target.patch
-* mm-hugetlb-schedule-when-potentially-allocating-many-hugepages.patch
-* mm-memcg-fix-potential-undefined-behavior-in-mem_cgroup_event_ratelimit.patch
-* replace-memfmt-with-string_get_size.patch
-* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
-* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* mm-kasan-use-kasan_zero_pud-for-p4d-table.patch
-* mm-kasan-get-rid-of-speculative-shadow-checks.patch
-* x86-kasan-dont-allocate-extra-shadow-memory.patch
-* arm64-kasan-dont-allocate-extra-shadow-memory.patch
-* mm-kasan-add-support-for-memory-hotplug.patch
-* mm-kasan-rename-xxx_is_zero-to-xxx_is_nonzero.patch
-* frv-remove-wrapper-header-for-asm-deviceh.patch
-* frv-use-generic-fbh.patch
-* fs-proc-switch-to-ida_simple_get-remove.patch
-* randomstackprotect-introduce-get_random_canary-function.patch
-* forkrandom-use-get_random_canary-to-set-tsk-stack_canary.patch
-* x86-ascii-armor-the-x86_64-boot-init-stack-canary.patch
-* arm64-ascii-armor-the-arm64-boot-init-stack-canary.patch
-* sh64-ascii-armor-the-sh64-boot-init-stack-canary.patch
-* asm-generic-bugh-declare-struct-pt_regs-before-function-prototype.patch
-* linux-bugh-correct-formatting-of-block-comment.patch
-* linux-bugh-correct-foo-should-be-foo.patch
-* linux-bugh-correct-space-required-before-that.patch
-* bug-split-build_bug-stuff-out-into-linux-build_bugh.patch
-* kernelh-handle-pointers-to-arrays-better-in-container_of.patch
-* kernel-groupsc-use-sort-library-function.patch
-* kernel-kallsyms-replace-all_var-with-is_enabledconfig_kallsyms_all.patch
-* maintainers-give-proc-sysctl-some-maintainer-love.patch
-* kstrtox-delete-end-of-string-test.patch
-* kstrtox-use-unsigned-int-more.patch
-* lib-interval_tree_test-allow-the-module-to-be-compiled-in.patch
-* lib-interval_tree_test-make-test-options-module-parameters.patch
-* lib-interval_tree_test-allow-users-to-limit-scope-of-endpoint.patch
-* lib-interval_tree_test-allow-full-tree-search.patch
-* lib-rhashtablec-use-kvzalloc-in-bucket_table_alloc-when-possible.patch
-* lib-extablec-use-bsearch-library-function-in-search_extable.patch
-* lib-extablec-use-bsearch-library-function-in-search_extable-checkpatch-fixes.patch
-* bsearch-micro-optimize-pivot-position-calculation.patch
-* checkpatch-improve-the-unnecessary-oom-message-test.patch
-* checkpatch-warn-when-a-maintainers-entry-isnt-t.patch
-* checkpatch-list_head-is-also-declaration.patch
-* checkpatch-fix-stepping-through-statements-with-stat-and-ctx_statement_block.patch
-* checkpatch-remove-false-warning-for-commit-reference.patch
-* checkpatch-improve-tests-for-multiple-line-function-definitions.patch
-* checkpatch-silence-perl-5260-unescaped-left-brace-warnings.patch
-* checkpatch-change-format-of-color-argument-to-color.patch
-* fs-epoll-short-circuit-fetching-events-if-thread-has-been-killed.patch
-* signal-avoid-undefined-behaviour-in-kill_something_info.patch
-* signal-avoid-undefined-behaviour-in-kill_something_info-fix.patch
-* exit-avoid-undefined-behaviour-when-call-wait4.patch
-* seq_file-delete-small-value-optimization.patch
-* virtually-mapped-stacks-do-not-disable-interrupts.patch
-* kexec-move-vmcoreinfo-out-of-the-kernels-bss-section.patch
-* powerpc-fadump-use-the-correct-vmcoreinfo_note_size-for-phdr.patch
-* powerpc-fadump-use-the-correct-vmcoreinfo_note_size-for-phdr-fix.patch
-* kdump-protect-vmcoreinfo-data-under-the-crash-memory.patch
-* kexec-kdump-minor-documentation-updates-for-arm64-and-image.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* sysctl-fix-lax-sysctl_check_table-sanity-check.patch
-* sysctl-kdocify-sysctl_writes_strict.patch
-* sysctl-fold-sysctl_writes_strict-checks-into-helper.patch
-* sysctl-simplify-unsigned-int-support.patch
-* sysctl-add-unsigned-int-range-support.patch
-* sysctl-check-name-array-length-in-deprecated_sysctl_warning.patch
-* test_sysctl-add-dedicated-proc-sysctl-test-driver.patch
-* test_sysctl-add-generic-script-to-expand-on-tests.patch
-* test_sysctl-test-against-page_size-for-int.patch
-* test_sysctl-add-simple-proc_dointvec-case.patch
-* test_sysctl-add-simple-proc_douintvec-case.patch
-* test_sysctl-test-against-int-proc_dointvec-array-support.patch
-* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
-* bfs-fix-sanity-checks-for-empty-files.patch
-* fs-kill-config_percpu_rwsem-some-more.patch
-* scripts-gdb-add-lx-fdtdump-command.patch
-* kfifo-cleanup-example-to-not-use-page_link.patch
-* procfs-fdinfo-extend-information-about-epoll-target-files.patch
-* kcmp-add-kcmp_epoll_tfd-mode-to-compare-epoll-target-files.patch
-* kcmp-fs-epoll-wrap-kcmp-code-with-config_checkpoint_restore.patch
-* kernel-reboot-add-devm_register_reboot_notifier.patch
-* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
-* fault-inject-support-systematic-fault-injection.patch
-* fault-inject-support-systematic-fault-injection-fix.patch
-* fault-inject-automatically-detect-the-number-base-for-fail-nth-write-interface.patch
-* fault-inject-parse-as-natural-1-based-value-for-fail-nth-write-interface.patch
-* fault-inject-make-fail-nth-read-write-interface-symmetric.patch
-* fault-inject-simplify-access-check-for-fail-nth.patch
-* fault-inject-simplify-access-check-for-fail-nth-fix.patch
-* fault-inject-add-proc-pid-fail-nth.patch
-* ipc-semc-remove-sem_base-embed-struct-sem.patch
-* ipc-semc-remove-sem_base-embed-struct-sem-v3.patch
-* ipc-merge-ipc_rcu-and-kern_ipc_perm.patch
-* ipc-merge-ipc_rcu-and-kern_ipc_perm-fix.patch
-* include-linux-semh-correctly-document-sem_ctime.patch
-* ipc-drop-non-rcu-allocation.patch
-* ipc-sem-do-not-use-ipc_rcu_free.patch
-* ipc-shm-do-not-use-ipc_rcu_free.patch
-* ipc-msg-do-not-use-ipc_rcu_free.patch
-* ipc-util-drop-ipc_rcu_free.patch
-* ipc-sem-avoid-ipc_rcu_alloc.patch
-* ipc-shm-avoid-ipc_rcu_alloc.patch
-* ipc-msg-avoid-ipc_rcu_alloc.patch
-* ipc-util-drop-ipc_rcu_alloc.patch
-* ipc-semc-avoid-ipc_rcu_putref-for-failed-ipc_addid.patch
-* ipc-shmc-avoid-ipc_rcu_putref-for-failed-ipc_addid.patch
-* ipc-msgc-avoid-ipc_rcu_putref-for-failed-ipc_addid.patch
-* ipc-move-atomic_set-to-where-it-is-needed.patch
-* ipc-shm-remove-special-shm_alloc-free.patch
-* ipc-msg-remove-special-msg_alloc-free.patch
-* ipc-sem-drop-__sem_free.patch
-* ipc-utilh-update-documentation-for-ipc_getref-and-ipc_putref.patch
-  linux-next.patch
-  linux-next-git-rejects.patch
-* netfilter-use-kvmalloc-xt_alloc_table_info.patch
-* sparc64-ng4-memset-32-bits-overflow.patch
-* xtensa-use-generic-fbh.patch
-* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  workaround-for-a-pci-restoring-bug.patch
+--sdtB3X0nJg68CQEu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
