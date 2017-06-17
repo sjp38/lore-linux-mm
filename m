@@ -1,76 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6177F6B02FD
-	for <linux-mm@kvack.org>; Fri, 16 Jun 2017 23:06:21 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q78so52817585pfj.9
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 20:06:21 -0700 (PDT)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id i11si3570319pgn.298.2017.06.16.20.06.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BF6F6B02FA
+	for <linux-mm@kvack.org>; Sat, 17 Jun 2017 00:09:30 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 33so34554238pgx.14
+        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 21:09:30 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id a3si3716800plc.494.2017.06.16.21.09.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jun 2017 20:06:20 -0700 (PDT)
-Received: by mail-pg0-x22c.google.com with SMTP id f185so27500697pgc.0
-        for <linux-mm@kvack.org>; Fri, 16 Jun 2017 20:06:20 -0700 (PDT)
-Date: Sat, 17 Jun 2017 13:06:08 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [mmotm:master 38/317] warning: (MN10300 && ..) selects
- HAVE_NMI_WATCHDOG which has unmet direct dependencies (HAVE_NMI)
-Message-ID: <20170617130608.08f794bb@roar.ozlabs.ibm.com>
-In-Reply-To: <201706170807.xkDnmZ42%fengguang.wu@intel.com>
-References: <201706170807.xkDnmZ42%fengguang.wu@intel.com>
+        Fri, 16 Jun 2017 21:09:28 -0700 (PDT)
+Date: Fri, 16 Jun 2017 22:09:26 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170617040926.GA26554@linux.intel.com>
+References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
+ <20170614172211.19820-2-ross.zwisler@linux.intel.com>
+ <20170615144204.GN1764@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170615144204.GN1764@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Don Zickus <dzickus@redhat.com>, Babu Moger <babu.moger@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Sat, 17 Jun 2017 08:14:09 +0800
-kbuild test robot <fengguang.wu@intel.com> wrote:
-
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   8c91e2a1ea04c0c1e29415c62f151e77de2291f8
-> commit: 590b165eb905ab322bb91f04f9708deb8c80f75e [38/317] kernel/watchdog: split up config options
-> config: mn10300-asb2364_defconfig (attached as .config)
-> compiler: am33_2.0-linux-gcc (GCC) 6.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 590b165eb905ab322bb91f04f9708deb8c80f75e
->         # save the attached .config to linux build tree
->         make.cross ARCH=mn10300 
+On Thu, Jun 15, 2017 at 04:42:04PM +0200, Jan Kara wrote:
+> On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
+> > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > fault path look more like our PMD fault path where a PTE entry can be
+> > marked as dirty and writeable as it is first inserted, rather than waiting
+> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > 
+> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > distinguish between these two cases in do_wp_page():
+> > 
+> > 	case 1: 4k zero page => writable DAX storage
+> > 	case 2: read-only DAX storage => writeable DAX storage
+> > 
+> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > get rid of dax_pfn_mkwrite() completely.
+> > 
+> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > will do the work that was previously done by wp_page_reuse() as part of the
+> > dax_pfn_mkwrite() call path.
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 > 
-> All warnings (new ones prefixed by >>):
+> So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
+> that case is a way to go. However I somewhat dislike the
+> vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
+> we have a similar thing for PMD which is ugly as well. Besides being ugly
+> I'm also concerned that when 'mkwrite' is set, we just silently overwrite
+> whatever PTE was installed at that position. Not that I'd see how that
+> could screw us for DAX but still a concern that e.g. some PTE flag could
+> get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
+> architectures, you will leak zero page references by just overwriting the
+> PTE - for those archs you really need to unmap zero page before replacing
+> PTE (and the same for PMD I suppose).
 > 
-> warning: (MN10300 && HAVE_HARDLOCKUP_DETECTOR_ARCH) selects HAVE_NMI_WATCHDOG which has unmet direct dependencies (HAVE_NMI)
+> So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
+> properly detect PTE / PMD case, read / write case etc., check that PTE did
+> not change from orig_pte, and handle all the nasty details instead of
+> messing with insert_pfn?
 
-Hmm, the arch is not supposed to have HAVE_HARDLOCKUP_DETECTOR_ARCH
-without explicitly selecting it. An it does not in the attached .config.
-I guess this is Kconfig being helpful...
+I played around with this some today, and I wasn't super happy with the
+results.  Here were some issues I encountered:
 
-arch/Kconfig:
+1) The pte_mkyoung(), maybe_mkwrite() and pte_mkdirty() calls need to happen
+with the PTE locked, and I'm currently able to piggy-back on the locking done
+in insert_pfn().  If I keep those steps out of insert_pfn() I either have to
+essentially duplicate all the work done by insert_pfn() into another function
+so I can do everything I need under one lock, or I have to insert the PFN via
+insert_pfn() (which as you point out, will just leave the pfn alone if it's
+already present), then for writes I have to re-grab the PTE lock and set do
+the mkwrite steps.
 
-config HAVE_NMI_WATCHDOG
-        bool
-        help
-          The arch provides a low level NMI watchdog. It provides
-          asm/nmi.h, and defines its own arch_touch_nmi_watchdog().
+Either of these work, but they both also seem kind of gross...
 
-config HAVE_HARDLOCKUP_DETECTOR_ARCH
-        bool
-        select HAVE_NMI_WATCHDOG
-        help
-          The arch chooses to provide its own hardlockup detector, which is
-          a superset of the HAVE_NMI_WATCHDOG. It also conforms to config
-          interfaces and parameters provided by hardlockup detector subsystem.
+2) Combining the PTE and PMD cases into a common function will require
+mm/memory.c to call vmf_insert_pfn_pmd(), which depends on
+CONFIG_TRANSPARENT_HUGEPAGE being defined.  This works, it just means some
+more #ifdef CONFIG_TRANSPARENT_HUGEPAGE hackery in mm/memory.c.
 
-Idea was to have arch select HAVE_HARDLOCKUP_DETECTOR_ARCH and it would
-get HAVE_NMI_WATCHDOG. Would it be better to make it depend on
-HAVE_NMI_WATCHDOG and require the arch select both?
+I agree that unconditionally overwriting the PTE when mkwrite is set is
+undesireable, and should be fixed.  My implementation of the wrapper just
+didn't seem that natural, which usually tells me I'm headed down the wrong
+path.  Maybe I'm just not fully understanding what you intended?
 
-Thanks,
-Nick
+In any case, my current favorite soultion for this issue is still what I had
+in v1:
+
+https://patchwork.kernel.org/patch/9772809/
+
+with perhaps the removal of the new vm_insert_mixed_mkwrite() symbol, and just
+adding a 'write' flag to vm_insert_mixed() and updating all the call sites,
+and fixing the flow where mkwrite unconditionally overwrites the PTE?
+
+If not, can you help me understand what you think is ugly about the 'write'
+flag to vm_insert_mixed() and vmf_insert_pfn_pmd()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
