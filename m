@@ -1,79 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4106C6B02F3
-	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 02:26:54 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a82so74964827pfc.8
-        for <linux-mm@kvack.org>; Sat, 17 Jun 2017 23:26:54 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id g2si6373757pln.576.2017.06.17.23.26.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3ED6B02FA
+	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 03:51:54 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d184so8479911wmd.15
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 00:51:54 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id t126si7609025wmg.54.2017.06.18.00.51.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Jun 2017 23:26:53 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id e187so2927904pgc.3
-        for <linux-mm@kvack.org>; Sat, 17 Jun 2017 23:26:52 -0700 (PDT)
+        Sun, 18 Jun 2017 00:51:53 -0700 (PDT)
+Date: Sun, 18 Jun 2017 09:51:52 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
+Message-ID: <20170618075152.GA25871@lst.de>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com> <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com> <20170617052212.GA8246@lst.de> <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH v2 10/10] x86/mm: Try to preserve old TLB entries using
- PCID
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <35264bd304c93f6d3cfff2329e3e01b084598ea1.1497415951.git.luto@kernel.org>
-Date: Sat, 17 Jun 2017 23:26:48 -0700
-Content-Transfer-Encoding: 7bit
-Message-Id: <740B1D51-B801-48C9-A4C9-F31B34A09AEF@gmail.com>
-References: <cover.1497415951.git.luto@kernel.org>
- <cover.1497415951.git.luto@kernel.org>
- <35264bd304c93f6d3cfff2329e3e01b084598ea1.1497415951.git.luto@kernel.org>
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-
-> On Jun 13, 2017, at 9:56 PM, Andy Lutomirski <luto@kernel.org> wrote:
+On Sat, Jun 17, 2017 at 05:29:23AM -0700, Dan Williams wrote:
+> On Fri, Jun 16, 2017 at 10:22 PM, Christoph Hellwig <hch@lst.de> wrote:
+> > On Fri, Jun 16, 2017 at 06:15:29PM -0700, Dan Williams wrote:
+> >> Refactor the core of generic_swapfile_activate() into bmap_walk() so
+> >> that it can be used by a new daxfile_activate() helper (to be added).
+> >
+> > No way in hell!  generic_swapfile_activate needs to day and no new users
+> > of ->bmap over my dead body.  It's a guaranteed to fuck up your data left,
+> > right and center.
 > 
-> PCID is a "process context ID" -- it's what other architectures call
-> an address space ID.  Every non-global TLB entry is tagged with a
-> PCID, only TLB entries that match the currently selected PCID are
-> used, and we can switch PGDs without flushing the TLB.  x86's
-> PCID is 12 bits.
-> 
-> This is an unorthodox approach to using PCID.  x86's PCID is far too
-> short to uniquely identify a process, and we can't even really
-> uniquely identify a running process because there are monster
-> systems with over 4096 CPUs.  To make matters worse, past attempts
-> to use all 12 PCID bits have resulted in slowdowns instead of
-> speedups.
-> 
-> This patch uses PCID differently.  We use a PCID to identify a
-> recently-used mm on a per-cpu basis.  An mm has no fixed PCID
-> binding at all; instead, we give it a fresh PCID each time it's
-> loaded except in cases where we want to preserve the TLB, in which
-> case we reuse a recent value.
-> 
-> In particular, we use PCIDs 1-3 for recently-used mms and we reserve
-> PCID 0 for swapper_pg_dir and for PCID-unaware CR3 users (e.g. EFI).
-> Nothing ever switches to PCID 0 without flushing PCID 0 non-global
-> pages, so PCID 0 conflicts won't cause problems.
+> Certainly you're not saying that existing swapfiles are broken, so I
+> wonder what bugs you're talking about?
 
-Is this commit message outdated? NR_DYNAMIC_ASIDS is set to 6.
-More importantly, I do not see PCID 0 as reserved:
+They are somewhat broken, but we manage to paper over the fact.
 
-> +static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
-> +			    u16 *new_asid, bool *need_flush)
-> +{
-> 
+And in fact if you plan to use a method marked:
 
-[snip]
+	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
+	sector_t (*bmap)(struct address_space *, sector_t);
 
-> +	if (*new_asid >= NR_DYNAMIC_ASIDS) {
-> +		*new_asid = 0;
-> +		this_cpu_write(cpu_tlbstate.next_asid, 1);
-> +	}
-> +	*need_flush = true;
-> +}
+I'd expect a little research.
 
+By it's signature alone ->bmap can't do a whole lot - it can try to
+translate the _current_ mapping of a relative block number to a physical
+one, and do extremely crude error reporting.
 
-Am I missing something?
+Notice what it can't do:
+
+ a) provide any guaranteed that the block mapping doesn't change any time
+    after it returned
+ b) deal with the fact that there might be anything like a physical block
+ c) put the physical block into any sort of context, that is explain what
+    device it actually is relative to
+
+So yes, swap files are broken.  They sort of work by:
+
+ a) ensuring that ->bmap is not implemented for anything fancy (btrfs), or
+    living  with it doing I/O into random places (XFS RT subvolumes, *cough*)
+ b) doing extremely heavy handed locking to ensure things don't change at all
+    (S_SWAPFILE).  This might kinda sorta work for swapfiles which are
+    part of the system and require privilegues, but an absolute no-go
+    for anything else
+ c) simply not using this brain-haired systems - see the swap over NFS
+    support, or the WIP swap over btrfs patches.
+
+> Unless you had plans to go remove bmap() I don't see how this gets in
+> your way at all.
+
+I'm not talking about getting in my way.  I'm talking about you doing
+something incredibly stupid.  Don't do that.
+
+> That said, I think "please don't add a new bmap()
+> user, use iomap instead" is a fair comment. You know me well enough to
+> know that would be all it takes to redirect my work, I can do without
+> the bluster.
+
+But that's not the point.  The point is that ->bmap() semantics simplify
+do not work in practice because they don't make sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
