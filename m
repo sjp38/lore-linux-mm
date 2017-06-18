@@ -1,86 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3ED6B02FA
-	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 03:51:54 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id d184so8479911wmd.15
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 00:51:54 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id t126si7609025wmg.54.2017.06.18.00.51.52
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 86DE36B02FD
+	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 04:06:20 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a82so77157840pfc.8
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 01:06:20 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id y2si6416638pli.466.2017.06.18.01.06.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Jun 2017 00:51:53 -0700 (PDT)
-Date: Sun, 18 Jun 2017 09:51:52 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
-Message-ID: <20170618075152.GA25871@lst.de>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com> <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com> <20170617052212.GA8246@lst.de> <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
+        Sun, 18 Jun 2017 01:06:19 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id f127so11834585pgc.2
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 01:06:19 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [PATCH v2 05/10] x86/mm: Rework lazy TLB mode and TLB freshness
+ tracking
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <039935bc914009103fdaa6f72f14980c19562de5.1497415951.git.luto@kernel.org>
+Date: Sun, 18 Jun 2017 01:06:15 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <515383DE-922D-4278-9FF6-AEF5445A0547@gmail.com>
+References: <cover.1497415951.git.luto@kernel.org>
+ <cover.1497415951.git.luto@kernel.org>
+ <039935bc914009103fdaa6f72f14980c19562de5.1497415951.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Sat, Jun 17, 2017 at 05:29:23AM -0700, Dan Williams wrote:
-> On Fri, Jun 16, 2017 at 10:22 PM, Christoph Hellwig <hch@lst.de> wrote:
-> > On Fri, Jun 16, 2017 at 06:15:29PM -0700, Dan Williams wrote:
-> >> Refactor the core of generic_swapfile_activate() into bmap_walk() so
-> >> that it can be used by a new daxfile_activate() helper (to be added).
-> >
-> > No way in hell!  generic_swapfile_activate needs to day and no new users
-> > of ->bmap over my dead body.  It's a guaranteed to fuck up your data left,
-> > right and center.
-> 
-> Certainly you're not saying that existing swapfiles are broken, so I
-> wonder what bugs you're talking about?
 
-They are somewhat broken, but we manage to paper over the fact.
+> On Jun 13, 2017, at 9:56 PM, Andy Lutomirski <luto@kernel.org> wrote:
+>=20
+> x86's lazy TLB mode used to be fairly weak -- it would switch to
+> init_mm the first time it tried to flush a lazy TLB.  This meant an
+> unnecessary CR3 write and, if the flush was remote, an unnecessary
+> IPI.
+>=20
+> Rewrite it entirely.  When we enter lazy mode, we simply remove the
+> cpu from mm_cpumask.  This means that we need a way to figure out
+> whether we've missed a flush when we switch back out of lazy mode.
+> I use the tlb_gen machinery to track whether a context is up to
+> date.
+>=20
+> Note to reviewers: this patch, my itself, looks a bit odd.  I'm
+> using an array of length 1 containing (ctx_id, tlb_gen) rather than
+> just storing tlb_gen, and making it at array isn't necessary yet.
+> I'm doing this because the next few patches add PCID support, and,
+> with PCID, we need ctx_id, and the array will end up with a length
+> greater than 1.  Making it an array now means that there will be
+> less churn and therefore less stress on your eyeballs.
+>=20
+> NB: This is dubious but, AFAICT, still correct on Xen and UV.
+> xen_exit_mmap() uses mm_cpumask() for nefarious purposes and this
+> patch changes the way that mm_cpumask() works.  This should be okay,
+> since Xen *also* iterates all online CPUs to find all the CPUs it
+> needs to twiddle.
+>=20
+> The UV tlbflush code is rather dated and should be changed.
+>=20
+> Cc: Andrew Banman <abanman@sgi.com>
+> Cc: Mike Travis <travis@sgi.com>
+> Cc: Dimitri Sivanich <sivanich@sgi.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+> arch/x86/include/asm/mmu_context.h |   6 +-
+> arch/x86/include/asm/tlbflush.h    |   4 -
+> arch/x86/mm/init.c                 |   1 -
+> arch/x86/mm/tlb.c                  | 242 =
++++++++++++++++++++------------------
+> 4 files changed, 131 insertions(+), 122 deletions(-)
+>=20
+> diff --git a/arch/x86/include/asm/mmu_context.h =
+b/arch/x86/include/asm/mmu_context.h
+> index e5295d485899..69a4f1ee86ac 100644
+> --- a/arch/x86/include/asm/mmu_context.h
+> +++ b/arch/x86/include/asm/mmu_context.h
+> @@ -125,8 +125,10 @@ static inline void switch_ldt(struct mm_struct =
+*prev, struct mm_struct *next)
+>=20
+> static inline void enter_lazy_tlb(struct mm_struct *mm, struct =
+task_struct *tsk)
+> {
+> -	if (this_cpu_read(cpu_tlbstate.state) =3D=3D TLBSTATE_OK)
+> -		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+> +	int cpu =3D smp_processor_id();
+> +
+> +	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+> +		cpumask_clear_cpu(cpu, mm_cpumask(mm));
 
-And in fact if you plan to use a method marked:
+The indication for laziness that was in cpu_tlbstate.state may be a =
+better
+indication whether the cpu needs to be cleared from the previous =
+mm_cpumask().
+If you kept this indication, you could have used this per-cpu =
+information in
+switch_mm_irqs_off() instead of "cpumask_test_cpu(cpu, =
+mm_cpumask(next))=E2=80=9D,
+which might have been accessed by another core.
 
-	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
-	sector_t (*bmap)(struct address_space *, sector_t);
-
-I'd expect a little research.
-
-By it's signature alone ->bmap can't do a whole lot - it can try to
-translate the _current_ mapping of a relative block number to a physical
-one, and do extremely crude error reporting.
-
-Notice what it can't do:
-
- a) provide any guaranteed that the block mapping doesn't change any time
-    after it returned
- b) deal with the fact that there might be anything like a physical block
- c) put the physical block into any sort of context, that is explain what
-    device it actually is relative to
-
-So yes, swap files are broken.  They sort of work by:
-
- a) ensuring that ->bmap is not implemented for anything fancy (btrfs), or
-    living  with it doing I/O into random places (XFS RT subvolumes, *cough*)
- b) doing extremely heavy handed locking to ensure things don't change at all
-    (S_SWAPFILE).  This might kinda sorta work for swapfiles which are
-    part of the system and require privilegues, but an absolute no-go
-    for anything else
- c) simply not using this brain-haired systems - see the swap over NFS
-    support, or the WIP swap over btrfs patches.
-
-> Unless you had plans to go remove bmap() I don't see how this gets in
-> your way at all.
-
-I'm not talking about getting in my way.  I'm talking about you doing
-something incredibly stupid.  Don't do that.
-
-> That said, I think "please don't add a new bmap()
-> user, use iomap instead" is a fair comment. You know me well enough to
-> know that would be all it takes to redirect my work, I can do without
-> the bluster.
-
-But that's not the point.  The point is that ->bmap() semantics simplify
-do not work in practice because they don't make sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
