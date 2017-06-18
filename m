@@ -1,105 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DE36B02FD
-	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 04:06:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a82so77157840pfc.8
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 01:06:20 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id y2si6416638pli.466.2017.06.18.01.06.19
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DD2E6B0313
+	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 04:18:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id r103so2400936wrb.0
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 01:18:52 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id o21si6742546wro.277.2017.06.18.01.18.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Jun 2017 01:06:19 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id f127so11834585pgc.2
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 01:06:19 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH v2 05/10] x86/mm: Rework lazy TLB mode and TLB freshness
- tracking
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <039935bc914009103fdaa6f72f14980c19562de5.1497415951.git.luto@kernel.org>
-Date: Sun, 18 Jun 2017 01:06:15 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <515383DE-922D-4278-9FF6-AEF5445A0547@gmail.com>
-References: <cover.1497415951.git.luto@kernel.org>
- <cover.1497415951.git.luto@kernel.org>
- <039935bc914009103fdaa6f72f14980c19562de5.1497415951.git.luto@kernel.org>
+        Sun, 18 Jun 2017 01:18:50 -0700 (PDT)
+Date: Sun, 18 Jun 2017 10:18:50 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
+	byte-addressable updates to pmem
+Message-ID: <20170618081850.GA26332@lst.de>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com> <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com> <CALCETrU1Hg=q4cdQDex--3nVBfwRC1o=9pC6Ss77Z8Lxg7ZJLg@mail.gmail.com> <CAPcyv4j4UEegViDJcLZjVv5AFGC18-DcvHFnhZatB0hH3BY85g@mail.gmail.com> <CALCETrUfv26pvmyQ1gOkKbzfSXK2DnmeBG6VmSWjFy1WBhknTw@mail.gmail.com> <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
+On Sat, Jun 17, 2017 at 08:15:05PM -0700, Dan Williams wrote:
+> The hang up is that it requires per-fs enabling as it needs to be
+> careful to manage mmap_sem vs fs journal locks for example. I know the
+> in-development NOVA [1] filesystem is planning to support this out of
+> the gate. ext4 would be open to implementing it, but I think xfs is
+> cold on the idea. Christoph originally proposed it here [2], before
+> Dave went on to propose immutable semantics.
+> 
+> [1]: https://github.com/NVSL/NOVA
+> [2]: https://lists.01.org/pipermail/linux-nvdimm/2016-February/004609.html
 
-> On Jun 13, 2017, at 9:56 PM, Andy Lutomirski <luto@kernel.org> wrote:
->=20
-> x86's lazy TLB mode used to be fairly weak -- it would switch to
-> init_mm the first time it tried to flush a lazy TLB.  This meant an
-> unnecessary CR3 write and, if the flush was remote, an unnecessary
-> IPI.
->=20
-> Rewrite it entirely.  When we enter lazy mode, we simply remove the
-> cpu from mm_cpumask.  This means that we need a way to figure out
-> whether we've missed a flush when we switch back out of lazy mode.
-> I use the tlb_gen machinery to track whether a context is up to
-> date.
->=20
-> Note to reviewers: this patch, my itself, looks a bit odd.  I'm
-> using an array of length 1 containing (ctx_id, tlb_gen) rather than
-> just storing tlb_gen, and making it at array isn't necessary yet.
-> I'm doing this because the next few patches add PCID support, and,
-> with PCID, we need ctx_id, and the array will end up with a length
-> greater than 1.  Making it an array now means that there will be
-> less churn and therefore less stress on your eyeballs.
->=20
-> NB: This is dubious but, AFAICT, still correct on Xen and UV.
-> xen_exit_mmap() uses mm_cpumask() for nefarious purposes and this
-> patch changes the way that mm_cpumask() works.  This should be okay,
-> since Xen *also* iterates all online CPUs to find all the CPUs it
-> needs to twiddle.
->=20
-> The UV tlbflush code is rather dated and should be changed.
->=20
-> Cc: Andrew Banman <abanman@sgi.com>
-> Cc: Mike Travis <travis@sgi.com>
-> Cc: Dimitri Sivanich <sivanich@sgi.com>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
-> arch/x86/include/asm/mmu_context.h |   6 +-
-> arch/x86/include/asm/tlbflush.h    |   4 -
-> arch/x86/mm/init.c                 |   1 -
-> arch/x86/mm/tlb.c                  | 242 =
-+++++++++++++++++++------------------
-> 4 files changed, 131 insertions(+), 122 deletions(-)
->=20
-> diff --git a/arch/x86/include/asm/mmu_context.h =
-b/arch/x86/include/asm/mmu_context.h
-> index e5295d485899..69a4f1ee86ac 100644
-> --- a/arch/x86/include/asm/mmu_context.h
-> +++ b/arch/x86/include/asm/mmu_context.h
-> @@ -125,8 +125,10 @@ static inline void switch_ldt(struct mm_struct =
-*prev, struct mm_struct *next)
->=20
-> static inline void enter_lazy_tlb(struct mm_struct *mm, struct =
-task_struct *tsk)
-> {
-> -	if (this_cpu_read(cpu_tlbstate.state) =3D=3D TLBSTATE_OK)
-> -		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
-> +	int cpu =3D smp_processor_id();
-> +
-> +	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-> +		cpumask_clear_cpu(cpu, mm_cpumask(mm));
+And I stand to that statement.  Let's get DAX stable first, and
+properly cleaned up (e.g. follow on work with separating it entirely
+from the block device).  Then think hard about how most of the 
+persistent memory technologies actually work, including the point that
+for a lot of workloads page cache will be required at least on the
+write side.   And then come up with actual real use cases and we can
+look into it.
 
-The indication for laziness that was in cpu_tlbstate.state may be a =
-better
-indication whether the cpu needs to be cleared from the previous =
-mm_cpumask().
-If you kept this indication, you could have used this per-cpu =
-information in
-switch_mm_irqs_off() instead of "cpumask_test_cpu(cpu, =
-mm_cpumask(next))=E2=80=9D,
-which might have been accessed by another core.
-
+And stop trying to shoe-horn crap like this in.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
