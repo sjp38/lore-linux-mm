@@ -1,65 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 693326B0279
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 13:03:08 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o74so107247217pfi.6
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 10:03:08 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EAEA6B0292
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 13:09:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v9so106071104pfk.5
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 10:09:20 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 14si8898997plb.203.2017.06.19.10.03.07
+        by mx.google.com with ESMTP id i7si8418619pfi.394.2017.06.19.10.09.19
         for <linux-mm@kvack.org>;
-        Mon, 19 Jun 2017 10:03:07 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v5 8/8] mm: rmap: Use correct helper when poisoning hugepages
-Date: Mon, 19 Jun 2017 18:01:45 +0100
-Message-Id: <20170619170145.25577-9-punit.agrawal@arm.com>
-In-Reply-To: <20170619170145.25577-1-punit.agrawal@arm.com>
-References: <20170619170145.25577-1-punit.agrawal@arm.com>
+        Mon, 19 Jun 2017 10:09:19 -0700 (PDT)
+Date: Mon, 19 Jun 2017 18:09:12 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Using set_pte_at() does not do the right thing when putting down
-HWPOISON swap entries for hugepages on architectures that support
-contiguous ptes.
+On Mon, Jun 19, 2017 at 07:00:05PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jun 19, 2017 at 04:22:29PM +0100, Catalin Marinas wrote:
+> > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > > We need an atomic way to setup pmd page table entry, avoiding races with
+> > > CPU setting dirty/accessed bits. This is required to implement
+> > > pmdp_invalidate() that doesn't loose these bits.
+> > > 
+> > > On PAE we have to use cmpxchg8b as we cannot assume what is value of new pmd and
+> > > setting it up half-by-half can expose broken corrupted entry to CPU.
+> > > 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Cc: Ingo Molnar <mingo@kernel.org>
+> > > Cc: H. Peter Anvin <hpa@zytor.com>
+> > > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > 
+> > I'll look at this from the arm64 perspective. It would be good if we can
+> > have a generic atomic implementation based on cmpxchg64 but I need to
+> > look at the details first.
+> 
+> Unfortunately, I'm not sure it's possbile.
+> 
+> The format of a page table is defined per-arch. We cannot assume much about
+> it in generic code.
+> 
+> I guess we could make it compile by casting to 'unsigned long', but is it
+> useful?
+> Every architecture manintainer still has to validate that this assumption
+> is valid for the architecture.
 
-Fix this problem by using set_huge_swap_pte_at() which was introduced to
-fix exactly this problem.
+You are right, not much gained in doing this.
 
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Acked-by: Steve Capper <steve.capper@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
----
- mm/rmap.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+Maybe a stupid question but can we not implement pmdp_invalidate() with
+something like pmdp_get_and_clear() (usually reusing the ptep_*
+equivalent). Or pmdp_clear_flush() (again, reusing ptep_clear_flush())?
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d405f0e0ee96..feb2352aa95f 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1379,15 +1379,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		update_hiwater_rss(mm);
- 
- 		if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-+			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
- 			if (PageHuge(page)) {
- 				int nr = 1 << compound_order(page);
- 				hugetlb_count_sub(nr, mm);
-+				set_huge_swap_pte_at(mm, address,
-+						     pvmw.pte, pteval,
-+						     vma_mmu_pagesize(vma));
- 			} else {
- 				dec_mm_counter(mm, mm_counter(page));
-+				set_pte_at(mm, address, pvmw.pte, pteval);
- 			}
- 
--			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
--			set_pte_at(mm, address, pvmw.pte, pteval);
- 		} else if (pte_unused(pteval)) {
- 			/*
- 			 * The guest indicated that the page content is of no
+In my quick grep on pmdp_invalidate, it seems to be followed by
+set_pmd_at() or pmd_populate() already and the *pmd value after
+mknotpresent isn't any different from 0 to the hardware (at least on
+ARM). That's unless Linux expects to see some non-zero value here if
+walking the page tables on another CPU.
+
+> > > +static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
+> > > +{
+> > > +	pmd_t old;
+> > > +
+> > > +	/*
+> > > +	 * We cannot assume what is value of pmd here, so there's no easy way
+> > > +	 * to set if half by half. We have to fall back to cmpxchg64.
+> > > +	 */
+> > > +	{
+> > 
+> > BTW, you are missing a "do" here (and it probably compiles just fine
+> > without it, though different behaviour).
+> 
+> Ouch. Thanks.
+> 
+> Hm, what is semantics of the construct without a "do"?
+
+You can just ignore the brackets:
+
+	old = *pmdp;
+	while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd)
+		;
+
 -- 
-2.11.0
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
