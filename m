@@ -1,120 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B7B6B03C3
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:36:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d5so102867285pfe.2
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 06:36:25 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id 89si9801462pla.52.2017.06.19.06.36.20
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6195C6B03A8
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:54:40 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 132so36986395pgb.6
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 06:54:40 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id s187si5289003pgb.326.2017.06.19.06.54.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Jun 2017 06:36:24 -0700 (PDT)
-Message-ID: <5947D2AE.6080609@huawei.com>
-Date: Mon, 19 Jun 2017 21:33:34 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] x86/mm: Don't reenter flush_tlb_func_common()
-References: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1497847645.git.luto@kernel.org>
-In-Reply-To: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1497847645.git.luto@kernel.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Jun 2017 06:54:39 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id y7so17102914pfd.3
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 06:54:39 -0700 (PDT)
+From: Hao Lee <haolee.swjtu@gmail.com>
+Subject: [PATCH] mm: remove a redundant condition in the for loop
+Date: Mon, 19 Jun 2017 21:54:18 +0800
+Message-Id: <20170619135418.8580-1-haolee.swjtu@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan
- van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: akpm@linux-foundation.org
+Cc: vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hao Lee <haolee.swjtu@gmail.com>
 
-On 2017/6/19 12:48, Andy Lutomirski wrote:
-> It was historically possible to have two concurrent TLB flushes
-> targeting the same CPU: one initiated locally and one initiated
-> remotely.  This can now cause an OOPS in leave_mm() at
-> arch/x86/mm/tlb.c:47:
->
->         if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
->                 BUG();
->
-> with this call trace:
->  flush_tlb_func_local arch/x86/mm/tlb.c:239 [inline]
->  flush_tlb_mm_range+0x26d/0x370 arch/x86/mm/tlb.c:317
->
-> Without reentrancy, this OOPS is impossible: leave_mm() is only
-> called if we're not in TLBSTATE_OK, but then we're unexpectedly
-> in TLBSTATE_OK in leave_mm().
->
-> This can be caused by flush_tlb_func_remote() happening between
-> the two checks and calling leave_mm(), resulting in two consecutive
-> leave_mm() calls on the same CPU with no intervening switch_mm()
-> calls.
->
-> We never saw this OOPS before because the old leave_mm()
-> implementation didn't put us back in TLBSTATE_OK, so the assertion
-> didn't fire.
-  HI, Andy
+The variable current_order decreases from MAX_ORDER-1 to order, so the
+condition current_order <= MAX_ORDER-1 is always true.
 
-  Today, I see same OOPS in linux 3.4 stable. It prove that it indeed has fired.
-   but It is rarely to appear.  I review the code. I found the a  issue.
-  when current->mm is NULL,  leave_mm will be called. but  it maybe in
-  TLBSTATE_OK,  eg: unuse_mm call after task->mm = NULL , but before enter_lazy_tlb.
+Signed-off-by: Hao Lee <haolee.swjtu@gmail.com>
+---
+ mm/page_alloc.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-   therefore,  it will fire. is it right?
-
-  Thanks
-  zhongjiang
-> Nadav noticed the reentrancy issue in a different context, but
-> neither of us realized that it caused a problem yet.
->
-> Cc: Nadav Amit <nadav.amit@gmail.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Reported-by: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
-> Fixes: 3d28ebceaffa ("x86/mm: Rework lazy TLB to track the actual loaded mm")
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/mm/tlb.c | 15 +++++++++++++--
->  1 file changed, 13 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 2a5e851f2035..f06239c6919f 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->  static void flush_tlb_func_common(const struct flush_tlb_info *f,
->  				  bool local, enum tlb_flush_reason reason)
->  {
-> +	/* This code cannot presently handle being reentered. */
-> +	VM_WARN_ON(!irqs_disabled());
-> +
->  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
->  		leave_mm(smp_processor_id());
->  		return;
-> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  		info.end = TLB_FLUSH_ALL;
->  	}
->  
-> -	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
-> +	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
-> +		local_irq_disable();
->  		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
-> +		local_irq_enable();
-> +	}
-> +
->  	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
->  		flush_tlb_others(mm_cpumask(mm), &info);
->  	put_cpu();
-> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
->  
->  	int cpu = get_cpu();
->  
-> -	if (cpumask_test_cpu(cpu, &batch->cpumask))
-> +	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
-> +		local_irq_disable();
->  		flush_tlb_func_local(&info, TLB_LOCAL_SHOOTDOWN);
-> +		local_irq_enable();
-> +	}
-> +
->  	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
->  		flush_tlb_others(&batch->cpumask, &info);
->  	cpumask_clear(&batch->cpumask);
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2302f25..9120c2b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2215,9 +2215,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+ 	bool can_steal;
+ 
+ 	/* Find the largest possible block of pages in the other list */
+-	for (current_order = MAX_ORDER-1;
+-				current_order >= order && current_order <= MAX_ORDER-1;
+-				--current_order) {
++	for (current_order = MAX_ORDER-1; current_order >= order;
++							--current_order) {
+ 		area = &(zone->free_area[current_order]);
+ 		fallback_mt = find_suitable_fallback(area, current_order,
+ 				start_migratetype, false, &can_steal);
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
