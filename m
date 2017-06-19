@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3C46B036A
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 19:36:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l16so76766817pgu.2
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:56 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id k8si9618777pgp.294.2017.06.19.16.36.55
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 631916B0372
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 19:36:57 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p4so115224491pfk.15
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:57 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id a10si3244911plt.26.2017.06.19.16.36.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 16:36:55 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id s66so60755969pfs.1
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:55 -0700 (PDT)
+        Mon, 19 Jun 2017 16:36:56 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id c73so605183pfk.2
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:56 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 16/23] net: copy struct sctp_sock.autoclose to userspace using put_user()
-Date: Mon, 19 Jun 2017 16:36:30 -0700
-Message-Id: <1497915397-93805-17-git-send-email-keescook@chromium.org>
+Subject: [PATCH 13/23] ufs: define usercopy region in ufs_inode_cache slab cache
+Date: Mon, 19 Jun 2017 16:36:27 -0700
+Message-Id: <1497915397-93805-14-git-send-email-keescook@chromium.org>
 In-Reply-To: <1497915397-93805-1-git-send-email-keescook@chromium.org>
 References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,11 +24,18 @@ Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, linux-
 
 From: David Windsor <dave@nullcore.net>
 
-The autoclose field can be copied with put_user(), so there is no need to
-use copy_to_user(). In both cases, hardened usercopy is being bypassed
-since the size is constant, and not open to runtime manipulation.
+The ufs symlink pathnames, stored in struct ufs_inode_info.i_u1.i_symlink
+and therefore contained in the ufs_inode_cache slab cache, need to be copied
+to/from userspace.
 
-This patch is verbatim from Brad Spengler/PaX Team's PAX_USERCOPY
+In support of usercopy hardening, this patch defines a region in the
+ufs_inode_cache slab cache in which userspace copy operations are allowed.
+
+This region is known as the slab cache's usercopy region.  Slab caches can
+now check that each copy operation involving cache-managed memory falls
+entirely within the slab's usercopy region.
+
+This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
 whitelisting code in the last public patch of grsecurity/PaX based on my
 understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
@@ -37,22 +44,33 @@ Signed-off-by: David Windsor <dave@nullcore.net>
 [kees: adjust commit log]
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- net/sctp/socket.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/ufs/super.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-index 0defc0c76552..e94c141bcf82 100644
---- a/net/sctp/socket.c
-+++ b/net/sctp/socket.c
-@@ -4883,7 +4883,7 @@ static int sctp_getsockopt_autoclose(struct sock *sk, int len, char __user *optv
- 	len = sizeof(int);
- 	if (put_user(len, optlen))
- 		return -EFAULT;
--	if (copy_to_user(optval, &sctp_sk(sk)->autoclose, sizeof(int)))
-+	if (put_user(sctp_sk(sk)->autoclose, (int __user *)optval))
- 		return -EFAULT;
+diff --git a/fs/ufs/super.c b/fs/ufs/super.c
+index 878cc6264f1a..fa001feed14a 100644
+--- a/fs/ufs/super.c
++++ b/fs/ufs/super.c
+@@ -1441,11 +1441,14 @@ static void init_once(void *foo)
+ 
+ static int __init init_inodecache(void)
+ {
+-	ufs_inode_cachep = kmem_cache_create("ufs_inode_cache",
+-					     sizeof(struct ufs_inode_info),
+-					     0, (SLAB_RECLAIM_ACCOUNT|
+-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+-					     init_once);
++	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
++				sizeof(struct ufs_inode_info), 0,
++				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
++					SLAB_ACCOUNT),
++				offsetof(struct ufs_inode_info, i_u1.i_symlink),
++				sizeof_field(struct ufs_inode_info,
++					i_u1.i_symlink),
++				init_once);
+ 	if (ufs_inode_cachep == NULL)
+ 		return -ENOMEM;
  	return 0;
- }
 -- 
 2.7.4
 
