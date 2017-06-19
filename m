@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 621A56B0338
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E1C66B033C
 	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 19:36:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 132so49530169pgb.6
+Received: by mail-pg0-f72.google.com with SMTP id o62so127941423pga.0
         for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:53 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id c2si9380927pge.525.2017.06.19.16.36.52
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id z2si4013693pgs.175.2017.06.19.16.36.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 19 Jun 2017 16:36:52 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id s66so60755511pfs.1
+Received: by mail-pg0-x234.google.com with SMTP id e187so2414213pgc.1
         for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:36:52 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 09/23] ext4: define usercopy region in ext4_inode_cache slab cache
-Date: Mon, 19 Jun 2017 16:36:23 -0700
-Message-Id: <1497915397-93805-10-git-send-email-keescook@chromium.org>
+Subject: [PATCH 11/23] jfs: define usercopy region in jfs_ip slab cache
+Date: Mon, 19 Jun 2017 16:36:25 -0700
+Message-Id: <1497915397-93805-12-git-send-email-keescook@chromium.org>
 In-Reply-To: <1497915397-93805-1-git-send-email-keescook@chromium.org>
 References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,12 +24,12 @@ Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, linux-
 
 From: David Windsor <dave@nullcore.net>
 
-The ext4 symlink pathnames, stored in struct ext4_inode_info.i_data
-and therefore contained in the ext4_inode_cache slab cache, need
-to be copied to/from userspace.
+The jfs symlink pathnames, stored in struct jfs_inode_info.i_inline
+and therefore contained in the jfs_ip slab cache, need to be copied to/from
+userspace.
 
 In support of usercopy hardening, this patch defines a region in
-the ext4_inode_cache slab cache in which userspace copy operations
+the jfs_ip slab cache in which userspace copy operations
 are allowed.
 
 This region is known as the slab cache's usercopy region.  Slab
@@ -45,32 +45,28 @@ Signed-off-by: David Windsor <dave@nullcore.net>
 [kees: adjust commit log]
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/ext4/super.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ fs/jfs/super.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index d37c81f327e7..bd92123cf1fc 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -1031,11 +1031,13 @@ static void init_once(void *foo)
+diff --git a/fs/jfs/super.c b/fs/jfs/super.c
+index e8aad7d87b8c..10b958f49f57 100644
+--- a/fs/jfs/super.c
++++ b/fs/jfs/super.c
+@@ -972,9 +972,11 @@ static int __init init_jfs_fs(void)
+ 	int rc;
  
- static int __init init_inodecache(void)
- {
--	ext4_inode_cachep = kmem_cache_create("ext4_inode_cache",
--					     sizeof(struct ext4_inode_info),
--					     0, (SLAB_RECLAIM_ACCOUNT|
--						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
--					     init_once);
-+	ext4_inode_cachep = kmem_cache_create_usercopy("ext4_inode_cache",
-+				sizeof(struct ext4_inode_info), 0,
-+				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-+					SLAB_ACCOUNT),
-+				offsetof(struct ext4_inode_info, i_data),
-+				sizeof_field(struct ext4_inode_info, i_data),
-+				init_once);
- 	if (ext4_inode_cachep == NULL)
+ 	jfs_inode_cachep =
+-	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
+-			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
+-			    init_once);
++	    kmem_cache_create_usercopy("jfs_ip", sizeof(struct jfs_inode_info),
++			0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
++			offsetof(struct jfs_inode_info, i_inline),
++			sizeof_field(struct jfs_inode_info, i_inline),
++			init_once);
+ 	if (jfs_inode_cachep == NULL)
  		return -ENOMEM;
- 	return 0;
+ 
 -- 
 2.7.4
 
