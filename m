@@ -1,102 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3932C6B0279
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 14:02:04 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id h64so12658827wmg.0
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 11:02:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p34si300737wrc.158.2017.06.19.11.02.02
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 456AF6B0279
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 14:20:11 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v14so12703419wmf.6
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 11:20:11 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id b76si11284146wmi.63.2017.06.19.11.20.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Jun 2017 11:02:02 -0700 (PDT)
-Date: Mon, 19 Jun 2017 20:01:47 +0200
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
- of poison pages
-Message-ID: <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
-References: <20170616190200.6210-1-tony.luck@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Jun 2017 11:20:09 -0700 (PDT)
+Date: Mon, 19 Jun 2017 19:19:57 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
+Message-ID: <20170619181956.GH10672@ZenIV.linux.org.uk>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170617052212.GA8246@lst.de>
+ <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
+ <20170618075152.GA25871@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170616190200.6210-1-tony.luck@intel.com>
+In-Reply-To: <20170618075152.GA25871@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yazen Ghannam <yazen.ghannam@amd.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-(drop stable from CC)
+On Sun, Jun 18, 2017 at 09:51:52AM +0200, Christoph Hellwig wrote:
 
-You could use git's --suppress-cc= option when sending.
-
-On Fri, Jun 16, 2017 at 12:02:00PM -0700, Luck, Tony wrote:
-> From: Tony Luck <tony.luck@intel.com>
+> > That said, I think "please don't add a new bmap()
+> > user, use iomap instead" is a fair comment. You know me well enough to
+> > know that would be all it takes to redirect my work, I can do without
+> > the bluster.
 > 
-> Speculative processor accesses may reference any memory that has a
-> valid page table entry.  While a speculative access won't generate
-> a machine check, it will log the error in a machine check bank. That
-> could cause escalation of a subsequent error since the overflow bit
-> will be then set in the machine check bank status register.
+> But that's not the point.  The point is that ->bmap() semantics simplify
+> do not work in practice because they don't make sense.
 
-...
+Speaking of iomap, what's supposed to happen when doing a write into what
+used to be a hole?  Suppose we have a file with a megabyte hole in it
+and there's some process mmapping that range.  Another process does
+write over the entire range.  We call ->iomap_begin() and allocate
+disk blocks.  Then we start copying data into those.  In the meanwhile,
+the first process attempts to fetch from address in the middle of that
+hole.  What should happen?
 
-> @@ -1056,6 +1057,40 @@ static int do_memory_failure(struct mce *m)
->  	return ret;
->  }
->  
-> +#ifdef CONFIG_X86_64
-> +
-> +void arch_unmap_kpfn(unsigned long pfn)
-> +{
+Should the blocks we'd allocated in ->iomap_begin() be immediately linked
+into the whatever indirect locks/btree/whatnot we are using?  That would
+require zeroing all of them first - otherwise that readpage will read
+uninitialized block.  Another variant would be to delay linking them
+in until ->iomap_end(), but...  Suppose we get the page evicted by
+memory pressure after the writer is finished with it.  If ->readpage()
+comes before ->iomap_end(), we'll need to somehow figure out that it's
+not a hole anymore, or we'll end up with an uptodate page full of zeroes
+observed by reads after successful write().
 
-I guess you can move the ifdeffery inside the function.
-
-> +	unsigned long decoy_addr;
-> +
-> +	/*
-> +	 * Unmap this page from the kernel 1:1 mappings to make sure
-> +	 * we don't log more errors because of speculative access to
-> +	 * the page.
-> +	 * We would like to just call:
-> +	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
-> +	 * but doing that would radically increase the odds of a
-> +	 * speculative access to the posion page because we'd have
-> +	 * the virtual address of the kernel 1:1 mapping sitting
-> +	 * around in registers.
-> +	 * Instead we get tricky.  We create a non-canonical address
-> +	 * that looks just like the one we want, but has bit 63 flipped.
-> +	 * This relies on set_memory_np() not checking whether we passed
-> +	 * a legal address.
-> +	 */
-> +
-> +#if PGDIR_SHIFT + 9 < 63 /* 9 because cpp doesn't grok ilog2(PTRS_PER_PGD) */
-
-Please no side comments.
-
-Also, explain why the build-time check. (Sign-extension going away for VA
-space yadda yadda..., 5 2/3 level paging :-))
-
-Also, I'm assuming this whole "workaround" of sorts should be Intel-only?
-
-> +	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-> +#else
-> +#error "no unused virtual bit available"
-> +#endif
-> +
-> +	if (set_memory_np(decoy_addr, 1))
-> +		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map \n", pfn);
-
-WARNING: unnecessary whitespace before a quoted newline
-#107: FILE: arch/x86/kernel/cpu/mcheck/mce.c:1089:
-+               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map \n", pfn);
-
-
--- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+The comment you've got in linux/iomap.h would seem to suggest the second
+interpretation, but neither it nor anything in Documentation discusses the
+relations with readpage/writepage...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
