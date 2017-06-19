@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7A16B03AE
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 08:45:43 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v88so5276754wrb.1
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 05:45:43 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g203si10063290wme.130.2017.06.19.05.45.41
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 634676B03B1
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 08:46:54 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id i1so22953376lfh.1
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 05:46:54 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id s14si5481796lfi.468.2017.06.19.05.46.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Jun 2017 05:45:41 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] dax: Fix inefficiency in dax_writeback_mapping_range()
-Date: Mon, 19 Jun 2017 14:45:31 +0200
-Message-Id: <20170619124531.21491-1-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Jun 2017 05:46:52 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x81so10246769lfb.3
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 05:46:52 -0700 (PDT)
+Date: Mon, 19 Jun 2017 15:46:49 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170619124649.jy7m4ig3clln3pcw@node.shutemov.name>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170616133600.GE11676@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170616133600.GE11676@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, stable@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-dax_writeback_mapping_range() fails to update iteration index when
-searching radix tree for entries needing cache flushing. Thus each
-pagevec worth of entries is searched starting from the start which is
-inefficient and prone to livelocks. Update index properly.
+On Fri, Jun 16, 2017 at 03:36:00PM +0200, Andrea Arcangeli wrote:
+> Hello Krill,
+> 
+> On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > +static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
+> > +{
+> > +	pmd_t old;
+> > +
+> > +	/*
+> > +	 * We cannot assume what is value of pmd here, so there's no easy way
+> > +	 * to set if half by half. We have to fall back to cmpxchg64.
+> > +	 */
+> > +	{
+> > +		old = *pmdp;
+> > +	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
+> > +
+> > +	return old;
+> > +}
+> 
+> I see further margin for optimization here (although it's only for PAE
+> x32..).
+> 
+> pmd is stable so we could do:
+> 
+> if (!(pmd & _PAGE_PRESENT)) {
+>    cast to split_pmd and use xchg on pmd_low like
+>    native_pmdp_get_and_clear and copy pmd_high non atomically
+> } else {
+>   the above cmpxchg64 loop
+> }
+> 
+> Now thinking about the above I had a second thought if pmdp_establish
+> is the right interface and if we shouldn't replace pmdp_establish with
+> pmdp_mknotpresent instead to skip the pmd & _PAGE_PRESENT check that
+> will always be true in practice, so pmdp_mknotpresent will call
+> internally pmd_mknotpresent and it won't have to check for pmd &
+> _PAGE_PRESENT and it would have no cons on x86-64.
 
-CC: stable@vger.kernel.org
-Fixes: 9973c98ecfda3a1dfcab981665b5f1e39bcde64a
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/dax.c | 1 +
- 1 file changed, 1 insertion(+)
+With your proposed optimization, compiler is in good position to eliminate
+cmpxchg loop for trivial cases as we have in pmdp_invalidate() case.
+It can see that pmd is always has the present bit cleared.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 2a6889b3585f..9187f3b07f3e 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -859,6 +859,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
- 			if (ret < 0)
- 				goto out;
- 		}
-+		start_index = indices[pvec.nr - 1] + 1;
- 	}
- out:
- 	put_dax(dax_dev);
+I'll keep more flexible interface for now. Will see if anybody would see
+more problems with it.
+
 -- 
-2.12.3
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
