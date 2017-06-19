@@ -1,109 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 316F96B0279
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 12:18:49 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 40so38419879uah.9
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:18:49 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k184si4594101vka.170.2017.06.19.09.18.47
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 810CE6B0292
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 12:23:50 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w1so70116263qtg.6
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:23:50 -0700 (PDT)
+Received: from mail-qt0-f172.google.com (mail-qt0-f172.google.com. [209.85.216.172])
+        by mx.google.com with ESMTPS id y123si9299033qkd.212.2017.06.19.09.23.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 09:18:48 -0700 (PDT)
-Date: Mon, 19 Jun 2017 09:18:06 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
-Message-ID: <20170619161806.GA4732@birch.djwong.org>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170617052212.GA8246@lst.de>
- <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
- <20170618075152.GA25871@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170618075152.GA25871@lst.de>
+        Mon, 19 Jun 2017 09:23:49 -0700 (PDT)
+Received: by mail-qt0-f172.google.com with SMTP id w1so113884889qtg.2
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:23:49 -0700 (PDT)
+Message-ID: <1497889426.4654.7.camel@redhat.com>
+Subject: Re: [PATCH v7 00/22] fs: enhanced writeback error reporting with
+ errseq_t (pile #1)
+From: Jeff Layton <jlayton@redhat.com>
+Date: Mon, 19 Jun 2017 12:23:46 -0400
+In-Reply-To: <20170616193427.13955-1-jlayton@redhat.com>
+References: <20170616193427.13955-1-jlayton@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Sun, Jun 18, 2017 at 09:51:52AM +0200, Christoph Hellwig wrote:
-> On Sat, Jun 17, 2017 at 05:29:23AM -0700, Dan Williams wrote:
-> > On Fri, Jun 16, 2017 at 10:22 PM, Christoph Hellwig <hch@lst.de> wrote:
-> > > On Fri, Jun 16, 2017 at 06:15:29PM -0700, Dan Williams wrote:
-> > >> Refactor the core of generic_swapfile_activate() into bmap_walk() so
-> > >> that it can be used by a new daxfile_activate() helper (to be added).
-> > >
-> > > No way in hell!  generic_swapfile_activate needs to day and no new users
-> > > of ->bmap over my dead body.  It's a guaranteed to fuck up your data left,
-> > > right and center.
-> > 
-> > Certainly you're not saying that existing swapfiles are broken, so I
-> > wonder what bugs you're talking about?
+On Fri, 2017-06-16 at 15:34 -0400, Jeff Layton wrote:
+> v7:
+> ===
+> This is the seventh posting of the patchset to revamp the way writeback
+> errors are tracked and reported.
 > 
-> They are somewhat broken, but we manage to paper over the fact.
+> The main difference from the v6 posting is the removal of the
+> FS_WB_ERRSEQ flag. That requires a few other incremental patches in the
+> writeback code to ensure that both error tracking models are handled
+> in a suitable way.
 > 
-> And in fact if you plan to use a method marked:
+> Also, a bit more cleanup of the metadata writeback codepaths, and some
+> documentation updates.
 > 
-> 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
-> 	sector_t (*bmap)(struct address_space *, sector_t);
+> Some of these patches have been posted separately, but I'm re-posting
+> them here to make it clear that they're prerequisites of the later
+> patches in the series.
 > 
-> I'd expect a little research.
+> This series is based on top of linux-next from a day or so ago. I'd like
+> to have this picked up by linux-next in the near future so we can get
+> some more extensive testing with it. Should I just plan to maintain a
+> topic branch on top of -next and ask Stephen to pick it up?
 > 
-> By it's signature alone ->bmap can't do a whole lot - it can try to
-> translate the _current_ mapping of a relative block number to a physical
-> one, and do extremely crude error reporting.
+> Background:
+> ===========
+> The basic problem is that we have (for a very long time) tracked and
+> reported writeback errors based on two flags in the address_space:
+> AS_EIO and AS_ENOSPC. Those flags are cleared when they are checked,
+> so only the first caller to check them is able to consume them.
 > 
-> Notice what it can't do:
+> That model is quite unreliable, for several related reasons:
 > 
->  a) provide any guaranteed that the block mapping doesn't change any time
->     after it returned
->  b) deal with the fact that there might be anything like a physical block
->  c) put the physical block into any sort of context, that is explain what
->     device it actually is relative to
+> * only the first fsync caller on the inode will see the error. In a
+>   world of containerized setups, that's no longer viable. Applications
+>   need to know that their writes are safely stored, and they can
+>   currently miss seeing errors that they should be aware of when
+>   they're not.
 > 
-> So yes, swap files are broken.  They sort of work by:
+> * there are a lot of internal callers to filemap_fdatawait* and
+>   filemap_write_and_wait* that clear these errors but then never report
+>   them to userland in any fashion.
 > 
->  a) ensuring that ->bmap is not implemented for anything fancy (btrfs), or
->     living  with it doing I/O into random places (XFS RT subvolumes, *cough*)
+> * Some internal callers report writeback errors, but can do so at
+>   non-sensical times. For instance, we might want to truncate a file,
+>   which triggers a pagecache flush. If that writeback fails, we might
+>   report that error to the truncate caller, but a subsequent fsync
+>   will likely not see it.
+> 
+> * Some internal callers try to reset the error flags after clearing
+>   them, but that's racy. Another task could check the flags between
+>   those two events.
+> 
+> Solution:
+> =========
+> This patchset adds a new datatype called an errseq_t that represents a
+> sequence of errors. It's a u32, with a field for a POSIX-flavor error
+> and a counter, managed with atomics. We can sample that value at a
+> particular point in time, and can later tell whether there have been any
+> errors since that point.
+> 
+> That allows us to provide traditional check-and-clear fsync semantics
+> on every open file description in a lightweight fashion. fsync callers
+> no longer need to coordinate between one another in order to ensure
+> that errors at fsync time are handled correctly.
+> 
+> Strategy:
+> =========
+> The aim with this pile is to do the minimum possible to support for
+> reliable reporting of errors on fsync, without substantially changing
+> the internals of the filesystems themselves.
+> 
+> Most of the internal calls to filemap_fdatawait are left alone, so all
+> of the internal error checkers are using the same error handling they
+> always have. The only real difference here is that we're better
+> reporting errors at fsync.
+> 
+> I think that we probably will want to eventually convert all of those
+> internal callers to use errseq_t based reporting, but that can be done
+> in an incremental fashion in follow-on patchsets.
+> 
+> Testing:
+> ========
+> I've primarily been testing this with some new xfstests that I will post
+> in a separate series. These tests use dm-error fault injection to make
+> the underlying block device start throwing I/O errors, and then test the
+> how the filesystem layer reports errors after that.
+> 
+> Jeff Layton (22):
+>   fs: remove call_fsync helper function
+>   buffer: use mapping_set_error instead of setting the flag
+>   fs: check for writeback errors after syncing out buffers in
+>     generic_file_fsync
+>   buffer: set errors in mapping at the time that the error occurs
+>   jbd2: don't clear and reset errors after waiting on writeback
+>   mm: clear AS_EIO/AS_ENOSPC when writeback initiation fails
+>   mm: don't TestClearPageError in __filemap_fdatawait_range
+>   mm: clean up error handling in write_one_page
+>   fs: always sync metadata in __generic_file_fsync
+>   lib: add errseq_t type and infrastructure for handling it
+>   fs: new infrastructure for writeback error handling and reporting
+>   mm: tracepoints for writeback error events
+>   mm: set both AS_EIO/AS_ENOSPC and errseq_t in mapping_set_error
+>   Documentation: flesh out the section in vfs.txt on storing and
+>     reporting writeback errors
+>   dax: set errors in mapping when writeback fails
+>   block: convert to errseq_t based writeback error tracking
+>   ext4: use errseq_t based error handling for reporting data writeback
+>     errors
+>   fs: add f_md_wb_err field to struct file for tracking metadata errors
+>   ext4: add more robust reporting of metadata writeback errors
+>   ext2: convert to errseq_t based writeback error tracking
+>   xfs: minimal conversion to errseq_t writeback error reporting
+>   btrfs: minimal conversion to errseq_t writeback error reporting on
+>     fsync
+> 
+>  Documentation/filesystems/vfs.txt |  43 +++++++-
+>  drivers/dax/device.c              |   1 +
+>  fs/block_dev.c                    |   9 +-
+>  fs/btrfs/file.c                   |   7 +-
+>  fs/buffer.c                       |  20 ++--
+>  fs/dax.c                          |   4 +-
+>  fs/ext2/dir.c                     |   8 ++
+>  fs/ext2/file.c                    |  26 ++++-
+>  fs/ext4/dir.c                     |   8 +-
+>  fs/ext4/file.c                    |   5 +-
+>  fs/ext4/fsync.c                   |  28 ++++-
+>  fs/file_table.c                   |   1 +
+>  fs/gfs2/lops.c                    |   2 +-
+>  fs/jbd2/commit.c                  |  15 +--
+>  fs/libfs.c                        |  12 +--
+>  fs/open.c                         |   3 +
+>  fs/sync.c                         |   2 +-
+>  fs/xfs/xfs_file.c                 |  15 ++-
+>  include/linux/buffer_head.h       |   1 +
+>  include/linux/errseq.h            |  19 ++++
+>  include/linux/fs.h                |  67 ++++++++++--
+>  include/linux/pagemap.h           |  31 ++++--
+>  include/trace/events/filemap.h    |  52 ++++++++++
+>  ipc/shm.c                         |   2 +-
+>  lib/Makefile                      |   2 +-
+>  lib/errseq.c                      | 208 ++++++++++++++++++++++++++++++++++++++
+>  mm/filemap.c                      | 113 +++++++++++++++++----
+>  mm/page-writeback.c               |  15 ++-
+>  28 files changed, 628 insertions(+), 91 deletions(-)
+>  create mode 100644 include/linux/errseq.h
+>  create mode 100644 lib/errseq.c
+> 
 
-Ye $deities, it really /doesn't/ check XFS_IS_REALTIME_INODE(ip)!  AIEEEE!
+If there are no major objections to this set, I'd like to have
+linux-next start picking it up to get some wider testing. What's the
+right vehicle for this, given that it touches stuff all over the tree?
 
-Uh... patch soon.
+I can see 3 potential options:
 
->  b) doing extremely heavy handed locking to ensure things don't change at all
->     (S_SWAPFILE).  This might kinda sorta work for swapfiles which are
->     part of the system and require privilegues, but an absolute no-go
->     for anything else
->  c) simply not using this brain-haired systems - see the swap over NFS
->     support, or the WIP swap over btrfs patches.
-> 
-> > Unless you had plans to go remove bmap() I don't see how this gets in
-> > your way at all.
-> 
-> I'm not talking about getting in my way.  I'm talking about you doing
-> something incredibly stupid.  Don't do that.
-> 
-> > That said, I think "please don't add a new bmap()
-> > user, use iomap instead" is a fair comment. You know me well enough to
-> > know that would be all it takes to redirect my work, I can do without
-> > the bluster.
-> 
-> But that's not the point.  The point is that ->bmap() semantics simplify
-> do not work in practice because they don't make sense.
+1) I could just pull these into the branch that Stephen is already
+picking up for file-locks in my tree
 
-Seconded, bmap doesn't coordinate with the filesystem in any way to
-guarantee that the mappings are stable, nor does it seem to care about
-delayed alloc reservations.  Granted I suspect the dax usage model is
-"all the blocks were already allocated" so there are no da reservations,
-but still, ugh, bmap. :)
+2) I could put them into a new branch, and have Stephen pull that one in
+addition to the file-locks branch
 
---D
+3) It could go in via someone else's tree entirely (Andrew or Al's
+maybe?)
 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+I'm fine with any of these. Anyone have thoughts?
+
+Thanks,
+-- 
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
