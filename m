@@ -1,58 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3097B6B0292
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 19:25:15 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g78so115178306pfg.4
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:25:15 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id 1si9312895pgp.88.2017.06.19.16.25.10
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A71DC6B0279
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 19:28:46 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d191so127783549pga.15
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 16:28:46 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id u26si8857857pfa.258.2017.06.19.16.28.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 19 Jun 2017 16:25:14 -0700 (PDT)
-Date: Tue, 20 Jun 2017 09:25:07 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH v7 00/22] fs: enhanced writeback error reporting with
- errseq_t (pile #1)
-Message-ID: <20170620092507.3998e728@canb.auug.org.au>
-In-Reply-To: <1497889426.4654.7.camel@redhat.com>
-References: <20170616193427.13955-1-jlayton@redhat.com>
-	<1497889426.4654.7.camel@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Jun 2017 16:28:45 -0700 (PDT)
+From: Dennis Zhou <dennisz@fb.com>
+Subject: [PATCH 0/4] percpu: add basic stats and tracepoints to percpu allocator
+Date: Mon, 19 Jun 2017 19:28:28 -0400
+Message-ID: <20170619232832.27116-1-dennisz@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Dennis Zhou <dennisz@fb.com>
 
-Hi Jeff,
+There is limited visibility into the percpu memory allocator making it hard to
+understand usage patterns. Without these concrete numbers, we are left to
+conjecture about the correctness of percpu memory patterns and usage.
+Additionally, there is no mechanism to review the correctness/efficiency of the
+current implementation.
 
-On Mon, 19 Jun 2017 12:23:46 -0400 Jeff Layton <jlayton@redhat.com> wrote:
->
-> If there are no major objections to this set, I'd like to have
-> linux-next start picking it up to get some wider testing. What's the
-> right vehicle for this, given that it touches stuff all over the tree?
-> 
-> I can see 3 potential options:
-> 
-> 1) I could just pull these into the branch that Stephen is already
-> picking up for file-locks in my tree
-> 
-> 2) I could put them into a new branch, and have Stephen pull that one in
-> addition to the file-locks branch
-> 
-> 3) It could go in via someone else's tree entirely (Andrew or Al's
-> maybe?)
-> 
-> I'm fine with any of these. Anyone have thoughts?
+This patchset address the following:
+- Adds basic statistics to reason about the number of allocations over the
+  lifetime, allocation sizes, and fragmentation.
+- Adds tracepoints to enable better debug capabilities as well as the ability
+  to review allocation requests and corresponding decisions.
 
-Given that this is a one off development, either 1 or 3 (in Al's tree)
-would be fine.  2 is a possibility (but people forget to ask me to
-remove one shot trees :-()
+This patchiest contains the following four patches:
+0001-percpu-add-missing-lockdep_assert_held-to-func-pcpu_.patch
+0002-percpu-migrate-percpu-data-structures-to-internal-he.patch
+0003-percpu-expose-statistics-about-percpu-memory-via-deb.patch
+0004-percpu-add-tracepoint-support-for-percpu-memory.patch
 
--- 
-Cheers,
-Stephen Rothwell
+0001 adds a missing lockdep_assert_held for pcpu_lock to improve consistency
+and safety. 0002 prepares for the following patches by moving the definition of
+data structures and exposes previously static variables. 0003 adds percpu
+statistics via debugfs. 0004 adds tracepoints to key percpu events: chunk
+creation/deletion and area allocation/free/failure.
+
+This patchset is on top of linus#master 1132d5e.
+
+diffstats below:
+
+  percpu: add missing lockdep_assert_held to func pcpu_free_area
+  percpu: migrate percpu data structures to internal header
+  percpu: expose statistics about percpu memory via debugfs
+  percpu: add tracepoint support for percpu memory
+
+ include/trace/events/percpu.h | 125 ++++++++++++++++++++++++
+ mm/Kconfig                    |   8 ++
+ mm/Makefile                   |   1 +
+ mm/percpu-internal.h          | 164 +++++++++++++++++++++++++++++++
+ mm/percpu-km.c                |   6 ++
+ mm/percpu-stats.c             | 222 ++++++++++++++++++++++++++++++++++++++++++
+ mm/percpu-vm.c                |   7 ++
+ mm/percpu.c                   |  53 +++++-----
+ 8 files changed, 563 insertions(+), 23 deletions(-)
+ create mode 100644 include/trace/events/percpu.h
+ create mode 100644 mm/percpu-internal.h
+ create mode 100644 mm/percpu-stats.c
+
+Thanks,
+Dennis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
