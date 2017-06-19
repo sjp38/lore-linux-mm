@@ -1,40 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 854A76B02C3
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 17:59:20 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id e191so40741040oih.4
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 14:59:20 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B71EE6B02F4
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 18:01:14 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id v74so74873856oie.10
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 15:01:14 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 18si3318090otj.216.2017.06.19.14.59.19
+        by mx.google.com with ESMTPS id u187si2740820oie.66.2017.06.19.15.01.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 14:59:19 -0700 (PDT)
-Received: from mail-ua0-f181.google.com (mail-ua0-f181.google.com [209.85.217.181])
+        Mon, 19 Jun 2017 15:01:13 -0700 (PDT)
+Received: from mail-ua0-f182.google.com (mail-ua0-f182.google.com [209.85.217.182])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C380F23A0F
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 21:59:18 +0000 (UTC)
-Received: by mail-ua0-f181.google.com with SMTP id d45so27880605uai.1
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 14:59:18 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1DCAE239F2
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 22:01:13 +0000 (UTC)
+Received: by mail-ua0-f182.google.com with SMTP id g40so67910102uaa.3
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 15:01:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <515383DE-922D-4278-9FF6-AEF5445A0547@gmail.com>
+In-Reply-To: <1619e0d4-683d-c129-a132-383c7495d285@suse.com>
 References: <cover.1497415951.git.luto@kernel.org> <039935bc914009103fdaa6f72f14980c19562de5.1497415951.git.luto@kernel.org>
- <515383DE-922D-4278-9FF6-AEF5445A0547@gmail.com>
+ <1619e0d4-683d-c129-a132-383c7495d285@suse.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 19 Jun 2017 14:58:56 -0700
-Message-ID: <CALCETrV_cuhL7g5Tf3W7dejB-9YPvqzNSHoRb=gS9rFrLS4geA@mail.gmail.com>
+Date: Mon, 19 Jun 2017 15:00:51 -0700
+Message-ID: <CALCETrVV8103awgJhhHiJdVUFZHe2m0E8z-unkQzc739zUvPOQ@mail.gmail.com>
 Subject: Re: [PATCH v2 05/10] x86/mm: Rework lazy TLB mode and TLB freshness tracking
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Juergen Gross <jgross@suse.com>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Sun, Jun 18, 2017 at 1:06 AM, Nadav Amit <nadav.amit@gmail.com> wrote:
->
->> On Jun 13, 2017, at 9:56 PM, Andy Lutomirski <luto@kernel.org> wrote:
->>
+On Tue, Jun 13, 2017 at 11:09 PM, Juergen Gross <jgross@suse.com> wrote:
+> On 14/06/17 06:56, Andy Lutomirski wrote:
 >> x86's lazy TLB mode used to be fairly weak -- it would switch to
 >> init_mm the first time it tried to flush a lazy TLB.  This meant an
 >> unnecessary CR3 write and, if the flush was remote, an unnecessary
@@ -59,56 +56,17 @@ On Sun, Jun 18, 2017 at 1:06 AM, Nadav Amit <nadav.amit@gmail.com> wrote:
 >> patch changes the way that mm_cpumask() works.  This should be okay,
 >> since Xen *also* iterates all online CPUs to find all the CPUs it
 >> needs to twiddle.
->>
->> The UV tlbflush code is rather dated and should be changed.
->>
->> Cc: Andrew Banman <abanman@sgi.com>
->> Cc: Mike Travis <travis@sgi.com>
->> Cc: Dimitri Sivanich <sivanich@sgi.com>
->> Cc: Juergen Gross <jgross@suse.com>
->> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
->> Signed-off-by: Andy Lutomirski <luto@kernel.org>
->> ---
->> arch/x86/include/asm/mmu_context.h |   6 +-
->> arch/x86/include/asm/tlbflush.h    |   4 -
->> arch/x86/mm/init.c                 |   1 -
->> arch/x86/mm/tlb.c                  | 242 +++++++++++++++++++------------=
-------
->> 4 files changed, 131 insertions(+), 122 deletions(-)
->>
->> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/m=
-mu_context.h
->> index e5295d485899..69a4f1ee86ac 100644
->> --- a/arch/x86/include/asm/mmu_context.h
->> +++ b/arch/x86/include/asm/mmu_context.h
->> @@ -125,8 +125,10 @@ static inline void switch_ldt(struct mm_struct *pre=
-v, struct mm_struct *next)
->>
->> static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_stru=
-ct *tsk)
->> {
->> -     if (this_cpu_read(cpu_tlbstate.state) =3D=3D TLBSTATE_OK)
->> -             this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
->> +     int cpu =3D smp_processor_id();
->> +
->> +     if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
->> +             cpumask_clear_cpu(cpu, mm_cpumask(mm));
 >
-> The indication for laziness that was in cpu_tlbstate.state may be a bette=
-r
-> indication whether the cpu needs to be cleared from the previous mm_cpuma=
-sk().
-> If you kept this indication, you could have used this per-cpu information=
- in
-> switch_mm_irqs_off() instead of "cpumask_test_cpu(cpu, mm_cpumask(next))=
-=E2=80=9D,
-> which might have been accessed by another core.
+> There is a allocation failure path in xen_drop_mm_ref() which might
+> be wrong with this patch. As this path should be taken only very
+> unlikely I'd suggest to remove the test for mm_cpumask() bit zero in
+> this path.
+>
 
-Hmm, fair enough.  On the other hand, this is the least of our
-problems in this particular case -- the scheduler's use of mmgrab()
-and mmdrop() are probably at least as bad if not worse.  My preference
-would be to get all this stuff merged and then see if we want to add
-some scalability improvements on top.
+Right, fixed.
+
+>
+> Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
