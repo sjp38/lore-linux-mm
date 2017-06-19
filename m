@@ -1,41 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFCC6B0279
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 12:34:54 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id g7so118978637pgr.3
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 09:34:54 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id x11si8258182pff.83.2017.06.19.09.34.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 09:34:53 -0700 (PDT)
-Date: Mon, 19 Jun 2017 10:34:52 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH] dax: Fix inefficiency in dax_writeback_mapping_range()
-Message-ID: <20170619163452.GA27087@linux.intel.com>
-References: <20170619124531.21491-1-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170619124531.21491-1-jack@suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 037CC6B0279
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 13:02:03 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id f185so117525237pgc.10
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 10:02:02 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g1si9687594plb.271.2017.06.19.10.02.01
+        for <linux-mm@kvack.org>;
+        Mon, 19 Jun 2017 10:02:01 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: [PATCH v5 0/8] Support for contiguous pte hugepages
+Date: Mon, 19 Jun 2017 18:01:37 +0100
+Message-Id: <20170619170145.25577-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
 
-On Mon, Jun 19, 2017 at 02:45:31PM +0200, Jan Kara wrote:
-> dax_writeback_mapping_range() fails to update iteration index when
-> searching radix tree for entries needing cache flushing. Thus each
-> pagevec worth of entries is searched starting from the start which is
-> inefficient and prone to livelocks. Update index properly.
-> 
-> CC: stable@vger.kernel.org
-> Fixes: 9973c98ecfda3a1dfcab981665b5f1e39bcde64a
-> Signed-off-by: Jan Kara <jack@suse.cz>
+Hi Andrew,
 
-Yep, this seems good, thanks.
+This is v5 of the patchset to update the hugetlb code to support
+contiguous hugepages. Previous version of the patchset can be found at
+[0].
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+The main changes in this version are updating Patch 4 and 7 due to
+issues highlighted in the previous postings (ltp and build failure).
+
+Please update the patches in your queue with this version.
+
+Thanks,
+Punit
+
+Changes since v4:
+
+* Patch 4 updated to fix arm64 ltp failure (pth_str01, pth_str03) [1]
+* Patch 7 update to fix build failure when CONFIG_HUGETLB_PAGE is disabled
+
+[0] https://lkml.org/lkml/2017/5/24/463
+[1] https://lkml.org/lkml/2017/6/5/332
+
+Punit Agrawal (5):
+  mm, gup: Ensure real head page is ref-counted when using hugepages
+  mm/hugetlb: add size parameter to huge_pte_offset()
+  mm/hugetlb: Allow architectures to override huge_pte_clear()
+  mm/hugetlb: Introduce set_huge_swap_pte_at() helper
+  mm: rmap: Use correct helper when poisoning hugepages
+
+Steve Capper (2):
+  arm64: hugetlb: Refactor find_num_contig
+  arm64: hugetlb: Remove spurious calls to huge_ptep_offset
+
+Will Deacon (1):
+  mm, gup: Remove broken VM_BUG_ON_PAGE compound check for hugepages
+
+ arch/arm64/mm/hugetlbpage.c     | 53 +++++++++++++++++------------------------
+ arch/ia64/mm/hugetlbpage.c      |  4 ++--
+ arch/metag/mm/hugetlbpage.c     |  3 ++-
+ arch/mips/mm/hugetlbpage.c      |  3 ++-
+ arch/parisc/mm/hugetlbpage.c    |  3 ++-
+ arch/powerpc/mm/hugetlbpage.c   |  2 +-
+ arch/s390/include/asm/hugetlb.h |  2 +-
+ arch/s390/mm/hugetlbpage.c      |  3 ++-
+ arch/sh/mm/hugetlbpage.c        |  3 ++-
+ arch/sparc/mm/hugetlbpage.c     |  3 ++-
+ arch/tile/mm/hugetlbpage.c      |  3 ++-
+ arch/x86/mm/hugetlbpage.c       |  2 +-
+ fs/userfaultfd.c                |  7 ++++--
+ include/asm-generic/hugetlb.h   |  4 +++-
+ include/linux/hugetlb.h         | 18 ++++++++++++--
+ mm/gup.c                        | 15 +++++-------
+ mm/hugetlb.c                    | 33 +++++++++++++++----------
+ mm/page_vma_mapped.c            |  3 ++-
+ mm/pagewalk.c                   |  3 ++-
+ mm/rmap.c                       |  7 ++++--
+ 20 files changed, 100 insertions(+), 74 deletions(-)
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
