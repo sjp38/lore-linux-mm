@@ -1,72 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 446096B0365
-	for <linux-mm@kvack.org>; Sun, 18 Jun 2017 21:51:52 -0400 (EDT)
-Received: by mail-ot0-f198.google.com with SMTP id 37so50732264otu.13
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 18:51:52 -0700 (PDT)
-Received: from mail-ot0-x22d.google.com (mail-ot0-x22d.google.com. [2607:f8b0:4003:c0f::22d])
-        by mx.google.com with ESMTPS id g27si3321757otf.347.2017.06.18.18.51.50
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3756B0372
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 00:44:18 -0400 (EDT)
+Received: by mail-ot0-f198.google.com with SMTP id 63so20388981otc.5
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 21:44:18 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q125si1713488oic.174.2017.06.18.21.44.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Jun 2017 18:51:51 -0700 (PDT)
-Received: by mail-ot0-x22d.google.com with SMTP id s7so58951071otb.3
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 18:51:50 -0700 (PDT)
+        Sun, 18 Jun 2017 21:44:17 -0700 (PDT)
+Received: from mail-ua0-f178.google.com (mail-ua0-f178.google.com [209.85.217.178])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 43379239D4
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 04:44:16 +0000 (UTC)
+Received: by mail-ua0-f178.google.com with SMTP id 68so52044428uas.0
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 21:44:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170618081850.GA26332@lst.de>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CALCETrU1Hg=q4cdQDex--3nVBfwRC1o=9pC6Ss77Z8Lxg7ZJLg@mail.gmail.com>
- <CAPcyv4j4UEegViDJcLZjVv5AFGC18-DcvHFnhZatB0hH3BY85g@mail.gmail.com>
- <CALCETrUfv26pvmyQ1gOkKbzfSXK2DnmeBG6VmSWjFy1WBhknTw@mail.gmail.com>
- <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com> <20170618081850.GA26332@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 18 Jun 2017 18:51:49 -0700
-Message-ID: <CAPcyv4jt2EMfiVB-5uOdjKMuYfLrqUdK4vYkteqAqXkSRqTs5g@mail.gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
+In-Reply-To: <20170618212948.mt33zbajt5n6saed@sasha-lappy>
+References: <cover.1497415951.git.luto@kernel.org> <20170618212948.mt33zbajt5n6saed@sasha-lappy>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Sun, 18 Jun 2017 21:43:54 -0700
+Message-ID: <CALCETrVp9h5=PB6mu5_KZPKkj1YqpuYva=ncPxT0tfAgtA9Hdw@mail.gmail.com>
+Subject: Re: [PATCH v2 00/10] PCID and improved laziness
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Sun, Jun 18, 2017 at 1:18 AM, Christoph Hellwig <hch@lst.de> wrote:
-> On Sat, Jun 17, 2017 at 08:15:05PM -0700, Dan Williams wrote:
->> The hang up is that it requires per-fs enabling as it needs to be
->> careful to manage mmap_sem vs fs journal locks for example. I know the
->> in-development NOVA [1] filesystem is planning to support this out of
->> the gate. ext4 would be open to implementing it, but I think xfs is
->> cold on the idea. Christoph originally proposed it here [2], before
->> Dave went on to propose immutable semantics.
+On Sun, Jun 18, 2017 at 2:29 PM, Levin, Alexander (Sasha Levin)
+<alexander.levin@verizon.com> wrote:
+> On Tue, Jun 13, 2017 at 09:56:18PM -0700, Andy Lutomirski wrote:
+>>There are three performance benefits here:
 >>
->> [1]: https://github.com/NVSL/NOVA
->> [2]: https://lists.01.org/pipermail/linux-nvdimm/2016-February/004609.html
+>>1. TLB flushing is slow.  (I.e. the flush itself takes a while.)
+>>   This avoids many of them when switching tasks by using PCID.  In
+>>   a stupid little benchmark I did, it saves about 100ns on my laptop
+>>   per context switch.  I'll try to improve that benchmark.
+>>
+>>2. Mms that have been used recently on a given CPU might get to keep
+>>   their TLB entries alive across process switches with this patch
+>>   set.  TLB fills are pretty fast on modern CPUs, but they're even
+>>   faster when they don't happen.
+>>
+>>3. Lazy TLB is way better.  We used to do two stupid things when we
+>>   ran kernel threads: we'd send IPIs to flush user contexts on their
+>>   CPUs and then we'd write to CR3 for no particular reason as an excuse
+>>   to stop further IPIs.  With this patch, we do neither.
+>>
+>>This will, in general, perform suboptimally if paravirt TLB flushing
+>>is in use (currently just Xen, I think, but Hyper-V is in the works).
+>>The code is structured so we could fix it in one of two ways: we
+>>could take a spinlock when touching the percpu state so we can update
+>>it remotely after a paravirt flush, or we could be more careful about
+>>our exactly how we access the state and use cmpxchg16b to do atomic
+>>remote updates.  (On SMP systems without cmpxchg16b, we'd just skip
+>>the optimization entirely.)
 >
-> And I stand to that statement.  Let's get DAX stable first, and
-> properly cleaned up (e.g. follow on work with separating it entirely
-> from the block device).  Then think hard about how most of the
-> persistent memory technologies actually work, including the point that
-> for a lot of workloads page cache will be required at least on the
-> write side.   And then come up with actual real use cases and we can
-> look into it.
+> Hey Andy,
+>
+> I've started seeing the following in -next:
+>
+> ------------[ cut here ]------------
+> kernel BUG at arch/x86/mm/tlb.c:47!
 
-I see it differently. We're already at a good point in time to start
-iterating on a fix for this issue. Ross and Jan have done a lot of
-good work on the dax stability front, and the block-device separation
-of dax is well underway.
+...
 
-> And stop trying to shoe-horn crap like this in.
+> Call Trace:
+>  flush_tlb_func_local arch/x86/mm/tlb.c:239 [inline]
+>  flush_tlb_mm_range+0x26d/0x370 arch/x86/mm/tlb.c:317
+>  flush_tlb_page arch/x86/include/asm/tlbflush.h:253 [inline]
 
-The kernel shoe-horning all pmem+filesystem-dax applications into
-abiding page-cache semantics is a problem, and this RFC has already
-helped move the needle on a couple fronts. 1/ Swapfiles are subtly
-broken which is something worth fixing, and if it gets us a
-synchronous-dax mode without major filesystem surgery then that's all
-for the better. 2/ There's an appetite for just fixing this
-incrementally in each filesystem's fault handler, so if ext4 was able
-to prove out an interface / implementation for synchronous faults we
-could go with that instead of a pre-allocated + immutable interface
-and let other filesystems set their own timelines.
+I think I see what's going on, and it should be fixed in the PCID
+series.  I'll split out the fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
