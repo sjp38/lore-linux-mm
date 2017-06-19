@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 456AF6B0279
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 14:20:11 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v14so12703419wmf.6
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 11:20:11 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id b76si11284146wmi.63.2017.06.19.11.20.09
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 075196B0292
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 15:05:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c68so12843900wmi.4
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 12:05:33 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id 53si5420894wru.4.2017.06.19.12.05.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 11:20:09 -0700 (PDT)
-Date: Mon, 19 Jun 2017 19:19:57 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
-Message-ID: <20170619181956.GH10672@ZenIV.linux.org.uk>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170617052212.GA8246@lst.de>
- <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com>
- <20170618075152.GA25871@lst.de>
+        Mon, 19 Jun 2017 12:05:32 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id m125so1875458wmm.1
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 12:05:32 -0700 (PDT)
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Subject: Re: [PATCH] mm: remove a redundant condition in the for loop
+References: <20170619135418.8580-1-haolee.swjtu@gmail.com>
+	<e2169d83-8845-7eac-2b81-e5f0b16943a3@suse.cz>
+Date: Mon, 19 Jun 2017 21:05:29 +0200
+In-Reply-To: <e2169d83-8845-7eac-2b81-e5f0b16943a3@suse.cz> (Vlastimil Babka's
+	message of "Mon, 19 Jun 2017 16:17:01 +0200")
+Message-ID: <87y3snajd2.fsf@rasmusvillemoes.dk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170618075152.GA25871@lst.de>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hao Lee <haolee.swjtu@gmail.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Jun 18, 2017 at 09:51:52AM +0200, Christoph Hellwig wrote:
+On Mon, Jun 19 2017, Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> > That said, I think "please don't add a new bmap()
-> > user, use iomap instead" is a fair comment. You know me well enough to
-> > know that would be all it takes to redirect my work, I can do without
-> > the bluster.
-> 
-> But that's not the point.  The point is that ->bmap() semantics simplify
-> do not work in practice because they don't make sense.
+> On 06/19/2017 03:54 PM, Hao Lee wrote:
+>> The variable current_order decreases from MAX_ORDER-1 to order, so the
+>> condition current_order <= MAX_ORDER-1 is always true.
+>> 
+>> Signed-off-by: Hao Lee <haolee.swjtu@gmail.com>
+>
+> Sounds right.
+>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Speaking of iomap, what's supposed to happen when doing a write into what
-used to be a hole?  Suppose we have a file with a megabyte hole in it
-and there's some process mmapping that range.  Another process does
-write over the entire range.  We call ->iomap_begin() and allocate
-disk blocks.  Then we start copying data into those.  In the meanwhile,
-the first process attempts to fetch from address in the middle of that
-hole.  What should happen?
+current_order and order are both unsigned, and if order==0,
+current_order >= order is always true, and we may decrement
+current_order past 0 making it UINT_MAX... A comment would be in order,
+though.
 
-Should the blocks we'd allocated in ->iomap_begin() be immediately linked
-into the whatever indirect locks/btree/whatnot we are using?  That would
-require zeroing all of them first - otherwise that readpage will read
-uninitialized block.  Another variant would be to delay linking them
-in until ->iomap_end(), but...  Suppose we get the page evicted by
-memory pressure after the writer is finished with it.  If ->readpage()
-comes before ->iomap_end(), we'll need to somehow figure out that it's
-not a hole anymore, or we'll end up with an uptodate page full of zeroes
-observed by reads after successful write().
-
-The comment you've got in linux/iomap.h would seem to suggest the second
-interpretation, but neither it nor anything in Documentation discusses the
-relations with readpage/writepage...
+>> ---
+>>  mm/page_alloc.c | 5 ++---
+>>  1 file changed, 2 insertions(+), 3 deletions(-)
+>> 
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 2302f25..9120c2b 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -2215,9 +2215,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>>  	bool can_steal;
+>>  
+>>  	/* Find the largest possible block of pages in the other list */
+>> -	for (current_order = MAX_ORDER-1;
+>> -				current_order >= order && current_order <= MAX_ORDER-1;
+>> -				--current_order) {
+>> +	for (current_order = MAX_ORDER-1; current_order >= order;
+>> +							--current_order) {
+>>  		area = &(zone->free_area[current_order]);
+>>  		fallback_mt = find_suitable_fallback(area, current_order,
+>>  				start_migratetype, false, &can_steal);
+>> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
