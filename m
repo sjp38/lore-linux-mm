@@ -1,104 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 980AA6B037C
-	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 00:48:08 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a9so63293632oih.3
-        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 21:48:08 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e206si1772318oib.0.2017.06.18.21.48.07
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D3B06B0382
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 01:48:15 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u8so106491477pgo.11
+        for <linux-mm@kvack.org>; Sun, 18 Jun 2017 22:48:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t193si7520525pgc.360.2017.06.18.22.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Jun 2017 21:48:07 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH] x86/mm: Don't reenter flush_tlb_func_common()
-Date: Sun, 18 Jun 2017 21:48:03 -0700
-Message-Id: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1497847645.git.luto@kernel.org>
+        Sun, 18 Jun 2017 22:48:14 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5J5i1kf064275
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 01:48:14 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2b5j9qnxt8-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 19 Jun 2017 01:48:14 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Mon, 19 Jun 2017 06:48:11 +0100
+Date: Mon, 19 Jun 2017 07:48:01 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+In-Reply-To: <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+	<20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <20170619074801.18fa2a16@mschwideX1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S.
+ Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter
+ Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-It was historically possible to have two concurrent TLB flushes
-targeting the same CPU: one initiated locally and one initiated
-remotely.  This can now cause an OOPS in leave_mm() at
-arch/x86/mm/tlb.c:47:
+On Thu, 15 Jun 2017 17:52:22 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-        if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-                BUG();
+> We need an atomic way to setup pmd page table entry, avoiding races with
+> CPU setting dirty/accessed bits. This is required to implement
+> pmdp_invalidate() that doesn't loose these bits.
+>=20
+> On PAE we have to use cmpxchg8b as we cannot assume what is value of new =
+pmd and
+> setting it up half-by-half can expose broken corrupted entry to CPU.
+>=20
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: H. Peter Anvin <hpa@zytor.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> ---
+>  arch/x86/include/asm/pgtable-3level.h | 18 ++++++++++++++++++
+>  arch/x86/include/asm/pgtable.h        | 14 ++++++++++++++
+>  2 files changed, 32 insertions(+)
+>=20
+> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtabl=
+e.h
+> index f5af95a0c6b8..a924fc6a96b9 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -1092,6 +1092,20 @@ static inline void pmdp_set_wrprotect(struct mm_st=
+ruct *mm,
+>  	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+>  }
+>=20
+> +#ifndef pmdp_establish
+> +#define pmdp_establish pmdp_establish
+> +static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
+> +{
+> +	if (IS_ENABLED(CONFIG_SMP)) {
+> +		return xchg(pmdp, pmd);
+> +	} else {
+> +		pmd_t old =3D *pmdp;
+> +		*pmdp =3D pmd;
+> +		return old;
+> +	}
+> +}
+> +#endif
+> +
+>  /*
+>   * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+>   *
 
-with this call trace:
- flush_tlb_func_local arch/x86/mm/tlb.c:239 [inline]
- flush_tlb_mm_range+0x26d/0x370 arch/x86/mm/tlb.c:317
+For the s390 version of the pmdp_establish function we need the mm to be ab=
+le
+to do the TLB flush correctly. Can we please add a "struct vm_area_struct *=
+vma"
+argument to pmdp_establish analog to pmdp_invalidate?
 
-Without reentrancy, this OOPS is impossible: leave_mm() is only
-called if we're not in TLBSTATE_OK, but then we're unexpectedly
-in TLBSTATE_OK in leave_mm().
+The s390 patch would then look like this:
+--
+=46rom 4d4641249d5e826c21c522d149553e89d73fcd4f Mon Sep 17 00:00:00 2001
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Date: Mon, 19 Jun 2017 07:40:11 +0200
+Subject: [PATCH] s390/mm: add pmdp_establish
 
-This can be caused by flush_tlb_func_remote() happening between
-the two checks and calling leave_mm(), resulting in two consecutive
-leave_mm() calls on the same CPU with no intervening switch_mm()
-calls.
+Define the pmdp_establish function to replace a pmd entry with a new
+one and return the old value.
 
-We never saw this OOPS before because the old leave_mm()
-implementation didn't put us back in TLBSTATE_OK, so the assertion
-didn't fire.
-
-Nadav noticed the reentrancy issue in a different context, but
-neither of us realized that it caused a problem yet.
-
-Cc: Nadav Amit <nadav.amit@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Reported-by: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
-Fixes: 3d28ebceaffa ("x86/mm: Rework lazy TLB to track the actual loaded mm")
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
- arch/x86/mm/tlb.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ arch/s390/include/asm/pgtable.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 2a5e851f2035..f06239c6919f 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 				  bool local, enum tlb_flush_reason reason)
- {
-+	/* This code cannot presently handle being reentered. */
-+	VM_WARN_ON(!irqs_disabled());
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtabl=
+e.h
+index bb59a0aa3249..dedeecd5455c 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1511,6 +1511,13 @@ static inline void pmdp_invalidate(struct vm_area_st=
+ruct *vma,
+ 	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
+ }
+=20
++static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
++				   pmd_t *pmdp, pmd_t pmd)
++{
++	return pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd);
++}
++#define pmdp_establish pmdp_establish
 +
- 	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
- 		leave_mm(smp_processor_id());
- 		return;
-@@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 		info.end = TLB_FLUSH_ALL;
- 	}
- 
--	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
-+	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
-+		local_irq_disable();
- 		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
-+		local_irq_enable();
-+	}
-+
- 	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), &info);
- 	put_cpu();
-@@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
- 
- 	int cpu = get_cpu();
- 
--	if (cpumask_test_cpu(cpu, &batch->cpumask))
-+	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
-+		local_irq_disable();
- 		flush_tlb_func_local(&info, TLB_LOCAL_SHOOTDOWN);
-+		local_irq_enable();
-+	}
-+
- 	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
- 		flush_tlb_others(&batch->cpumask, &info);
- 	cpumask_clear(&batch->cpumask);
--- 
-2.9.4
+ #define __HAVE_ARCH_PMDP_SET_WRPROTECT
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 				      unsigned long addr, pmd_t *pmdp)
+--=20
+2.11.2
+
+
+--=20
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
