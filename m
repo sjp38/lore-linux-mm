@@ -1,106 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EA45F6B02F3
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 09:40:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s65so129550230pfi.14
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 06:40:01 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c10si10296328pfh.468.2017.06.20.06.40.00
-        for <linux-mm@kvack.org>;
-        Tue, 20 Jun 2017 06:40:01 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH v5 0/8] Support for contiguous pte hugepages
-References: <20170619170145.25577-1-punit.agrawal@arm.com>
-	<20170619150133.cb4173220e4e3abd02c6f6d0@linux-foundation.org>
-Date: Tue, 20 Jun 2017 14:39:57 +0100
-In-Reply-To: <20170619150133.cb4173220e4e3abd02c6f6d0@linux-foundation.org>
-	(Andrew Morton's message of "Mon, 19 Jun 2017 15:01:33 -0700")
-Message-ID: <871sqezsk2.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B826B02F4
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 09:44:16 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id q4so30097644lfe.3
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 06:44:16 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 10si3787650ljg.235.2017.06.20.06.44.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Jun 2017 06:44:15 -0700 (PDT)
+Date: Tue, 20 Jun 2017 14:43:35 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
+Message-ID: <20170620134335.GA17724@castle>
+References: <1496145932-18636-1-git-send-email-guro@fb.com>
+ <20170530123415.GF7969@dhcp22.suse.cz>
+ <20170530133335.GB28148@castle>
+ <20170530134552.GI7969@dhcp22.suse.cz>
+ <20170530185231.GA13412@castle>
+ <20170531163928.GZ27783@dhcp22.suse.cz>
+ <20170601184113.GA31689@castle>
+ <20170602081338.GD29840@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170602081338.GD29840@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+Hi Andrew!
 
-> On Mon, 19 Jun 2017 18:01:37 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
->
->> This is v5 of the patchset to update the hugetlb code to support
->> contiguous hugepages. Previous version of the patchset can be found at
->> [0].
->
-> Dumb question: is there a handy description anywhere which describes
-> how arm64 implements huge pages?  "contiguous 4k ptes" doesn't sound
-> like a huge page at all - what's going on here?
+Can you, please, pull this patch?
 
-Indeed! I should've provided more context with the cover letter.
+Thank you!
 
-I couldn't find anything direct to point to so cobbling together
-a summary from the commit history[0][1] and the ARM architecture
-manual[1].
+Roman
 
-The architecture supports two flavours of hugepages -
-
-* Block mappings at the pud/pmd level
-
-  These are regular hugepages where a pmd or a pud page table entry
-  points to a block of memory. Depending on the PAGE_SIZE in use the
-  following size of block mappings are supported -
-
-          PMD	PUD
-          ---	---
-  4K:      2M	 1G
-  16K:    32M
-  64K:   512M
-
-  For certain applications/usecases such as HPC and large enterprise
-  workloads, folks are using 64k page size but the minimum hugepage size
-  of 512MB isn't very practical.
-
-To overcome this ...
-
-* Using the Contiguous bit
-
-  The architecture provides a contiguous bit in the translation table
-  entry which acts as a hint to the mmu to indicate that it is one of a
-  contiguous set of entries that can be cached in a single TLB entry.
-
-  We use the contiguous bit in Linux to increase the mapping size at the
-  pmd and pte (last) level.
-
-  The number of supported contiguous entries varies by page size and
-  level of the page table.
-
-  Using the contiguous bit allows additional hugepage sizes -
-
-           CONT PTE    PMD    CONT PMD    PUD
-           --------    ---    --------    ---
-    4K:         64K     2M         32M     1G
-    16K:         2M    32M          1G
-    64K:         2M   512M         16G
-
-  Of these, 64K with 4K and 2M with 64K pages have been explicitly
-  requested by a few different users.
-
-Entries with the contiguous bit set are required to be modified all
-together - which makes things like memory poisoning and migration
-impossible to do correctly without knowing the size of hugepage being
-dealt with - the reason for adding size parameter to a few of the
-hugepage helpers in this series.
-
-Apologies for the length, but I am hoping the context provides
-motivation for the changes.
-
-Thanks for pulling the updated version of the patches.
-
-Punit
-
-[0] https://github.com/torvalds/linux/commit/084bd29810a5689e423d2f085255a3200a03a06e
-[1] https://github.com/torvalds/linux/commit/66b3923a1a0f77a563b43f43f6ad091354abbfe9
-[2] ARM DDI 0487B.a Section D4.3 VMSAv8-64 translation table format
-    [http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0487b.a/index.html]
+On Fri, Jun 02, 2017 at 10:13:38AM +0200, Michal Hocko wrote:
+> On Thu 01-06-17 19:41:13, Roman Gushchin wrote:
+> > On Wed, May 31, 2017 at 06:39:29PM +0200, Michal Hocko wrote:
+> > > On Tue 30-05-17 19:52:31, Roman Gushchin wrote:
+> > > > >From c57e3674efc609f8364f5e228a2c1309cfe99901 Mon Sep 17 00:00:00 2001
+> > > > From: Roman Gushchin <guro@fb.com>
+> > > > Date: Tue, 23 May 2017 17:37:55 +0100
+> > > > Subject: [PATCH v2] mm,oom: add tracepoints for oom reaper-related events
+> > > > 
+> > > > During the debugging of the problem described in
+> > > > https://lkml.org/lkml/2017/5/17/542 and fixed by Tetsuo Handa
+> > > > in https://lkml.org/lkml/2017/5/19/383 , I've found that
+> > > > the existing debug output is not really useful to understand
+> > > > issues related to the oom reaper.
+> > > > 
+> > > > So, I assume, that adding some tracepoints might help with
+> > > > debugging of similar issues.
+> > > > 
+> > > > Trace the following events:
+> > > > 1) a process is marked as an oom victim,
+> > > > 2) a process is added to the oom reaper list,
+> > > > 3) the oom reaper starts reaping process's mm,
+> > > > 4) the oom reaper finished reaping,
+> > > > 5) the oom reaper skips reaping.
+> > > > 
+> > > > How it works in practice? Below is an example which show
+> > > > how the problem mentioned above can be found: one process is added
+> > > > twice to the oom_reaper list:
+> > > > 
+> > > > $ cd /sys/kernel/debug/tracing
+> > > > $ echo "oom:mark_victim" > set_event
+> > > > $ echo "oom:wake_reaper" >> set_event
+> > > > $ echo "oom:skip_task_reaping" >> set_event
+> > > > $ echo "oom:start_task_reaping" >> set_event
+> > > > $ echo "oom:finish_task_reaping" >> set_event
+> > > > $ cat trace_pipe
+> > > >         allocate-502   [001] ....    91.836405: mark_victim: pid=502
+> > > >         allocate-502   [001] .N..    91.837356: wake_reaper: pid=502
+> > > >         allocate-502   [000] .N..    91.871149: wake_reaper: pid=502
+> > > >       oom_reaper-23    [000] ....    91.871177: start_task_reaping: pid=502
+> > > >       oom_reaper-23    [000] .N..    91.879511: finish_task_reaping: pid=502
+> > > >       oom_reaper-23    [000] ....    91.879580: skip_task_reaping: pid=502
+> > > 
+> > > OK, this is much better! The clue here would be that we got 2
+> > > wakeups for the same task, right?
+> > > Do you think it would make sense to put more context to those
+> > > tracepoints? E.g. skip_task_reaping can be due to lock contention or the
+> > > mm gone. wake_reaper is similar.
+> > 
+> > I agree, that some context might be useful under some circumstances,
+> > but I don't think we should add any additional fields until we will have some examples
+> > of where this data is actually useful. If we will need it, we can easily add it later.
+> 
+> OK, fair enough.
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
