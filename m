@@ -1,85 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C8E06B0279
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 17:08:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 77so11256751wrb.11
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 14:08:35 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 7si15600359wrc.13.2017.06.20.14.08.33
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FC976B0279
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 18:12:58 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c12so30896317pfk.3
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:12:58 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id g2si12879121plk.487.2017.06.20.15.12.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 14:08:33 -0700 (PDT)
-Date: Tue, 20 Jun 2017 14:08:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 0/8] Support for contiguous pte hugepages
-Message-Id: <20170620140831.6bd835649d475bcf30c3c434@linux-foundation.org>
-In-Reply-To: <871sqezsk2.fsf@e105922-lin.cambridge.arm.com>
-References: <20170619170145.25577-1-punit.agrawal@arm.com>
-	<20170619150133.cb4173220e4e3abd02c6f6d0@linux-foundation.org>
-	<871sqezsk2.fsf@e105922-lin.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 20 Jun 2017 15:12:57 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id s66so75530643pfs.1
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:12:57 -0700 (PDT)
+Date: Tue, 20 Jun 2017 15:12:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm,oom_kill: Close race window of needlessly selecting
+ new victims.
+In-Reply-To: <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp>
+Message-ID: <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
+References: <20170615103909.GG1486@dhcp22.suse.cz> <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com> <20170615214133.GB20321@dhcp22.suse.cz> <201706162122.ACE95321.tOFLOOVFFHMSJQ@I-love.SAKURA.ne.jp> <20170616141255.GN30580@dhcp22.suse.cz>
+ <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 20 Jun 2017 14:39:57 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
+On Sat, 17 Jun 2017, Tetsuo Handa wrote:
 
-> 
-> The architecture supports two flavours of hugepages -
-> 
-> * Block mappings at the pud/pmd level
-> 
->   These are regular hugepages where a pmd or a pud page table entry
->   points to a block of memory. Depending on the PAGE_SIZE in use the
->   following size of block mappings are supported -
-> 
->           PMD	PUD
->           ---	---
->   4K:      2M	 1G
->   16K:    32M
->   64K:   512M
-> 
->   For certain applications/usecases such as HPC and large enterprise
->   workloads, folks are using 64k page size but the minimum hugepage size
->   of 512MB isn't very practical.
-> 
-> To overcome this ...
-> 
-> * Using the Contiguous bit
-> 
->   The architecture provides a contiguous bit in the translation table
->   entry which acts as a hint to the mmu to indicate that it is one of a
->   contiguous set of entries that can be cached in a single TLB entry.
-> 
->   We use the contiguous bit in Linux to increase the mapping size at the
->   pmd and pte (last) level.
-> 
->   The number of supported contiguous entries varies by page size and
->   level of the page table.
-> 
->   Using the contiguous bit allows additional hugepage sizes -
-> 
->            CONT PTE    PMD    CONT PMD    PUD
->            --------    ---    --------    ---
->     4K:         64K     2M         32M     1G
->     16K:         2M    32M          1G
->     64K:         2M   512M         16G
-> 
->   Of these, 64K with 4K and 2M with 64K pages have been explicitly
->   requested by a few different users.
-> 
-> Entries with the contiguous bit set are required to be modified all
-> together - which makes things like memory poisoning and migration
-> impossible to do correctly without knowing the size of hugepage being
-> dealt with - the reason for adding size parameter to a few of the
-> hugepage helpers in this series.
-> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 04c9143..cf1d331 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -470,38 +470,9 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  {
+>  	struct mmu_gather tlb;
+>  	struct vm_area_struct *vma;
+> -	bool ret = true;
+> -
+> -	/*
+> -	 * We have to make sure to not race with the victim exit path
+> -	 * and cause premature new oom victim selection:
+> -	 * __oom_reap_task_mm		exit_mm
+> -	 *   mmget_not_zero
+> -	 *				  mmput
+> -	 *				    atomic_dec_and_test
+> -	 *				  exit_oom_victim
+> -	 *				[...]
+> -	 *				out_of_memory
+> -	 *				  select_bad_process
+> -	 *				    # no TIF_MEMDIE task selects new victim
+> -	 *  unmap_page_range # frees some memory
+> -	 */
+> -	mutex_lock(&oom_lock);
+> -
+> -	if (!down_read_trylock(&mm->mmap_sem)) {
+> -		ret = false;
+> -		goto unlock_oom;
+> -	}
+>  
+> -	/*
+> -	 * increase mm_users only after we know we will reap something so
+> -	 * that the mmput_async is called only when we have reaped something
+> -	 * and delayed __mmput doesn't matter that much
+> -	 */
+> -	if (!mmget_not_zero(mm)) {
+> -		up_read(&mm->mmap_sem);
+> -		goto unlock_oom;
+> -	}
+> +	if (!down_read_trylock(&mm->mmap_sem))
+> +		return false;
+>  
+>  	/*
+>  	 * Tell all users of get_user/copy_from_user etc... that the content
+> @@ -537,16 +508,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  			K(get_mm_counter(mm, MM_FILEPAGES)),
+>  			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+>  	up_read(&mm->mmap_sem);
+> -
+> -	/*
+> -	 * Drop our reference but make sure the mmput slow path is called from a
+> -	 * different context because we shouldn't risk we get stuck there and
+> -	 * put the oom_reaper out of the way.
+> -	 */
+> -	mmput_async(mm);
+> -unlock_oom:
+> -	mutex_unlock(&oom_lock);
+> -	return ret;
+> +	return true;
+>  }
+>  
+>  #define MAX_OOM_REAP_RETRIES 10
+> @@ -569,12 +531,31 @@ static void oom_reap_task(struct task_struct *tsk)
+>  
+>  done:
+>  	tsk->oom_reaper_list = NULL;
+> +	/*
+> +	 * Drop a mm_users reference taken by mark_oom_victim().
+> +	 * A mm_count reference taken by mark_oom_victim() remains.
+> +	 */
+> +	mmput_async(mm);
 
-Thanks, I added the above to the 1/n changelog.  Perhaps it's worth
-adding something like this to Documentation/vm/hugetlbpage.txt.
+This doesn't prevent serial oom killing for either the system oom killer 
+or for the memcg oom killer.
+
+The oom killer cannot detect tsk_is_oom_victim() if the task has either 
+been removed from the tasklist or has already done cgroup_exit().  For 
+memcg oom killings in particular, cgroup_exit() is usually called very 
+shortly after the oom killer has sent the SIGKILL.  If the oom reaper does 
+not fail (for example by failing to grab mm->mmap_sem) before another 
+memcg charge after cgroup_exit(victim), additional processes are killed 
+because the iteration does not view the victim.
+
+This easily kills all processes attached to the memcg with no memory 
+freeing from any victim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
