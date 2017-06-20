@@ -1,93 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0196B02FD
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:33:24 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g46so22435044wrd.3
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:33:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e6si13516981wrc.74.2017.06.20.08.33.23
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 71B676B02FA
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:42:57 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id v184so111367450itc.15
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:42:57 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l67si6027188ith.144.2017.06.20.08.42.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Jun 2017 08:33:23 -0700 (PDT)
-Date: Tue, 20 Jun 2017 17:33:21 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v7 01/22] fs: remove call_fsync helper function
-Message-ID: <20170620153321.GC31922@quack2.suse.cz>
-References: <20170616193427.13955-1-jlayton@redhat.com>
- <20170616193427.13955-2-jlayton@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Jun 2017 08:42:56 -0700 (PDT)
+Date: Tue, 20 Jun 2017 09:42:55 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
+ byte-addressable updates to pmem
+Message-ID: <20170620154255.GA2536@linux.intel.com>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170620052214.GA3787@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170616193427.13955-2-jlayton@redhat.com>
+In-Reply-To: <20170620052214.GA3787@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, xfs <linux-xfs@vger.kernel.org>
 
-On Fri 16-06-17 15:34:06, Jeff Layton wrote:
-> Requested-by: Christoph Hellwig <hch@infradead.org>
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+On Mon, Jun 19, 2017 at 10:22:14PM -0700, Darrick J. Wong wrote:
+<>
+> Fourth, the VFS entry points for things like read, write, truncate,
+> utimes, fallocate, etc. all just bail out if S_IOMAP_FROZEN is set on a
+> file, so that the block map cannot be modified.  mmap is still allowed,
+> as we've discussed.  /Maybe/ we can allow fallocate to extend a file
+> with zeroed extents (it will be slow) as I've heard murmurs about
+> wanting to be able to extend a file, maybe not.
 
-Looks good. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-	
-								Honza
-> ---
->  fs/sync.c          | 2 +-
->  include/linux/fs.h | 6 ------
->  ipc/shm.c          | 2 +-
->  3 files changed, 2 insertions(+), 8 deletions(-)
-> 
-> diff --git a/fs/sync.c b/fs/sync.c
-> index 11ba023434b1..2a54c1f22035 100644
-> --- a/fs/sync.c
-> +++ b/fs/sync.c
-> @@ -192,7 +192,7 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
->  		spin_unlock(&inode->i_lock);
->  		mark_inode_dirty_sync(inode);
->  	}
-> -	return call_fsync(file, start, end, datasync);
-> +	return file->f_op->fsync(file, start, end, datasync);
->  }
->  EXPORT_SYMBOL(vfs_fsync_range);
->  
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 4929a8f28cc3..1a135274b4f8 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1740,12 +1740,6 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
->  	return file->f_op->mmap(file, vma);
->  }
->  
-> -static inline int call_fsync(struct file *file, loff_t start, loff_t end,
-> -			     int datasync)
-> -{
-> -	return file->f_op->fsync(file, start, end, datasync);
-> -}
-> -
->  ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
->  			      unsigned long nr_segs, unsigned long fast_segs,
->  			      struct iovec *fast_pointer,
-> diff --git a/ipc/shm.c b/ipc/shm.c
-> index ec5688e98f25..28a444861a8f 100644
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -453,7 +453,7 @@ static int shm_fsync(struct file *file, loff_t start, loff_t end, int datasync)
->  
->  	if (!sfd->file->f_op->fsync)
->  		return -EINVAL;
-> -	return call_fsync(sfd->file, start, end, datasync);
-> +	return sfd->file->f_op->fsync(sfd->file, start, end, datasync);
->  }
->  
->  static long shm_fallocate(struct file *file, int mode, loff_t offset,
-> -- 
-> 2.13.0
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Read and write should still be allowed, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
