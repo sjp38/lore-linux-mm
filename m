@@ -1,513 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E31CA6B0292
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 01:22:27 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 134so33300066qkh.1
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 22:22:27 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s185si11031281qkc.26.2017.06.19.22.22.26
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FFAD6B0292
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 01:53:36 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id a38so91803839ota.12
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 22:53:36 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id d79si3105910oig.224.2017.06.19.22.53.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 22:22:26 -0700 (PDT)
-Date: Mon, 19 Jun 2017 22:22:14 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
-Message-ID: <20170620052214.GA3787@birch.djwong.org>
+        Mon, 19 Jun 2017 22:53:35 -0700 (PDT)
+Received: from mail-vk0-f47.google.com (mail-vk0-f47.google.com [209.85.213.47])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4C79223A05
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 05:53:34 +0000 (UTC)
+Received: by mail-vk0-f47.google.com with SMTP id p62so63711507vkp.0
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 22:53:34 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170620004653.GI17542@dastard>
 References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
  <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CALCETrU1Hg=q4cdQDex--3nVBfwRC1o=9pC6Ss77Z8Lxg7ZJLg@mail.gmail.com>
+ <CAPcyv4j4UEegViDJcLZjVv5AFGC18-DcvHFnhZatB0hH3BY85g@mail.gmail.com>
+ <CALCETrUfv26pvmyQ1gOkKbzfSXK2DnmeBG6VmSWjFy1WBhknTw@mail.gmail.com>
+ <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
+ <CALCETrVY38h2ajpod2U_2pdHSp8zO4mG2p19h=OnnHmhGTairw@mail.gmail.com>
+ <20170619132107.GG11993@dastard> <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
+ <20170620004653.GI17542@dastard>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 19 Jun 2017 22:53:12 -0700
+Message-ID: <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
+ byte-addressable updates to pmem
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, xfs <linux-xfs@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, andy.rudoff@intel.com, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-[add linux-xfs to the fray]
+On Mon, Jun 19, 2017 at 5:46 PM, Dave Chinner <david@fromorbit.com> wrote:
+> On Mon, Jun 19, 2017 at 08:22:10AM -0700, Andy Lutomirski wrote:
+>> On Mon, Jun 19, 2017 at 6:21 AM, Dave Chinner <david@fromorbit.com> wrote:
+>> > On Sat, Jun 17, 2017 at 10:05:45PM -0700, Andy Lutomirski wrote:
+>> >> On Sat, Jun 17, 2017 at 8:15 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+>> >> > On Sat, Jun 17, 2017 at 4:50 PM, Andy Lutomirski <luto@kernel.org> wrote:
+>> >> >> My other objection is that the syscall intentionally leaks a reference
+>> >> >> to the file.  This means it needs overflow protection and it probably
+>> >> >> shouldn't ever be allowed to use it without privilege.
+>> >> >
+>> >> > We only hold the one reference while S_DAXFILE is set, so I think the
+>> >> > protection is there, and per Dave's original proposal this requires
+>> >> > CAP_LINUX_IMMUTABLE.
+>> >> >
+>> >> >> Why can't the underlying issue be easily fixed, though?  Could
+>> >> >> .page_mkwrite just make sure that metadata is synced when the FS uses
+>> >> >> DAX?
+>> >> >
+>> >> > Yes, it most definitely could and that idea has been floated.
+>> >> >
+>> >> >> On a DAX fs, syncing metadata should be extremely fast.
+>> >
+>> > <sigh>
+>> >
+>> > This again....
+>> >
+>> > Persistent memory means the *I/O* is fast. It does not mean that
+>> > *complex filesystem operations* are fast.
+>> >
+>> > Don't forget that there's an shitload of CPU that gets burnt to make
+>> > sure that the metadata is synced correctly. Do that /synchronously/
+>> > on *every* write page fault (which, BTW, modify mtime, so will
+>> > always have dirty metadata to sync) and now you have a serious
+>> > performance problem with your "fast" DAX access method.
+>>
+>> I think the mtime issue can and should be solved separately.  But it'
+>> s a fair point that there would be workloads for which this could be
+>> excessively expensive.  In particular, simply creating a file,
+>> mmapping a large range, and touching the pages one by one -- delalloc
+>> would be completely defeated.
+>>
+>> But here's a strawman for solving both issues.  First, mtime.  I
+>> consider it to be either a bug or a misfeature that .page_mkwrite
+>> *ever* dirties an inode just to update mtime.  I have old patches to
+>> fix this, and those patches could be updated and merged.  With them
+>> applied, there's just a set_bit() in .page_mkwrite() to handle mtime.
+>>
+>> https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=mmap_mtime/patch_v4
+>
+> Yup, I remember that - it delays the update to data writeback time,
+> IOWs the proposed MAP_SYNC page fault semantics result in the same
+> (poor) behaviour because the sync operation will trigger mtime
+> updates instead of the page fault.
+>
+> Unless, of course, you are implying that MAP_SYNC should not
+> actually sync all known dirty metadata on an inode.
+>
+> <smacks head on desk>
+>
+>> Second: syncing extents.  Here's a straw man.  Forget the mmap() flag.
+>> Instead add a new msync() operation:
+>>
+>> msync(start, length, MSYNC_PMEM_PREPARE_WRITE);
+>
+> How's this any different from the fallocate command I proposed to do
+> this (apart from the fact that msync() is not intended to be abused
+> as a file preallocation/zeroing interface)?
 
-On Fri, Jun 16, 2017 at 06:15:35PM -0700, Dan Williams wrote:
-> To date, the full promise of byte-addressable access to persistent
-> memory has only been half realized via the filesystem-dax interface. The
-> current filesystem-dax mechanism allows an application to consume (read)
-> data from persistent storage at byte-size granularity, bypassing the
-> full page reads required by traditional storage devices.
-> 
-> Now, for writes, applications still need to contend with
-> page-granularity dirtying and flushing semantics as well as filesystem
-> coordination for metadata updates after any mmap write. The current
-> situation precludes use cases that leverage byte-granularity / in-place
-> updates to persistent media.
-> 
-> To get around this limitation there are some specialized applications
-> that are using the device-dax interface to bypass the overhead and
-> data-safety problems of the current filesystem-dax mmap-write path.
-> QEMU-KVM is forced to use device-dax to safely pass through persistent
-> memory to a guest [1]. Some specialized databases are using device-dax
-> for byte-granularity writes. Outside of those cases, device-dax is
-> difficult for general purpose persistent memory applications to consume.
-> There is demand for access to pmem without needing to contend with
-> special device configuration and other device-dax limitations.
-> 
-> The 'daxfile' interface satisfies this demand and realizes one of Dave
-> Chinner's ideas for allowing pmem applications to safely bypass
-> fsync/msync requirements. The idea is to make the file immutable with
-> respect to the offset-to-block mappings for every extent in the file
-> [2]. It turns out that filesystems already need to make this guarantee
-> today. This property is needed for files marked as swap files.
-> 
-> The new daxctl() syscall manages setting a file into 'static-dax' mode
-> whereby it arranges for the file to be treated as a swapfile as far as
-> the filesystem is concerned, but not registered with the core-mm as
-> swapfile space. A file in this mode is then safe to be mapped and
-> written without the requirement to fsync/msync the writes.  The cpu
-> cache management for flushing data to persistence can be handled
-> completely in userspace.
-> 
-> [1]: https://lists.gnu.org/archive/html/qemu-devel/2017-06/msg01207.html
-> [2]: https://lkml.org/lkml/2016/9/11/159
-> 
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Jeff Moyer <jmoyer@redhat.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/x86/entry/syscalls/syscall_64.tbl |    1 
->  include/linux/dax.h                    |    9 ++
->  include/linux/fs.h                     |    3 +
->  include/linux/syscalls.h               |    1 
->  include/uapi/linux/dax.h               |    8 +
->  mm/Kconfig                             |    5 +
->  mm/Makefile                            |    1 
->  mm/daxfile.c                           |  186 ++++++++++++++++++++++++++++++++
->  mm/page_io.c                           |   31 +++++
->  9 files changed, 245 insertions(+)
->  create mode 100644 include/uapi/linux/dax.h
->  create mode 100644 mm/daxfile.c
-> 
-> diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-> index 5aef183e2f85..795eb93d6beb 100644
-> --- a/arch/x86/entry/syscalls/syscall_64.tbl
-> +++ b/arch/x86/entry/syscalls/syscall_64.tbl
-> @@ -339,6 +339,7 @@
->  330	common	pkey_alloc		sys_pkey_alloc
->  331	common	pkey_free		sys_pkey_free
->  332	common	statx			sys_statx
-> +333	64	daxctl			sys_daxctl
->  
->  #
->  # x32-specific system call numbers start at 512 to avoid cache impact
-> diff --git a/include/linux/dax.h b/include/linux/dax.h
-> index 5ec1f6c47716..5f1d0e0ed30f 100644
-> --- a/include/linux/dax.h
-> +++ b/include/linux/dax.h
-> @@ -4,8 +4,17 @@
->  #include <linux/fs.h>
->  #include <linux/mm.h>
->  #include <linux/radix-tree.h>
-> +#include <uapi/linux/dax.h>
->  #include <asm/pgtable.h>
->  
-> +/*
-> + * TODO: make sys_daxctl() be the generic interface for toggling S_DAX
-> + * across filesystems. For now, mark DAXCTL_F_DAX as an invalid flag
-> + */
-> +#define DAXCTL_VALID_FLAGS (DAXCTL_F_GET | DAXCTL_F_STATIC)
-> +
-> +int daxfile_activate(struct file *daxfile, unsigned align);
-> +
->  struct iomap_ops;
->  struct dax_device;
->  struct dax_operations {
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 3e68cabb8457..3af649fb669f 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1824,8 +1824,10 @@ struct super_operations {
->  #define S_NOSEC		4096	/* no suid or xattr security attributes */
->  #ifdef CONFIG_FS_DAX
->  #define S_DAX		8192	/* Direct Access, avoiding the page cache */
-> +#define S_DAXFILE	16384	/* no truncate (swapfile) semantics + dax */
->  #else
->  #define S_DAX		0	/* Make all the DAX code disappear */
-> +#define S_DAXFILE	0
->  #endif
->  
->  /*
-> @@ -1865,6 +1867,7 @@ struct super_operations {
->  #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
->  #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
->  #define IS_DAX(inode)		((inode)->i_flags & S_DAX)
-> +#define IS_DAXFILE(inode)	((inode)->i_flags & S_DAXFILE)
->  
->  #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
->  				 (inode)->i_rdev == WHITEOUT_DEV)
-> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-> index 980c3c9b06f8..49e5cc4c192e 100644
-> --- a/include/linux/syscalls.h
-> +++ b/include/linux/syscalls.h
-> @@ -701,6 +701,7 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
->  			unsigned long arg4, unsigned long arg5);
->  asmlinkage long sys_swapon(const char __user *specialfile, int swap_flags);
->  asmlinkage long sys_swapoff(const char __user *specialfile);
-> +asmlinkage long sys_daxctl(const char __user *path, int flags, int align);
->  asmlinkage long sys_sysctl(struct __sysctl_args __user *args);
->  asmlinkage long sys_sysinfo(struct sysinfo __user *info);
->  asmlinkage long sys_sysfs(int option,
-> diff --git a/include/uapi/linux/dax.h b/include/uapi/linux/dax.h
-> new file mode 100644
-> index 000000000000..78a41bb392c0
-> --- /dev/null
-> +++ b/include/uapi/linux/dax.h
-> @@ -0,0 +1,8 @@
-> +#ifndef _UAPI_LINUX_DAX_H
-> +#define _UAPI_LINUX_DAX_H
-> +
-> +#define DAXCTL_F_GET    (1 << 0)
-> +#define DAXCTL_F_DAX    (1 << 1)
-> +#define DAXCTL_F_STATIC (1 << 2)
-> +
-> +#endif /* _UAPI_LINUX_DAX_H */
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index beb7a455915d..b874565c34eb 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -450,6 +450,11 @@ config	TRANSPARENT_HUGE_PAGECACHE
->  	def_bool y
->  	depends on TRANSPARENT_HUGEPAGE
->  
-> +config DAXFILE
-> +	def_bool y
-> +	depends on FS_DAX
-> +	depends on SWAP
-> +
->  #
->  # UP and nommu archs use km based percpu allocator
->  #
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 026f6a828a50..38d9025a3e37 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -56,6 +56,7 @@ endif
->  obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
->  
->  obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
-> +obj-$(CONFIG_DAXFILE)	+= daxfile.o
->  obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
->  obj-$(CONFIG_ZSWAP)	+= zswap.o
->  obj-$(CONFIG_HAS_DMA)	+= dmapool.o
-> diff --git a/mm/daxfile.c b/mm/daxfile.c
-> new file mode 100644
-> index 000000000000..fe230199c855
-> --- /dev/null
-> +++ b/mm/daxfile.c
-> @@ -0,0 +1,186 @@
-> +/*
-> + * Copyright(c) 2017 Intel Corporation. All rights reserved.
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of version 2 of the GNU General Public License as
-> + * published by the Free Software Foundation.
-> + *
-> + * This program is distributed in the hope that it will be useful, but
-> + * WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-> + * General Public License for more details.
-> + */
-> +#include <linux/dax.h>
-> +#include <linux/slab.h>
-> +#include <linux/highmem.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/syscalls.h>
-> +
-> +/*
-> + * TODO: a list to lookup daxfiles assumes a low number of instances,
-> + * revisit.
-> + */
-> +static LIST_HEAD(daxfiles);
-> +static DEFINE_SPINLOCK(dax_lock);
-> +
-> +struct dax_info {
-> +	struct list_head list;
-> +	struct file *daxfile;
-> +};
-> +
-> +static int daxfile_disable(struct file *victim)
-> +{
-> +	int found = 0;
-> +	struct dax_info *d;
-> +	struct inode *inode;
-> +	struct file *daxfile;
-> +	struct address_space *mapping;
-> +
-> +	mapping = victim->f_mapping;
-> +	spin_lock(&dax_lock);
-> +	list_for_each_entry(d, &daxfiles, list)
-> +		if (d->daxfile->f_mapping == mapping) {
-> +			list_del(&d->list);
-> +			found = 1;
-> +			break;
-> +		}
-> +	spin_unlock(&dax_lock);
-> +
-> +	if (!found)
-> +		return -EINVAL;
-> +
-> +	daxfile = d->daxfile;
-> +
-> +	inode = mapping->host;
-> +	inode->i_flags &= ~(S_SWAPFILE | S_DAXFILE);
-> +	filp_close(daxfile, NULL);
-> +
-> +	return 0;
-> +}
-> +
-> +static int claim_daxfile_checks(struct inode *inode)
-> +{
-> +	if (!S_ISREG(inode->i_mode))
-> +		return -EINVAL;
-> +
-> +	if (!IS_DAX(inode))
-> +		return -EINVAL;
-> +
-> +	if (IS_SWAPFILE(inode) || IS_DAXFILE(inode))
-> +		return -EBUSY;
-> +
-> +	return 0;
-> +}
-> +
-> +int daxfile_enable(struct file *daxfile, int align)
-> +{
-> +	struct address_space *mapping;
-> +	struct inode *inode;
-> +	struct dax_info *d;
-> +	int rc;
-> +
-> +	if (align < 0)
-> +		return -EINVAL;
-> +
-> +	mapping = daxfile->f_mapping;
-> +	inode = mapping->host;
-> +
-> +	rc = claim_daxfile_checks(inode);
-> +	if (rc)
-> +		return rc;
-> +
-> +	rc = daxfile_activate(daxfile, align);
-> +	if (rc)
-> +		return rc;
-> +
-> +	d = kzalloc(sizeof(*d), GFP_KERNEL);
-> +	if (!d)
-> +		return -ENOMEM;
-> +	INIT_LIST_HEAD(&d->list);
-> +	d->daxfile = daxfile;
-> +
-> +	spin_lock(&dax_lock);
-> +	list_add(&d->list, &daxfiles);
-> +	spin_unlock(&dax_lock);
-> +
-> +	/*
-> +	 * We set S_SWAPFILE to gain "no truncate" / static block
-> +	 * allocation semantics, and S_DAXFILE so we can differentiate
-> +	 * traditional swapfiles and assume static block mappings in the
-> +	 * dax mmap path.
-> +	 */
-> +	inode->i_flags |= S_SWAPFILE | S_DAXFILE;
+I must have missed that suggestion.
 
-Yikes.  You know, I hadn't even thought about considering swap files as
-a subcase of files with immutable block maps, but here we are.  Both
-swap files and DAX require absolutely stable block mappings, they are
-both (probably) intolerant of inode metadata changes (size, mtime, etc.)
+But it's different in a major way.  fallocate() takes an fd parameter,
+which means that, if some flag gets set, it's set on the struct file.
+The persistence property seems to me like it belongs on the vma, not
+the file.  But it doesn't have to be msync() -- it could be madvise or
+even a new mallocate().  (Although mallocate() is possible the worst
+name ever.)
 
-But on the other hand, the bmap interface is so... yuck.  We return zero
-to indicate no mapping or error or whatever, it doesn't actually tell us
-/which/ device it's returning offsets into, etc.  I was writing a
-regression test earlier to check that we've sealed off XFS RT files from
-becoming swap files (because bmap is broken, not (afaik) because of any
-weird limitation of xfs) and forgot that quirk long enough to waste time
-wondering why it failed to fail on a 4.11 kernel.  That's right, the
-first rt file gets block zero and magically doesn't fail to fail if
-that's the swap file.
+>
+>> If this operation succeeds, it guarantees that all future writes
+>> through this mapping on this range will hit actual storage and that
+>> all the metadata operations needed to make this write persistent will
+>> hit storage such that they are ordered before the user's writes.
+>> As an implementation detail, this will flush out the extents if
+>> needed.  In addition, if the FS has any mechanism that would cause
+>> problems asyncronously later on (dedupe?  deallocated extents full
+>> of zeros?  defrag?),
+>
+> Hole punch, truncate, reflink, dedupe, snapshots, scrubbing and
+> other background filesystem maintenance operations, etc can all
+> change the extent layout asynchronously if there's no mechanism to
+> tell the fs not to modify the inode extent layout.
 
-Gross.  I've now ranted twice this month about how bmap() doesn't work
-on reflinked files on XFS.
+But that's my whole point.  The kernel doesn't really need to prevent
+all these background maintenance operations -- it just needs to block
+.page_mkwrite until they are synced.  I think that whatever new
+mechanism we add for this should be sticky, but I see no reason why
+the filesystem should have to block reflink on a DAX file entirely.
 
-Honestly, I realize we've gone back, forth, and around all over the
-place on this.  I still prefer something similar to a permanent flag,
-similar to what Dave suggested, though I hate the name PMEM_IMMUTABLE
-and some of the semantics.
+In fact, the daxctl() proposal seems actively problematic for some
+usecases.  I think I should be able to mmap() a DAX file and then,
+while it's still mapped, extend the file, mmap the new part (with the
+appropriate flag, madvise(), msync(), fallocate(), whatever), and
+write directly through that mapping and through the original mapping,
+concurrently, with the full persistence guarantee.  This seems really
+awkward to do using daxctl().
 
-First, a new inode flag S_IOMAP_FROZEN that means the file's block map
-cannot change.
+>
+>> it may also need to set a flag on the VMA
+>> that changes the behavior of future .page_mkwrite operations.
+>>
+>> (On x86, for example, this would permit the FS to do WC/streaming
+>> writes without SFENCE if the FS were structured in a way that this
+>> worked.)
+>>
+>> Now we have an API that should work going forward without
+>> introducing baggage.  And XFS is free to implement this API by
+>> making the entire file act like a swap file if XFS wants to do so,
+>> but this doesn't force other filesystems (ext4? NOVA?) to do the
+>> same thing.
+>
+> Sure, you are providing a simple programmatic API, but this does not
+> provide a viable feature management strategy.
+>
+> i.e. the API you are now proposing requires the filesystem to ensure
+> an inode's extent map cannot be modified ever again in the future
+> (that "guarantees all future writes" bit).  This requires, at
+> minimum, a persistent flag to be set on the inode so the VFS and
+> filesystem implementations can use it to prevent anything that, for
+> example, relies on copy-on-write semantics being done on those
+> files. That means the proposed msync operation will need to check
+> the filesystem can support this feature and *fail* if it can't.
 
-Second, some kind of function to toggle the S_IOMAP_FROZEN flag.
-Turning it on will lock the inode, check the extent map for holes,
-shared, or unwritten bits, and bail out if it finds any, or set the
-flag.  Not sure if we should require CAP_LINUX_IMMUTABLE -- probably
-yes, at least at first.  I don't currently have any objection to writing
-non-iomap inode metadata out to disk.
+No it doesn't.  A filesystem *could* implement it like that, but it
+could also implement it using .page_mkwrite.  And yes, a filesystem
+that can't can't guarantee durability with CLFLUSHOPT; SFENCE on a
+mapping should fail this operation to indicate that it can't support
+it.
 
-Third, the flag can only be cleared if the file isn't mapped.
+>
+> Further, administrators need to be aware of this application
+> requirement so they can plan their backup and disaster recovery
+> operations appropriately (e.g. reflink and/or snapshots cannot be
+> used as part of thei backup strategy).
 
-Fourth, the VFS entry points for things like read, write, truncate,
-utimes, fallocate, etc. all just bail out if S_IOMAP_FROZEN is set on a
-file, so that the block map cannot be modified.  mmap is still allowed,
-as we've discussed.  /Maybe/ we can allow fallocate to extend a file
-with zeroed extents (it will be slow) as I've heard murmurs about
-wanting to be able to extend a file, maybe not.
+Or they could use a filesystem that will understand that the new
+operation needs to break COW.
 
-Fifth, swapfiles now require the S_IOMAP_FROZEN flag since they want
-stable iomap but probably don't care about things like mtime.  Maybe
-they can call iomap too.
+>
+> Unsurprisingly, this is exactly what the "DAX immutable" inode flag
+> I proposed provides.  It provides an explicit, standardised and
+> *documented* management strategy that is common across all
+> filesystems. It uses mechanisms that *already exist*, the VFS and
+> filesystems already implement, and adminstrators are familiar with
+> using to manage their systems (e.g. setting the "NODUMP" inode flag
+> to exclude files from backups). This also avoids the management
+> level fragmentation which would occur if filesystems each solve the
+> "DAX userspace data sync" problem differently via different
+> management tools, behaviours and semantics.
 
-Sixth, XFS can record the S_IOMAP_FROZEN state in di_flags2 and set it
-whenever the in-core inode gets constructed.  This enables us to
-prohibit reflinking and other such undesirable activity.
+The DAX immutable flag is really nasty for my software that would like
+to use DAX.  I have quite a few processes, all unprivileged, that
+create files that they'd like to map using DAX and write to durably
+without needing to fsync() (using CLFLUSHOPT; SFENCE or perhaps a WT
+mapping).  If I were to use daxctl(), I'd have to have to write a
+privileged daemon to manage it, and that would be rather nasty.
 
-If we actually /do/ come up with a reference implementation for XFS, I'd
-be ok with tacking it on the end of my dev branch, which will give us a
-loooong runway to try it out.  The end of the dev branch is beyond
-online XFS fsck and repair and the "root metadata btrees in inodes"
-rework; since that's ~90 patches with my name on it that I cannot also
-review, it won't go in for a long time indeed!
+If, instead, we had a nice unprivileged per-vma or per-fd mechanism to
+tell the filesystem that I want DAX durability, I could just use it
+without any fuss.  If it worked on ext4 before it worked on xfs, then
+I'd use ext4.  If it ended up being heavier weight on XFS than it was
+on ext4 because XFS needed to lock down the extent map for the inode
+whereas ext4 could manage it through .page_mkwrite(), then I'd
+benchmark it and see which fs would win.  (For my particular use case,
+I doubt it would matter, since I aggressively offload fs metadata
+operations to a thread whose performance I don't really care about.)
 
-(Yes, that was also sort of a plea for someone to go review the XFS
-scrub patches.)
 
-> +	return 0;
-> +}
-> +
-> +SYSCALL_DEFINE3(daxctl, const char __user *, path, int, flags, int, align)
-
-I was /about/ to grouse about this syscall, then realized that maybe it
-/is/ useful to be able to check a specific alignment.  Maybe not, since
-I had something more permanent in mind anyway.  In any case, just pass
-in an opened fd if this sticks around.
-
---D
-
-> +{
-> +	int rc;
-> +	struct filename *name;
-> +	struct inode *inode = NULL;
-> +	struct file *daxfile = NULL;
-> +	struct address_space *mapping;
-> +
-> +	if (flags & ~DAXCTL_VALID_FLAGS)
-> +		return -EINVAL;
-> +
-> +	name = getname(path);
-> +	if (IS_ERR(name))
-> +		return PTR_ERR(name);
-> +
-> +	daxfile = file_open_name(name, O_RDWR|O_LARGEFILE, 0);
-> +	if (IS_ERR(daxfile)) {
-> +		rc = PTR_ERR(daxfile);
-> +		daxfile = NULL;
-> +		goto out;
-> +	}
-> +
-> +	mapping = daxfile->f_mapping;
-> +	inode = mapping->host;
-> +	if (flags & DAXCTL_F_GET) {
-> +		/*
-> +		 * We only report the state of DAXCTL_F_STATIC since
-> +		 * there is no actions for applications to take based on
-> +		 * the setting of S_DAX. However, if this interface is
-> +		 * used for toggling S_DAX presumably userspace would
-> +		 * want to know the state of the flag.
-> +		 *
-> +		 * TODO: revisit whether we want to report DAXCTL_F_DAX
-> +		 * in the IS_DAX() case.
-> +		 */
-> +		if (IS_DAXFILE(inode))
-> +			rc = DAXCTL_F_STATIC;
-> +		else
-> +			rc = 0;
-> +
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * TODO: Should unprivileged users be allowed to control daxfile
-> +	 * behavior? Perhaps a mount flag... is -o dax that flag?
-> +	 */
-> +	if (!capable(CAP_LINUX_IMMUTABLE)) {
-> +		rc = -EPERM;
-> +		goto out;
-> +	}
-> +
-> +	inode_lock(inode);
-> +	if (!IS_DAXFILE(inode) && (flags & DAXCTL_F_STATIC)) {
-> +		rc = daxfile_enable(daxfile, align);
-> +		/* if successfully enabled hold daxfile open */
-> +		if (rc == 0)
-> +			daxfile = NULL;
-> +	} else if (IS_DAXFILE(inode) && !(flags & DAXCTL_F_STATIC))
-> +		rc = daxfile_disable(daxfile);
-> +	else
-> +		rc = 0;
-> +	inode_unlock(inode);
-> +
-> +out:
-> +	if (daxfile)
-> +		filp_close(daxfile, NULL);
-> +	if (name)
-> +		putname(name);
-> +	return rc;
-> +}
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 5cec9a3d49f2..35160ad9c51f 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -244,6 +244,37 @@ static int bmap_walk(struct file *file, const unsigned page_size,
->  	goto out;
->  }
->  
-> +static int daxfile_check(sector_t block, unsigned long page_no,
-> +		enum bmap_check type, void *none)
-> +{
-> +	if (type == BMAP_WALK_DONE)
-> +		return 0;
-> +
-> +	/*
-> +	 * Unlike the swapfile case, fail daxfile_activate() if any file
-> +	 * extent is not page aligned.
-> +	 */
-> +	if (type != BMAP_WALK_FULLPAGE)
-> +		return -EINVAL;
-> +	return 0;
-> +}
-> +
-> +int daxfile_activate(struct file *daxfile, unsigned align)
-> +{
-> +	int rc;
-> +
-> +	if (!align)
-> +		align = PAGE_SIZE;
-> +
-> +	if (align < PAGE_SIZE || !is_power_of_2(align))
-> +		return -EINVAL;
-> +
-> +	rc = bmap_walk(daxfile, align, ULONG_MAX, NULL, daxfile_check, NULL);
-> +	if (rc)
-> +		pr_debug("daxctl: daxfile has holes\n");
-> +	return rc;
-> +}
-> +
->  static int swapfile_check(sector_t block, unsigned long page_no,
->  		enum bmap_check type, void *_sis)
->  {
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
