@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BD326B0292
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 03:21:41 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 77so14379452wmm.13
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 00:21:41 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id 62si1841180wrg.61.2017.06.20.00.21.39
-        for <linux-mm@kvack.org>;
-        Tue, 20 Jun 2017 00:21:39 -0700 (PDT)
-Date: Tue, 20 Jun 2017 09:21:25 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 03/36] x86, mpparse, x86/acpi, x86/PCI, x86/dmi, SFI:
- Use memremap for RAM mappings
-Message-ID: <20170620072124.p6wztvxw5fj25a6m@pd.tnic>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185023.18967.72831.stgit@tlendack-t1.amdoffice.net>
+	by kanga.kvack.org (Postfix) with ESMTP id CE5AC6B02C3
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 03:34:58 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d184so14442783wmd.15
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 00:34:58 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id r5si5942700wmr.54.2017.06.20.00.34.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Jun 2017 00:34:57 -0700 (PDT)
+Date: Tue, 20 Jun 2017 09:34:56 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [RFC PATCH 1/2] mm: introduce bmap_walk()
+Message-ID: <20170620073456.GA8453@lst.de>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com> <149766212976.22552.11210067224152823950.stgit@dwillia2-desk3.amr.corp.intel.com> <20170617052212.GA8246@lst.de> <CAPcyv4g=x+Af1C8_q=+euwNw_Fwk3Wwe45XibtYR5=kbOcmgfg@mail.gmail.com> <20170618075152.GA25871@lst.de> <20170619181956.GH10672@ZenIV.linux.org.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170616185023.18967.72831.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20170619181956.GH10672@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Fri, Jun 16, 2017 at 01:50:23PM -0500, Tom Lendacky wrote:
-> The ioremap() function is intended for mapping MMIO. For RAM, the
-> memremap() function should be used. Convert calls from ioremap() to
-> memremap() when re-mapping RAM.
-> 
-> This will be used later by SME to control how the encryption mask is
-> applied to memory mappings, with certain memory locations being mapped
-> decrypted vs encrypted.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/dmi.h   |    8 ++++----
->  arch/x86/kernel/acpi/boot.c  |    6 +++---
->  arch/x86/kernel/kdebugfs.c   |   34 +++++++++++-----------------------
->  arch/x86/kernel/ksysfs.c     |   28 ++++++++++++++--------------
->  arch/x86/kernel/mpparse.c    |   10 +++++-----
->  arch/x86/pci/common.c        |    4 ++--
->  drivers/firmware/dmi-sysfs.c |    5 +++--
->  drivers/firmware/pcdp.c      |    4 ++--
->  drivers/sfi/sfi_core.c       |   22 +++++++++++-----------
->  9 files changed, 55 insertions(+), 66 deletions(-)
+On Mon, Jun 19, 2017 at 07:19:57PM +0100, Al Viro wrote:
+> Speaking of iomap, what's supposed to happen when doing a write into what
+> used to be a hole?  Suppose we have a file with a megabyte hole in it
+> and there's some process mmapping that range.  Another process does
+> write over the entire range.  We call ->iomap_begin() and allocate
+> disk blocks.  Then we start copying data into those.  In the meanwhile,
+> the first process attempts to fetch from address in the middle of that
+> hole.  What should happen?
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+Right now the buffered iomap code expects delayed allocations.
+So ->iomap_begin will only reserve block in memory, and not even
+mark the blocks as allocated in the page / buffer_head.  The fact
+that the block is allocated is only propagated into the page buffer_head
+on a page by page basis in the actor.
 
--- 
-Regards/Gruss,
-    Boris.
+> Should the blocks we'd allocated in ->iomap_begin() be immediately linked
+> into the whatever indirect locks/btree/whatnot we are using?  That would
+> require zeroing all of them first - otherwise that readpage will read
+> uninitialized block.  Another variant would be to delay linking them
+> in until ->iomap_end(), but...  Suppose we get the page evicted by
+> memory pressure after the writer is finished with it.  If ->readpage()
+> comes before ->iomap_end(), we'll need to somehow figure out that it's
+> not a hole anymore, or we'll end up with an uptodate page full of zeroes
+> observed by reads after successful write().
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Delayed blocks are ignored by the read code, so it will read 'through'
+them.
+
+> The comment you've got in linux/iomap.h would seem to suggest the second
+> interpretation, but neither it nor anything in Documentation discusses the
+> relations with readpage/writepage...
+
+I'll see if I can come up with some better documentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
