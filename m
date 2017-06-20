@@ -1,32 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D18F06B0292
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 18:23:00 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g86so80284iod.14
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:23:00 -0700 (PDT)
-Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
-        by mx.google.com with ESMTPS id z4si10646928itc.107.2017.06.20.15.22.59
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D796B0292
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 18:27:47 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id s131so118588398itd.6
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:27:46 -0700 (PDT)
+Received: from mail-it0-x236.google.com (mail-it0-x236.google.com. [2607:f8b0:4001:c0b::236])
+        by mx.google.com with ESMTPS id k66si29246iod.85.2017.06.20.15.27.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 15:22:59 -0700 (PDT)
-Received: by mail-io0-x22e.google.com with SMTP id k93so147007ioi.2
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:22:59 -0700 (PDT)
+        Tue, 20 Jun 2017 15:27:46 -0700 (PDT)
+Received: by mail-it0-x236.google.com with SMTP id m47so22428744iti.1
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:27:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <06bde73d-ca3c-8f91-0142-ddf3af99875e@redhat.com>
+In-Reply-To: <20170620044721.GE610@zzz.localdomain>
 References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
- <1497915397-93805-23-git-send-email-keescook@chromium.org> <06bde73d-ca3c-8f91-0142-ddf3af99875e@redhat.com>
+ <1497915397-93805-23-git-send-email-keescook@chromium.org> <20170620044721.GE610@zzz.localdomain>
 From: Kees Cook <keescook@chromium.org>
-Date: Tue, 20 Jun 2017 15:22:58 -0700
-Message-ID: <CAGXu5jKBB8TF7e74QkuxOu0iy6TZe3Q_0Fs21tbyq23Js3v3Mw@mail.gmail.com>
-Subject: Re: [PATCH 22/23] usercopy: split user-controlled slabs to separate caches
+Date: Tue, 20 Jun 2017 15:27:44 -0700
+Message-ID: <CAGXu5jLUy7SFgC_5Rze=MuDoiz7=G2n60uw8792OvjJTcKsojA@mail.gmail.com>
+Subject: Re: [kernel-hardening] [PATCH 22/23] usercopy: split user-controlled
+ slabs to separate caches
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
+To: Eric Biggers <ebiggers3@gmail.com>
 Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 20, 2017 at 1:24 PM, Laura Abbott <labbott@redhat.com> wrote:
-> On 06/19/2017 04:36 PM, Kees Cook wrote:
+On Mon, Jun 19, 2017 at 9:47 PM, Eric Biggers <ebiggers3@gmail.com> wrote:
+> On Mon, Jun 19, 2017 at 04:36:36PM -0700, Kees Cook wrote:
 >> From: David Windsor <dave@nullcore.net>
 >>
 >> Some userspace APIs (e.g. ipc, seq_file) provide precise control over
@@ -44,84 +45,43 @@ On Tue, Jun 20, 2017 at 1:24 PM, Laura Abbott <labbott@redhat.com> wrote:
 >> Signed-off-by: David Windsor <dave@nullcore.net>
 >> [kees: added SLAB_NO_MERGE flag to allow split of future no-merge Kconfig]
 >> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> ---
+>>  fs/seq_file.c        |  2 +-
+>>  include/linux/gfp.h  |  9 ++++++++-
+>>  include/linux/slab.h | 12 ++++++++++++
+>>  ipc/msgutil.c        |  5 +++--
+>>  mm/slab.h            |  3 ++-
+>>  mm/slab_common.c     | 29 ++++++++++++++++++++++++++++-
+>>  security/Kconfig     | 12 ++++++++++++
+>>  7 files changed, 66 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/fs/seq_file.c b/fs/seq_file.c
+>> index dc7c2be963ed..5caa58a19bdc 100644
+>> --- a/fs/seq_file.c
+>> +++ b/fs/seq_file.c
+>> @@ -25,7 +25,7 @@ static void seq_set_overflow(struct seq_file *m)
+>>
+>>  static void *seq_buf_alloc(unsigned long size)
+>>  {
+>> -     return kvmalloc(size, GFP_KERNEL);
+>> +     return kvmalloc(size, GFP_KERNEL | GFP_USERCOPY);
+>>  }
+>>
 >
-> I just did a quick test of kspp/usercopy-whitelist/lateston my arm64 machine and got some spew:
+> Also forgot to mention the obvious: there are way more places where GFP_USERCOPY
+> would need to be (or should be) used.  Helper functions like memdup_user() and
+> memdup_user_nul() would be the obvious ones.  And just a random example, some of
+> the keyrings syscalls (callable with no privileges) do a kmalloc() with
+> user-controlled contents and size.
+
+Looking again at how grsecurity uses it, they have some of those call
+sites a couple more (keyctl, char/mem, kcore, memdup_user). Getting
+the facility in place at all is a good first step, IMO.
+
 >
-> [   21.818719] Unexpected gfp: 0x4000000 (0x4000000). Fixing up to gfp: 0x14000c0 (GFP_KERNEL). Fix your code!
-> [   21.828427] CPU: 7 PID: 652 Comm: irqbalance Tainted: G        W       4.12.0-rc5-whitelist+ #236
-> [   21.837259] Hardware name: AppliedMicro X-Gene Mustang Board/X-Gene Mustang Board, BIOS 3.06.12 Aug 12 2016
-> [   21.846955] Call trace:
-> [   21.849396] [<ffff000008089b18>] dump_backtrace+0x0/0x210
-> [   21.854770] [<ffff000008089d4c>] show_stack+0x24/0x30
-> [   21.859798] [<ffff00000845b7bc>] dump_stack+0x90/0xb4
-> [   21.864827] [<ffff00000826ff40>] new_slab+0x88/0x90
-> [   21.869681] [<ffff000008272218>] ___slab_alloc+0x428/0x6b0
-> [   21.875141] [<ffff0000082724f0>] __slab_alloc+0x50/0x68
-> [   21.880341] [<ffff000008273208>] __kmalloc_node+0xd0/0x348
-> [   21.885800] [<ffff000008223af0>] kvmalloc_node+0xa0/0xb8
-> [   21.891088] [<ffff0000082bb400>] single_open_size+0x40/0xb0
-> [   21.896636] [<ffff000008315a9c>] stat_open+0x54/0x60
-> [   21.901576] [<ffff00000830adf8>] proc_reg_open+0x90/0x168
-> [   21.906950] [<ffff00000828def4>] do_dentry_open+0x1c4/0x328
-> [   21.912496] [<ffff00000828f470>] vfs_open+0x58/0x88
-> [   21.917351] [<ffff0000082a1f14>] do_last+0x3d4/0x770
-> [   21.922292] [<ffff0000082a233c>] path_openat+0x8c/0x2e8
-> [   21.927492] [<ffff0000082a3888>] do_filp_open+0x70/0xe8
-> [   21.932692] [<ffff00000828f940>] do_sys_open+0x178/0x208
-> [   21.937977] [<ffff00000828fa54>] SyS_openat+0x3c/0x50
-> [   21.943005] [<ffff0000080835f0>] el0_svc_naked+0x24/0x28
->
->
-> I don't think 7e7844226f10 ("lockdep: allow to disable reclaim lockup detection")
-> is correct after new flags are added because we will still need space
-> for another bit even if lockdep is disabled. That might need to
-> be fixed separately.
+> So I think this by itself needs its own patch series.
 
-Err... that commit has "___GFP_NOLOCKDEP       0x4000000u", but my
-tree shows it as 0x2000000u? Hmm, looks like 1bde33e05123
-("include/linux/gfp.h: fix ___GFP_NOLOCKDEP value") fixed that? Oh, or
-I have misread it. It looks like new GFP flags need to be added
-_above_ GFP_NOLOCKDEP and have to bump GFP_NOLOCKDEP's value too? Like
-this:
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index ff4f4a698ad0..deb8ac39fba5 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -40,12 +40,12 @@ struct vm_area_struct;
- #define ___GFP_DIRECT_RECLAIM  0x400000u
- #define ___GFP_WRITE           0x800000u
- #define ___GFP_KSWAPD_RECLAIM  0x1000000u
-+#define ___GFP_USERCOPY                0x2000000u
- #ifdef CONFIG_LOCKDEP
--#define ___GFP_NOLOCKDEP       0x2000000u
-+#define ___GFP_NOLOCKDEP       0x4000000u
- #else
- #define ___GFP_NOLOCKDEP       0
- #endif
--#define ___GFP_USERCOPY                0x4000000u
- /* If the above are modified, __GFP_BITS_SHIFT may need updating */
-
-
-> I'm really not a fan the GFP approach though since the flags tend
-> to be a little bit fragile to manage. If we're going to have to
-> add something to callsites anyway, maybe we could just have an
-> alternate function (kmalloc_user?) instead of a GFP flag.
-
-This would mean building out *_user() versions for all the various
-*alloc() functions, though. That gets kind of long/ugly.
-
-The other reason to use a GFP flag is to be able to interrogate a
-cache later, which will be handy for doing things like %p and kernel
-symbol censorship (this is what grsecurity does with their HIDESYM
-logic). "If this would write to a usercopy-whitelisted object, censor
-it" etc. Though now that I go double-check, it looks like grsecurity
-uses cache->usersize as an indicator of censorship-need on slab
-caches, not the GFP flag, which is only used to use the split kmalloc
-cache. (Though as far as flags go, there is also VM_USERCOPY for what
-are now the kvmalloc*() cases.)
-
-Perhaps this should be named GFP_USERSIZED or so?
+Sounds reasonable.
 
 -Kees
 
