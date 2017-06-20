@@ -1,41 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B676B02FA
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:42:57 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id v184so111367450itc.15
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:42:57 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id l67si6027188ith.144.2017.06.20.08.42.56
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EE3F6B02B4
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:53:03 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id o66so98721158ita.5
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:53:03 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0057.outbound.protection.outlook.com. [104.47.32.57])
+        by mx.google.com with ESMTPS id r63si14521915itc.134.2017.06.20.08.53.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 08:42:56 -0700 (PDT)
-Date: Tue, 20 Jun 2017 09:42:55 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
-Message-ID: <20170620154255.GA2536@linux.intel.com>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170620052214.GA3787@birch.djwong.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 20 Jun 2017 08:53:02 -0700 (PDT)
+Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
+ processing
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net>
+ <20170620073845.nteivabsgcdy7gv4@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <49c62e8c-c4ae-6d05-e2a4-aa1fc6e2d717@amd.com>
+Date: Tue, 20 Jun 2017 10:52:48 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170620052214.GA3787@birch.djwong.org>
+In-Reply-To: <20170620073845.nteivabsgcdy7gv4@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, xfs <linux-xfs@vger.kernel.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Mon, Jun 19, 2017 at 10:22:14PM -0700, Darrick J. Wong wrote:
-<>
-> Fourth, the VFS entry points for things like read, write, truncate,
-> utimes, fallocate, etc. all just bail out if S_IOMAP_FROZEN is set on a
-> file, so that the block map cannot be modified.  mmap is still allowed,
-> as we've discussed.  /Maybe/ we can allow fallocate to extend a file
-> with zeroed extents (it will be slow) as I've heard murmurs about
-> wanting to be able to extend a file, maybe not.
+On 6/20/2017 2:38 AM, Borislav Petkov wrote:
+> On Fri, Jun 16, 2017 at 01:51:15PM -0500, Tom Lendacky wrote:
+>> Add support to the early boot code to use Secure Memory Encryption (SME).
+>> Since the kernel has been loaded into memory in a decrypted state, encrypt
+>> the kernel in place and update the early pagetables with the memory
+>> encryption mask so that new pagetable entries will use memory encryption.
+>>
+>> The routines to set the encryption mask and perform the encryption are
+>> stub routines for now with functionality to be added in a later patch.
+>>
+>> Because of the need to have the routines available to head_64.S, the
+>> mem_encrypt.c is always built and #ifdefs in mem_encrypt.c will provide
+>> functionality or stub routines depending on CONFIG_AMD_MEM_ENCRYPT.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/include/asm/mem_encrypt.h |    8 +++++++
+>>   arch/x86/kernel/head64.c           |   33 +++++++++++++++++++++---------
+>>   arch/x86/kernel/head_64.S          |   39 ++++++++++++++++++++++++++++++++++--
+>>   arch/x86/mm/Makefile               |    4 +---
+>>   arch/x86/mm/mem_encrypt.c          |   24 ++++++++++++++++++++++
+>>   5 files changed, 93 insertions(+), 15 deletions(-)
+> 
+> ...
+> 
+>> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+>> index b99d469..9a78277 100644
+>> --- a/arch/x86/mm/mem_encrypt.c
+>> +++ b/arch/x86/mm/mem_encrypt.c
+>> @@ -11,6 +11,9 @@
+>>    */
+>>   
+>>   #include <linux/linkage.h>
+>> +#include <linux/init.h>
+>> +
+>> +#ifdef CONFIG_AMD_MEM_ENCRYPT
+>>   
+>>   /*
+>>    * Since SME related variables are set early in the boot process they must
+>> @@ -19,3 +22,24 @@
+>>    */
+>>   unsigned long sme_me_mask __section(.data) = 0;
+>>   EXPORT_SYMBOL_GPL(sme_me_mask);
+>> +
+>> +void __init sme_encrypt_kernel(void)
+>> +{
+>> +}
+> 
+> Just the minor:
+> 
+> void __init sme_encrypt_kernel(void) { }
+> 
+> in case you have to respin.
 
-Read and write should still be allowed, right?
+I have to re-spin for the kbuild test error.  But given that this
+function will be filled in later it's probably not worth doing the
+space savings here.
+
+Thanks,
+Tom
+
+> 
+> Reviewed-by: Borislav Petkov <bp@suse.de>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
