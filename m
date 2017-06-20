@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B6836B0279
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 13:44:47 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id 91so39240126qkq.2
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 10:44:47 -0700 (PDT)
-Received: from mail-qt0-f169.google.com (mail-qt0-f169.google.com. [209.85.216.169])
-        by mx.google.com with ESMTPS id f187si12383881qkd.277.2017.06.20.10.44.46
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B8F016B0292
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 13:45:24 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id j11so57011ywa.1
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 10:45:24 -0700 (PDT)
+Received: from mail-yw0-x229.google.com (mail-yw0-x229.google.com. [2607:f8b0:4002:c05::229])
+        by mx.google.com with ESMTPS id d12si722642ybm.576.2017.06.20.10.45.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 10:44:46 -0700 (PDT)
-Received: by mail-qt0-f169.google.com with SMTP id v20so23254111qtg.1
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 10:44:46 -0700 (PDT)
-Message-ID: <1497980684.4555.16.camel@redhat.com>
-Subject: Re: [PATCH v7 16/22] block: convert to errseq_t based writeback
- error tracking
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 20 Jun 2017 13:44:44 -0400
-In-Reply-To: <20170620123544.GC19781@infradead.org>
-References: <20170616193427.13955-1-jlayton@redhat.com>
-	 <20170616193427.13955-17-jlayton@redhat.com>
-	 <20170620123544.GC19781@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 20 Jun 2017 10:45:23 -0700 (PDT)
+Received: by mail-yw0-x229.google.com with SMTP id l75so55291584ywc.3
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 10:45:23 -0700 (PDT)
+Date: Tue, 20 Jun 2017 13:45:21 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/4] percpu: add basic stats and tracepoints to percpu
+ allocator
+Message-ID: <20170620174521.GD21326@htj.duckdns.org>
+References: <20170619232832.27116-1-dennisz@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170619232832.27116-1-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, 2017-06-20 at 05:35 -0700, Christoph Hellwig wrote:
-> >  	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
-> >  	if (error)
-> > -		return error;
-> > +		goto out;
-> >  
-> >  	/*
-> >  	 * There is no need to serialise calls to blkdev_issue_flush with
-> > @@ -640,6 +640,10 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
-> >  	if (error == -EOPNOTSUPP)
-> >  		error = 0;
-> >  
-> > +out:
-> > +	wberr = filemap_report_wb_err(filp);
-> > +	if (!error)
-> > +		error = wberr;
+On Mon, Jun 19, 2017 at 07:28:28PM -0400, Dennis Zhou wrote:
+> There is limited visibility into the percpu memory allocator making it hard to
+> understand usage patterns. Without these concrete numbers, we are left to
+> conjecture about the correctness of percpu memory patterns and usage.
+> Additionally, there is no mechanism to review the correctness/efficiency of the
+> current implementation.
 > 
-> Just curious: what's the reason filemap_write_and_wait_range couldn't
-> query for the error using filemap_report_wb_err internally?
+> This patchset address the following:
+> - Adds basic statistics to reason about the number of allocations over the
+>   lifetime, allocation sizes, and fragmentation.
+> - Adds tracepoints to enable better debug capabilities as well as the ability
+>   to review allocation requests and corresponding decisions.
+> 
+> This patchiest contains the following four patches:
+> 0001-percpu-add-missing-lockdep_assert_held-to-func-pcpu_.patch
+> 0002-percpu-migrate-percpu-data-structures-to-internal-he.patch
+> 0003-percpu-expose-statistics-about-percpu-memory-via-deb.patch
+> 0004-percpu-add-tracepoint-support-for-percpu-memory.patch
 
-In order to query for errors with errseq_t, you need a previously-
-sampled point from which to check. When you call
-filemap_write_and_wait_range though you don't have a struct file and so
-no previously-sampled value.
+Applied to percpu/for-4.13.  I had to update 0002 because of the
+recent __ro_after_init changes.  Can you please see whether I made any
+mistakes while updating it?
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git for-4.13
+
+Thanks.
 
 -- 
-Jeff Layton <jlayton@redhat.com>
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
