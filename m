@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F936B0317
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C536B0315
 	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:07:52 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id z22so87390713qtz.10
+Received: by mail-qk0-f198.google.com with SMTP id v19so42295366qkl.12
         for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:07:52 -0700 (PDT)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id u42si1974277qta.154.2017.06.20.16.07.51
+        by mx.google.com with ESMTPS id f97si14183512qkf.386.2017.06.20.16.07.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 20 Jun 2017 16:07:51 -0700 (PDT)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v7 09/10] mm: migrate: move_pages() supports thp migration
-Date: Tue, 20 Jun 2017 19:07:14 -0400
-Message-Id: <20170620230715.81590-10-zi.yan@sent.com>
+Subject: [PATCH v7 10/10] mm: memory_hotplug: memory hotremove supports thp migration
+Date: Tue, 20 Jun 2017 19:07:15 -0400
+Message-Id: <20170620230715.81590-11-zi.yan@sent.com>
 In-Reply-To: <20170620230715.81590-1-zi.yan@sent.com>
 References: <20170620230715.81590-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,124 +22,73 @@ Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techs
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-This patch enables thp migration for move_pages(2).
+This patch enables thp migration for memory hotremove.
+
+---
+ChangeLog v1->v2:
+- base code switched from alloc_migrate_target to new_node_page()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-ChangeLog: v1 -> v5:
-- fix page counting
-
-ChangeLog: v5 -> v6:
-- drop changes on soft-offline in unmap_and_move()
+ChangeLog v2->v7:
+- base code switched from new_node_page() new_page_nodemask()
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 ---
- mm/migrate.c | 45 ++++++++++++++++++++++++++++++++-------------
- 1 file changed, 32 insertions(+), 13 deletions(-)
+ include/linux/migrate.h | 15 ++++++++++++++-
+ mm/memory_hotplug.c     |  4 +++-
+ 2 files changed, 17 insertions(+), 2 deletions(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index cae5c3b3b491..ff3ca4b90b92 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -184,8 +184,8 @@ void putback_movable_pages(struct list_head *l)
- 			unlock_page(page);
- 			put_page(page);
- 		} else {
--			dec_node_page_state(page, NR_ISOLATED_ANON +
--					page_is_file_cache(page));
-+			mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
-+					page_is_file_cache(page), -hpage_nr_pages(page));
- 			putback_lru_page(page);
- 		}
- 	}
-@@ -1145,8 +1145,8 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		 * as __PageMovable
- 		 */
- 		if (likely(!__PageMovable(page)))
--			dec_node_page_state(page, NR_ISOLATED_ANON +
--					page_is_file_cache(page));
-+			mod_node_page_state(page_pgdat(page), NR_ISOLATED_ANON +
-+					page_is_file_cache(page), -hpage_nr_pages(page));
- 	}
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index f80c9882403a..f67755ae72c9 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -35,16 +35,29 @@ static inline struct page *new_page_nodemask(struct page *page, int preferred_ni
+ 		nodemask_t *nodemask)
+ {
+ 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
++	unsigned int order = 0;
++	struct page *new_page = NULL;
  
- 	/*
-@@ -1420,7 +1420,17 @@ static struct page *new_page_node(struct page *p, unsigned long private,
- 	if (PageHuge(p))
- 		return alloc_huge_page_node(page_hstate(compound_head(p)),
- 					pm->node);
--	else
-+	else if (thp_migration_supported() && PageTransHuge(p)) {
-+		struct page *thp;
+ 	if (PageHuge(page))
+ 		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+ 				nodemask);
+ 
++	if (thp_migration_supported() && PageTransHuge(page)) {
++		order = HPAGE_PMD_ORDER;
++		gfp_mask |= GFP_TRANSHUGE;
++	}
 +
-+		thp = alloc_pages_node(pm->node,
-+			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-+			HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	} else
- 		return __alloc_pages_node(pm->node,
- 				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
+ 	if (PageHighMem(page)
+ 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+ 		gfp_mask |= __GFP_HIGHMEM;
+ 
+-	return __alloc_pages_nodemask(gfp_mask, 0, preferred_nid, nodemask);
++	new_page = __alloc_pages_nodemask(gfp_mask, order,
++				preferred_nid, nodemask);
++
++	if (new_page && PageTransHuge(page))
++		prep_transhuge_page(new_page);
++
++	return new_page;
  }
-@@ -1447,6 +1457,8 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 	for (pp = pm; pp->node != MAX_NUMNODES; pp++) {
- 		struct vm_area_struct *vma;
- 		struct page *page;
-+		struct page *head;
-+		unsigned int follflags;
  
- 		err = -EFAULT;
- 		vma = find_vma(mm, pp->addr);
-@@ -1454,8 +1466,10 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 			goto set_status;
+ #ifdef CONFIG_MIGRATION
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 567a1dcafa1a..1975acfc7326 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1483,7 +1483,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			if (isolate_huge_page(page, &source))
+ 				move_pages -= 1 << compound_order(head);
+ 			continue;
+-		}
++		} else if (thp_migration_supported() && PageTransHuge(page))
++			pfn = page_to_pfn(compound_head(page))
++				+ hpage_nr_pages(page) - 1;
  
- 		/* FOLL_DUMP to ignore special (like zero) pages */
--		page = follow_page(vma, pp->addr,
--				FOLL_GET | FOLL_SPLIT | FOLL_DUMP);
-+		follflags = FOLL_GET | FOLL_DUMP;
-+		if (!thp_migration_supported())
-+			follflags |= FOLL_SPLIT;
-+		page = follow_page(vma, pp->addr, follflags);
- 
- 		err = PTR_ERR(page);
- 		if (IS_ERR(page))
-@@ -1465,7 +1479,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 		if (!page)
- 			goto set_status;
- 
--		pp->page = page;
- 		err = page_to_nid(page);
- 
- 		if (err == pp->node)
-@@ -1480,16 +1493,22 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
- 			goto put_and_set;
- 
- 		if (PageHuge(page)) {
--			if (PageHead(page))
-+			if (PageHead(page)) {
- 				isolate_huge_page(page, &pagelist);
-+				err = 0;
-+				pp->page = page;
-+			}
- 			goto put_and_set;
- 		}
- 
--		err = isolate_lru_page(page);
-+		pp->page = compound_head(page);
-+		head = compound_head(page);
-+		err = isolate_lru_page(head);
- 		if (!err) {
--			list_add_tail(&page->lru, &pagelist);
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+			list_add_tail(&head->lru, &pagelist);
-+			mod_node_page_state(page_pgdat(head),
-+				NR_ISOLATED_ANON + page_is_file_cache(head),
-+				hpage_nr_pages(head));
- 		}
- put_and_set:
- 		/*
+ 		if (!get_page_unless_zero(page))
+ 			continue;
 -- 
 2.11.0
 
