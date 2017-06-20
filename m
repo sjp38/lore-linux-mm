@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EE3F6B02B4
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:53:03 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o66so98721158ita.5
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:53:03 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0057.outbound.protection.outlook.com. [104.47.32.57])
-        by mx.google.com with ESMTPS id r63si14521915itc.134.2017.06.20.08.53.02
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 20 Jun 2017 08:53:02 -0700 (PDT)
-Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
- processing
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net>
- <20170620073845.nteivabsgcdy7gv4@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <49c62e8c-c4ae-6d05-e2a4-aa1fc6e2d717@amd.com>
-Date: Tue, 20 Jun 2017 10:52:48 -0500
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 943B36B02B4
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 11:54:46 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b9so133268140pfl.0
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 08:54:46 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 5si11277810plx.506.2017.06.20.08.54.45
+        for <linux-mm@kvack.org>;
+        Tue, 20 Jun 2017 08:54:45 -0700 (PDT)
+Date: Tue, 20 Jun 2017 16:54:38 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20170620073845.nteivabsgcdy7gv4@pd.tnic>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 6/20/2017 2:38 AM, Borislav Petkov wrote:
-> On Fri, Jun 16, 2017 at 01:51:15PM -0500, Tom Lendacky wrote:
->> Add support to the early boot code to use Secure Memory Encryption (SME).
->> Since the kernel has been loaded into memory in a decrypted state, encrypt
->> the kernel in place and update the early pagetables with the memory
->> encryption mask so that new pagetable entries will use memory encryption.
->>
->> The routines to set the encryption mask and perform the encryption are
->> stub routines for now with functionality to be added in a later patch.
->>
->> Because of the need to have the routines available to head_64.S, the
->> mem_encrypt.c is always built and #ifdefs in mem_encrypt.c will provide
->> functionality or stub routines depending on CONFIG_AMD_MEM_ENCRYPT.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>   arch/x86/include/asm/mem_encrypt.h |    8 +++++++
->>   arch/x86/kernel/head64.c           |   33 +++++++++++++++++++++---------
->>   arch/x86/kernel/head_64.S          |   39 ++++++++++++++++++++++++++++++++++--
->>   arch/x86/mm/Makefile               |    4 +---
->>   arch/x86/mm/mem_encrypt.c          |   24 ++++++++++++++++++++++
->>   5 files changed, 93 insertions(+), 15 deletions(-)
+On Tue, Jun 20, 2017 at 12:52:10AM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jun 19, 2017 at 06:09:12PM +0100, Catalin Marinas wrote:
+> > On Mon, Jun 19, 2017 at 07:00:05PM +0300, Kirill A. Shutemov wrote:
+> > > On Mon, Jun 19, 2017 at 04:22:29PM +0100, Catalin Marinas wrote:
+> > > > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > > > > We need an atomic way to setup pmd page table entry, avoiding races with
+> > > > > CPU setting dirty/accessed bits. This is required to implement
+> > > > > pmdp_invalidate() that doesn't loose these bits.
+> > > > > 
+> > > > > On PAE we have to use cmpxchg8b as we cannot assume what is value of new pmd and
+> > > > > setting it up half-by-half can expose broken corrupted entry to CPU.
+> > > > > 
+> > > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > > Cc: Ingo Molnar <mingo@kernel.org>
+> > > > > Cc: H. Peter Anvin <hpa@zytor.com>
+> > > > > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > > > 
+> > > > I'll look at this from the arm64 perspective. It would be good if we can
+> > > > have a generic atomic implementation based on cmpxchg64 but I need to
+> > > > look at the details first.
+> > > 
+> > > Unfortunately, I'm not sure it's possbile.
+> > > 
+> > > The format of a page table is defined per-arch. We cannot assume much about
+> > > it in generic code.
+> > > 
+> > > I guess we could make it compile by casting to 'unsigned long', but is it
+> > > useful?
+> > > Every architecture manintainer still has to validate that this assumption
+> > > is valid for the architecture.
+> > 
+> > You are right, not much gained in doing this.
+> > 
+> > Maybe a stupid question but can we not implement pmdp_invalidate() with
+> > something like pmdp_get_and_clear() (usually reusing the ptep_*
+> > equivalent). Or pmdp_clear_flush() (again, reusing ptep_clear_flush())?
+> > 
+> > In my quick grep on pmdp_invalidate, it seems to be followed by
+> > set_pmd_at() or pmd_populate() already and the *pmd value after
+> > mknotpresent isn't any different from 0 to the hardware (at least on
+> > ARM). That's unless Linux expects to see some non-zero value here if
+> > walking the page tables on another CPU.
 > 
-> ...
-> 
->> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
->> index b99d469..9a78277 100644
->> --- a/arch/x86/mm/mem_encrypt.c
->> +++ b/arch/x86/mm/mem_encrypt.c
->> @@ -11,6 +11,9 @@
->>    */
->>   
->>   #include <linux/linkage.h>
->> +#include <linux/init.h>
->> +
->> +#ifdef CONFIG_AMD_MEM_ENCRYPT
->>   
->>   /*
->>    * Since SME related variables are set early in the boot process they must
->> @@ -19,3 +22,24 @@
->>    */
->>   unsigned long sme_me_mask __section(.data) = 0;
->>   EXPORT_SYMBOL_GPL(sme_me_mask);
->> +
->> +void __init sme_encrypt_kernel(void)
->> +{
->> +}
-> 
-> Just the minor:
-> 
-> void __init sme_encrypt_kernel(void) { }
-> 
-> in case you have to respin.
+> The whole reason to have pmdp_invalidate() in first place is to never make
+> pmd clear in the middle. Otherwise we will get race with MADV_DONTNEED.
+> See ced108037c2a for an example of such race.
 
-I have to re-spin for the kbuild test error.  But given that this
-function will be filled in later it's probably not worth doing the
-space savings here.
+Thanks for the explanation. So you basically just want to set a !present
+and !none pmd. I noticed that with your proposed pmdp_invalidate(),
+pmdp_establish(pmd_mknotpresent(*pmdp)) could set a stale *pmdp (with
+the present bit cleared) temporarily until updated with what
+pmdp_establish() returned. Is there a risk of racing with other parts of
+the kernel? I guess not since the pmd is !present.
 
-Thanks,
-Tom
+For arm64, I don't see the point of a cmpxchg, so something like below
+would do (it needs proper testing though):
 
-> 
-> Reviewed-by: Borislav Petkov <bp@suse.de>
-> 
+-------------8<---------------------------
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index c213fdbd056c..8fe1dad9100a 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -39,6 +39,7 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#include <asm/cmpxchg.h>
+ #include <asm/fixmap.h>
+ #include <linux/mmdebug.h>
+ 
+@@ -683,6 +684,11 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ {
+ 	ptep_set_wrprotect(mm, address, (pte_t *)pmdp);
+ }
++
++static inline pmd_t pmdp_establish(pmd_t *pmdp, pmd_t pmd)
++{
++	return __pmd(xchg_relaxed(&pmd_val(*pmdp), pmd_val(pmd)));
++}
+ #endif
+ #endif	/* CONFIG_ARM64_HW_AFDBM */
+ 
+-------------8<---------------------------
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
