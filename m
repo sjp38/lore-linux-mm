@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD99C6B02C3
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:07:49 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id t10so87504297qte.14
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:07:49 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A73A6B02C3
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:07:50 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z5so87705710qta.12
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:07:50 -0700 (PDT)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id i16si1796343qtf.90.2017.06.20.16.07.48
+        by mx.google.com with ESMTPS id n63si12939614qkb.240.2017.06.20.16.07.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 20 Jun 2017 16:07:49 -0700 (PDT)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v7 02/10] mm: x86: move _PAGE_SWP_SOFT_DIRTY from bit 7 to bit 1
-Date: Tue, 20 Jun 2017 19:07:07 -0400
-Message-Id: <20170620230715.81590-3-zi.yan@sent.com>
+Subject: [PATCH v7 03/10] mm: thp: introduce separate TTU flag for thp freezing
+Date: Tue, 20 Jun 2017 19:07:08 -0400
+Message-Id: <20170620230715.81590-4-zi.yan@sent.com>
 In-Reply-To: <20170620230715.81590-1-zi.yan@sent.com>
 References: <20170620230715.81590-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,86 +22,115 @@ Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techs
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-_PAGE_PSE is used to distinguish between a truly non-present
-(_PAGE_PRESENT=0) PMD, and a PMD which is undergoing a THP
-split and should be treated as present.
+TTU_MIGRATION is used to convert pte into migration entry until thp split
+completes. This behavior conflicts with thp migration added later patches,
+so let's introduce a new TTU flag specifically for freezing.
 
-But _PAGE_SWP_SOFT_DIRTY currently uses the _PAGE_PSE bit,
-which would cause confusion between one of those PMDs
-undergoing a THP split, and a soft-dirty PMD.
-Dropping _PAGE_PSE check in pmd_present() does not work well,
-because it can hurt optimization of tlb handling in thp split.
+try_to_unmap() is used both for thp split (via freeze_page()) and page
+migration (via __unmap_and_move()). In freeze_page(), ttu_flag given for
+head page is like below (assuming anonymous thp):
 
-Thus, we need to move the bit.
+    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
+     TTU_MIGRATION | TTU_SPLIT_HUGE_PMD)
 
-In the current kernel, bits 1-4 are not used in non-present format
-since commit 00839ee3b299 ("x86/mm: Move swap offset/type up in PTE to
-work around erratum"). So let's move _PAGE_SWP_SOFT_DIRTY to bit 1.
-Bit 7 is used as reserved (always clear), so please don't use it for
-other purpose.
+and ttu_flag given for tail pages is:
+
+    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
+     TTU_MIGRATION)
+
+__unmap_and_move() calls try_to_unmap() with ttu_flag:
+
+    (TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS)
+
+Now I'm trying to insert a branch for thp migration at the top of
+try_to_unmap_one() like below
+
+static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+                       unsigned long address, void *arg)
+  {
+          ...
+          if (flags & TTU_MIGRATION) {
+              if (!pvmw.pte && page) {
+                  set_pmd_migration_entry(&pvmw, page);
+                  continue;
+              }
+          }
+
+, so try_to_unmap() for tail pages called by thp split can go into thp
+migration code path (which converts *pmd* into migration entry), while
+the expectation is to freeze thp (which converts *pte* into migration entry.)
+
+I detected this failure as a "bad page state" error in a testcase where
+split_huge_page() is called from queue_pages_pte_range().
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-Acked-by: Dave Hansen <dave.hansen@intel.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/pgtable_64.h    | 12 +++++++++---
- arch/x86/include/asm/pgtable_types.h | 10 +++++-----
- 2 files changed, 14 insertions(+), 8 deletions(-)
+ include/linux/rmap.h | 3 ++-
+ mm/huge_memory.c     | 2 +-
+ mm/rmap.c            | 7 ++++---
+ 3 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 9991224f6238..45b7a4094de0 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -178,15 +178,21 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
- /*
-  * Encode and de-code a swap entry
-  *
-- * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
-- * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
-- * | OFFSET (14->63) | TYPE (9-13)  |0|X|X|X| X| X|X|X|0| <- swp entry
-+ * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
-+ * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
-+ * | OFFSET (14->63) | TYPE (9-13)  |0|0|X|X| X| X|X|SD|0| <- swp entry
-  *
-  * G (8) is aliased and used as a PROT_NONE indicator for
-  * !present ptes.  We need to start storing swap entries above
-  * there.  We also need to avoid using A and D because of an
-  * erratum where they can be incorrectly set by hardware on
-  * non-present PTEs.
-+ *
-+ * SD (1) in swp entry is used to store soft dirty bit, which helps us
-+ * remember soft dirty over page migration
-+ *
-+ * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
-+ * but also L and G.
-  */
- #define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
- #define SWP_TYPE_BITS 5
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index bf9638e1ee42..c612a8f08422 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -97,15 +97,15 @@
- /*
-  * Tracking soft dirty bit when a page goes to a swap is tricky.
-  * We need a bit which can be stored in pte _and_ not conflict
-- * with swap entry format. On x86 bits 6 and 7 are *not* involved
-- * into swap entry computation, but bit 6 is used for nonlinear
-- * file mapping, so we borrow bit 7 for soft dirty tracking.
-+ * with swap entry format. On x86 bits 1-4 are *not* involved
-+ * into swap entry computation, but bit 7 is used for thp migration,
-+ * so we borrow bit 1 for soft dirty tracking.
-  *
-  * Please note that this bit must be treated as swap dirty page
-- * mark if and only if the PTE has present bit clear!
-+ * mark if and only if the PTE/PMD has present bit clear!
-  */
- #ifdef CONFIG_MEM_SOFT_DIRTY
--#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
-+#define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
- #else
- #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
- #endif
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 43ef2c30cb0f..f8ca2e74b819 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -93,8 +93,9 @@ enum ttu_flags {
+ 	TTU_BATCH_FLUSH		= 0x40,	/* Batch TLB flushes where possible
+ 					 * and caller guarantees they will
+ 					 * do a final flush if necessary */
+-	TTU_RMAP_LOCKED		= 0x80	/* do not grab rmap lock:
++	TTU_RMAP_LOCKED		= 0x80,	/* do not grab rmap lock:
+ 					 * caller holds it */
++	TTU_SPLIT_FREEZE	= 0x100,		/* freeze pte under splitting thp */
+ };
+ 
+ #ifdef CONFIG_MMU
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 6b8e8d30c507..421631ff3aeb 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2167,7 +2167,7 @@ static void freeze_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 
+ 	if (PageAnon(page))
+-		ttu_flags |= TTU_MIGRATION;
++		ttu_flags |= TTU_SPLIT_FREEZE;
+ 
+ 	unmap_success = try_to_unmap(page, ttu_flags);
+ 	VM_BUG_ON_PAGE(!unmap_success, page);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 2324c923c813..91948fbbb0bb 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1308,7 +1308,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ 	if (flags & TTU_SPLIT_HUGE_PMD) {
+ 		split_huge_pmd_address(vma, address,
+-				flags & TTU_MIGRATION, page);
++				flags & TTU_SPLIT_FREEZE, page);
+ 	}
+ 
+ 	while (page_vma_mapped_walk(&pvmw)) {
+@@ -1397,7 +1397,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			 */
+ 			dec_mm_counter(mm, mm_counter(page));
+ 		} else if (IS_ENABLED(CONFIG_MIGRATION) &&
+-				(flags & TTU_MIGRATION)) {
++				(flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
+ 			swp_entry_t entry;
+ 			pte_t swp_pte;
+ 			/*
+@@ -1522,7 +1522,8 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags)
+ 	 * locking requirements of exec(), migration skips
+ 	 * temporary VMAs until after exec() completes.
+ 	 */
+-	if ((flags & TTU_MIGRATION) && !PageKsm(page) && PageAnon(page))
++	if ((flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))
++	    && !PageKsm(page) && PageAnon(page))
+ 		rwc.invalid_vma = invalid_migration_vma;
+ 
+ 	if (flags & TTU_RMAP_LOCKED)
 -- 
 2.11.0
 
