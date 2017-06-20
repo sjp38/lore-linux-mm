@@ -1,76 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 700006B0292
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 00:24:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v9so118332351pfk.5
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 21:24:46 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id i10si9998080pgc.553.2017.06.19.21.24.45
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E81606B0292
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 00:29:39 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v9so118390195pfk.5
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 21:29:39 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id e26si6668951plj.541.2017.06.19.21.29.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Jun 2017 21:24:45 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id y7so20745669pfd.3
-        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 21:24:45 -0700 (PDT)
-Date: Mon, 19 Jun 2017 21:24:42 -0700
+        Mon, 19 Jun 2017 21:29:39 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id w12so20769722pfk.0
+        for <linux-mm@kvack.org>; Mon, 19 Jun 2017 21:29:39 -0700 (PDT)
+Date: Mon, 19 Jun 2017 21:29:36 -0700
 From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: [kernel-hardening] [PATCH 22/23] usercopy: split user-controlled
- slabs to separate caches
-Message-ID: <20170620042442.GC610@zzz.localdomain>
+Subject: Re: [kernel-hardening] [PATCH 23/23] mm: Allow slab_nomerge to be
+ set at build time
+Message-ID: <20170620042936.GD610@zzz.localdomain>
 References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
- <1497915397-93805-23-git-send-email-keescook@chromium.org>
+ <1497915397-93805-24-git-send-email-keescook@chromium.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1497915397-93805-23-git-send-email-keescook@chromium.org>
+In-Reply-To: <1497915397-93805-24-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kees Cook <keescook@chromium.org>
 Cc: kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 19, 2017 at 04:36:36PM -0700, Kees Cook wrote:
-> From: David Windsor <dave@nullcore.net>
+On Mon, Jun 19, 2017 at 04:36:37PM -0700, Kees Cook wrote:
+> Some hardened environments want to build kernels with slab_nomerge
+> already set (so that they do not depend on remembering to set the kernel
+> command line option). This is desired to reduce the risk of kernel heap
+> overflows being able to overwrite objects from merged caches, increasing
+> the difficulty of these attacks. By keeping caches unmerged, these kinds
+> of exploits can usually only damage objects in the same cache (though the
+> risk to metadata exploitation is unchanged).
 > 
-> Some userspace APIs (e.g. ipc, seq_file) provide precise control over
-> the size of kernel kmallocs, which provides a trivial way to perform
-> heap overflow attacks where the attacker must control neighboring
-> allocations of a specific size. Instead, move these APIs into their own
-> cache so they cannot interfere with standard kmallocs. This is enabled
-> with CONFIG_HARDENED_USERCOPY_SPLIT_KMALLOC.
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ---
+>  mm/slab_common.c |  5 ++---
+>  security/Kconfig | 13 +++++++++++++
+>  2 files changed, 15 insertions(+), 3 deletions(-)
 > 
-
-This is a logically separate change which IMO should be its own patch, not just
-patch 22/23.
-
-Also, is this really just about heap overflows?  I thought the main purpose of
-separate heaps is to make it more difficult to exploit use-after-frees, since
-anything allocating an object from heap A cannot overwrite freed memory in heap
-B.  (At least, not at the SLAB level; it may still be done at the page level.)
-
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index a89d37e8b387..ff4f4a698ad0 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -45,6 +45,7 @@ struct vm_area_struct;
->  #else
->  #define ___GFP_NOLOCKDEP	0
->  #endif
-> +#define ___GFP_USERCOPY		0x4000000u
->  /* If the above are modified, __GFP_BITS_SHIFT may need updating */
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 6c14d765379f..17a4c4b33283 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -47,13 +47,12 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
 >  
 >  /*
-> @@ -83,12 +84,17 @@ struct vm_area_struct;
->   *   node with no fallbacks or placement policy enforcements.
->   *
->   * __GFP_ACCOUNT causes the allocation to be accounted to kmemcg.
-> + *
-> + * __GFP_USERCOPY indicates that the page will be explicitly copied to/from
-> + *   userspace, and may be allocated from a separate kmalloc pool.
-> + *
+>   * Merge control. If this is set then no merging of slab caches will occur.
+> - * (Could be removed. This was introduced to pacify the merge skeptics.)
 >   */
+> -static int slab_nomerge;
+> +static bool slab_nomerge = !IS_ENABLED(CONFIG_SLAB_MERGE_DEFAULT);
+>  
+>  static int __init setup_slab_nomerge(char *str)
+>  {
+> -	slab_nomerge = 1;
+> +	slab_nomerge = true;
+>  	return 1;
+>  }
+>  
+> diff --git a/security/Kconfig b/security/Kconfig
+> index 0c181cebdb8a..e40bd2a260f8 100644
+> --- a/security/Kconfig
+> +++ b/security/Kconfig
+> @@ -166,6 +166,19 @@ config HARDENED_USERCOPY_SPLIT_KMALLOC
+>  	  confined to a separate cache, attackers must find other ways
+>  	  to prepare heap attacks that will be near their desired target.
+>  
+> +config SLAB_MERGE_DEFAULT
+> +	bool "Allow slab caches to be merged"
+> +	default y
+> +	help
+> +	  For reduced kernel memory fragmentation, slab caches can be
+> +	  merged when they share the same size and other characteristics.
+> +	  This carries a small risk of kernel heap overflows being able
+> +	  to overwrite objects from merged caches, which reduces the
+> +	  difficulty of such heap attacks. By keeping caches unmerged,
+> +	  these kinds of exploits can usually only damage objects in the
+> +	  same cache. To disable merging at runtime, "slab_nomerge" can be
+> +	  passed on the kernel command line.
+> +
 
-The "page", or the allocation?  It's only for slab objects, is it not?  More
-importantly, the purpose of this needs to be clearly documented; otherwise
-people won't know what this is and whether they should/need to use it or not.
+It's good to at least have this option, but again it's logically separate and
+shouldn't just be hidden in patch 23/23.  And again, is it really just about
+heap overflows?
+
+Please also fix the documentation for slab_nomerge in
+Documentation/admin-guide/kernel-parameters.txt.
 
 - Eric
 
