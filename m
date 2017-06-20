@@ -1,62 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E346B0279
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 18:51:20 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id e63so624363iod.11
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:51:20 -0700 (PDT)
-Received: from mail-io0-x235.google.com (mail-io0-x235.google.com. [2607:f8b0:4001:c06::235])
-        by mx.google.com with ESMTPS id b79si75541iob.40.2017.06.20.15.51.19
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE506B0279
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:07:49 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id d14so41965583qkb.0
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:07:49 -0700 (PDT)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id l15si13067759qtf.200.2017.06.20.16.07.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 15:51:20 -0700 (PDT)
-Received: by mail-io0-x235.google.com with SMTP id t87so482008ioe.0
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:51:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1497931790.11009.1.camel@gmail.com>
-References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
- <1497915397-93805-24-git-send-email-keescook@chromium.org> <1497931790.11009.1.camel@gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 20 Jun 2017 15:51:18 -0700
-Message-ID: <CAGXu5jJckTkYqWRv5AUv=Ks8_477xuZn=RB+0tiXC=sGDe1QEA@mail.gmail.com>
-Subject: Re: [kernel-hardening] [PATCH 23/23] mm: Allow slab_nomerge to be set
- at build time
-Content-Type: text/plain; charset="UTF-8"
+        Tue, 20 Jun 2017 16:07:48 -0700 (PDT)
+From: Zi Yan <zi.yan@sent.com>
+Subject: [PATCH v7 01/10] mm: mempolicy: add queue_pages_required()
+Date: Tue, 20 Jun 2017 19:07:06 -0400
+Message-Id: <20170620230715.81590-2-zi.yan@sent.com>
+In-Reply-To: <20170620230715.81590-1-zi.yan@sent.com>
+References: <20170620230715.81590-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-On Mon, Jun 19, 2017 at 9:09 PM, Daniel Micay <danielmicay@gmail.com> wrote:
-> On Mon, 2017-06-19 at 16:36 -0700, Kees Cook wrote:
->> Some hardened environments want to build kernels with slab_nomerge
->> already set (so that they do not depend on remembering to set the
->> kernel
->> command line option). This is desired to reduce the risk of kernel
->> heap
->> overflows being able to overwrite objects from merged caches,
->> increasing
->> the difficulty of these attacks. By keeping caches unmerged, these
->> kinds
->> of exploits can usually only damage objects in the same cache (though
->> the
->> risk to metadata exploitation is unchanged).
->
-> It also further fragments the ability to influence slab cache layout,
-> i.e. primitives to do things like filling up slabs to set things up for
-> an exploit might not be able to deal with the target slabs anymore. It
-> doesn't need to be mentioned but it's something to think about too. In
-> theory, disabling merging can make it *easier* to get the right layout
-> too if there was some annoyance that's now split away. It's definitely a
-> lot more good than bad for security though, but allocator changes have
-> subtle impact on exploitation. This can make caches more deterministic.
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Good point about changes to heap grooming; I'll adjust the commit log.
+Introduce a separate check routine related to MPOL_MF_INVERT flag.
+This patch just does cleanup, no behavioral change.
 
--Kees
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+---
+ mm/mempolicy.c | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)
 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 7d8e56214ac0..a6160e9ce8dc 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -412,6 +412,21 @@ struct queue_pages {
+ };
+ 
+ /*
++ * Check if the page's nid is in qp->nmask.
++ *
++ * If MPOL_MF_INVERT is set in qp->flags, check if the nid is
++ * in the invert of qp->nmask.
++ */
++static inline bool queue_pages_required(struct page *page,
++					struct queue_pages *qp)
++{
++	int nid = page_to_nid(page);
++	unsigned long flags = qp->flags;
++
++	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
++}
++
++/*
+  * Scan through pages checking if pages follow certain conditions,
+  * and move them to the pagelist if they do.
+  */
+@@ -464,8 +479,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 		 */
+ 		if (PageReserved(page))
+ 			continue;
+-		nid = page_to_nid(page);
+-		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
++		if (!queue_pages_required(page, qp))
+ 			continue;
+ 		if (PageTransCompound(page)) {
+ 			get_page(page);
+@@ -497,7 +511,6 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	struct queue_pages *qp = walk->private;
+ 	unsigned long flags = qp->flags;
+-	int nid;
+ 	struct page *page;
+ 	spinlock_t *ptl;
+ 	pte_t entry;
+@@ -507,8 +520,7 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
+ 	if (!pte_present(entry))
+ 		goto unlock;
+ 	page = pte_page(entry);
+-	nid = page_to_nid(page);
+-	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
++	if (!queue_pages_required(page, qp))
+ 		goto unlock;
+ 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
+ 	if (flags & (MPOL_MF_MOVE_ALL) ||
 -- 
-Kees Cook
-Pixel Security
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
