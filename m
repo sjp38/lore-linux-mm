@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A73A6B02C3
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0096B02F4
 	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:07:50 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id z5so87705710qta.12
+Received: by mail-qt0-f199.google.com with SMTP id o45so87579958qto.5
         for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:07:50 -0700 (PDT)
 Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id n63si12939614qkb.240.2017.06.20.16.07.49
+        by mx.google.com with ESMTPS id b199si13708938qka.362.2017.06.20.16.07.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 20 Jun 2017 16:07:49 -0700 (PDT)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v7 03/10] mm: thp: introduce separate TTU flag for thp freezing
-Date: Tue, 20 Jun 2017 19:07:08 -0400
-Message-Id: <20170620230715.81590-4-zi.yan@sent.com>
+Subject: [PATCH v7 04/10] mm: thp: introduce CONFIG_ARCH_ENABLE_THP_MIGRATION
+Date: Tue, 20 Jun 2017 19:07:09 -0400
+Message-Id: <20170620230715.81590-5-zi.yan@sent.com>
 In-Reply-To: <20170620230715.81590-1-zi.yan@sent.com>
 References: <20170620230715.81590-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,115 +22,77 @@ Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techs
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-TTU_MIGRATION is used to convert pte into migration entry until thp split
-completes. This behavior conflicts with thp migration added later patches,
-so let's introduce a new TTU flag specifically for freezing.
+Introduces CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+functionality to x86_64, which should be safer at the first step.
 
-try_to_unmap() is used both for thp split (via freeze_page()) and page
-migration (via __unmap_and_move()). In freeze_page(), ttu_flag given for
-head page is like below (assuming anonymous thp):
-
-    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
-     TTU_MIGRATION | TTU_SPLIT_HUGE_PMD)
-
-and ttu_flag given for tail pages is:
-
-    (TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS | TTU_RMAP_LOCKED | \
-     TTU_MIGRATION)
-
-__unmap_and_move() calls try_to_unmap() with ttu_flag:
-
-    (TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS)
-
-Now I'm trying to insert a branch for thp migration at the top of
-try_to_unmap_one() like below
-
-static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-                       unsigned long address, void *arg)
-  {
-          ...
-          if (flags & TTU_MIGRATION) {
-              if (!pvmw.pte && page) {
-                  set_pmd_migration_entry(&pvmw, page);
-                  continue;
-              }
-          }
-
-, so try_to_unmap() for tail pages called by thp split can go into thp
-migration code path (which converts *pmd* into migration entry), while
-the expectation is to freeze thp (which converts *pte* into migration entry.)
-
-I detected this failure as a "bad page state" error in a testcase where
-split_huge_page() is called from queue_pages_pte_range().
+ChangeLog v1 -> v2:
+- fixed config name in subject and patch description
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/rmap.h | 3 ++-
- mm/huge_memory.c     | 2 +-
- mm/rmap.c            | 7 ++++---
- 3 files changed, 7 insertions(+), 5 deletions(-)
+ arch/x86/Kconfig        |  4 ++++
+ include/linux/huge_mm.h | 10 ++++++++++
+ mm/Kconfig              |  3 +++
+ 3 files changed, 17 insertions(+)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 43ef2c30cb0f..f8ca2e74b819 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -93,8 +93,9 @@ enum ttu_flags {
- 	TTU_BATCH_FLUSH		= 0x40,	/* Batch TLB flushes where possible
- 					 * and caller guarantees they will
- 					 * do a final flush if necessary */
--	TTU_RMAP_LOCKED		= 0x80	/* do not grab rmap lock:
-+	TTU_RMAP_LOCKED		= 0x80,	/* do not grab rmap lock:
- 					 * caller holds it */
-+	TTU_SPLIT_FREEZE	= 0x100,		/* freeze pte under splitting thp */
- };
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index b6373817e6f4..631af221ce63 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2276,6 +2276,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+ 	def_bool y
+ 	depends on X86_64 && HUGETLB_PAGE && MIGRATION
  
- #ifdef CONFIG_MMU
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6b8e8d30c507..421631ff3aeb 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2167,7 +2167,7 @@ static void freeze_page(struct page *page)
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
++config ARCH_ENABLE_THP_MIGRATION
++	def_bool y
++	depends on X86_64 && TRANSPARENT_HUGEPAGE
++
+ menu "Power management and ACPI options"
  
- 	if (PageAnon(page))
--		ttu_flags |= TTU_MIGRATION;
-+		ttu_flags |= TTU_SPLIT_FREEZE;
+ config ARCH_HIBERNATION_HEADER
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ee696347f928..d8f35a0865dc 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -233,6 +233,11 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
  
- 	unmap_success = try_to_unmap(page, ttu_flags);
- 	VM_BUG_ON_PAGE(!unmap_success, page);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 2324c923c813..91948fbbb0bb 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1308,7 +1308,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ #define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
  
- 	if (flags & TTU_SPLIT_HUGE_PMD) {
- 		split_huge_pmd_address(vma, address,
--				flags & TTU_MIGRATION, page);
-+				flags & TTU_SPLIT_FREEZE, page);
- 	}
++static inline bool thp_migration_supported(void)
++{
++	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
++}
++
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+@@ -336,6 +341,11 @@ static inline struct page *follow_devmap_pud(struct vm_area_struct *vma,
+ {
+ 	return NULL;
+ }
++
++static inline bool thp_migration_supported(void)
++{
++	return false;
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
- 	while (page_vma_mapped_walk(&pvmw)) {
-@@ -1397,7 +1397,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			 */
- 			dec_mm_counter(mm, mm_counter(page));
- 		} else if (IS_ENABLED(CONFIG_MIGRATION) &&
--				(flags & TTU_MIGRATION)) {
-+				(flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
- 			swp_entry_t entry;
- 			pte_t swp_pte;
- 			/*
-@@ -1522,7 +1522,8 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags)
- 	 * locking requirements of exec(), migration skips
- 	 * temporary VMAs until after exec() completes.
- 	 */
--	if ((flags & TTU_MIGRATION) && !PageKsm(page) && PageAnon(page))
-+	if ((flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))
-+	    && !PageKsm(page) && PageAnon(page))
- 		rwc.invalid_vma = invalid_migration_vma;
+ #endif /* _LINUX_HUGE_MM_H */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 9bf2055ed061..6634e0ed5c1b 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -262,6 +262,9 @@ config MIGRATION
+ config ARCH_ENABLE_HUGEPAGE_MIGRATION
+ 	bool
  
- 	if (flags & TTU_RMAP_LOCKED)
++config ARCH_ENABLE_THP_MIGRATION
++	bool
++
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ 
 -- 
 2.11.0
 
