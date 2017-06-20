@@ -1,60 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9390E6B02C3
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:02:10 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v20so85159640qtg.3
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 12:02:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 4si12611792qkl.155.2017.06.20.12.02.09
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FECE6B02F4
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 15:12:54 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m5so152248117pgn.1
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 12:12:54 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id c17si10957467pfh.184.2017.06.20.12.12.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 12:02:09 -0700 (PDT)
-Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
- list
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
- <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
- <b92af473-f00e-b956-ea97-eb4626601789@intel.com>
- <1497977049.20270.100.camel@redhat.com>
- <7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com>
- <20170620211445-mutt-send-email-mst@kernel.org>
- <f46768db-dcda-aa40-64b9-eb2929249db8@redhat.com>
- <20170620215552-mutt-send-email-mst@kernel.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <338ec5ce-759b-6381-0442-ac0741f159b8@redhat.com>
-Date: Tue, 20 Jun 2017 21:01:58 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170620215552-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8
+        Tue, 20 Jun 2017 12:12:53 -0700 (PDT)
+From: Dennis Zhou <dennisz@fb.com>
+Subject: Re: [PATCH 0/4] percpu: add basic stats and tracepoints to percpu
+ allocator
+Date: Tue, 20 Jun 2017 19:12:49 +0000
+Message-ID: <F1DDF17A-B2CE-4EAF-8B6B-1AC4C73451DC@fb.com>
+References: <20170619232832.27116-1-dennisz@fb.com>
+ <20170620174521.GD21326@htj.duckdns.org>
+In-Reply-To: <20170620174521.GD21326@htj.duckdns.org>
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C83432E33D6A7D44BABE1B7F1047A553@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, Nitesh Narayan Lal <nilal@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>
 
-
->> IMHO even simply writing all-zeros to all free pages before starting
->> migration (or even when freeing a page) would be a cleaner interface
->> than this (because it atomically works with the entity the host cares
->> about for migration). But yes, performance is horrible that's why I am
->> not even suggesting it. Just saying that this mm interface is very very
->> special and if we could find something better, I'd favor it.
-> 
-> As long as there's a single user, changing to a better interface
-> once it's found won't be hard at all :)
-> 
-
-Hehe, more like "we made this beautiful virtio-balloon extension" - oh
-there is free page hinting (assuming that it does not reuse the batch
-interface here). Guess how long it would take to at least show that free
-page hinting can be done. If it takes another 6 years, I am totally on
-your side ;)
-
--- 
-
-Thanks,
-
-David
+T24gNi8yMC8xNywgMTo0NSBQTSwgIlRlanVuIEhlbyIgPGh0ZWp1bkBnbWFpbC5jb20gb24gYmVo
+YWxmIG9mIHRqQGtlcm5lbC5vcmc+IHdyb3RlOg0KPiBBcHBsaWVkIHRvIHBlcmNwdS9mb3ItNC4x
+My4gIEkgaGFkIHRvIHVwZGF0ZSAwMDAyIGJlY2F1c2Ugb2YgdGhlDQo+IHJlY2VudCBfX3JvX2Fm
+dGVyX2luaXQgY2hhbmdlcy4gIENhbiB5b3UgcGxlYXNlIHNlZSB3aGV0aGVyIEkgbWFkZSBhbnkN
+Cj4gbWlzdGFrZXMgd2hpbGUgdXBkYXRpbmcgaXQ/DQoNClRoZXJlIGlzIGEgdGFnZ2luZyBtaXNt
+YXRjaCBpbiAwMDAyLiBDYW4geW91IHBsZWFzZSBjaGFuZ2Ugb3IgcmVtb3ZlIHRoZSBfX3JlYWRf
+bW9zdGx5IGFubm90YXRpb24gaW4gbW0vcGVyY3B1LWludGVybmFsLmg/DQoNClRoYW5rcywNCkRl
+bm5pcw0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
