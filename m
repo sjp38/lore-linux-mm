@@ -1,45 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A00B06B0430
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:54:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p4so165233099pfk.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:54:04 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id g34si14540163pld.495.2017.06.21.10.54.03
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE4D6B0433
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:54:42 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id p5so35221319ybg.10
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:54:42 -0700 (PDT)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id z191si4442022ywa.515.2017.06.21.10.54.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 10:54:04 -0700 (PDT)
-Date: Wed, 21 Jun 2017 10:54:03 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
- of poison pages
-Message-ID: <20170621175403.n5kssz32e2oizl7k@intel.com>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170621021226.GA18024@hori1.linux.bs1.fc.nec.co.jp>
+        Wed, 21 Jun 2017 10:54:41 -0700 (PDT)
+Received: by mail-yw0-x241.google.com with SMTP id s127so11116262ywg.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:54:41 -0700 (PDT)
+Date: Wed, 21 Jun 2017 13:54:39 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/1] percpu: fix early calls for spinlock in pcpu_stats
+Message-ID: <20170621175439.GA10139@htj.duckdns.org>
+References: <20170619232832.27116-1-dennisz@fb.com>
+ <20170619232832.27116-5-dennisz@fb.com>
+ <20170621161836.tv67op4hokja35bc@sasha-lappy>
+ <20170621175245.GA99514@dennisz-mbp.dhcp.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170621021226.GA18024@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20170621175245.GA99514@dennisz-mbp.dhcp.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dennis Zhou <dennisz@fb.com>
+Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-team@fb.com" <kernel-team@fb.com>
 
-On Wed, Jun 21, 2017 at 02:12:27AM +0000, Naoya Horiguchi wrote:
+On Wed, Jun 21, 2017 at 01:52:46PM -0400, Dennis Zhou wrote:
+> From 2c06e795162cb306c9707ec51d3e1deadb37f573 Mon Sep 17 00:00:00 2001
+> From: Dennis Zhou <dennisz@fb.com>
+> Date: Wed, 21 Jun 2017 10:17:09 -0700
+> 
+> Commit 30a5b5367ef9 ("percpu: expose statistics about percpu memory via
+> debugfs") introduces percpu memory statistics. pcpu_stats_chunk_alloc
+> takes the spin lock and disables/enables irqs on creation of a chunk. Irqs
+> are not enabled when the first chunk is initialized and thus kernels are
+> failing to boot with kernel debugging enabled. Fixed by changing _irq to
+> _irqsave and _irqrestore.
+> 
+> Fixes: 30a5b5367ef9 ("percpu: expose statistics about percpu memory via debugfs")
+> Signed-off-by: Dennis Zhou <dennisz@fb.com>
+> Reported-by: Alexander Levin <alexander.levin@verizon.com>
 
-> We had better have a reverse operation of this to cancel the unmapping
-> when unpoisoning?
+Applied to percpu/for-4.13.
 
-When we have unpoisoning, we can add something.  We don't seem to have
-an inverse function for "set_memory_np" to just flip the _PRESENT bit
-back on again. But it would be trivial to write a set_memory_pp().
+Thanks.
 
-Since we'd be doing this after the poison has been cleared, we wouldn't
-need to play games with the address.  We'd just use:
-
-	set_memory_pp((unsigned long)pfn_to_kaddr(pfn), 1);
-
--Tony
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
