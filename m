@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 578726B03CE
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:55:01 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 4so13369520wrc.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 02:55:01 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id g24si13002344wrb.24.2017.06.21.02.54.59
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 02:55:00 -0700 (PDT)
-Date: Wed, 21 Jun 2017 11:54:48 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 24/36] x86, swiotlb: Add memory encryption support
-Message-ID: <20170621095448.6c52kp2eves5uyzy@pd.tnic>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185423.18967.19605.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A2DC66B03D0
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:14:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v60so29082052wrc.7
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:14:49 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id k75si16201542wmc.87.2017.06.21.03.14.48
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 03:14:48 -0700 (PDT)
+From: Colin King <colin.king@canonical.com>
+Subject: [PATCH][mm-next] mm: clean up build warning with unused variable ret2
+Date: Wed, 21 Jun 2017 11:14:33 +0100
+Message-Id: <20170621101433.9847-1-colin.king@canonical.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170616185423.18967.19605.stgit@tlendack-t1.amdoffice.net>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Jeff Layton <jlayton@redhat.com>, Dave Chinner <dchinner@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 16, 2017 at 01:54:24PM -0500, Tom Lendacky wrote:
-> Since DMA addresses will effectively look like 48-bit addresses when the
-> memory encryption mask is set, SWIOTLB is needed if the DMA mask of the
-> device performing the DMA does not support 48-bits. SWIOTLB will be
-> initialized to create decrypted bounce buffers for use by these devices.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/dma-mapping.h |    5 ++-
->  arch/x86/include/asm/mem_encrypt.h |    5 +++
->  arch/x86/kernel/pci-dma.c          |   11 +++++--
->  arch/x86/kernel/pci-nommu.c        |    2 +
->  arch/x86/kernel/pci-swiotlb.c      |   15 +++++++++-
->  arch/x86/mm/mem_encrypt.c          |   22 +++++++++++++++
->  include/linux/swiotlb.h            |    1 +
->  init/main.c                        |   10 +++++++
->  lib/swiotlb.c                      |   54 +++++++++++++++++++++++++++++++-----
->  9 files changed, 108 insertions(+), 17 deletions(-)
+From: Colin Ian King <colin.king@canonical.com>
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+Variable ret2 is unused and should be removed. Cleans up
+build warning:
 
+warning: unused variable 'ret2' [-Wunused-variable]
+
+Fixes: 4118ba44fa2cd040e ("mm: clean up error handling in write_one_page")
+Signed-off-by: Colin Ian King <colin.king@canonical.com>
+---
+ mm/page-writeback.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 64b75bd996a4..0b60cc7ddac2 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2377,7 +2377,7 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
+ int write_one_page(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+-	int ret = 0, ret2;
++	int ret = 0;
+ 	struct writeback_control wbc = {
+ 		.sync_mode = WB_SYNC_ALL,
+ 		.nr_to_write = 1,
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
