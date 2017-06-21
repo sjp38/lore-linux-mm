@@ -1,109 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA62D6B03B6
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:49:14 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g46so28451567wrd.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:49:14 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id f23si9641556wrf.148.2017.06.21.01.49.13
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 01:49:13 -0700 (PDT)
-Date: Wed, 21 Jun 2017 10:49:02 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
-Message-ID: <20170621084902.vy7nvkon4krc7v3q@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org>
- <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A3EE96B03B8
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:01:48 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u30so10115525wrc.9
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 02:01:48 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id r41si15763588wrb.298.2017.06.21.02.01.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 02:01:47 -0700 (PDT)
+Date: Wed, 21 Jun 2017 11:01:35 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness
+ tracking
+In-Reply-To: <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
+Message-ID: <alpine.DEB.2.20.1706211033340.2328@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Tue, Jun 20, 2017 at 10:22:07PM -0700, Andy Lutomirski wrote:
-> It was historically possible to have two concurrent TLB flushes
-> targetting the same CPU: one initiated locally and one initiated
-> remotely.  This can now cause an OOPS in leave_mm() at
-> arch/x86/mm/tlb.c:47:
-> 
->         if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
->                 BUG();
-> 
-> with this call trace:
->  flush_tlb_func_local arch/x86/mm/tlb.c:239 [inline]
->  flush_tlb_mm_range+0x26d/0x370 arch/x86/mm/tlb.c:317
+On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+> -/*
+> - * The flush IPI assumes that a thread switch happens in this order:
+> - * [cpu0: the cpu that switches]
+> - * 1) switch_mm() either 1a) or 1b)
+> - * 1a) thread switch to a different mm
+> - * 1a1) set cpu_tlbstate to TLBSTATE_OK
+> - *	Now the tlb flush NMI handler flush_tlb_func won't call leave_mm
+> - *	if cpu0 was in lazy tlb mode.
+> - * 1a2) update cpu active_mm
+> - *	Now cpu0 accepts tlb flushes for the new mm.
+> - * 1a3) cpu_set(cpu, new_mm->cpu_vm_mask);
+> - *	Now the other cpus will send tlb flush ipis.
+> - * 1a4) change cr3.
+> - * 1a5) cpu_clear(cpu, old_mm->cpu_vm_mask);
+> - *	Stop ipi delivery for the old mm. This is not synchronized with
+> - *	the other cpus, but flush_tlb_func ignore flush ipis for the wrong
+> - *	mm, and in the worst case we perform a superfluous tlb flush.
+> - * 1b) thread switch without mm change
+> - *	cpu active_mm is correct, cpu0 already handles flush ipis.
+> - * 1b1) set cpu_tlbstate to TLBSTATE_OK
+> - * 1b2) test_and_set the cpu bit in cpu_vm_mask.
+> - *	Atomically set the bit [other cpus will start sending flush ipis],
+> - *	and test the bit.
+> - * 1b3) if the bit was 0: leave_mm was called, flush the tlb.
+> - * 2) switch %%esp, ie current
+> - *
+> - * The interrupt must handle 2 special cases:
+> - * - cr3 is changed before %%esp, ie. it cannot use current->{active_,}mm.
+> - * - the cpu performs speculative tlb reads, i.e. even if the cpu only
+> - *   runs in kernel space, the cpu could load tlb entries for user space
+> - *   pages.
+> - *
+> - * The good news is that cpu_tlbstate is local to each cpu, no
+> - * write/read ordering problems.
 
-These line numbers would most likely mean nothing soon. I think you
-should rather explain why the bug can happen so that future lookers at
-that code can find the spot...
+While the new code is really well commented, it would be a good thing to
+have a single place where all of this including the ordering constraints
+are documented.
 
-> 
-> Without reentrancy, this OOPS is impossible: leave_mm() is only
-> called if we're not in TLBSTATE_OK, but then we're unexpectedly
-> in TLBSTATE_OK in leave_mm().
-> 
-> This can be caused by flush_tlb_func_remote() happening between
-> the two checks and calling leave_mm(), resulting in two consecutive
-> leave_mm() calls on the same CPU with no intervening switch_mm()
-> calls.
-
-...like this, for example. That should be more future-code-changes-proof.
-
-> We never saw this OOPS before because the old leave_mm()
-> implementation didn't put us back in TLBSTATE_OK, so the assertion
-> didn't fire.
-> 
-> Nadav noticed the reentrancy issue in a different context, but
-> neither of us realized that it caused a problem yet.
-> 
-> Cc: Nadav Amit <nadav.amit@gmail.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Reported-by: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
-> Fixes: 3d28ebceaffa ("x86/mm: Rework lazy TLB to track the actual loaded mm")
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/mm/tlb.c | 15 +++++++++++++--
->  1 file changed, 13 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 2a5e851f2035..f06239c6919f 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->  static void flush_tlb_func_common(const struct flush_tlb_info *f,
->  				  bool local, enum tlb_flush_reason reason)
->  {
-> +	/* This code cannot presently handle being reentered. */
-> +	VM_WARN_ON(!irqs_disabled());
-> +
->  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
->  		leave_mm(smp_processor_id());
->  		return;
-> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  		info.end = TLB_FLUSH_ALL;
->  	}
+> @@ -215,12 +200,13 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+>  	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+>  		   loaded_mm->context.ctx_id);
 >  
-> -	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
-> +	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
-> +		local_irq_disable();
->  		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
-> +		local_irq_enable();
-> +	}
+> -	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+> +	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+>  		/*
+> -		 * leave_mm() is adequate to handle any type of flush, and
+> -		 * we would prefer not to receive further IPIs.
+> +		 * We're in lazy mode -- don't flush.  We can get here on
+> +		 * remote flushes due to races and on local flushes if a
+> +		 * kernel thread coincidentally flushes the mm it's lazily
+> +		 * still using.
 
-I'm assuming this is going away in a future patch, as disabling IRQs
-around a TLB flush is kinda expensive. I guess I'll see if I continue
-reading...
+Ok. That's more informative.
 
-:)
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
