@@ -1,90 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9266B03E0
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:49:25 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id r62so48402117qkf.6
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:49:25 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id d188si14385020qkf.141.2017.06.21.04.49.24
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AAA46B03E2
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:51:56 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id f20so118215526otd.9
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:51:56 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id t11si5047866oib.369.2017.06.21.04.51.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 04:49:24 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id d14so14967710qkb.1
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:49:24 -0700 (PDT)
-Date: Wed, 21 Jun 2017 14:49:20 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v7 06/10] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20170621114920.mmbexy4dbgbb4juq@node.shutemov.name>
-References: <20170620230715.81590-1-zi.yan@sent.com>
- <20170620230715.81590-7-zi.yan@sent.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 04:51:54 -0700 (PDT)
+From: zhong jiang <zhongjiang@huawei.com>
+Subject: [PATCH] futex: avoid undefined behaviour when shift exponent is negative
+Date: Wed, 21 Jun 2017 19:43:57 +0800
+Message-ID: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170620230715.81590-7-zi.yan@sent.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+To: akpm@linux-foundation.org
+Cc: tglx@linutronix.de, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
 
-On Tue, Jun 20, 2017 at 07:07:11PM -0400, Zi Yan wrote:
-> @@ -1220,6 +1238,9 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
->  		goto out_unlock;
->  
-> +	if (unlikely(!pmd_present(orig_pmd)))
-> +		goto out_unlock;
-> +
+when futex syscall is called from userspace, we find the following
+warning by ubsan detection.
 
-Hm. Shouldn't we wait for the page here?
+[   63.237803] UBSAN: Undefined behaviour in /root/rpmbuild/BUILDROOT/kernel-3.10.0-327.49.58.52.x86_64/usr/src/linux-3.10.0-327.49.58.52.x86_64/arch/x86/include/asm/futex.h:53:13
+[   63.237803] shift exponent -16 is negative
+[   63.237803] CPU: 0 PID: 67 Comm: driver Not tainted 3.10.0 #1
+[   63.237803] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.8.1-0-g4adadbd-20150316_085822-nilsson.home.kraxel.org 04/01/2014
+[   63.237803]  fffffffffffffff0 000000009ad70fde ffff88000002fa08 ffffffff81ef0d6f
+[   63.237803]  ffff88000002fa20 ffffffff81ef0e2c ffffffff828f2540 ffff88000002fb90
+[   63.237803]  ffffffff81ef1ad0 ffffffff8141cc88 1ffff10000005f48 0000000041b58ab3
+[   63.237803] Call Trace:
+[   63.237803]  [<ffffffff81ef0d6f>] dump_stack+0x1e/0x20
+[   63.237803]  [<ffffffff81ef0e2c>] ubsan_epilogue+0x12/0x55
+[   63.237803]  [<ffffffff81ef1ad0>] __ubsan_handle_shift_out_of_bounds+0x237/0x29c
+[   63.237803]  [<ffffffff8141cc88>] ? kasan_alloc_pages+0x38/0x40
+[   63.237803]  [<ffffffff81ef1899>] ? __ubsan_handle_load_invalid_value+0x162/0x162
+[   63.237803]  [<ffffffff812092c1>] ? get_futex_key+0x361/0x6c0
+[   63.237803]  [<ffffffff81208f60>] ? get_futex_key_refs+0xb0/0xb0
+[   63.237803]  [<ffffffff8120b938>] futex_wake_op+0xb48/0xc70
+[   63.237803]  [<ffffffff8120b938>] ? futex_wake_op+0xb48/0xc70
+[   63.237803]  [<ffffffff8120adf0>] ? futex_wake+0x380/0x380
+[   63.237803]  [<ffffffff8121006c>] do_futex+0x2cc/0xb60
+[   63.237803]  [<ffffffff8120fda0>] ? exit_robust_list+0x350/0x350
+[   63.237803]  [<ffffffff814fa140>] ? __fsnotify_inode_delete+0x20/0x20
+[   63.237803]  [<ffffffff818cabc0>] ? n_tty_flush_buffer+0x80/0x80
+[   63.237803]  [<ffffffff814faed3>] ? __fsnotify_parent+0x53/0x210
+[   63.237803]  [<ffffffff81210a47>] SyS_futex+0x147/0x300
+[   63.237803]  [<ffffffff81210900>] ? do_futex+0xb60/0xb60
+[   63.237803]  [<ffffffff81f0a134>] ? do_page_fault+0x44/0xa0
+[   63.237803]  [<ffffffff81f16809>] system_call_fastpath+0x16/0x1b
 
->  	page = pmd_page(orig_pmd);
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
->  	/*
-> @@ -1556,6 +1577,12 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	if (is_huge_zero_pmd(orig_pmd))
->  		goto out;
->  
-> +	if (unlikely(!pmd_present(orig_pmd))) {
-> +		VM_BUG_ON(IS_ENABLED(CONFIG_MIGRATION) &&
-> +				  !is_pmd_migration_entry(orig_pmd));
-> +		goto out;
-> +	}
-> +
->  	page = pmd_page(orig_pmd);
->  	/*
->  	 * If other processes are mapping this page, we couldn't discard
-> @@ -1770,6 +1797,23 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  	preserve_write = prot_numa && pmd_write(*pmd);
->  	ret = 1;
->  
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +	if (is_swap_pmd(*pmd)) {
-> +		swp_entry_t entry = pmd_to_swp_entry(*pmd);
-> +
-> +		VM_BUG_ON(IS_ENABLED(CONFIG_MIGRATION) &&
-> +				  !is_pmd_migration_entry(*pmd));
-> +		if (is_write_migration_entry(entry)) {
-> +			pmd_t newpmd;
-> +
-> +			make_migration_entry_read(&entry);
-> +			newpmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(mm, addr, pmd, newpmd);
+when shift expoment is negative, left shift alway zero. therefore, we
+modify the logic to avoid the warining.
 
-I was confused by this. Could you copy comment from change_pte_range()
-here?
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ arch/x86/include/asm/futex.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-> +		}
-> +		goto unlock;
-> +	}
-> +#endif
-> +
->  	/*
->  	 * Avoid trapping faults against the zero page. The read-only
->  	 * data is likely to be read-cached on the local CPU and
-
+diff --git a/arch/x86/include/asm/futex.h b/arch/x86/include/asm/futex.h
+index b4c1f54..2425fca 100644
+--- a/arch/x86/include/asm/futex.h
++++ b/arch/x86/include/asm/futex.h
+@@ -49,8 +49,12 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+ 	int cmparg = (encoded_op << 20) >> 20;
+ 	int oldval = 0, ret, tem;
+ 
+-	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
+-		oparg = 1 << oparg;
++	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
++		if (oparg >= 0)
++			oparg = 1 << oparg;
++		else
++			oparg = 0;
++	}
+ 
+ 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+ 		return -EFAULT;
 -- 
- Kirill A. Shutemov
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
