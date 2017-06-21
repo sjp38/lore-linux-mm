@@ -1,92 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 83FA26B0279
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:26:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s74so247392pfe.10
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:26:47 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id x20si13842055pfi.138.2017.06.21.16.26.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 16:26:46 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id s66so61488pfs.2
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:26:46 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 56D6D6B02B4
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:37:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a82so466458pfc.8
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:37:20 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id 102si11638410plf.190.2017.06.21.16.37.18
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jun 2017 16:37:19 -0700 (PDT)
+Date: Thu, 22 Jun 2017 09:37:14 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
+ byte-addressable updates to pmem
+Message-ID: <20170621233714.GH11993@dastard>
+References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170620052214.GA3787@birch.djwong.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
-Date: Wed, 21 Jun 2017 16:26:43 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
-References: <cover.1498022414.git.luto@kernel.org>
- <cover.1498022414.git.luto@kernel.org>
- <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20170620052214.GA3787@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, xfs <linux-xfs@vger.kernel.org>
 
-Andy Lutomirski <luto@kernel.org> wrote:
+On Mon, Jun 19, 2017 at 10:22:14PM -0700, Darrick J. Wong wrote:
+> [add linux-xfs to the fray]
+> 
+> On Fri, Jun 16, 2017 at 06:15:35PM -0700, Dan Williams wrote:
+> > +	spin_lock(&dax_lock);
+> > +	list_add(&d->list, &daxfiles);
+> > +	spin_unlock(&dax_lock);
+> > +
+> > +	/*
+> > +	 * We set S_SWAPFILE to gain "no truncate" / static block
+> > +	 * allocation semantics, and S_DAXFILE so we can differentiate
+> > +	 * traditional swapfiles and assume static block mappings in the
+> > +	 * dax mmap path.
+> > +	 */
+> > +	inode->i_flags |= S_SWAPFILE | S_DAXFILE;
+> 
+> Yikes.  You know, I hadn't even thought about considering swap files as
+> a subcase of files with immutable block maps, but here we are.  Both
+> swap files and DAX require absolutely stable block mappings, they are
+> both (probably) intolerant of inode metadata changes (size, mtime, etc.)
 
-> index 2a5e851f2035..f06239c6919f 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, =
-struct mm_struct *next,
-> static void flush_tlb_func_common(const struct flush_tlb_info *f,
-> 				  bool local, enum tlb_flush_reason =
-reason)
-> {
-> +	/* This code cannot presently handle being reentered. */
-> +	VM_WARN_ON(!irqs_disabled());
-> +
-> 	if (this_cpu_read(cpu_tlbstate.state) !=3D TLBSTATE_OK) {
-> 		leave_mm(smp_processor_id());
-> 		return;
-> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, =
-unsigned long start,
-> 		info.end =3D TLB_FLUSH_ALL;
-> 	}
->=20
-> -	if (mm =3D=3D this_cpu_read(cpu_tlbstate.loaded_mm))
-> +	if (mm =3D=3D this_cpu_read(cpu_tlbstate.loaded_mm)) {
+Swap files are intolerant of any metadata changes because once the
+mapping has been sucked into the swapfile code, the inode is never
+looked at again. DAX file data access always goes through the inode,
+so they is much more tolerant of metadata changes given certain
+constraints.
 
-Perhaps you want to add:
+<snip bmap rant>
 
-	VM_WARN_ON(irqs_disabled());
+> Honestly, I realize we've gone back, forth, and around all over the
+> place on this.  I still prefer something similar to a permanent flag,
+> similar to what Dave suggested, though I hate the name PMEM_IMMUTABLE
+> and some of the semantics.
+> 
+> First, a new inode flag S_IOMAP_FROZEN that means the file's block map
+> cannot change.
 
-here
+I've been calling it "immutable extents" - freezing has implications
+that it's only temporary (i.e. freezing filesystems) and will be
+followed shortly by a thaw. That isn't the case here - we truly want
+the extent/block map to be immutable....
 
-> +		local_irq_disable();
-> 		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
-> +		local_irq_enable();
-> +	}
-> +
-> 	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
-> 		flush_tlb_others(mm_cpumask(mm), &info);
-> 	put_cpu();
-> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct =
-arch_tlbflush_unmap_batch *batch)
->=20
-> 	int cpu =3D get_cpu();
->=20
-> -	if (cpumask_test_cpu(cpu, &batch->cpumask))
-> +	if (cpumask_test_cpu(cpu, &batch->cpumask)) {
+> Second, some kind of function to toggle the S_IOMAP_FROZEN flag.
+> Turning it on will lock the inode, check the extent map for holes,
+> shared, or unwritten bits, and bail out if it finds any, or set the
+> flag. 
 
-and here?
+Hmmm, I disagree on the unwritten state here.  We want swap files to
+be able to use unwritten extents - it means we can preallocate the
+swap file and hand it straight to swapon without having to zero it
+(i.e. no I/O needed to demand allocate more swap space when memory
+is very low).  Also, anyone who tries to read the swap file from
+userspace will be reading unwritten extents, which will always
+return zeros rather than whatever is in the swap file...
 
-> +		local_irq_disable();
-> 		flush_tlb_func_local(&info, TLB_LOCAL_SHOOTDOWN);
-> +		local_irq_enable();
-> +	}
-> +
-> 	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
-> 		flush_tlb_others(&batch->cpumask, &info);
-> 	cpumask_clear(&batch->cpumask);
-> --=20
-> 2.9.4
+> Not sure if we should require CAP_LINUX_IMMUTABLE -- probably
+> yes, at least at first.  I don't currently have any objection to writing
+> non-iomap inode metadata out to disk.
+> 
+> Third, the flag can only be cleared if the file isn't mapped.
 
+How do we check this from the fs without racing? AFAICT we can't
+prevent a concurrent map operation from occurring while we are
+changing the state of the inode - we can only block page faults
+after then inode is mapped....
+
+> Fourth, the VFS entry points for things like read, write, truncate,
+> utimes, fallocate, etc. all just bail out if S_IOMAP_FROZEN is set on a
+> file, so that the block map cannot be modified.
+> mmap is still allowed,
+> as we've discussed.  /Maybe/ we can allow fallocate to extend a file
+> with zeroed extents (it will be slow) as I've heard murmurs about
+> wanting to be able to extend a file, maybe not.
+
+read is fine, write should be fine as long as the iomap call can
+error out operations that would require extent map modifications.
+fallocate should be allowed to modify the extent map, too, because
+it should be the mechanism used be applications to set up file
+extents in the correct form for applications to use as immutable
+(i.e. lock out page faults, allocate, zero, extend and fsync in
+one atomic operation)....
+
+> Fifth, swapfiles now require the S_IOMAP_FROZEN flag since they want
+> stable iomap but probably don't care about things like mtime.  Maybe
+> they can call iomap too.
+> 
+> Sixth, XFS can record the S_IOMAP_FROZEN state in di_flags2 and set it
+> whenever the in-core inode gets constructed.  This enables us to
+> prohibit reflinking and other such undesirable activity.
+
+*nod*
+
+> If we actually /do/ come up with a reference implementation for XFS, I'd
+> be ok with tacking it on the end of my dev branch, which will give us a
+> loooong runway to try it out.  The end of the dev branch is beyond
+> online XFS fsck and repair and the "root metadata btrees in inodes"
+> rework; since that's ~90 patches with my name on it that I cannot also
+> review, it won't go in for a long time indeed!
+
+I don't think it's so complex to need such a long dev time -
+all the infrastructure we need is pretty much there already...
+
+> (Yes, that was also sort of a plea for someone to go review the XFS
+> scrub patches.)
+> 
+> > +	return 0;
+> > +}
+> > +
+> > +SYSCALL_DEFINE3(daxctl, const char __user *, path, int, flags, int, align)
+> 
+> I was /about/ to grouse about this syscall, then realized that maybe it
+> /is/ useful to be able to check a specific alignment.  Maybe not, since
+> I had something more permanent in mind anyway.  In any case, just pass
+> in an opened fd if this sticks around.
+
+We can do all that via fallocate(), too...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
