@@ -1,140 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 535EE6B0279
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:18:48 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p66so97358720oia.0
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:18:48 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3426B02B4
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:22:21 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id 63so60378918otc.5
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:22:21 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e35si6646632otc.325.2017.06.20.22.18.46
+        by mx.google.com with ESMTPS id c128si4436731oig.256.2017.06.20.22.22.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 22:18:47 -0700 (PDT)
-Received: from mail-ua0-f175.google.com (mail-ua0-f175.google.com [209.85.217.175])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 204C923A03
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:18:46 +0000 (UTC)
-Received: by mail-ua0-f175.google.com with SMTP id g40so101449955uaa.3
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:18:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170621014032.GL17542@dastard>
-References: <CAPcyv4j4UEegViDJcLZjVv5AFGC18-DcvHFnhZatB0hH3BY85g@mail.gmail.com>
- <CALCETrUfv26pvmyQ1gOkKbzfSXK2DnmeBG6VmSWjFy1WBhknTw@mail.gmail.com>
- <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
- <CALCETrVY38h2ajpod2U_2pdHSp8zO4mG2p19h=OnnHmhGTairw@mail.gmail.com>
- <20170619132107.GG11993@dastard> <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
- <20170620004653.GI17542@dastard> <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
- <20170620101145.GJ17542@dastard> <CALCETrVCJkm5SCxAtNMW36eONHsFw1s0dkVnDAs4vAXvEKMsPw@mail.gmail.com>
- <20170621014032.GL17542@dastard>
+        Tue, 20 Jun 2017 22:22:20 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 20 Jun 2017 22:18:24 -0700
-Message-ID: <CALCETrVYmbyNS-btvsN_M-QyWPZA_Y_4JXOM893g7nhZA+WviQ@mail.gmail.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
-Content-Type: text/plain; charset="UTF-8"
+Subject: [PATCH v3 00/11] PCID and improved laziness
+Date: Tue, 20 Jun 2017 22:22:06 -0700
+Message-Id: <cover.1498022414.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, andy.rudoff@intel.com, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
 
-On Tue, Jun 20, 2017 at 6:40 PM, Dave Chinner <david@fromorbit.com> wrote:
-> Your mangling terminology here. We don't "break COW" - we *use*
-> copy-on-write to break *extent sharing*. We can break extent sharing
-> in page_mkwrite - that's exactly what we do for normal pagecache
-> based mmap writes, and it's done in page_mkwrite.
+There are three performance benefits here:
 
-Right, my bad.
+1. TLB flushing is slow.  (I.e. the flush itself takes a while.)
+   This avoids many of them when switching tasks by using PCID.  In
+   a stupid little benchmark I did, it saves about 100ns on my laptop
+   per context switch.  I'll try to improve that benchmark.
 
->
-> It hasn't been enabled it for DAX yet because it simply hasn't been
-> robustly tested yet.
->
->> A per-inode
->> count of the number of live DAX mappings or of the number of struct
->> file instances that have requested DAX would work here.
->
-> For what purpose does this serve? The reflink invalidates all the
-> existing mappings, so the next write access causes a fault and then
-> page_mkwrite is called and the shared extent will get COWed....
+2. Mms that have been used recently on a given CPU might get to keep
+   their TLB entries alive across process switches with this patch
+   set.  TLB fills are pretty fast on modern CPUs, but they're even
+   faster when they don't happen.
 
-The same purpose as XFS's FS_XFLAG_DAX (assuming I'm understanding it
-right), except that IMO an API that doesn't involve making a change to
-an inode that sticks around would be nice.  The inode flag has the
-unfortunate property that, if two different programs each try to set
-the flag, mmap, write, and clear the flag, they'll stomp on each other
-and risk data corruption.
+3. Lazy TLB is way better.  We used to do two stupid things when we
+   ran kernel threads: we'd send IPIs to flush user contexts on their
+   CPUs and then we'd write to CR3 for no particular reason as an excuse
+   to stop further IPIs.  With this patch, we do neither.
 
-I admit I'm now thoroughly confused as to exactly what XFS does here
--- does FS_XFLAG_DAX persist across unmount/mount?
+This will, in general, perform suboptimally if paravirt TLB flushing
+is in use (currently just Xen, I think, but Hyper-V is in the works).
+The code is structured so we could fix it in one of two ways: we
+could take a spinlock when touching the percpu state so we can update
+it remotely after a paravirt flush, or we could be more careful about
+our exactly how we access the state and use cmpxchg16b to do atomic
+remote updates.  (On SMP systems without cmpxchg16b, we'd just skip
+the optimization entirely.)
 
->
->>  - Trying to use DAX on a file that is already reflinked.  The order
->> of operations doesn't matter hugely, except that breaking COW for the
->> entire range in question all at once would be faster and result in
->> better allocation.
->
-> We have COW extent size hints for that. i.e. if you want to COW a
-> huge page at a time, set the COW extent size hint to the huge page
-> size...
+This is based on tip:x86/mm.  The branch is here if you want to play:
+https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=x86/pcid
 
-Nifty.
+Changes from v2:
+ - Add some Acks
+ - Move the reentrancy issue to the beginning.
+   (I also sent the same patch as a standalone fix -- it's just in here
+    so that this series applies to x86/mm.)
+ - Fix some comments.
 
-> Apparently it is. There are people telling us that mtime
-> updates in page faults introduce too much unpredictable latency and
-> that screws over their low latency real time applications.
+Changes from RFC:
+ - flush_tlb_func_common() no longer gets reentered (Nadav)
+ - Fix ASID corruption on unlazying (kbuild bot)
+ - Move Xen init to the right place
+ - Misc cleanups
 
-I was one of those, and I even wrote patches.  I should try to dust them off.
+Andy Lutomirski (11):
+  x86/mm: Don't reenter flush_tlb_func_common()
+  x86/ldt: Simplify LDT switching logic
+  x86/mm: Remove reset_lazy_tlbstate()
+  x86/mm: Give each mm TLB flush generation a unique ID
+  x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
+  x86/mm: Rework lazy TLB mode and TLB freshness tracking
+  x86/mm: Stop calling leave_mm() in idle code
+  x86/mm: Disable PCID on 32-bit kernels
+  x86/mm: Add nopcid to turn off PCID
+  x86/mm: Enable CR4.PCIDE on supported systems
+  x86/mm: Try to preserve old TLB entries using PCID
 
->
-> Those same people are telling use that dirty tracking in page faults
-> for msync/fsync on DAX is too heavyweight and calling msync is too
-> onerous and has unpredictable latencies because it might result in
-> having to sync tens of thousands of unrelated dirty objects. Hence
-> they want to use userspace data sync primitives to avoid this
-> overhead and so filesystems need to make it possible to provide this
-> userspace idata sync capability.
+ Documentation/admin-guide/kernel-parameters.txt |   2 +
+ arch/ia64/include/asm/acpi.h                    |   2 -
+ arch/x86/include/asm/acpi.h                     |   2 -
+ arch/x86/include/asm/disabled-features.h        |   4 +-
+ arch/x86/include/asm/mmu.h                      |  25 +-
+ arch/x86/include/asm/mmu_context.h              |  40 ++-
+ arch/x86/include/asm/processor-flags.h          |   2 +
+ arch/x86/include/asm/tlbflush.h                 |  89 +++++-
+ arch/x86/kernel/cpu/bugs.c                      |   8 +
+ arch/x86/kernel/cpu/common.c                    |  33 +++
+ arch/x86/kernel/smpboot.c                       |   1 -
+ arch/x86/mm/init.c                              |   2 +-
+ arch/x86/mm/tlb.c                               | 368 +++++++++++++++---------
+ arch/x86/xen/enlighten_pv.c                     |   6 +
+ arch/x86/xen/mmu_pv.c                           |   3 +-
+ drivers/acpi/processor_idle.c                   |   2 -
+ drivers/idle/intel_idle.c                       |   9 +-
+ 17 files changed, 430 insertions(+), 168 deletions(-)
 
-If I were using DAX in production, I'd have exactly this issue.  Let
-me quote myself:
-
-On Tue, Jun 20, 2017 at 9:14 AM, Andy Lutomirski <luto@kernel.org> wrote:
-> 3. (Not strictly related to DAX.) A way to tell the kernel "I have
-> this file mmapped for write.  Please go out of your way to avoid
-> future page faults."  I've wanted this for ordinary files on ext4.
-> The kernel could, but presently does not, use hardware dirty tracking
-> instead of software dirty tracking to decide when to write the page
-> back.  The kernel could also, in principle, write back dirty pages
-> without ever write protecting them.  For DAX, this might change
-> behavior to prevent any operation that would relocate blocks or to
-> have the kernel go out of its way to only do such operations when
-> absolutely necessary and to immediately update and unwriteprotect the
-> relevant pages.
-
-I agree that this is a real issue, but it's not limited to DAX.  I've
-wanted a mode where I tell the kernel "I'm a high-performance
-application mmapping this file and I'm going to write to it a lot.  Do
-your best to avoid any page faults, even if it adversely affects the
-performance of the system."  This mode could do lots of things.  It
-could cause the system to leave the page writable even after writeback
-and, if possible, to use hardware dirty tracking.  It could cause the
-system to make a copy of the page and write back from the copy if
-there is anything in play that could need stable pages during
-writeback.  And, for DAX, it could tell the system to keep the page
-pinned and disallow moving it and reflinking it.
-
-(Of course, the above requires that we either deal with mtime like my
-patches do or that this heavyweight mechanism disable mtime updates.
-I prefer the former.)
-
-Here's the overall point I'm trying to make: unprivileged programs
-that want to write to DAX files with userspace commit mechanisms
-(CLFLUSHOPT;SFENCE, etc) should be able to do so reliably, without
-privilege, and with reasonably clean APIs.  Ideally they could do this
-to any file they have write access to.  Programs that want to write to
-mmapped files, DAX or otherwise, without latency spikes due to
-.page_mkwrite should be able to opt in to a heavier weight mechanism.
-But these two issues are someone independent, and I think they should
-be solved separately.
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
