@@ -1,148 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 12A2E6B03DE
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:48:04 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a199so79628405oib.2
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:48:04 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id 22si2242299otj.313.2017.06.21.04.48.02
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9266B03E0
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:49:25 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id r62so48402117qkf.6
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:49:25 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id d188si14385020qkf.141.2017.06.21.04.49.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 04:48:02 -0700 (PDT)
-From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH] mm: avoid taking zone lock in pagetypeinfo_showmixed
-Date: Wed, 21 Jun 2017 17:17:23 +0530
-Message-Id: <1498045643-12257-1-git-send-email-vinmenon@codeaurora.org>
+        Wed, 21 Jun 2017 04:49:24 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id d14so14967710qkb.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:49:24 -0700 (PDT)
+Date: Wed, 21 Jun 2017 14:49:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v7 06/10] mm: thp: check pmd migration entry in common
+ path
+Message-ID: <20170621114920.mmbexy4dbgbb4juq@node.shutemov.name>
+References: <20170620230715.81590-1-zi.yan@sent.com>
+ <20170620230715.81590-7-zi.yan@sent.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170620230715.81590-7-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, zhongjiang@huawei.com, sergey.senozhatsky@gmail.com, sudipm.mukherjee@gmail.com, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, bigeasy@linutronix.de, rientjes@google.com, minchan@kernel.org
-Cc: linux-mm@kvack.org, Vinayak Menon <vinmenon@codeaurora.org>
+To: Zi Yan <zi.yan@sent.com>
+Cc: kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-pagetypeinfo_showmixedcount_print is found to take a lot of
-time to complete and it does this holding the zone lock and
-disabling interrupts. In some cases it is found to take more
-than a second (On a 2.4GHz,8Gb RAM,arm64 cpu). Avoid taking
-the zone lock similar to what is done by read_page_owner,
-which means possibility of inaccurate results.
+On Tue, Jun 20, 2017 at 07:07:11PM -0400, Zi Yan wrote:
+> @@ -1220,6 +1238,9 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+>  	if (unlikely(!pmd_same(*vmf->pmd, orig_pmd)))
+>  		goto out_unlock;
+>  
+> +	if (unlikely(!pmd_present(orig_pmd)))
+> +		goto out_unlock;
+> +
 
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
----
- mm/page_owner.c |  6 +++++-
- mm/vmstat.c     | 24 ++++++++++++++----------
- 2 files changed, 19 insertions(+), 11 deletions(-)
+Hm. Shouldn't we wait for the page here?
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index c3cee24..401feb0 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -281,7 +281,11 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
- 				continue;
- 
- 			if (PageBuddy(page)) {
--				pfn += (1UL << page_order(page)) - 1;
-+				unsigned long freepage_order;
-+
-+				freepage_order = page_order_unsafe(page);
-+				if (freepage_order < MAX_ORDER)
-+					pfn += (1UL << freepage_order) - 1;
- 				continue;
- 			}
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index f5fa1bd..8cefdad 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1129,7 +1129,7 @@ static void frag_stop(struct seq_file *m, void *arg)
-  * If @assert_populated is true, only use callback for zones that are populated.
-  */
- static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
--		bool assert_populated,
-+		bool assert_populated, bool nolock,
- 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
- {
- 	struct zone *zone;
-@@ -1140,9 +1140,11 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
- 		if (assert_populated && !populated_zone(zone))
- 			continue;
- 
--		spin_lock_irqsave(&zone->lock, flags);
-+		if (!nolock)
-+			spin_lock_irqsave(&zone->lock, flags);
- 		print(m, pgdat, zone);
--		spin_unlock_irqrestore(&zone->lock, flags);
-+		if (!nolock)
-+			spin_unlock_irqrestore(&zone->lock, flags);
- 	}
- }
- #endif
-@@ -1165,7 +1167,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
- static int frag_show(struct seq_file *m, void *arg)
- {
- 	pg_data_t *pgdat = (pg_data_t *)arg;
--	walk_zones_in_node(m, pgdat, true, frag_show_print);
-+	walk_zones_in_node(m, pgdat, true, false, frag_show_print);
- 	return 0;
- }
- 
-@@ -1206,7 +1208,7 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
- 		seq_printf(m, "%6d ", order);
- 	seq_putc(m, '\n');
- 
--	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showfree_print);
-+	walk_zones_in_node(m, pgdat, true, false, pagetypeinfo_showfree_print);
- 
- 	return 0;
- }
-@@ -1258,7 +1260,8 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
- 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
- 		seq_printf(m, "%12s ", migratetype_names[mtype]);
- 	seq_putc(m, '\n');
--	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showblockcount_print);
-+	walk_zones_in_node(m, pgdat, true, false,
-+		pagetypeinfo_showblockcount_print);
- 
- 	return 0;
- }
-@@ -1284,7 +1287,8 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
- 		seq_printf(m, "%12s ", migratetype_names[mtype]);
- 	seq_putc(m, '\n');
- 
--	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showmixedcount_print);
-+	walk_zones_in_node(m, pgdat, true, true,
-+		pagetypeinfo_showmixedcount_print);
- #endif /* CONFIG_PAGE_OWNER */
- }
- 
-@@ -1448,7 +1452,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- static int zoneinfo_show(struct seq_file *m, void *arg)
- {
- 	pg_data_t *pgdat = (pg_data_t *)arg;
--	walk_zones_in_node(m, pgdat, false, zoneinfo_show_print);
-+	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
- 	return 0;
- }
- 
-@@ -1854,7 +1858,7 @@ static int unusable_show(struct seq_file *m, void *arg)
- 	if (!node_state(pgdat->node_id, N_MEMORY))
- 		return 0;
- 
--	walk_zones_in_node(m, pgdat, true, unusable_show_print);
-+	walk_zones_in_node(m, pgdat, true, false, unusable_show_print);
- 
- 	return 0;
- }
-@@ -1906,7 +1910,7 @@ static int extfrag_show(struct seq_file *m, void *arg)
- {
- 	pg_data_t *pgdat = (pg_data_t *)arg;
- 
--	walk_zones_in_node(m, pgdat, true, extfrag_show_print);
-+	walk_zones_in_node(m, pgdat, true, false, extfrag_show_print);
- 
- 	return 0;
- }
+>  	page = pmd_page(orig_pmd);
+>  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+>  	/*
+> @@ -1556,6 +1577,12 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  	if (is_huge_zero_pmd(orig_pmd))
+>  		goto out;
+>  
+> +	if (unlikely(!pmd_present(orig_pmd))) {
+> +		VM_BUG_ON(IS_ENABLED(CONFIG_MIGRATION) &&
+> +				  !is_pmd_migration_entry(orig_pmd));
+> +		goto out;
+> +	}
+> +
+>  	page = pmd_page(orig_pmd);
+>  	/*
+>  	 * If other processes are mapping this page, we couldn't discard
+> @@ -1770,6 +1797,23 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>  	preserve_write = prot_numa && pmd_write(*pmd);
+>  	ret = 1;
+>  
+> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> +	if (is_swap_pmd(*pmd)) {
+> +		swp_entry_t entry = pmd_to_swp_entry(*pmd);
+> +
+> +		VM_BUG_ON(IS_ENABLED(CONFIG_MIGRATION) &&
+> +				  !is_pmd_migration_entry(*pmd));
+> +		if (is_write_migration_entry(entry)) {
+> +			pmd_t newpmd;
+> +
+> +			make_migration_entry_read(&entry);
+> +			newpmd = swp_entry_to_pmd(entry);
+> +			set_pmd_at(mm, addr, pmd, newpmd);
+
+I was confused by this. Could you copy comment from change_pte_range()
+here?
+
+> +		}
+> +		goto unlock;
+> +	}
+> +#endif
+> +
+>  	/*
+>  	 * Avoid trapping faults against the zero page. The read-only
+>  	 * data is likely to be read-cached on the local CPU and
+
 -- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
