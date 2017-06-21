@@ -1,65 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1E006B03F0
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:18:54 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id f49so15862734wrf.5
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:18:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w141si17028416wme.144.2017.06.21.06.18.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BDF036B0388
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:27:02 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o74so158852900pfi.6
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:27:02 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0088.outbound.protection.outlook.com. [104.47.42.88])
+        by mx.google.com with ESMTPS id v7si3327871pgo.468.2017.06.21.06.27.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 06:18:53 -0700 (PDT)
-Date: Wed, 21 Jun 2017 15:18:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom_kill: Close race window of needlessly selecting
- new victims.
-Message-ID: <20170621131850.GA27494@dhcp22.suse.cz>
-References: <20170615103909.GG1486@dhcp22.suse.cz>
- <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
- <20170615214133.GB20321@dhcp22.suse.cz>
- <201706162122.ACE95321.tOFLOOVFFHMSJQ@I-love.SAKURA.ne.jp>
- <20170616141255.GN30580@dhcp22.suse.cz>
- <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 06:27:01 -0700 (PDT)
+Subject: Re: [PATCH v7 06/36] x86/mm: Add Secure Memory Encryption (SME)
+ support
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185054.18967.52228.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1706202244480.2157@nanos>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <efa51470-5d8f-6883-b9da-f2face12ea22@amd.com>
+Date: Wed, 21 Jun 2017 08:26:44 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.20.1706202244480.2157@nanos>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue 20-06-17 15:12:55, David Rientjes wrote:
-[...]
-> This doesn't prevent serial oom killing for either the system oom killer 
-> or for the memcg oom killer.
+On 6/20/2017 3:49 PM, Thomas Gleixner wrote:
+> On Fri, 16 Jun 2017, Tom Lendacky wrote:
+>>   
+>> +config ARCH_HAS_MEM_ENCRYPT
+>> +	def_bool y
+>> +	depends on X86
 > 
-> The oom killer cannot detect tsk_is_oom_victim() if the task has either 
-> been removed from the tasklist or has already done cgroup_exit(). For 
-> memcg oom killings in particular, cgroup_exit() is usually called very 
-> shortly after the oom killer has sent the SIGKILL.  If the oom reaper does 
-> not fail (for example by failing to grab mm->mmap_sem) before another 
-> memcg charge after cgroup_exit(victim), additional processes are killed 
-> because the iteration does not view the victim.
+> That one is silly. The config switch is in the x86 KConfig file, so X86 is
+> on. If you intended to move this to some generic place outside of
+> x86/Kconfig then this should be
 > 
-> This easily kills all processes attached to the memcg with no memory 
-> freeing from any victim.
+> config ARCH_HAS_MEM_ENCRYPT
+> 	bool
+> 
+> and x86/Kconfig should have
+> 
+>      	select ARCH_HAS_MEM_ENCRYPT
+> 
+> and that should be selected by AMD_MEM_ENCRYPT
 
-It took me some time to decrypt the above but you are right. Pinning
-mm_users will prevent exit path to exit_mmap and that can indeed cause
-another premature oom killing because the task might be unhashed or
-removed from the memcg before the oom reaper has a chance to reap the
-task. Thanks for pointing this out. This means that we either have to
-reimplement the unhashing/cgroup_exit for oom victims or get back to
-allowing oom reaper to race with exit_mmap. The later sounds much more
-easier to me.
+This is used for deciding whether to include the asm/mem_encrypt.h file
+so it needs to be on whether AMD_MEM_ENCRYPT is configured or not. I'll
+leave it in the x86/Kconfig file and remove the depends on line.
 
-I was offline last two days but I will revisit my original idea ASAP.
+Thanks,
+Tom
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+>> +config AMD_MEM_ENCRYPT
+>> +	bool "AMD Secure Memory Encryption (SME) support"
+>> +	depends on X86_64 && CPU_SUP_AMD
+>> +	---help---
+>> +	  Say yes to enable support for the encryption of system memory.
+>> +	  This requires an AMD processor that supports Secure Memory
+>> +	  Encryption (SME).
+> 
+> Thanks,
+> 
+> 	tglx
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
