@@ -1,135 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FD636B03D3
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:33:40 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l34so29200204wrc.12
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:33:40 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id m25si1041706wrm.92.2017.06.21.03.33.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B378D6B03D6
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:40:24 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u8so171244535pgo.11
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:40:24 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 101si1670449ple.204.2017.06.21.03.40.23
         for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 03:33:38 -0700 (PDT)
-Date: Wed, 21 Jun 2017 12:33:22 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 04/11] x86/mm: Give each mm TLB flush generation a
- unique ID
-Message-ID: <20170621103322.pwi6koe7jee7hd63@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org>
- <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
+        Wed, 21 Jun 2017 03:40:23 -0700 (PDT)
+Date: Wed, 21 Jun 2017 11:40:17 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170621104016.GB10220@e104818-lin.cambridge.arm.com>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
+ <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+ <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
+In-Reply-To: <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Jun 20, 2017 at 10:22:10PM -0700, Andy Lutomirski wrote:
-> - * The x86 doesn't have a mmu context, but
-> - * we put the segment information here.
-> + * x86 has arch-specific MMU state beyond what lives in mm_struct.
->   */
->  typedef struct {
-> +	/*
-> +	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
-> +	 * be reused, and zero is not a valid ctx_id.
-> +	 */
-> +	u64 ctx_id;
-> +
-> +	/*
-> +	 * Any code that needs to do any sort of TLB flushing for this
-> +	 * mm will first make its changes to the page tables, then
-> +	 * increment tlb_gen, then flush.  This lets the low-level
-> +	 * flushing code keep track of what needs flushing.
-> +	 *
-> +	 * This is not used on Xen PV.
-> +	 */
-> +	atomic64_t tlb_gen;
-> +
->  #ifdef CONFIG_MODIFY_LDT_SYSCALL
->  	struct ldt_struct *ldt;
->  #endif
-> @@ -37,6 +53,11 @@ typedef struct {
->  #endif
->  } mm_context_t;
->  
-> +#define INIT_MM_CONTEXT(mm)						\
-> +	.context = {							\
-> +		.ctx_id = 1,						\
+On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Jun 20, 2017 at 04:54:38PM +0100, Catalin Marinas wrote:
+> > For arm64, I don't see the point of a cmpxchg, so something like below
+> > would do (it needs proper testing though):
+> 
+> Right. cmpxchg is required for x86 PAE, as it has sizeof(pmd_t) >
+> sizeof(long). We don't have 8-byte xchg() there.
+> 
+> Thanks, for the patch. I assume, I can use your signed-off-by, right?
 
-So ctx_id of 0 is invalid?
+Yes. And maybe some text (well, I just copied yours):
 
-Let's state that explicitly. We could even use it to sanity-check mms or
-whatever.
+---------------8<--------------
+arm64: Provide pmdp_establish() helper
 
-> +	}
-> +
->  void leave_mm(int cpu);
->  
->  #endif /* _ASM_X86_MMU_H */
-> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-> index ecfcb6643c9b..e5295d485899 100644
-> --- a/arch/x86/include/asm/mmu_context.h
-> +++ b/arch/x86/include/asm/mmu_context.h
-> @@ -129,9 +129,14 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
->  		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
->  }
->  
-> +extern atomic64_t last_mm_ctx_id;
+We need an atomic way to setup pmd page table entry, avoiding races with
+CPU setting dirty/accessed bits. This is required to implement
+pmdp_invalidate() that doesn't lose these bits.
 
-I think we prefer externs/variable defines at the beginning of the file,
-not intermixed with functions.
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+---------------8<--------------
 
-> +
->  static inline int init_new_context(struct task_struct *tsk,
->  				   struct mm_struct *mm)
->  {
-> +	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
-> +	atomic64_set(&mm->context.tlb_gen, 0);
-> +
->  	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
->  	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
->  		/* pkey 0 is the default and always allocated */
-> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-> index 50ea3482e1d1..1eb946c0507e 100644
-> --- a/arch/x86/include/asm/tlbflush.h
-> +++ b/arch/x86/include/asm/tlbflush.h
-> @@ -57,6 +57,23 @@ static inline void invpcid_flush_all_nonglobals(void)
->  	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
->  }
->  
-> +static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)
+> Any chance you could help me with arm too?
 
-inc_mm_tlb_gen() I guess. git grep says like "inc" more :-)
-
-> +{
-> +	u64 new_tlb_gen;
-> +
-> +	/*
-> +	 * Bump the generation count.  This also serves as a full barrier
-> +	 * that synchronizes with switch_mm: callers are required to order
-
-Please end function names with parentheses.
-
-> +	 * their read of mm_cpumask after their writes to the paging
-> +	 * structures.
-> +	 */
-> +	smp_mb__before_atomic();
-> +	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
-> +	smp_mb__after_atomic();
-> +
-> +	return new_tlb_gen;
-> +}
-> +
->  #ifdef CONFIG_PARAVIRT
->  #include <asm/paravirt.h>
->  #else
+I'll have a look.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
