@@ -1,82 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8E16B037C
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:23:31 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id 37so102061982otu.13
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:23:31 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u62si5328066oif.286.2017.06.21.08.23.30
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ED616B0412
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:37:51 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d62so40888762pfb.13
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:37:51 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0060.outbound.protection.outlook.com. [104.47.40.60])
+        by mx.google.com with ESMTPS id g185si13449612pfc.19.2017.06.21.08.37.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 08:23:30 -0700 (PDT)
-Received: from mail-ua0-f170.google.com (mail-ua0-f170.google.com [209.85.217.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CEA202187A
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 15:23:28 +0000 (UTC)
-Received: by mail-ua0-f170.google.com with SMTP id g40so115778506uaa.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:23:29 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 08:37:50 -0700 (PDT)
+Subject: Re: [PATCH v7 25/36] swiotlb: Add warnings for use of bounce buffers
+ with SME
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185435.18967.26665.stgit@tlendack-t1.amdoffice.net>
+ <20170621105026.lcbtkklaenyi2wqe@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <7b9f8b6d-60f2-0a78-b582-0821401d17eb@amd.com>
+Date: Wed, 21 Jun 2017 10:37:41 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170621103322.pwi6koe7jee7hd63@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org> <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
- <20170621103322.pwi6koe7jee7hd63@pd.tnic>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 21 Jun 2017 08:23:07 -0700
-Message-ID: <CALCETrVoRjSL2HncTGQ-PJ_1ycUAV3UcDVMEGw=-f7AbqtEN6w@mail.gmail.com>
-Subject: Re: [PATCH v3 04/11] x86/mm: Give each mm TLB flush generation a
- unique ID
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20170621105026.lcbtkklaenyi2wqe@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Wed, Jun 21, 2017 at 3:33 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Tue, Jun 20, 2017 at 10:22:10PM -0700, Andy Lutomirski wrote:
->> +#define INIT_MM_CONTEXT(mm)                                          \
->> +     .context = {                                                    \
->> +             .ctx_id = 1,                                            \
->
-> So ctx_id of 0 is invalid?
->
-> Let's state that explicitly. We could even use it to sanity-check mms or
-> whatever.
-
-It's stated explicitly in the comment where it's declared in the same file.
-
->
->> +     }
+On 6/21/2017 5:50 AM, Borislav Petkov wrote:
+> On Fri, Jun 16, 2017 at 01:54:36PM -0500, Tom Lendacky wrote:
+>> Add warnings to let the user know when bounce buffers are being used for
+>> DMA when SME is active.  Since the bounce buffers are not in encrypted
+>> memory, these notifications are to allow the user to determine some
+>> appropriate action - if necessary.  Actions can range from utilizing an
+>> IOMMU, replacing the device with another device that can support 64-bit
+>> DMA, ignoring the message if the device isn't used much, etc.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   include/linux/dma-mapping.h |   11 +++++++++++
+>>   include/linux/mem_encrypt.h |    8 ++++++++
+>>   lib/swiotlb.c               |    3 +++
+>>   3 files changed, 22 insertions(+)
+>>
+>> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+>> index 4f3eece..ee2307e 100644
+>> --- a/include/linux/dma-mapping.h
+>> +++ b/include/linux/dma-mapping.h
+>> @@ -10,6 +10,7 @@
+>>   #include <linux/scatterlist.h>
+>>   #include <linux/kmemcheck.h>
+>>   #include <linux/bug.h>
+>> +#include <linux/mem_encrypt.h>
+>>   
+>>   /**
+>>    * List of possible attributes associated with a DMA mapping. The semantics
+>> @@ -577,6 +578,11 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
+>>   
+>>   	if (!dev->dma_mask || !dma_supported(dev, mask))
+>>   		return -EIO;
 >> +
->>  void leave_mm(int cpu);
->>
->>  #endif /* _ASM_X86_MMU_H */
->> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
->> index ecfcb6643c9b..e5295d485899 100644
->> --- a/arch/x86/include/asm/mmu_context.h
->> +++ b/arch/x86/include/asm/mmu_context.h
->> @@ -129,9 +129,14 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
->>               this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
->>  }
->>
->> +extern atomic64_t last_mm_ctx_id;
->
-> I think we prefer externs/variable defines at the beginning of the file,
-> not intermixed with functions.
+>> +	/* Since mask is unsigned, this can only be true if SME is active */
+>> +	if (mask < sme_dma_mask())
+>> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
+>> +
+>>   	*dev->dma_mask = mask;
+>>   	return 0;
+>>   }
+>> @@ -596,6 +602,11 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
+>>   {
+>>   	if (!dma_supported(dev, mask))
+>>   		return -EIO;
+>> +
+>> +	/* Since mask is unsigned, this can only be true if SME is active */
+>> +	if (mask < sme_dma_mask())
+>> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
+> 
+> Looks to me like those two checks above need to be a:
+> 
+> void sme_check_mask(struct device *dev, u64 mask)
+> {
+>          if (!sme_me_mask)
+>                  return;
+> 
+>          /* Since mask is unsigned, this can only be true if SME is active */
+>          if (mask < (((u64)sme_me_mask << 1) - 1))
+>                  dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
+> }
+> 
+> which gets called and sme_dma_mask() is not really needed.
 
-Done
+Makes a lot of sense, I'll update the patch.
 
->
->> +static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)
->
-> inc_mm_tlb_gen() I guess. git grep says like "inc" more :-)
+Thanks,
+Tom
 
-Done
-
->> +      * that synchronizes with switch_mm: callers are required to order
->
-> Please end function names with parentheses.
-
-Done.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
