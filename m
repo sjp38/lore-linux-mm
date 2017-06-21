@@ -1,114 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 941906B03AF
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:32:30 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u110so20704687wrb.14
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:32:30 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 80si16246517wmt.84.2017.06.21.01.32.26
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C856B03B2
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:36:16 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b13so168859541pgn.4
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:36:16 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id y73si12475574pfg.102.2017.06.21.01.36.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 01:32:27 -0700 (PDT)
-Date: Wed, 21 Jun 2017 10:32:13 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
- flushing algorithm
-In-Reply-To: <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
-Message-ID: <alpine.DEB.2.20.1706211007080.2328@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 01:36:15 -0700 (PDT)
+Message-ID: <594A307F.1090108@intel.com>
+Date: Wed, 21 Jun 2017 16:38:23 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [Qemu-devel] [PATCH v11 4/6] mm: function to offer a page block
+ on the free list
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>	<1497004901-30593-5-git-send-email-wei.w.wang@intel.com>	<b92af473-f00e-b956-ea97-eb4626601789@intel.com>	<1497977049.20270.100.camel@redhat.com>	<7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com> <1497979740.20270.102.camel@redhat.com>
+In-Reply-To: <1497979740.20270.102.camel@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Rik van Riel <riel@redhat.com>, David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
+Cc: Nitesh Narayan Lal <nilal@redhat.com>
 
-On Tue, 20 Jun 2017, Andy Lutomirski wrote:
->  struct flush_tlb_info {
-> +	/*
-> +	 * We support several kinds of flushes.
-> +	 *
-> +	 * - Fully flush a single mm.  flush_mm will be set, flush_end will be
+On 06/21/2017 01:29 AM, Rik van Riel wrote:
+> On Tue, 2017-06-20 at 18:49 +0200, David Hildenbrand wrote:
+>> On 20.06.2017 18:44, Rik van Riel wrote:
+>>> Nitesh Lal (on the CC list) is working on a way
+>>> to efficiently batch recently freed pages for
+>>> free page hinting to the hypervisor.
+>>>
+>>> If that is done efficiently enough (eg. with
+>>> MADV_FREE on the hypervisor side for lazy freeing,
+>>> and lazy later re-use of the pages), do we still
+>>> need the harder to use batch interface from this
+>>> patch?
+>>>
+>> David's opinion incoming:
+>>
+>> No, I think proper free page hinting would be the optimum solution,
+>> if
+>> done right. This would avoid the batch interface and even turn
+>> virtio-balloon in some sense useless.
+> I agree with that.  Let me go into some more detail of
+> what Nitesh is implementing:
+>
+> 1) In arch_free_page, the being-freed page is added
+>     to a per-cpu set of freed pages.
 
-flush_mm is the *mm member in the struct, right? You might rename that as a
-preparatory step so comments and implementation match.
+I got some questions here:
 
-> +	 *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the
-> +	 *   IPI sender is trying to catch us up.
-> +	 *
-> +	 * - Partially flush a single mm.  flush_mm will be set, flush_start
-> +	 *   and flush_end will indicate the range, and new_tlb_gen will be
-> +	 *   set such that the changes between generation new_tlb_gen-1 and
-> +	 *   new_tlb_gen are entirely contained in the indicated range.
-> +	 *
-> +	 * - Fully flush all mms whose tlb_gens have been updated.  flush_mm
-> +	 *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen
-> +	 *   will be zero.
-> +	 */
->  	struct mm_struct *mm;
->  	unsigned long start;
->  	unsigned long end;
-> +	u64 new_tlb_gen;
+1. Are the pages managed one by one on the per-CPU set?
+For example, when there are 2 adjacent pages, are they still
+put as two nodes on the per-CPU list? or the buddy algorithm
+will be re-implemented on the per-CPU list as well?
 
-Nit. While at it could you please make that struct tabular aligned as we
-usually do in x86?
+2. Looks like this will be added to the common free function.
+Normally, people may not need the free page hint, do they
+need to carry the added burden?
 
->  static void flush_tlb_func_common(const struct flush_tlb_info *f,
->  				  bool local, enum tlb_flush_reason reason)
->  {
-> +	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-> +
-> +	/*
-> +	 * Our memory ordering requirement is that any TLB fills that
-> +	 * happen after we flush the TLB are ordered after we read
-> +	 * active_mm's tlb_gen.  We don't need any explicit barrier
-> +	 * because all x86 flush operations are serializing and the
-> +	 * atomic64_read operation won't be reordered by the compiler.
-> +	 */
 
-Can you please move the comment above the loaded_mm assignment? 
+> 2) Once that set is full, arch_free_pages goes into a
+>     slow path, which:
+>     2a) Iterates over the set of freed pages, and
+>     2b) Checks whether they are still free, and
 
-> +	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
-> +	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
-> +
->  	/* This code cannot presently handle being reentered. */
->  	VM_WARN_ON(!irqs_disabled());
->  
-> +	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
-> +		   loaded_mm->context.ctx_id);
-> +
->  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
-> +		/*
-> +		 * leave_mm() is adequate to handle any type of flush, and
-> +		 * we would prefer not to receive further IPIs.
+The pages that have been double checked as "free"
+pages here and added to the list for the hypervisor can
+also be immediately used.
 
-While I know what you mean, it might be useful to have a more elaborate
-explanation why this prevents new IPIs.
 
-> +		 */
->  		leave_mm(smp_processor_id());
->  		return;
->  	}
->  
-> -	if (f->end == TLB_FLUSH_ALL) {
-> -		local_flush_tlb();
-> -		if (local)
-> -			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> -		trace_tlb_flush(reason, TLB_FLUSH_ALL);
-> -	} else {
-> +	if (local_tlb_gen == mm_tlb_gen) {
-> +		/*
-> +		 * There's nothing to do: we're already up to date.  This can
-> +		 * happen if two concurrent flushes happen -- the first IPI to
-> +		 * be handled can catch us all the way up, leaving no work for
-> +		 * the second IPI to be handled.
+>     2c) Adds the still free pages to a list that is
+>         to be passed to the hypervisor, to be MADV_FREEd.
+>     2d) Makes that hypercall.
+>
+> Meanwhile all arch_alloc_pages has to do is make sure it
+> does not allocate a page while it is currently being
+> MADV_FREEd on the hypervisor side.
 
-That not restricted to IPIs, right? A local flush / IPI combo can do that
-as well.
+Is this proposed to replace the balloon driver?
 
-Other than those nits;
+>
+> The code Wei is working on looks like it could be
+> suitable for steps (2c) and (2d) above. Nitesh already
+> has code for steps 1 through 2b.
+>
 
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+May I know the advantages of the added steps? Thanks.
+
+Best,
+Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
