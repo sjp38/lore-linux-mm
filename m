@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 974386B03E5
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:09:13 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id f49so15283504wrf.5
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:09:13 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE1A6B03E7
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:25:07 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x23so30042368wrb.6
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:25:07 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m29si9543804wrb.254.2017.06.21.05.09.11
+        by mx.google.com with ESMTPS id p89si12696963wma.78.2017.06.21.05.25.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 05:09:12 -0700 (PDT)
-Date: Wed, 21 Jun 2017 14:08:05 +0200
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH] percpu_counter: Rename __percpu_counter_add to
- percpu_counter_add_batch
-Message-ID: <20170621120805.GG21388@suse.cz>
-Reply-To: dsterba@suse.cz
-References: <20170620172835.GA21326@htj.duckdns.org>
- <1497981680-6969-1-git-send-email-nborisov@suse.com>
- <20170620194759.GG21326@htj.duckdns.org>
+        Wed, 21 Jun 2017 05:25:06 -0700 (PDT)
+Subject: Re: [PATCH] mm: avoid taking zone lock in pagetypeinfo_showmixed
+References: <1498045643-12257-1-git-send-email-vinmenon@codeaurora.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d2ca6001-2d1f-f258-ca4b-72f9e9275853@suse.cz>
+Date: Wed, 21 Jun 2017 14:24:22 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170620194759.GG21326@htj.duckdns.org>
+In-Reply-To: <1498045643-12257-1-git-send-email-vinmenon@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Nikolay Borisov <nborisov@suse.com>, "David S. Miller" <davem@davemloft.net>, Jens Axboe <axboe@fb.com>, Chris Mason <clm@fb.com>, jbacik@fb.com, linux-mm@kvack.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.com>, mgorman@techsingularity.net, linux-kernel@vger.kernel.org
+To: Vinayak Menon <vinmenon@codeaurora.org>, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, zhongjiang@huawei.com, sergey.senozhatsky@gmail.com, sudipm.mukherjee@gmail.com, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, bigeasy@linutronix.de, rientjes@google.com, minchan@kernel.org
+Cc: linux-mm@kvack.org
 
-On Tue, Jun 20, 2017 at 03:47:59PM -0400, Tejun Heo wrote:
-> From 104b4e5139fe384431ac11c3b8a6cf4a529edf4a Mon Sep 17 00:00:00 2001
-> From: Nikolay Borisov <nborisov@suse.com>
-> Date: Tue, 20 Jun 2017 21:01:20 +0300
+On 06/21/2017 01:47 PM, Vinayak Menon wrote:
+> pagetypeinfo_showmixedcount_print is found to take a lot of
+> time to complete and it does this holding the zone lock and
+> disabling interrupts. In some cases it is found to take more
+> than a second (On a 2.4GHz,8Gb RAM,arm64 cpu). Avoid taking
+> the zone lock similar to what is done by read_page_owner,
+> which means possibility of inaccurate results.
 > 
-> Currently, percpu_counter_add is a wrapper around __percpu_counter_add
-> which is preempt safe due to explicit calls to preempt_disable.  Given
-> how __ prefix is used in percpu related interfaces, the naming
-> unfortunately creates the false sense that __percpu_counter_add is
-> less safe than percpu_counter_add.  In terms of context-safety,
-> they're equivalent.  The only difference is that the __ version takes
-> a batch parameter.
-> 
-> Make this a bit more explicit by just renaming __percpu_counter_add to
-> percpu_counter_add_batch.
-> 
-> This patch doesn't cause any functional changes.
-> 
-> tj: Minor updates to patch description for clarity.  Cosmetic
->     indentation updates.
-> 
-> Signed-off-by: Nikolay Borisov <nborisov@suse.com>
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: Chris Mason <clm@fb.com>
-> Cc: Josef Bacik <jbacik@fb.com>
-> Cc: David Sterba <dsterba@suse.com>
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
 
-Acked-by: David Sterba <dsterba@suse.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+walk_zones_in_node() becomes quite ugly though, multiple bool params are
+not nice, and both are there for single special cases. Wonder if
+replacing this with a new for_each_zone_node() helper would make this
+better. OTOH it's now isolated only to vmstat.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
