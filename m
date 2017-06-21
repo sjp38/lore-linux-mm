@@ -1,56 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C1AB6B03DC
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:27:10 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b13so172540028pgn.4
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:27:10 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g5si10386456plm.221.2017.06.21.04.27.09
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 04:27:09 -0700 (PDT)
-Date: Wed, 21 Jun 2017 12:27:02 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
-Message-ID: <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
- <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
- <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
- <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
- <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
- <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
- <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A2E6B03DE
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:48:04 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id a199so79628405oib.2
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:48:04 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id 22si2242299otj.313.2017.06.21.04.48.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 04:48:02 -0700 (PDT)
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Subject: [PATCH] mm: avoid taking zone lock in pagetypeinfo_showmixed
+Date: Wed, 21 Jun 2017 17:17:23 +0530
+Message-Id: <1498045643-12257-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, zhongjiang@huawei.com, sergey.senozhatsky@gmail.com, sudipm.mukherjee@gmail.com, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, bigeasy@linutronix.de, rientjes@google.com, minchan@kernel.org
+Cc: linux-mm@kvack.org, Vinayak Menon <vinmenon@codeaurora.org>
 
-On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
-> > > > > > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
-> > > > > > > We need an atomic way to setup pmd page table entry, avoiding races with
-> > > > > > > CPU setting dirty/accessed bits. This is required to implement
-> > > > > > > pmdp_invalidate() that doesn't loose these bits.
-[...]
-> Any chance you could help me with arm too?
+pagetypeinfo_showmixedcount_print is found to take a lot of
+time to complete and it does this holding the zone lock and
+disabling interrupts. In some cases it is found to take more
+than a second (On a 2.4GHz,8Gb RAM,arm64 cpu). Avoid taking
+the zone lock similar to what is done by read_page_owner,
+which means possibility of inaccurate results.
 
-On arm (ARMv7 with LPAE) we don't have hardware updates of the
-access/dirty bits, so a generic implementation would suffice. I didn't
-find one in your patches, so here's an untested version:
+Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+---
+ mm/page_owner.c |  6 +++++-
+ mm/vmstat.c     | 24 ++++++++++++++----------
+ 2 files changed, 19 insertions(+), 11 deletions(-)
 
-static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
-				   pmd_t *pmdp, pmd_t pmd)
-{
-	pmd_t old_pmd = *pmdp;
-	set_pmd_at(mm, address, pmdp, pmd);
-	return old_pmd;
-}
-
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index c3cee24..401feb0 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -281,7 +281,11 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+ 				continue;
+ 
+ 			if (PageBuddy(page)) {
+-				pfn += (1UL << page_order(page)) - 1;
++				unsigned long freepage_order;
++
++				freepage_order = page_order_unsafe(page);
++				if (freepage_order < MAX_ORDER)
++					pfn += (1UL << freepage_order) - 1;
+ 				continue;
+ 			}
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index f5fa1bd..8cefdad 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1129,7 +1129,7 @@ static void frag_stop(struct seq_file *m, void *arg)
+  * If @assert_populated is true, only use callback for zones that are populated.
+  */
+ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+-		bool assert_populated,
++		bool assert_populated, bool nolock,
+ 		void (*print)(struct seq_file *m, pg_data_t *, struct zone *))
+ {
+ 	struct zone *zone;
+@@ -1140,9 +1140,11 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ 		if (assert_populated && !populated_zone(zone))
+ 			continue;
+ 
+-		spin_lock_irqsave(&zone->lock, flags);
++		if (!nolock)
++			spin_lock_irqsave(&zone->lock, flags);
+ 		print(m, pgdat, zone);
+-		spin_unlock_irqrestore(&zone->lock, flags);
++		if (!nolock)
++			spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+ }
+ #endif
+@@ -1165,7 +1167,7 @@ static void frag_show_print(struct seq_file *m, pg_data_t *pgdat,
+ static int frag_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+-	walk_zones_in_node(m, pgdat, true, frag_show_print);
++	walk_zones_in_node(m, pgdat, true, false, frag_show_print);
+ 	return 0;
+ }
+ 
+@@ -1206,7 +1208,7 @@ static int pagetypeinfo_showfree(struct seq_file *m, void *arg)
+ 		seq_printf(m, "%6d ", order);
+ 	seq_putc(m, '\n');
+ 
+-	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showfree_print);
++	walk_zones_in_node(m, pgdat, true, false, pagetypeinfo_showfree_print);
+ 
+ 	return 0;
+ }
+@@ -1258,7 +1260,8 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
+ 	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
+ 		seq_printf(m, "%12s ", migratetype_names[mtype]);
+ 	seq_putc(m, '\n');
+-	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showblockcount_print);
++	walk_zones_in_node(m, pgdat, true, false,
++		pagetypeinfo_showblockcount_print);
+ 
+ 	return 0;
+ }
+@@ -1284,7 +1287,8 @@ static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
+ 		seq_printf(m, "%12s ", migratetype_names[mtype]);
+ 	seq_putc(m, '\n');
+ 
+-	walk_zones_in_node(m, pgdat, true, pagetypeinfo_showmixedcount_print);
++	walk_zones_in_node(m, pgdat, true, true,
++		pagetypeinfo_showmixedcount_print);
+ #endif /* CONFIG_PAGE_OWNER */
+ }
+ 
+@@ -1448,7 +1452,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ static int zoneinfo_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+-	walk_zones_in_node(m, pgdat, false, zoneinfo_show_print);
++	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
+ 	return 0;
+ }
+ 
+@@ -1854,7 +1858,7 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
+ 
+-	walk_zones_in_node(m, pgdat, true, unusable_show_print);
++	walk_zones_in_node(m, pgdat, true, false, unusable_show_print);
+ 
+ 	return 0;
+ }
+@@ -1906,7 +1910,7 @@ static int extfrag_show(struct seq_file *m, void *arg)
+ {
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
+ 
+-	walk_zones_in_node(m, pgdat, true, extfrag_show_print);
++	walk_zones_in_node(m, pgdat, true, false, extfrag_show_print);
+ 
+ 	return 0;
+ }
 -- 
-Catalin
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
