@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 435CB6B02FA
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:22:24 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id u13so79717134otd.3
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:22:24 -0700 (PDT)
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 977556B02FD
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:22:25 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id o27so112554617otd.15
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:22:25 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j74si3273769oih.236.2017.06.20.22.22.23
+        by mx.google.com with ESMTPS id p94si6306166ota.308.2017.06.20.22.22.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 22:22:23 -0700 (PDT)
+        Tue, 20 Jun 2017 22:22:24 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v3 04/11] x86/mm: Give each mm TLB flush generation a unique ID
-Date: Tue, 20 Jun 2017 22:22:10 -0700
-Message-Id: <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
+Subject: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
+Date: Tue, 20 Jun 2017 22:22:11 -0700
+Message-Id: <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
 In-Reply-To: <cover.1498022414.git.luto@kernel.org>
 References: <cover.1498022414.git.luto@kernel.org>
 In-Reply-To: <cover.1498022414.git.luto@kernel.org>
@@ -22,149 +22,218 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
 
-This adds two new variables to mmu_context_t: ctx_id and tlb_gen.
-ctx_id uniquely identifies the mm_struct and will never be reused.
-For a given mm_struct (and hence ctx_id), tlb_gen is a monotonic
-count of the number of times that a TLB flush has been requested.
-The pair (ctx_id, tlb_gen) can be used as an identifier for TLB
-flush actions and will be used in subsequent patches to reliably
-determine whether all needed TLB flushes have occurred on a given
-CPU.
+There are two kernel features that would benefit from tracking
+how up-to-date each CPU's TLB is in the case where IPIs aren't keeping
+it up to date in real time:
 
-This patch is split out for ease of review.  By itself, it has no
-real effect other than creating and updating the new variables.
+ - Lazy mm switching currently works by switching to init_mm when
+   it would otherwise flush.  This is wasteful: there isn't fundamentally
+   any need to update CR3 at all when going lazy or when returning from
+   lazy mode, nor is there any need to receive flush IPIs at all.  Instead,
+   we should just stop trying to keep the TLB coherent when we go lazy and,
+   when unlazying, check whether we missed any flushes.
+
+ - PCID will let us keep recent user contexts alive in the TLB.  If we
+   start doing this, we need a way to decide whether those contexts are
+   up to date.
+
+On some paravirt systems, remote TLBs can be flushed without IPIs.
+This won't update the target CPUs' tlb_gens, which may cause
+unnecessary local flushes later on.  We can address this if it becomes
+a problem by carefully updating the target CPU's tlb_gen directly.
+
+By itself, this patch is a very minor optimization that avoids
+unnecessary flushes when multiple TLB flushes targetting the same CPU
+race.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/include/asm/mmu.h         | 25 +++++++++++++++++++++++--
- arch/x86/include/asm/mmu_context.h |  5 +++++
- arch/x86/include/asm/tlbflush.h    | 18 ++++++++++++++++++
- arch/x86/mm/tlb.c                  |  6 ++++--
- 4 files changed, 50 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/tlbflush.h | 37 +++++++++++++++++++
+ arch/x86/mm/tlb.c               | 79 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 109 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
-index 79b647a7ebd0..bb8c597c2248 100644
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -3,12 +3,28 @@
- 
- #include <linux/spinlock.h>
- #include <linux/mutex.h>
-+#include <linux/atomic.h>
- 
- /*
-- * The x86 doesn't have a mmu context, but
-- * we put the segment information here.
-+ * x86 has arch-specific MMU state beyond what lives in mm_struct.
-  */
- typedef struct {
-+	/*
-+	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
-+	 * be reused, and zero is not a valid ctx_id.
-+	 */
-+	u64 ctx_id;
-+
-+	/*
-+	 * Any code that needs to do any sort of TLB flushing for this
-+	 * mm will first make its changes to the page tables, then
-+	 * increment tlb_gen, then flush.  This lets the low-level
-+	 * flushing code keep track of what needs flushing.
-+	 *
-+	 * This is not used on Xen PV.
-+	 */
-+	atomic64_t tlb_gen;
-+
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
- 	struct ldt_struct *ldt;
- #endif
-@@ -37,6 +53,11 @@ typedef struct {
- #endif
- } mm_context_t;
- 
-+#define INIT_MM_CONTEXT(mm)						\
-+	.context = {							\
-+		.ctx_id = 1,						\
-+	}
-+
- void leave_mm(int cpu);
- 
- #endif /* _ASM_X86_MMU_H */
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index ecfcb6643c9b..e5295d485899 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -129,9 +129,14 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
- }
- 
-+extern atomic64_t last_mm_ctx_id;
-+
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
-+	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
-+	atomic64_set(&mm->context.tlb_gen, 0);
-+
- 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
- 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
- 		/* pkey 0 is the default and always allocated */
 diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 50ea3482e1d1..1eb946c0507e 100644
+index 1eb946c0507e..4f6c30d6ec39 100644
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -57,6 +57,23 @@ static inline void invpcid_flush_all_nonglobals(void)
- 	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
- }
+@@ -82,6 +82,11 @@ static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)
+ #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+ #endif
  
-+static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)
-+{
-+	u64 new_tlb_gen;
++struct tlb_context {
++	u64 ctx_id;
++	u64 tlb_gen;
++};
++
+ struct tlb_state {
+ 	/*
+ 	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
+@@ -97,6 +102,21 @@ struct tlb_state {
+ 	 * disabling interrupts when modifying either one.
+ 	 */
+ 	unsigned long cr4;
 +
 +	/*
-+	 * Bump the generation count.  This also serves as a full barrier
-+	 * that synchronizes with switch_mm: callers are required to order
-+	 * their read of mm_cpumask after their writes to the paging
-+	 * structures.
++	 * This is a list of all contexts that might exist in the TLB.
++	 * Since we don't yet use PCID, there is only one context.
++	 *
++	 * For each context, ctx_id indicates which mm the TLB's user
++	 * entries came from.  As an invariant, the TLB will never
++	 * contain entries that are out-of-date as when that mm reached
++	 * the tlb_gen in the list.
++	 *
++	 * To be clear, this means that it's legal for the TLB code to
++	 * flush the TLB without updating tlb_gen.  This can happen
++	 * (for now, at least) due to paravirt remote flushes.
 +	 */
-+	smp_mb__before_atomic();
-+	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
-+	smp_mb__after_atomic();
-+
-+	return new_tlb_gen;
-+}
-+
- #ifdef CONFIG_PARAVIRT
- #include <asm/paravirt.h>
- #else
-@@ -262,6 +279,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
- static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
- 					struct mm_struct *mm)
- {
-+	bump_mm_tlb_gen(mm);
- 	cpumask_or(&batch->cpumask, &batch->cpumask, mm_cpumask(mm));
- }
++	struct tlb_context ctxs[1];
+ };
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
  
+@@ -248,9 +268,26 @@ static inline void __flush_tlb_one(unsigned long addr)
+  * and page-granular flushes are available only on i486 and up.
+  */
+ struct flush_tlb_info {
++	/*
++	 * We support several kinds of flushes.
++	 *
++	 * - Fully flush a single mm.  flush_mm will be set, flush_end will be
++	 *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the
++	 *   IPI sender is trying to catch us up.
++	 *
++	 * - Partially flush a single mm.  flush_mm will be set, flush_start
++	 *   and flush_end will indicate the range, and new_tlb_gen will be
++	 *   set such that the changes between generation new_tlb_gen-1 and
++	 *   new_tlb_gen are entirely contained in the indicated range.
++	 *
++	 * - Fully flush all mms whose tlb_gens have been updated.  flush_mm
++	 *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen
++	 *   will be zero.
++	 */
+ 	struct mm_struct *mm;
+ 	unsigned long start;
+ 	unsigned long end;
++	u64 new_tlb_gen;
+ };
+ 
+ #define local_flush_tlb() __flush_tlb()
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index fd593833a854..6d9d37323a43 100644
+index 6d9d37323a43..9f5ef7a5e74a 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
-@@ -28,6 +28,8 @@
-  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
-  */
+@@ -105,6 +105,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+ 	}
  
-+atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
-+
- void leave_mm(int cpu)
+ 	this_cpu_write(cpu_tlbstate.loaded_mm, next);
++	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
++	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
++		       atomic64_read(&next->context.tlb_gen));
+ 
+ 	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+ 	cpumask_set_cpu(cpu, mm_cpumask(next));
+@@ -194,20 +197,73 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 				  bool local, enum tlb_flush_reason reason)
  {
- 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-@@ -286,8 +288,8 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
++	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
++
++	/*
++	 * Our memory ordering requirement is that any TLB fills that
++	 * happen after we flush the TLB are ordered after we read
++	 * active_mm's tlb_gen.  We don't need any explicit barrier
++	 * because all x86 flush operations are serializing and the
++	 * atomic64_read operation won't be reordered by the compiler.
++	 */
++	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
++	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
++
+ 	/* This code cannot presently handle being reentered. */
+ 	VM_WARN_ON(!irqs_disabled());
  
++	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
++		   loaded_mm->context.ctx_id);
++
+ 	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
++		/*
++		 * leave_mm() is adequate to handle any type of flush, and
++		 * we would prefer not to receive further IPIs.
++		 */
+ 		leave_mm(smp_processor_id());
+ 		return;
+ 	}
+ 
+-	if (f->end == TLB_FLUSH_ALL) {
+-		local_flush_tlb();
+-		if (local)
+-			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+-		trace_tlb_flush(reason, TLB_FLUSH_ALL);
+-	} else {
++	if (local_tlb_gen == mm_tlb_gen) {
++		/*
++		 * There's nothing to do: we're already up to date.  This can
++		 * happen if two concurrent flushes happen -- the first IPI to
++		 * be handled can catch us all the way up, leaving no work for
++		 * the second IPI to be handled.
++		 */
++		return;
++	}
++
++	WARN_ON_ONCE(local_tlb_gen > mm_tlb_gen);
++	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
++
++	/*
++	 * If we get to this point, we know that our TLB is out of date.
++	 * This does not strictly imply that we need to flush (it's
++	 * possible that f->new_tlb_gen <= local_tlb_gen), but we're
++	 * going to need to flush in the very near future, so we might
++	 * as well get it over with.
++	 *
++	 * The only question is whether to do a full or partial flush.
++	 *
++	 * A partial TLB flush is safe and worthwhile if two conditions are
++	 * met:
++	 *
++	 * 1. We wouldn't be skipping a tlb_gen.  If the requester bumped
++	 *    the mm's tlb_gen from p to p+1, a partial flush is only correct
++	 *    if we would be bumping the local CPU's tlb_gen from p to p+1 as
++	 *    well.
++	 *
++	 * 2. If there are no more flushes on their way.  Partial TLB
++	 *    flushes are not all that much cheaper than full TLB
++	 *    flushes, so it seems unlikely that it would be a
++	 *    performance win to do a partial flush if that won't bring
++	 *    our TLB fully up to date.
++	 */
++	if (f->end != TLB_FLUSH_ALL &&
++	    f->new_tlb_gen == local_tlb_gen + 1 &&
++	    f->new_tlb_gen == mm_tlb_gen) {
++		/* Partial flush */
+ 		unsigned long addr;
+ 		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
+ 		addr = f->start;
+@@ -218,7 +274,16 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 		if (local)
+ 			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
+ 		trace_tlb_flush(reason, nr_pages);
++	} else {
++		/* Full flush. */
++		local_flush_tlb();
++		if (local)
++			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++		trace_tlb_flush(reason, TLB_FLUSH_ALL);
+ 	}
++
++	/* Both paths above update our state to mm_tlb_gen. */
++	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);
+ }
+ 
+ static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
+@@ -289,7 +354,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
  	cpu = get_cpu();
  
--	/* Synchronize with switch_mm. */
--	smp_mb();
-+	/* This is also a barrier that synchronizes with switch_mm(). */
-+	bump_mm_tlb_gen(mm);
+ 	/* This is also a barrier that synchronizes with switch_mm(). */
+-	bump_mm_tlb_gen(mm);
++	info.new_tlb_gen = bump_mm_tlb_gen(mm);
  
  	/* Should we flush just the requested range? */
  	if ((end != TLB_FLUSH_ALL) &&
