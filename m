@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E26F76B02C3
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:31:05 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d62so47526436pfb.13
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id w20si656454pfi.382.2017.06.21.13.31.05
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13C376B02B4
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:34:34 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b6so109896494oia.14
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:34:34 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v32si3953816otd.256.2017.06.21.13.34.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
-Received: by mail-pf0-x231.google.com with SMTP id e7so10295540pfk.0
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
-Date: Wed, 21 Jun 2017 13:31:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Re: [PATCH] mm,oom_kill: Close race window of needlessly selecting
- new victims.
-In-Reply-To: <201706210217.v5L2HAZc081021@www262.sakura.ne.jp>
-Message-ID: <alpine.DEB.2.10.1706211325340.101895@chino.kir.corp.google.com>
-References: <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com> <201706210217.v5L2HAZc081021@www262.sakura.ne.jp>
+        Wed, 21 Jun 2017 13:34:33 -0700 (PDT)
+Received: from mail-ua0-f169.google.com (mail-ua0-f169.google.com [209.85.217.169])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CD94022B48
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 20:34:32 +0000 (UTC)
+Received: by mail-ua0-f169.google.com with SMTP id 70so59965753uau.0
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:34:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.20.1706211127460.2328@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
+ <alpine.DEB.2.20.1706211127460.2328@nanos>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 21 Jun 2017 13:34:10 -0700
+Message-ID: <CALCETrVCJo8dNBnEA2p3dhgymfcfMN=uhMz0XXn047=tsQNnFw@mail.gmail.com>
+Subject: Re: [PATCH v3 10/11] x86/mm: Enable CR4.PCIDE on supported systems
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Wed, 21 Jun 2017, Tetsuo Handa wrote:
+On Wed, Jun 21, 2017 at 2:39 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+>> +     /* Set up PCID */
+>> +     if (cpu_has(c, X86_FEATURE_PCID)) {
+>> +             if (cpu_has(c, X86_FEATURE_PGE)) {
+>> +                     cr4_set_bits(X86_CR4_PCIDE);
+>
+> So I assume that you made sure that the PCID bits in CR3 are zero under all
+> circumstances as setting PCIDE would cause a #GP if not.
 
-> Umm... So, you are pointing out that select_bad_process() aborts based on
-> TIF_MEMDIE or MMF_OOM_SKIP is broken because victim threads can be removed
->  from global task list or cgroup's task list. Then, the OOM killer will have to
-> wait until all mm_struct of interested OOM domain (system wide or some cgroup)
-> is reaped by the OOM reaper. Simplest way is to wait until all mm_struct are
-> reaped by the OOM reaper, for currently we are not tracking which memory cgroup
-> each mm_struct belongs to, are we? But that can cause needless delay when
-> multiple OOM events occurred in different OOM domains. Do we want to (and can we)
-> make it possible to tell whether each mm_struct queued to the OOM reaper's list
-> belongs to the thread calling out_of_memory() ?
-> 
+Yes.  All existing code just shoves a PA of a page table in there.  As
+far as I know, neither Linux nor anyone else uses the silly PCD and
+PWT bits.  It's not even clear to me that they are functional if PAT
+is enabled.
 
-I am saying that taking mmget() in mark_oom_victim() and then only 
-dropping it with mmput_async() after it can grab mm->mmap_sem, which the 
-exit path itself takes, or the oom reaper happens to schedule, causes 
-__mmput() to be called much later and thus we remove the process from the 
-tasklist or call cgroup_exit() earlier than the memory can be unmapped 
-with your patch.  As a result, subsequent calls to the oom killer kills 
-everything before the original victim's mm can undergo __mmput() because 
-the oom reaper still holds the reference.
+>
+> And what happens on kexec etc? We need to reset the asid and PCIDE I assume.
+>
+
+I assume it works roughly the same way as suspend, etc --
+mmu_cr4_features has the desired CR4 and the init code deals with it.
+And PGE, PKE, etc all work correctly.  I'm not sure why PCIDE needs to
+be cleared -- the init code will work just fine even if PCIDE is
+unexpectedly set.
+
+That being said, I haven't managed to understand what exactly the
+kexec code is doing.  But I think the relevant bit is here in
+relocate_kernel_64.S:
+
+        /*
+         * Set cr4 to a known state:
+         *  - physical address extension enabled
+         */
+        movl    $X86_CR4_PAE, %eax
+        movq    %rax, %cr4
+
+Kexec folks, is it safe to assume that kexec can already deal with the
+new and old kernels disagreeing on what CR4 should be?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
