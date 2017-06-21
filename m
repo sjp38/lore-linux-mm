@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AAA46B03E2
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:51:56 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id f20so118215526otd.9
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:51:56 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id t11si5047866oib.369.2017.06.21.04.51.53
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 723B56B03E4
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:04:17 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n136so12244041lfn.13
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:04:17 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id z10si7780570lja.292.2017.06.21.05.04.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 04:51:54 -0700 (PDT)
-From: zhong jiang <zhongjiang@huawei.com>
-Subject: [PATCH] futex: avoid undefined behaviour when shift exponent is negative
-Date: Wed, 21 Jun 2017 19:43:57 +0800
-Message-ID: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 05:04:15 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id l200so9063567lfg.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:04:15 -0700 (PDT)
+Date: Wed, 21 Jun 2017 15:04:12 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170621120412.cdmg76jy2zby56cx@node.shutemov.name>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
+ <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+ <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+ <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: tglx@linutronix.de, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-when futex syscall is called from userspace, we find the following
-warning by ubsan detection.
+On Wed, Jun 21, 2017 at 12:27:02PM +0100, Catalin Marinas wrote:
+> On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > > We need an atomic way to setup pmd page table entry, avoiding races with
+> > > > > > > > CPU setting dirty/accessed bits. This is required to implement
+> > > > > > > > pmdp_invalidate() that doesn't loose these bits.
+> [...]
+> > Any chance you could help me with arm too?
+> 
+> On arm (ARMv7 with LPAE) we don't have hardware updates of the
+> access/dirty bits, so a generic implementation would suffice. I didn't
+> find one in your patches, so here's an untested version:
+> 
+> static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
+> 				   pmd_t *pmdp, pmd_t pmd)
+> {
+> 	pmd_t old_pmd = *pmdp;
+> 	set_pmd_at(mm, address, pmdp, pmd);
+> 	return old_pmd;
+> }
 
-[   63.237803] UBSAN: Undefined behaviour in /root/rpmbuild/BUILDROOT/kernel-3.10.0-327.49.58.52.x86_64/usr/src/linux-3.10.0-327.49.58.52.x86_64/arch/x86/include/asm/futex.h:53:13
-[   63.237803] shift exponent -16 is negative
-[   63.237803] CPU: 0 PID: 67 Comm: driver Not tainted 3.10.0 #1
-[   63.237803] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.8.1-0-g4adadbd-20150316_085822-nilsson.home.kraxel.org 04/01/2014
-[   63.237803]  fffffffffffffff0 000000009ad70fde ffff88000002fa08 ffffffff81ef0d6f
-[   63.237803]  ffff88000002fa20 ffffffff81ef0e2c ffffffff828f2540 ffff88000002fb90
-[   63.237803]  ffffffff81ef1ad0 ffffffff8141cc88 1ffff10000005f48 0000000041b58ab3
-[   63.237803] Call Trace:
-[   63.237803]  [<ffffffff81ef0d6f>] dump_stack+0x1e/0x20
-[   63.237803]  [<ffffffff81ef0e2c>] ubsan_epilogue+0x12/0x55
-[   63.237803]  [<ffffffff81ef1ad0>] __ubsan_handle_shift_out_of_bounds+0x237/0x29c
-[   63.237803]  [<ffffffff8141cc88>] ? kasan_alloc_pages+0x38/0x40
-[   63.237803]  [<ffffffff81ef1899>] ? __ubsan_handle_load_invalid_value+0x162/0x162
-[   63.237803]  [<ffffffff812092c1>] ? get_futex_key+0x361/0x6c0
-[   63.237803]  [<ffffffff81208f60>] ? get_futex_key_refs+0xb0/0xb0
-[   63.237803]  [<ffffffff8120b938>] futex_wake_op+0xb48/0xc70
-[   63.237803]  [<ffffffff8120b938>] ? futex_wake_op+0xb48/0xc70
-[   63.237803]  [<ffffffff8120adf0>] ? futex_wake+0x380/0x380
-[   63.237803]  [<ffffffff8121006c>] do_futex+0x2cc/0xb60
-[   63.237803]  [<ffffffff8120fda0>] ? exit_robust_list+0x350/0x350
-[   63.237803]  [<ffffffff814fa140>] ? __fsnotify_inode_delete+0x20/0x20
-[   63.237803]  [<ffffffff818cabc0>] ? n_tty_flush_buffer+0x80/0x80
-[   63.237803]  [<ffffffff814faed3>] ? __fsnotify_parent+0x53/0x210
-[   63.237803]  [<ffffffff81210a47>] SyS_futex+0x147/0x300
-[   63.237803]  [<ffffffff81210900>] ? do_futex+0xb60/0xb60
-[   63.237803]  [<ffffffff81f0a134>] ? do_page_fault+0x44/0xa0
-[   63.237803]  [<ffffffff81f16809>] system_call_fastpath+0x16/0x1b
+Thanks, I'll integrate this into the patchset.
 
-when shift expoment is negative, left shift alway zero. therefore, we
-modify the logic to avoid the warining.
-
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- arch/x86/include/asm/futex.h | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/futex.h b/arch/x86/include/asm/futex.h
-index b4c1f54..2425fca 100644
---- a/arch/x86/include/asm/futex.h
-+++ b/arch/x86/include/asm/futex.h
-@@ -49,8 +49,12 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
- 	int cmparg = (encoded_op << 20) >> 20;
- 	int oldval = 0, ret, tem;
- 
--	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
--		oparg = 1 << oparg;
-+	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
-+		if (oparg >= 0)
-+			oparg = 1 << oparg;
-+		else
-+			oparg = 0;
-+	}
- 
- 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
- 		return -EFAULT;
 -- 
-1.7.12.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
