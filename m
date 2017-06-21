@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C3F2B6B02B4
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:30:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r70so168932138pfb.7
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:30:48 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id s8si14361301pgr.167.2017.06.21.13.30.47
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E26F76B02C3
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:31:05 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id d62so47526436pfb.13
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id w20si656454pfi.382.2017.06.21.13.31.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 13:30:48 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
- of poison pages
-Date: Wed, 21 Jun 2017 20:30:46 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F612DCCAF@ORSMSX114.amr.corp.intel.com>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170621021226.GA18024@hori1.linux.bs1.fc.nec.co.jp>
- <20170621175403.n5kssz32e2oizl7k@intel.com>
- <AT5PR84MB0082AF4EDEB05999494CA62FABDA0@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-In-Reply-To: <AT5PR84MB0082AF4EDEB05999494CA62FABDA0@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
+Received: by mail-pf0-x231.google.com with SMTP id e7so10295540pfk.0
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:31:05 -0700 (PDT)
+Date: Wed, 21 Jun 2017 13:31:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Re: [PATCH] mm,oom_kill: Close race window of needlessly selecting
+ new victims.
+In-Reply-To: <201706210217.v5L2HAZc081021@www262.sakura.ne.jp>
+Message-ID: <alpine.DEB.2.10.1706211325340.101895@chino.kir.corp.google.com>
+References: <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com> <201706210217.v5L2HAZc081021@www262.sakura.ne.jp>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Borislav Petkov <bp@suse.de>, "Hansen, Dave" <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, "Vaden,
- Tom (HPE Server OS Architecture)" <tom.vaden@hpe.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> Persistent memory does have unpoisoning and would require this inverse
-> operation - see drivers/nvdimm/pmem.c pmem_clear_poison() and core.c
-> nvdimm_clear_poison().
+On Wed, 21 Jun 2017, Tetsuo Handa wrote:
 
-Nice.  Well this code will need to cooperate with that ... in particular if=
- the page
-is in an area that can be unpoisoned ... then we should do that *instead* o=
-f marking
-the page not present (which breaks up huge/large pages and so affects perfo=
-rmance).
+> Umm... So, you are pointing out that select_bad_process() aborts based on
+> TIF_MEMDIE or MMF_OOM_SKIP is broken because victim threads can be removed
+>  from global task list or cgroup's task list. Then, the OOM killer will have to
+> wait until all mm_struct of interested OOM domain (system wide or some cgroup)
+> is reaped by the OOM reaper. Simplest way is to wait until all mm_struct are
+> reaped by the OOM reaper, for currently we are not tracking which memory cgroup
+> each mm_struct belongs to, are we? But that can cause needless delay when
+> multiple OOM events occurred in different OOM domains. Do we want to (and can we)
+> make it possible to tell whether each mm_struct queued to the OOM reaper's list
+> belongs to the thread calling out_of_memory() ?
+> 
 
-Instead of calling it "arch_unmap_pfn" it could be called something like ar=
-ch_handle_poison()
-and do something like:
-
-void arch_handle_poison(unsigned long pfn)
-{
-	if this is a pmem page && pmem_clear_poison(pfn)
-		return
-	if this is a nvdimm page && nvdimm_clear_poison(pfn)
-		return
-	/* can't clear, map out from 1:1 region */
-	... code from my patch ...
-}
-
-I'm just not sure how those first two "if" bits work ... particularly in te=
-rms of CONFIG dependencies and system
-capabilities.  Perhaps each of pmem and nvdimm could register their unpoiso=
-n functions and this code could
-just call each in turn?
-
--Tony
-
+I am saying that taking mmget() in mark_oom_victim() and then only 
+dropping it with mmput_async() after it can grab mm->mmap_sem, which the 
+exit path itself takes, or the oom reaper happens to schedule, causes 
+__mmput() to be called much later and thus we remove the process from the 
+tasklist or call cgroup_exit() earlier than the memory can be unmapped 
+with your patch.  As a result, subsequent calls to the oom killer kills 
+everything before the original victim's mm can undergo __mmput() because 
+the oom reaper still holds the reference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
