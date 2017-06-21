@@ -1,89 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B456B042C
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:47:42 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id d191so181404663pga.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:47:42 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id h26si13646592pfk.157.2017.06.21.10.47.41
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B1BBE6B042E
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:52:07 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v88so21626940wrb.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:52:07 -0700 (PDT)
+Received: from mail-wr0-x244.google.com (mail-wr0-x244.google.com. [2a00:1450:400c:c0c::244])
+        by mx.google.com with ESMTPS id k12si16281069wrc.386.2017.06.21.10.52.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 10:47:41 -0700 (PDT)
-Date: Wed, 21 Jun 2017 10:47:40 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
- of poison pages
-Message-ID: <20170621174740.npbtg2e4o65tyrss@intel.com>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
+        Wed, 21 Jun 2017 10:52:05 -0700 (PDT)
+Received: by mail-wr0-x244.google.com with SMTP id 77so28418341wrb.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:52:05 -0700 (PDT)
+Date: Wed, 21 Jun 2017 20:52:03 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170621175203.g2susfjihyqrf245@node.shutemov.name>
+References: <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
+ <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+ <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+ <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
+ <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
+ <20170621171558.7zrgzc7uk3kspcys@node.shutemov.name>
+ <eeff42d2-fc4b-ea9c-81d2-145fb349f420@synopsys.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
+In-Reply-To: <eeff42d2-fc4b-ea9c-81d2-145fb349f420@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yazen Ghannam <yazen.ghannam@amd.com>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Mon, Jun 19, 2017 at 08:01:47PM +0200, Borislav Petkov wrote:
-> (drop stable from CC)
+On Wed, Jun 21, 2017 at 10:20:47AM -0700, Vineet Gupta wrote:
+> On 06/21/2017 10:16 AM, Kirill A. Shutemov wrote:
+> > On Wed, Jun 21, 2017 at 08:49:03AM -0700, Vineet Gupta wrote:
+> > > On 06/21/2017 04:27 AM, Catalin Marinas wrote:
+> > > > On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > > > > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > > > > > We need an atomic way to setup pmd page table entry, avoiding races with
+> > > > > > > > > > > CPU setting dirty/accessed bits. This is required to implement
+> > > > > > > > > > > pmdp_invalidate() that doesn't loose these bits.
+> > > > [...]
+> > > > > Any chance you could help me with arm too?
+> > > > On arm (ARMv7 with LPAE) we don't have hardware updates of the
+> > > > access/dirty bits, so a generic implementation would suffice. I didn't
+> > > > find one in your patches, so here's an untested version:
+> > > > 
+> > > > static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
+> > > > 				   pmd_t *pmdp, pmd_t pmd)
+> > > > {
+> > > > 	pmd_t old_pmd = *pmdp;
+> > > > 	set_pmd_at(mm, address, pmdp, pmd);
+> > > > 	return old_pmd;
+> > > > }
+> > > So it seems the discussions have settled down and pmdp_establish() can be
+> > > implemented in generic way as above and it will suffice if arch doesn't have
+> > > a special need. It would be nice to add the comment above generic version
+> > > that it only needs to be implemented if hardware sets the accessed/dirty
+> > > bits !
+> > > 
+> > > Then nothing special is needed for ARC - right ?
+> > I will define generic version as Catalin proposed with a comment, but
+> > under the name generic_pmdp_establish. An arch can make use of it by
+> > 
+> > #define pmdp_establish generic_pmdp_establish
 > 
-> You could use git's --suppress-cc= option when sending.
+> Can you do that for ARC in your next posting - or want me to once you have
+> posted that ?
 
-I would if I could work out how to use it. From reading the manual
-page there seem to be a few options to this, but none of them appear
-to just drop a specific address (apart from my own). :-(
+I'll do this.
 
-> > +#ifdef CONFIG_X86_64
-> > +
-> > +void arch_unmap_kpfn(unsigned long pfn)
-> > +{
-> 
-> I guess you can move the ifdeffery inside the function.
-
-If I do, then the compiler will emit an empty function. It's only
-a couple of bytes for the "ret" ... but why?  I may change it
-to:
-
-   #if defined(arch_unmap_kpfn) && defined(CONFIG_MEMORY_FAILURE)
-
-to narrow down further when we need this.
-
-> > +#if PGDIR_SHIFT + 9 < 63 /* 9 because cpp doesn't grok ilog2(PTRS_PER_PGD) */
-> 
-> Please no side comments.
-
-Ok.
-
-> Also, explain why the build-time check. (Sign-extension going away for VA
-> space yadda yadda..., 5 2/3 level paging :-))
-
-Will add.
-
-> Also, I'm assuming this whole "workaround" of sorts should be Intel-only?
-
-I'd assume that other X86 implementations would face similar issues (unless
-they have extremely cautious pre-fetchers and/or no speculation).
-
-I'm also assuming that non-X86 architectures that do recovery may want this
-too ... hence hooking the arch_unmap_kpfn() function into the generic
-memory_failure() code.
-
-> > +	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-> > +#else
-> > +#error "no unused virtual bit available"
-> > +#endif
-> > +
-> > +	if (set_memory_np(decoy_addr, 1))
-> > +		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map \n", pfn);
-> 
-> WARNING: unnecessary whitespace before a quoted newline
-> #107: FILE: arch/x86/kernel/cpu/mcheck/mce.c:1089:
-> +               pr_warn("Could not invalidate pfn=0x%lx from 1:1 map \n", pfn);
-
-Oops!  Will fix.
-
--Tony
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
