@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13C376B02B4
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:34:34 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b6so109896494oia.14
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:34:34 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v32si3953816otd.256.2017.06.21.13.34.33
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C1736B0279
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 17:19:42 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id f49so19455153wrf.5
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:19:42 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 2si3692673wri.139.2017.06.21.14.19.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 13:34:33 -0700 (PDT)
-Received: from mail-ua0-f169.google.com (mail-ua0-f169.google.com [209.85.217.169])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CD94022B48
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 20:34:32 +0000 (UTC)
-Received: by mail-ua0-f169.google.com with SMTP id 70so59965753uau.0
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:34:32 -0700 (PDT)
+        Wed, 21 Jun 2017 14:19:40 -0700 (PDT)
+Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
+	by mx0b-00082601.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5LLH2IB007077
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:19:39 -0700
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0b-00082601.pphosted.com with ESMTP id 2b7xavrg4t-1
+	(version=TLSv1 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:19:39 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: [v3 0/6] cgroup-aware OOM killer
+Date: Wed, 21 Jun 2017 22:19:10 +0100
+Message-ID: <1498079956-24467-1-git-send-email-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1706211127460.2328@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
- <alpine.DEB.2.20.1706211127460.2328@nanos>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 21 Jun 2017 13:34:10 -0700
-Message-ID: <CALCETrVCJo8dNBnEA2p3dhgymfcfMN=uhMz0XXn047=tsQNnFw@mail.gmail.com>
-Subject: Re: [PATCH v3 10/11] x86/mm: Enable CR4.PCIDE on supported systems
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>
 
-On Wed, Jun 21, 2017 at 2:39 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> On Tue, 20 Jun 2017, Andy Lutomirski wrote:
->> +     /* Set up PCID */
->> +     if (cpu_has(c, X86_FEATURE_PCID)) {
->> +             if (cpu_has(c, X86_FEATURE_PGE)) {
->> +                     cr4_set_bits(X86_CR4_PCIDE);
->
-> So I assume that you made sure that the PCID bits in CR3 are zero under all
-> circumstances as setting PCIDE would cause a #GP if not.
+This patchset makes the OOM killer cgroup-aware.
 
-Yes.  All existing code just shoves a PA of a page table in there.  As
-far as I know, neither Linux nor anyone else uses the silly PCD and
-PWT bits.  It's not even clear to me that they are functional if PAT
-is enabled.
+Patch 1 causes out_of_memory() look at the oom_victim counter
+      	to decide if a new victim is required.
 
->
-> And what happens on kexec etc? We need to reset the asid and PCIDE I assume.
->
+Patch 2 is main patch which implements cgroup-aware OOM killer.
 
-I assume it works roughly the same way as suspend, etc --
-mmu_cr4_features has the desired CR4 and the init code deals with it.
-And PGE, PKE, etc all work correctly.  I'm not sure why PCIDE needs to
-be cleared -- the init code will work just fine even if PCIDE is
-unexpectedly set.
+Patch 3 adds some debug output, which can be refined later.
 
-That being said, I haven't managed to understand what exactly the
-kexec code is doing.  But I think the relevant bit is here in
-relocate_kernel_64.S:
+Patch 4 introduces per-cgroup oom_score_adj knob.
 
-        /*
-         * Set cr4 to a known state:
-         *  - physical address extension enabled
-         */
-        movl    $X86_CR4_PAE, %eax
-        movq    %rax, %cr4
+Patch 5 fixes a problem with too many processes receiving an
+      	access to the memory reserves.
 
-Kexec folks, is it safe to assume that kexec can already deal with the
-new and old kernels disagreeing on what CR4 should be?
+Patch 6 is docs update.
+
+v1:
+  https://lkml.org/lkml/2017/5/18/969
+
+v2:
+  - Reworked victim selection based on feedback
+    from Michal Hocko, Vladimir Davydov and Johannes Weiner
+  - "Kill all tasks" is now an opt-in option, by default
+    only one process will be killed
+  - Added per-cgroup oom_score_adj
+  - Refined oom score calculations, suggested by Vladimir Davydov
+  - Converted to a patchset
+
+v3:
+  - Fixed swap accounting
+  - Switched to use oom_victims counter to prevent unnecessary kills
+  - TIF_MEMDIE is set only when necessary
+  - Moved all oom victim killing code into oom_kill.c
+  - Merged commits 1-4 into 6
+  - Separated oom_score_adj logic into a separate commit 4
+  - Separated debug output into a separate commit 3
+
+Roman Gushchin (6):
+  mm, oom: use oom_victims counter to synchronize oom victim selection
+  mm, oom: cgroup-aware OOM killer
+  mm, oom: cgroup-aware OOM killer debug info
+  mm, oom: introduce oom_score_adj for memory cgroups
+  mm, oom: don't mark all oom victims tasks with TIF_MEMDIE
+  mm,oom,docs: describe the cgroup-aware OOM killer
+
+ Documentation/cgroup-v2.txt |  44 ++++++++++
+ include/linux/memcontrol.h  |  23 +++++
+ include/linux/oom.h         |   3 +
+ kernel/exit.c               |   2 +-
+ mm/memcontrol.c             | 209 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/oom_kill.c               | 202 ++++++++++++++++++++++++++++--------------
+ 6 files changed, 416 insertions(+), 67 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
