@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CCF436B02FA
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 17:20:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v9so168080542pfk.5
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:20:01 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4076B02FD
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 17:20:14 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s74so169795603pfe.10
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:20:14 -0700 (PDT)
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l11si14142342pgc.375.2017.06.21.14.20.01
+        by mx.google.com with ESMTPS id 7si15318238pll.337.2017.06.21.14.20.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 14:20:01 -0700 (PDT)
+        Wed, 21 Jun 2017 14:20:12 -0700 (PDT)
 From: Roman Gushchin <guro@fb.com>
-Subject: [v3 6/6] mm,oom,docs: describe the cgroup-aware OOM killer
-Date: Wed, 21 Jun 2017 22:19:16 +0100
-Message-ID: <1498079956-24467-7-git-send-email-guro@fb.com>
+Subject: [v3 3/6] mm, oom: cgroup-aware OOM killer debug info
+Date: Wed, 21 Jun 2017 22:19:13 +0100
+Message-ID: <1498079956-24467-4-git-send-email-guro@fb.com>
 In-Reply-To: <1498079956-24467-1-git-send-email-guro@fb.com>
 References: <1498079956-24467-1-git-send-email-guro@fb.com>
 MIME-Version: 1.0
@@ -20,95 +20,89 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Update cgroups v2 docs.
+Dump the cgroup oom badness score, as well as the name
+of chosen victim cgroup.
+
+Here how it looks like in dmesg:
+[   18.824495] Choosing a victim memcg because of the system-wide OOM
+[   18.826911] Cgroup /A1: 200805
+[   18.827996] Cgroup /A2: 273072
+[   18.828937] Cgroup /A2/B3: 51
+[   18.829795] Cgroup /A2/B4: 272969
+[   18.830800] Cgroup /A2/B5: 52
+[   18.831890] Chosen cgroup /A2/B4: 272969
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Li Zefan <lizefan@huawei.com>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
 Cc: kernel-team@fb.com
 Cc: cgroups@vger.kernel.org
 Cc: linux-doc@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 ---
- Documentation/cgroup-v2.txt | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ mm/memcontrol.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-index a86f3cb..7a1a1ac 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -44,6 +44,7 @@ CONTENTS
-     5-2-1. Memory Interface Files
-     5-2-2. Usage Guidelines
-     5-2-3. Memory Ownership
-+    5-2-4. Cgroup-aware OOM Killer
-   5-3. IO
-     5-3-1. IO Interface Files
-     5-3-2. Writeback
-@@ -799,6 +800,26 @@ PAGE_SIZE multiple when read back.
- 	high limit is used and monitored properly, this limit's
- 	utility is limited to providing the final safety net.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index bdb5103..4face20 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2669,7 +2669,15 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
  
-+  memory.oom_kill_all_tasks
+ 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+ 		return false;
 +
-+	A read-write single value file which exits on non-root
-+	cgroups.  The default is "0".
++	pr_info("Choosing a victim memcg because of the %s",
++		oc->memcg ?
++		"memory limit reached of cgroup " :
++		"system-wide OOM\n");
+ 	if (oc->memcg) {
++		pr_cont_cgroup_path(oc->memcg->css.cgroup);
++		pr_cont("\n");
 +
-+	Defines whether the OOM killer should treat the cgroup
-+	as a single entity during the victim selection.
-+
-+	If set, it will cause the OOM killer to kill all belonging
-+	tasks, both in case of a system-wide or cgroup-wide OOM.
-+
-+  memory.oom_score_adj
-+
-+	A read-write single value file which exits on non-root
-+	cgroups.  The default is "0".
-+
-+	OOM killer score adjustment, which has as similar meaning
-+	to a per-process value, available via /proc/<pid>/oom_score_adj.
-+	Should be in a range [-1000, 1000].
-+
-   memory.events
+ 		chosen_memcg = oc->memcg;
+ 		parent = oc->memcg;
+ 	}
+@@ -2683,6 +2691,10 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
  
- 	A read-only flat-keyed file which exists on non-root cgroups.
-@@ -1028,6 +1049,29 @@ POSIX_FADV_DONTNEED to relinquish the ownership of memory areas
- belonging to the affected files to ensure correct memory ownership.
+ 			points = mem_cgroup_oom_badness(iter, oc->nodemask);
  
++			pr_info("Cgroup ");
++			pr_cont_cgroup_path(iter->css.cgroup);
++			pr_cont(": %ld\n", points);
++
+ 			if (points > chosen_memcg_points) {
+ 				chosen_memcg = iter;
+ 				chosen_memcg_points = points;
+@@ -2731,6 +2743,10 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
+ 			oc->chosen_memcg = chosen_memcg;
+ 		}
  
-+5-2-4. Cgroup-aware OOM Killer
++		pr_info("Chosen cgroup ");
++		pr_cont_cgroup_path(chosen_memcg->css.cgroup);
++		pr_cont(": %ld\n", oc->chosen_points);
 +
-+Cgroup v2 memory controller implements a cgroup-aware OOM killer.
-+It means that it treats memory cgroups as first class OOM entities.
-+
-+Under OOM conditions the memory controller tries to make the best
-+choise of a victim, hierarchically looking for the largest memory
-+consumer. By default, it will look for the biggest task in the
-+biggest leaf cgroup.
-+
-+But a user can change this behavior by enabling the per-cgroup
-+oom_kill_all_tasks option. If set, it causes the OOM killer treat
-+the whole cgroup as an indivisible memory consumer. In case if it's
-+selected as on OOM victim, all belonging tasks will be killed.
-+
-+Tasks in the root cgroup are treated as independent memory consumers,
-+and are compared with other memory consumers (e.g. leaf cgroups).
-+The root cgroup doesn't support the oom_kill_all_tasks feature.
-+
-+This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
-+the memory controller considers only cgroups belonging to the sub-tree
-+of the OOM'ing cgroup.
-+
- 5-3. IO
+ 		/*
+ 		 * Even if we have to kill all tasks in the cgroup,
+ 		 * we need to select the biggest task to start with.
+@@ -2739,7 +2755,9 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
+ 		 */
+ 		oc->chosen_points = 0;
+ 		mem_cgroup_scan_tasks(chosen_memcg, oom_evaluate_task, oc);
+-	}
++	} else if (oc->chosen)
++		pr_info("Chosen task %s (%d) in root cgroup: %ld\n",
++			oc->chosen->comm, oc->chosen->pid, oc->chosen_points);
  
- The "io" controller regulates the distribution of IO resources.  This
+ 	rcu_read_unlock();
+ 
 -- 
 2.7.4
 
