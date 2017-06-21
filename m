@@ -1,98 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C856B03B2
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:36:16 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b13so168859541pgn.4
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:36:16 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y73si12475574pfg.102.2017.06.21.01.36.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 01:36:15 -0700 (PDT)
-Message-ID: <594A307F.1090108@intel.com>
-Date: Wed, 21 Jun 2017 16:38:23 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD646B03B4
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:39:36 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v60so28375359wrc.7
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:39:36 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id q22si16542752wrb.377.2017.06.21.01.39.34
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jun 2017 01:39:35 -0700 (PDT)
+Date: Wed, 21 Jun 2017 10:39:18 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 20/36] x86, mpparse: Use memremap to map the mpf and
+ mpc data
+Message-ID: <20170621083918.oa2w5jsxs3si4oln@pd.tnic>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185338.18967.80659.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-Subject: Re: [Qemu-devel] [PATCH v11 4/6] mm: function to offer a page block
- on the free list
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>	<1497004901-30593-5-git-send-email-wei.w.wang@intel.com>	<b92af473-f00e-b956-ea97-eb4626601789@intel.com>	<1497977049.20270.100.camel@redhat.com>	<7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com> <1497979740.20270.102.camel@redhat.com>
-In-Reply-To: <1497979740.20270.102.camel@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170616185338.18967.80659.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
-Cc: Nitesh Narayan Lal <nilal@redhat.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On 06/21/2017 01:29 AM, Rik van Riel wrote:
-> On Tue, 2017-06-20 at 18:49 +0200, David Hildenbrand wrote:
->> On 20.06.2017 18:44, Rik van Riel wrote:
->>> Nitesh Lal (on the CC list) is working on a way
->>> to efficiently batch recently freed pages for
->>> free page hinting to the hypervisor.
->>>
->>> If that is done efficiently enough (eg. with
->>> MADV_FREE on the hypervisor side for lazy freeing,
->>> and lazy later re-use of the pages), do we still
->>> need the harder to use batch interface from this
->>> patch?
->>>
->> David's opinion incoming:
->>
->> No, I think proper free page hinting would be the optimum solution,
->> if
->> done right. This would avoid the batch interface and even turn
->> virtio-balloon in some sense useless.
-> I agree with that.  Let me go into some more detail of
-> what Nitesh is implementing:
->
-> 1) In arch_free_page, the being-freed page is added
->     to a per-cpu set of freed pages.
+On Fri, Jun 16, 2017 at 01:53:38PM -0500, Tom Lendacky wrote:
+> The SMP MP-table is built by UEFI and placed in memory in a decrypted
+> state. These tables are accessed using a mix of early_memremap(),
+> early_memunmap(), phys_to_virt() and virt_to_phys(). Change all accesses
+> to use early_memremap()/early_memunmap(). This allows for proper setting
+> of the encryption mask so that the data can be successfully accessed when
+> SME is active.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/kernel/mpparse.c |   98 ++++++++++++++++++++++++++++++++-------------
+>  1 file changed, 70 insertions(+), 28 deletions(-)
 
-I got some questions here:
+Reviewed-by: Borislav Petkov <bp@suse.de>
 
-1. Are the pages managed one by one on the per-CPU set?
-For example, when there are 2 adjacent pages, are they still
-put as two nodes on the per-CPU list? or the buddy algorithm
-will be re-implemented on the per-CPU list as well?
+Please put the conversion to pr_fmt() on the TODO list for later.
 
-2. Looks like this will be added to the common free function.
-Normally, people may not need the free page hint, do they
-need to carry the added burden?
+Thanks.
 
+-- 
+Regards/Gruss,
+    Boris.
 
-> 2) Once that set is full, arch_free_pages goes into a
->     slow path, which:
->     2a) Iterates over the set of freed pages, and
->     2b) Checks whether they are still free, and
-
-The pages that have been double checked as "free"
-pages here and added to the list for the hypervisor can
-also be immediately used.
-
-
->     2c) Adds the still free pages to a list that is
->         to be passed to the hypervisor, to be MADV_FREEd.
->     2d) Makes that hypercall.
->
-> Meanwhile all arch_alloc_pages has to do is make sure it
-> does not allocate a page while it is currently being
-> MADV_FREEd on the hypervisor side.
-
-Is this proposed to replace the balloon driver?
-
->
-> The code Wei is working on looks like it could be
-> suitable for steps (2c) and (2d) above. Nitesh already
-> has code for steps 1 through 2b.
->
-
-May I know the advantages of the added steps? Thanks.
-
-Best,
-Wei
-
-
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
