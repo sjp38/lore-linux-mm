@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7316B0415
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:38:20 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x23so31769152wrb.6
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:38:20 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id n7si1525117edn.180.2017.06.21.08.38.18
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFF46B0417
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:49:26 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id u127so6533993itg.11
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:49:26 -0700 (PDT)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id m93si2212736ioi.35.2017.06.21.08.49.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 08:38:19 -0700 (PDT)
-Date: Wed, 21 Jun 2017 17:37:22 +0200
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
- memory encryption
-Message-ID: <20170621153721.GP30388@8bytes.org>
-References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
- <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
- <20170614174208.p2yr5exs4b6pjxhf@pd.tnic>
- <0611d01a-19f8-d6ae-2682-932789855518@amd.com>
- <20170615094111.wga334kg2bhxqib3@pd.tnic>
+        Wed, 21 Jun 2017 08:49:25 -0700 (PDT)
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
+ <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+ <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+ <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Message-ID: <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
+Date: Wed, 21 Jun 2017 08:49:03 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170615094111.wga334kg2bhxqib3@pd.tnic>
+In-Reply-To: <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh
+ Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, Jun 15, 2017 at 11:41:12AM +0200, Borislav Petkov wrote:
-> On Wed, Jun 14, 2017 at 03:40:28PM -0500, Tom Lendacky wrote:
-> > > WARNING: Use of volatile is usually wrong: see Documentation/process/volatile-considered-harmful.rst
-> > > #134: FILE: drivers/iommu/amd_iommu.c:866:
-> > > +static void build_completion_wait(struct iommu_cmd *cmd, volatile u64 *sem)
-> > > 
-> > 
-> > The semaphore area is written to by the device so the use of volatile is
-> > appropriate in this case.
-> 
-> Do you mean this is like the last exception case in that document above:
-> 
-> "
->   - Pointers to data structures in coherent memory which might be modified
->     by I/O devices can, sometimes, legitimately be volatile.  A ring buffer
->     used by a network adapter, where that adapter changes pointers to
->     indicate which descriptors have been processed, is an example of this
->     type of situation."
-> 
-> ?
+On 06/21/2017 04:27 AM, Catalin Marinas wrote:
+> On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
+>>>>>>> On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+>>>>>>>> We need an atomic way to setup pmd page table entry, avoiding races with
+>>>>>>>> CPU setting dirty/accessed bits. This is required to implement
+>>>>>>>> pmdp_invalidate() that doesn't loose these bits.
+> [...]
+>> Any chance you could help me with arm too?
+> On arm (ARMv7 with LPAE) we don't have hardware updates of the
+> access/dirty bits, so a generic implementation would suffice. I didn't
+> find one in your patches, so here's an untested version:
+>
+> static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
+> 				   pmd_t *pmdp, pmd_t pmd)
+> {
+> 	pmd_t old_pmd = *pmdp;
+> 	set_pmd_at(mm, address, pmdp, pmd);
+> 	return old_pmd;
+> }
 
-So currently (without this patch) the build_completion_wait function
-does not take a volatile parameter, only wait_on_sem() does.
+So it seems the discussions have settled down and pmdp_establish() can be 
+implemented in generic way as above and it will suffice if arch doesn't have a 
+special need. It would be nice to add the comment above generic version that it 
+only needs to be implemented if hardware sets the accessed/dirty bits !
 
-Wait_on_sem() needs it because its purpose is to poll a memory location
-which is changed by the iommu-hardware when its done with command
-processing.
+Then nothing special is needed for ARC - right ?
 
-But the 'volatile' in build_completion_wait() looks unnecessary, because
-the function does not poll the memory location. It only uses the
-pointer, converts it to a physical address and writes it to the command
-to be queued.
-
-
-Regards,
-
-	Joerg
+-Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
