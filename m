@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D8FBF6B02F3
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:55:54 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g46so33177967wrd.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:55:54 -0700 (PDT)
-Received: from mail-wr0-x22e.google.com (mail-wr0-x22e.google.com. [2a00:1450:400c:c0c::22e])
-        by mx.google.com with ESMTPS id l185si13904544wmb.99.2017.06.21.11.55.53
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B84106B0279
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 15:48:03 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id e186so85490791ybb.0
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 12:48:03 -0700 (PDT)
+Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
+        by mx.google.com with ESMTPS id f15si4494173ybh.261.2017.06.21.12.48.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 11:55:53 -0700 (PDT)
-Received: by mail-wr0-x22e.google.com with SMTP id 77so147097972wrb.1
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:55:53 -0700 (PDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: [PATCH] mm/page_alloc.c: eliminate unsigned confusion in __rmqueue_fallback
-Date: Wed, 21 Jun 2017 20:55:28 +0200
-Message-Id: <20170621185529.2265-1-linux@rasmusvillemoes.dk>
-In-Reply-To: <20170621094344.GC22051@dhcp22.suse.cz>
-References: <20170621094344.GC22051@dhcp22.suse.cz>
+        Wed, 21 Jun 2017 12:48:02 -0700 (PDT)
+From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Subject: RE: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of
+ poison pages
+Date: Wed, 21 Jun 2017 19:47:57 +0000
+Message-ID: <AT5PR84MB0082AF4EDEB05999494CA62FABDA0@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
+References: <20170616190200.6210-1-tony.luck@intel.com>
+ <20170621021226.GA18024@hori1.linux.bs1.fc.nec.co.jp>
+ <20170621175403.n5kssz32e2oizl7k@intel.com>
+In-Reply-To: <20170621175403.n5kssz32e2oizl7k@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vinayak Menon <vinmenon@codeaurora.org>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: Hao Lee <haolee.swjtu@gmail.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "'dan.j.williams@intel.com'" <dan.j.williams@intel.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, "Vaden, Tom (HPE Server OS Architecture)" <tom.vaden@hpe.com>
 
-Since current_order starts as MAX_ORDER-1 and is then only
-decremented, the second half of the loop condition seems
-superfluous. However, if order is 0, we may decrement current_order
-past 0, making it UINT_MAX. This is obviously too subtle ([1], [2]).
 
-Since we need to add some comment anyway, change the two variables to
-signed, making the counting-down for loop look more familiar, and
-apparently also making gcc generate slightly smaller code.
+> -----Original Message-----
+> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-
+> owner@vger.kernel.org] On Behalf Of Luck, Tony
+> Sent: Wednesday, June 21, 2017 12:54 PM
+> To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Borislav Petkov <bp@suse.de>; Dave Hansen <dave.hansen@intel.com>;
+> x86@kernel.org; linux-mm@kvack.org; linux-kernel@vger.kernel.org
 
-[1] https://lkml.org/lkml/2016/6/20/493
-[2] https://lkml.org/lkml/2017/6/19/345
+(adding linux-nvdimm list in this reply)
 
-Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+> Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1
+> mappings of poison pages
+>=20
+> On Wed, Jun 21, 2017 at 02:12:27AM +0000, Naoya Horiguchi wrote:
+>=20
+> > We had better have a reverse operation of this to cancel the unmapping
+> > when unpoisoning?
+>=20
+> When we have unpoisoning, we can add something.  We don't seem to have
+> an inverse function for "set_memory_np" to just flip the _PRESENT bit
+> back on again. But it would be trivial to write a set_memory_pp().
+>=20
+> Since we'd be doing this after the poison has been cleared, we wouldn't
+> need to play games with the address.  We'd just use:
+>=20
+> 	set_memory_pp((unsigned long)pfn_to_kaddr(pfn), 1);
+>=20
+> -Tony
+
+Persistent memory does have unpoisoning and would require this inverse
+operation - see drivers/nvdimm/pmem.c pmem_clear_poison() and core.c
+nvdimm_clear_poison().
+
 ---
-Michal, something like this, perhaps?
+Robert Elliott, HPE Persistent Memory
 
-mm/page_alloc.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2302f250d6b1..e656f4da9772 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2204,19 +2204,23 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
-  * list of requested migratetype, possibly along with other pages from the same
-  * block, depending on fragmentation avoidance heuristics. Returns true if
-  * fallback was found so that __rmqueue_smallest() can grab it.
-+ *
-+ * The use of signed ints for order and current_order is a deliberate
-+ * deviation from the rest of this file, to make the for loop
-+ * condition simpler.
-  */
- static inline bool
--__rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-+__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- {
- 	struct free_area *area;
--	unsigned int current_order;
-+	int current_order;
- 	struct page *page;
- 	int fallback_mt;
- 	bool can_steal;
- 
- 	/* Find the largest possible block of pages in the other list */
- 	for (current_order = MAX_ORDER-1;
--				current_order >= order && current_order <= MAX_ORDER-1;
-+				current_order >= order;
- 				--current_order) {
- 		area = &(zone->free_area[current_order]);
- 		fallback_mt = find_suitable_fallback(area, current_order,
--- 
-2.11.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
