@@ -1,83 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B806B03EA
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:29:05 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id z22so21306090qka.4
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:29:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a195si2692905qkc.122.2017.06.21.05.29.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 05:29:04 -0700 (PDT)
-Date: Wed, 21 Jun 2017 15:28:56 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [virtio-dev] Re: [PATCH v11 6/6] virtio-balloon:
- VIRTIO_BALLOON_F_CMD_VQ
-Message-ID: <20170621151922-mutt-send-email-mst@kernel.org>
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
- <1497004901-30593-7-git-send-email-wei.w.wang@intel.com>
- <20170620190343-mutt-send-email-mst@kernel.org>
- <5949E7C0.3050106@intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 158FB6B03EC
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:32:07 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id w12so157220036pfk.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:32:07 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e85si13028378pfb.482.2017.06.21.05.32.05
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jun 2017 05:32:06 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v5 0/8] Support for contiguous pte hugepages
+References: <20170619170145.25577-1-punit.agrawal@arm.com>
+	<20170619150133.cb4173220e4e3abd02c6f6d0@linux-foundation.org>
+	<871sqezsk2.fsf@e105922-lin.cambridge.arm.com>
+	<20170620140831.6bd835649d475bcf30c3c434@linux-foundation.org>
+Date: Wed, 21 Jun 2017 13:32:02 +0100
+In-Reply-To: <20170620140831.6bd835649d475bcf30c3c434@linux-foundation.org>
+	(Andrew Morton's message of "Tue, 20 Jun 2017 14:08:31 -0700")
+Message-ID: <87fuety119.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5949E7C0.3050106@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, dave.hansen@intel.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, riel@redhat.com, nilal@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, will.deacon@arm.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, mike.kravetz@oracle.com, steve.capper@arm.com, mark.rutland@arm.com, linux-arch@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Jun 21, 2017 at 11:28:00AM +0800, Wei Wang wrote:
-> On 06/21/2017 12:18 AM, Michael S. Tsirkin wrote:
-> > On Fri, Jun 09, 2017 at 06:41:41PM +0800, Wei Wang wrote:
-> > > -	if (!virtqueue_indirect_desc_table_add(vq, desc, num)) {
-> > > +	if (!virtqueue_indirect_desc_table_add(vq, desc, *num)) {
-> > >   		virtqueue_kick(vq);
-> > > -		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> > > -		vb->balloon_page_chunk.chunk_num = 0;
-> > > +		if (busy_wait)
-> > > +			while (!virtqueue_get_buf(vq, &len) &&
-> > > +			       !virtqueue_is_broken(vq))
-> > > +				cpu_relax();
-> > > +		else
-> > > +			wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> > 
-> > This is something I didn't previously notice.
-> > As you always keep a single buffer in flight, you do not
-> > really need indirect at all. Just add all descriptors
-> > in the ring directly, then kick.
-> > 
-> > E.g.
-> > 	virtqueue_add_first
-> > 	virtqueue_add_next
-> > 	virtqueue_add_last
-> > 
-> > ?
-> > 
-> > You also want a flag to avoid allocations but there's no need to do it
-> > per descriptor, set it on vq.
-> > 
-> 
-> Without using the indirect table, I'm thinking about changing to use
-> the standard sg (i.e. struct scatterlist), instead of vring_desc, so that
-> we don't need to modify or add any new functions of virtqueue_add().
-> 
-> In this case, we will kmalloc an array of sgs in probe(), and we can add
-> the sgs one by one to the vq, which won't trigger the allocation of an
-> indirect table inside virtqueue_add(), and then kick when all are added.
-> 
-> Best,
-> Wei
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-And allocate headers too? This can work. API extensions aren't
-necessarily a bad idea though. The API I suggest above is preferable
-for the simple reason that it can work without INDIRECT flag
-support in hypervisor.
+> On Tue, 20 Jun 2017 14:39:57 +0100 Punit Agrawal <punit.agrawal@arm.com> wrote:
+>
+>> 
+>> The architecture supports two flavours of hugepages -
+>> 
+>> * Block mappings at the pud/pmd level
+>> 
+>>   These are regular hugepages where a pmd or a pud page table entry
+>>   points to a block of memory. Depending on the PAGE_SIZE in use the
+>>   following size of block mappings are supported -
+>> 
+>>           PMD	PUD
+>>           ---	---
+>>   4K:      2M	 1G
+>>   16K:    32M
+>>   64K:   512M
+>> 
+>>   For certain applications/usecases such as HPC and large enterprise
+>>   workloads, folks are using 64k page size but the minimum hugepage size
+>>   of 512MB isn't very practical.
+>> 
+>> To overcome this ...
+>> 
+>> * Using the Contiguous bit
+>> 
+>>   The architecture provides a contiguous bit in the translation table
+>>   entry which acts as a hint to the mmu to indicate that it is one of a
+>>   contiguous set of entries that can be cached in a single TLB entry.
+>> 
+>>   We use the contiguous bit in Linux to increase the mapping size at the
+>>   pmd and pte (last) level.
+>> 
+>>   The number of supported contiguous entries varies by page size and
+>>   level of the page table.
+>> 
+>>   Using the contiguous bit allows additional hugepage sizes -
+>> 
+>>            CONT PTE    PMD    CONT PMD    PUD
+>>            --------    ---    --------    ---
+>>     4K:         64K     2M         32M     1G
+>>     16K:         2M    32M          1G
+>>     64K:         2M   512M         16G
+>> 
+>>   Of these, 64K with 4K and 2M with 64K pages have been explicitly
+>>   requested by a few different users.
+>> 
+>> Entries with the contiguous bit set are required to be modified all
+>> together - which makes things like memory poisoning and migration
+>> impossible to do correctly without knowing the size of hugepage being
+>> dealt with - the reason for adding size parameter to a few of the
+>> hugepage helpers in this series.
+>> 
+>
+> Thanks, I added the above to the 1/n changelog.  Perhaps it's worth
+> adding something like this to Documentation/vm/hugetlbpage.txt.
 
-I wonder which APIs would Nitesh find useful.
+Yes, it would be useful to have this documented.
 
--- 
-MST
+I'll send a patch once the architecture bits for re-enabling contiguous
+hugepages are merged.
+
+Thanks,
+Punit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
