@@ -1,93 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 30CCE6B0397
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 02:39:40 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id k126so98817269oia.7
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 23:39:40 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id f184si4749510oih.322.2017.06.20.23.39.38
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E1616B03A0
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:16:17 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 4so12223230wrc.15
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 00:16:17 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id v127si12383526wma.59.2017.06.21.00.16.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jun 2017 23:39:38 -0700 (PDT)
-From: Sahitya Tummala <stummala@codeaurora.org>
-Subject: [PATCH v2] fs/dcache.c: fix spin lockup issue on nlru->lock
-Date: Wed, 21 Jun 2017 12:09:15 +0530
-Message-Id: <1498027155-4456-1-git-send-email-stummala@codeaurora.org>
-In-Reply-To: <6ab790fe-de97-9495-0d3b-804bae5d7fbb@codeaurora.org>
-References: <6ab790fe-de97-9495-0d3b-804bae5d7fbb@codeaurora.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 00:16:15 -0700 (PDT)
+Date: Wed, 21 Jun 2017 09:16:05 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
+ processing
+In-Reply-To: <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net>
+Message-ID: <alpine.DEB.2.20.1706202259290.2157@nanos>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net> <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Polakov <apolyakov@beget.ru>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.cz>, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
-Cc: Sahitya Tummala <stummala@codeaurora.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-__list_lru_walk_one() acquires nlru spin lock (nlru->lock) for
-longer duration if there are more number of items in the lru list.
-As per the current code, it can hold the spin lock for upto maximum
-UINT_MAX entries at a time. So if there are more number of items in
-the lru list, then "BUG: spinlock lockup suspected" is observed in
-the below path -
+On Fri, 16 Jun 2017, Tom Lendacky wrote:
+> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+> index a105796..988b336 100644
+> --- a/arch/x86/include/asm/mem_encrypt.h
+> +++ b/arch/x86/include/asm/mem_encrypt.h
+> @@ -15,16 +15,24 @@
+>  
+>  #ifndef __ASSEMBLY__
+>  
+> +#include <linux/init.h>
+> +
+>  #ifdef CONFIG_AMD_MEM_ENCRYPT
+>  
+>  extern unsigned long sme_me_mask;
+>  
+> +void __init sme_enable(void);
+> +
+>  #else	/* !CONFIG_AMD_MEM_ENCRYPT */
+>  
+>  #define sme_me_mask	0UL
+>  
+> +static inline void __init sme_enable(void) { }
+> +
+>  #endif	/* CONFIG_AMD_MEM_ENCRYPT */
+>  
+> +unsigned long sme_get_me_mask(void);
 
-[<ffffff8eca0fb0bc>] spin_bug+0x90
-[<ffffff8eca0fb220>] do_raw_spin_lock+0xfc
-[<ffffff8ecafb7798>] _raw_spin_lock+0x28
-[<ffffff8eca1ae884>] list_lru_add+0x28
-[<ffffff8eca1f5dac>] dput+0x1c8
-[<ffffff8eca1eb46c>] path_put+0x20
-[<ffffff8eca1eb73c>] terminate_walk+0x3c
-[<ffffff8eca1eee58>] path_lookupat+0x100
-[<ffffff8eca1f00fc>] filename_lookup+0x6c
-[<ffffff8eca1f0264>] user_path_at_empty+0x54
-[<ffffff8eca1e066c>] SyS_faccessat+0xd0
-[<ffffff8eca084e30>] el0_svc_naked+0x24
+Why is this an unconditional function? Isn't the mask simply 0 when the MEM
+ENCRYPT support is disabled?
 
-This nlru->lock is acquired by another CPU in this path -
+> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+> index 6225550..ef12729 100644
+> --- a/arch/x86/kernel/head_64.S
+> +++ b/arch/x86/kernel/head_64.S
+> @@ -78,7 +78,29 @@ startup_64:
+>  	call	__startup_64
+>  	popq	%rsi
+>  
+> -	movq	$(early_top_pgt - __START_KERNEL_map), %rax
+> +	/*
+> +	 * Encrypt the kernel if SME is active.
+> +	 * The real_mode_data address is in %rsi and that register can be
+> +	 * clobbered by the called function so be sure to save it.
+> +	 */
+> +	push	%rsi
+> +	call	sme_encrypt_kernel
+> +	pop	%rsi
 
-[<ffffff8eca1f5fd0>] d_lru_shrink_move+0x34
-[<ffffff8eca1f6180>] dentry_lru_isolate_shrink+0x48
-[<ffffff8eca1aeafc>] __list_lru_walk_one.isra.10+0x94
-[<ffffff8eca1aec34>] list_lru_walk_node+0x40
-[<ffffff8eca1f6620>] shrink_dcache_sb+0x60
-[<ffffff8eca1e56a8>] do_remount_sb+0xbc
-[<ffffff8eca1e583c>] do_emergency_remount+0xb0
-[<ffffff8eca0ba510>] process_one_work+0x228
-[<ffffff8eca0bb158>] worker_thread+0x2e0
-[<ffffff8eca0c040c>] kthread+0xf4
-[<ffffff8eca084dd0>] ret_from_fork+0x10
+That does not make any sense. Neither the call to sme_encrypt_kernel() nor
+the following call to sme_get_me_mask().
 
-Fix this lockup by reducing the number of entries to be shrinked
-from the lru list to 1024 at once. Also, add cond_resched() before
-processing the lru list again.
+__startup_64() is already C code, so why can't you simply call that from
+__startup_64() in C and return the mask from there?
 
-Link: http://marc.info/?t=149722864900001&r=1&w=2
-Fix-suggested-by: Jan kara <jack@suse.cz>
-Fix-suggested-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-Signed-off-by: Sahitya Tummala <stummala@codeaurora.org>
----
-v2: patch shrink_dcache_sb() instead of list_lru_walk()
----
- fs/dcache.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> @@ -98,7 +120,20 @@ ENTRY(secondary_startup_64)
+>  	/* Sanitize CPU configuration */
+>  	call verify_cpu
+>  
+> -	movq	$(init_top_pgt - __START_KERNEL_map), %rax
+> +	/*
+> +	 * Get the SME encryption mask.
+> +	 *  The encryption mask will be returned in %rax so we do an ADD
+> +	 *  below to be sure that the encryption mask is part of the
+> +	 *  value that will stored in %cr3.
+> +	 *
+> +	 * The real_mode_data address is in %rsi and that register can be
+> +	 * clobbered by the called function so be sure to save it.
+> +	 */
+> +	push	%rsi
+> +	call	sme_get_me_mask
+> +	pop	%rsi
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index cddf397..c8ca150 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -1133,10 +1133,11 @@ void shrink_dcache_sb(struct super_block *sb)
- 		LIST_HEAD(dispose);
- 
- 		freed = list_lru_walk(&sb->s_dentry_lru,
--			dentry_lru_isolate_shrink, &dispose, UINT_MAX);
-+			dentry_lru_isolate_shrink, &dispose, 1024);
- 
- 		this_cpu_sub(nr_dentry_unused, freed);
- 		shrink_dentry_list(&dispose);
-+		cond_resched();
- 	} while (freed > 0);
- }
- EXPORT_SYMBOL(shrink_dcache_sb);
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
+Do we really need a call here? The mask is established at this point, so
+it's either 0 when the encryption stuff is not compiled in or it can be
+retrieved from a variable which is accessible at this point.
+
+> +
+> +	addq	$(init_top_pgt - __START_KERNEL_map), %rax
+>  1:
+>  
+>  	/* Enable PAE mode, PGE and LA57 */
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
