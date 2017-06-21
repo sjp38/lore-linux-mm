@@ -1,217 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E57ED6B02B4
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:44:42 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s74so166293333pfe.10
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:44:42 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id h71si2059086wmi.1.2017.06.21.11.44.41
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 11:44:41 -0700 (PDT)
-Date: Wed, 21 Jun 2017 20:44:24 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
- flushing algorithm
-Message-ID: <20170621184424.eixb2jdyy66xq4hg@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org>
- <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DEC386B02F3
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:52:58 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u110so25542128wrb.14
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:52:58 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id f38si18996443wra.124.2017.06.21.11.52.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 11:52:57 -0700 (PDT)
+Date: Wed, 21 Jun 2017 20:52:47 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
+ processing
+In-Reply-To: <fc697503-ec54-f481-36b3-3d5bf63aaaee@amd.com>
+Message-ID: <alpine.DEB.2.20.1706212051120.2152@nanos>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net> <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net> <alpine.DEB.2.20.1706202259290.2157@nanos> <8d3c215f-cdad-5554-6e9c-5598e1081850@amd.com> <alpine.DEB.2.20.1706211720060.2328@nanos>
+ <fc697503-ec54-f481-36b3-3d5bf63aaaee@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue, Jun 20, 2017 at 10:22:11PM -0700, Andy Lutomirski wrote:
-> There are two kernel features that would benefit from tracking
-> how up-to-date each CPU's TLB is in the case where IPIs aren't keeping
-> it up to date in real time:
+On Wed, 21 Jun 2017, Tom Lendacky wrote:
+> On 6/21/2017 10:38 AM, Thomas Gleixner wrote:
+> > 	/*
+> > 	 * Sanitize CPU configuration and retrieve the modifier
+> > 	 * for the initial pgdir entry which will be programmed
+> > 	 * into CR3. Depends on enabled SME encryption, normally 0.
+> > 	 */
+> > 	call __startup_secondary_64
+> > 
+> >          addq    $(init_top_pgt - __START_KERNEL_map), %rax
+> > 
+> > You can hide that stuff in C-code nicely without adding any cruft to the
+> > ASM code.
+> > 
 > 
->  - Lazy mm switching currently works by switching to init_mm when
->    it would otherwise flush.  This is wasteful: there isn't fundamentally
->    any need to update CR3 at all when going lazy or when returning from
->    lazy mode, nor is there any need to receive flush IPIs at all.  Instead,
->    we should just stop trying to keep the TLB coherent when we go lazy and,
->    when unlazying, check whether we missed any flushes.
-> 
->  - PCID will let us keep recent user contexts alive in the TLB.  If we
->    start doing this, we need a way to decide whether those contexts are
->    up to date.
-> 
-> On some paravirt systems, remote TLBs can be flushed without IPIs.
-> This won't update the target CPUs' tlb_gens, which may cause
-> unnecessary local flushes later on.  We can address this if it becomes
-> a problem by carefully updating the target CPU's tlb_gen directly.
-> 
-> By itself, this patch is a very minor optimization that avoids
-> unnecessary flushes when multiple TLB flushes targetting the same CPU
-> race.
-> 
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/include/asm/tlbflush.h | 37 +++++++++++++++++++
->  arch/x86/mm/tlb.c               | 79 +++++++++++++++++++++++++++++++++++++----
->  2 files changed, 109 insertions(+), 7 deletions(-)
+> Moving the call to verify_cpu into the C-code might be quite a bit of
+> change.  Currently, the verify_cpu code is included code and not a
+> global function.
 
-...
+Ah. Ok. I missed that.
 
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 6d9d37323a43..9f5ef7a5e74a 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -105,6 +105,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->  	}
->  
->  	this_cpu_write(cpu_tlbstate.loaded_mm, next);
-> +	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
-> +	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
-> +		       atomic64_read(&next->context.tlb_gen));
+> I can still do the __startup_secondary_64() function and then look to
+> incorporate verify_cpu into both __startup_64() and
+> __startup_secondary_64() as a post-patch to this series.
 
-Just let it stick out:
+Yes, just having __startup_secondary_64() for now and there the extra bits
+for that encryption stuff is fine.
 
-	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id,  next->context.ctx_id);
-	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&next->context.tlb_gen));
+> At least the secondary path will have a base C routine to which
+> modifications can be made in the future if needed.  How does that sound?
 
-Should be a bit better readable this way.
-
->  
->  	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
->  	cpumask_set_cpu(cpu, mm_cpumask(next));
-> @@ -194,20 +197,73 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->  static void flush_tlb_func_common(const struct flush_tlb_info *f,
->  				  bool local, enum tlb_flush_reason reason)
->  {
-> +	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-> +
-> +	/*
-> +	 * Our memory ordering requirement is that any TLB fills that
-> +	 * happen after we flush the TLB are ordered after we read
-> +	 * active_mm's tlb_gen.  We don't need any explicit barrier
-> +	 * because all x86 flush operations are serializing and the
-> +	 * atomic64_read operation won't be reordered by the compiler.
-> +	 */
-> +	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
-> +	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
-> +
->  	/* This code cannot presently handle being reentered. */
->  	VM_WARN_ON(!irqs_disabled());
->  
-> +	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
-> +		   loaded_mm->context.ctx_id);
-> +
->  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
-> +		/*
-> +		 * leave_mm() is adequate to handle any type of flush, and
-> +		 * we would prefer not to receive further IPIs.
-> +		 */
->  		leave_mm(smp_processor_id());
->  		return;
->  	}
->  
-> -	if (f->end == TLB_FLUSH_ALL) {
-> -		local_flush_tlb();
-> -		if (local)
-> -			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> -		trace_tlb_flush(reason, TLB_FLUSH_ALL);
-> -	} else {
-> +	if (local_tlb_gen == mm_tlb_gen) {
-
-	if (unlikely(... 
-
-maybe?
-
-Sounds to me like the concurrent flushes case would be the
-uncommon one...
-
-> +		/*
-> +		 * There's nothing to do: we're already up to date.  This can
-> +		 * happen if two concurrent flushes happen -- the first IPI to
-> +		 * be handled can catch us all the way up, leaving no work for
-> +		 * the second IPI to be handled.
-> +		 */
-> +		return;
-> +	}
-
-
-> +
-> +	WARN_ON_ONCE(local_tlb_gen > mm_tlb_gen);
-> +	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
-> +
-> +	/*
-> +	 * If we get to this point, we know that our TLB is out of date.
-> +	 * This does not strictly imply that we need to flush (it's
-> +	 * possible that f->new_tlb_gen <= local_tlb_gen), but we're
-> +	 * going to need to flush in the very near future, so we might
-> +	 * as well get it over with.
-> +	 *
-> +	 * The only question is whether to do a full or partial flush.
-> +	 *
-> +	 * A partial TLB flush is safe and worthwhile if two conditions are
-> +	 * met:
-> +	 *
-> +	 * 1. We wouldn't be skipping a tlb_gen.  If the requester bumped
-> +	 *    the mm's tlb_gen from p to p+1, a partial flush is only correct
-> +	 *    if we would be bumping the local CPU's tlb_gen from p to p+1 as
-> +	 *    well.
-> +	 *
-> +	 * 2. If there are no more flushes on their way.  Partial TLB
-> +	 *    flushes are not all that much cheaper than full TLB
-> +	 *    flushes, so it seems unlikely that it would be a
-> +	 *    performance win to do a partial flush if that won't bring
-> +	 *    our TLB fully up to date.
-> +	 */
-> +	if (f->end != TLB_FLUSH_ALL &&
-> +	    f->new_tlb_gen == local_tlb_gen + 1 &&
-> +	    f->new_tlb_gen == mm_tlb_gen) {
-
-I'm certainly still missing something here:
-
-We have f->new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we
-do once
-
-	bump_mm_tlb_gen(mm);
-
-and once
-
-	info.new_tlb_gen = bump_mm_tlb_gen(mm);
-
-and in both cases, the bumping is done on mm->context.tlb_gen.
-
-So why isn't that enough to do the flushing and we have to consult
-info.new_tlb_gen too?
-
-> +		/* Partial flush */
->  		unsigned long addr;
->  		unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
-
-<---- newline here.
-
->  		addr = f->start;
-> @@ -218,7 +274,16 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
->  		if (local)
->  			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
->  		trace_tlb_flush(reason, nr_pages);
-> +	} else {
-> +		/* Full flush. */
-> +		local_flush_tlb();
-> +		if (local)
-> +			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> +		trace_tlb_flush(reason, TLB_FLUSH_ALL);
->  	}
-> +
-> +	/* Both paths above update our state to mm_tlb_gen. */
-> +	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);
->  }
->  
->  static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Sounds like a plan.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
