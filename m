@@ -1,80 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CD2E6B0279
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:53:51 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c12so33001894pfk.3
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 16:53:51 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 71si11573861pfh.236.2017.06.20.16.53.49
-        for <linux-mm@kvack.org>;
-        Tue, 20 Jun 2017 16:53:50 -0700 (PDT)
-Date: Wed, 21 Jun 2017 09:53:46 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
-Message-ID: <20170620235346.GK17542@dastard>
-References: <CAPcyv4j4UEegViDJcLZjVv5AFGC18-DcvHFnhZatB0hH3BY85g@mail.gmail.com>
- <CALCETrUfv26pvmyQ1gOkKbzfSXK2DnmeBG6VmSWjFy1WBhknTw@mail.gmail.com>
- <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
- <CALCETrVY38h2ajpod2U_2pdHSp8zO4mG2p19h=OnnHmhGTairw@mail.gmail.com>
- <20170619132107.GG11993@dastard>
- <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
- <20170620004653.GI17542@dastard>
- <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
- <20170620084924.GA9752@lst.de>
- <CAPcyv4jkH6iwDoG4NnCaTNXozwYgVXiJDe2iFSONcE63KvGQoA@mail.gmail.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5F86B0279
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 20:09:21 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id o7so29175350ite.13
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 17:09:21 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id t191si15225267itb.13.2017.06.20.17.09.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Jun 2017 17:09:20 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: Allow slab_nomerge to be set at build time
+References: <20170620230911.GA25238@beast>
+ <1eb1cfff-14f0-8fa9-1b48-679865339646@infradead.org>
+ <CAGXu5jLUqqg-aAD6mGs613GCH6H443+3VU9OfCca+=Lf+Z9j9g@mail.gmail.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <3299def6-0c86-3a5c-88d2-12f8c87e151f@infradead.org>
+Date: Tue, 20 Jun 2017 17:09:07 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4jkH6iwDoG4NnCaTNXozwYgVXiJDe2iFSONcE63KvGQoA@mail.gmail.com>
+In-Reply-To: <CAGXu5jLUqqg-aAD6mGs613GCH6H443+3VU9OfCca+=Lf+Z9j9g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Rudoff, Andy" <andy.rudoff@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Christoph Lameter <cl@linux.com>, Jonathan Corbet <corbet@lwn.net>, Daniel Micay <danielmicay@gmail.com>, David Windsor <dave@nullcore.net>, Eric Biggers <ebiggers3@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 20, 2017 at 09:17:36AM -0700, Dan Williams wrote:
-> On Tue, Jun 20, 2017 at 1:49 AM, Christoph Hellwig <hch@lst.de> wrote:
-> > [stripped giant fullquotes]
-> >
-> > On Mon, Jun 19, 2017 at 10:53:12PM -0700, Andy Lutomirski wrote:
-> >> But that's my whole point.  The kernel doesn't really need to prevent
-> >> all these background maintenance operations -- it just needs to block
-> >> .page_mkwrite until they are synced.  I think that whatever new
-> >> mechanism we add for this should be sticky, but I see no reason why
-> >> the filesystem should have to block reflink on a DAX file entirely.
-> >
-> > Agreed - IFF we want to support write through semantics this is the
-> > only somewhat feasible way.  It still has massive downsides of forcing
-> > the full sync machinery to run from the page fauly handler, which
-> > I'm rather scared off, but that's still better than creating a magic
-> > special case that isn't managable at all.
+On 06/20/2017 04:29 PM, Kees Cook wrote:
+> On Tue, Jun 20, 2017 at 4:16 PM, Randy Dunlap <rdunlap@infradead.org> wrote:
+>> On 06/20/2017 04:09 PM, Kees Cook wrote:
+>>> Some hardened environments want to build kernels with slab_nomerge
+>>> already set (so that they do not depend on remembering to set the kernel
+>>> command line option). This is desired to reduce the risk of kernel heap
+>>> overflows being able to overwrite objects from merged caches and changes
+>>> the requirements for cache layout control, increasing the difficulty of
+>>> these attacks. By keeping caches unmerged, these kinds of exploits can
+>>> usually only damage objects in the same cache (though the risk to metadata
+>>> exploitation is unchanged).
+>>>
+>>> Cc: Daniel Micay <danielmicay@gmail.com>
+>>> Cc: David Windsor <dave@nullcore.net>
+>>> Cc: Eric Biggers <ebiggers3@gmail.com>
+>>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>>> ---
+>>> v2: split out of slab whitelisting series
+>>> ---
+>>>  Documentation/admin-guide/kernel-parameters.txt | 10 ++++++++--
+>>>  init/Kconfig                                    | 14 ++++++++++++++
+>>>  mm/slab_common.c                                |  5 ++---
+>>>  3 files changed, 24 insertions(+), 5 deletions(-)
+>>
+>>> diff --git a/init/Kconfig b/init/Kconfig
+>>> index 1d3475fc9496..ce813acf2f4f 100644
+>>> --- a/init/Kconfig
+>>> +++ b/init/Kconfig
+>>> @@ -1891,6 +1891,20 @@ config SLOB
+>>>
+>>>  endchoice
+>>>
+>>> +config SLAB_MERGE_DEFAULT
+>>> +     bool "Allow slab caches to be merged"
+>>> +     default y
+>>> +     help
+>>> +       For reduced kernel memory fragmentation, slab caches can be
+>>> +       merged when they share the same size and other characteristics.
+>>> +       This carries a risk of kernel heap overflows being able to
+>>> +       overwrite objects from merged caches (and more easily control
+>>> +       cache layout), which makes such heap attacks easier to exploit
+>>> +       by attackers. By keeping caches unmerged, these kinds of exploits
+>>> +       can usually only damage objects in the same cache. To disable
+>>> +       merging at runtime, "slab_nomerge" can be passed on the kernel
+>>> +       command line.
+>>
+>>           command line or this option can be disabled in the kernel config.
 > 
-> An immutable-extent DAX-file and a reflink-capable DAX-file are not
-> mutually exclusive,
+> Isn't that implicit in that it is Kconfig help text? Happy to add it,
+> but seems redundant to me.
+> 
 
-Actually, they are mutually exclusive: when the immutable extent DAX
-inode is breaking the extent sharing done during the reflink
-operation, the copy-on-write operation requires allocating and
-freeing extents on the inode that has immutable extents. Which, if
-the inode really has immutable extents, cannot be done.
+Just trying for completeness instead of being implicit.
 
-That said, if the extent sharing is broken on the other side of the
-reflink (i.e. the non-immutable inode created by the reflink) then
-the extent map of the inode with immutable extents will remain
-unchanged. i.e. there are two sides to this, and if you only see one
-side you might come to the wrong conclusion.
+> 
+>>
+>>> +
+>>>  config SLAB_FREELIST_RANDOM
+>>>       default n
+>>>       depends on SLAB || SLUB
+>>
+>> --
+>> ~Randy
+> 
+> 
+> 
 
-However, we cannot guarantee that no writes occur to the inode with
-immutable extent maps (especially as the whole point is to allow
-userspace writes and commits without the kernel being involved), so
-extent sharing on immutable extent maps cannot be allowed...
 
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
