@@ -1,84 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 684FF6B041A
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:21:18 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id e187so178195950pgc.7
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:21:18 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id u23si7700673plk.164.2017.06.21.10.21.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 10:21:17 -0700 (PDT)
-Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
- <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
- <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
- <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
- <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
- <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
- <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
- <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
- <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
- <20170621171558.7zrgzc7uk3kspcys@node.shutemov.name>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <eeff42d2-fc4b-ea9c-81d2-145fb349f420@synopsys.com>
-Date: Wed, 21 Jun 2017 10:20:47 -0700
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D328F6B0428
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:29:46 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v60so32658487wrc.7
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:29:46 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id l126si17478683wmd.3.2017.06.21.10.29.45
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jun 2017 10:29:45 -0700 (PDT)
+Date: Wed, 21 Jun 2017 19:29:28 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness
+ tracking
+Message-ID: <20170621172928.uxb35qpyksppcqhn@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org>
+ <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
+ <alpine.DEB.2.20.1706211033340.2328@nanos>
+ <CALCETrXkRQDWQH6oZfg4-36i4sgxjhfXmfaatHmmgXKVwtX+qA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170621171558.7zrgzc7uk3kspcys@node.shutemov.name>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CALCETrXkRQDWQH6oZfg4-36i4sgxjhfXmfaatHmmgXKVwtX+qA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S.
- Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On 06/21/2017 10:16 AM, Kirill A. Shutemov wrote:
-> On Wed, Jun 21, 2017 at 08:49:03AM -0700, Vineet Gupta wrote:
->> On 06/21/2017 04:27 AM, Catalin Marinas wrote:
->>> On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
->>>>>>>>> On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
->>>>>>>>>> We need an atomic way to setup pmd page table entry, avoiding races with
->>>>>>>>>> CPU setting dirty/accessed bits. This is required to implement
->>>>>>>>>> pmdp_invalidate() that doesn't loose these bits.
->>> [...]
->>>> Any chance you could help me with arm too?
->>> On arm (ARMv7 with LPAE) we don't have hardware updates of the
->>> access/dirty bits, so a generic implementation would suffice. I didn't
->>> find one in your patches, so here's an untested version:
->>>
->>> static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
->>> 				   pmd_t *pmdp, pmd_t pmd)
->>> {
->>> 	pmd_t old_pmd = *pmdp;
->>> 	set_pmd_at(mm, address, pmdp, pmd);
->>> 	return old_pmd;
->>> }
->> So it seems the discussions have settled down and pmdp_establish() can be
->> implemented in generic way as above and it will suffice if arch doesn't have
->> a special need. It would be nice to add the comment above generic version
->> that it only needs to be implemented if hardware sets the accessed/dirty
->> bits !
->>
->> Then nothing special is needed for ARC - right ?
-> I will define generic version as Catalin proposed with a comment, but
-> under the name generic_pmdp_establish. An arch can make use of it by
->
-> #define pmdp_establish generic_pmdp_establish
+On Wed, Jun 21, 2017 at 09:04:48AM -0700, Andy Lutomirski wrote:
+> I'll look at the end of the whole series and see if I can come up with
+> something good.
 
-Can you do that for ARC in your next posting - or want me to once you have posted 
-that ?
+... along with the logic what we flush when, please. I.e., the text in
+struct flush_tlb_info.
 
+Thanks.
 
-> I don't want it to be used by default without attention from architecture
-> maintainer. It can lead unnoticied breakage if THP got enabled on new
-> arch.
+-- 
+Regards/Gruss,
+    Boris.
 
-Makes sense !
-
--Vineet
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
