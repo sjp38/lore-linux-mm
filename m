@@ -1,54 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 694046B0292
-	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:17:22 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id i93so3514576iod.4
-        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:17:22 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q123si11787750itg.131.2017.06.20.19.17.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Jun 2017 19:17:21 -0700 (PDT)
-Message-Id: <201706210217.v5L2HAZc081021@www262.sakura.ne.jp>
-Subject: Re: Re: [PATCH] =?ISO-2022-JP?B?bW0sb29tX2tpbGw6IENsb3NlIHJhY2Ugd2luZG93?=
- =?ISO-2022-JP?B?IG9mIG5lZWRsZXNzbHkgc2VsZWN0aW5nIG5ldyB2aWN0aW1zLg==?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C440B6B0279
+	for <linux-mm@kvack.org>; Tue, 20 Jun 2017 22:20:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l68so27568193pfi.11
+        for <linux-mm@kvack.org>; Tue, 20 Jun 2017 19:20:43 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id p1si12840598pld.128.2017.06.20.19.20.42
+        for <linux-mm@kvack.org>;
+        Tue, 20 Jun 2017 19:20:42 -0700 (PDT)
+Date: Wed, 21 Jun 2017 12:19:03 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
+ byte-addressable updates to pmem
+Message-ID: <20170621021903.GM17542@dastard>
+References: <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
+ <CALCETrVY38h2ajpod2U_2pdHSp8zO4mG2p19h=OnnHmhGTairw@mail.gmail.com>
+ <20170619132107.GG11993@dastard>
+ <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
+ <20170620004653.GI17542@dastard>
+ <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
+ <20170620084924.GA9752@lst.de>
+ <CAPcyv4jkH6iwDoG4NnCaTNXozwYgVXiJDe2iFSONcE63KvGQoA@mail.gmail.com>
+ <20170620235346.GK17542@dastard>
+ <20170621012403.GB4730@birch.djwong.org>
 MIME-Version: 1.0
-Date: Wed, 21 Jun 2017 11:17:09 +0900
-References: <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp> <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170621012403.GB4730@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Christoph Hellwig <hch@lst.de>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Rudoff, Andy" <andy.rudoff@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
 
-David Rientjes wrote:
-> This doesn't prevent serial oom killing for either the system oom killer 
-> or for the memcg oom killer.
+On Tue, Jun 20, 2017 at 06:24:03PM -0700, Darrick J. Wong wrote:
+> On Wed, Jun 21, 2017 at 09:53:46AM +1000, Dave Chinner wrote:
+> > On Tue, Jun 20, 2017 at 09:17:36AM -0700, Dan Williams wrote:
+> > > An immutable-extent DAX-file and a reflink-capable DAX-file are not
+> > > mutually exclusive,
+> > 
+> > Actually, they are mutually exclusive: when the immutable extent DAX
+> > inode is breaking the extent sharing done during the reflink
+> > operation, the copy-on-write operation requires allocating and
+> > freeing extents on the inode that has immutable extents. Which, if
+> > the inode really has immutable extents, cannot be done.
+> > 
+> > That said, if the extent sharing is broken on the other side of the
+> > reflink (i.e. the non-immutable inode created by the reflink) then
+> > the extent map of the inode with immutable extents will remain
+> > unchanged. i.e. there are two sides to this, and if you only see one
+> > side you might come to the wrong conclusion.
+> > 
+> > However, we cannot guarantee that no writes occur to the inode with
+> > immutable extent maps (especially as the whole point is to allow
+> > userspace writes and commits without the kernel being involved), so
+> > extent sharing on immutable extent maps cannot be allowed...
 > 
-> The oom killer cannot detect tsk_is_oom_victim() if the task has either 
-> been removed from the tasklist or has already done cgroup_exit().  For 
-> memcg oom killings in particular, cgroup_exit() is usually called very 
-> shortly after the oom killer has sent the SIGKILL.  If the oom reaper does 
-> not fail (for example by failing to grab mm->mmap_sem) before another 
-> memcg charge after cgroup_exit(victim), additional processes are killed 
-> because the iteration does not view the victim.
+> Just to play devil's advocate...
 > 
-> This easily kills all processes attached to the memcg with no memory 
-> freeing from any victim.
+> /If/ you have rmap and /if/ you discover that there's only one
+> IOMAP_IMMUTABLE file owning this same block and /if/ you're willing to
+> relocate every other mapping on the whole filesystem, /then/ you could
+> /in theory/ support shared daxfiles.
 
-Umm... So, you are pointing out that select_bad_process() aborts based on
-TIF_MEMDIE or MMF_OOM_SKIP is broken because victim threads can be removed
- from global task list or cgroup's task list. Then, the OOM killer will have to
-wait until all mm_struct of interested OOM domain (system wide or some cgroup)
-is reaped by the OOM reaper. Simplest way is to wait until all mm_struct are
-reaped by the OOM reaper, for currently we are not tracking which memory cgroup
-each mm_struct belongs to, are we? But that can cause needless delay when
-multiple OOM events occurred in different OOM domains. Do we want to (and can we)
-make it possible to tell whether each mm_struct queued to the OOM reaper's list
-belongs to the thread calling out_of_memory() ?
+I figured that nobody apart from experienced filesystem developers
+would understand the complexities of rmap and refcounts and how they
+could be abused to do this. I also assumed that that people like you
+would understand this is possible but completely impractical....
+
+> However, that's so many on-disk metadata lookups to shove into a
+> pagefault handler that I don't think anyone in XFSland would entertain
+> such an ugly fantasy.  You'd be making a lot of metadata requests, and
+> you'd have to lock the rmapbt while grabbing inodes, which is insane.
+
+Exactly. But while I understand this, consider the amount of assumed
+filesystem and XFS knowledge in that one simple paragraph. Most
+non-experts would have stopped *understanding* at "/If/ you have
+rmap" and go away with the wrong ideas in their heads. Hence I now
+tend to omit mentioning "possible but impractical" things in mixed
+expertise discussions....
+
+> Much easier to have a per-inode flag that says "the block map of this
+> file does not change" and put up with the restricted semantics.
+
+In a nutshell.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
