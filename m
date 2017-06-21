@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE4D6B0433
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:54:42 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id p5so35221319ybg.10
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:54:42 -0700 (PDT)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id z191si4442022ywa.515.2017.06.21.10.54.41
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AE42C6B0433
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:20:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 64so26331458wrp.4
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:20:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z85si13212912wmh.60.2017.06.21.11.19.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 10:54:41 -0700 (PDT)
-Received: by mail-yw0-x241.google.com with SMTP id s127so11116262ywg.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:54:41 -0700 (PDT)
-Date: Wed, 21 Jun 2017 13:54:39 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/1] percpu: fix early calls for spinlock in pcpu_stats
-Message-ID: <20170621175439.GA10139@htj.duckdns.org>
-References: <20170619232832.27116-1-dennisz@fb.com>
- <20170619232832.27116-5-dennisz@fb.com>
- <20170621161836.tv67op4hokja35bc@sasha-lappy>
- <20170621175245.GA99514@dennisz-mbp.dhcp.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170621175245.GA99514@dennisz-mbp.dhcp.thefacebook.com>
+        Wed, 21 Jun 2017 11:19:59 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5LIIXYV018450
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:19:58 -0400
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2b7r1munpw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 14:19:57 -0400
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zohar@linux.vnet.ibm.com>;
+	Thu, 22 Jun 2017 04:19:55 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v5LIJjt0983350
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 04:19:53 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v5LIJLmB028188
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 04:19:21 +1000
+From: Mimi Zohar <zohar@linux.vnet.ibm.com>
+Subject: [PATCH v2 05/10] tmpfs: define integrity_read method
+Date: Wed, 21 Jun 2017 14:18:25 -0400
+In-Reply-To: <1498069110-10009-1-git-send-email-zohar@linux.vnet.ibm.com>
+References: <1498069110-10009-1-git-send-email-zohar@linux.vnet.ibm.com>
+Message-Id: <1498069110-10009-6-git-send-email-zohar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisz@fb.com>
-Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Christoph Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-team@fb.com" <kernel-team@fb.com>
+To: Christoph Hellwig <hch@lst.de>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Mimi Zohar <zohar@linux.vnet.ibm.com>, James Morris <jmorris@namei.org>, linux-fsdevel@vger.kernel.org, linux-ima-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Wed, Jun 21, 2017 at 01:52:46PM -0400, Dennis Zhou wrote:
-> From 2c06e795162cb306c9707ec51d3e1deadb37f573 Mon Sep 17 00:00:00 2001
-> From: Dennis Zhou <dennisz@fb.com>
-> Date: Wed, 21 Jun 2017 10:17:09 -0700
-> 
-> Commit 30a5b5367ef9 ("percpu: expose statistics about percpu memory via
-> debugfs") introduces percpu memory statistics. pcpu_stats_chunk_alloc
-> takes the spin lock and disables/enables irqs on creation of a chunk. Irqs
-> are not enabled when the first chunk is initialized and thus kernels are
-> failing to boot with kernel debugging enabled. Fixed by changing _irq to
-> _irqsave and _irqrestore.
-> 
-> Fixes: 30a5b5367ef9 ("percpu: expose statistics about percpu memory via debugfs")
-> Signed-off-by: Dennis Zhou <dennisz@fb.com>
-> Reported-by: Alexander Levin <alexander.levin@verizon.com>
+Define an ->integrity_read file operation method to read data for
+integrity hash collection.
 
-Applied to percpu/for-4.13.
+Signed-off-by: Mimi Zohar <zohar@linux.vnet.ibm.com>
+---
+ mm/shmem.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-Thanks.
-
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e67d6ba4e98e..16958b20946f 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3846,6 +3846,7 @@ static const struct file_operations shmem_file_operations = {
+ 	.splice_read	= generic_file_splice_read,
+ 	.splice_write	= iter_file_splice_write,
+ 	.fallocate	= shmem_fallocate,
++	.integrity_read	= shmem_file_read_iter,
+ #endif
+ };
+ 
 -- 
-tejun
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
