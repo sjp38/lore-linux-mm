@@ -1,66 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CFF46B0417
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:49:26 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id u127so6533993itg.11
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:49:26 -0700 (PDT)
-Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id m93si2212736ioi.35.2017.06.21.08.49.24
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 75E9B6B0411
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 12:05:12 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id i19so109861392ote.14
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:05:12 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u4si7518619otf.87.2017.06.21.09.05.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 08:49:25 -0700 (PDT)
-Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
- <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
- <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
- <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
- <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
- <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
- <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
- <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
-Date: Wed, 21 Jun 2017 08:49:03 -0700
+        Wed, 21 Jun 2017 09:05:11 -0700 (PDT)
+Received: from mail-ua0-f171.google.com (mail-ua0-f171.google.com [209.85.217.171])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9E14722B4B
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:05:10 +0000 (UTC)
+Received: by mail-ua0-f171.google.com with SMTP id j53so103552112uaa.2
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:05:10 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+In-Reply-To: <alpine.DEB.2.20.1706211033340.2328@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
+ <alpine.DEB.2.20.1706211033340.2328@nanos>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 21 Jun 2017 09:04:48 -0700
+Message-ID: <CALCETrXkRQDWQH6oZfg4-36i4sgxjhfXmfaatHmmgXKVwtX+qA@mail.gmail.com>
+Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness tracking
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh
- Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On 06/21/2017 04:27 AM, Catalin Marinas wrote:
-> On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
->>>>>>> On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
->>>>>>>> We need an atomic way to setup pmd page table entry, avoiding races with
->>>>>>>> CPU setting dirty/accessed bits. This is required to implement
->>>>>>>> pmdp_invalidate() that doesn't loose these bits.
-> [...]
->> Any chance you could help me with arm too?
-> On arm (ARMv7 with LPAE) we don't have hardware updates of the
-> access/dirty bits, so a generic implementation would suffice. I didn't
-> find one in your patches, so here's an untested version:
+On Wed, Jun 21, 2017 at 2:01 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+>> -/*
+>> - * The flush IPI assumes that a thread switch happens in this order:
+>> - * [cpu0: the cpu that switches]
+>> - * 1) switch_mm() either 1a) or 1b)
+>> - * 1a) thread switch to a different mm
+>> - * 1a1) set cpu_tlbstate to TLBSTATE_OK
+>> - *   Now the tlb flush NMI handler flush_tlb_func won't call leave_mm
+>> - *   if cpu0 was in lazy tlb mode.
+>> - * 1a2) update cpu active_mm
+>> - *   Now cpu0 accepts tlb flushes for the new mm.
+>> - * 1a3) cpu_set(cpu, new_mm->cpu_vm_mask);
+>> - *   Now the other cpus will send tlb flush ipis.
+>> - * 1a4) change cr3.
+>> - * 1a5) cpu_clear(cpu, old_mm->cpu_vm_mask);
+>> - *   Stop ipi delivery for the old mm. This is not synchronized with
+>> - *   the other cpus, but flush_tlb_func ignore flush ipis for the wrong
+>> - *   mm, and in the worst case we perform a superfluous tlb flush.
+>> - * 1b) thread switch without mm change
+>> - *   cpu active_mm is correct, cpu0 already handles flush ipis.
+>> - * 1b1) set cpu_tlbstate to TLBSTATE_OK
+>> - * 1b2) test_and_set the cpu bit in cpu_vm_mask.
+>> - *   Atomically set the bit [other cpus will start sending flush ipis],
+>> - *   and test the bit.
+>> - * 1b3) if the bit was 0: leave_mm was called, flush the tlb.
+>> - * 2) switch %%esp, ie current
+>> - *
+>> - * The interrupt must handle 2 special cases:
+>> - * - cr3 is changed before %%esp, ie. it cannot use current->{active_,}mm.
+>> - * - the cpu performs speculative tlb reads, i.e. even if the cpu only
+>> - *   runs in kernel space, the cpu could load tlb entries for user space
+>> - *   pages.
+>> - *
+>> - * The good news is that cpu_tlbstate is local to each cpu, no
+>> - * write/read ordering problems.
 >
-> static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
-> 				   pmd_t *pmdp, pmd_t pmd)
-> {
-> 	pmd_t old_pmd = *pmdp;
-> 	set_pmd_at(mm, address, pmdp, pmd);
-> 	return old_pmd;
-> }
+> While the new code is really well commented, it would be a good thing to
+> have a single place where all of this including the ordering constraints
+> are documented.
 
-So it seems the discussions have settled down and pmdp_establish() can be 
-implemented in generic way as above and it will suffice if arch doesn't have a 
-special need. It would be nice to add the comment above generic version that it 
-only needs to be implemented if hardware sets the accessed/dirty bits !
+I'll look at the end of the whole series and see if I can come up with
+something good.
 
-Then nothing special is needed for ARC - right ?
-
--Vineet
+>
+>> @@ -215,12 +200,13 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+>>       VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+>>                  loaded_mm->context.ctx_id);
+>>
+>> -     if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+>> +     if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+>>               /*
+>> -              * leave_mm() is adequate to handle any type of flush, and
+>> -              * we would prefer not to receive further IPIs.
+>> +              * We're in lazy mode -- don't flush.  We can get here on
+>> +              * remote flushes due to races and on local flushes if a
+>> +              * kernel thread coincidentally flushes the mm it's lazily
+>> +              * still using.
+>
+> Ok. That's more informative.
+>
+> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
