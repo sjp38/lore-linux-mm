@@ -1,140 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E23A6B0408
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:11:41 -0400 (EDT)
-Received: by mail-ot0-f199.google.com with SMTP id o27so121449853otd.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:11:41 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n4si890231oia.45.2017.06.21.08.11.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E17406B040A
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:14:47 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k93so5336834ioi.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:14:47 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0047.outbound.protection.outlook.com. [104.47.38.47])
+        by mx.google.com with ESMTPS id b84si2175413ioj.102.2017.06.21.08.14.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 08:11:38 -0700 (PDT)
-Received: from mail-ua0-f182.google.com (mail-ua0-f182.google.com [209.85.217.182])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2F28E214F0
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 15:11:37 +0000 (UTC)
-Received: by mail-ua0-f182.google.com with SMTP id g40so115361621uaa.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:11:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 08:14:46 -0700 (PDT)
+Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
+ processing
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1706202259290.2157@nanos>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <8d3c215f-cdad-5554-6e9c-5598e1081850@amd.com>
+Date: Wed, 21 Jun 2017 10:14:35 -0500
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1706211007080.2328@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
- <alpine.DEB.2.20.1706211007080.2328@nanos>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 21 Jun 2017 08:11:15 -0700
-Message-ID: <CALCETrX9z1pM0cqSFrt7rozENy4pbFz2gvorYtBa212KsVw5Mg@mail.gmail.com>
-Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
- flushing algorithm
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <alpine.DEB.2.20.1706202259290.2157@nanos>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Wed, Jun 21, 2017 at 1:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> On Tue, 20 Jun 2017, Andy Lutomirski wrote:
->>  struct flush_tlb_info {
->> +     /*
->> +      * We support several kinds of flushes.
->> +      *
->> +      * - Fully flush a single mm.  flush_mm will be set, flush_end will be
->
-> flush_mm is the *mm member in the struct, right? You might rename that as a
-> preparatory step so comments and implementation match.
-
-The comment is outdated.  Fixed now.
-
->
->> +      *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the
->> +      *   IPI sender is trying to catch us up.
->> +      *
->> +      * - Partially flush a single mm.  flush_mm will be set, flush_start
->> +      *   and flush_end will indicate the range, and new_tlb_gen will be
->> +      *   set such that the changes between generation new_tlb_gen-1 and
->> +      *   new_tlb_gen are entirely contained in the indicated range.
->> +      *
->> +      * - Fully flush all mms whose tlb_gens have been updated.  flush_mm
->> +      *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen
->> +      *   will be zero.
->> +      */
->>       struct mm_struct *mm;
->>       unsigned long start;
->>       unsigned long end;
->> +     u64 new_tlb_gen;
->
-> Nit. While at it could you please make that struct tabular aligned as we
-> usually do in x86?
-
-Sure.
-
->
->>  static void flush_tlb_func_common(const struct flush_tlb_info *f,
->>                                 bool local, enum tlb_flush_reason reason)
->>  {
->> +     struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+On 6/21/2017 2:16 AM, Thomas Gleixner wrote:
+> On Fri, 16 Jun 2017, Tom Lendacky wrote:
+>> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+>> index a105796..988b336 100644
+>> --- a/arch/x86/include/asm/mem_encrypt.h
+>> +++ b/arch/x86/include/asm/mem_encrypt.h
+>> @@ -15,16 +15,24 @@
+>>   
+>>   #ifndef __ASSEMBLY__
+>>   
+>> +#include <linux/init.h>
 >> +
->> +     /*
->> +      * Our memory ordering requirement is that any TLB fills that
->> +      * happen after we flush the TLB are ordered after we read
->> +      * active_mm's tlb_gen.  We don't need any explicit barrier
->> +      * because all x86 flush operations are serializing and the
->> +      * atomic64_read operation won't be reordered by the compiler.
->> +      */
->
-> Can you please move the comment above the loaded_mm assignment?
-
-I'll move it above the function entirely.  It's more of a general
-comment about how the function works than any particular part of the
-function.
-
->
->> +     u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
->> +     u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
+>>   #ifdef CONFIG_AMD_MEM_ENCRYPT
+>>   
+>>   extern unsigned long sme_me_mask;
+>>   
+>> +void __init sme_enable(void);
 >> +
->>       /* This code cannot presently handle being reentered. */
->>       VM_WARN_ON(!irqs_disabled());
->>
->> +     VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
->> +                loaded_mm->context.ctx_id);
+>>   #else	/* !CONFIG_AMD_MEM_ENCRYPT */
+>>   
+>>   #define sme_me_mask	0UL
+>>   
+>> +static inline void __init sme_enable(void) { }
 >> +
->>       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
->> +             /*
->> +              * leave_mm() is adequate to handle any type of flush, and
->> +              * we would prefer not to receive further IPIs.
->
-> While I know what you mean, it might be useful to have a more elaborate
-> explanation why this prevents new IPIs.
+>>   #endif	/* CONFIG_AMD_MEM_ENCRYPT */
+>>   
+>> +unsigned long sme_get_me_mask(void);
+> 
+> Why is this an unconditional function? Isn't the mask simply 0 when the MEM
+> ENCRYPT support is disabled?
 
-Added, although it just gets deleted again later in the series.
+I made it unconditional because of the call from head_64.S. I can't make
+use of the C level static inline function and since the mask is not a
+variable if CONFIG_AMD_MEM_ENCRYPT is not configured (#defined to 0) I
+can't reference the variable directly.
 
->
->> +              */
->>               leave_mm(smp_processor_id());
->>               return;
->>       }
->>
->> -     if (f->end == TLB_FLUSH_ALL) {
->> -             local_flush_tlb();
->> -             if (local)
->> -                     count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
->> -             trace_tlb_flush(reason, TLB_FLUSH_ALL);
->> -     } else {
->> +     if (local_tlb_gen == mm_tlb_gen) {
->> +             /*
->> +              * There's nothing to do: we're already up to date.  This can
->> +              * happen if two concurrent flushes happen -- the first IPI to
->> +              * be handled can catch us all the way up, leaving no work for
->> +              * the second IPI to be handled.
->
-> That not restricted to IPIs, right? A local flush / IPI combo can do that
-> as well.
+I could create a #define in head_64.S that changes this to load rax with
+the variable if CONFIG_AMD_MEM_ENCRYPT is configured or a zero if it's
+not or add a #ifdef at that point in the code directly. Thoughts on
+that?
 
-Indeed.  Comment fixed.
+> 
+>> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+>> index 6225550..ef12729 100644
+>> --- a/arch/x86/kernel/head_64.S
+>> +++ b/arch/x86/kernel/head_64.S
+>> @@ -78,7 +78,29 @@ startup_64:
+>>   	call	__startup_64
+>>   	popq	%rsi
+>>   
+>> -	movq	$(early_top_pgt - __START_KERNEL_map), %rax
+>> +	/*
+>> +	 * Encrypt the kernel if SME is active.
+>> +	 * The real_mode_data address is in %rsi and that register can be
+>> +	 * clobbered by the called function so be sure to save it.
+>> +	 */
+>> +	push	%rsi
+>> +	call	sme_encrypt_kernel
+>> +	pop	%rsi
+> 
+> That does not make any sense. Neither the call to sme_encrypt_kernel() nor
+> the following call to sme_get_me_mask().
+> 
+> __startup_64() is already C code, so why can't you simply call that from
+> __startup_64() in C and return the mask from there?
 
->
-> Other than those nits;
->
-> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+I was trying to keep it explicit as to what was happening, but I can
+move those calls into __startup_64(). I'll still need the call to
+sme_get_me_mask() in the secondary_startup_64 path, though (depending on
+your thoughts to the above response).
+
+> 
+>> @@ -98,7 +120,20 @@ ENTRY(secondary_startup_64)
+>>   	/* Sanitize CPU configuration */
+>>   	call verify_cpu
+>>   
+>> -	movq	$(init_top_pgt - __START_KERNEL_map), %rax
+>> +	/*
+>> +	 * Get the SME encryption mask.
+>> +	 *  The encryption mask will be returned in %rax so we do an ADD
+>> +	 *  below to be sure that the encryption mask is part of the
+>> +	 *  value that will stored in %cr3.
+>> +	 *
+>> +	 * The real_mode_data address is in %rsi and that register can be
+>> +	 * clobbered by the called function so be sure to save it.
+>> +	 */
+>> +	push	%rsi
+>> +	call	sme_get_me_mask
+>> +	pop	%rsi
+> 
+> Do we really need a call here? The mask is established at this point, so
+> it's either 0 when the encryption stuff is not compiled in or it can be
+> retrieved from a variable which is accessible at this point.
+> 
+
+Same as above, this can be updated based on the decided approach.
+
+Thanks,
+Tom
+
+>> +
+>> +	addq	$(init_top_pgt - __START_KERNEL_map), %rax
+>>   1:
+>>   
+>>   	/* Enable PAE mode, PGE and LA57 */
+> 
+> Thanks,
+> 
+> 	tglx
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
