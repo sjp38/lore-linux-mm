@@ -1,128 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D56AD6B03ED
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:33:02 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 48so94437095qts.7
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:33:02 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 38EF56B03E6
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:41:44 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z22so94074037qtz.10
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:41:44 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n37si14789046qtn.20.2017.06.21.05.33.01
+        by mx.google.com with ESMTPS id r25si14552389qte.192.2017.06.21.05.41.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 05:33:01 -0700 (PDT)
-Subject: Re: [RFC] virtio-mem: paravirtualized memory
-References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
- <20170619100813.GB17304@stefanha-x1.localdomain>
- <4cec825b-d92e-832e-3a76-103767032528@redhat.com>
- <20170621110817.GF16183@stefanha-x1.localdomain>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <2361e86b-6660-4261-a805-c82c3b3a37c6@redhat.com>
-Date: Wed, 21 Jun 2017 14:32:48 +0200
+        Wed, 21 Jun 2017 05:41:43 -0700 (PDT)
+Date: Wed, 21 Jun 2017 15:41:30 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
+ list
+Message-ID: <20170621153055-mutt-send-email-mst@kernel.org>
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
+ <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
+ <b92af473-f00e-b956-ea97-eb4626601789@intel.com>
+ <1497977049.20270.100.camel@redhat.com>
+ <7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com>
+ <1497979740.20270.102.camel@redhat.com>
+ <20170620212107-mutt-send-email-mst@kernel.org>
+ <1497988260.20270.109.camel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170621110817.GF16183@stefanha-x1.localdomain>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1497988260.20270.109.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Hajnoczi <stefanha@gmail.com>
-Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, Nitesh Narayan Lal <nilal@redhat.com>
 
-On 21.06.2017 13:08, Stefan Hajnoczi wrote:
-> On Mon, Jun 19, 2017 at 12:26:52PM +0200, David Hildenbrand wrote:
->> On 19.06.2017 12:08, Stefan Hajnoczi wrote:
->>> On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
->>>> Important restrictions of this concept:
->>>> - Guests without a virtio-mem guest driver can't see that memory.
->>>> - We will always require some boot memory that cannot get unplugged.
->>>>   Also, virtio-mem memory (as all other hotplugged memory) cannot become
->>>>   DMA memory under Linux. So the boot memory also defines the amount of
->>>>   DMA memory.
->>>
->>> I didn't know that hotplug memory cannot become DMA memory.
->>>
->>> Ouch.  Zero-copy disk I/O with O_DIRECT and network I/O with virtio-net
->>> won't be possible.
->>>
->>> When running an application that uses O_DIRECT file I/O this probably
->>> means we now have 2 copies of pages in memory: 1. in the application and
->>> 2. in the kernel page cache.
->>>
->>> So this increases pressure on the page cache and reduces performance :(.
->>>
->>> Stefan
->>>
->>
->> arch/x86/mm/init_64.c:
->>
->> /*
->>  * Memory is added always to NORMAL zone. This means you will never get
->>  * additional DMA/DMA32 memory.
->>  */
->> int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
->> {
->>
->> The is for sure something to work on in the future. Until then, base
->> memory of 3.X GB should be sufficient, right?
+On Tue, Jun 20, 2017 at 03:51:00PM -0400, Rik van Riel wrote:
+> On Tue, 2017-06-20 at 21:26 +0300, Michael S. Tsirkin wrote:
+> > On Tue, Jun 20, 2017 at 01:29:00PM -0400, Rik van Riel wrote:
+> > > I agree with that.  Let me go into some more detail of
+> > > what Nitesh is implementing:
+> > > 
+> > > 1) In arch_free_page, the being-freed page is added
+> > >    to a per-cpu set of freed pages.
+> > > 2) Once that set is full, arch_free_pages goes into a
+> > >    slow path, which:
+> > >    2a) Iterates over the set of freed pages, and
+> > >    2b) Checks whether they are still free, and
+> > >    2c) Adds the still free pages to a list that is
+> > >        to be passed to the hypervisor, to be MADV_FREEd.
+> > >    2d) Makes that hypercall.
+> > > 
+> > > Meanwhile all arch_alloc_pages has to do is make sure it
+> > > does not allocate a page while it is currently being
+> > > MADV_FREEd on the hypervisor side.
+> > > 
+> > > The code Wei is working on looks like it could be 
+> > > suitable for steps (2c) and (2d) above. Nitesh already
+> > > has code for steps 1 through 2b.
+> > 
+> > So my question is this: Wei posted these numbers for balloon
+> > inflation times:
+> > inflating 7GB of an 8GB idle guest:
+> > 
+> > 	1) allocating pages (6.5%)
+> > 	2) sending PFNs to host (68.3%)
+> > 	3) address translation (6.1%)
+> > 	4) madvise (19%)
+> > 
+> > 	It takes about 4126ms for the inflating process to complete.
+> > 
+> > It seems that this is an excessive amount of time to stay
+> > under a lock. What are your estimates for Nitesh's work?
 > 
-> I'm not sure that helps because applications typically don't control
-> where their buffers are located?
+> That depends on the batch size used for step
+> (2c), and is something that we should be able
+> to tune for decent performance.
 
-Okay, let me try to explain what is going on here (no expert, please
-someone correct me if I am wrong).
+I am not really sure how you intend to do this. Who will
+drop and retake the lock? How do you make progress
+instead of restarting from the beginning?
+How do you combine multiple pages in a single s/g?
 
-There is a difference between DMA and DMA memory in Linux. DMA memory is
-simply memory with special addresses. DMA is the general technique of a
-device directly copying data to ram, bypassing the CPU.
-
-ZONE_DMA contains all* memory < 16MB
-ZONE_DMA32 contains all* memory < 4G
-* meaning available on boot via a820 map, not hotplugged.
-
-So memory from these zones can be used by devices that can only deal
-with 24bit/32bit addresses.
-
-Hotplugged memory is never added to the ZONE_DMA/DMA32, but to
-ZONE_NORMAL. That means, kmalloc(.., GFP_DMA will) not be able to use
-hotplugged memory. Say you have 1GB of main storage and hotplug 1G (on
-address 1G). This memory will not be available in the ZONE_DMA, although
-below 4g.
-
-Memory in ZONE_NORMAL is used for ordinary kmalloc(), so all these
-memory can be used to do DMA, but you are not guaranteed to get 32bit
-capable addresses. I pretty much assume that virtio-net can deal with
-64bit addresses.
+All these were issues that Wei's patches solved,
+granted in a very limited manner (migration-specific)
+but OTOH without a lot of tuning.
 
 
-My understanding of O_DIRECT:
+> What seems to matter is that things are batched.
+> There are many ways to achieve that.
 
-The user space buffers (O_DIRECT) is directly used to do DMA. This will
-work just fine as long as the device can deal with 64bit addresses. I
-guess this is the case for virtio-net, otherwise there would be the
-exact same problem already without virtio-mem.
-
-Summary:
-
-virtio-mem memory can be used for DMA, it will simply not be added to
-ZONE_DMA/DMA32 and therefore won't be available for kmalloc(...,
-GFP_DMA). This should work just fine with O_DIRECT as before.
-
-If necessary, we could try to add memory to the ZONE_DMA later on,
-however for now I would rate this a minor problem. By simply using 3.X
-GB of base memory, basically all memory that could go to ZONE_DMA/DMA32
-already is in these zones without virtio-mem.
-
-Thanks!
-
-> 
-> Stefan
-> 
+True, this is what the patches are trying to achieve.  So far this
+approach was the 1st more or less workable way do achieve that,
+previous ones got us nowhere.
 
 
--- 
+> -- 
+> All rights reversed
 
-Thanks,
-
-David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
