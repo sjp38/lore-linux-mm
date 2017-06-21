@@ -1,81 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 181C36B0413
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:38:12 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id f49so17123946wrf.5
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:38:12 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id j22si11254761wrd.108.2017.06.21.08.38.10
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7316B0415
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 11:38:20 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x23so31769152wrb.6
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:38:20 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id n7si1525117edn.180.2017.06.21.08.38.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 08:38:10 -0700 (PDT)
-Date: Wed, 21 Jun 2017 17:38:04 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v7 08/36] x86/mm: Add support to enable SME in early boot
- processing
-In-Reply-To: <8d3c215f-cdad-5554-6e9c-5598e1081850@amd.com>
-Message-ID: <alpine.DEB.2.20.1706211720060.2328@nanos>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net> <20170616185115.18967.79622.stgit@tlendack-t1.amdoffice.net> <alpine.DEB.2.20.1706202259290.2157@nanos> <8d3c215f-cdad-5554-6e9c-5598e1081850@amd.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 08:38:19 -0700 (PDT)
+Date: Wed, 21 Jun 2017 17:37:22 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH v6 26/34] iommu/amd: Allow the AMD IOMMU to work with
+ memory encryption
+Message-ID: <20170621153721.GP30388@8bytes.org>
+References: <20170607191309.28645.15241.stgit@tlendack-t1.amdoffice.net>
+ <20170607191745.28645.81756.stgit@tlendack-t1.amdoffice.net>
+ <20170614174208.p2yr5exs4b6pjxhf@pd.tnic>
+ <0611d01a-19f8-d6ae-2682-932789855518@amd.com>
+ <20170615094111.wga334kg2bhxqib3@pd.tnic>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170615094111.wga334kg2bhxqib3@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Rik van Riel <riel@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dave Young <dyoung@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, 21 Jun 2017, Tom Lendacky wrote:
-> On 6/21/2017 2:16 AM, Thomas Gleixner wrote:
-> > Why is this an unconditional function? Isn't the mask simply 0 when the MEM
-> > ENCRYPT support is disabled?
-> 
-> I made it unconditional because of the call from head_64.S. I can't make
-> use of the C level static inline function and since the mask is not a
-> variable if CONFIG_AMD_MEM_ENCRYPT is not configured (#defined to 0) I
-> can't reference the variable directly.
-> 
-> I could create a #define in head_64.S that changes this to load rax with
-> the variable if CONFIG_AMD_MEM_ENCRYPT is configured or a zero if it's
-> not or add a #ifdef at that point in the code directly. Thoughts on
-> that?
-
-See below.
-
-> > That does not make any sense. Neither the call to sme_encrypt_kernel() nor
-> > the following call to sme_get_me_mask().
+On Thu, Jun 15, 2017 at 11:41:12AM +0200, Borislav Petkov wrote:
+> On Wed, Jun 14, 2017 at 03:40:28PM -0500, Tom Lendacky wrote:
+> > > WARNING: Use of volatile is usually wrong: see Documentation/process/volatile-considered-harmful.rst
+> > > #134: FILE: drivers/iommu/amd_iommu.c:866:
+> > > +static void build_completion_wait(struct iommu_cmd *cmd, volatile u64 *sem)
+> > > 
 > > 
-> > __startup_64() is already C code, so why can't you simply call that from
-> > __startup_64() in C and return the mask from there?
+> > The semaphore area is written to by the device so the use of volatile is
+> > appropriate in this case.
 > 
-> I was trying to keep it explicit as to what was happening, but I can
-> move those calls into __startup_64().
+> Do you mean this is like the last exception case in that document above:
+> 
+> "
+>   - Pointers to data structures in coherent memory which might be modified
+>     by I/O devices can, sometimes, legitimately be volatile.  A ring buffer
+>     used by a network adapter, where that adapter changes pointers to
+>     indicate which descriptors have been processed, is an example of this
+>     type of situation."
+> 
+> ?
 
-That's much preferred. And the return value wants to be documented in both
-C and ASM code.
+So currently (without this patch) the build_completion_wait function
+does not take a volatile parameter, only wait_on_sem() does.
 
-> I'll still need the call to sme_get_me_mask() in the secondary_startup_64
-> path, though (depending on your thoughts to the above response).
+Wait_on_sem() needs it because its purpose is to poll a memory location
+which is changed by the iommu-hardware when its done with command
+processing.
 
-        call verify_cpu
+But the 'volatile' in build_completion_wait() looks unnecessary, because
+the function does not poll the memory location. It only uses the
+pointer, converts it to a physical address and writes it to the command
+to be queued.
 
-        movq    $(init_top_pgt - __START_KERNEL_map), %rax
 
-So if you make that:
+Regards,
 
-	/*
-	 * Sanitize CPU configuration and retrieve the modifier
-	 * for the initial pgdir entry which will be programmed
-	 * into CR3. Depends on enabled SME encryption, normally 0.
-	 */
-	call __startup_secondary_64
-
-        addq    $(init_top_pgt - __START_KERNEL_map), %rax
-
-You can hide that stuff in C-code nicely without adding any cruft to the
-ASM code.
-
-Thanks,
-
-	tglx
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
