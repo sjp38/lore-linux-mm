@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1024D6B03D8
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:50:44 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 77so15688436wrb.11
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:50:44 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id i195si16721613wme.186.2017.06.21.03.50.42
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 03:50:42 -0700 (PDT)
-Date: Wed, 21 Jun 2017 12:50:26 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 25/36] swiotlb: Add warnings for use of bounce buffers
- with SME
-Message-ID: <20170621105026.lcbtkklaenyi2wqe@pd.tnic>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185435.18967.26665.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 853E46B03D9
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 07:08:21 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id b65so36321397lfh.8
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:08:21 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id 10si7957778lji.21.2017.06.21.04.08.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 04:08:19 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x81so20243995lfb.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:08:19 -0700 (PDT)
+Date: Wed, 21 Jun 2017 12:08:17 +0100
+From: Stefan Hajnoczi <stefanha@gmail.com>
+Subject: Re: [RFC] virtio-mem: paravirtualized memory
+Message-ID: <20170621110817.GF16183@stefanha-x1.localdomain>
+References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+ <20170619100813.GB17304@stefanha-x1.localdomain>
+ <4cec825b-d92e-832e-3a76-103767032528@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="Il7n/DHsA0sMLmDu"
 Content-Disposition: inline
-In-Reply-To: <20170616185435.18967.26665.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <4cec825b-d92e-832e-3a76-103767032528@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Fri, Jun 16, 2017 at 01:54:36PM -0500, Tom Lendacky wrote:
-> Add warnings to let the user know when bounce buffers are being used for
-> DMA when SME is active.  Since the bounce buffers are not in encrypted
-> memory, these notifications are to allow the user to determine some
-> appropriate action - if necessary.  Actions can range from utilizing an
-> IOMMU, replacing the device with another device that can support 64-bit
-> DMA, ignoring the message if the device isn't used much, etc.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  include/linux/dma-mapping.h |   11 +++++++++++
->  include/linux/mem_encrypt.h |    8 ++++++++
->  lib/swiotlb.c               |    3 +++
->  3 files changed, 22 insertions(+)
-> 
-> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-> index 4f3eece..ee2307e 100644
-> --- a/include/linux/dma-mapping.h
-> +++ b/include/linux/dma-mapping.h
-> @@ -10,6 +10,7 @@
->  #include <linux/scatterlist.h>
->  #include <linux/kmemcheck.h>
->  #include <linux/bug.h>
-> +#include <linux/mem_encrypt.h>
->  
->  /**
->   * List of possible attributes associated with a DMA mapping. The semantics
-> @@ -577,6 +578,11 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
->  
->  	if (!dev->dma_mask || !dma_supported(dev, mask))
->  		return -EIO;
-> +
-> +	/* Since mask is unsigned, this can only be true if SME is active */
-> +	if (mask < sme_dma_mask())
-> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
-> +
->  	*dev->dma_mask = mask;
->  	return 0;
->  }
-> @@ -596,6 +602,11 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
->  {
->  	if (!dma_supported(dev, mask))
->  		return -EIO;
-> +
-> +	/* Since mask is unsigned, this can only be true if SME is active */
-> +	if (mask < sme_dma_mask())
-> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
 
-Looks to me like those two checks above need to be a:
+--Il7n/DHsA0sMLmDu
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-void sme_check_mask(struct device *dev, u64 mask)
-{
-        if (!sme_me_mask)
-                return;
+On Mon, Jun 19, 2017 at 12:26:52PM +0200, David Hildenbrand wrote:
+> On 19.06.2017 12:08, Stefan Hajnoczi wrote:
+> > On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
+> >> Important restrictions of this concept:
+> >> - Guests without a virtio-mem guest driver can't see that memory.
+> >> - We will always require some boot memory that cannot get unplugged.
+> >>   Also, virtio-mem memory (as all other hotplugged memory) cannot beco=
+me
+> >>   DMA memory under Linux. So the boot memory also defines the amount of
+> >>   DMA memory.
+> >=20
+> > I didn't know that hotplug memory cannot become DMA memory.
+> >=20
+> > Ouch.  Zero-copy disk I/O with O_DIRECT and network I/O with virtio-net
+> > won't be possible.
+> >=20
+> > When running an application that uses O_DIRECT file I/O this probably
+> > means we now have 2 copies of pages in memory: 1. in the application and
+> > 2. in the kernel page cache.
+> >=20
+> > So this increases pressure on the page cache and reduces performance :(.
+> >=20
+> > Stefan
+> >=20
+>=20
+> arch/x86/mm/init_64.c:
+>=20
+> /*
+>  * Memory is added always to NORMAL zone. This means you will never get
+>  * additional DMA/DMA32 memory.
+>  */
+> int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> {
+>=20
+> The is for sure something to work on in the future. Until then, base
+> memory of 3.X GB should be sufficient, right?
 
-        /* Since mask is unsigned, this can only be true if SME is active */
-        if (mask < (((u64)sme_me_mask << 1) - 1))
-                dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
-}
+I'm not sure that helps because applications typically don't control
+where their buffers are located?
 
-which gets called and sme_dma_mask() is not really needed.
+Stefan
 
--- 
-Regards/Gruss,
-    Boris.
+--Il7n/DHsA0sMLmDu
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+-----BEGIN PGP SIGNATURE-----
+
+iQEcBAEBAgAGBQJZSlOhAAoJEJykq7OBq3PIvj8IAIYB7fWhiMFR7qGpHgnD6tM3
+6RMqMgAoTe7NBIeh3tFbsGjp/XjzeCT7iiEhbrO7MtFrP7IxXylQFRmzBMNb6WlU
+EyhwQ4Ajyj3TP8Rey+xApJe8ZQkieWHq8ovTI/ozXXMJ+9k/XwiwVaXzPkThy1v2
+Ne6vfF/nONpRi55kOst8zGw6MzmAHK3hnoIR9KAqWXfm6jrw71m3NyL/1K9n/QH9
+YnUi6WC98xgk9CJlCnuUR6am2sr5Xly+lN9jrKQ8DJZn3KjjcvwTJTNEYrJpK2gh
+CZ+UGkmWbdWftyIB0uHnJAtyO+eDobaldJ6gD89T7ysDpuh8CdpPGpKEyzxP40w=
+=SMQf
+-----END PGP SIGNATURE-----
+
+--Il7n/DHsA0sMLmDu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
