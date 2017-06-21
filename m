@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E38E86B03F9
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:47:34 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id y141so49378637qka.13
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:47:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 138si2472616qkh.173.2017.06.21.06.47.33
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3096B03FB
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:53:04 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id b13so175949315pgn.4
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:53:04 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0070.outbound.protection.outlook.com. [104.47.41.70])
+        by mx.google.com with ESMTPS id d17si14553009plj.367.2017.06.21.06.53.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 06:47:34 -0700 (PDT)
-Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
- list
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
- <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
- <b92af473-f00e-b956-ea97-eb4626601789@intel.com>
- <1497977049.20270.100.camel@redhat.com>
- <7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com>
- <c5f8cf53-c30b-a7ec-a8e8-9a2c120bdff6@de.ibm.com>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <a4f68630-c143-2579-8999-b1506bc6e272@redhat.com>
-Date: Wed, 21 Jun 2017 15:47:15 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 06:53:03 -0700 (PDT)
+Subject: Re: [PATCH v7 07/36] x86/mm: Don't use phys_to_virt in ioremap() if
+ SME is active
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185104.18967.7867.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1706202251110.2157@nanos>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <c1072435-e3ad-21ea-b36f-505ff80ed599@amd.com>
+Date: Wed, 21 Jun 2017 08:52:53 -0500
 MIME-Version: 1.0
-In-Reply-To: <c5f8cf53-c30b-a7ec-a8e8-9a2c120bdff6@de.ibm.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <alpine.DEB.2.20.1706202251110.2157@nanos>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
-Cc: Nitesh Narayan Lal <nilal@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On 21.06.2017 14:56, Christian Borntraeger wrote:
-> On 06/20/2017 06:49 PM, David Hildenbrand wrote:
->> On 20.06.2017 18:44, Rik van Riel wrote:
->>> On Mon, 2017-06-12 at 07:10 -0700, Dave Hansen wrote:
->>>
->>>> The hypervisor is going to throw away the contents of these pages,
->>>> right?  As soon as the spinlock is released, someone can allocate a
->>>> page, and put good data in it.  What keeps the hypervisor from
->>>> throwing
->>>> away good data?
->>>
->>> That looks like it may be the wrong API, then?
->>>
->>> We already have hooks called arch_free_page and
->>> arch_alloc_page in the VM, which are called when
->>> pages are freed, and allocated, respectively.
->>>
->>> Nitesh Lal (on the CC list) is working on a way
->>> to efficiently batch recently freed pages for
->>> free page hinting to the hypervisor.
->>>
->>> If that is done efficiently enough (eg. with
->>> MADV_FREE on the hypervisor side for lazy freeing,
->>> and lazy later re-use of the pages), do we still
->>> need the harder to use batch interface from this
->>> patch?
->>>
->> David's opinion incoming:
->>
->> No, I think proper free page hinting would be the optimum solution, if
->> done right. This would avoid the batch interface and even turn
->> virtio-balloon in some sense useless.
->>
+On 6/20/2017 3:55 PM, Thomas Gleixner wrote:
+> On Fri, 16 Jun 2017, Tom Lendacky wrote:
+> 
+>> Currently there is a check if the address being mapped is in the ISA
+>> range (is_ISA_range()), and if it is then phys_to_virt() is used to
+>> perform the mapping.  When SME is active, however, this will result
+>> in the mapping having the encryption bit set when it is expected that
+>> an ioremap() should not have the encryption bit set. So only use the
+>> phys_to_virt() function if SME is not active
+> 
+> This does not make sense to me. What the heck has phys_to_virt() to do with
+> the encryption bit. Especially why would the encryption bit be set on that
+> mapping in the first place?
 
-I said "some sense" for a reason. Mainly because other techniques are
-being worked on that are to fill the holes.
+The default is that all entries that get added to the pagetables have
+the encryption bit set unless specifically overridden.  Any __va() or
+phys_to_virt() calls will result in a pagetable mapping that has the
+encryption bit set.  For ioremap, the PAGE_KERNEL_IO protection is used
+which will not/does not have the encryption bit set.
 
-> Two reasons why I disagree:
-> - virtio-balloon is often used as memory hotplug. (e.g. libvirts current/max memory
-> uses virtio ballon)
+> 
+> I'm probably missing something, but this want's some coherent explanation
+> understandable by mere mortals both in the changelog and the code comment.
 
-I know, while one can argue if this real unplug as there are basically
-no guarantees (see virtio-mem RFC) it is used by people because there is
-simply no alternative. Still, for now some people use it for that.
-
-> - free page hinting will not allow to shrink the page cache of guests (like a ballooner does)
-
-There are currently some projects ongoing that try to avoid the page
-cache in the guest completely.
-
-
--- 
+I'll add some additional info to the changelog and code.
 
 Thanks,
+Tom
 
-David
+> 
+> Thanks,
+> 
+> 	tglx
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
