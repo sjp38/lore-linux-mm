@@ -1,41 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AF8176B0421
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:06:36 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 4so16984780wrc.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:06:36 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id f29si17856428wra.26.2017.06.21.10.06.34
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 10:06:34 -0700 (PDT)
-Date: Wed, 21 Jun 2017 19:06:22 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 04/11] x86/mm: Give each mm TLB flush generation a
- unique ID
-Message-ID: <20170621170622.wi74cttjw7rtklcl@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org>
- <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
- <20170621103322.pwi6koe7jee7hd63@pd.tnic>
- <CALCETrVoRjSL2HncTGQ-PJ_1ycUAV3UcDVMEGw=-f7AbqtEN6w@mail.gmail.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9791F6B0424
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 13:16:05 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 24so23480lfr.10
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:16:05 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id x5si8876200lfa.188.2017.06.21.10.16.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jun 2017 10:16:03 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id l200so11132406lfg.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 10:16:03 -0700 (PDT)
+Date: Wed, 21 Jun 2017 20:15:58 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20170621171558.7zrgzc7uk3kspcys@node.shutemov.name>
+References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
+ <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
+ <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
+ <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
+ <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
+ <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
+ <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
+ <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+ <20170621112702.GC10220@e104818-lin.cambridge.arm.com>
+ <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrVoRjSL2HncTGQ-PJ_1ycUAV3UcDVMEGw=-f7AbqtEN6w@mail.gmail.com>
+In-Reply-To: <1af1738a-88a7-987c-eca7-2118d66514e1@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Jun 21, 2017 at 08:23:07AM -0700, Andy Lutomirski wrote:
-> It's stated explicitly in the comment where it's declared in the same file.
+On Wed, Jun 21, 2017 at 08:49:03AM -0700, Vineet Gupta wrote:
+> On 06/21/2017 04:27 AM, Catalin Marinas wrote:
+> > On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > > On Thu, Jun 15, 2017 at 05:52:22PM +0300, Kirill A. Shutemov wrote:
+> > > > > > > > > We need an atomic way to setup pmd page table entry, avoiding races with
+> > > > > > > > > CPU setting dirty/accessed bits. This is required to implement
+> > > > > > > > > pmdp_invalidate() that doesn't loose these bits.
+> > [...]
+> > > Any chance you could help me with arm too?
+> > On arm (ARMv7 with LPAE) we don't have hardware updates of the
+> > access/dirty bits, so a generic implementation would suffice. I didn't
+> > find one in your patches, so here's an untested version:
+> > 
+> > static inline pmd_t pmdp_establish(struct mm_struct *mm, unsigned long address,
+> > 				   pmd_t *pmdp, pmd_t pmd)
+> > {
+> > 	pmd_t old_pmd = *pmdp;
+> > 	set_pmd_at(mm, address, pmdp, pmd);
+> > 	return old_pmd;
+> > }
+> 
+> So it seems the discussions have settled down and pmdp_establish() can be
+> implemented in generic way as above and it will suffice if arch doesn't have
+> a special need. It would be nice to add the comment above generic version
+> that it only needs to be implemented if hardware sets the accessed/dirty
+> bits !
+> 
+> Then nothing special is needed for ARC - right ?
 
-Doh, it says "zero" there. I should learn how to read.
+I will define generic version as Catalin proposed with a comment, but
+under the name generic_pmdp_establish. An arch can make use of it by
+
+#define pmdp_establish generic_pmdp_establish
+
+I don't want it to be used by default without attention from architecture
+maintainer. It can lead unnoticied breakage if THP got enabled on new
+arch.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
