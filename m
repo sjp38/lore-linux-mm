@@ -1,78 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 186D56B03A4
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:37:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 4so12375267wrc.15
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 00:37:48 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB9A6B03A6
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:02:05 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 77so14474193wrb.11
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:02:05 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 101si17358467wrb.364.2017.06.21.00.37.46
+        by mx.google.com with ESMTPS id n100si17059296wrb.94.2017.06.21.01.02.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 00:37:46 -0700 (PDT)
-Date: Wed, 21 Jun 2017 09:37:39 +0200 (CEST)
+        Wed, 21 Jun 2017 01:02:04 -0700 (PDT)
+Date: Wed, 21 Jun 2017 10:01:51 +0200 (CEST)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v7 07/36] x86/mm: Don't use phys_to_virt in ioremap() if
- SME is active
-In-Reply-To: <20170616185104.18967.7867.stgit@tlendack-t1.amdoffice.net>
-Message-ID: <alpine.DEB.2.20.1706210934540.2328@nanos>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net> <20170616185104.18967.7867.stgit@tlendack-t1.amdoffice.net>
+Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
+In-Reply-To: <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+Message-ID: <alpine.DEB.2.20.1706211001330.2328@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, 16 Jun 2017, Tom Lendacky wrote:
-> Currently there is a check if the address being mapped is in the ISA
-> range (is_ISA_range()), and if it is then phys_to_virt() is used to
-> perform the mapping.  When SME is active, however, this will result
-> in the mapping having the encryption bit set when it is expected that
-> an ioremap() should not have the encryption bit set. So only use the
-> phys_to_virt() function if SME is not active
+On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+> Nadav noticed the reentrancy issue in a different context, but
+> neither of us realized that it caused a problem yet.
 > 
-> Reviewed-by: Borislav Petkov <bp@suse.de>
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/mm/ioremap.c |    7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-> index 4c1b5fd..a382ba9 100644
-> --- a/arch/x86/mm/ioremap.c
-> +++ b/arch/x86/mm/ioremap.c
-> @@ -13,6 +13,7 @@
->  #include <linux/slab.h>
->  #include <linux/vmalloc.h>
->  #include <linux/mmiotrace.h>
-> +#include <linux/mem_encrypt.h>
->  
->  #include <asm/set_memory.h>
->  #include <asm/e820/api.h>
-> @@ -106,9 +107,11 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
->  	}
->  
->  	/*
-> -	 * Don't remap the low PCI/ISA area, it's always mapped..
-> +	 * Don't remap the low PCI/ISA area, it's always mapped.
-> +	 *   But if SME is active, skip this so that the encryption bit
-> +	 *   doesn't get set.
->  	 */
-> -	if (is_ISA_range(phys_addr, last_addr))
-> +	if (is_ISA_range(phys_addr, last_addr) && !sme_active())
->  		return (__force void __iomem *)phys_to_virt(phys_addr);
+> Cc: Nadav Amit <nadav.amit@gmail.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Reported-by: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
+> Fixes: 3d28ebceaffa ("x86/mm: Rework lazy TLB to track the actual loaded mm")
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
 
-More thoughts about that.
-
-Making this conditional on !sme_active() is not the best idea. I'd rather
-remove that whole thing and make it unconditional so the code pathes get
-always exercised and any subtle wreckage is detected on a broader base and
-not only on that hard to access and debug SME capable machine owned by Joe
-User.
-
-Thanks,
-
-	tglx
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
