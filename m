@@ -1,62 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B378D6B03D6
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:40:24 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u8so171244535pgo.11
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:40:24 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 101si1670449ple.204.2017.06.21.03.40.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1024D6B03D8
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:50:44 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 77so15688436wrb.11
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 03:50:44 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id i195si16721613wme.186.2017.06.21.03.50.42
         for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 03:40:23 -0700 (PDT)
-Date: Wed, 21 Jun 2017 11:40:17 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv2 1/3] x86/mm: Provide pmdp_establish() helper
-Message-ID: <20170621104016.GB10220@e104818-lin.cambridge.arm.com>
-References: <20170615145224.66200-1-kirill.shutemov@linux.intel.com>
- <20170615145224.66200-2-kirill.shutemov@linux.intel.com>
- <20170619152228.GE3024@e104818-lin.cambridge.arm.com>
- <20170619160005.wgj4nymtj2nntfll@node.shutemov.name>
- <20170619170911.GF3024@e104818-lin.cambridge.arm.com>
- <20170619215210.2crwjou3sfdcj73d@node.shutemov.name>
- <20170620155438.GC21383@e104818-lin.cambridge.arm.com>
- <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+        Wed, 21 Jun 2017 03:50:42 -0700 (PDT)
+Date: Wed, 21 Jun 2017 12:50:26 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 25/36] swiotlb: Add warnings for use of bounce buffers
+ with SME
+Message-ID: <20170621105026.lcbtkklaenyi2wqe@pd.tnic>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185435.18967.26665.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170621095303.q5fqt5a3ao5smko6@node.shutemov.name>
+In-Reply-To: <20170616185435.18967.26665.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Wed, Jun 21, 2017 at 12:53:03PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Jun 20, 2017 at 04:54:38PM +0100, Catalin Marinas wrote:
-> > For arm64, I don't see the point of a cmpxchg, so something like below
-> > would do (it needs proper testing though):
+On Fri, Jun 16, 2017 at 01:54:36PM -0500, Tom Lendacky wrote:
+> Add warnings to let the user know when bounce buffers are being used for
+> DMA when SME is active.  Since the bounce buffers are not in encrypted
+> memory, these notifications are to allow the user to determine some
+> appropriate action - if necessary.  Actions can range from utilizing an
+> IOMMU, replacing the device with another device that can support 64-bit
+> DMA, ignoring the message if the device isn't used much, etc.
 > 
-> Right. cmpxchg is required for x86 PAE, as it has sizeof(pmd_t) >
-> sizeof(long). We don't have 8-byte xchg() there.
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  include/linux/dma-mapping.h |   11 +++++++++++
+>  include/linux/mem_encrypt.h |    8 ++++++++
+>  lib/swiotlb.c               |    3 +++
+>  3 files changed, 22 insertions(+)
 > 
-> Thanks, for the patch. I assume, I can use your signed-off-by, right?
+> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+> index 4f3eece..ee2307e 100644
+> --- a/include/linux/dma-mapping.h
+> +++ b/include/linux/dma-mapping.h
+> @@ -10,6 +10,7 @@
+>  #include <linux/scatterlist.h>
+>  #include <linux/kmemcheck.h>
+>  #include <linux/bug.h>
+> +#include <linux/mem_encrypt.h>
+>  
+>  /**
+>   * List of possible attributes associated with a DMA mapping. The semantics
+> @@ -577,6 +578,11 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
+>  
+>  	if (!dev->dma_mask || !dma_supported(dev, mask))
+>  		return -EIO;
+> +
+> +	/* Since mask is unsigned, this can only be true if SME is active */
+> +	if (mask < sme_dma_mask())
+> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
+> +
+>  	*dev->dma_mask = mask;
+>  	return 0;
+>  }
+> @@ -596,6 +602,11 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
+>  {
+>  	if (!dma_supported(dev, mask))
+>  		return -EIO;
+> +
+> +	/* Since mask is unsigned, this can only be true if SME is active */
+> +	if (mask < sme_dma_mask())
+> +		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
 
-Yes. And maybe some text (well, I just copied yours):
+Looks to me like those two checks above need to be a:
 
----------------8<--------------
-arm64: Provide pmdp_establish() helper
+void sme_check_mask(struct device *dev, u64 mask)
+{
+        if (!sme_me_mask)
+                return;
 
-We need an atomic way to setup pmd page table entry, avoiding races with
-CPU setting dirty/accessed bits. This is required to implement
-pmdp_invalidate() that doesn't lose these bits.
+        /* Since mask is unsigned, this can only be true if SME is active */
+        if (mask < (((u64)sme_me_mask << 1) - 1))
+                dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
+}
 
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----------------8<--------------
-
-> Any chance you could help me with arm too?
-
-I'll have a look.
+which gets called and sme_dma_mask() is not really needed.
 
 -- 
-Catalin
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
