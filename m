@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 01EE86B03EB
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:56:20 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g46so30286902wrd.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 05:56:19 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o90si15996897wrc.330.2017.06.21.05.56.18
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F1E006B03F0
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 09:18:54 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id f49so15862734wrf.5
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 06:18:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w141si17028416wme.144.2017.06.21.06.18.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 05:56:18 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5LCt4xs049409
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:56:17 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2b7r1mby4n-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 08:56:16 -0400
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Wed, 21 Jun 2017 06:56:15 -0600
-Subject: Re: [PATCH v11 4/6] mm: function to offer a page block on the free
- list
-References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com>
- <1497004901-30593-5-git-send-email-wei.w.wang@intel.com>
- <b92af473-f00e-b956-ea97-eb4626601789@intel.com>
- <1497977049.20270.100.camel@redhat.com>
- <7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Wed, 21 Jun 2017 14:56:03 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Jun 2017 06:18:53 -0700 (PDT)
+Date: Wed, 21 Jun 2017 15:18:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom_kill: Close race window of needlessly selecting
+ new victims.
+Message-ID: <20170621131850.GA27494@dhcp22.suse.cz>
+References: <20170615103909.GG1486@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1706151420300.95906@chino.kir.corp.google.com>
+ <20170615214133.GB20321@dhcp22.suse.cz>
+ <201706162122.ACE95321.tOFLOOVFFHMSJQ@I-love.SAKURA.ne.jp>
+ <20170616141255.GN30580@dhcp22.suse.cz>
+ <201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <7b626551-6d1b-c8d5-4ef7-e357399e78dc@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-IE
-Content-Transfer-Encoding: 7bit
-Message-Id: <c5f8cf53-c30b-a7ec-a8e8-9a2c120bdff6@de.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1706201509170.109574@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com
-Cc: Nitesh Narayan Lal <nilal@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/20/2017 06:49 PM, David Hildenbrand wrote:
-> On 20.06.2017 18:44, Rik van Riel wrote:
->> On Mon, 2017-06-12 at 07:10 -0700, Dave Hansen wrote:
->>
->>> The hypervisor is going to throw away the contents of these pages,
->>> right?  As soon as the spinlock is released, someone can allocate a
->>> page, and put good data in it.  What keeps the hypervisor from
->>> throwing
->>> away good data?
->>
->> That looks like it may be the wrong API, then?
->>
->> We already have hooks called arch_free_page and
->> arch_alloc_page in the VM, which are called when
->> pages are freed, and allocated, respectively.
->>
->> Nitesh Lal (on the CC list) is working on a way
->> to efficiently batch recently freed pages for
->> free page hinting to the hypervisor.
->>
->> If that is done efficiently enough (eg. with
->> MADV_FREE on the hypervisor side for lazy freeing,
->> and lazy later re-use of the pages), do we still
->> need the harder to use batch interface from this
->> patch?
->>
-> David's opinion incoming:
+On Tue 20-06-17 15:12:55, David Rientjes wrote:
+[...]
+> This doesn't prevent serial oom killing for either the system oom killer 
+> or for the memcg oom killer.
 > 
-> No, I think proper free page hinting would be the optimum solution, if
-> done right. This would avoid the batch interface and even turn
-> virtio-balloon in some sense useless.
+> The oom killer cannot detect tsk_is_oom_victim() if the task has either 
+> been removed from the tasklist or has already done cgroup_exit(). For 
+> memcg oom killings in particular, cgroup_exit() is usually called very 
+> shortly after the oom killer has sent the SIGKILL.  If the oom reaper does 
+> not fail (for example by failing to grab mm->mmap_sem) before another 
+> memcg charge after cgroup_exit(victim), additional processes are killed 
+> because the iteration does not view the victim.
 > 
-Two reasons why I disagree:
-- virtio-balloon is often used as memory hotplug. (e.g. libvirts current/max memory
-uses virtio ballon)
-- free page hinting will not allow to shrink the page cache of guests (like a ballooner does)
+> This easily kills all processes attached to the memcg with no memory 
+> freeing from any victim.
+
+It took me some time to decrypt the above but you are right. Pinning
+mm_users will prevent exit path to exit_mmap and that can indeed cause
+another premature oom killing because the task might be unhashed or
+removed from the memcg before the oom reaper has a chance to reap the
+task. Thanks for pointing this out. This means that we either have to
+reimplement the unhashing/cgroup_exit for oom victims or get back to
+allowing oom reaper to race with exit_mmap. The later sounds much more
+easier to me.
+
+I was offline last two days but I will revisit my original idea ASAP.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
