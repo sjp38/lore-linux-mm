@@ -1,48 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7FF6B03AB
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:06:01 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z81so3517093wrc.2
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:06:01 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 62si5096563wrg.61.2017.06.21.01.06.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Jun 2017 01:06:00 -0700 (PDT)
-Date: Wed, 21 Jun 2017 10:05:55 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 04/11] x86/mm: Give each mm TLB flush generation a
- unique ID
-In-Reply-To: <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
-Message-ID: <alpine.DEB.2.20.1706211005270.2328@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <e2903f555bd23f8cf62f34b91895c42f7d4e40e3.1498022414.git.luto@kernel.org>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 32B646B03AE
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 04:23:19 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z81so3636293wrc.2
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 01:23:19 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id m29si9015834wrb.254.2017.06.21.01.23.17
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jun 2017 01:23:17 -0700 (PDT)
+Date: Wed, 21 Jun 2017 10:23:01 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 10/36] x86/mm: Provide general kernel support for
+ memory encryption
+Message-ID: <20170621082301.47lafavh6cstbwfl@pd.tnic>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185140.18967.61905.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1706210916590.2328@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1706210916590.2328@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+On Wed, Jun 21, 2017 at 09:18:59AM +0200, Thomas Gleixner wrote:
+> That looks wrong. It's not decrypted it's rather unencrypted, right?
 
-> This adds two new variables to mmu_context_t: ctx_id and tlb_gen.
-> ctx_id uniquely identifies the mm_struct and will never be reused.
-> For a given mm_struct (and hence ctx_id), tlb_gen is a monotonic
-> count of the number of times that a TLB flush has been requested.
-> The pair (ctx_id, tlb_gen) can be used as an identifier for TLB
-> flush actions and will be used in subsequent patches to reliably
-> determine whether all needed TLB flushes have occurred on a given
-> CPU.
-> 
-> This patch is split out for ease of review.  By itself, it has no
-> real effect other than creating and updating the new variables.
+Yeah, it previous versions of the patchset, "decrypted" and
+"unencrypted" were both present so we settled on "decrypted" for the
+nomenclature.
 
-Thanks for splitting this apart!
+-- 
+Regards/Gruss,
+    Boris.
 
-> 
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
