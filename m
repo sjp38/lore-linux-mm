@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A68806B0365
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 15:05:43 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r103so7090390wrb.0
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 12:05:43 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id y123si1908856wmd.16.2017.06.22.12.05.42
-        for <linux-mm@kvack.org>;
-        Thu, 22 Jun 2017 12:05:42 -0700 (PDT)
-Date: Thu, 22 Jun 2017 21:05:22 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness
- tracking
-Message-ID: <20170622190522.ou2wiyepupiasi2a@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org>
- <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
- <20170622145013.n3slk7ip6wpany5d@pd.tnic>
- <CALCETrUA-+9ORRXFrYdyEg5ZQOEbDFrwq4uuRWDb89V49QRBWw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CALCETrUA-+9ORRXFrYdyEg5ZQOEbDFrwq4uuRWDb89V49QRBWw@mail.gmail.com>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A02886B0372
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 15:30:45 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 4so7167575wrc.15
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 12:30:45 -0700 (PDT)
+Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
+        by mx.google.com with ESMTPS id y57si2326122wry.133.2017.06.22.12.30.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Jun 2017 12:30:44 -0700 (PDT)
+Received: by mail-wr0-f193.google.com with SMTP id x23so7049153wrb.0
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 12:30:43 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/3] mm, hugetlb: allow proper node fallback dequeue
+Date: Thu, 22 Jun 2017 21:30:31 +0200
+Message-Id: <20170622193034.28972-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Mike Travis <mike.travis@hpe.com>, Dimitri Sivanich <sivanich@hpe.com>, Andrew Banman <abanman@hpe.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 22, 2017 at 10:47:29AM -0700, Andy Lutomirski wrote:
-> I figured that some future reader of this patch might actually want to
-> see this text, though.
+Hi,
+the previous version of this patchset has been sent as an RFC [1].
+As it doesn't seem anybody would object I am resending and asking
+for merging.
 
-Oh, don't get me wrong: with commit messages more is more, in the
-general case. That's why I said "if".
+Original reasoning:
 
-> >> The UV tlbflush code is rather dated and should be changed.
-> 
-> And I'd definitely like the UV maintainers to notice this part, now or
-> in the future :)  I don't want to personally touch the UV code with a
-> ten-foot pole, but it really should be updated by someone who has a
-> chance of getting it right and being able to test it.
+While working on a hugetlb migration issue addressed in a separate
+patchset [2] I have noticed that the hugetlb allocations from the
+preallocated pool are quite subotimal. There is no fallback mechanism
+implemented and no notion of preferred node. I have tried to work
+around it by [4] but Vlastimil was right to push back for a more robust
+solution. It seems that such a solution is to reuse zonelist approach
+we use for the page alloctor.
 
-Ah, could be because they moved recently and have hpe addresses now.
-Lemme add them.
+This series has 3 patches. The first one tries to make hugetlb
+allocation layers more clear. The second one implements the zonelist
+hugetlb pool allocation and introduces a preferred node semantic which
+is used by the migration callbacks. The last patch is a clean up.
 
-> >> +
-> >> +     if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-> >> +             cpumask_clear_cpu(cpu, mm_cpumask(mm));
-> >
-> > It seems we haz a helper for that: cpumask_test_and_clear_cpu() which
-> > does BTR straightaway.
-> 
-> Yeah, but I'm doing this for performance.  I think that all the
-> various one-line helpers do a LOCKed op right away, and I think it's
-> faster to see if we can avoid the LOCKed op by trying an ordinary read
-> first.
+This is based on top of the current mmotm tree (mmotm-2017-06-16-13-59).
 
-Right, the test part of the operation is unlocked so if that is the
-likely case, it is a win.
+Shortlog
+Michal Hocko (3):
+      mm, hugetlb: unclutter hugetlb allocation layers
+      hugetlb: add support for preferred node to alloc_huge_page_nodemask
+      mm, hugetlb, soft_offline: use new_page_nodemask for soft offline migration
 
-> OTOH, maybe this is misguided -- if the cacheline lives somewhere else
-> and we do end up needing to update it, we'll end up first sharing it
-> and then making it exclusive, which increases the amount of cache
-> coherency traffic, so maybe I'm optimizing for the wrong thing. What
-> do you think?
+And the diffstat looks promissing as well
 
-Yeah, but we'll have to do that anyway for the locked operation. Ok,
-let's leave it split like it is.
+ include/linux/hugetlb.h |   5 +-
+ include/linux/migrate.h |   2 +-
+ mm/hugetlb.c            | 215 ++++++++++++++++--------------------------------
+ mm/memory-failure.c     |  10 +--
+ 4 files changed, 75 insertions(+), 157 deletions(-)
 
-> It did in one particular buggy incarnation.  It would also trigger if,
-> say, suspend/resume corrupts CR3.  Admittedly this is unlikely, but
-> I'd rather catch it.  Once PCID is on, corruption seems a bit less
-> farfetched -- this assertion will catch anyone who accidentally does
-> write_cr3(read_cr3_pa()).
-
-Ok, but let's put a comment over it pls as it is not obvious when
-something like that can happen.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+[1] http://lkml.kernel.org/r/20170613090039.14393-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20170608074553.22152-1-mhocko@kernel.org
+[3] http://lkml.kernel.org/r/20170608074553.22152-5-mhocko@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
