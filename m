@@ -1,64 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B6996B02FA
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:25:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 64so2181343wrp.4
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 00:25:10 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id s11si648570wrb.115.2017.06.22.00.25.08
-        for <linux-mm@kvack.org>;
-        Thu, 22 Jun 2017 00:25:09 -0700 (PDT)
-Date: Thu, 22 Jun 2017 09:24:49 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
- flushing algorithm
-Message-ID: <20170622072449.4rc4bnvucn7usuak@pd.tnic>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D27516B0279
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:32:31 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id p64so2195897wrc.8
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 00:32:31 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id i6si880816wra.141.2017.06.22.00.32.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Jun 2017 00:32:30 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id k67so2411144wrc.1
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 00:32:30 -0700 (PDT)
+Date: Thu, 22 Jun 2017 09:32:27 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
+Message-ID: <20170622073227.lep4fmqypq6habnn@gmail.com>
 References: <cover.1498022414.git.luto@kernel.org>
- <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
- <20170621184424.eixb2jdyy66xq4hg@pd.tnic>
- <CALCETrWEGrVJj3Jcc3U38CYh01GKgGpLqW=eN_-7nMo4t=V5Mg@mail.gmail.com>
+ <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+ <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
+ <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrWEGrVJj3Jcc3U38CYh01GKgGpLqW=eN_-7nMo4t=V5Mg@mail.gmail.com>
+In-Reply-To: <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Nadav Amit <nadav.amit@gmail.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, Jun 21, 2017 at 07:46:05PM -0700, Andy Lutomirski wrote:
-> > I'm certainly still missing something here:
+
+* Andy Lutomirski <luto@kernel.org> wrote:
+
+> On Wed, Jun 21, 2017 at 4:26 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
+> > Andy Lutomirski <luto@kernel.org> wrote:
 > >
-> > We have f->new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we
-> > do once
+> >> index 2a5e851f2035..f06239c6919f 100644
+> >> --- a/arch/x86/mm/tlb.c
+> >> +++ b/arch/x86/mm/tlb.c
+> >> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+> >> static void flush_tlb_func_common(const struct flush_tlb_info *f,
+> >>                                 bool local, enum tlb_flush_reason reason)
+> >> {
+> >> +     /* This code cannot presently handle being reentered. */
+> >> +     VM_WARN_ON(!irqs_disabled());
+> >> +
+> >>       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+> >>               leave_mm(smp_processor_id());
+> >>               return;
+> >> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+> >>               info.end = TLB_FLUSH_ALL;
+> >>       }
+> >>
+> >> -     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
+> >> +     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
 > >
-> >         bump_mm_tlb_gen(mm);
+> > Perhaps you want to add:
 > >
-> > and once
+> >         VM_WARN_ON(irqs_disabled());
 > >
-> >         info.new_tlb_gen = bump_mm_tlb_gen(mm);
+> > here
 > >
-> > and in both cases, the bumping is done on mm->context.tlb_gen.
+> >> +             local_irq_disable();
+> >>               flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+> >> +             local_irq_enable();
+> >> +     }
+> >> +
+> >>       if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+> >>               flush_tlb_others(mm_cpumask(mm), &info);
+> >>       put_cpu();
+> >> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+> >>
+> >>       int cpu = get_cpu();
+> >>
+> >> -     if (cpumask_test_cpu(cpu, &batch->cpumask))
+> >> +     if (cpumask_test_cpu(cpu, &batch->cpumask)) {
 > >
-> > So why isn't that enough to do the flushing and we have to consult
-> > info.new_tlb_gen too?
+> > and here?
+> >
 > 
-> The issue is a possible race.  Suppose we start at tlb_gen == 1 and
-> then two concurrent flushes happen.  The first flush is a full flush
-> and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen
-> to 3.  If the second flush gets propagated to a given CPU first and it
+> Will do.
+> 
+> What I really want is lockdep_assert_irqs_disabled() or, even better,
+> for this to be implicit when calling local_irq_disable().  Ingo?
 
-Maybe I'm still missing something, which is likely...
+I tried that once many years ago and IIRC there were problems - but maybe we could 
+try it again and enforce it, as I agree that the following pattern:
 
-but if the second flush gets propagated to the CPU first, the CPU will
-have local tlb_gen 1 and thus enforce a full flush anyway because we
-will go 1 -> 3 on that particular CPU. Or?
+	local_irq_disable();
+	...
+		local_irq_disable();
+		...
+		local_irq_enable();
+	...
+	local_irq_enable();
 
--- 
-Regards/Gruss,
-    Boris.
+.. is actively dangerous.
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
