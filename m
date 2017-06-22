@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A5983292
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 17:22:41 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 77so7800830wrb.11
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 14:22:41 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u17si2491242wra.201.2017.06.22.14.22.39
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 25F356B0279
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:53:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x23so8227200wrb.6
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 15:53:41 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id l126si2430216wmd.3.2017.06.22.15.53.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Jun 2017 14:22:39 -0700 (PDT)
-Date: Thu, 22 Jun 2017 23:22:29 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using
- PCID
-In-Reply-To: <CALCETrVm9oQCpovr0aZcDXoG-8hOoYPMDyhYZJPSBNFGemXQNg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1706222319330.2221@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org> <alpine.DEB.2.20.1706211159430.2328@nanos> <CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com>
- <alpine.DEB.2.20.1706221037320.1885@nanos> <CALCETrVm9oQCpovr0aZcDXoG-8hOoYPMDyhYZJPSBNFGemXQNg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Jun 2017 15:53:39 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id k67so8151275wrc.1
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 15:53:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <201706221935.ICC81763.OQFOFLFOJtMHVS@I-love.SAKURA.ne.jp>
+References: <20170602071818.GA29840@dhcp22.suse.cz> <201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
+ <CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
+ <201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+ <CAM_iQpV61uNwfhK_UKJQQteuzk-6m-2dHTfgFriRWunrN+m=ZQ@mail.gmail.com> <201706221935.ICC81763.OQFOFLFOJtMHVS@I-love.SAKURA.ne.jp>
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Date: Thu, 22 Jun 2017 15:53:18 -0700
+Message-ID: <CAM_iQpW-UHTHErQtoWt0gdYkna3aOFxzfLuudFzP=nvDrpLHZQ@mail.gmail.com>
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, dave.hansen@intel.com, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, vbabka@suse.cz
 
-On Thu, 22 Jun 2017, Andy Lutomirski wrote:
-> On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > Now one other optimization which should be trivial to add is to keep the 4
-> > asid context entries in cpu_tlbstate and cache the last asid in thread
-> > info. If that's still valid then use it otherwise unconditionally get a new
-> > one. That avoids the whole loop machinery and thread info is cache hot in
-> > the context switch anyway. Delta patch on top of your version below.
-> 
-> I'm not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on
-> CPU 1 and a thread in that mm bounces back and forth between those
-> CPUs, won't your patch cause it to flush every time?
+On Thu, Jun 22, 2017 at 3:35 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Cong Wang wrote:
+>> On Sun, Jun 4, 2017 at 1:58 AM, Tetsuo Handa
+>> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>> > You can retry with my kmallocwd patch shown bottom. An example output is
+>> > at http://I-love.SAKURA.ne.jp/tmp/sample-serial.log .
+>> >
+>> > Of course, kmallocwd can gather only basic information. You might need to
+>> > gather more information by e.g. enabling tracepoints after analyzing basic
+>> > information.
+>>
+>> Sure, since it is a debugging patch we definitely can try it.
+>>
+>> >
+>> > Below is kmallocwd patch backpoated for 4.9.30 kernel from
+>> > http://lkml.kernel.org/r/1495331504-12480-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+>> > Documentation/malloc-watchdog.txt part is stripped in order to reduce lines.
+>>
+>> Will do. But can't guarantee that we can reproduce it. ;)
+>>
+>
+> Did you get a chance to try reproducing it?
 
-Yeah, I was too focussed on the non migratory case, where two tasks from
-different processes play rapid ping pong. That's what I was looking at for
-various reasons.
+Not yet, I plan to apply your patch to our next kernel release but it
+doesn't happen yet. ;) I will let you know if I have any update.
 
-There the cached asid really helps by avoiding the loop completely, but
-yes, the search needs to be done for the bouncing between CPUs case.
-
-So maybe a combo of those might be interesting.
-
-Thanks,
-
-	tglx
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
