@@ -1,131 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A4096B0279
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 22:46:28 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b6so2158544oia.14
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:46:28 -0700 (PDT)
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 178406B02FD
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 22:58:11 -0400 (EDT)
+Received: by mail-ot0-f197.google.com with SMTP id 63so2816466otc.5
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:58:11 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g125si63875oif.72.2017.06.21.19.46.27
+        by mx.google.com with ESMTPS id w24si80682otw.114.2017.06.21.19.58.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 19:46:27 -0700 (PDT)
+        Wed, 21 Jun 2017 19:58:10 -0700 (PDT)
 Received: from mail-ua0-f174.google.com (mail-ua0-f174.google.com [209.85.217.174])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C146E22B4B
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 02:46:26 +0000 (UTC)
-Received: by mail-ua0-f174.google.com with SMTP id z22so3460112uah.1
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:46:26 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id 715D22199D
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 02:58:09 +0000 (UTC)
+Received: by mail-ua0-f174.google.com with SMTP id z22so3631776uah.1
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:58:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170621184424.eixb2jdyy66xq4hg@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org> <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
- <20170621184424.eixb2jdyy66xq4hg@pd.tnic>
+In-Reply-To: <alpine.DEB.2.20.1706211159430.2328@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org>
+ <alpine.DEB.2.20.1706211159430.2328@nanos>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 21 Jun 2017 19:46:05 -0700
-Message-ID: <CALCETrWEGrVJj3Jcc3U38CYh01GKgGpLqW=eN_-7nMo4t=V5Mg@mail.gmail.com>
-Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
- flushing algorithm
+Date: Wed, 21 Jun 2017 19:57:47 -0700
+Message-ID: <CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com>
+Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using PCID
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, Jun 21, 2017 at 11:44 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Tue, Jun 20, 2017 at 10:22:11PM -0700, Andy Lutomirski wrote:
->> +     this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
->> +     this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
->> +                    atomic64_read(&next->context.tlb_gen));
+On Wed, Jun 21, 2017 at 6:38 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+>> This patch uses PCID differently.  We use a PCID to identify a
+>> recently-used mm on a per-cpu basis.  An mm has no fixed PCID
+>> binding at all; instead, we give it a fresh PCID each time it's
+>> loaded except in cases where we want to preserve the TLB, in which
+>> case we reuse a recent value.
+>>
+>> This seems to save about 100ns on context switches between mms.
 >
-> Just let it stick out:
->
->         this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id,  next->context.ctx_id);
->         this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&next->context.tlb_gen));
->
-> Should be a bit better readable this way.
+> Depending on the work load I assume. For a CPU switching between a large
+> number of processes consecutively it won't make a change. In fact it will
+> be slower due to the extra few cycles required for rotating the asid, but I
+> doubt that this can be measured.
 
-Done
+True.  I suspect this can be improved -- see below.
 
->> +     if (local_tlb_gen == mm_tlb_gen) {
 >
->         if (unlikely(...
+>> +/*
+>> + * 6 because 6 should be plenty and struct tlb_state will fit in
+>> + * two cache lines.
+>> + */
+>> +#define NR_DYNAMIC_ASIDS 6
 >
-> maybe?
+> That requires a conditional branch
 >
-> Sounds to me like the concurrent flushes case would be the
-> uncommon one...
+>         if (asid >= NR_DYNAMIC_ASIDS) {
+>                 asid = 0;
+>                 ....
+>         }
+>
+> The question is whether 4 IDs would be sufficient which trades the branch
+> for a mask operation. Or you go for 8 and spend another cache line.
 
-Agreed.
+Interesting.  I'm inclined to either leave it at 6 or reduce it to 4
+for now and to optimize later.
 
+>
+>>  atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+>>
+>> +static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
+>> +                         u16 *new_asid, bool *need_flush)
+>> +{
+>> +     u16 asid;
 >> +
->> +     WARN_ON_ONCE(local_tlb_gen > mm_tlb_gen);
->> +     WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
+>> +     if (!static_cpu_has(X86_FEATURE_PCID)) {
+>> +             *new_asid = 0;
+>> +             *need_flush = true;
+>> +             return;
+>> +     }
 >> +
->> +     /*
->> +      * If we get to this point, we know that our TLB is out of date.
->> +      * This does not strictly imply that we need to flush (it's
->> +      * possible that f->new_tlb_gen <= local_tlb_gen), but we're
->> +      * going to need to flush in the very near future, so we might
->> +      * as well get it over with.
->> +      *
->> +      * The only question is whether to do a full or partial flush.
->> +      *
->> +      * A partial TLB flush is safe and worthwhile if two conditions are
->> +      * met:
->> +      *
->> +      * 1. We wouldn't be skipping a tlb_gen.  If the requester bumped
->> +      *    the mm's tlb_gen from p to p+1, a partial flush is only correct
->> +      *    if we would be bumping the local CPU's tlb_gen from p to p+1 as
->> +      *    well.
->> +      *
->> +      * 2. If there are no more flushes on their way.  Partial TLB
->> +      *    flushes are not all that much cheaper than full TLB
->> +      *    flushes, so it seems unlikely that it would be a
->> +      *    performance win to do a partial flush if that won't bring
->> +      *    our TLB fully up to date.
->> +      */
->> +     if (f->end != TLB_FLUSH_ALL &&
->> +         f->new_tlb_gen == local_tlb_gen + 1 &&
->> +         f->new_tlb_gen == mm_tlb_gen) {
+>> +     for (asid = 0; asid < NR_DYNAMIC_ASIDS; asid++) {
+>> +             if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
+>> +                 next->context.ctx_id)
+>> +                     continue;
+>> +
+>> +             *new_asid = asid;
+>> +             *need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
+>> +                            next_tlb_gen);
+>> +             return;
+>> +     }
 >
-> I'm certainly still missing something here:
+> Hmm. So this loop needs to be taken unconditionally even if the task stays
+> on the same CPU. And of course the number of dynamic IDs has to be short in
+> order to makes this loop suck performance wise.
 >
-> We have f->new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we
-> do once
+> Something like the completely disfunctional below might be worthwhile to
+> explore. At least arch/x86/mm/ compiles :)
 >
->         bump_mm_tlb_gen(mm);
->
-> and once
->
->         info.new_tlb_gen = bump_mm_tlb_gen(mm);
->
-> and in both cases, the bumping is done on mm->context.tlb_gen.
->
-> So why isn't that enough to do the flushing and we have to consult
-> info.new_tlb_gen too?
+> It gets rid of the loop search and lifts the limit of dynamic ids by
+> trading it with a percpu variable in mm_context_t.
 
-The issue is a possible race.  Suppose we start at tlb_gen == 1 and
-then two concurrent flushes happen.  The first flush is a full flush
-and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen
-to 3.  If the second flush gets propagated to a given CPU first and it
-were to do an actual partial flush (INVLPG) and set the percpu tlb_gen
-to 3, then the first flush won't do anything and we'll fail to flush
-all the pages we need to flush.
+That would work, but it would take a lot more memory on large systems
+with lots of processes, and I'd also be concerned that we might run
+out of dynamic percpu space.
 
-My solution was to say that we're only allowed to do INVLPG if we're
-making exactly the same change to the local tlb_gen that the requester
-made to context.tlb_gen.
+How about a different idea: make the percpu data structure look like a
+4-way set associative cache.  The ctxs array could be, say, 1024
+entries long without using crazy amounts of memory.  We'd divide it
+into 256 buckets, so you'd index it like ctxs[4*bucket + slot].  For
+each mm, we choose a random bucket (from 0 through 256), and then we'd
+just loop over the four slots in the bucket in choose_asid().  This
+would require very slightly more arithmetic (I'd guess only one or two
+cycles, though) but, critically, wouldn't touch any more cachelines.
 
-I'll add a comment to this effect.
+The downside of both of these approaches over the one in this patch is
+that the change that the percpu cacheline we need is not in the cache
+is quite a bit higher since it's potentially a different cacheline for
+each mm.  It would probably still be a win because avoiding the flush
+is really quite valuable.
 
->
->> +             /* Partial flush */
->>               unsigned long addr;
->>               unsigned long nr_pages = (f->end - f->start) >> PAGE_SHIFT;
->
-> <---- newline here.
+What do you think?  The added code would be tiny.
 
-Yup.
+(P.S. Why doesn't random_p32() try arch_random_int()?)
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
