@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EE5566B0279
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 06:03:16 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z81so3188180wrc.2
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:03:16 -0700 (PDT)
-Received: from mail-wr0-x235.google.com (mail-wr0-x235.google.com. [2a00:1450:400c:c0c::235])
-        by mx.google.com with ESMTPS id k189si814113wmg.36.2017.06.22.03.03.15
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E80866B0279
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 06:35:55 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id z48so8244770otz.6
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:35:55 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s58si401218otd.298.2017.06.22.03.35.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 03:03:15 -0700 (PDT)
-Received: by mail-wr0-x235.google.com with SMTP id r103so16371252wrb.0
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:03:15 -0700 (PDT)
-Date: Thu, 22 Jun 2017 11:03:13 +0100
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCH v7 17/36] efi: Update efi_mem_type() to return an error
- rather than 0
-Message-ID: <20170622100313.GB3238@codeblueprint.co.uk>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185306.18967.8964.stgit@tlendack-t1.amdoffice.net>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Jun 2017 03:35:54 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170602071818.GA29840@dhcp22.suse.cz>
+	<201706022013.DCI34351.SHOLFFtJQOMFOV@I-love.SAKURA.ne.jp>
+	<CAM_iQpWC9E=hee9xYY7Z4_oAA3wK5VOAve-Q1nMD_1SOXJmiyw@mail.gmail.com>
+	<201706041758.DGG86904.SOOVLtMJFOQFFH@I-love.SAKURA.ne.jp>
+	<CAM_iQpV61uNwfhK_UKJQQteuzk-6m-2dHTfgFriRWunrN+m=ZQ@mail.gmail.com>
+In-Reply-To: <CAM_iQpV61uNwfhK_UKJQQteuzk-6m-2dHTfgFriRWunrN+m=ZQ@mail.gmail.com>
+Message-Id: <201706221935.ICC81763.OQFOFLFOJtMHVS@I-love.SAKURA.ne.jp>
+Date: Thu, 22 Jun 2017 19:35:40 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170616185306.18967.8964.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: xiyou.wangcong@gmail.com
+Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz
 
-On Fri, 16 Jun, at 01:53:06PM, Tom Lendacky wrote:
-> The efi_mem_type() function currently returns a 0, which maps to
-> EFI_RESERVED_TYPE, if the function is unable to find a memmap entry for
-> the supplied physical address. Returning EFI_RESERVED_TYPE implies that
-> a memmap entry exists, when it doesn't.  Instead of returning 0, change
-> the function to return a negative error value when no memmap entry is
-> found.
+Cong Wang wrote:
+> On Sun, Jun 4, 2017 at 1:58 AM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > You can retry with my kmallocwd patch shown bottom. An example output is
+> > at http://I-love.SAKURA.ne.jp/tmp/sample-serial.log .
+> >
+> > Of course, kmallocwd can gather only basic information. You might need to
+> > gather more information by e.g. enabling tracepoints after analyzing basic
+> > information.
 > 
-> Reviewed-by: Borislav Petkov <bp@suse.de>
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/ia64/kernel/efi.c      |    4 ++--
->  arch/x86/platform/efi/efi.c |    6 +++---
->  include/linux/efi.h         |    2 +-
->  3 files changed, 6 insertions(+), 6 deletions(-)
+> Sure, since it is a debugging patch we definitely can try it.
+> 
+> >
+> > Below is kmallocwd patch backpoated for 4.9.30 kernel from
+> > http://lkml.kernel.org/r/1495331504-12480-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+> > Documentation/malloc-watchdog.txt part is stripped in order to reduce lines.
+> 
+> Will do. But can't guarantee that we can reproduce it. ;)
+> 
 
-Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
+Did you get a chance to try reproducing it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
