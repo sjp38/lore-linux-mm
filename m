@@ -1,88 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C756B036A
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 22:28:07 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id a80so2064592oic.8
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:28:07 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v13si50657oif.220.2017.06.21.19.28.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D5C6B036A
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 22:32:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y62so3473338pfa.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:32:47 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id e4si129142pgc.317.2017.06.21.19.32.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 19:28:06 -0700 (PDT)
-Received: from mail-ua0-f176.google.com (mail-ua0-f176.google.com [209.85.217.176])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 0AEEE22B4A
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 02:28:06 +0000 (UTC)
-Received: by mail-ua0-f176.google.com with SMTP id 70so3242168uau.0
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:28:05 -0700 (PDT)
+        Wed, 21 Jun 2017 19:32:46 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id e187so578684pgc.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:32:46 -0700 (PDT)
+Date: Thu, 22 Jun 2017 10:32:43 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is
+ default kernel zone
+Message-ID: <20170622023243.GA1242@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170601083746.4924-1-mhocko@kernel.org>
+ <20170601083746.4924-3-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
-References: <cover.1498022414.git.luto@kernel.org> <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
- <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 21 Jun 2017 19:27:44 -0700
-Message-ID: <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
-Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="AqsLC8rIMeq19msA"
+Content-Disposition: inline
+In-Reply-To: <20170601083746.4924-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jun 21, 2017 at 4:26 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
-> Andy Lutomirski <luto@kernel.org> wrote:
->
->> index 2a5e851f2035..f06239c6919f 100644
->> --- a/arch/x86/mm/tlb.c
->> +++ b/arch/x86/mm/tlb.c
->> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
->> static void flush_tlb_func_common(const struct flush_tlb_info *f,
->>                                 bool local, enum tlb_flush_reason reason)
->> {
->> +     /* This code cannot presently handle being reentered. */
->> +     VM_WARN_ON(!irqs_disabled());
->> +
->>       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
->>               leave_mm(smp_processor_id());
->>               return;
->> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->>               info.end = TLB_FLUSH_ALL;
->>       }
->>
->> -     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
->> +     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
->
-> Perhaps you want to add:
->
->         VM_WARN_ON(irqs_disabled());
->
-> here
->
->> +             local_irq_disable();
->>               flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
->> +             local_irq_enable();
->> +     }
->> +
->>       if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
->>               flush_tlb_others(mm_cpumask(mm), &info);
->>       put_cpu();
->> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
->>
->>       int cpu = get_cpu();
->>
->> -     if (cpumask_test_cpu(cpu, &batch->cpumask))
->> +     if (cpumask_test_cpu(cpu, &batch->cpumask)) {
->
-> and here?
->
 
-Will do.
+--AqsLC8rIMeq19msA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-What I really want is lockdep_assert_irqs_disabled() or, even better,
-for this to be implicit when calling local_irq_disable().  Ingo?
+On Thu, Jun 01, 2017 at 10:37:46AM +0200, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+>Heiko Carstens has noticed that he can generate overlapping zones for
+>ZONE_DMA and ZONE_NORMAL:
+>DMA      [mem 0x0000000000000000-0x000000007fffffff]
+>Normal   [mem 0x0000000080000000-0x000000017fffffff]
+>
+>$ cat /sys/devices/system/memory/block_size_bytes
+>10000000
+>$ cat /sys/devices/system/memory/memory5/valid_zones
+>DMA
+>$ echo 0 > /sys/devices/system/memory/memory5/online
+>$ cat /sys/devices/system/memory/memory5/valid_zones
+>Normal
+>$ echo 1 > /sys/devices/system/memory/memory5/online
+>Normal
+>
+>$ cat /proc/zoneinfo
+>Node 0, zone      DMA
+>spanned  524288        <-----
+>present  458752
+>managed  455078
+>start_pfn:           0 <-----
+>
+>Node 0, zone   Normal
+>spanned  720896
+>present  589824
+>managed  571648
+>start_pfn:           327680 <-----
+>
+>The reason is that we assume that the default zone for kernel onlining
+>is ZONE_NORMAL. This was a simplification introduced by the memory
+>hotplug rework and it is easily fixable by checking the range overlap in
+>the zone order and considering the first matching zone as the default
+>one. If there is no such zone then assume ZONE_NORMAL as we have been
+>doing so far.
+>
+>Fixes: "mm, memory_hotplug: do not associate hotadded memory to zones unti=
+l online"
+>Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+>Tested-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+>Signed-off-by: Michal Hocko <mhocko@suse.com>
+>---
+> drivers/base/memory.c          |  2 +-
+> include/linux/memory_hotplug.h |  2 ++
+> mm/memory_hotplug.c            | 27 ++++++++++++++++++++++++---
+> 3 files changed, 27 insertions(+), 4 deletions(-)
+>
+>diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>index b86fda30ce62..c7c4e0325cdb 100644
+>--- a/drivers/base/memory.c
+>+++ b/drivers/base/memory.c
+>@@ -419,7 +419,7 @@ static ssize_t show_valid_zones(struct device *dev,
+>=20
+> 	nid =3D pfn_to_nid(start_pfn);
+> 	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)=
+) {
+>-		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_NORMAL].name);
+>+		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
+> 		append =3D true;
+> 	}
+>=20
+>diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug=
+=2Eh
+>index 9e0249d0f5e4..ed167541e4fc 100644
+>--- a/include/linux/memory_hotplug.h
+>+++ b/include/linux/memory_hotplug.h
+>@@ -309,4 +309,6 @@ extern struct page *sparse_decode_mem_map(unsigned lon=
+g coded_mem_map,
+> 					  unsigned long pnum);
+> extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned l=
+ong nr_pages,
+> 		int online_type);
+>+extern struct zone *default_zone_for_pfn(int nid, unsigned long pfn,
+>+		unsigned long nr_pages);
+> #endif /* __LINUX_MEMORY_HOTPLUG_H */
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index b3895fd609f4..a0348de3e18c 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -858,7 +858,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn=
+, unsigned long nr_pages,
+> {
+> 	struct pglist_data *pgdat =3D NODE_DATA(nid);
+> 	struct zone *movable_zone =3D &pgdat->node_zones[ZONE_MOVABLE];
+>-	struct zone *normal_zone =3D  &pgdat->node_zones[ZONE_NORMAL];
+>+	struct zone *default_zone =3D default_zone_for_pfn(nid, pfn, nr_pages);
+>=20
+> 	/*
+> 	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
+>@@ -872,7 +872,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn=
+, unsigned long nr_pages,
+> 			return true;
+> 		return movable_zone->zone_start_pfn >=3D pfn + nr_pages;
+> 	} else if (online_type =3D=3D MMOP_ONLINE_MOVABLE) {
+>-		return zone_end_pfn(normal_zone) <=3D pfn;
+>+		return zone_end_pfn(default_zone) <=3D pfn;
+> 	}
+>=20
+> 	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
+>@@ -938,6 +938,27 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+> }
+>=20
+> /*
+>+ * Returns a default kernel memory zone for the given pfn range.
+>+ * If no kernel zone covers this pfn range it will automatically go
+>+ * to the ZONE_NORMAL.
+>+ */
+>+struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+>+		unsigned long nr_pages)
+>+{
+>+	struct pglist_data *pgdat =3D NODE_DATA(nid);
+>+	int zid;
+>+
+>+	for (zid =3D 0; zid <=3D ZONE_NORMAL; zid++) {
+>+		struct zone *zone =3D &pgdat->node_zones[zid];
+>+
+>+		if (zone_intersects(zone, start_pfn, nr_pages))
+>+			return zone;
+>+	}
+>+
+>+	return &pgdat->node_zones[ZONE_NORMAL];
+>+}
 
---Andy
+Hmm... a corner case jumped into my mind which may invalidate this
+calculation.
+
+The case is:
+
+
+       Zone:         | DMA   | DMA32      | NORMAL       |
+                     v       v            v              v
+      =20
+       Phy mem:      [           ]     [                  ]
+      =20
+                     ^           ^     ^                  ^
+       Node:         |   Node0   |     |      Node1       |
+                             A   B     C  D
+
+
+The key point is
+1. There is a hole between Node0 and Node1
+2. The hole sits in a non-normal zone
+
+Let's mark the boundary as A, B, C, D. Then we would have
+node0->zone[dma21] =3D [A, B]
+node1->zone[dma32] =3D [C, D]
+
+If we want to hotplug a range in [B, C] on node0, it looks not that bad. Wh=
+ile
+if we want to hotplug a range in [B, C] on node1, it will introduce the
+overlapped zone. Because the range [B, C] intersects none of the existing
+zones on node1.
+
+Do you think this is possible?
+
+>+
+>+/*
+>  * Associates the given pfn range with the given node and the zone approp=
+riate
+>  * for the given online type.
+>  */
+>@@ -945,7 +966,7 @@ static struct zone * __meminit move_pfn_range(int onli=
+ne_type, int nid,
+> 		unsigned long start_pfn, unsigned long nr_pages)
+> {
+> 	struct pglist_data *pgdat =3D NODE_DATA(nid);
+>-	struct zone *zone =3D &pgdat->node_zones[ZONE_NORMAL];
+>+	struct zone *zone =3D default_zone_for_pfn(nid, start_pfn, nr_pages);
+>=20
+> 	if (online_type =3D=3D MMOP_ONLINE_KEEP) {
+> 		struct zone *movable_zone =3D &pgdat->node_zones[ZONE_MOVABLE];
+>--=20
+>2.11.0
+
+--=20
+Wei Yang
+Help you, Help me
+
+--AqsLC8rIMeq19msA
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZSyxLAAoJEKcLNpZP5cTdVqoQAIHi4v7vzFRe/byJ2M+lvhUD
+Hz6c+xRLcv/FQzT6hTnIVohXQI9FE2na4UJXwgyvcyIwz8Tr3M28bjdYiF/mo3ba
+cT1uh9gKIYuKyciCkKu5uQDhXpFKAXvqRSkJi6ddA8rEuFKGvC33i/+y5Wjw7b4w
+U5j+4gD4EASAa9apFj0FvsarXxJwq8Ybybg5igZjg0A52vfT46pdhkF17gv8H08H
+hEcZ3PP2xQJr5SXQO8phPAEJwAvRvNZ9dv7wN8/02DFO4g7U5A+RdIrou60tRe+f
+aDPUiCivmESVw9UhdwE574WYksW9FyiDhjwfNRRY6AZnzKVWMU46L+gh0TUP9YcN
+qgtS1QX8toDJpAG/kfR1KRKpUIqHyx8zJTB7D/AOobResxLLEuCN/Z2nJ3vNLhMW
+OvGktMEMo6tBzablKqp3x0KziKJiQJS3KJXq1mOyoImNFY1zk7ZqM6SvsrNMGJf1
+CYBeXgKSusAzxJ3Tz3hNBz8NbHhu7QjRb4VKqPMI3BLM0epcq7tbD0SHHjhH134T
+Mg2QGDF84jtwQMjQugjhhnU1K/wDV1IE5cfqlb0yby2Z8kniHQCp8hXe6ZHm/Qpb
+RjmE0Gd+d5g4TF1J6H52Yr9njNb/TBt078cqFaLmdrWWFa2Pz6AO4zz/lF1B6ne7
+xjP8Lt4la6jssxaVnaCq
+=hexA
+-----END PGP SIGNATURE-----
+
+--AqsLC8rIMeq19msA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
