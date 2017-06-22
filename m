@@ -1,48 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E630683292
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 16:58:54 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 23so1448613wry.4
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 13:58:54 -0700 (PDT)
-Received: from mail-wr0-x22b.google.com (mail-wr0-x22b.google.com. [2a00:1450:400c:c0c::22b])
-        by mx.google.com with ESMTPS id e14si2236232wrd.321.2017.06.22.13.58.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CD14383292
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 17:14:15 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z45so7740297wrb.13
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 14:14:15 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a135si2271762wmd.2.2017.06.22.14.14.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 13:58:53 -0700 (PDT)
-Received: by mail-wr0-x22b.google.com with SMTP id 77so39597989wrb.1
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 13:58:53 -0700 (PDT)
-Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
- 4.x+/i386/16+RAM, compared to 3.x
-References: <bug-196157-27@https.bugzilla.kernel.org/>
- <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
-From: Alkis Georgopoulos <alkisg@gmail.com>
-Message-ID: <7e1fbca4-919a-a161-20ec-e95527b58979@gmail.com>
-Date: Thu, 22 Jun 2017 23:58:50 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 8bit
+        Thu, 22 Jun 2017 14:14:14 -0700 (PDT)
+Date: Thu, 22 Jun 2017 14:14:11 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 1/4] x86: switch atomic.h to use
+ atomic-instrumented.h
+Message-Id: <20170622141411.6af8091132e4416e3635b62e@linux-foundation.org>
+In-Reply-To: <ff85407a7476ac41bfbdd46a35a93b8f57fa4b1e.1498140838.git.dvyukov@google.com>
+References: <cover.1498140468.git.dvyukov@google.com>
+	<ff85407a7476ac41bfbdd46a35a93b8f57fa4b1e.1498140838.git.dvyukov@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: mark.rutland@arm.com, peterz@infradead.org, mingo@redhat.com, will.deacon@arm.com, hpa@zytor.com, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-IGBPI?I1I? 22/06/2017 10:37 I 1/4 I 1/4 , I? Andrew Morton I-I3I?I+-I?Iu:
-> 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> hm, that's news to me.
-> 
-> Does anyone have access to a large i386 setup?  Interested in
-> reproducing this and figuring out what's going wrong?
-> 
+On Thu, 22 Jun 2017 16:14:16 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
 
+> Add arch_ prefix to all atomic operations and include
+> <asm-generic/atomic-instrumented.h>. This will allow
+> to add KASAN instrumentation to all atomic ops.
 
-I can arrange ssh/vnc access to an i386 box with 16 GB RAM that has the 
-issue, if some kernel dev wants to work on that. Please PM me for 
-details - also tell me your preferred distro.
+This gets a large number of (simple) rejects when applied to
+linux-next.  Can you please redo against -next?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
