@@ -1,88 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E75DB6B0279
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 12:31:46 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id u74so14098606ota.0
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 09:31:46 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id d36si711103otd.360.2017.06.22.09.31.45
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7156B0279
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 12:48:57 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o41so8572542qtf.8
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 09:48:57 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0081.outbound.protection.outlook.com. [104.47.33.81])
+        by mx.google.com with ESMTPS id p27si48732qtg.225.2017.06.22.09.48.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 09:31:46 -0700 (PDT)
-Subject: Re: [PATCH v2] fs/dcache.c: fix spin lockup issue on nlru->lock
-References: <6ab790fe-de97-9495-0d3b-804bae5d7fbb@codeaurora.org>
- <1498027155-4456-1-git-send-email-stummala@codeaurora.org>
- <20170621163134.GA3273@esperanza>
-From: Sahitya Tummala <stummala@codeaurora.org>
-Message-ID: <8d82c32d-6cbb-c39d-2f0e-0af23925b3c1@codeaurora.org>
-Date: Thu, 22 Jun 2017 22:01:39 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Jun 2017 09:48:56 -0700 (PDT)
+Subject: Re: [PATCH v7 27/36] iommu/amd: Allow the AMD IOMMU to work with
+ memory encryption
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185459.18967.72790.stgit@tlendack-t1.amdoffice.net>
+ <20170622105637.g7twdaae2v5eaown@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <379702e6-31f1-2df1-8889-3498241aea49@amd.com>
+Date: Thu, 22 Jun 2017 11:48:46 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170621163134.GA3273@esperanza>
+In-Reply-To: <20170622105637.g7twdaae2v5eaown@pd.tnic>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Alexander Polakov <apolyakov@beget.ru>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
+On 6/22/2017 5:56 AM, Borislav Petkov wrote:
+> On Fri, Jun 16, 2017 at 01:54:59PM -0500, Tom Lendacky wrote:
+>> The IOMMU is programmed with physical addresses for the various tables
+>> and buffers that are used to communicate between the device and the
+>> driver. When the driver allocates this memory it is encrypted. In order
+>> for the IOMMU to access the memory as encrypted the encryption mask needs
+>> to be included in these physical addresses during configuration.
+>>
+>> The PTE entries created by the IOMMU should also include the encryption
+>> mask so that when the device behind the IOMMU performs a DMA, the DMA
+>> will be performed to encrypted memory.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   drivers/iommu/amd_iommu.c       |   30 ++++++++++++++++--------------
+>>   drivers/iommu/amd_iommu_init.c  |   34 ++++++++++++++++++++++++++++------
+>>   drivers/iommu/amd_iommu_proto.h |   10 ++++++++++
+>>   drivers/iommu/amd_iommu_types.h |    2 +-
+>>   4 files changed, 55 insertions(+), 21 deletions(-)
+> 
+> Reviewed-by: Borislav Petkov <bp@suse.de>
+> 
+> Btw, I'm assuming the virt_to_phys() difference on SME systems is only
+> needed in a handful of places. Otherwise, I'd suggest changing the
+> virt_to_phys() function/macro directly. But I guess most of the places
+> need the real physical address without the enc bit.
 
+Correct.
 
-On 6/21/2017 10:01 PM, Vladimir Davydov wrote:
->
->> index cddf397..c8ca150 100644
->> --- a/fs/dcache.c
->> +++ b/fs/dcache.c
->> @@ -1133,10 +1133,11 @@ void shrink_dcache_sb(struct super_block *sb)
->>   		LIST_HEAD(dispose);
->>   
->>   		freed = list_lru_walk(&sb->s_dentry_lru,
->> -			dentry_lru_isolate_shrink, &dispose, UINT_MAX);
->> +			dentry_lru_isolate_shrink, &dispose, 1024);
->>   
->>   		this_cpu_sub(nr_dentry_unused, freed);
->>   		shrink_dentry_list(&dispose);
->> +		cond_resched();
->>   	} while (freed > 0);
-> In an extreme case, a single invocation of list_lru_walk() can skip all
-> 1024 dentries, in which case 'freed' will be 0 forcing us to break the
-> loop prematurely. I think we should loop until there's at least one
-> dentry left on the LRU, i.e.
->
-> 	while (list_lru_count(&sb->s_dentry_lru) > 0)
->
-> However, even that wouldn't be quite correct, because list_lru_count()
-> iterates over all memory cgroups to sum list_lru_one->nr_items, which
-> can race with memcg offlining code migrating dentries off a dead cgroup
-> (see memcg_drain_all_list_lrus()). So it looks like to make this check
-> race-free, we need to account the number of entries on the LRU not only
-> per memcg, but also per node, i.e. add list_lru_node->nr_items.
-> Fortunately, list_lru entries can't be migrated between NUMA nodes.
-It looks like list_lru_count() is iterating per node before iterating 
-over all memory
-cgroups as below -
+Thanks,
+Tom
 
-unsigned long list_lru_count_node(struct list_lru *lru, int nid)
-{
-         long count = 0;
-         int memcg_idx;
-
-         count += __list_lru_count_one(lru, nid, -1);
-         if (list_lru_memcg_aware(lru)) {
-                 for_each_memcg_cache_index(memcg_idx)
-                         count += __list_lru_count_one(lru, nid, memcg_idx);
-         }
-         return count;
-}
-
-The first call to __list_lru_count_one() is iterating all the items per 
-node i.e, nlru->lru->nr_items.
-Is my understanding correct? If not, could you please clarify on how to 
-get the lru items per node?
-
--- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
