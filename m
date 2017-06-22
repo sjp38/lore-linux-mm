@@ -1,100 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D27516B0279
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 03:32:31 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p64so2195897wrc.8
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 00:32:31 -0700 (PDT)
-Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
-        by mx.google.com with ESMTPS id i6si880816wra.141.2017.06.22.00.32.30
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2A16B0279
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 04:25:06 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x23so2527392wrb.6
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 01:25:06 -0700 (PDT)
+Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
+        by mx.google.com with ESMTPS id s17si860466wra.76.2017.06.22.01.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 00:32:30 -0700 (PDT)
-Received: by mail-wr0-x241.google.com with SMTP id k67so2411144wrc.1
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 00:32:30 -0700 (PDT)
-Date: Thu, 22 Jun 2017 09:32:27 +0200
+        Thu, 22 Jun 2017 01:25:04 -0700 (PDT)
+Received: by mail-wr0-x242.google.com with SMTP id z45so2745069wrb.2
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 01:25:04 -0700 (PDT)
+Date: Thu, 22 Jun 2017 10:25:01 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
-Message-ID: <20170622073227.lep4fmqypq6habnn@gmail.com>
-References: <cover.1498022414.git.luto@kernel.org>
- <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
- <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
- <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] kasan: allow kasan_check_read/write() to accept
+ pointers to volatiles
+Message-ID: <20170622082501.5q66ucborgxdxqzg@gmail.com>
+References: <cover.1497690003.git.dvyukov@google.com>
+ <e5a4c25bda8eccce2317da6d97138bfbea730e64.1497690003.git.dvyukov@google.com>
+ <20170619105008.GD10246@leverpostej>
+ <CACT4Y+Zc1EzTLq+cAf2hg8s4CynJdWVc_9sOROkRs9+XU3AXPg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
+In-Reply-To: <CACT4Y+Zc1EzTLq+cAf2hg8s4CynJdWVc_9sOROkRs9+XU3AXPg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
 
-* Andy Lutomirski <luto@kernel.org> wrote:
+* Dmitry Vyukov <dvyukov@google.com> wrote:
 
-> On Wed, Jun 21, 2017 at 4:26 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
-> > Andy Lutomirski <luto@kernel.org> wrote:
-> >
-> >> index 2a5e851f2035..f06239c6919f 100644
-> >> --- a/arch/x86/mm/tlb.c
-> >> +++ b/arch/x86/mm/tlb.c
-> >> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
-> >> static void flush_tlb_func_common(const struct flush_tlb_info *f,
-> >>                                 bool local, enum tlb_flush_reason reason)
-> >> {
-> >> +     /* This code cannot presently handle being reentered. */
-> >> +     VM_WARN_ON(!irqs_disabled());
-> >> +
-> >>       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
-> >>               leave_mm(smp_processor_id());
-> >>               return;
-> >> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
-> >>               info.end = TLB_FLUSH_ALL;
-> >>       }
+> On Mon, Jun 19, 2017 at 12:50 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Sat, Jun 17, 2017 at 11:15:31AM +0200, Dmitry Vyukov wrote:
+> >> Currently kasan_check_read/write() accept 'const void*', make them
+> >> accept 'const volatile void*'. This is required for instrumentation
+> >> of atomic operations and there is just no reason to not allow that.
 > >>
-> >> -     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
-> >> +     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+> >> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> >> Cc: Mark Rutland <mark.rutland@arm.com>
+> >> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> >> Cc: Thomas Gleixner <tglx@linutronix.de>
+> >> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> >> Cc: Peter Zijlstra <peterz@infradead.org>
+> >> Cc: Andrew Morton <akpm@linux-foundation.org>
+> >> Cc: linux-kernel@vger.kernel.org
+> >> Cc: x86@kernel.org
+> >> Cc: linux-mm@kvack.org
+> >> Cc: kasan-dev@googlegroups.com
 > >
-> > Perhaps you want to add:
+> > Looks sane to me, and I can confirm this doesn't advervsely affect
+> > arm64. FWIW:
 > >
-> >         VM_WARN_ON(irqs_disabled());
+> > Acked-by: Mark Rutland <mark.rutland@arm.com>
 > >
-> > here
-> >
-> >> +             local_irq_disable();
-> >>               flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
-> >> +             local_irq_enable();
-> >> +     }
-> >> +
-> >>       if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
-> >>               flush_tlb_others(mm_cpumask(mm), &info);
-> >>       put_cpu();
-> >> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
-> >>
-> >>       int cpu = get_cpu();
-> >>
-> >> -     if (cpumask_test_cpu(cpu, &batch->cpumask))
-> >> +     if (cpumask_test_cpu(cpu, &batch->cpumask)) {
-> >
-> > and here?
-> >
+> > Mark.
 > 
-> Will do.
 > 
-> What I really want is lockdep_assert_irqs_disabled() or, even better,
-> for this to be implicit when calling local_irq_disable().  Ingo?
+> Great! Thanks for testing.
+> 
+> Ingo, what are your thoughts? Are you taking this to locking tree? When?
 
-I tried that once many years ago and IIRC there were problems - but maybe we could 
-try it again and enforce it, as I agree that the following pattern:
+Yeah, it all looks pretty clean to me too. I've applied the first three patches to 
+the locking tree, but did some minor stylistic cleanups to the first patch to 
+harmonize the style of the code - which made the later patches not apply cleanly.
 
-	local_irq_disable();
-	...
-		local_irq_disable();
-		...
-		local_irq_enable();
-	...
-	local_irq_enable();
+Mind sending the remaining patches against the locking tree, tip:locking/core? 
+(Please also add in all the acks you got.)
 
-.. is actively dangerous.
+This should also give people (Peter, Linus?) a last minute chance to object to my 
+suggestion of increasing the linecount in patch #1:
+
+ 0f2376eb0ff8: locking/atomic/x86: Un-macro-ify atomic ops implementation
+
+ arch/x86/include/asm/atomic.h      | 69 ++++++++++++++++++++++++++++++++++++++++++++++-----------------------
+ arch/x86/include/asm/atomic64_32.h | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++------------------------
+ arch/x86/include/asm/atomic64_64.h | 67 ++++++++++++++++++++++++++++++++++++++++++++-----------------------
+ 3 files changed, 147 insertions(+), 70 deletions(-)
+
+... to me the end result looks much more readable despite the +70 lines of code, 
+but if anyone feels strongly about this please holler!
 
 Thanks,
 
