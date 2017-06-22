@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6FA6B0317
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 21:40:15 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id k14so1111823qkl.11
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:15 -0700 (PDT)
-Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
-        by mx.google.com with ESMTPS id l15si65126qtf.200.2017.06.21.18.40.14
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 904106B0338
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 21:40:17 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id d4so1151153qte.11
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:17 -0700 (PDT)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id n72si54569qka.278.2017.06.21.18.40.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 18:40:14 -0700 (PDT)
-Received: by mail-qk0-x241.google.com with SMTP id r62so356700qkf.3
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:14 -0700 (PDT)
+        Wed, 21 Jun 2017 18:40:16 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id s33so348317qtg.3
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:16 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v3 10/23] mm: provide the ability to disable execute on a key at creation
-Date: Wed, 21 Jun 2017 18:39:26 -0700
-Message-Id: <1498095579-6790-11-git-send-email-linuxram@us.ibm.com>
+Subject: [RFC v3 11/23] x86: key creation with PKEY_DISABLE_EXECUTE is disallowed
+Date: Wed, 21 Jun 2017 18:39:27 -0700
+Message-Id: <1498095579-6790-12-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
 References: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,34 +22,27 @@ List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-Currently sys_pkey_create() provides the ability to disable read
-and write permission on the key, at  creation. powerpc  has  the
-hardware support to disable execute on a pkey as well.This patch
-enhances the interface to let disable execute  at  key  creation
-time. x86 does  not  allow  this.  Hence the next patch will add
-ability  in  x86  to  return  error  is  PKEY_DISABLE_EXECUTE is
-specified.
+x86 does not support disabling execute permissions on a pkey.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- include/uapi/asm-generic/mman-common.h | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ arch/x86/kernel/fpu/xstate.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 8c27db0..bf4fa07 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -74,7 +74,9 @@
+diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
+index c24ac1e..d582631 100644
+--- a/arch/x86/kernel/fpu/xstate.c
++++ b/arch/x86/kernel/fpu/xstate.c
+@@ -900,6 +900,9 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+ 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+ 		return -EINVAL;
  
- #define PKEY_DISABLE_ACCESS	0x1
- #define PKEY_DISABLE_WRITE	0x2
-+#define PKEY_DISABLE_EXECUTE	0x4
- #define PKEY_ACCESS_MASK	(PKEY_DISABLE_ACCESS |\
--				 PKEY_DISABLE_WRITE)
-+				 PKEY_DISABLE_WRITE  |\
-+				 PKEY_DISABLE_EXECUTE)
- 
- #endif /* __ASM_GENERIC_MMAN_COMMON_H */
++	if (init_val & PKEY_DISABLE_EXECUTE)
++		return -EINVAL;
++
+ 	/* Set the bits we need in PKRU:  */
+ 	if (init_val & PKEY_DISABLE_ACCESS)
+ 		new_pkru_bits |= PKRU_AD_BIT;
 -- 
 1.8.3.1
 
