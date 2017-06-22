@@ -1,104 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0EB6B0390
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 21:40:48 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 20so1219934qtq.2
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:48 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id q51si66709qtc.220.2017.06.21.18.40.47
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C756B036A
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 22:28:07 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a80so2064592oic.8
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:28:07 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v13si50657oif.220.2017.06.21.19.28.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 18:40:47 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id d14so367615qkb.1
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:47 -0700 (PDT)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v3 23/23] procfs: display the protection-key number associated with a vma
-Date: Wed, 21 Jun 2017 18:39:39 -0700
-Message-Id: <1498095579-6790-24-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
-References: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
+        Wed, 21 Jun 2017 19:28:06 -0700 (PDT)
+Received: from mail-ua0-f176.google.com (mail-ua0-f176.google.com [209.85.217.176])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0AEEE22B4A
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 02:28:06 +0000 (UTC)
+Received: by mail-ua0-f176.google.com with SMTP id 70so3242168uau.0
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:28:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
+References: <cover.1498022414.git.luto@kernel.org> <b13eee98a0e5322fbdc450f234a01006ec374e2c.1498022414.git.luto@kernel.org>
+ <207CCA52-C1A0-4AEF-BABF-FA6552CFB71F@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 21 Jun 2017 19:27:44 -0700
+Message-ID: <CALCETrWA_-ADiUTqC17WV-GVTJymuGpZOrGnE291nhDMr1McMg@mail.gmail.com>
+Subject: Re: [PATCH v3 01/11] x86/mm: Don't reenter flush_tlb_func_common()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Nadav Amit <nadav.amit@gmail.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-Display the pkey number associated with the vma in smaps of a task.
-The key will be seen as below:
+On Wed, Jun 21, 2017 at 4:26 PM, Nadav Amit <nadav.amit@gmail.com> wrote:
+> Andy Lutomirski <luto@kernel.org> wrote:
+>
+>> index 2a5e851f2035..f06239c6919f 100644
+>> --- a/arch/x86/mm/tlb.c
+>> +++ b/arch/x86/mm/tlb.c
+>> @@ -208,6 +208,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>> static void flush_tlb_func_common(const struct flush_tlb_info *f,
+>>                                 bool local, enum tlb_flush_reason reason)
+>> {
+>> +     /* This code cannot presently handle being reentered. */
+>> +     VM_WARN_ON(!irqs_disabled());
+>> +
+>>       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+>>               leave_mm(smp_processor_id());
+>>               return;
+>> @@ -313,8 +316,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+>>               info.end = TLB_FLUSH_ALL;
+>>       }
+>>
+>> -     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))
+>> +     if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+>
+> Perhaps you want to add:
+>
+>         VM_WARN_ON(irqs_disabled());
+>
+> here
+>
+>> +             local_irq_disable();
+>>               flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+>> +             local_irq_enable();
+>> +     }
+>> +
+>>       if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+>>               flush_tlb_others(mm_cpumask(mm), &info);
+>>       put_cpu();
+>> @@ -370,8 +377,12 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+>>
+>>       int cpu = get_cpu();
+>>
+>> -     if (cpumask_test_cpu(cpu, &batch->cpumask))
+>> +     if (cpumask_test_cpu(cpu, &batch->cpumask)) {
+>
+> and here?
+>
 
-VmFlags: rd wr mr mw me dw ac key=0
+Will do.
 
-Signed-off-by: Ram Pai <linuxram@us.ibm.com>
----
- Documentation/filesystems/proc.txt |  3 ++-
- fs/proc/task_mmu.c                 | 22 +++++++++++-----------
- 2 files changed, 13 insertions(+), 12 deletions(-)
+What I really want is lockdep_assert_irqs_disabled() or, even better,
+for this to be implicit when calling local_irq_disable().  Ingo?
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 4cddbce..a8c74aa 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -423,7 +423,7 @@ SwapPss:               0 kB
- KernelPageSize:        4 kB
- MMUPageSize:           4 kB
- Locked:                0 kB
--VmFlags: rd ex mr mw me dw
-+VmFlags: rd ex mr mw me dw key=<num>
- 
- the first of these lines shows the same information as is displayed for the
- mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
-@@ -491,6 +491,7 @@ manner. The codes are the following:
-     hg  - huge page advise flag
-     nh  - no-huge page advise flag
-     mg  - mergable advise flag
-+    key=<num> - the memory protection key number
- 
- Note that there is no guarantee that every flag and associated mnemonic will
- be present in all further kernel releases. Things get changed, the flags may
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 2ddc298..d2eb096 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1,4 +1,6 @@
- #include <linux/mm.h>
-+#include <linux/pkeys.h>
-+#include <linux/huge_mm.h>
- #include <linux/vmacache.h>
- #include <linux/hugetlb.h>
- #include <linux/huge_mm.h>
-@@ -666,22 +668,20 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
- 		[ilog2(VM_MERGEABLE)]	= "mg",
- 		[ilog2(VM_UFFD_MISSING)]= "um",
- 		[ilog2(VM_UFFD_WP)]	= "uw",
--#ifdef CONFIG_ARCH_HAS_PKEYS
--		/* These come out via ProtectionKey: */
--		[ilog2(VM_PKEY_BIT0)]	= "",
--		[ilog2(VM_PKEY_BIT1)]	= "",
--		[ilog2(VM_PKEY_BIT2)]	= "",
--		[ilog2(VM_PKEY_BIT3)]	= "",
--#endif /* CONFIG_ARCH_HAS_PKEYS */
--#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
--		/* Additional bit in ProtectionKey: */
--		[ilog2(VM_PKEY_BIT4)]	= "",
--#endif
- 	};
- 	size_t i;
- 
- 	seq_puts(m, "VmFlags: ");
- 	for (i = 0; i < BITS_PER_LONG; i++) {
-+#ifdef CONFIG_ARCH_HAS_PKEYS
-+		if (i == ilog2(VM_PKEY_BIT0)) {
-+			int keyvalue = vma_pkey(vma);
-+
-+			i += ilog2(arch_max_pkey())-1;
-+			seq_printf(m, "key=%d ", keyvalue);
-+			continue;
-+		}
-+#endif /* CONFIG_ARCH_HAS_PKEYS */
- 		if (!mnemonics[i][0])
- 			continue;
- 		if (vma->vm_flags & (1UL << i)) {
--- 
-1.8.3.1
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
