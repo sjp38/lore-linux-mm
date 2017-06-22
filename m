@@ -1,146 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 56D6D6B02B4
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 19:37:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a82so466458pfc.8
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 16:37:20 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D21246B0279
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 20:03:31 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id j186so989514pge.12
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 17:03:31 -0700 (PDT)
 Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id 102si11638410plf.190.2017.06.21.16.37.18
+        by mx.google.com with ESMTP id a8si15629689ple.184.2017.06.21.17.03.29
         for <linux-mm@kvack.org>;
-        Wed, 21 Jun 2017 16:37:19 -0700 (PDT)
-Date: Thu, 22 Jun 2017 09:37:14 +1000
+        Wed, 21 Jun 2017 17:03:31 -0700 (PDT)
+Date: Thu, 22 Jun 2017 10:02:35 +1000
 From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
  byte-addressable updates to pmem
-Message-ID: <20170621233714.GH11993@dastard>
-References: <149766212410.22552.15957843500156182524.stgit@dwillia2-desk3.amr.corp.intel.com>
- <149766213493.22552.4057048843646200083.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170620052214.GA3787@birch.djwong.org>
+Message-ID: <20170622000235.GN17542@dastard>
+References: <CAPcyv4iPb69e+rE3fJUzm9U_P_dLfhantU9mvYmV-R0oQee4rA@mail.gmail.com>
+ <CALCETrVY38h2ajpod2U_2pdHSp8zO4mG2p19h=OnnHmhGTairw@mail.gmail.com>
+ <20170619132107.GG11993@dastard>
+ <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
+ <20170620004653.GI17542@dastard>
+ <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
+ <20170620101145.GJ17542@dastard>
+ <CALCETrVCJkm5SCxAtNMW36eONHsFw1s0dkVnDAs4vAXvEKMsPw@mail.gmail.com>
+ <20170621014032.GL17542@dastard>
+ <CALCETrVYmbyNS-btvsN_M-QyWPZA_Y_4JXOM893g7nhZA+WviQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170620052214.GA3787@birch.djwong.org>
+In-Reply-To: <CALCETrVYmbyNS-btvsN_M-QyWPZA_Y_4JXOM893g7nhZA+WviQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, xfs <linux-xfs@vger.kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, andy.rudoff@intel.com, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-On Mon, Jun 19, 2017 at 10:22:14PM -0700, Darrick J. Wong wrote:
-> [add linux-xfs to the fray]
+On Tue, Jun 20, 2017 at 10:18:24PM -0700, Andy Lutomirski wrote:
+> On Tue, Jun 20, 2017 at 6:40 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >> A per-inode
+> >> count of the number of live DAX mappings or of the number of struct
+> >> file instances that have requested DAX would work here.
+> >
+> > For what purpose does this serve? The reflink invalidates all the
+> > existing mappings, so the next write access causes a fault and then
+> > page_mkwrite is called and the shared extent will get COWed....
 > 
-> On Fri, Jun 16, 2017 at 06:15:35PM -0700, Dan Williams wrote:
-> > +	spin_lock(&dax_lock);
-> > +	list_add(&d->list, &daxfiles);
-> > +	spin_unlock(&dax_lock);
-> > +
-> > +	/*
-> > +	 * We set S_SWAPFILE to gain "no truncate" / static block
-> > +	 * allocation semantics, and S_DAXFILE so we can differentiate
-> > +	 * traditional swapfiles and assume static block mappings in the
-> > +	 * dax mmap path.
-> > +	 */
-> > +	inode->i_flags |= S_SWAPFILE | S_DAXFILE;
+> The same purpose as XFS's FS_XFLAG_DAX (assuming I'm understanding it
+> right), except that IMO an API that doesn't involve making a change to
+> an inode that sticks around would be nice.  The inode flag has the
+> unfortunate property that, if two different programs each try to set
+> the flag, mmap, write, and clear the flag, they'll stomp on each other
+> and risk data corruption.
 > 
-> Yikes.  You know, I hadn't even thought about considering swap files as
-> a subcase of files with immutable block maps, but here we are.  Both
-> swap files and DAX require absolutely stable block mappings, they are
-> both (probably) intolerant of inode metadata changes (size, mtime, etc.)
+> I admit I'm now thoroughly confused as to exactly what XFS does here
+> -- does FS_XFLAG_DAX persist across unmount/mount?
 
-Swap files are intolerant of any metadata changes because once the
-mapping has been sucked into the swapfile code, the inode is never
-looked at again. DAX file data access always goes through the inode,
-so they is much more tolerant of metadata changes given certain
-constraints.
+Yes, it is.
 
-<snip bmap rant>
+i.e. DAX on XFS does not rely on a naive fs-wide mount option. You
+can have applications on pmem filesystems use either DAX or normal
+IO based on directory/inode flags.  Something doesn't work with DAX,
+so just remove the DAX flags from the directories/inodes, and it
+will safely and transparently switch to page-cache based IO.
 
-> Honestly, I realize we've gone back, forth, and around all over the
-> place on this.  I still prefer something similar to a permanent flag,
-> similar to what Dave suggested, though I hate the name PMEM_IMMUTABLE
-> and some of the semantics.
-> 
-> First, a new inode flag S_IOMAP_FROZEN that means the file's block map
-> cannot change.
+<snip>
 
-I've been calling it "immutable extents" - freezing has implications
-that it's only temporary (i.e. freezing filesystems) and will be
-followed shortly by a thaw. That isn't the case here - we truly want
-the extent/block map to be immutable....
+> Here's the overall point I'm trying to make: unprivileged programs
+> that want to write to DAX files with userspace commit mechanisms
+> (CLFLUSHOPT;SFENCE, etc) should be able to do so reliably, without
+> privilege, and with reasonably clean APIs.  Ideally they could do this
+> to any file they have write access to.
 
-> Second, some kind of function to toggle the S_IOMAP_FROZEN flag.
-> Turning it on will lock the inode, check the extent map for holes,
-> shared, or unwritten bits, and bail out if it finds any, or set the
-> flag. 
+The privilege argument is irrelevant now - it was /suggested/
+initially as a way of preventing people from shooting themselves in
+the foot based on the immutable file model. It's clear that's not
+desired, and it's not a show stopper. 
 
-Hmmm, I disagree on the unwritten state here.  We want swap files to
-be able to use unwritten extents - it means we can preallocate the
-swap file and hand it straight to swapon without having to zero it
-(i.e. no I/O needed to demand allocate more swap space when memory
-is very low).  Also, anyone who tries to read the swap file from
-userspace will be reading unwritten extents, which will always
-return zeros rather than whatever is in the swap file...
+> Programs that want to write to
+> mmapped files, DAX or otherwise, without latency spikes due to
+> .page_mkwrite should be able to opt in to a heavier weight mechanism.
+> But these two issues are someone independent, and I think they should
+> be solved separately.
 
-> Not sure if we should require CAP_LINUX_IMMUTABLE -- probably
-> yes, at least at first.  I don't currently have any objection to writing
-> non-iomap inode metadata out to disk.
-> 
-> Third, the flag can only be cleared if the file isn't mapped.
+You seem to be calling the "fdatasync on every page fault" the
+"lightweight" option. That's the brute-force-with-big-hammer
+solution - it's most definitely not lightweight as every page fault
+has extra overhead to call ->fsync(). Sure, the API is simple, but
+the runtime overhead is significant.
 
-How do we check this from the fs without racing? AFAICT we can't
-prevent a concurrent map operation from occurring while we are
-changing the state of the inode - we can only block page faults
-after then inode is mapped....
+The lightweight *runtime* option is to set up the file in such a
+way that there is never any extra overhead at page fault time.  This
+is what immutable extent maps provide.  Indeed, because the mappings
+never change, you could use hardware dirty tracking if you wanted,
+as there's no need to look up the filesystem to do writeback as
+everything needed for writeback was mapped at page fault time.  This
+"map first and then just write when you need to" is *exactly how
+swap files work*.
 
-> Fourth, the VFS entry points for things like read, write, truncate,
-> utimes, fallocate, etc. all just bail out if S_IOMAP_FROZEN is set on a
-> file, so that the block map cannot be modified.
-> mmap is still allowed,
-> as we've discussed.  /Maybe/ we can allow fallocate to extend a file
-> with zeroed extents (it will be slow) as I've heard murmurs about
-> wanting to be able to extend a file, maybe not.
-
-read is fine, write should be fine as long as the iomap call can
-error out operations that would require extent map modifications.
-fallocate should be allowed to modify the extent map, too, because
-it should be the mechanism used be applications to set up file
-extents in the correct form for applications to use as immutable
-(i.e. lock out page faults, allocate, zero, extend and fsync in
-one atomic operation)....
-
-> Fifth, swapfiles now require the S_IOMAP_FROZEN flag since they want
-> stable iomap but probably don't care about things like mtime.  Maybe
-> they can call iomap too.
-> 
-> Sixth, XFS can record the S_IOMAP_FROZEN state in di_flags2 and set it
-> whenever the in-core inode gets constructed.  This enables us to
-> prohibit reflinking and other such undesirable activity.
-
-*nod*
-
-> If we actually /do/ come up with a reference implementation for XFS, I'd
-> be ok with tacking it on the end of my dev branch, which will give us a
-> loooong runway to try it out.  The end of the dev branch is beyond
-> online XFS fsck and repair and the "root metadata btrees in inodes"
-> rework; since that's ~90 patches with my name on it that I cannot also
-> review, it won't go in for a long time indeed!
-
-I don't think it's so complex to need such a long dev time -
-all the infrastructure we need is pretty much there already...
-
-> (Yes, that was also sort of a plea for someone to go review the XFS
-> scrub patches.)
-> 
-> > +	return 0;
-> > +}
-> > +
-> > +SYSCALL_DEFINE3(daxctl, const char __user *, path, int, flags, int, align)
-> 
-> I was /about/ to grouse about this syscall, then realized that maybe it
-> /is/ useful to be able to check a specific alignment.  Maybe not, since
-> I had something more permanent in mind anyway.  In any case, just pass
-> in an opened fd if this sticks around.
-
-We can do all that via fallocate(), too...
+Even if you are considering the complexity of the APIs, it's hardly
+a "heavyweight" when it only requires a single call to fallocate()
+before mmap() to set up the immutable extents on the file...
 
 Cheers,
 
