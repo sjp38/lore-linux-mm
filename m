@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E55426B0350
-	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 21:40:28 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id 134so1208158qkh.1
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:28 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id o10si64103qtg.243.2017.06.21.18.40.28
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 501F76B0365
+	for <linux-mm@kvack.org>; Wed, 21 Jun 2017 21:40:31 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u51so1132884qte.15
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:31 -0700 (PDT)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id v189si54643qki.292.2017.06.21.18.40.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jun 2017 18:40:28 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id 16so364664qkg.2
-        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:28 -0700 (PDT)
+        Wed, 21 Jun 2017 18:40:30 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id x58so350447qtc.2
+        for <linux-mm@kvack.org>; Wed, 21 Jun 2017 18:40:30 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v3 15/23] powerpc: Program HPTE key protection bits
-Date: Wed, 21 Jun 2017 18:39:31 -0700
-Message-Id: <1498095579-6790-16-git-send-email-linuxram@us.ibm.com>
+Subject: [RFC v3 16/23] powerpc: Macro the mask used for checking DSI exception
+Date: Wed, 21 Jun 2017 18:39:32 -0700
+Message-Id: <1498095579-6790-17-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
 References: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,80 +22,55 @@ List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-Map the PTE protection key bits to the HPTE key protection bits,
-while creating HPTE  entries.
+Replace the magic number used to check for DSI exception
+with a meaningful value.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/mmu-hash.h | 5 +++++
- arch/powerpc/include/asm/pkeys.h              | 7 +++++++
- arch/powerpc/mm/hash_utils_64.c               | 5 +++++
- 3 files changed, 17 insertions(+)
+ arch/powerpc/include/asm/reg.h       | 7 ++++++-
+ arch/powerpc/kernel/exceptions-64s.S | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-index 6981a52..f7a6ed3 100644
---- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-+++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-@@ -90,6 +90,8 @@
- #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
- #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
- #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
-+#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
-+#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
- #define HPTE_R_RPN_SHIFT	12
- #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
- #define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
-@@ -104,6 +106,9 @@
- #define HPTE_R_C		ASM_CONST(0x0000000000000080)
- #define HPTE_R_R		ASM_CONST(0x0000000000000100)
- #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
-+#define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
-+#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
-+#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
- 
- #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
- #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
-diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index 0f3dca8..af3882f 100644
---- a/arch/powerpc/include/asm/pkeys.h
-+++ b/arch/powerpc/include/asm/pkeys.h
-@@ -27,6 +27,13 @@
- 		((vm_flags & VM_PKEY_BIT3) ? H_PAGE_PKEY_BIT1 : 0x0UL) |     \
- 		((vm_flags & VM_PKEY_BIT4) ? H_PAGE_PKEY_BIT0 : 0x0UL))
- 
-+#define pte_to_hpte_pkey_bits(pteflags)	\
-+	(((pteflags & H_PAGE_PKEY_BIT0) ? HPTE_R_KEY_BIT0 : 0x0UL) |	\
-+	((pteflags & H_PAGE_PKEY_BIT1) ? HPTE_R_KEY_BIT1 : 0x0UL) |	\
-+	((pteflags & H_PAGE_PKEY_BIT2) ? HPTE_R_KEY_BIT2 : 0x0UL) |	\
-+	((pteflags & H_PAGE_PKEY_BIT3) ? HPTE_R_KEY_BIT3 : 0x0UL) |	\
-+	((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL))
-+
- /*
-  * Bits are in BE format.
-  * NOTE: key 31, 1, 0 are not used.
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index b3bc5d6..34bc94c 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -35,6 +35,7 @@
- #include <linux/memblock.h>
- #include <linux/context_tracking.h>
- #include <linux/libfdt.h>
-+#include <linux/pkeys.h>
- 
- #include <asm/debugfs.h>
- #include <asm/processor.h>
-@@ -230,6 +231,10 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
- 		 */
- 		rflags |= HPTE_R_M;
- 
-+#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-+	rflags |= pte_to_hpte_pkey_bits(pteflags);
-+#endif
-+
- 	return rflags;
- }
- 
+diff --git a/arch/powerpc/include/asm/reg.h b/arch/powerpc/include/asm/reg.h
+index 7e50e47..ba110dd 100644
+--- a/arch/powerpc/include/asm/reg.h
++++ b/arch/powerpc/include/asm/reg.h
+@@ -272,16 +272,21 @@
+ #define SPRN_DAR	0x013	/* Data Address Register */
+ #define SPRN_DBCR	0x136	/* e300 Data Breakpoint Control Reg */
+ #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
++#define   DSISR_BIT32		0x80000000	/* not defined */
+ #define   DSISR_NOHPTE		0x40000000	/* no translation found */
++#define   DSISR_PAGEATTR_CONFLT	0x20000000	/* page attribute conflict */
++#define   DSISR_BIT35		0x10000000	/* not defined */
+ #define   DSISR_PROTFAULT	0x08000000	/* protection fault */
+ #define   DSISR_BADACCESS	0x04000000	/* bad access to CI or G */
+ #define   DSISR_ISSTORE		0x02000000	/* access was a store */
+ #define   DSISR_DABRMATCH	0x00400000	/* hit data breakpoint */
+-#define   DSISR_NOSEGMENT	0x00200000	/* SLB miss */
+ #define   DSISR_KEYFAULT	0x00200000	/* Key fault */
++#define   DSISR_BIT43		0x00100000	/* not defined */
+ #define   DSISR_UNSUPP_MMU	0x00080000	/* Unsupported MMU config */
+ #define   DSISR_SET_RC		0x00040000	/* Failed setting of R/C bits */
+ #define   DSISR_PGDIRFAULT      0x00020000      /* Fault on page directory */
++#define   DSISR_PAGE_FAULT_MASK (DSISR_BIT32 | DSISR_PAGEATTR_CONFLT | \
++				DSISR_BADACCESS | DSISR_BIT43)
+ #define SPRN_TBRL	0x10C	/* Time Base Read Lower Register (user, R/O) */
+ #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
+ #define SPRN_CIR	0x11B	/* Chip Information Register (hyper, R/0) */
+diff --git a/arch/powerpc/kernel/exceptions-64s.S b/arch/powerpc/kernel/exceptions-64s.S
+index ae418b8..3fd0528 100644
+--- a/arch/powerpc/kernel/exceptions-64s.S
++++ b/arch/powerpc/kernel/exceptions-64s.S
+@@ -1411,7 +1411,7 @@ USE_TEXT_SECTION()
+ 	.balign	IFETCH_ALIGN_BYTES
+ do_hash_page:
+ #ifdef CONFIG_PPC_STD_MMU_64
+-	andis.	r0,r4,0xa410		/* weird error? */
++	andis.	r0,r4,DSISR_PAGE_FAULT_MASK@h
+ 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
+ 	andis.  r0,r4,DSISR_DABRMATCH@h
+ 	bne-    handle_dabr_fault
 -- 
 1.8.3.1
 
