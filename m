@@ -1,100 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A64CB6B0313
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 14:13:08 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id f20so15626295otd.9
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 11:13:08 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g49si380842otc.210.2017.06.22.11.13.07
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2731D6B0315
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 14:17:02 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u30so6720416wrc.9
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 11:17:02 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q64si1919539wmg.118.2017.06.22.11.17.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 11:13:07 -0700 (PDT)
-Received: from mail-ua0-f171.google.com (mail-ua0-f171.google.com [209.85.217.171])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id DD4D522B70
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:13:06 +0000 (UTC)
-Received: by mail-ua0-f171.google.com with SMTP id g40so23473373uaa.3
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 11:13:06 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Jun 2017 11:17:00 -0700 (PDT)
+Date: Thu, 22 Jun 2017 20:16:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is
+ default kernel zone
+Message-ID: <20170622181656.GB19563@dhcp22.suse.cz>
+References: <20170601083746.4924-1-mhocko@kernel.org>
+ <20170601083746.4924-3-mhocko@kernel.org>
+ <20170622023243.GA1242@WeideMacBook-Pro.local>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1706221037320.1885@nanos>
-References: <cover.1498022414.git.luto@kernel.org> <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org>
- <alpine.DEB.2.20.1706211159430.2328@nanos> <CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com>
- <alpine.DEB.2.20.1706221037320.1885@nanos>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 22 Jun 2017 11:12:45 -0700
-Message-ID: <CALCETrVm9oQCpovr0aZcDXoG-8hOoYPMDyhYZJPSBNFGemXQNg@mail.gmail.com>
-Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using PCID
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170622023243.GA1242@WeideMacBook-Pro.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> On Wed, 21 Jun 2017, Andy Lutomirski wrote:
->> On Wed, Jun 21, 2017 at 6:38 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
->> > That requires a conditional branch
->> >
->> >         if (asid >= NR_DYNAMIC_ASIDS) {
->> >                 asid = 0;
->> >                 ....
->> >         }
->> >
->> > The question is whether 4 IDs would be sufficient which trades the branch
->> > for a mask operation. Or you go for 8 and spend another cache line.
->>
->> Interesting.  I'm inclined to either leave it at 6 or reduce it to 4
->> for now and to optimize later.
->
-> :)
->
->> > Hmm. So this loop needs to be taken unconditionally even if the task stays
->> > on the same CPU. And of course the number of dynamic IDs has to be short in
->> > order to makes this loop suck performance wise.
->> >
->> > Something like the completely disfunctional below might be worthwhile to
->> > explore. At least arch/x86/mm/ compiles :)
->> >
->> > It gets rid of the loop search and lifts the limit of dynamic ids by
->> > trading it with a percpu variable in mm_context_t.
->>
->> That would work, but it would take a lot more memory on large systems
->> with lots of processes, and I'd also be concerned that we might run
->> out of dynamic percpu space.
->
-> Yeah, did not think about the dynamic percpu space.
->
->> How about a different idea: make the percpu data structure look like a
->> 4-way set associative cache.  The ctxs array could be, say, 1024
->> entries long without using crazy amounts of memory.  We'd divide it
->> into 256 buckets, so you'd index it like ctxs[4*bucket + slot].  For
->> each mm, we choose a random bucket (from 0 through 256), and then we'd
->> just loop over the four slots in the bucket in choose_asid().  This
->> would require very slightly more arithmetic (I'd guess only one or two
->> cycles, though) but, critically, wouldn't touch any more cachelines.
->>
->> The downside of both of these approaches over the one in this patch is
->> that the change that the percpu cacheline we need is not in the cache
->> is quite a bit higher since it's potentially a different cacheline for
->> each mm.  It would probably still be a win because avoiding the flush
->> is really quite valuable.
->>
->> What do you think?  The added code would be tiny.
->
-> That might be worth a try.
->
-> Now one other optimization which should be trivial to add is to keep the 4
-> asid context entries in cpu_tlbstate and cache the last asid in thread
-> info. If that's still valid then use it otherwise unconditionally get a new
-> one. That avoids the whole loop machinery and thread info is cache hot in
-> the context switch anyway. Delta patch on top of your version below.
+[Again, please try to trim your quoted response to the minimum]
 
-I'm not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on
-CPU 1 and a thread in that mm bounces back and forth between those
-CPUs, won't your patch cause it to flush every time?
+On Thu 22-06-17 10:32:43, Wei Yang wrote:
+> On Thu, Jun 01, 2017 at 10:37:46AM +0200, Michal Hocko wrote:
+[...]
+> >@@ -938,6 +938,27 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+> > }
+> > 
+> > /*
+> >+ * Returns a default kernel memory zone for the given pfn range.
+> >+ * If no kernel zone covers this pfn range it will automatically go
+> >+ * to the ZONE_NORMAL.
+> >+ */
+> >+struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+> >+		unsigned long nr_pages)
+> >+{
+> >+	struct pglist_data *pgdat = NODE_DATA(nid);
+> >+	int zid;
+> >+
+> >+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
+> >+		struct zone *zone = &pgdat->node_zones[zid];
+> >+
+> >+		if (zone_intersects(zone, start_pfn, nr_pages))
+> >+			return zone;
+> >+	}
+> >+
+> >+	return &pgdat->node_zones[ZONE_NORMAL];
+> >+}
+> 
+> Hmm... a corner case jumped into my mind which may invalidate this
+> calculation.
+> 
+> The case is:
+> 
+> 
+>        Zone:         | DMA   | DMA32      | NORMAL       |
+>                      v       v            v              v
+>        
+>        Phy mem:      [           ]     [                  ]
+>        
+>                      ^           ^     ^                  ^
+>        Node:         |   Node0   |     |      Node1       |
+>                              A   B     C  D
+> 
+> 
+> The key point is
+> 1. There is a hole between Node0 and Node1
+> 2. The hole sits in a non-normal zone
+> 
+> Let's mark the boundary as A, B, C, D. Then we would have
+> node0->zone[dma21] = [A, B]
+> node1->zone[dma32] = [C, D]
+> 
+> If we want to hotplug a range in [B, C] on node0, it looks not that bad. While
+> if we want to hotplug a range in [B, C] on node1, it will introduce the
+> overlapped zone. Because the range [B, C] intersects none of the existing
+> zones on node1.
+> 
+> Do you think this is possible?
 
---Andy
+Yes, it is possible. I would be much more more surprised if it was real
+as well. Fixing that would require to use arch_zone_{lowest,highest}_possible_pfn
+which is not available after init section disappears and I am not even
+sure we should care. I would rather wait for a real life example of such
+a configuration to fix it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
