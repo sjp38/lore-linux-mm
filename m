@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D466B03C1
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:06:06 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p64so10981597wrc.8
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:06:06 -0700 (PDT)
-Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
-        by mx.google.com with ESMTPS id d82si3487520wmf.195.2017.06.23.02.06.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 02:06:04 -0700 (PDT)
-Received: by mail-wr0-x241.google.com with SMTP id 77so10929459wrb.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:06:04 -0700 (PDT)
-Date: Fri, 23 Jun 2017 11:06:01 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/5] Last bits for initial 5-level paging enabling
-Message-ID: <20170623090601.njsmucxdy4rev6zw@gmail.com>
-References: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E5B1C6B03C3
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:08:02 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u110so10997954wrb.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:08:02 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id o3si3577349wmi.82.2017.06.23.02.08.01
+        for <linux-mm@kvack.org>;
+        Fri, 23 Jun 2017 02:08:01 -0700 (PDT)
+Date: Fri, 23 Jun 2017 11:07:47 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v3 07/11] x86/mm: Stop calling leave_mm() in idle code
+Message-ID: <20170623090747.oxomynwmbqx54a3t@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org>
+ <2b3572123ab0d0fb9a9b82dc0deee8a33eeac51f.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <2b3572123ab0d0fb9a9b82dc0deee8a33eeac51f.1498022414.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-
-* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-
-> As Ingo requested I've split and updated last two patches for my previous
-> patchset.
+On Tue, Jun 20, 2017 at 10:22:13PM -0700, Andy Lutomirski wrote:
+> Now that lazy TLB suppresses all flush IPIs (as opposed to all but
+> the first), there's no need to leave_mm() when going idle.
 > 
-> Please review and consider applying.
+> This means we can get rid of the rcuidle hack in
+> switch_mm_irqs_off() and we can unexport leave_mm().
 > 
-> Kirill A. Shutemov (5):
->   x86: Enable 5-level paging support
->   x86/mm: Rename tasksize_32bit/64bit to task_size_32bit/64bit
->   x86/mpx: Do not allow MPX if we have mappings above 47-bit
->   x86/mm: Prepare to expose larger address space to userspace
->   x86/mm: Allow userspace have mapping above 47-bit
+> This also removes acpi_unlazy_tlb() from the x86 and ia64 headers,
+> since it has no callers any more.
+> 
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+>  arch/ia64/include/asm/acpi.h  |  2 --
+>  arch/x86/include/asm/acpi.h   |  2 --
+>  arch/x86/mm/tlb.c             | 19 +++----------------
+>  drivers/acpi/processor_idle.c |  2 --
+>  drivers/idle/intel_idle.c     |  9 ++++-----
+>  5 files changed, 7 insertions(+), 27 deletions(-)
 
-Ok, looks pretty neat now.
+Reviewed-by: Borislav Petkov <bp@suse.de>
 
-Can I apply them in this order cleanly, without breaking bisection:
+-- 
+Regards/Gruss,
+    Boris.
 
->   x86/mm: Rename tasksize_32bit/64bit to task_size_32bit/64bit
->   x86/mpx: Do not allow MPX if we have mappings above 47-bit
->   x86/mm: Prepare to expose larger address space to userspace
->   x86/mm: Allow userspace have mapping above 47-bit
->   x86: Enable 5-level paging support
-
-?
-
-I.e. I'd like to move the first patch last.
-
-The reason is that we should first get all quirks and assumptions fixed, all 
-facilities implemented - and only then enable 5-level paging as a final step which 
-produces a well working kernel.
-
-(This should also make it slightly easier to analyze any potential regressions in 
-earlier patches.)
-
-Thanks,
-
-	Ingo
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
