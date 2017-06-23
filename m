@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DDB46B02F4
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:21:06 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id u62so8346438lfg.6
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 23:21:06 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id g68si204272ljg.228.2017.06.22.23.21.04
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A53B56B02F3
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:13:28 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z45so10286384wrb.13
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 00:13:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y23si3924333wrc.2.2017.06.23.00.13.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 23:21:04 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id f28so5052518lfi.3
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 23:21:04 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Jun 2017 00:13:27 -0700 (PDT)
+Date: Fri, 23 Jun 2017 09:13:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+Message-ID: <20170623071324.GD5308@dhcp22.suse.cz>
+References: <bug-196157-27@https.bugzilla.kernel.org/>
+ <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
 MIME-Version: 1.0
-From: Andrei Vagin <avagin@gmail.com>
-Date: Thu, 22 Jun 2017 23:21:03 -0700
-Message-ID: <CANaxB-zPGB8Yy9480pTFmj9HECGs3quq9Ak18aBUbx9TsNSsaw@mail.gmail.com>
-Subject: linux-next: BUG: Bad page state in process ip6tables-save pfn:1499f4
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Alkis Georgopoulos <alkisg@gmail.com>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hello,
+On Thu 22-06-17 12:37:36, Andrew Morton wrote:
+[...]
+> > Me and a lot of other users have an issue where disk writes start fast (e.g.
+> > 200 MB/sec), but after intensive disk usage, they end up 100+ times slower
+> > (e.g. 2 MB/sec), and never get fast again until we run "echo 3 >
+> > /proc/sys/vm/drop_caches".
 
-We run CRIU tests for linux-next and today they triggered a kernel
-bug. I want to mention that this kernel is built with kasan. This bug
-was triggered in travis-ci. I can't reproduce it on my host. Without
-kasan, kernel crashed but it is impossible to get a kernel log for
-this case.
+What is your dirty limit configuration. Is your highmem dirtyable
+(highmem_is_dirtyable)?
 
-[  699.207570] BUG: Bad page state in process ip6tables-save  pfn:1499f4
-[  699.214542] page:ffffea0005267d00 count:-1 mapcount:0 mapping:
-    (null) index:0x1
-[  699.222758] flags: 0x17fff8000000000()
-[  699.226632] raw: 017fff8000000000 0000000000000000 0000000000000001
-ffffffffffffffff
-[  699.234495] raw: dead000000000100 dead000000000200 0000000000000000
-0000000000000000
-[  699.242359] page dumped because: nonzero _count
-[  699.247006] Modules linked in:
-[  699.247022] CPU: 0 PID: 19609 Comm: ip6tables-save Not tainted
-4.12.0-rc6-next-20170622 #1
-[  699.247029] Hardware name: Google Google Compute Engine/Google
-Compute Engine, BIOS Google 01/01/2011
-[  699.247035] Call Trace:
-[  699.247054]  dump_stack+0x85/0xc2
-[  699.247070]  bad_page+0xea/0x160
-[  699.247086]  check_new_page_bad+0xc2/0xe0
-[  699.247103]  get_page_from_freelist+0xfec/0x1270
-[  699.247161]  __alloc_pages_nodemask+0x1cf/0x4b0
-[  699.247188]  ? __alloc_pages_slowpath+0x1610/0x1610
-[  699.247214]  ? mark_lock+0x6d/0x860
-[  699.247223]  ? alloc_set_pte+0x7db/0x8f0
-[  699.247247]  alloc_pages_vma+0x85/0x250
-[  699.247270]  wp_page_copy+0x13c/0xad0
-[  699.247285]  ? do_wp_page+0x292/0x9a0
-[  699.247309]  ? lock_downgrade+0x2c0/0x2c0
-[  699.247320]  ? __do_fault+0x140/0x140
-[  699.247341]  ? do_raw_spin_unlock+0x88/0x130
-[  699.247361]  do_wp_page+0x29a/0x9a0
-[  699.247386]  ? finish_mkwrite_fault+0x250/0x250
-[  699.247403]  ? do_raw_spin_lock+0x93/0x120
-[  699.247427]  __handle_mm_fault+0xb94/0x1790
-[  699.247450]  ? __pmd_alloc+0x270/0x270
-[  699.247466]  ? find_held_lock+0x119/0x150
-[  699.247528]  handle_mm_fault+0x235/0x490
-[  699.247553]  __do_page_fault+0x332/0x680
-[  699.247586]  do_page_fault+0x22/0x30
-[  699.247601]  page_fault+0x28/0x30
-[  699.247609] RIP: 0033:0x2aaea0abef2b
-[  699.247616] RSP: 002b:00007ffe1deecd20 EFLAGS: 00010206
-[  699.247628] RAX: 00002aaea12f6e60 RBX: 000000037ffff1a0 RCX: 0000000000000028
-[  699.247635] RDX: 00002aaea12f6f10 RSI: 00002aaea0af0040 RDI: 00002aaea10ec000
-[  699.247642] RBP: 00007ffe1deece70 R08: 000000006fffffff R09: 0000000070000021
-[  699.247649] R10: 0000000000000031 R11: 000000006ffffdff R12: 00002aaea0af0000
-[  699.247655] R13: 00007ffe1deecf40 R14: 0000000000000003 R15: 000000006ffffeff
-[  699.247697] Disabling lock debugging due to kernel taint
+> > This issue happens on systems with any 4.x kernel, i386 arch, 16+ GB RAM.
+> > It doesn't happen if we use 3.x kernels (i.e. it's a regression) or any 64bit
+> > kernels (i.e. it only affects i386).
 
-Here is a whole log: https://goo.gl/5xekS3
+I remember we've had some changes in the way how the dirty memory is
+throttled and 32b would be more sensitive to those changes. Anyway, I
+would _strongly_ discourage you from using 32b kernels with that much of
+memory. You are going to hit walls constantly and many of those issues
+will be inherent. Some of them less so but rather non-trivial to fix
+without regressing somewhere else. You can tune your system somehow but
+this will be fragile no mater what.
 
-Thanks,
-Andrei
+Sorry to say that but 32b systems with tons of memory are far from
+priority of most mm people. Just use 64b kernel. There are more pressing
+problems to deal with.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
