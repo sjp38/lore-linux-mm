@@ -1,67 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C607B6B0338
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:23:17 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id a38so32654614ota.12
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:23:17 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u133si1724144oif.100.2017.06.23.08.23.16
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CCC636B0343
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:25:34 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u110so13708965wrb.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:25:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p90si5190700wrb.39.2017.06.23.08.25.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 08:23:17 -0700 (PDT)
-Received: from mail-ua0-f182.google.com (mail-ua0-f182.google.com [209.85.217.182])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2F60722B6E
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:23:16 +0000 (UTC)
-Received: by mail-ua0-f182.google.com with SMTP id j53so38594640uaa.2
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:23:16 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Jun 2017 08:25:33 -0700 (PDT)
+Date: Fri, 23 Jun 2017 17:25:29 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170623152529.GA7967@quack2.suse.cz>
+References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
+ <20170614172211.19820-2-ross.zwisler@linux.intel.com>
+ <20170615144204.GN1764@quack2.suse.cz>
+ <20170617040926.GA26554@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <cb8aad11-6e02-bc8e-8613-63f63a22bc77@oracle.com>
-References: <cover.1498022414.git.luto@kernel.org> <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
- <cb8aad11-6e02-bc8e-8613-63f63a22bc77@oracle.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 23 Jun 2017 08:22:54 -0700
-Message-ID: <CALCETrUbob1yucAgPA+tbmZ+DAXppFUxMKT=PCns0U+_QixRPw@mail.gmail.com>
-Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness tracking
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170617040926.GA26554@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Fri, Jun 23, 2017 at 6:34 AM, Boris Ostrovsky
-<boris.ostrovsky@oracle.com> wrote:
->
->> diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
->> index 1d7a7213a310..f5df56fb8b5c 100644
->> --- a/arch/x86/xen/mmu_pv.c
->> +++ b/arch/x86/xen/mmu_pv.c
->> @@ -1005,8 +1005,7 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
->>         /* Get the "official" set of cpus referring to our pagetable. */
->>         if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
->>                 for_each_online_cpu(cpu) {
->> -                       if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
->> -                           && per_cpu(xen_current_cr3, cpu) !=
->> __pa(mm->pgd))
->> +                       if (per_cpu(xen_current_cr3, cpu) !=
->> __pa(mm->pgd))
->>                                 continue;
->>                         smp_call_function_single(cpu,
->> drop_mm_ref_this_cpu, mm, 1);
->>                 }
->>
->
->
-> I wonder then whether
->         cpumask_copy(mask, mm_cpumask(mm));
-> immediately below is needed.
+On Fri 16-06-17 22:09:26, Ross Zwisler wrote:
+> On Thu, Jun 15, 2017 at 04:42:04PM +0200, Jan Kara wrote:
+> > On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
+> > > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > > fault path look more like our PMD fault path where a PTE entry can be
+> > > marked as dirty and writeable as it is first inserted, rather than waiting
+> > > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > > 
+> > > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > > distinguish between these two cases in do_wp_page():
+> > > 
+> > > 	case 1: 4k zero page => writable DAX storage
+> > > 	case 2: read-only DAX storage => writeable DAX storage
+> > > 
+> > > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > > get rid of dax_pfn_mkwrite() completely.
+> > > 
+> > > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > > will do the work that was previously done by wp_page_reuse() as part of the
+> > > dax_pfn_mkwrite() call path.
+> > > 
+> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > 
+> > So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
+> > that case is a way to go. However I somewhat dislike the
+> > vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
+> > we have a similar thing for PMD which is ugly as well. Besides being ugly
+> > I'm also concerned that when 'mkwrite' is set, we just silently overwrite
+> > whatever PTE was installed at that position. Not that I'd see how that
+> > could screw us for DAX but still a concern that e.g. some PTE flag could
+> > get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
+> > architectures, you will leak zero page references by just overwriting the
+> > PTE - for those archs you really need to unmap zero page before replacing
+> > PTE (and the same for PMD I suppose).
+> > 
+> > So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
+> > properly detect PTE / PMD case, read / write case etc., check that PTE did
+> > not change from orig_pte, and handle all the nasty details instead of
+> > messing with insert_pfn?
+> 
+> I played around with this some today, and I wasn't super happy with the
+> results.  Here were some issues I encountered:
+> 
+> 1) The pte_mkyoung(), maybe_mkwrite() and pte_mkdirty() calls need to happen
+> with the PTE locked, and I'm currently able to piggy-back on the locking done
+> in insert_pfn().  If I keep those steps out of insert_pfn() I either have to
+> essentially duplicate all the work done by insert_pfn() into another function
+> so I can do everything I need under one lock, or I have to insert the PFN via
+> insert_pfn() (which as you point out, will just leave the pfn alone if it's
+> already present), then for writes I have to re-grab the PTE lock and set do
+> the mkwrite steps.
+> 
+> Either of these work, but they both also seem kind of gross...
+> 
+> 2) Combining the PTE and PMD cases into a common function will require
+> mm/memory.c to call vmf_insert_pfn_pmd(), which depends on
+> CONFIG_TRANSPARENT_HUGEPAGE being defined.  This works, it just means some
+> more #ifdef CONFIG_TRANSPARENT_HUGEPAGE hackery in mm/memory.c.
+> 
+> I agree that unconditionally overwriting the PTE when mkwrite is set is
+> undesireable, and should be fixed.  My implementation of the wrapper just
+> didn't seem that natural, which usually tells me I'm headed down the wrong
+> path.  Maybe I'm just not fully understanding what you intended?
+> 
+> In any case, my current favorite soultion for this issue is still what I had
+> in v1:
+> 
+> https://patchwork.kernel.org/patch/9772809/
+> 
+> with perhaps the removal of the new vm_insert_mixed_mkwrite() symbol, and just
+> adding a 'write' flag to vm_insert_mixed() and updating all the call sites,
+> and fixing the flow where mkwrite unconditionally overwrites the PTE?
+> 
+> If not, can you help me understand what you think is ugly about the 'write'
+> flag to vm_insert_mixed() and vmf_insert_pfn_pmd()?
 
-Probably not.  I'll change it to cpumask_clear().  Then the two cases
-in that function match better.
+Yeah, so write flag is probably OK. I just dislike the implicit "replace"
+side-effect of the write flag. If 'write' would just mean whether PTE is
+created writeable, that is fine with me.
 
->
-> -boris
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
