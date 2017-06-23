@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E48596B03B2
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:54:00 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g46so10944224wrd.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:54:00 -0700 (PDT)
-Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com. [209.85.128.194])
-        by mx.google.com with ESMTPS id y186si3320264wmy.130.2017.06.23.01.53.59
+	by kanga.kvack.org (Postfix) with ESMTP id B55EA6B03B4
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:54:01 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g46so10944317wrd.3
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:54:01 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
+        by mx.google.com with ESMTPS id 34si3622736wrs.75.2017.06.23.01.54.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 01:53:59 -0700 (PDT)
-Received: by mail-wr0-f194.google.com with SMTP id 77so10857469wrb.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:53:59 -0700 (PDT)
+        Fri, 23 Jun 2017 01:54:00 -0700 (PDT)
+Received: by mail-wr0-f195.google.com with SMTP id z45so10917131wrb.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:54:00 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 3/6] xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
-Date: Fri, 23 Jun 2017 10:53:42 +0200
-Message-Id: <20170623085345.11304-4-mhocko@kernel.org>
+Subject: [PATCH 4/6] mm: kvmalloc support __GFP_RETRY_MAYFAIL for all sizes
+Date: Fri, 23 Jun 2017 10:53:43 +0200
+Message-Id: <20170623085345.11304-5-mhocko@kernel.org>
 In-Reply-To: <20170623085345.11304-1-mhocko@kernel.org>
 References: <20170623085345.11304-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Christoph Hellwig <hch@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
 From: Michal Hocko <mhocko@suse.com>
 
-KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
-so it relied on the default page allocator behavior for the given set
-of flags. This means that small allocations actually never failed.
+Now that __GFP_RETRY_MAYFAIL has a reasonable semantic regardless of the
+request size we can drop the hackish implementation for !costly orders.
+__GFP_RETRY_MAYFAIL retries as long as the reclaim makes a forward
+progress and backs of when we are out of memory for the requested size.
+Therefore we do not need to enforce__GFP_NORETRY for !costly orders just
+to silent the oom killer anymore.
 
-Now that we have __GFP_RETRY_MAYFAIL flag which works independently on the
-allocation request size we can map KM_MAYFAIL to it. The allocator will
-try as hard as it can to fulfill the request but fails eventually if
-the progress cannot be made. It does so without triggering the OOM
-killer which can be seen as an improvement because KM_MAYFAIL users
-should be able to deal with allocation failures.
-
-Cc: Darrick J. Wong <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/xfs/kmem.h | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ mm/util.c | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
 
-diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-index d6ea520162b2..4d85992d75b2 100644
---- a/fs/xfs/kmem.h
-+++ b/fs/xfs/kmem.h
-@@ -54,6 +54,16 @@ kmem_flags_convert(xfs_km_flags_t flags)
- 			lflags &= ~__GFP_FS;
- 	}
+diff --git a/mm/util.c b/mm/util.c
+index 6520f2d4a226..ee250e2cde34 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -339,9 +339,9 @@ EXPORT_SYMBOL(vm_mmap);
+  * Uses kmalloc to get the memory but if the allocation fails then falls back
+  * to the vmalloc allocator. Use kvfree for freeing the memory.
+  *
+- * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_RETRY_MAYFAIL
+- * is supported only for large (>32kB) allocations, and it should be used only if
+- * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
++ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported.
++ * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
++ * preferable to the vmalloc fallback, due to visible performance drawbacks.
+  *
+  * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
+  */
+@@ -366,13 +366,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+ 	if (size > PAGE_SIZE) {
+ 		kmalloc_flags |= __GFP_NOWARN;
  
-+	/*
-+	 * Default page/slab allocator behavior is to retry for ever
-+	 * for small allocations. We can override this behavior by using
-+	 * __GFP_RETRY_MAYFAIL which will tell the allocator to retry as long
-+	 * as it is feasible but rather fail than retry forever for all
-+	 * request sizes.
-+	 */
-+	if (flags & KM_MAYFAIL)
-+		lflags |= __GFP_RETRY_MAYFAIL;
-+
- 	if (flags & KM_ZERO)
- 		lflags |= __GFP_ZERO;
+-		/*
+-		 * We have to override __GFP_RETRY_MAYFAIL by __GFP_NORETRY for !costly
+-		 * requests because there is no other way to tell the allocator
+-		 * that we want to fail rather than retry endlessly.
+-		 */
+-		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL) ||
+-				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
++		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL))
+ 			kmalloc_flags |= __GFP_NORETRY;
+ 	}
  
 -- 
 2.11.0
