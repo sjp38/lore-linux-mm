@@ -1,45 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3047F6B03A8
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:23:22 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id 63so26527730otc.5
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:23:22 -0700 (PDT)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id p30si1385844otb.197.2017.06.23.01.23.21
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A4D5E6B03A9
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:31:58 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 33so37593087pgx.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:31:58 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id p188si2834789pga.470.2017.06.23.01.31.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 01:23:21 -0700 (PDT)
-Received: by mail-oi0-x233.google.com with SMTP id c189so21859972oia.2
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:23:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170622141411.6af8091132e4416e3635b62e@linux-foundation.org>
-References: <cover.1498140468.git.dvyukov@google.com> <ff85407a7476ac41bfbdd46a35a93b8f57fa4b1e.1498140838.git.dvyukov@google.com>
- <20170622141411.6af8091132e4416e3635b62e@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 23 Jun 2017 10:23:00 +0200
-Message-ID: <CACT4Y+YQchHWK+8jEo03dK21xM77pn0YePkjUTVny0-Cx8yYeg@mail.gmail.com>
-Subject: Re: [PATCH v5 1/4] x86: switch atomic.h to use atomic-instrumented.h
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 23 Jun 2017 01:31:57 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id s66so6425640pfs.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:31:57 -0700 (PDT)
+From: Oliver O'Halloran <oohall@gmail.com>
+Subject: [PATCH v3 1/6] mm, x86: Add ARCH_HAS_ZONE_DEVICE to Kconfig
+Date: Fri, 23 Jun 2017 18:31:17 +1000
+Message-Id: <20170623083122.5992-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linuxppc-dev@lists.ozlabs.org
+Cc: bsingharora@gmail.com, Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
 
-On Thu, Jun 22, 2017 at 11:14 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 22 Jun 2017 16:14:16 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
->
->> Add arch_ prefix to all atomic operations and include
->> <asm-generic/atomic-instrumented.h>. This will allow
->> to add KASAN instrumentation to all atomic ops.
->
-> This gets a large number of (simple) rejects when applied to
-> linux-next.  Can you please redo against -next?
+Currently ZONE_DEVICE depends on X86_64 and this will get unwieldly as
+new architectures (and platforms) get ZONE_DEVICE support. Move to an
+arch selected Kconfig option to save us the trouble.
 
+Cc: linux-mm@kvack.org
+Acked-by: Ingo Molnar <mingo@kernel.org>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
+---
+v2: Added missing hunk.
+v3: No changes
+---
+ arch/x86/Kconfig | 1 +
+ mm/Kconfig       | 6 +++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
 
-This is based on tip/locking tree. Ingo already took a part of these
-series. The plan is that he takes the rest, and this applies on
-tip/locking without conflicts.
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 0efb4c9497bc..325429a3f32f 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -59,6 +59,7 @@ config X86
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_HAS_ZONE_DEVICE		if X86_64
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+ 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+diff --git a/mm/Kconfig b/mm/Kconfig
+index beb7a455915d..790e52a8a486 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -683,12 +683,16 @@ config IDLE_PAGE_TRACKING
+ 
+ 	  See Documentation/vm/idle_page_tracking.txt for more details.
+ 
++# arch_add_memory() comprehends device memory
++config ARCH_HAS_ZONE_DEVICE
++	bool
++
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support"
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on SPARSEMEM_VMEMMAP
+-	depends on X86_64 #arch_add_memory() comprehends device memory
++	depends on ARCH_HAS_ZONE_DEVICE
+ 
+ 	help
+ 	  Device memory hotplug support allows for establishing pmem,
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
