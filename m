@@ -1,39 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC1F26B03D2
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 06:27:09 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id k2so39118468ioe.4
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:27:09 -0700 (PDT)
-Received: from cvs.linux-mips.org (eddie.linux-mips.org. [148.251.95.138])
-        by mx.google.com with ESMTP id d82si3499443itg.18.2017.06.23.03.27.09
-        for <linux-mm@kvack.org>;
-        Fri, 23 Jun 2017 03:27:09 -0700 (PDT)
-Received: from localhost.localdomain ([127.0.0.1]:57484 "EHLO linux-mips.org"
-        rhost-flags-OK-OK-OK-FAIL) by eddie.linux-mips.org with ESMTP
-        id S23992297AbdFWK1HU6KR4 (ORCPT <rfc822;linux-mm@kvack.org>);
-        Fri, 23 Jun 2017 12:27:07 +0200
-Date: Fri, 23 Jun 2017 12:27:01 +0200
-From: Ralf Baechle <ralf@linux-mips.org>
-Subject: Re: [PATCH 1/6] MIPS: do not use __GFP_REPEAT for order-0 request
-Message-ID: <20170623102701.GD6306@linux-mips.org>
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-2-mhocko@kernel.org>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 556A96B03D3
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 06:34:27 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z81so11609481wrc.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:34:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m65si3755207wmh.82.2017.06.23.03.34.25
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Jun 2017 03:34:25 -0700 (PDT)
+Date: Fri, 23 Jun 2017 12:34:23 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH] mm, swap: don't disable preemption while taking the
+ per-CPU cache
+Message-ID: <20170623103423.GJ5308@dhcp22.suse.cz>
+References: <20170623101254.k4zzbf3dfoukoxkq@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170623085345.11304-2-mhocko@kernel.org>
+In-Reply-To: <20170623101254.k4zzbf3dfoukoxkq@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Alex Belits <alex.belits@cavium.com>, David Daney <david.daney@cavium.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, tglx@linutronix.de, ying.huang@intel.com, linux-mm@kvack.org
 
-Feel free to funnel this upstream with the rest of your series.
+On Fri 23-06-17 12:12:54, Sebastian Andrzej Siewior wrote:
+> get_cpu_var() disables preemption and returns the per-CPU version of the
+> variable. Disabling preemption is useful to ensure atomic access to the
+> variable within the critical section.
+> In this case however, after the per-CPU version of the variable is
+> obtained the ->free_lock is acquired. For that reason it seems the raw
+> accessor could be used. It only seems that ->slots_ret should be
+> retested (because with disabled preemption this variable can not be set
+> to NULL otherwise).
 
-Acked-by: Ralf Baechle <ralf@linux-mips.org>
+The changelog doesn't explain, why does this change matter. Disabling
+preemption shortly before taking a spinlock shouldn't make much
+difference. I suspect you care because of RT, right? In that case spell
+that in the changelog and explain why it matters.
 
-Thanks,
+Other than hat the patch looks good to me.
 
-  Ralf
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> ---
+>  mm/swap_slots.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+> index 58f6c78f1dad..51c304477482 100644
+> --- a/mm/swap_slots.c
+> +++ b/mm/swap_slots.c
+> @@ -272,11 +272,11 @@ int free_swap_slot(swp_entry_t entry)
+>  {
+>  	struct swap_slots_cache *cache;
+>  
+> -	cache = &get_cpu_var(swp_slots);
+> +	cache = raw_cpu_ptr(&swp_slots);
+>  	if (use_swap_slot_cache && cache->slots_ret) {
+>  		spin_lock_irq(&cache->free_lock);
+>  		/* Swap slots cache may be deactivated before acquiring lock */
+> -		if (!use_swap_slot_cache) {
+> +		if (!use_swap_slot_cache || !cache->slots_ret) {
+>  			spin_unlock_irq(&cache->free_lock);
+>  			goto direct_free;
+>  		}
+> @@ -296,7 +296,6 @@ int free_swap_slot(swp_entry_t entry)
+>  direct_free:
+>  		swapcache_free_entries(&entry, 1);
+>  	}
+> -	put_cpu_var(swp_slots);
+>  
+>  	return 0;
+>  }
+> -- 
+> 2.13.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
