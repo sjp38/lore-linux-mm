@@ -1,58 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 876E96B0279
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:20:27 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id g86so47568680iod.14
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:20:27 -0700 (PDT)
-Received: from mail-it0-x22a.google.com (mail-it0-x22a.google.com. [2607:f8b0:4001:c0b::22a])
-        by mx.google.com with ESMTPS id d197si4707228itc.51.2017.06.23.12.20.26
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D126B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:48:11 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t10so22549251qte.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:48:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n63si4563976qkb.240.2017.06.23.12.48.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 12:20:26 -0700 (PDT)
-Received: by mail-it0-x22a.google.com with SMTP id b205so13031593itg.1
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:20:26 -0700 (PDT)
+        Fri, 23 Jun 2017 12:48:10 -0700 (PDT)
+Date: Fri, 23 Jun 2017 15:48:05 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
+ freeing pud v2
+Message-ID: <20170623194805.GD3128@redhat.com>
+References: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
+ <20170607170325.65ex46hoqjalprnu@black.fi.intel.com>
+ <20170607170651.exful7yvxvrjaolz@node.shutemov.name>
+ <1169495863.31360420.1496857080560.JavaMail.zimbra@redhat.com>
+ <20170607181705.7jortbns732jtiba@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20170623140651.GD5314@dhcp22.suse.cz>
-References: <20170620230911.GA25238@beast> <20170623140651.GD5314@dhcp22.suse.cz>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 23 Jun 2017 12:20:25 -0700
-Message-ID: <CAGXu5jJ8SD8hsMDfZ9qJHQbJ3iSTXTq81PpiG+kbnXwx=akDKg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Allow slab_nomerge to be set at build time
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170607181705.7jortbns732jtiba@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Jonathan Corbet <corbet@lwn.net>, Daniel Micay <danielmicay@gmail.com>, David Windsor <dave@nullcore.net>, Eric Biggers <ebiggers3@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Logan Gunthorpe <logang@deltatee.com>
 
-On Fri, Jun 23, 2017 at 7:06 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 20-06-17 16:09:11, Kees Cook wrote:
->> Some hardened environments want to build kernels with slab_nomerge
->> already set (so that they do not depend on remembering to set the kernel
->> command line option). This is desired to reduce the risk of kernel heap
->> overflows being able to overwrite objects from merged caches and changes
->> the requirements for cache layout control, increasing the difficulty of
->> these attacks. By keeping caches unmerged, these kinds of exploits can
->> usually only damage objects in the same cache (though the risk to metadata
->> exploitation is unchanged).
->
-> Do we really want to have a dedicated config for each hardening specific
-> kernel command line? I believe we have quite a lot of config options
-> already. Can we rather have a CONFIG_HARDENED_CMD_OPIONS and cover all
-> those defauls there instead?
+On Wed, Jun 07, 2017 at 09:17:06PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Jun 07, 2017 at 01:38:00PM -0400, Jerome Glisse wrote:
+> > > On Wed, Jun 07, 2017 at 08:03:25PM +0300, Kirill A. Shutemov wrote:
+> > > > On Wed, Jun 07, 2017 at 10:46:20AM -0400, jglisse@redhat.com wrote:
+> > > > > From: Jerome Glisse <jglisse@redhat.com>
+> > > > > 
+> > > > > With commit af2cf278ef4f we no longer free pud so that we do not
+> > > > > have synchronize all pgd on hotremove/vfree. But the new 5 level
+> > > > > page table patchset reverted that for 4 level page table.
+> > > > > 
+> > > > > This patch restore af2cf278ef4f and disable free_pud() if we are
+> > > > > in the 4 level page table case thus avoiding BUG_ON() after hot-
+> > > > > remove.
+> > > > > 
+> > > > > af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in
+> > > > > remove_pagetable()
+> > > > > 
+> > > > > Changed since v1:
+> > > > >   - make free_pud() conditional on the number of page table
+> > > > >     level
+> > > > >   - improved commit message
+> > > > > 
+> > > > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > > > > Cc: Andy Lutomirski <luto@kernel.org>
+> > > > > Cc: Ingo Molnar <mingo@kernel.org>
+> > > > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > > > > > thus we now trigger a BUG_ON() l128 in sync_global_pgds()
+> > > > > >
+> > > > > > This patch remove free_pud() like in af2cf278ef4f
+> > > > > ---
+> > > > >  arch/x86/mm/init_64.c | 11 +++++++++++
+> > > > >  1 file changed, 11 insertions(+)
+> > > > > 
+> > > > > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> > > > > index 95651dc..61028bc 100644
+> > > > > --- a/arch/x86/mm/init_64.c
+> > > > > +++ b/arch/x86/mm/init_64.c
+> > > > > @@ -771,6 +771,16 @@ static void __meminit free_pmd_table(pmd_t
+> > > > > *pmd_start, pud_t *pud)
+> > > > >  	spin_unlock(&init_mm.page_table_lock);
+> > > > >  }
+> > > > >  
+> > > > > +/*
+> > > > > + * For 4 levels page table we do not want to free puds but for 5 levels
+> > > > > + * we should free them. This code also need to change to adapt for boot
+> > > > > + * time switching between 4 and 5 level.
+> > > > > + */
+> > > > > +#if CONFIG_PGTABLE_LEVELS == 4
+> > > > > +static inline void free_pud_table(pud_t *pud_start, p4d_t *p4d)
+> > > > > +{
+> > > > > +}
+> > > > 
+> > > > Just "if (CONFIG_PGTABLE_LEVELS > 4)" before calling free_pud_table(), but
+> > > > okay -- I'll rework it anyway for boot-time switching.
+> > > 
+> > > Err. "if (CONFIG_PGTABLE_LEVELS == 4)" obviously.
+> > 
+> > You want me to respawn a v3 or is that good enough until you finish
+> > boot time 5 level page table ?
+> 
+> It doesn't matter for me. Upto Ingo.
 
-There's not been a lot of success with grouped Kconfigs in the past
-(e.g. CONFIG_EXPERIMENTAL), but one thing that has been suggested is a
-defconfig-like make target that would collect all the things together.
-I haven't had time for that, but that would let us group the various
-configs.
+Andrew any news on this ? This fix a regression in 4.12 so it would be nice to
+have this fix or similar in. I can repost a v3 without inline ie directly ifdefing
+the callsite.
 
-Additionally, using something like CONFIG_CMDLINE seems a little clunky to me.
+Note that Kyrill will rework that but i think this is 4.13 material.
 
--Kees
-
--- 
-Kees Cook
-Pixel Security
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
