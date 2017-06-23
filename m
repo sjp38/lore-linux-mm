@@ -1,50 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38AB96B0292
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 18:20:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id g7so55351924pgr.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:20:56 -0700 (PDT)
-Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
-        by mx.google.com with ESMTPS id 71si3554946pfo.179.2017.06.23.15.20.55
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D156B0292
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 19:29:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u110so16474270wrb.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 16:29:42 -0700 (PDT)
+Received: from mail-wr0-x236.google.com (mail-wr0-x236.google.com. [2a00:1450:400c:c0c::236])
+        by mx.google.com with ESMTPS id l8si5315588wmg.133.2017.06.23.16.29.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 15:20:55 -0700 (PDT)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of
- poison pages
-Date: Fri, 23 Jun 2017 22:19:35 +0000
-Message-ID: <AT5PR84MB00823EB30BD7BF0EA3DAFF0BABD80@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
- <20170621174740.npbtg2e4o65tyrss@intel.com>
-In-Reply-To: <20170621174740.npbtg2e4o65tyrss@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 23 Jun 2017 16:29:40 -0700 (PDT)
+Received: by mail-wr0-x236.google.com with SMTP id c11so83983120wrc.3
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 16:29:40 -0700 (PDT)
 MIME-Version: 1.0
+From: Luigi Semenzato <semenzato@google.com>
+Date: Fri, 23 Jun 2017 16:29:39 -0700
+Message-ID: <CAA25o9T1WmkWJn1LA-vS=W_Qu8pBw3rfMtTreLNu8fLuZjTDsw@mail.gmail.com>
+Subject: OOM kills with lots of free swap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>, Borislav Petkov <bp@suse.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yazen Ghannam <yazen.ghannam@amd.com>, "Kani,
- Toshimitsu" <toshi.kani@hpe.com>, "'dan.j.williams@intel.com'" <dan.j.williams@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Linux Memory Management List <linux-mm@kvack.org>
 
-> > > +	if (set_memory_np(decoy_addr, 1))
-> > > +		pr_warn("Could not invalidate pfn=3D0x%lx from 1:1 map \n",
+It is fairly easy to trigger OOM-kills with almost empty swap, by
+running several fast-allocating processes in parallel.  I can
+reproduce this on many 3.x kernels (I think I tried also on 4.4 but am
+not sure).  I am hoping this is a known problem.
 
-Another concept to consider is mapping the page as UC rather than
-completely unmapping it.
+I tried to debug this in the past, by backtracking from the call to
+the OOM code, and adding instrumentation to understand why the task
+failed to allocate (or even make progress, apparently), but my effort
+did not yield results within reasonable time.
 
-The uncorrectable error scope could be smaller than a page size, like:
-* memory ECC width (e.g., 8 bytes)
-* cache line size (e.g., 64 bytes)
-* block device logical block size (e.g., 512 bytes, for persistent memory)
+I believe that it is possible that one task succeeds in reclaiming
+pages, and then another task takes those pages before the first task
+has a chance to get them.  But in that case the first task should
+still notice progress and should retry, correct?  Is it possible in
+theory that one task fails to allocate AND fails to make progress
+while other tasks succeed?
 
-UC preserves the ability to access adjacent data within the page that
-hasn't gone bad, and is particularly useful for persistent memory.
+(I asked this question, in not so many words, in 2013, but received no answers.)
 
----
-Robert Elliott, HPE Persistent Memory
-
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
