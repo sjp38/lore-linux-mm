@@ -1,68 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D27A36B0372
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:51 -0400 (EDT)
-Received: by mail-ot0-f200.google.com with SMTP id 93so32778750oto.10
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
-Received: from mail-ot0-x234.google.com (mail-ot0-x234.google.com. [2607:f8b0:4003:c0f::234])
-        by mx.google.com with ESMTPS id 1si1666647oih.206.2017.06.23.08.28.51
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 495336B0374
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:55 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id h15so18284495qte.0
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d4si4241934qta.282.2017.06.23.08.28.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
-Received: by mail-ot0-x234.google.com with SMTP id 95so33835460ott.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
-Subject: Re: Sleeping BUG in khugepaged for i586
-References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
- <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
- <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
- <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
- <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
- <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
- <20170608144831.GA19903@dhcp22.suse.cz>
- <20170623120812.GS5308@dhcp22.suse.cz>
- <66280cc3-6231-8d35-6d9a-113fe2d80409@suse.cz>
- <20170623132558.GC5308@dhcp22.suse.cz>
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Message-ID: <b358d07c-0a5d-9e0e-9468-8ab74ca05595@lwfinger.net>
-Date: Fri, 23 Jun 2017 10:28:49 -0500
+        Fri, 23 Jun 2017 08:28:54 -0700 (PDT)
+Date: Fri, 23 Jun 2017 11:28:50 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v23
+Message-ID: <20170623152849.GA3128@redhat.com>
+References: <20170524172024.30810-1-jglisse@redhat.com>
+ <CAA_GA1e7LbvY3rZ+FpJ6fLhZ1oUJ_FXVjQvjmS_YSrjZMAv9jw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170623132558.GC5308@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAA_GA1e7LbvY3rZ+FpJ6fLhZ1oUJ_FXVjQvjmS_YSrjZMAv9jw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>
 
-On 06/23/2017 08:25 AM, Michal Hocko wrote:
-> On Fri 23-06-17 15:13:45, Vlastimil Babka wrote:
->> On 06/23/2017 02:08 PM, Michal Hocko wrote:
->>> On Thu 08-06-17 16:48:31, Michal Hocko wrote:
->>>> On Wed 07-06-17 13:56:01, David Rientjes wrote:
->>>>
->>>> I suspect, so cond_resched seems indeed inappropriate on 32b systems.
->>>
->>> The code still seems to be in the mmotm tree.
->>
->> Even mainline at this point - 338a16ba1549
->>
->>> Are there any plans to fix
->>> this or drop the patch?
->>
->> https://lkml.kernel.org/r/alpine.DEB.2.10.1706191341550.97821@chino.kir.corp.google.com
+On Fri, Jun 23, 2017 at 11:00:37PM +0800, Bob Liu wrote:
+> Hi,
 > 
-> Ahh, I have missed that. Thanks!
+> On Thu, May 25, 2017 at 1:20 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
+> > test same kernel as kbuild system, git branch:
+> >
+> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v23
+> >
+> > Change since v22 is use of static key for special ZONE_DEVICE case in
+> > put_page() and build fix for architecture with no mmu.
+> >
+> > Everything else is the same. Below is the long description of what HMM
+> > is about and why. At the end of this email i describe briefly each patch
+> > and suggest reviewers for each of them.
+> >
+> >
+> > Heterogeneous Memory Management (HMM) (description and justification)
+> >
+> > Today device driver expose dedicated memory allocation API through their
+> > device file, often relying on a combination of IOCTL and mmap calls. The
+> > device can only access and use memory allocated through this API. This
+> > effectively split the program address space into object allocated for the
+> > device and useable by the device and other regular memory (malloc, mmap
+> > of a file, share memory, a) only accessible by CPU (or in a very limited
+> > way by a device by pinning memory).
+> >
+> > Allowing different isolated component of a program to use a device thus
+> > require duplication of the input data structure using device memory
+> > allocator. This is reasonable for simple data structure (array, grid,
+> > image, a) but this get extremely complex with advance data structure
+> > (list, tree, graph, a) that rely on a web of memory pointers. This is
+> > becoming a serious limitation on the kind of work load that can be
+> > offloaded to device like GPU.
+> >
+> > New industry standard like C++, OpenCL or CUDA are pushing to remove this
+> > barrier. This require a shared address space between GPU device and CPU so
+> > that GPU can access any memory of a process (while still obeying memory
+> > protection like read only). This kind of feature is also appearing in
+> > various other operating systems.
+> >
+> > HMM is a set of helpers to facilitate several aspects of address space
+> > sharing and device memory management. Unlike existing sharing mechanism
+> 
+> It looks like the address space sharing and device memory management
+> are two different things. They don't depend on each other and HMM has
+> helpers for both.
+> 
+> Is it possible to separate these two things into two patchsets?
+> Which will make it's more easy to review and also follow the "Do one
+> thing, and do it well" philosophy.
+> 
 
-I also missed that patch. Applying it to my box fixes the scheduling while 
-atomic splats and no downside has been detected.
+They are already seperate. Patch 3-5 are for address space mirroring.
+Patch 6-10 for device memory using struct page and ZONE_DEVICE. Finaly
+patch 11-15 for adding new page migration helper capable of using
+device DMA engine to perform memory copy operation.
 
-You may add "Reported-and-tested-by: Larry Finger <Larry.Finger@lwfinger.net>".
+Patch 1 is just common documentation and patch 2 is common helpers and
+definitions.
 
-Thanks for everyone's efforts in fixing this problem.
+Also they are separate at kernel configuration level. So for all intents
+and purposes this is already 2 separate things, just in one posting
+because first user will use both. You can use one without the other and
+it will work properly.
 
-Larry
-
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
