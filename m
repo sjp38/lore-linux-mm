@@ -1,151 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D25196B02FA
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 13:39:59 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z1so14568271wrz.10
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 10:39:59 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id a3si4570046wmi.183.2017.06.23.10.39.58
-        for <linux-mm@kvack.org>;
-        Fri, 23 Jun 2017 10:39:58 -0700 (PDT)
-Date: Fri, 23 Jun 2017 19:39:37 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 36/36] x86/mm: Add support to make use of Secure
- Memory Encryption
-Message-ID: <20170623173937.erotfiemyidyvarn@pd.tnic>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 607BA6B0365
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 13:44:58 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 33so49245836pgx.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 10:44:58 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0080.outbound.protection.outlook.com. [104.47.34.80])
+        by mx.google.com with ESMTPS id k33si4115163pld.481.2017.06.23.10.44.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Jun 2017 10:44:57 -0700 (PDT)
+Subject: Re: [PATCH v7 34/36] x86/mm: Add support to encrypt the kernel
+ in-place
 References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185639.18967.41488.stgit@tlendack-t1.amdoffice.net>
+ <20170616185619.18967.38945.stgit@tlendack-t1.amdoffice.net>
+ <20170623100013.upd4or6esjvulmvg@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
+Date: Fri, 23 Jun 2017 12:44:46 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170616185639.18967.41488.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20170623100013.upd4or6esjvulmvg@pd.tnic>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Fri, Jun 16, 2017 at 01:56:39PM -0500, Tom Lendacky wrote:
-> Add support to check if SME has been enabled and if memory encryption
-> should be activated (checking of command line option based on the
-> configuration of the default state).  If memory encryption is to be
-> activated, then the encryption mask is set and the kernel is encrypted
-> "in place."
+On 6/23/2017 5:00 AM, Borislav Petkov wrote:
+> On Fri, Jun 16, 2017 at 01:56:19PM -0500, Tom Lendacky wrote:
+>> Add the support to encrypt the kernel in-place. This is done by creating
+>> new page mappings for the kernel - a decrypted write-protected mapping
+>> and an encrypted mapping. The kernel is encrypted by copying it through
+>> a temporary buffer.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>   arch/x86/include/asm/mem_encrypt.h |    6 +
+>>   arch/x86/mm/Makefile               |    2
+>>   arch/x86/mm/mem_encrypt.c          |  314 ++++++++++++++++++++++++++++++++++++
+>>   arch/x86/mm/mem_encrypt_boot.S     |  150 +++++++++++++++++
+>>   4 files changed, 472 insertions(+)
+>>   create mode 100644 arch/x86/mm/mem_encrypt_boot.S
+>>
+>> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+>> index af835cf..7da6de3 100644
+>> --- a/arch/x86/include/asm/mem_encrypt.h
+>> +++ b/arch/x86/include/asm/mem_encrypt.h
+>> @@ -21,6 +21,12 @@
+>>   
+>>   extern unsigned long sme_me_mask;
+>>   
+>> +void sme_encrypt_execute(unsigned long encrypted_kernel_vaddr,
+>> +			 unsigned long decrypted_kernel_vaddr,
+>> +			 unsigned long kernel_len,
+>> +			 unsigned long encryption_wa,
+>> +			 unsigned long encryption_pgd);
+>> +
+>>   void __init sme_early_encrypt(resource_size_t paddr,
+>>   			      unsigned long size);
+>>   void __init sme_early_decrypt(resource_size_t paddr,
+>> diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+>> index 9e13841..0633142 100644
+>> --- a/arch/x86/mm/Makefile
+>> +++ b/arch/x86/mm/Makefile
+>> @@ -38,3 +38,5 @@ obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
+>>   obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o
+>>   obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS) += pkeys.o
+>>   obj-$(CONFIG_RANDOMIZE_MEMORY) += kaslr.o
+>> +
+>> +obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
+>> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+>> index 842c8a6..6e87662 100644
+>> --- a/arch/x86/mm/mem_encrypt.c
+>> +++ b/arch/x86/mm/mem_encrypt.c
+>> @@ -24,6 +24,8 @@
+>>   #include <asm/setup.h>
+>>   #include <asm/bootparam.h>
+>>   #include <asm/set_memory.h>
+>> +#include <asm/cacheflush.h>
+>> +#include <asm/sections.h>
+>>   
+>>   /*
+>>    * Since SME related variables are set early in the boot process they must
+>> @@ -209,8 +211,320 @@ void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
+>>   	set_memory_decrypted((unsigned long)vaddr, size >> PAGE_SHIFT);
+>>   }
+>>   
+>> +static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
+>> +				 unsigned long end)
+>> +{
+>> +	unsigned long pgd_start, pgd_end, pgd_size;
+>> +	pgd_t *pgd_p;
+>> +
+>> +	pgd_start = start & PGDIR_MASK;
+>> +	pgd_end = end & PGDIR_MASK;
+>> +
+>> +	pgd_size = (((pgd_end - pgd_start) / PGDIR_SIZE) + 1);
+>> +	pgd_size *= sizeof(pgd_t);
+>> +
+>> +	pgd_p = pgd_base + pgd_index(start);
+>> +
+>> +	memset(pgd_p, 0, pgd_size);
+>> +}
+>> +
+>> +#ifndef CONFIG_X86_5LEVEL
+>> +#define native_make_p4d(_x)	(p4d_t) { .pgd = native_make_pgd(_x) }
+>> +#endif
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/mem_encrypt.h |    6 ++-
->  arch/x86/kernel/head64.c           |    4 +-
->  arch/x86/mm/mem_encrypt.c          |   86 +++++++++++++++++++++++++++++++++++-
->  3 files changed, 90 insertions(+), 6 deletions(-)
+> Huh, why isn't this in arch/x86/include/asm/pgtable_types.h in the #else
+> branch of #if CONFIG_PGTABLE_LEVELS > 4 ?
 
-...
+Normally the __p4d() macro would be used and that would be ok whether
+CONFIG_X86_5LEVEL is defined or not. But since __p4d() is part of the
+paravirt ops path I have to use native_make_p4d(). I'd be the only user
+of the function and thought it would be best to localize it this way.
 
-> +/*
-> + * Some SME functions run very early causing issues with the stack-protector
-> + * support. Provide a way to turn off this support on a per-function basis.
-> + */
-> +#define SME_NOSTACKP __attribute__((__optimize__("no-stack-protector")))
+> 
+> Also
+> 
+> ERROR: Macros with complex values should be enclosed in parentheses
+> #105: FILE: arch/x86/mm/mem_encrypt.c:232:
+> +#define native_make_p4d(_x)    (p4d_t) { .pgd = native_make_pgd(_x) }
+> 
+> so why isn't it a function?
 
-__nostackp
+I can define it as an inline function.
 
-just like the others in include/linux/compiler-gcc.h.
+> 
+>> +
+>> +#define PGD_FLAGS	_KERNPG_TABLE_NOENC
+>> +#define P4D_FLAGS	_KERNPG_TABLE_NOENC
+>> +#define PUD_FLAGS	_KERNPG_TABLE_NOENC
+>> +#define PMD_FLAGS	(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL)
+>> +
+>> +static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+>> +				     unsigned long vaddr, pmdval_t pmd_val)
+>> +{
+>> +	pgd_t *pgd_p;
+>> +	p4d_t *p4d_p;
+>> +	pud_t *pud_p;
+>> +	pmd_t *pmd_p;
+>> +
+>> +	pgd_p = pgd_base + pgd_index(vaddr);
+>> +	if (native_pgd_val(*pgd_p)) {
+>> +		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> 
+> Err, I don't understand: so this is a Kconfig symbol and when it is
+> enabled at build time, you do a 5level pagetable.
+> 
+> But you can't stick a 5level pagetable to a hardware which doesn't know
+> about it.
 
-> +
-> +static char sme_cmdline_arg[] __initdata = "mem_encrypt";
-> +static char sme_cmdline_on[]  __initdata = "on";
-> +static char sme_cmdline_off[] __initdata = "off";
->  
->  /*
->   * Since SME related variables are set early in the boot process they must
-> @@ -200,6 +215,8 @@ void __init mem_encrypt_init(void)
->  
->  	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
->  	swiotlb_update_mem_attributes();
-> +
-> +	pr_info("AMD Secure Memory Encryption (SME) active\n");
->  }
->  
->  void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
-> @@ -527,8 +544,73 @@ void __init sme_encrypt_kernel(void)
->  	native_write_cr3(__native_read_cr3());
->  }
->  
-> -void __init sme_enable(void)
-> +void __init SME_NOSTACKP sme_enable(struct boot_params *bp)
->  {
-> +	const char *cmdline_ptr, *cmdline_arg, *cmdline_on, *cmdline_off;
-> +	unsigned int eax, ebx, ecx, edx;
-> +	bool active_by_default;
-> +	unsigned long me_mask;
-> +	char buffer[16];
-> +	u64 msr;
-> +
-> +	/* Check for the SME support leaf */
-> +	eax = 0x80000000;
-> +	ecx = 0;
-> +	native_cpuid(&eax, &ebx, &ecx, &edx);
-> +	if (eax < 0x8000001f)
-> +		return;
-> +
-> +	/*
-> +	 * Check for the SME feature:
-> +	 *   CPUID Fn8000_001F[EAX] - Bit 0
-> +	 *     Secure Memory Encryption support
-> +	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
-> +	 *     Pagetable bit position used to indicate encryption
-> +	 */
-> +	eax = 0x8000001f;
-> +	ecx = 0;
-> +	native_cpuid(&eax, &ebx, &ecx, &edx);
-> +	if (!(eax & 1))
-> +		return;
-> +
-> +	me_mask = 1UL << (ebx & 0x3f);
-> +
-> +	/* Check if SME is enabled */
-> +	msr = __rdmsr(MSR_K8_SYSCFG);
-> +	if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
-> +		return;
-> +
-> +	/*
-> +	 * Fixups have not been applied to phys_base yet and we're running
-> +	 * identity mapped, so we must obtain the address to the SME command
-> +	 * line argument data using rip-relative addressing.
-> +	 */
-> +	asm ("lea sme_cmdline_arg(%%rip), %0"
-> +	     : "=r" (cmdline_arg)
-> +	     : "p" (sme_cmdline_arg));
-> +	asm ("lea sme_cmdline_on(%%rip), %0"
-> +	     : "=r" (cmdline_on)
-> +	     : "p" (sme_cmdline_on));
-> +	asm ("lea sme_cmdline_off(%%rip), %0"
-> +	     : "=r" (cmdline_off)
-> +	     : "p" (sme_cmdline_off));
-> +
-> +	if (IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT))
-> +		active_by_default = true;
-> +	else
-> +		active_by_default = false;
-> +
-> +	cmdline_ptr = (const char *)((u64)bp->hdr.cmd_line_ptr |
-> +				     ((u64)bp->ext_cmd_line_ptr << 32));
-> +
-> +	cmdline_find_option(cmdline_ptr, cmdline_arg, buffer, sizeof(buffer));
-> +
-> +	if (strncmp(buffer, cmdline_on, sizeof(buffer)) == 0)
+True, 5-level will only be turned on for specific hardware which is why
+I originally had this as only 4-level pagetables. But in a comment from
+you back on the v5 version you said it needed to support 5-level. I
+guess we should have discussed this more, but I also thought that should
+our hardware ever support 5-level paging in the future then this would
+be good to go.
 
-	if (!strncmp(...
+> 
+> Or do you mean that p4d layer folding at runtime to happen? (I admit, I
+> haven't looked at that in detail.) But then I'd hope that the generic
+> macros/functions would give you the ability to not care whether we have
+> a p4d or not and not add a whole bunch of ifdeffery to this code.
 
-> +		sme_me_mask = me_mask;
-> +	else if (strncmp(buffer, cmdline_off, sizeof(buffer)) == 0)
+The macros work great if you are not running identity mapped. You could
+use p*d_offset() to move easily through the tables, but those functions
+use __va() to generate table virtual addresses. I've seen where
+boot/compressed/pagetable.c #defines __va() to work with identity mapped
+pages but that would only work if I create a separate file just for this
+function.
 
-	else if (!strncmp(...
+Given when this occurs it's very similar to what __startup_64() does in
+regards to the IS_ENABLED(CONFIG_X86_5LEVEL) checks.
 
--- 
-Regards/Gruss,
-    Boris.
+Thanks,
+Tom
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+> 
+> Hmmm.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
