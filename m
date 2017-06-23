@@ -1,58 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A53B56B02F3
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:13:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z45so10286384wrb.13
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 00:13:28 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y23si3924333wrc.2.2017.06.23.00.13.27
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 176D26B02FD
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:14:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v9so33905775pfk.5
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 00:14:53 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id a22si2693991pfa.431.2017.06.23.00.14.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 00:13:27 -0700 (PDT)
-Date: Fri, 23 Jun 2017 09:13:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
- 4.x+/i386/16+RAM, compared to 3.x
-Message-ID: <20170623071324.GD5308@dhcp22.suse.cz>
-References: <bug-196157-27@https.bugzilla.kernel.org/>
- <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jun 2017 00:14:52 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -v2 00/12] mm, THP, swap: Delay splitting THP after swapped out
+Date: Fri, 23 Jun 2017 15:12:51 +0800
+Message-Id: <20170623071303.13469-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Alkis Georgopoulos <alkisg@gmail.com>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@kernel.org>, Ming Lei <ming.lei@redhat.com>, Huang Ying <ying.huang@intel.com>
 
-On Thu 22-06-17 12:37:36, Andrew Morton wrote:
-[...]
-> > Me and a lot of other users have an issue where disk writes start fast (e.g.
-> > 200 MB/sec), but after intensive disk usage, they end up 100+ times slower
-> > (e.g. 2 MB/sec), and never get fast again until we run "echo 3 >
-> > /proc/sys/vm/drop_caches".
+From: Huang Ying <ying.huang@intel.com>
 
-What is your dirty limit configuration. Is your highmem dirtyable
-(highmem_is_dirtyable)?
+Hi, Andrew, could you help me to check whether the overall design is
+reasonable?
 
-> > This issue happens on systems with any 4.x kernel, i386 arch, 16+ GB RAM.
-> > It doesn't happen if we use 3.x kernels (i.e. it's a regression) or any 64bit
-> > kernels (i.e. it only affects i386).
+Hi, Johannes and Minchan, Thanks a lot for your review to the first
+step of the THP swap optimization!  Could you help me to review the
+second step in this patchset?
 
-I remember we've had some changes in the way how the dirty memory is
-throttled and 32b would be more sensitive to those changes. Anyway, I
-would _strongly_ discourage you from using 32b kernels with that much of
-memory. You are going to hit walls constantly and many of those issues
-will be inherent. Some of them less so but rather non-trivial to fix
-without regressing somewhere else. You can tune your system somehow but
-this will be fragile no mater what.
+Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+swap part of the patchset?  Especially [01/12], [02/12], [03/12],
+[04/12], [11/12], and [12/12].
 
-Sorry to say that but 32b systems with tons of memory are far from
-priority of most mm people. Just use 64b kernel. There are more pressing
-problems to deal with.
--- 
-Michal Hocko
-SUSE Labs
+Hi, Andrea and Kirill, could you help me to review the THP part of the
+patchset?  Especially [01/12], [03/12], [07/12], [08/12], [09/12],
+[11/12].
+
+Hi, Johannes, Michal, could you help me to review the cgroup part of
+the patchset?  Especially [08/12], [09/12], and [10/12].
+
+And for all, Any comment is welcome!
+
+Because the THP swap writing support patch [06/12] needs to be rebased
+on multipage bvec patchset which hasn't been merged yet.  The [06/12]
+in this patchset is just a test patch and will be rewritten later.
+The patchset depends on multipage bvec patchset too.
+
+This is the second step of THP (Transparent Huge Page) swap
+optimization.  In the first step, the splitting huge page is delayed
+from almost the first step of swapping out to after allocating the
+swap space for the THP and adding the THP into the swap cache.  In the
+second step, the splitting is delayed further to after the swapping
+out finished.  The plan is to delay splitting THP step by step,
+finally avoid splitting THP for the THP swapping out and swap out/in
+the THP as a whole.
+
+In the patchset, more operations for the anonymous THP reclaiming,
+such as TLB flushing, writing the THP to the swap device, removing the
+THP from the swap cache are batched.  So that the performance of
+anonymous THP swapping out are improved.
+
+This patchset is based on the 6/16 head of mmotm/master.
+
+During the development, the following scenarios/code paths have been
+checked,
+
+- swap out/in
+- swap off
+- write protect page fault
+- madvise_free
+- process exit
+- split huge page
+
+Please let me know if I missed something.
+
+With the patchset, the swap out throughput improves 42% (from about
+5.81GB/s to about 8.25GB/s) in the vm-scalability swap-w-seq test case
+with 16 processes.  At the same time, the IPI (reflect TLB flushing)
+reduced about 78.9%.  The test is done on a Xeon E5 v3 system.  The
+swap device used is a RAM simulated PMEM (persistent memory) device.
+To test the sequential swapping out, the test case creates 8
+processes, which sequentially allocate and write to the anonymous
+pages until the RAM and part of the swap device is used up.
+
+Below is the part of the cover letter for the first step patchset of
+THP swap optimization which applies to all steps.
+
+----------------------------------------------------------------->
+
+Recently, the performance of the storage devices improved so fast that
+we cannot saturate the disk bandwidth with single logical CPU when do
+page swap out even on a high-end server machine.  Because the
+performance of the storage device improved faster than that of single
+logical CPU.  And it seems that the trend will not change in the near
+future.  On the other hand, the THP becomes more and more popular
+because of increased memory size.  So it becomes necessary to optimize
+THP swap performance.
+
+The advantages of the THP swap support include:
+
+- Batch the swap operations for the THP to reduce TLB flushing and
+  lock acquiring/releasing, including allocating/freeing the swap
+  space, adding/deleting to/from the swap cache, and writing/reading
+  the swap space, etc.  This will help improve the performance of the
+  THP swap.
+
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which are usually 4k random
+  IO.  This will improve the performance of the THP swap too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after THP swapping out.
+
+- It will improve the THP utilization on the system with the swap
+  turned on.  Because the speed for khugepaged to collapse the normal
+  pages into the THP is quite slow.  After the THP is split during the
+  swapping out, it will take quite long time for the normal pages to
+  collapse back into the THP after being swapped in.  The high THP
+  utilization helps the efficiency of the page based memory management
+  too.
+
+There are some concerns regarding THP swap in, mainly because possible
+enlarged read/write IO size (for swap in/out) may put more overhead on
+the storage device.  To deal with that, the THP swap in should be
+turned on only when necessary.  For example, it can be selected via
+"always/never/madvise" logic, to be turned on globally, turned off
+globally, or turned on only for VMA with MADV_HUGEPAGE, etc.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
