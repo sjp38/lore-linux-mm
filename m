@@ -1,80 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 275146B0279
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:38:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r103so12400376wrb.0
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:38:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q29si4747322wrc.256.2017.06.23.05.38.33
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CCAA16B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:45:17 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p18so2148623lfd.0
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:45:17 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id t6si2262345lfd.375.2017.06.23.05.45.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 05:38:33 -0700 (PDT)
-Date: Fri, 23 Jun 2017 14:38:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: [patch] mm, oom: prevent additional oom kills before memory
- is freed
-Message-ID: <20170623123830.GW5308@dhcp22.suse.cz>
-References: <20170616083946.GC30580@dhcp22.suse.cz>
- <201706161927.EII04611.VOFFMLJOOFHQSt@I-love.SAKURA.ne.jp>
- <20170616110206.GH30580@dhcp22.suse.cz>
- <201706162326.IEJ52125.JFFtMVQOSLHOFO@I-love.SAKURA.ne.jp>
- <20170616144237.GP30580@dhcp22.suse.cz>
- <201706172230.DBG40327.tJMHOFFFQVOLSO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jun 2017 05:45:16 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id n136so6242979lfn.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:45:16 -0700 (PDT)
+Date: Fri, 23 Jun 2017 13:45:12 +0100
+From: Stefan Hajnoczi <stefanha@gmail.com>
+Subject: Re: [RFC] virtio-mem: paravirtualized memory
+Message-ID: <20170623124512.GB14304@stefanha-x1.localdomain>
+References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+ <20170619100813.GB17304@stefanha-x1.localdomain>
+ <4cec825b-d92e-832e-3a76-103767032528@redhat.com>
+ <20170621110817.GF16183@stefanha-x1.localdomain>
+ <2361e86b-6660-4261-a805-c82c3b3a37c6@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="hQiwHBbRI9kgIhsi"
 Content-Disposition: inline
-In-Reply-To: <201706172230.DBG40327.tJMHOFFFQVOLSO@I-love.SAKURA.ne.jp>
+In-Reply-To: <2361e86b-6660-4261-a805-c82c3b3a37c6@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Hildenbrand <david@redhat.com>
+Cc: KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Sat 17-06-17 22:30:31, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > What does this dissassemble to on your kernel? Care to post addr2line?
-> 
-[...]
-> The __oom_reap_task_mm+0xa1/0x160 is __oom_reap_task_mm at mm/oom_kill.c:472
-> which is "struct vm_area_struct *vma;" line in __oom_reap_task_mm().
-> The __oom_reap_task_mm+0xb1/0x160 is __oom_reap_task_mm at mm/oom_kill.c:519
-> which is "if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))" line.
-> The <49> 8b 46 50 is "vma->vm_flags" in can_madv_dontneed_vma(vma) from __oom_reap_task_mm().
 
-OK, I see what is going on here. I could have noticed earlier. Sorry my
-fault. We are simply accessing a stale mm->mmap. exit_mmap() does
-remove_vma which frees all the vmas but it doesn't reset mm->mmap to
-NULL. Trivial to fix.
+--hQiwHBbRI9kgIhsi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ca58f8a2a217..253808e716dc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2979,6 +2979,7 @@ void exit_mmap(struct mm_struct *mm)
- 			nr_accounted += vma_pages(vma);
- 		vma = remove_vma(vma);
- 	}
-+	mm->mmap = NULL;
- 	vm_unacct_memory(nr_accounted);
- 	up_write(&mm->mmap_sem);
- }
+On Wed, Jun 21, 2017 at 02:32:48PM +0200, David Hildenbrand wrote:
+> On 21.06.2017 13:08, Stefan Hajnoczi wrote:
+> > On Mon, Jun 19, 2017 at 12:26:52PM +0200, David Hildenbrand wrote:
+> >> On 19.06.2017 12:08, Stefan Hajnoczi wrote:
+> >>> On Fri, Jun 16, 2017 at 04:20:02PM +0200, David Hildenbrand wrote:
+> >>>> Important restrictions of this concept:
+> >>>> - Guests without a virtio-mem guest driver can't see that memory.
+> >>>> - We will always require some boot memory that cannot get unplugged.
+> >>>>   Also, virtio-mem memory (as all other hotplugged memory) cannot be=
+come
+> >>>>   DMA memory under Linux. So the boot memory also defines the amount=
+ of
+> >>>>   DMA memory.
+> >>>
+> >>> I didn't know that hotplug memory cannot become DMA memory.
+> >>>
+> >>> Ouch.  Zero-copy disk I/O with O_DIRECT and network I/O with virtio-n=
+et
+> >>> won't be possible.
+> >>>
+> >>> When running an application that uses O_DIRECT file I/O this probably
+> >>> means we now have 2 copies of pages in memory: 1. in the application =
+and
+> >>> 2. in the kernel page cache.
+> >>>
+> >>> So this increases pressure on the page cache and reduces performance =
+:(.
+> >>>
+> >>> Stefan
+> >>>
+> >>
+> >> arch/x86/mm/init_64.c:
+> >>
+> >> /*
+> >>  * Memory is added always to NORMAL zone. This means you will never get
+> >>  * additional DMA/DMA32 memory.
+> >>  */
+> >> int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+> >> {
+> >>
+> >> The is for sure something to work on in the future. Until then, base
+> >> memory of 3.X GB should be sufficient, right?
+> >=20
+> > I'm not sure that helps because applications typically don't control
+> > where their buffers are located?
+>=20
+> Okay, let me try to explain what is going on here (no expert, please
+> someone correct me if I am wrong).
+>=20
+> There is a difference between DMA and DMA memory in Linux. DMA memory is
+> simply memory with special addresses. DMA is the general technique of a
+> device directly copying data to ram, bypassing the CPU.
+>=20
+> ZONE_DMA contains all* memory < 16MB
+> ZONE_DMA32 contains all* memory < 4G
+> * meaning available on boot via a820 map, not hotplugged.
+>=20
+> So memory from these zones can be used by devices that can only deal
+> with 24bit/32bit addresses.
+>=20
+> Hotplugged memory is never added to the ZONE_DMA/DMA32, but to
+> ZONE_NORMAL. That means, kmalloc(.., GFP_DMA will) not be able to use
+> hotplugged memory. Say you have 1GB of main storage and hotplug 1G (on
+> address 1G). This memory will not be available in the ZONE_DMA, although
+> below 4g.
+>=20
+> Memory in ZONE_NORMAL is used for ordinary kmalloc(), so all these
+> memory can be used to do DMA, but you are not guaranteed to get 32bit
+> capable addresses. I pretty much assume that virtio-net can deal with
+> 64bit addresses.
+>=20
+>=20
+> My understanding of O_DIRECT:
+>=20
+> The user space buffers (O_DIRECT) is directly used to do DMA. This will
+> work just fine as long as the device can deal with 64bit addresses. I
+> guess this is the case for virtio-net, otherwise there would be the
+> exact same problem already without virtio-mem.
+>=20
+> Summary:
+>=20
+> virtio-mem memory can be used for DMA, it will simply not be added to
+> ZONE_DMA/DMA32 and therefore won't be available for kmalloc(...,
+> GFP_DMA). This should work just fine with O_DIRECT as before.
+>=20
+> If necessary, we could try to add memory to the ZONE_DMA later on,
+> however for now I would rate this a minor problem. By simply using 3.X
+> GB of base memory, basically all memory that could go to ZONE_DMA/DMA32
+> already is in these zones without virtio-mem.
 
-> Is it safe for the OOM reaper to call tlb_gather_mmu()/unmap_page_range()/tlb_finish_mmu() sequence
-> after the OOM victim already completed tlb_gather_mmu()/unmap_vmas()/free_pgtables()/tlb_finish_mmu()/
-> remove_vma() sequence from exit_mmap() from __mmput() from mmput() from exit_mm() from do_exit() ?
+Nice, thanks for clearing this up!
 
-It is safe to race until unmap_vmas because that only needs mmap_sem for
-read mode (e.g. madvise MADV_DONTNEED) and all the later operations have
-to be linearized because we cannot tear down page tables while the oom
-reaper is doing pte walk. After we drop mmap_sem for write in the
-exit_mmap then there are no vmas and so there is nothing to do in the
-reaper.
+Stefan
 
-I will give the patch more testing next week. This one was busy as hell
-(i was travelling and then the stack gap thingy...).
--- 
-Michal Hocko
-SUSE Labs
+--hQiwHBbRI9kgIhsi
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEcBAEBAgAGBQJZTQ1YAAoJEJykq7OBq3PIbxwH/3w+GoO6ZDogPuQ3w4qlInWw
+/WyESXIRnVQOd8IxPq4w+EKBVbzGFnabQIEYP/cJWwZYxTVRoUNRwdDIADKdeTsw
+gRSDGDaswCerbpUQco4IxcuZObt6ORZgkss41CvA5ZseO6eGfWAEJ4HQpofAPoRw
+S+23Wc6y4h+sMn80E2SYitIZD6Ig63f/agwu4nNeaZq/Vi/nWBG+PHih/XMKHTHa
+L5FXTpncvJ95zip2bnb4Dc3p9tflxNTkg1c+Ze9wedpOzzj1Gl9czbXq75+rbCvR
+PmTIfWsvfR1JE9BafG2yAslISI42xz5OQ0YJ/FzQXRjyJIhBxNgPoL+upqXeATg=
+=UMo8
+-----END PGP SIGNATURE-----
+
+--hQiwHBbRI9kgIhsi--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
