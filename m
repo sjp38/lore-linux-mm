@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D13A6B03C5
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:10:13 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p64so11003216wrc.8
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:10:13 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 647066B03C7
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:24:24 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 23so4919464wry.4
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 02:24:24 -0700 (PDT)
 Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id y21si2366872wra.31.2017.06.23.02.10.11
+        by mx.google.com with ESMTP id z192si3495058wme.173.2017.06.23.02.24.22
         for <linux-mm@kvack.org>;
-        Fri, 23 Jun 2017 02:10:12 -0700 (PDT)
-Date: Fri, 23 Jun 2017 11:09:57 +0200
+        Fri, 23 Jun 2017 02:24:23 -0700 (PDT)
+Date: Fri, 23 Jun 2017 11:24:03 +0200
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 32/36] xen/x86: Remove SME feature in PV guests
-Message-ID: <20170623090957.yb2x225f4ok4w5qu@pd.tnic>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185554.18967.82909.stgit@tlendack-t1.amdoffice.net>
+Subject: Re: [PATCH v3 08/11] x86/mm: Disable PCID on 32-bit kernels
+Message-ID: <20170623092403.qytmaokmhve5b6k4@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org>
+ <d817b0638d5225c7ee5560f86e0b216dd9f76e9a.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170616185554.18967.82909.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <d817b0638d5225c7ee5560f86e0b216dd9f76e9a.1498022414.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Jun 16, 2017 at 01:55:54PM -0500, Tom Lendacky wrote:
-> Xen does not currently support SME for PV guests. Clear the SME cpu
-
-nitpick: s/cpu/CPU/
-
-> capability in order to avoid any ambiguity.
+On Tue, Jun 20, 2017 at 10:22:14PM -0700, Andy Lutomirski wrote:
+> 32-bit kernels on new hardware will see PCID in CPUID, but PCID can
+> only be used in 64-bit mode.  Rather than making all PCID code
+> conditional, just disable the feature on 32-bit builds.
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
 > ---
->  arch/x86/xen/enlighten_pv.c |    1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/x86/xen/enlighten_pv.c b/arch/x86/xen/enlighten_pv.c
-> index f33eef4..e6ecf42 100644
-> --- a/arch/x86/xen/enlighten_pv.c
-> +++ b/arch/x86/xen/enlighten_pv.c
-> @@ -294,6 +294,7 @@ static void __init xen_init_capabilities(void)
->  	setup_clear_cpu_cap(X86_FEATURE_MTRR);
->  	setup_clear_cpu_cap(X86_FEATURE_ACC);
->  	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
-> +	setup_clear_cpu_cap(X86_FEATURE_SME);
->  
->  	if (!xen_initial_domain())
->  		setup_clear_cpu_cap(X86_FEATURE_ACPI);
+>  arch/x86/include/asm/disabled-features.h | 4 +++-
+>  arch/x86/kernel/cpu/bugs.c               | 8 ++++++++
+>  2 files changed, 11 insertions(+), 1 deletion(-)
 
 Reviewed-by: Borislav Petkov <bp@suse.de>
 
