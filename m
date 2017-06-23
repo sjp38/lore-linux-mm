@@ -1,78 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 88CCC6B0292
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 14:40:08 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v60so14966061wrc.7
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:40:08 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u13si4997646wrc.318.2017.06.23.11.40.06
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 06DC96B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:00:55 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 23so8888851wry.4
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:00:54 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 76si4601372wmb.86.2017.06.23.12.00.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 11:40:06 -0700 (PDT)
-Date: Fri, 23 Jun 2017 19:39:46 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [RFC PATCH v2 0/7] cgroup-aware OOM killer
-Message-ID: <20170623183946.GA24014@castle>
-References: <1496342115-3974-1-git-send-email-guro@fb.com>
- <20170609163022.GA9332@dhcp22.suse.cz>
- <20170622171003.GB30035@castle>
- <20170623134323.GB5314@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170623134323.GB5314@dhcp22.suse.cz>
+        Fri, 23 Jun 2017 12:00:53 -0700 (PDT)
+Date: Fri, 23 Jun 2017 12:00:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 1/4] x86: switch atomic.h to use
+ atomic-instrumented.h
+Message-Id: <20170623120050.a4703ec2e3125b13361228ee@linux-foundation.org>
+In-Reply-To: <20170623085402.kfzu6sri6bwi2ppo@gmail.com>
+References: <cover.1498140468.git.dvyukov@google.com>
+	<ff85407a7476ac41bfbdd46a35a93b8f57fa4b1e.1498140838.git.dvyukov@google.com>
+	<20170622141411.6af8091132e4416e3635b62e@linux-foundation.org>
+	<CACT4Y+YQchHWK+8jEo03dK21xM77pn0YePkjUTVny0-Cx8yYeg@mail.gmail.com>
+	<20170623085402.kfzu6sri6bwi2ppo@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jun 23, 2017 at 03:43:24PM +0200, Michal Hocko wrote:
-> On Thu 22-06-17 18:10:03, Roman Gushchin wrote:
-> > Hi, Michal!
-> > 
-> > Thank you very much for the review. I've tried to address your
-> > comments in v3 (sent yesterday), so that is why it took some time to reply.
+On Fri, 23 Jun 2017 10:54:02 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+
 > 
-> I will try to look at it sometimes next week hopefully
-
-Thanks!
-
-> > > - You seem to completely ignore per task oom_score_adj and override it
-> > >   by the memcg value. This makes some sense but it can lead to an
-> > >   unexpected behavior when somebody relies on the original behavior.
-> > >   E.g. a workload that would corrupt data when killed unexpectedly and
-> > >   so it is protected by OOM_SCORE_ADJ_MIN. Now this assumption will
-> > >   break when running inside a container. I do not have a good answer
-> > >   what is the desirable behavior and maybe there is no universal answer.
-> > >   Maybe you just do not to kill those tasks? But then you have to be
-> > >   careful when selecting a memcg victim. Hairy...
-> > 
-> > I do not ignore it completely, but it matters only for root cgroup tasks
-> > and inside a cgroup when oom_kill_all_tasks is off.
-> > 
-> > I believe, that cgroup v2 requirement is a good enough. I mean you can't
-> > move from v1 to v2 without changing cgroup settings, and if we will provide
-> > per-cgroup oom_score_adj, it will be enough to reproduce the old behavior.
-> > 
-> > Also, if you think it's necessary, I can add a sysctl to turn the cgroup-aware
-> > oom killer off completely and provide compatibility mode.
-> > We can't really save the old system-wide behavior of per-process oom_score_adj,
-> > it makes no sense in the containerized environment.
+> * Dmitry Vyukov <dvyukov@google.com> wrote:
 > 
-> So what you are going to do with those applications that simply cannot
-> be killed and which set OOM_SCORE_ADJ_MIN explicitly. Are they
-> unsupported? How does a user find out? One way around this could be to
-> simply to not kill tasks with OOM_SCORE_ADJ_MIN.
+> > On Thu, Jun 22, 2017 at 11:14 PM, Andrew Morton
+> > <akpm@linux-foundation.org> wrote:
+> > > On Thu, 22 Jun 2017 16:14:16 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
+> > >
+> > >> Add arch_ prefix to all atomic operations and include
+> > >> <asm-generic/atomic-instrumented.h>. This will allow
+> > >> to add KASAN instrumentation to all atomic ops.
+> > >
+> > > This gets a large number of (simple) rejects when applied to
+> > > linux-next.  Can you please redo against -next?
+> > 
+> > 
+> > This is based on tip/locking tree. Ingo already took a part of these
+> > series. The plan is that he takes the rest, and this applies on
+> > tip/locking without conflicts.
+> 
+> Yeah, so I've taken the rest as well, it all looks very clean now. Should show up 
+> in the next -next, if it passes my (arguably limited) testing.
+> 
+> Andrew, is this workflow fine with you? You usually take KASAN patches, but I was 
+> unhappy with the atomics instrumention of the earlier patches, and ended up 
+> reviewing the followup variants, and felt that if I hinder a patchset I might as 
+> well test and apply it once I'm happy with them! ;-)
+> 
 
-They won't be killed by cgroup OOM, but under some circumstances can be killed
-by the global OOM (e.g. there are no other tasks in the selected cgroup,
-cgroup v2 is used, and per-cgroup oom score adjustment is not set).
-
-I believe, that per-process oom_score_adj should not play any role outside
-of the containing cgroup, it's violation of isolation.
-
-Right now if tasks with oom_score_adj=-1000 eating all memory in a cgroup,
-they will be looping forever, OOM killer can't fix this.
+Sure..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
