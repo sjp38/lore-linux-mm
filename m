@@ -1,98 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 495336B0374
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:55 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id h15so18284495qte.0
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d4si4241934qta.282.2017.06.23.08.28.54
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE8296B0292
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:47:03 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 6so27590321oik.11
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:47:03 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h46si1914876otd.38.2017.06.23.08.47.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 08:28:54 -0700 (PDT)
-Date: Fri, 23 Jun 2017 11:28:50 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM 00/15] HMM (Heterogeneous Memory Management) v23
-Message-ID: <20170623152849.GA3128@redhat.com>
-References: <20170524172024.30810-1-jglisse@redhat.com>
- <CAA_GA1e7LbvY3rZ+FpJ6fLhZ1oUJ_FXVjQvjmS_YSrjZMAv9jw@mail.gmail.com>
+        Fri, 23 Jun 2017 08:47:02 -0700 (PDT)
+Received: from mail-vk0-f48.google.com (mail-vk0-f48.google.com [209.85.213.48])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CB72322B5F
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:47:01 +0000 (UTC)
+Received: by mail-vk0-f48.google.com with SMTP id 191so15595606vko.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:47:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAA_GA1e7LbvY3rZ+FpJ6fLhZ1oUJ_FXVjQvjmS_YSrjZMAv9jw@mail.gmail.com>
+In-Reply-To: <20170623084219.k4lrorgtlshej7ri@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org> <91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org>
+ <20170621184424.eixb2jdyy66xq4hg@pd.tnic> <CALCETrWEGrVJj3Jcc3U38CYh01GKgGpLqW=eN_-7nMo4t=V5Mg@mail.gmail.com>
+ <20170622072449.4rc4bnvucn7usuak@pd.tnic> <CALCETrVdT449KiEJ7wo8g9B6NyTSQhuXpYL76b=ToJhKwKyVXg@mail.gmail.com>
+ <20170622145914.tzqdulshlssiywj4@pd.tnic> <CALCETrUPqG-YcneqSqUYzWTJbm2Ae0Nj3K0MuS0cKYeD0yWhuw@mail.gmail.com>
+ <20170622172220.wf3egiwx2kqbxbi2@pd.tnic> <CALCETrUbiXK8gjS=U2j4jW8YgPv4j+wgwsa4nJLnO+902fXfKQ@mail.gmail.com>
+ <20170623084219.k4lrorgtlshej7ri@pd.tnic>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 23 Jun 2017 08:46:40 -0700
+Message-ID: <CALCETrX+B1Xa=0ZjYUNi+aApKPQerVqOt42bgGeNadaZc-c3hw@mail.gmail.com>
+Subject: Re: [PATCH v3 05/11] x86/mm: Track the TLB's tlb_gen and update the
+ flushing algorithm
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, John Hubbard <jhubbard@nvidia.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Jun 23, 2017 at 11:00:37PM +0800, Bob Liu wrote:
-> Hi,
-> 
-> On Thu, May 25, 2017 at 1:20 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
-> > test same kernel as kbuild system, git branch:
-> >
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v23
-> >
-> > Change since v22 is use of static key for special ZONE_DEVICE case in
-> > put_page() and build fix for architecture with no mmu.
-> >
-> > Everything else is the same. Below is the long description of what HMM
-> > is about and why. At the end of this email i describe briefly each patch
-> > and suggest reviewers for each of them.
-> >
-> >
-> > Heterogeneous Memory Management (HMM) (description and justification)
-> >
-> > Today device driver expose dedicated memory allocation API through their
-> > device file, often relying on a combination of IOCTL and mmap calls. The
-> > device can only access and use memory allocated through this API. This
-> > effectively split the program address space into object allocated for the
-> > device and useable by the device and other regular memory (malloc, mmap
-> > of a file, share memory, a) only accessible by CPU (or in a very limited
-> > way by a device by pinning memory).
-> >
-> > Allowing different isolated component of a program to use a device thus
-> > require duplication of the input data structure using device memory
-> > allocator. This is reasonable for simple data structure (array, grid,
-> > image, a) but this get extremely complex with advance data structure
-> > (list, tree, graph, a) that rely on a web of memory pointers. This is
-> > becoming a serious limitation on the kind of work load that can be
-> > offloaded to device like GPU.
-> >
-> > New industry standard like C++, OpenCL or CUDA are pushing to remove this
-> > barrier. This require a shared address space between GPU device and CPU so
-> > that GPU can access any memory of a process (while still obeying memory
-> > protection like read only). This kind of feature is also appearing in
-> > various other operating systems.
-> >
-> > HMM is a set of helpers to facilitate several aspects of address space
-> > sharing and device memory management. Unlike existing sharing mechanism
-> 
-> It looks like the address space sharing and device memory management
-> are two different things. They don't depend on each other and HMM has
-> helpers for both.
-> 
-> Is it possible to separate these two things into two patchsets?
-> Which will make it's more easy to review and also follow the "Do one
-> thing, and do it well" philosophy.
-> 
+On Fri, Jun 23, 2017 at 1:42 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Thu, Jun 22, 2017 at 11:08:38AM -0700, Andy Lutomirski wrote:
+>> Yes, I agree it's confusing.  There really are three numbers.  Those
+>> numbers are: the latest generation, the generation that this CPU has
+>> caught up to, and the generation that the requester of the flush we're
+>> currently handling has asked us to catch up to.  I don't see a way to
+>> reduce the complexity.
+>
+> Yeah, can you pls put that clarification what what is, over it. It
+> explains it nicely what the check is supposed to do.
 
-They are already seperate. Patch 3-5 are for address space mirroring.
-Patch 6-10 for device memory using struct page and ZONE_DEVICE. Finaly
-patch 11-15 for adding new page migration helper capable of using
-device DMA engine to perform memory copy operation.
+Done.  I've tried to improve a bunch of the comments in this function.
 
-Patch 1 is just common documentation and patch 2 is common helpers and
-definitions.
+>
+>> >> The flush IPI hits after a switch_mm_irqs_off() call notices the
+>> >> change from 1 to 2. switch_mm_irqs_off() will do a full flush and
+>> >> increment the local tlb_gen to 2, and the IPI handler for the partial
+>> >> flush will see local_tlb_gen == mm_tlb_gen - 1 (because local_tlb_gen
+>> >> == 2 and mm_tlb_gen == 3) and do a partial flush.
+>> >
+>> > Why, the 2->3 flush has f->end == TLB_FLUSH_ALL.
+>> >
+>> > That's why you have this thing in addition to the tlb_gen.
+>>
+>> Yes.  The idea is that we only do remote partial flushes when it's
+>> 100% obvious that it's safe.
+>
+> So why wouldn't my simplified suggestion work then?
+>
+>         if (f->end != TLB_FLUSH_ALL &&
+>              mm_tlb_gen == local_tlb_gen + 1)
+>
+> 1->2 is a partial flush - gets promoted to a full one
+> 2->3 is a full flush - it will get executed as one due to the f->end setting to
+> TLB_FLUSH_ALL.
 
-Also they are separate at kernel configuration level. So for all intents
-and purposes this is already 2 separate things, just in one posting
-because first user will use both. You can use one without the other and
-it will work properly.
+This could still fail in some cases, I think.  Suppose 1->2 is a
+partial flush and 2->3 is a full flush.  We could have this order of
+events:
 
-Cheers,
-Jerome
+ - CPU 1: Partial flush.  Increase context.tlb_gen to 2 and send IPI.
+ - CPU 0: switch_mm(), observe mm_tlb_gen == 2, set local_tlb_gen to 2.
+ - CPU 2: Full flush.  Increase context.tlb_gen to 3 and send IPI.
+ - CPU 0: Receive partial flush IPI.  mm_tlb_gen == 2 and
+local_tlb_gen == 3.  Do __flush_tlb_single() and set local_tlb_gen to
+3.
+
+Our invariant is now broken: CPU 0's percpu tlb_gen is now ahead of
+its actual TLB state.
+
+ - CPU 0: Receive full flush IPI and skip the flush.  Oops.
+
+I think my condition makes it clear that the invariants we need hold
+no matter it.
+
+>
+>> It could be converted to two full flushes or to just one, I think,
+>> depending on what order everything happens in.
+>
+> Right. One flush at the right time would be optimal.
+>
+>> But this approach of using three separate tlb_gen values seems to
+>> cover all the bases, and I don't think it's *that* bad.
+>
+> Sure.
+>
+> As I said in IRC, let's document that complexity then so that when we
+> stumble over it in the future, we at least know why it was done this
+> way.
+
+I've given it a try.  Hopefully v4 is more clear.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
