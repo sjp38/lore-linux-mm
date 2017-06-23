@@ -1,162 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 131516B0279
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:00:13 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u36so30277120pgn.5
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:00:13 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id 97si2463362plc.447.2017.06.22.18.00.10
-        for <linux-mm@kvack.org>;
-        Thu, 22 Jun 2017 18:00:11 -0700 (PDT)
-Date: Fri, 23 Jun 2017 10:52:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC PATCH 2/2] mm, fs: daxfile, an interface for
- byte-addressable updates to pmem
-Message-ID: <20170623005214.GO17542@dastard>
-References: <20170619132107.GG11993@dastard>
- <CALCETrUe0igzK0RZTSSondkCY3ApYQti89tOh00f0j_APrf_dQ@mail.gmail.com>
- <20170620004653.GI17542@dastard>
- <CALCETrVuoPDRuuhc9X8eVCYiFUzWLSTRkcjbD6jas_2J2GixNQ@mail.gmail.com>
- <20170620101145.GJ17542@dastard>
- <CALCETrVCJkm5SCxAtNMW36eONHsFw1s0dkVnDAs4vAXvEKMsPw@mail.gmail.com>
- <20170621014032.GL17542@dastard>
- <CALCETrVYmbyNS-btvsN_M-QyWPZA_Y_4JXOM893g7nhZA+WviQ@mail.gmail.com>
- <20170622000235.GN17542@dastard>
- <CALCETrX0n0-JxJbisrVnM6QME3uToW_x26xN3Z-t0-1yDvWn4Q@mail.gmail.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 15A1C6B02C3
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:37:26 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id d191so31171168pga.15
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:37:26 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id j19si2412956pgn.452.2017.06.22.18.37.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Jun 2017 18:37:25 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id f127so4436765pgc.2
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:37:25 -0700 (PDT)
+Date: Fri, 23 Jun 2017 09:37:22 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is
+ default kernel zone
+Message-ID: <20170623013722.GA14321@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170601083746.4924-1-mhocko@kernel.org>
+ <20170601083746.4924-3-mhocko@kernel.org>
+ <20170622023243.GA1242@WeideMacBook-Pro.local>
+ <20170622181656.GB19563@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="zYM0uCDKw75PZbzx"
 Content-Disposition: inline
-In-Reply-To: <CALCETrX0n0-JxJbisrVnM6QME3uToW_x26xN3Z-t0-1yDvWn4Q@mail.gmail.com>
+In-Reply-To: <20170622181656.GB19563@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Rudoff, Andy" <andy.rudoff@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 21, 2017 at 09:07:57PM -0700, Andy Lutomirski wrote:
-> On Wed, Jun 21, 2017 at 5:02 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >
-> > You seem to be calling the "fdatasync on every page fault" the
-> 
-> It's the opposite of fdatasync().  It needs to sync whatever metadata
-> is needed to find the data.  The data doesn't need to be synced.
 
-So much wrong with that statement.
+--zYM0uCDKw75PZbzx
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Andy, what does fdatasync() do when you have a data-clean,
-metadata-dirty file (e.g. you just punched a hole  or preallocated
-more space via fallocate())?  Hint: it doesn't sync any data
-because the mapping tree is clean, but it still syncs the dirty
-metadata needed to access the data.
+On Thu, Jun 22, 2017 at 08:16:57PM +0200, Michal Hocko wrote:
+>>=20
+>> Hmm... a corner case jumped into my mind which may invalidate this
+>> calculation.
+>>=20
+>> The case is:
+>>=20
+>>=20
+>>        Zone:         | DMA   | DMA32      | NORMAL       |
+>>                      v       v            v              v
+>>       =20
+>>        Phy mem:      [           ]     [                  ]
+>>       =20
+>>                      ^           ^     ^                  ^
+>>        Node:         |   Node0   |     |      Node1       |
+>>                              A   B     C  D
+>>=20
+>>=20
+>> The key point is
+>> 1. There is a hole between Node0 and Node1
+>> 2. The hole sits in a non-normal zone
+>>=20
+>> Let's mark the boundary as A, B, C, D. Then we would have
+>> node0->zone[dma21] =3D [A, B]
+>> node1->zone[dma32] =3D [C, D]
+>>=20
+>> If we want to hotplug a range in [B, C] on node0, it looks not that bad.=
+ While
+>> if we want to hotplug a range in [B, C] on node1, it will introduce the
+>> overlapped zone. Because the range [B, C] intersects none of the existing
+>> zones on node1.
+>>=20
+>> Do you think this is possible?
+>
+>Yes, it is possible. I would be much more more surprised if it was real
+>as well. Fixing that would require to use arch_zone_{lowest,highest}_possi=
+ble_pfn
+>which is not available after init section disappears and I am not even
+>sure we should care. I would rather wait for a real life example of such
+>a configuration to fix it.
 
-Now, what does a file where we do direct IO writes look like? Yup,
-the mapping tree always remains clean and so it's only ever going to
-appear to the kernel as a *data-clean, metadata-dirty* file. So,
-after a direct IO write is done, what operation do we need to run to
-ensure that we can always access the data?
+Yep, not easy to fix, so wait for real case.
 
-Yup, it's fdatasync().
+Or possible to add a line in commit log?
 
-So, what does a DAX file that does userspace data flushes look like
-to the kernel? Yup, again the mapping tree always remains clean and
-so it's only ever going to be a *data-clean, metadata-dirty* file.
+>--=20
+>Michal Hocko
+>SUSE Labs
 
-It should be clear now why I said "fdatasync on every page fault"
-because that's exactly the mechanism we'd use to implement this
-functionality....
+--=20
+Wei Yang
+Help you, Help me
 
-It should also be clear that DAX is not introducing any new data
-integrity problems to the filesystems that direct IO hasn't already
-introduced. Both DAX with userspace data sync and Direct IO writes
-are completely untracked by the kernel.  IOWs, direct IO is a form
-of "kernel bypass", just like DAX+userspace data sync is.  All that
-is different is the method by which data is written to the storage
-media from userspace, which in the case of DAX is via mmap rather
-than read/write.
+--zYM0uCDKw75PZbzx
+Content-Type: application/pgp-signature; name="signature.asc"
 
-> > "lightweight" option. That's the brute-force-with-big-hammer
-> > solution - it's most definitely not lightweight as every page fault
-> > has extra overhead to call ->fsync(). Sure, the API is simple, but
-> > the runtime overhead is significant.
-> 
-> It's lightweight in terms of its impact on the filesystem.  It doesn't
-> need any persistent setup -- you can just use it.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-Well, no, that's wrong, because we have to co-ordinate multiple
-concurrent accesses to the data in the kernel. What happens when
-some other process writes to the file *at the same time* but does
-not use userspace sync? We aren't tracking dirty regions on the
-inode mapping because we've been told not to do that, so fsync()
-from that other process *won't sync the data it wrote*. IOws, the
-kernel has failed to provide the guarantee that userspace wants it
-to provide.
+iQIcBAEBCAAGBQJZTHDSAAoJEKcLNpZP5cTdzSAQAIZi1ymbkTayVdr3OA9yJjN2
+zT1clCjZwMPobT21HbM2Im4NiBzUvk7fTfqEq6Rbc5eqUUgpa9bLwpr3wVnOmWGE
+3Ge7QGRkFwGSb/0zxThCU3bPZayt/Dv4ejhyfla2IGz6Goy0jRLHzU5wq0mpo5zH
+eNQCLRMkETsOVt7rskIHq4K/aQhqvn51PGrDRN0t4s3T8qsy2NSpGwBK2A5SMb2Y
+XOKWiF6U8V3qyzC8SNHPP2j9WLQQZBLRimQRToazvXQmpBS6vi9ZVWFtmI/QwGZA
+pIKhO8WHrrh9p+uahIS+8PgvRqKpt6N1AltlmLYkmFctL5PpFKYVq2fatWUQovXT
+TVJHJAFUbmJ7UtyrCz5kHE9JjOMpWv3RWWpoAkh49oNmlZxrt2XVvt/IqTOSvvoW
+A9wusQBy8u5MUSoc4CcA9zb2Hsvbju3L4t3STWYJkMQg28iWuXQxUkmHn8JLWV9q
+7GOLGbBlGWeMf+KWOyfpPack8n0cdvTG5ob56ch+4tkQX9ZnBe8Oys5OnFuo8rCN
+VPdGRVPMpaw4bEq3r/IXi70YhzYCC2YjPI0X7GRQVULsLFDeS4jxAYfnvNUULMx1
+Mw8FLaD9YoifiQx8UuBG48MUyIX6ga2hQRE7yd2gsAGM1cFYa9bN4l21DY3PjIDg
+udNEicDzzMSMboUQnqVx
+=KOYq
+-----END PGP SIGNATURE-----
 
-The single mapping tree is central to the problem here - we can't
-mix modes of dirty tracking across different processes. Either
-everything uses userspace sync, or everything uses kernel controlled
-dirty tracking so fsync() works correctly in all cases. Put simply -
-dirty tracking is a per-inode function, not a per-file or per-vma
-function.
-
-As the direct IO kernel-bypass model demonstrates, as soon as you
-start considering multi-process data coherency and durability with
-mixed kernel+kernel bypass methods in play, lots of potential
-problems and issues crop up that can't easily be solved by the
-kernel or filesystems. We try to minimise the problems, but we don't
-guarantee mixed mode coherency (and hence integrity) as we've
-delegated data coherency and integrity responsibility to the app
-bypassing the kernel data coherency and integrity mechanisms.
-
-What I'd like to avoid is creating another kernel bypass mechanism
-where we allow coherency and/or integrity to be fucked up in a way that
-we can't fix without giving up all the performance that the kernel
-bypass provides userspace apps. Constrain the cases where kernel
-bypass is allowed, and we avoid all the crappy corner cases where
-our only answer to users with corrupt data is "the man page advises
-application developers not to do that".
-
-If in future we work out how to implement everything without
-needing immutable extents in the inode, we can relax the
-restrictions we've placed on userspace DAX data sync....
-
-> > Even if you are considering the complexity of the APIs, it's hardly
-> > a "heavyweight" when it only requires a single call to fallocate()
-> > before mmap() to set up the immutable extents on the file...
-> 
-> So what would the exact semantics be?  In particular, how can it fail?
->  If I do the fallocate(), is it absolutely promised that the extent
-> map won't get out of sync between what mmap sees and what's on disk?
-
-That's precisely the guarantee I documented would be given by
-immutable extents in my very first proposal.
-
-> Do user programs need to worry about colliding with each other when
-> one does fallocate() to DAXify a file and the other does fallocate()
-> to unDAXify a file?
-
-Yes, it can. This was one of the reasons for putting it under
-privilege - so only the app has full control of the extent map
-changes and nobody else can fuck with it.
-
-> Does this particular fallocate() call still keep
-> its effect after a reboot?
-
-Yes, it does, because it has to be transparent and behave
-consistently with all of userspace, not just the app that owns the
-file, and not just while that app is running. (e.g. defrag could be
-running on the file before the app starts, and then you're screwed
-when defrag modifies the extent map after app startup...)
-
-> Is there an actual concrete proposal that's reviewable?
-
-Yes, the first posting where I proposed this functionality many
-months ago spelled this all out in detail.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--zYM0uCDKw75PZbzx--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
