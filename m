@@ -1,84 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 556A96B03D3
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 06:34:27 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z81so11609481wrc.2
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:34:27 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DA666B0292
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 07:35:24 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u110so11957046wrb.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:35:24 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m65si3755207wmh.82.2017.06.23.03.34.25
+        by mx.google.com with ESMTPS id a71si3868851wme.172.2017.06.23.04.35.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 03:34:25 -0700 (PDT)
-Date: Fri, 23 Jun 2017 12:34:23 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [RFC PATCH] mm, swap: don't disable preemption while taking the
- per-CPU cache
-Message-ID: <20170623103423.GJ5308@dhcp22.suse.cz>
-References: <20170623101254.k4zzbf3dfoukoxkq@linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170623101254.k4zzbf3dfoukoxkq@linutronix.de>
+        Fri, 23 Jun 2017 04:35:22 -0700 (PDT)
+From: Nikolay Borisov <nborisov@suse.com>
+Subject: [PATCH] mm: Remove ancient/ambiguous comment
+Date: Fri, 23 Jun 2017 14:35:17 +0300
+Message-Id: <1498217717-20945-1-git-send-email-nborisov@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, tglx@linutronix.de, ying.huang@intel.com, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, linux-mm@kvack.org, mhocko@suse.com, Nikolay Borisov <nborisov@suse.com>
 
-On Fri 23-06-17 12:12:54, Sebastian Andrzej Siewior wrote:
-> get_cpu_var() disables preemption and returns the per-CPU version of the
-> variable. Disabling preemption is useful to ensure atomic access to the
-> variable within the critical section.
-> In this case however, after the per-CPU version of the variable is
-> obtained the ->free_lock is acquired. For that reason it seems the raw
-> accessor could be used. It only seems that ->slots_ret should be
-> retested (because with disabled preemption this variable can not be set
-> to NULL otherwise).
+Currently pg_data_t is just a struct which describes a NUMA node memory 
+layout. Let's keep the comment simple and remove ambiguity.
 
-The changelog doesn't explain, why does this change matter. Disabling
-preemption shortly before taking a spinlock shouldn't make much
-difference. I suspect you care because of RT, right? In that case spell
-that in the changelog and explain why it matters.
+Signed-off-by: Nikolay Borisov <nborisov@suse.com>
+---
+ include/linux/mmzone.h | 4 ----
+ 1 file changed, 4 deletions(-)
 
-Other than hat the patch looks good to me.
-
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> ---
->  mm/swap_slots.c | 5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-> index 58f6c78f1dad..51c304477482 100644
-> --- a/mm/swap_slots.c
-> +++ b/mm/swap_slots.c
-> @@ -272,11 +272,11 @@ int free_swap_slot(swp_entry_t entry)
->  {
->  	struct swap_slots_cache *cache;
->  
-> -	cache = &get_cpu_var(swp_slots);
-> +	cache = raw_cpu_ptr(&swp_slots);
->  	if (use_swap_slot_cache && cache->slots_ret) {
->  		spin_lock_irq(&cache->free_lock);
->  		/* Swap slots cache may be deactivated before acquiring lock */
-> -		if (!use_swap_slot_cache) {
-> +		if (!use_swap_slot_cache || !cache->slots_ret) {
->  			spin_unlock_irq(&cache->free_lock);
->  			goto direct_free;
->  		}
-> @@ -296,7 +296,6 @@ int free_swap_slot(swp_entry_t entry)
->  direct_free:
->  		swapcache_free_entries(&entry, 1);
->  	}
-> -	put_cpu_var(swp_slots);
->  
->  	return 0;
->  }
-> -- 
-> 2.13.1
-> 
-
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index ef6a13b7bd3e..c870c65fb945 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -587,10 +587,6 @@ extern struct page *mem_map;
+ #endif
+ 
+ /*
+- * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
+- * (mostly NUMA machines?) to denote a higher-level memory zone than the
+- * zone denotes.
+- *
+  * On NUMA machines, each NUMA node would have a pg_data_t to describe
+  * it's memory layout.
+  *
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
