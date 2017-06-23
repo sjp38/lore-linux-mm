@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 15A1C6B02C3
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:37:26 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d191so31171168pga.15
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:37:26 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id j19si2412956pgn.452.2017.06.22.18.37.25
+	by kanga.kvack.org (Postfix) with ESMTP id A84EE6B02C3
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:41:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g7so31297272pgr.3
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:41:30 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id o28si2441094pli.603.2017.06.22.18.41.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 18:37:25 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id f127so4436765pgc.2
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:37:25 -0700 (PDT)
-Date: Fri, 23 Jun 2017 09:37:22 +0800
+        Thu, 22 Jun 2017 18:41:30 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id u62so4454254pgb.0
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:41:29 -0700 (PDT)
+Date: Fri, 23 Jun 2017 09:41:26 +0800
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH 2/2] mm, memory_hotplug: do not assume ZONE_NORMAL is
- default kernel zone
-Message-ID: <20170623013722.GA14321@WeideMacBook-Pro.local>
+Subject: Re: [PATCH] docs/memory-hotplug: adjust the explanation of
+ valid_zones sysfs
+Message-ID: <20170623014126.GB14321@WeideMacBook-Pro.local>
 Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170601083746.4924-1-mhocko@kernel.org>
- <20170601083746.4924-3-mhocko@kernel.org>
- <20170622023243.GA1242@WeideMacBook-Pro.local>
- <20170622181656.GB19563@dhcp22.suse.cz>
+References: <20170622041844.9852-1-richard.weiyang@gmail.com>
+ <20170622182113.GC19563@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="zYM0uCDKw75PZbzx"
+	protocol="application/pgp-signature"; boundary="p4qYPpj5QlsIQJ0K"
 Content-Disposition: inline
-In-Reply-To: <20170622181656.GB19563@dhcp22.suse.cz>
+In-Reply-To: <20170622182113.GC19563@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
---zYM0uCDKw75PZbzx
+--p4qYPpj5QlsIQJ0K
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Thu, Jun 22, 2017 at 08:16:57PM +0200, Michal Hocko wrote:
->>=20
->> Hmm... a corner case jumped into my mind which may invalidate this
->> calculation.
->>=20
->> The case is:
->>=20
->>=20
->>        Zone:         | DMA   | DMA32      | NORMAL       |
->>                      v       v            v              v
->>       =20
->>        Phy mem:      [           ]     [                  ]
->>       =20
->>                      ^           ^     ^                  ^
->>        Node:         |   Node0   |     |      Node1       |
->>                              A   B     C  D
->>=20
->>=20
->> The key point is
->> 1. There is a hole between Node0 and Node1
->> 2. The hole sits in a non-normal zone
->>=20
->> Let's mark the boundary as A, B, C, D. Then we would have
->> node0->zone[dma21] =3D [A, B]
->> node1->zone[dma32] =3D [C, D]
->>=20
->> If we want to hotplug a range in [B, C] on node0, it looks not that bad.=
- While
->> if we want to hotplug a range in [B, C] on node1, it will introduce the
->> overlapped zone. Because the range [B, C] intersects none of the existing
->> zones on node1.
->>=20
->> Do you think this is possible?
+On Thu, Jun 22, 2017 at 08:21:14PM +0200, Michal Hocko wrote:
+>On Thu 22-06-17 12:18:44, Wei Yang wrote:
+>[...]
+>> -'valid_zones'     : read-only: designed to show which zones this memory=
+ block
+>> -		    can be onlined to.
+>> -		    The first column shows it's default zone.
+>> +'valid_zones'     : read-only: shows different information based on sta=
+te.
+>> +		    When state is online, it is designed to show the
+>> +		    zone name this memory block is onlined to.
+>> +		    When state is offline, it is designed to show which zones
+>> +		    this memory block can be onlined to.  The first column
+>> +		    shows it's default zone.
 >
->Yes, it is possible. I would be much more more surprised if it was real
->as well. Fixing that would require to use arch_zone_{lowest,highest}_possi=
-ble_pfn
->which is not available after init section disappears and I am not even
->sure we should care. I would rather wait for a real life example of such
->a configuration to fix it.
+>I do not think we really need to touch this. First of all the last
+>sentence is not really correct. The ordering of zones doesn't tell which
+>zone will be onlined by default. This is indeed a change of behavior of
+>my patch. I am just not sure anybody depends on that. I can fix it up
+>but again the old semantic was just awkward and I didn't feel like I
+>should keep it. Also I plan to change this behavior again with planned
+>patches. I would like to get rid of the non-overlapping zones
+>restriction so the wording would have to change again.
 
-Yep, not easy to fix, so wait for real case.
+Sure, look forward your up coming patches.
 
-Or possible to add a line in commit log?
-
+>
+>That being said, let's keep the wording as it is now.
+>
+>Thanks!
 >--=20
 >Michal Hocko
 >SUSE Labs
@@ -90,28 +73,28 @@ Or possible to add a line in commit log?
 Wei Yang
 Help you, Help me
 
---zYM0uCDKw75PZbzx
+--p4qYPpj5QlsIQJ0K
 Content-Type: application/pgp-signature; name="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJZTHDSAAoJEKcLNpZP5cTdzSAQAIZi1ymbkTayVdr3OA9yJjN2
-zT1clCjZwMPobT21HbM2Im4NiBzUvk7fTfqEq6Rbc5eqUUgpa9bLwpr3wVnOmWGE
-3Ge7QGRkFwGSb/0zxThCU3bPZayt/Dv4ejhyfla2IGz6Goy0jRLHzU5wq0mpo5zH
-eNQCLRMkETsOVt7rskIHq4K/aQhqvn51PGrDRN0t4s3T8qsy2NSpGwBK2A5SMb2Y
-XOKWiF6U8V3qyzC8SNHPP2j9WLQQZBLRimQRToazvXQmpBS6vi9ZVWFtmI/QwGZA
-pIKhO8WHrrh9p+uahIS+8PgvRqKpt6N1AltlmLYkmFctL5PpFKYVq2fatWUQovXT
-TVJHJAFUbmJ7UtyrCz5kHE9JjOMpWv3RWWpoAkh49oNmlZxrt2XVvt/IqTOSvvoW
-A9wusQBy8u5MUSoc4CcA9zb2Hsvbju3L4t3STWYJkMQg28iWuXQxUkmHn8JLWV9q
-7GOLGbBlGWeMf+KWOyfpPack8n0cdvTG5ob56ch+4tkQX9ZnBe8Oys5OnFuo8rCN
-VPdGRVPMpaw4bEq3r/IXi70YhzYCC2YjPI0X7GRQVULsLFDeS4jxAYfnvNUULMx1
-Mw8FLaD9YoifiQx8UuBG48MUyIX6ga2hQRE7yd2gsAGM1cFYa9bN4l21DY3PjIDg
-udNEicDzzMSMboUQnqVx
-=KOYq
+iQIcBAEBCAAGBQJZTHHGAAoJEKcLNpZP5cTdu6IQAIAZQ4jhz0Uqcc6bwwQtK7rI
+LOkJCNCR3jFOfBG9cBYJgbvDNnoHyfqDR9exC5jMxVHVKDchUdrxSsYpiBsIZctp
+Oe1Apgd6lJIocsEGXMg1KLnYXUGCP9VgOLtrJCEoWpU2KDNKu6wa+ICzf8dK3ERF
+xidM6kkHmwYttetV8ERqjCEU3MwlJq6+el9bUvqDB/aNf0OAWNxuyswt+jmE11zG
+ugicDJ6/AMZ6m1RTo6W08TIbPS6sdgmpiJmJbHVq+5tqIbN/AUcT/Du+Q91Nr9ny
++tpYsteWaq6GclU8uFeVjm9WH1uVLmEXBrAHbo8csvE4FolS86t6ljegS10UalXI
+AsRNpMPH5m9HwE+HdgloMowJgYYlyd/f6ykRwYzxVY05MomngQ3li/QO0NtNtj/G
+U3vdlsDs+YWNOzmhDDR4j7phJCtLePXHcGSanNilkMeO+h8ZqQXJdjDcY7dA3kJD
+ebJ5sDFOy8kbLiAm5cSxR5vChOqkjSAiWj/RqCQYTUhRfI3fb/51nRgD0of0md5V
+zEF18SYlvZHvWycKSUNRXxc7CHXUWnSYCgVnDwd6Kc0qeOWZmO5+3ValjVwSu6wb
+a1PApfsCxzGoKMlZ24PZaxk3V1Q/zGezhK2GrH8QL3knXhat5eeIv9qUD5GtIH8+
+z7vrwp7JljHA2dyW7tgV
+=Sft6
 -----END PGP SIGNATURE-----
 
---zYM0uCDKw75PZbzx--
+--p4qYPpj5QlsIQJ0K--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
