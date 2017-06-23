@@ -1,186 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 607BA6B0365
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 13:44:58 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 33so49245836pgx.14
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 10:44:58 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0080.outbound.protection.outlook.com. [104.47.34.80])
-        by mx.google.com with ESMTPS id k33si4115163pld.481.2017.06.23.10.44.57
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 88CCC6B0292
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 14:40:08 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v60so14966061wrc.7
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:40:08 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id u13si4997646wrc.318.2017.06.23.11.40.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 10:44:57 -0700 (PDT)
-Subject: Re: [PATCH v7 34/36] x86/mm: Add support to encrypt the kernel
- in-place
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185619.18967.38945.stgit@tlendack-t1.amdoffice.net>
- <20170623100013.upd4or6esjvulmvg@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
-Date: Fri, 23 Jun 2017 12:44:46 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jun 2017 11:40:06 -0700 (PDT)
+Date: Fri, 23 Jun 2017 19:39:46 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RFC PATCH v2 0/7] cgroup-aware OOM killer
+Message-ID: <20170623183946.GA24014@castle>
+References: <1496342115-3974-1-git-send-email-guro@fb.com>
+ <20170609163022.GA9332@dhcp22.suse.cz>
+ <20170622171003.GB30035@castle>
+ <20170623134323.GB5314@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170623100013.upd4or6esjvulmvg@pd.tnic>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170623134323.GB5314@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
 
-On 6/23/2017 5:00 AM, Borislav Petkov wrote:
-> On Fri, Jun 16, 2017 at 01:56:19PM -0500, Tom Lendacky wrote:
->> Add the support to encrypt the kernel in-place. This is done by creating
->> new page mappings for the kernel - a decrypted write-protected mapping
->> and an encrypted mapping. The kernel is encrypted by copying it through
->> a temporary buffer.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>   arch/x86/include/asm/mem_encrypt.h |    6 +
->>   arch/x86/mm/Makefile               |    2
->>   arch/x86/mm/mem_encrypt.c          |  314 ++++++++++++++++++++++++++++++++++++
->>   arch/x86/mm/mem_encrypt_boot.S     |  150 +++++++++++++++++
->>   4 files changed, 472 insertions(+)
->>   create mode 100644 arch/x86/mm/mem_encrypt_boot.S
->>
->> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
->> index af835cf..7da6de3 100644
->> --- a/arch/x86/include/asm/mem_encrypt.h
->> +++ b/arch/x86/include/asm/mem_encrypt.h
->> @@ -21,6 +21,12 @@
->>   
->>   extern unsigned long sme_me_mask;
->>   
->> +void sme_encrypt_execute(unsigned long encrypted_kernel_vaddr,
->> +			 unsigned long decrypted_kernel_vaddr,
->> +			 unsigned long kernel_len,
->> +			 unsigned long encryption_wa,
->> +			 unsigned long encryption_pgd);
->> +
->>   void __init sme_early_encrypt(resource_size_t paddr,
->>   			      unsigned long size);
->>   void __init sme_early_decrypt(resource_size_t paddr,
->> diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
->> index 9e13841..0633142 100644
->> --- a/arch/x86/mm/Makefile
->> +++ b/arch/x86/mm/Makefile
->> @@ -38,3 +38,5 @@ obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
->>   obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o
->>   obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS) += pkeys.o
->>   obj-$(CONFIG_RANDOMIZE_MEMORY) += kaslr.o
->> +
->> +obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
->> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
->> index 842c8a6..6e87662 100644
->> --- a/arch/x86/mm/mem_encrypt.c
->> +++ b/arch/x86/mm/mem_encrypt.c
->> @@ -24,6 +24,8 @@
->>   #include <asm/setup.h>
->>   #include <asm/bootparam.h>
->>   #include <asm/set_memory.h>
->> +#include <asm/cacheflush.h>
->> +#include <asm/sections.h>
->>   
->>   /*
->>    * Since SME related variables are set early in the boot process they must
->> @@ -209,8 +211,320 @@ void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
->>   	set_memory_decrypted((unsigned long)vaddr, size >> PAGE_SHIFT);
->>   }
->>   
->> +static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
->> +				 unsigned long end)
->> +{
->> +	unsigned long pgd_start, pgd_end, pgd_size;
->> +	pgd_t *pgd_p;
->> +
->> +	pgd_start = start & PGDIR_MASK;
->> +	pgd_end = end & PGDIR_MASK;
->> +
->> +	pgd_size = (((pgd_end - pgd_start) / PGDIR_SIZE) + 1);
->> +	pgd_size *= sizeof(pgd_t);
->> +
->> +	pgd_p = pgd_base + pgd_index(start);
->> +
->> +	memset(pgd_p, 0, pgd_size);
->> +}
->> +
->> +#ifndef CONFIG_X86_5LEVEL
->> +#define native_make_p4d(_x)	(p4d_t) { .pgd = native_make_pgd(_x) }
->> +#endif
+On Fri, Jun 23, 2017 at 03:43:24PM +0200, Michal Hocko wrote:
+> On Thu 22-06-17 18:10:03, Roman Gushchin wrote:
+> > Hi, Michal!
+> > 
+> > Thank you very much for the review. I've tried to address your
+> > comments in v3 (sent yesterday), so that is why it took some time to reply.
 > 
-> Huh, why isn't this in arch/x86/include/asm/pgtable_types.h in the #else
-> branch of #if CONFIG_PGTABLE_LEVELS > 4 ?
+> I will try to look at it sometimes next week hopefully
 
-Normally the __p4d() macro would be used and that would be ok whether
-CONFIG_X86_5LEVEL is defined or not. But since __p4d() is part of the
-paravirt ops path I have to use native_make_p4d(). I'd be the only user
-of the function and thought it would be best to localize it this way.
+Thanks!
 
+> > > - You seem to completely ignore per task oom_score_adj and override it
+> > >   by the memcg value. This makes some sense but it can lead to an
+> > >   unexpected behavior when somebody relies on the original behavior.
+> > >   E.g. a workload that would corrupt data when killed unexpectedly and
+> > >   so it is protected by OOM_SCORE_ADJ_MIN. Now this assumption will
+> > >   break when running inside a container. I do not have a good answer
+> > >   what is the desirable behavior and maybe there is no universal answer.
+> > >   Maybe you just do not to kill those tasks? But then you have to be
+> > >   careful when selecting a memcg victim. Hairy...
+> > 
+> > I do not ignore it completely, but it matters only for root cgroup tasks
+> > and inside a cgroup when oom_kill_all_tasks is off.
+> > 
+> > I believe, that cgroup v2 requirement is a good enough. I mean you can't
+> > move from v1 to v2 without changing cgroup settings, and if we will provide
+> > per-cgroup oom_score_adj, it will be enough to reproduce the old behavior.
+> > 
+> > Also, if you think it's necessary, I can add a sysctl to turn the cgroup-aware
+> > oom killer off completely and provide compatibility mode.
+> > We can't really save the old system-wide behavior of per-process oom_score_adj,
+> > it makes no sense in the containerized environment.
 > 
-> Also
-> 
-> ERROR: Macros with complex values should be enclosed in parentheses
-> #105: FILE: arch/x86/mm/mem_encrypt.c:232:
-> +#define native_make_p4d(_x)    (p4d_t) { .pgd = native_make_pgd(_x) }
-> 
-> so why isn't it a function?
+> So what you are going to do with those applications that simply cannot
+> be killed and which set OOM_SCORE_ADJ_MIN explicitly. Are they
+> unsupported? How does a user find out? One way around this could be to
+> simply to not kill tasks with OOM_SCORE_ADJ_MIN.
 
-I can define it as an inline function.
+They won't be killed by cgroup OOM, but under some circumstances can be killed
+by the global OOM (e.g. there are no other tasks in the selected cgroup,
+cgroup v2 is used, and per-cgroup oom score adjustment is not set).
 
-> 
->> +
->> +#define PGD_FLAGS	_KERNPG_TABLE_NOENC
->> +#define P4D_FLAGS	_KERNPG_TABLE_NOENC
->> +#define PUD_FLAGS	_KERNPG_TABLE_NOENC
->> +#define PMD_FLAGS	(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL)
->> +
->> +static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
->> +				     unsigned long vaddr, pmdval_t pmd_val)
->> +{
->> +	pgd_t *pgd_p;
->> +	p4d_t *p4d_p;
->> +	pud_t *pud_p;
->> +	pmd_t *pmd_p;
->> +
->> +	pgd_p = pgd_base + pgd_index(vaddr);
->> +	if (native_pgd_val(*pgd_p)) {
->> +		if (IS_ENABLED(CONFIG_X86_5LEVEL))
-> 
-> Err, I don't understand: so this is a Kconfig symbol and when it is
-> enabled at build time, you do a 5level pagetable.
-> 
-> But you can't stick a 5level pagetable to a hardware which doesn't know
-> about it.
+I believe, that per-process oom_score_adj should not play any role outside
+of the containing cgroup, it's violation of isolation.
 
-True, 5-level will only be turned on for specific hardware which is why
-I originally had this as only 4-level pagetables. But in a comment from
-you back on the v5 version you said it needed to support 5-level. I
-guess we should have discussed this more, but I also thought that should
-our hardware ever support 5-level paging in the future then this would
-be good to go.
-
-> 
-> Or do you mean that p4d layer folding at runtime to happen? (I admit, I
-> haven't looked at that in detail.) But then I'd hope that the generic
-> macros/functions would give you the ability to not care whether we have
-> a p4d or not and not add a whole bunch of ifdeffery to this code.
-
-The macros work great if you are not running identity mapped. You could
-use p*d_offset() to move easily through the tables, but those functions
-use __va() to generate table virtual addresses. I've seen where
-boot/compressed/pagetable.c #defines __va() to work with identity mapped
-pages but that would only work if I create a separate file just for this
-function.
-
-Given when this occurs it's very similar to what __startup_64() does in
-regards to the IS_ENABLED(CONFIG_X86_5LEVEL) checks.
-
-Thanks,
-Tom
-
-> 
-> Hmmm.
-> 
+Right now if tasks with oom_score_adj=-1000 eating all memory in a cgroup,
+they will be looping forever, OOM killer can't fix this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
