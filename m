@@ -1,64 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 06DC96B0279
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:00:55 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 23so8888851wry.4
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:00:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 76si4601372wmb.86.2017.06.23.12.00.52
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 876E96B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:20:27 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g86so47568680iod.14
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:20:27 -0700 (PDT)
+Received: from mail-it0-x22a.google.com (mail-it0-x22a.google.com. [2607:f8b0:4001:c0b::22a])
+        by mx.google.com with ESMTPS id d197si4707228itc.51.2017.06.23.12.20.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 12:00:53 -0700 (PDT)
-Date: Fri, 23 Jun 2017 12:00:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 1/4] x86: switch atomic.h to use
- atomic-instrumented.h
-Message-Id: <20170623120050.a4703ec2e3125b13361228ee@linux-foundation.org>
-In-Reply-To: <20170623085402.kfzu6sri6bwi2ppo@gmail.com>
-References: <cover.1498140468.git.dvyukov@google.com>
-	<ff85407a7476ac41bfbdd46a35a93b8f57fa4b1e.1498140838.git.dvyukov@google.com>
-	<20170622141411.6af8091132e4416e3635b62e@linux-foundation.org>
-	<CACT4Y+YQchHWK+8jEo03dK21xM77pn0YePkjUTVny0-Cx8yYeg@mail.gmail.com>
-	<20170623085402.kfzu6sri6bwi2ppo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 23 Jun 2017 12:20:26 -0700 (PDT)
+Received: by mail-it0-x22a.google.com with SMTP id b205so13031593itg.1
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 12:20:26 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170623140651.GD5314@dhcp22.suse.cz>
+References: <20170620230911.GA25238@beast> <20170623140651.GD5314@dhcp22.suse.cz>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 23 Jun 2017 12:20:25 -0700
+Message-ID: <CAGXu5jJ8SD8hsMDfZ9qJHQbJ3iSTXTq81PpiG+kbnXwx=akDKg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Allow slab_nomerge to be set at build time
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Jonathan Corbet <corbet@lwn.net>, Daniel Micay <danielmicay@gmail.com>, David Windsor <dave@nullcore.net>, Eric Biggers <ebiggers3@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 23 Jun 2017 10:54:02 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+On Fri, Jun 23, 2017 at 7:06 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Tue 20-06-17 16:09:11, Kees Cook wrote:
+>> Some hardened environments want to build kernels with slab_nomerge
+>> already set (so that they do not depend on remembering to set the kernel
+>> command line option). This is desired to reduce the risk of kernel heap
+>> overflows being able to overwrite objects from merged caches and changes
+>> the requirements for cache layout control, increasing the difficulty of
+>> these attacks. By keeping caches unmerged, these kinds of exploits can
+>> usually only damage objects in the same cache (though the risk to metadata
+>> exploitation is unchanged).
+>
+> Do we really want to have a dedicated config for each hardening specific
+> kernel command line? I believe we have quite a lot of config options
+> already. Can we rather have a CONFIG_HARDENED_CMD_OPIONS and cover all
+> those defauls there instead?
 
-> 
-> * Dmitry Vyukov <dvyukov@google.com> wrote:
-> 
-> > On Thu, Jun 22, 2017 at 11:14 PM, Andrew Morton
-> > <akpm@linux-foundation.org> wrote:
-> > > On Thu, 22 Jun 2017 16:14:16 +0200 Dmitry Vyukov <dvyukov@google.com> wrote:
-> > >
-> > >> Add arch_ prefix to all atomic operations and include
-> > >> <asm-generic/atomic-instrumented.h>. This will allow
-> > >> to add KASAN instrumentation to all atomic ops.
-> > >
-> > > This gets a large number of (simple) rejects when applied to
-> > > linux-next.  Can you please redo against -next?
-> > 
-> > 
-> > This is based on tip/locking tree. Ingo already took a part of these
-> > series. The plan is that he takes the rest, and this applies on
-> > tip/locking without conflicts.
-> 
-> Yeah, so I've taken the rest as well, it all looks very clean now. Should show up 
-> in the next -next, if it passes my (arguably limited) testing.
-> 
-> Andrew, is this workflow fine with you? You usually take KASAN patches, but I was 
-> unhappy with the atomics instrumention of the earlier patches, and ended up 
-> reviewing the followup variants, and felt that if I hinder a patchset I might as 
-> well test and apply it once I'm happy with them! ;-)
-> 
+There's not been a lot of success with grouped Kconfigs in the past
+(e.g. CONFIG_EXPERIMENTAL), but one thing that has been suggested is a
+defconfig-like make target that would collect all the things together.
+I haven't had time for that, but that would let us group the various
+configs.
 
-Sure..
+Additionally, using something like CONFIG_CMDLINE seems a little clunky to me.
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
