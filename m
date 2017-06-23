@@ -1,119 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC636B0343
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:25:34 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u110so13708965wrb.14
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:25:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p90si5190700wrb.39.2017.06.23.08.25.32
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 767776B0365
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:28 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a80so27459442oic.8
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:28 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u35si1935430otb.226.2017.06.23.08.28.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 08:25:33 -0700 (PDT)
-Date: Fri, 23 Jun 2017 17:25:29 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 1/3] mm: add vm_insert_mixed_mkwrite()
-Message-ID: <20170623152529.GA7967@quack2.suse.cz>
-References: <20170614172211.19820-1-ross.zwisler@linux.intel.com>
- <20170614172211.19820-2-ross.zwisler@linux.intel.com>
- <20170615144204.GN1764@quack2.suse.cz>
- <20170617040926.GA26554@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jun 2017 08:28:27 -0700 (PDT)
+Received: from mail-vk0-f50.google.com (mail-vk0-f50.google.com [209.85.213.50])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id B3D7522B6E
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:28:26 +0000 (UTC)
+Received: by mail-vk0-f50.google.com with SMTP id r126so7262898vkg.0
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170617040926.GA26554@linux.intel.com>
+In-Reply-To: <20170623115026.qqy5mpyihymocaet@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org> <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
+ <20170623115026.qqy5mpyihymocaet@pd.tnic>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 23 Jun 2017 08:28:05 -0700
+Message-ID: <CALCETrU3AcncCUZacmtdPDAptbWjp+RTQpeBokbspp2e395o7A@mail.gmail.com>
+Subject: Re: [PATCH v3 10/11] x86/mm: Enable CR4.PCIDE on supported systems
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Fri 16-06-17 22:09:26, Ross Zwisler wrote:
-> On Thu, Jun 15, 2017 at 04:42:04PM +0200, Jan Kara wrote:
-> > On Wed 14-06-17 11:22:09, Ross Zwisler wrote:
-> > > To be able to use the common 4k zero page in DAX we need to have our PTE
-> > > fault path look more like our PMD fault path where a PTE entry can be
-> > > marked as dirty and writeable as it is first inserted, rather than waiting
-> > > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> > > 
-> > > Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> > > distinguish between these two cases in do_wp_page():
-> > > 
-> > > 	case 1: 4k zero page => writable DAX storage
-> > > 	case 2: read-only DAX storage => writeable DAX storage
-> > > 
-> > > This distinction is made by via vm_normal_page().  vm_normal_page() returns
-> > > false for the common 4k zero page, though, just as it does for DAX ptes.
-> > > Instead of special casing the DAX + 4k zero page case, we will simplify our
-> > > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
-> > > get rid of dax_pfn_mkwrite() completely.
-> > > 
-> > > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> > > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
-> > > will do the work that was previously done by wp_page_reuse() as part of the
-> > > dax_pfn_mkwrite() call path.
-> > > 
-> > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > 
-> > So I agree that getting rid of dax_pfn_mkwrite() and using fault handler in
-> > that case is a way to go. However I somewhat dislike the
-> > vm_insert_mixed_mkwrite() thing - it looks like a hack - and I'm aware that
-> > we have a similar thing for PMD which is ugly as well. Besides being ugly
-> > I'm also concerned that when 'mkwrite' is set, we just silently overwrite
-> > whatever PTE was installed at that position. Not that I'd see how that
-> > could screw us for DAX but still a concern that e.g. some PTE flag could
-> > get discarded by this is there... In fact, for !HAVE_PTE_SPECIAL
-> > architectures, you will leak zero page references by just overwriting the
-> > PTE - for those archs you really need to unmap zero page before replacing
-> > PTE (and the same for PMD I suppose).
-> > 
-> > So how about some vmf_insert_pfn(vmf, pe_size, pfn) helper that would
-> > properly detect PTE / PMD case, read / write case etc., check that PTE did
-> > not change from orig_pte, and handle all the nasty details instead of
-> > messing with insert_pfn?
-> 
-> I played around with this some today, and I wasn't super happy with the
-> results.  Here were some issues I encountered:
-> 
-> 1) The pte_mkyoung(), maybe_mkwrite() and pte_mkdirty() calls need to happen
-> with the PTE locked, and I'm currently able to piggy-back on the locking done
-> in insert_pfn().  If I keep those steps out of insert_pfn() I either have to
-> essentially duplicate all the work done by insert_pfn() into another function
-> so I can do everything I need under one lock, or I have to insert the PFN via
-> insert_pfn() (which as you point out, will just leave the pfn alone if it's
-> already present), then for writes I have to re-grab the PTE lock and set do
-> the mkwrite steps.
-> 
-> Either of these work, but they both also seem kind of gross...
-> 
-> 2) Combining the PTE and PMD cases into a common function will require
-> mm/memory.c to call vmf_insert_pfn_pmd(), which depends on
-> CONFIG_TRANSPARENT_HUGEPAGE being defined.  This works, it just means some
-> more #ifdef CONFIG_TRANSPARENT_HUGEPAGE hackery in mm/memory.c.
-> 
-> I agree that unconditionally overwriting the PTE when mkwrite is set is
-> undesireable, and should be fixed.  My implementation of the wrapper just
-> didn't seem that natural, which usually tells me I'm headed down the wrong
-> path.  Maybe I'm just not fully understanding what you intended?
-> 
-> In any case, my current favorite soultion for this issue is still what I had
-> in v1:
-> 
-> https://patchwork.kernel.org/patch/9772809/
-> 
-> with perhaps the removal of the new vm_insert_mixed_mkwrite() symbol, and just
-> adding a 'write' flag to vm_insert_mixed() and updating all the call sites,
-> and fixing the flow where mkwrite unconditionally overwrites the PTE?
-> 
-> If not, can you help me understand what you think is ugly about the 'write'
-> flag to vm_insert_mixed() and vmf_insert_pfn_pmd()?
+On Fri, Jun 23, 2017 at 4:50 AM, Borislav Petkov <bp@alien8.de> wrote:
+> On Tue, Jun 20, 2017 at 10:22:16PM -0700, Andy Lutomirski wrote:
+>> We can use PCID if the CPU has PCID and PGE and we're not on Xen.
+>>
+>> By itself, this has no effect.  The next patch will start using
+>> PCID.
+>>
+>> Cc: Juergen Gross <jgross@suse.com>
+>> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+>> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+>> ---
+>>  arch/x86/include/asm/tlbflush.h |  8 ++++++++
+>>  arch/x86/kernel/cpu/common.c    | 15 +++++++++++++++
+>>  arch/x86/xen/enlighten_pv.c     |  6 ++++++
+>>  3 files changed, 29 insertions(+)
+>>
+>> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+>> index 87b13e51e867..57b305e13c4c 100644
+>> --- a/arch/x86/include/asm/tlbflush.h
+>> +++ b/arch/x86/include/asm/tlbflush.h
+>> @@ -243,6 +243,14 @@ static inline void __flush_tlb_all(void)
+>>               __flush_tlb_global();
+>>       else
+>>               __flush_tlb();
+>> +
+>> +     /*
+>> +      * Note: if we somehow had PCID but not PGE, then this wouldn't work --
+>> +      * we'd end up flushing kernel translations for the current ASID but
+>> +      * we might fail to flush kernel translations for other cached ASIDs.
+>> +      *
+>> +      * To avoid this issue, we force PCID off if PGE is off.
+>> +      */
+>>  }
+>>
+>>  static inline void __flush_tlb_one(unsigned long addr)
+>> diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+>> index 904485e7b230..01caf66b270f 100644
+>> --- a/arch/x86/kernel/cpu/common.c
+>> +++ b/arch/x86/kernel/cpu/common.c
+>> @@ -1143,6 +1143,21 @@ static void identify_cpu(struct cpuinfo_x86 *c)
+>>       setup_smep(c);
+>>       setup_smap(c);
+>>
+>> +     /* Set up PCID */
+>> +     if (cpu_has(c, X86_FEATURE_PCID)) {
+>> +             if (cpu_has(c, X86_FEATURE_PGE)) {
+>
+> What are we protecting ourselves here against? Funny virtualization guests?
+>
+> Because PGE should be ubiquitous by now. Or have you heard something?
 
-Yeah, so write flag is probably OK. I just dislike the implicit "replace"
-side-effect of the write flag. If 'write' would just mean whether PTE is
-created writeable, that is fine with me.
+Yes, funny VM guests.  I've been known to throw weird options at qemu
+myself, and I prefer when the system works.  In this particular case,
+I think the failure mode would be stale kernel TLB entries, and that
+would be really annoying.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>
+>> +                     cr4_set_bits(X86_CR4_PCIDE);
+>> +             } else {
+>> +                     /*
+>> +                      * flush_tlb_all(), as currently implemented, won't
+>> +                      * work if PCID is on but PGE is not.  Since that
+>> +                      * combination doesn't exist on real hardware, there's
+>> +                      * no reason to try to fully support it.
+>> +                      */
+>> +                     clear_cpu_cap(c, X86_FEATURE_PCID);
+>> +             }
+>> +     }
+>
+> This whole in setup_pcid() I guess, like the rest of the features.
+
+Done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
