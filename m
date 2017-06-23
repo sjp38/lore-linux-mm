@@ -1,135 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9AC86B02F4
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 10:06:57 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p64so13081026wrc.8
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 07:06:57 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 345A66B02FD
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 10:18:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z1so13162082wrz.10
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 07:18:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 9si4619767wrt.100.2017.06.23.07.06.56
+        by mx.google.com with ESMTPS id 65si4245722wmo.123.2017.06.23.07.18.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 07:06:56 -0700 (PDT)
-Date: Fri, 23 Jun 2017 16:06:51 +0200
+        Fri, 23 Jun 2017 07:18:50 -0700 (PDT)
+Date: Fri, 23 Jun 2017 16:18:37 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: Allow slab_nomerge to be set at build time
-Message-ID: <20170623140651.GD5314@dhcp22.suse.cz>
-References: <20170620230911.GA25238@beast>
+Subject: Re: [PATCH] exec: Account for argv/envp pointers
+Message-ID: <20170623141837.GD5308@dhcp22.suse.cz>
+References: <20170622001720.GA32173@beast>
+ <20170623135924.GC5314@dhcp22.suse.cz>
+ <CAGXu5jJB-DKWLVPKL5-BiCF5Rmn3M_Q5yTPxtn8HW-2VekBaXg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170620230911.GA25238@beast>
+In-Reply-To: <CAGXu5jJB-DKWLVPKL5-BiCF5Rmn3M_Q5yTPxtn8HW-2VekBaXg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kees Cook <keescook@chromium.org>
-Cc: Christoph Lameter <cl@linux.com>, Jonathan Corbet <corbet@lwn.net>, Daniel Micay <danielmicay@gmail.com>, David Windsor <dave@nullcore.net>, Eric Biggers <ebiggers3@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Qualys Security Advisory <qsa@qualys.com>, Linux-MM <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Tue 20-06-17 16:09:11, Kees Cook wrote:
-> Some hardened environments want to build kernels with slab_nomerge
-> already set (so that they do not depend on remembering to set the kernel
-> command line option). This is desired to reduce the risk of kernel heap
-> overflows being able to overwrite objects from merged caches and changes
-> the requirements for cache layout control, increasing the difficulty of
-> these attacks. By keeping caches unmerged, these kinds of exploits can
-> usually only damage objects in the same cache (though the risk to metadata
-> exploitation is unchanged).
+On Fri 23-06-17 07:05:37, Kees Cook wrote:
+> On Fri, Jun 23, 2017 at 6:59 AM, Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> >> --- a/fs/exec.c
+> >> +++ b/fs/exec.c
+> >> @@ -220,8 +220,18 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+> >>
+> >>       if (write) {
+> >>               unsigned long size = bprm->vma->vm_end - bprm->vma->vm_start;
+> >> +             unsigned long ptr_size;
+> >>               struct rlimit *rlim;
+> >>
+> >> +             /*
+> >> +              * Since the stack will hold pointers to the strings, we
+> >> +              * must account for them as well.
+> >> +              */
+> >> +             ptr_size = (bprm->argc + bprm->envc) * sizeof(void *);
+> >> +             if (ptr_size > ULONG_MAX - size)
+> >> +                     goto fail;
+> >> +             size += ptr_size;
+> >> +
+> >>               acct_arg_size(bprm, size / PAGE_SIZE);
+> >
+> > Doesn't this over account? I mean this gets called for partial arguments
+> > as they fit into a page so a single argument can get into this function
+> > multiple times AFAIU. I also do not understand why would you want to
+> > account bprm->argc + bprm->envc pointers for each argument.
+> 
+> Based on what I could understand in acct_arg_size(), this is called
+> repeatedly with with the "current" size (it handles the difference
+> between prior calls, see calls like acct_arg_size(bprm, 0)).
+> 
+> The size calculation is the entire vma while each arg page is built,
+> so each time we get here it's calculating how far it is currently
+> (rather than each call being just the newly added size from the arg
+> page). As a result, we need to always add the entire size of the
+> pointers, so that on the last call to get_arg_page() we'll actually
+> have the entire correct size.
 
-Do we really want to have a dedicated config for each hardening specific
-kernel command line? I believe we have quite a lot of config options
-already. Can we rather have a CONFIG_HARDENED_CMD_OPIONS and cover all
-those defauls there instead?
+Ohh, I forgot about this tricky part. The code just looks confusing
+becauser we are mixing 2 things together here. This deserves a comment I
+guess.
 
-> Cc: Daniel Micay <danielmicay@gmail.com>
-> Cc: David Windsor <dave@nullcore.net>
-> Cc: Eric Biggers <ebiggers3@gmail.com>
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
-> v2: split out of slab whitelisting series
-> ---
->  Documentation/admin-guide/kernel-parameters.txt | 10 ++++++++--
->  init/Kconfig                                    | 14 ++++++++++++++
->  mm/slab_common.c                                |  5 ++---
->  3 files changed, 24 insertions(+), 5 deletions(-)
-> 
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index 7737ab5d04b2..94d8b8195cb8 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -3715,8 +3715,14 @@
->  	slab_nomerge	[MM]
->  			Disable merging of slabs with similar size. May be
->  			necessary if there is some reason to distinguish
-> -			allocs to different slabs. Debug options disable
-> -			merging on their own.
-> +			allocs to different slabs, especially in hardened
-> +			environments where the risk of heap overflows and
-> +			layout control by attackers can usually be
-> +			frustrated by disabling merging. This will reduce
-> +			most of the exposure of a heap attack to a single
-> +			cache (risks via metadata attacks are mostly
-> +			unchanged). Debug options disable merging on their
-> +			own.
->  			For more information see Documentation/vm/slub.txt.
->  
->  	slab_max_order=	[MM, SLAB]
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 1d3475fc9496..ce813acf2f4f 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1891,6 +1891,20 @@ config SLOB
->  
->  endchoice
->  
-> +config SLAB_MERGE_DEFAULT
-> +	bool "Allow slab caches to be merged"
-> +	default y
-> +	help
-> +	  For reduced kernel memory fragmentation, slab caches can be
-> +	  merged when they share the same size and other characteristics.
-> +	  This carries a risk of kernel heap overflows being able to
-> +	  overwrite objects from merged caches (and more easily control
-> +	  cache layout), which makes such heap attacks easier to exploit
-> +	  by attackers. By keeping caches unmerged, these kinds of exploits
-> +	  can usually only damage objects in the same cache. To disable
-> +	  merging at runtime, "slab_nomerge" can be passed on the kernel
-> +	  command line.
-> +
->  config SLAB_FREELIST_RANDOM
->  	default n
->  	depends on SLAB || SLUB
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 01a0fe2eb332..904a83be82de 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -47,13 +47,12 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
->  
->  /*
->   * Merge control. If this is set then no merging of slab caches will occur.
-> - * (Could be removed. This was introduced to pacify the merge skeptics.)
->   */
-> -static int slab_nomerge;
-> +static bool slab_nomerge = !IS_ENABLED(CONFIG_SLAB_MERGE_DEFAULT);
->  
->  static int __init setup_slab_nomerge(char *str)
->  {
-> -	slab_nomerge = 1;
-> +	slab_nomerge = true;
->  	return 1;
->  }
->  
-> -- 
-> 2.7.4
-> 
-> 
-> -- 
-> Kees Cook
-> Pixel Security
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Other than that feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
