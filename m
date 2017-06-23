@@ -1,110 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 665D26B0279
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:51:06 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g46so12484204wrd.3
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 05:51:06 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 866556B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 09:11:31 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v88so12701215wrb.1
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 06:11:31 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y60si4424206wrc.42.2017.06.23.05.51.04
+        by mx.google.com with ESMTPS id f4si4095380wma.181.2017.06.23.06.11.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 05:51:05 -0700 (PDT)
-Date: Fri, 23 Jun 2017 14:50:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, oom: do not trigger out_of_memory from the
- #PF
-Message-ID: <20170623125056.GY5308@dhcp22.suse.cz>
-References: <20170519112604.29090-1-mhocko@kernel.org>
- <20170519112604.29090-3-mhocko@kernel.org>
- <20170608143606.GK19866@dhcp22.suse.cz>
- <20170609140853.GA14760@cmpxchg.org>
- <20170609144642.GH21764@dhcp22.suse.cz>
- <20170610084901.GB12347@dhcp22.suse.cz>
+        Fri, 23 Jun 2017 06:11:30 -0700 (PDT)
+Subject: Re: [PATCH] mm/page_alloc.c: eliminate unsigned confusion in
+ __rmqueue_fallback
+References: <20170621094344.GC22051@dhcp22.suse.cz>
+ <20170621185529.2265-1-linux@rasmusvillemoes.dk>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d03adba2-800a-e367-fe12-87278ea2abe3@suse.cz>
+Date: Fri, 23 Jun 2017 15:10:45 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170610084901.GB12347@dhcp22.suse.cz>
+In-Reply-To: <20170621185529.2265-1-linux@rasmusvillemoes.dk>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vinayak Menon <vinmenon@codeaurora.org>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Hao Lee <haolee.swjtu@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 10-06-17 10:49:01, Michal Hocko wrote:
-> On Fri 09-06-17 16:46:42, Michal Hocko wrote:
-> > On Fri 09-06-17 10:08:53, Johannes Weiner wrote:
-> > > On Thu, Jun 08, 2017 at 04:36:07PM +0200, Michal Hocko wrote:
-> > > > Does anybody see any problem with the patch or I can send it for the
-> > > > inclusion?
-> > > > 
-> > > > On Fri 19-05-17 13:26:04, Michal Hocko wrote:
-> > > > > From: Michal Hocko <mhocko@suse.com>
-> > > > > 
-> > > > > Any allocation failure during the #PF path will return with VM_FAULT_OOM
-> > > > > which in turn results in pagefault_out_of_memory. This can happen for
-> > > > > 2 different reasons. a) Memcg is out of memory and we rely on
-> > > > > mem_cgroup_oom_synchronize to perform the memcg OOM handling or b)
-> > > > > normal allocation fails.
-> > > > > 
-> > > > > The later is quite problematic because allocation paths already trigger
-> > > > > out_of_memory and the page allocator tries really hard to not fail
-> > > > > allocations. Anyway, if the OOM killer has been already invoked there
-> > > > > is no reason to invoke it again from the #PF path. Especially when the
-> > > > > OOM condition might be gone by that time and we have no way to find out
-> > > > > other than allocate.
-> > > > > 
-> > > > > Moreover if the allocation failed and the OOM killer hasn't been
-> > > > > invoked then we are unlikely to do the right thing from the #PF context
-> > > > > because we have already lost the allocation context and restictions and
-> > > > > therefore might oom kill a task from a different NUMA domain.
-> > > > > 
-> > > > > An allocation might fail also when the current task is the oom victim
-> > > > > and there are no memory reserves left and we should simply bail out
-> > > > > from the #PF rather than invoking out_of_memory.
-> > > > > 
-> > > > > This all suggests that there is no legitimate reason to trigger
-> > > > > out_of_memory from pagefault_out_of_memory so drop it. Just to be sure
-> > > > > that no #PF path returns with VM_FAULT_OOM without allocation print a
-> > > > > warning that this is happening before we restart the #PF.
-> > > > > 
-> > > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > I don't agree with this patch.
-> > > 
-> > > The warning you replace the oom call with indicates that we never
-> > > expect a VM_FAULT_OOM to leak to this point. But should there be a
-> > > leak, it's infinitely better to tickle the OOM killer again - even if
-> > > that call is then fairly inaccurate and without alloc context - than
-> > > infinite re-invocations of the #PF when the VM_FAULT_OOM comes from a
-> > > context - existing or future - that isn't allowed to trigger the OOM.
-> > 
-> > I disagree. Retrying the page fault while dropping all the locks
-> > on the way and still being in the killable context should be preferable
-> > to a system wide disruptive action like the OOM killer.
+On 06/21/2017 08:55 PM, Rasmus Villemoes wrote:
+> Since current_order starts as MAX_ORDER-1 and is then only
+> decremented, the second half of the loop condition seems
+> superfluous. However, if order is 0, we may decrement current_order
+> past 0, making it UINT_MAX. This is obviously too subtle ([1], [2]).
 > 
-> And just to clarify a bit. The OOM killer should be invoked whenever
-> appropriate from the allocation context. If we decide to fail the
-> allocation in the PF path then we can safely roll back and retry the
-> whole PF. This has an advantage that any locks held while doing the
-> allocation will be released and that alone can help to make a further
-> progress. Moreover we can relax retry-for-ever _inside_ the allocator
-> semantic for the PF path and fail allocations when we cannot make
-> further progress even after we hit the OOM condition or we do stall for
-> too long. This would have a nice side effect that PF would be a killable
-> context from the page allocator POV. From the user space POV there is no
-> difference between retrying the PF and looping inside the allocator,
-> right?
+> Since we need to add some comment anyway, change the two variables to
+> signed, making the counting-down for loop look more familiar, and
+> apparently also making gcc generate slightly smaller code.
 > 
-> That being said, late just-in-case OOM killer invocation is not only
-> suboptimal it also disallows us to make further changes in that area.
+> [1] https://lkml.org/lkml/2016/6/20/493
+> [2] https://lkml.org/lkml/2017/6/19/345
 > 
-> Or am I oversimplifying or missing something here?
+> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-I am sorry to keep reviving this. I simply do not understand why the
-code actually make sense. If am missing something I would like to hear
-what it is. Then I will shut up (I promiss) ;)
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+> Michal, something like this, perhaps?
+> 
+> mm/page_alloc.c | 10 +++++++---
+>  1 file changed, 7 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 2302f250d6b1..e656f4da9772 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2204,19 +2204,23 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
+>   * list of requested migratetype, possibly along with other pages from the same
+>   * block, depending on fragmentation avoidance heuristics. Returns true if
+>   * fallback was found so that __rmqueue_smallest() can grab it.
+> + *
+> + * The use of signed ints for order and current_order is a deliberate
+> + * deviation from the rest of this file, to make the for loop
+> + * condition simpler.
+>   */
+>  static inline bool
+> -__rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+> +__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+>  {
+>  	struct free_area *area;
+> -	unsigned int current_order;
+> +	int current_order;
+>  	struct page *page;
+>  	int fallback_mt;
+>  	bool can_steal;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+>  	for (current_order = MAX_ORDER-1;
+> -				current_order >= order && current_order <= MAX_ORDER-1;
+> +				current_order >= order;
+>  				--current_order) {
+>  		area = &(zone->free_area[current_order]);
+>  		fallback_mt = find_suitable_fallback(area, current_order,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
