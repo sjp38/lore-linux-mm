@@ -1,113 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B0C6B0390
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 07:48:11 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v60so12053816wrc.7
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:48:11 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l9si4136238wmd.53.2017.06.23.04.48.09
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 04:48:10 -0700 (PDT)
-Date: Fri, 23 Jun 2017 13:48:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Refactor conversion of pages to bytes macro
- definitions
-Message-ID: <20170623114807.GP5308@dhcp22.suse.cz>
-References: <1497971668-30685-1-git-send-email-nborisov@suse.com>
- <20170622064454.GA14308@dhcp22.suse.cz>
- <5d46bcf4-1988-1abd-eec7-dc11c182810f@suse.com>
+	by kanga.kvack.org (Postfix) with ESMTP id EC1436B0279
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 07:50:46 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z81so12101673wrc.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:50:46 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id r15si3990360wrr.99.2017.06.23.04.50.45
+        for <linux-mm@kvack.org>;
+        Fri, 23 Jun 2017 04:50:45 -0700 (PDT)
+Date: Fri, 23 Jun 2017 13:50:26 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v3 10/11] x86/mm: Enable CR4.PCIDE on supported systems
+Message-ID: <20170623115026.qqy5mpyihymocaet@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org>
+ <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <5d46bcf4-1988-1abd-eec7-dc11c182810f@suse.com>
+In-Reply-To: <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <nborisov@suse.com>
-Cc: linux-mm@kvack.org, mgorman@techsingularity.net, cmetcalf@mellanox.com, minchan@kernel.org, vbabka@suse.cz, kirill.shutemov@linux.intel.com, tj@kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Thu 22-06-17 09:58:17, Nikolay Borisov wrote:
+On Tue, Jun 20, 2017 at 10:22:16PM -0700, Andy Lutomirski wrote:
+> We can use PCID if the CPU has PCID and PGE and we're not on Xen.
 > 
+> By itself, this has no effect.  The next patch will start using
+> PCID.
 > 
-> On 22.06.2017 09:44, Michal Hocko wrote:
-> > On Tue 20-06-17 18:14:28, Nikolay Borisov wrote:
-> >> Currently there are a multiple files with the following code:
-> >>  #define K(x) ((x) << (PAGE_SHIFT - 10))
-> >>  ... some code..
-> >>  #undef K
-> >>
-> >> This is mainly used to print out some memory-related statistics, where X is
-> >> given in pages and the macro just converts it to kilobytes. In the future
-> >> there is going to be more macros since there are intention to introduce
-> >> byte-based memory counters [1]. This could lead to proliferation of
-> >> multiple duplicated definition of various macros used to convert a quantity
-> >> from one unit to another. Let's try and consolidate such definition in the
-> >> mm.h header since currently it's being included in all files which exhibit
-> >> this pattern. Also let's rename it to something a bit more verbose.
-> >>
-> >> This patch doesn't introduce any functional changes
-> >>
-> >> [1] https://patchwork.kernel.org/patch/9395205/
-> >>
-> >> Signed-off-by: Nikolay Borisov <nborisov@suse.com>
-> >> ---
-> >>  arch/tile/mm/pgtable.c      |  2 --
-> >>  drivers/base/node.c         | 66 ++++++++++++++++++-------------------
-> >>  include/linux/mm.h          |  2 ++
-> >>  kernel/debug/kdb/kdb_main.c |  3 +-
-> >>  mm/backing-dev.c            | 22 +++++--------
-> >>  mm/memcontrol.c             | 17 +++++-----
-> >>  mm/oom_kill.c               | 19 +++++------
-> >>  mm/page_alloc.c             | 80 ++++++++++++++++++++++-----------------------
-> >>  8 files changed, 100 insertions(+), 111 deletions(-)
-> > 
-> > Those macros are quite trivial and we do not really save much code while
-> > this touches a lot of code potentially causing some conflicts. So do we
-> > really need this? I am usually very keen on removing duplication but
-> > this doesn't seem to be worth all the troubles IMHO.
-> > 
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+>  arch/x86/include/asm/tlbflush.h |  8 ++++++++
+>  arch/x86/kernel/cpu/common.c    | 15 +++++++++++++++
+>  arch/x86/xen/enlighten_pv.c     |  6 ++++++
+>  3 files changed, 29 insertions(+)
 > 
-> There are 2 problems I see: 
-> 
-> 1. K is in fact used for other macros than converting pages to kbytes. 
-> Simple grep before my patch is applied yields the following: 
-> 
-> arch/tile/mm/pgtable.c:#define K(x) ((x) << (PAGE_SHIFT-10))
-> arch/x86/crypto/serpent-sse2-i586-asm_32.S:#define K(x0, x1, x2, x3, x4, i) \
-> crypto/serpent_generic.c:#define K(x0, x1, x2, x3, i) ({                                \
-> drivers/base/node.c:#define K(x) ((x) << (PAGE_SHIFT - 10))
-> drivers/net/hamradio/scc.c:#define K(x) kiss->x
-> include/uapi/linux/keyboard.h:#define K(t,v)            (((t)<<8)|(v))
-> kernel/debug/kdb/kdb_main.c:#define K(x) ((x) << (PAGE_SHIFT - 10))
-> mm/backing-dev.c:#define K(x) ((x) << (PAGE_SHIFT - 10))
-> mm/backing-dev.c:#define K(pages) ((pages) << (PAGE_SHIFT - 10))
-> mm/memcontrol.c:#define K(x) ((x) << (PAGE_SHIFT-10))
-> mm/oom_kill.c:#define K(x) ((x) << (PAGE_SHIFT-10))
-> mm/page_alloc.c:#define K(x) ((x) << (PAGE_SHIFT-10))
-> 
-> 
-> Furthermore, I intend on sending another patchset which introduces 2 more macros:
-> drivers/base/node.c:#define BtoK(x) ((x) >> 10)
-> drivers/video/fbdev/intelfb/intelfb.h:#define BtoKB(x)          ((x) / 1024)
-> mm/backing-dev.c:#define BtoK(x) ((x) >> 10)
-> mm/page_alloc.c:#define BtoK(x) ((x) >> 10)
-> 
-> fs/fs-writeback.c:#define BtoP(x) ((x) >> PAGE_SHIFT)
-> include/trace/events/writeback.h:#define BtoP(x) ((x) >> PAGE_SHIFT)
-> mm/page_alloc.c:#define BtoP(x) ((x) >> PAGE_SHIFT)
-> 
-> As you can see this ends up in spreading those macros. Ideally 
-> they should be in a header which is shared among all affected 
-> files. This was inspired by the feedback that Tejun has given 
-> here: https://patchwork.kernel.org/patch/9395205/ and I believe
-> he is right. 
+> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+> index 87b13e51e867..57b305e13c4c 100644
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -243,6 +243,14 @@ static inline void __flush_tlb_all(void)
+>  		__flush_tlb_global();
+>  	else
+>  		__flush_tlb();
+> +
+> +	/*
+> +	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
+> +	 * we'd end up flushing kernel translations for the current ASID but
+> +	 * we might fail to flush kernel translations for other cached ASIDs.
+> +	 *
+> +	 * To avoid this issue, we force PCID off if PGE is off.
+> +	 */
+>  }
+>  
+>  static inline void __flush_tlb_one(unsigned long addr)
+> diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+> index 904485e7b230..01caf66b270f 100644
+> --- a/arch/x86/kernel/cpu/common.c
+> +++ b/arch/x86/kernel/cpu/common.c
+> @@ -1143,6 +1143,21 @@ static void identify_cpu(struct cpuinfo_x86 *c)
+>  	setup_smep(c);
+>  	setup_smap(c);
+>  
+> +	/* Set up PCID */
+> +	if (cpu_has(c, X86_FEATURE_PCID)) {
+> +		if (cpu_has(c, X86_FEATURE_PGE)) {
 
-Fair enough, if this is part of a larger work then I would incline to do
-all of them in a single series.
+What are we protecting ourselves here against? Funny virtualization guests?
+
+Because PGE should be ubiquitous by now. Or have you heard something?
+
+> +			cr4_set_bits(X86_CR4_PCIDE);
+> +		} else {
+> +			/*
+> +			 * flush_tlb_all(), as currently implemented, won't
+> +			 * work if PCID is on but PGE is not.  Since that
+> +			 * combination doesn't exist on real hardware, there's
+> +			 * no reason to try to fully support it.
+> +			 */
+> +			clear_cpu_cap(c, X86_FEATURE_PCID);
+> +		}
+> +	}
+
+This whole in setup_pcid() I guess, like the rest of the features.
+
+> +
+>  	/*
+>  	 * The vendor-specific functions might have changed features.
+>  	 * Now we do "generic changes."
+> diff --git a/arch/x86/xen/enlighten_pv.c b/arch/x86/xen/enlighten_pv.c
+> index f33eef4ebd12..a136aac543c3 100644
+> --- a/arch/x86/xen/enlighten_pv.c
+> +++ b/arch/x86/xen/enlighten_pv.c
+> @@ -295,6 +295,12 @@ static void __init xen_init_capabilities(void)
+>  	setup_clear_cpu_cap(X86_FEATURE_ACC);
+>  	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+>  
+> +	/*
+> +	 * Xen PV would need some work to support PCID: CR3 handling as well
+> +	 * as xen_flush_tlb_others() would need updating.
+> +	 */
+> +	setup_clear_cpu_cap(X86_FEATURE_PCID);
+> +
+>  	if (!xen_initial_domain())
+>  		setup_clear_cpu_cap(X86_FEATURE_ACPI);
+>  
+> -- 
+> 2.9.4
+> 
 
 -- 
-Michal Hocko
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
