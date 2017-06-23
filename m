@@ -1,100 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A84EE6B02C3
-	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:41:30 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g7so31297272pgr.3
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:41:30 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id o28si2441094pli.603.2017.06.22.18.41.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C0356B02C3
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2017 21:50:14 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e26so28987333pfk.12
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:50:14 -0700 (PDT)
+Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
+        by mx.google.com with ESMTPS id a14si2501651plt.8.2017.06.22.18.50.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jun 2017 18:41:30 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id u62so4454254pgb.0
-        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:41:29 -0700 (PDT)
-Date: Fri, 23 Jun 2017 09:41:26 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [PATCH] docs/memory-hotplug: adjust the explanation of
- valid_zones sysfs
-Message-ID: <20170623014126.GB14321@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170622041844.9852-1-richard.weiyang@gmail.com>
- <20170622182113.GC19563@dhcp22.suse.cz>
+        Thu, 22 Jun 2017 18:50:13 -0700 (PDT)
+Received: by mail-pg0-x22f.google.com with SMTP id 132so15191820pgb.2
+        for <linux-mm@kvack.org>; Thu, 22 Jun 2017 18:50:13 -0700 (PDT)
+Date: Thu, 22 Jun 2017 18:50:10 -0700
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v2] mm: Add SLUB free list pointer obfuscation
+Message-ID: <20170623015010.GA137429@beast>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="p4qYPpj5QlsIQJ0K"
-Content-Disposition: inline
-In-Reply-To: <20170622182113.GC19563@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---p4qYPpj5QlsIQJ0K
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Laura Abbott <labbott@redhat.com>, Daniel Micay <danielmicay@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Thu, Jun 22, 2017 at 08:21:14PM +0200, Michal Hocko wrote:
->On Thu 22-06-17 12:18:44, Wei Yang wrote:
->[...]
->> -'valid_zones'     : read-only: designed to show which zones this memory=
- block
->> -		    can be onlined to.
->> -		    The first column shows it's default zone.
->> +'valid_zones'     : read-only: shows different information based on sta=
-te.
->> +		    When state is online, it is designed to show the
->> +		    zone name this memory block is onlined to.
->> +		    When state is offline, it is designed to show which zones
->> +		    this memory block can be onlined to.  The first column
->> +		    shows it's default zone.
->
->I do not think we really need to touch this. First of all the last
->sentence is not really correct. The ordering of zones doesn't tell which
->zone will be onlined by default. This is indeed a change of behavior of
->my patch. I am just not sure anybody depends on that. I can fix it up
->but again the old semantic was just awkward and I didn't feel like I
->should keep it. Also I plan to change this behavior again with planned
->patches. I would like to get rid of the non-overlapping zones
->restriction so the wording would have to change again.
+This SLUB free list pointer obfuscation code is modified from Brad
+Spengler/PaX Team's code in the last public patch of grsecurity/PaX based
+on my understanding of the code. Changes or omissions from the original
+code are mine and don't reflect the original grsecurity/PaX code.
 
-Sure, look forward your up coming patches.
+This adds a per-cache random value to SLUB caches that is XORed with
+their freelist pointers. This adds nearly zero overhead and frustrates the
+very common heap overflow exploitation method of overwriting freelist
+pointers. A recent example of the attack is written up here:
+http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
 
->
->That being said, let's keep the wording as it is now.
->
->Thanks!
->--=20
->Michal Hocko
->SUSE Labs
+This is based on patches by Daniel Micay, and refactored to avoid lots
+of #ifdef code.
 
---=20
-Wei Yang
-Help you, Help me
+Suggested-by: Daniel Micay <danielmicay@gmail.com>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+v2:
+- renamed Kconfig to SLAB_FREELIST_HARDENED; labbott.
+---
+ include/linux/slub_def.h |  4 ++++
+ init/Kconfig             |  9 +++++++++
+ mm/slub.c                | 32 +++++++++++++++++++++++++++-----
+ 3 files changed, 40 insertions(+), 5 deletions(-)
 
---p4qYPpj5QlsIQJ0K
-Content-Type: application/pgp-signature; name="signature.asc"
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 07ef550c6627..d7990a83b416 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -93,6 +93,10 @@ struct kmem_cache {
+ #endif
+ #endif
+ 
++#ifdef CONFIG_SLAB_FREELIST_HARDENED
++	unsigned long random;
++#endif
++
+ #ifdef CONFIG_NUMA
+ 	/*
+ 	 * Defragmentation by allocating from a remote node.
+diff --git a/init/Kconfig b/init/Kconfig
+index 1d3475fc9496..04ee3e507b9e 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1900,6 +1900,15 @@ config SLAB_FREELIST_RANDOM
+ 	  security feature reduces the predictability of the kernel slab
+ 	  allocator against heap overflows.
+ 
++config SLAB_FREELIST_HARDENED
++	bool "Harden slab freelist metadata"
++	depends on SLUB
++	help
++	  Many kernel heap attacks try to target slab cache metadata and
++	  other infrastructure. This options makes minor performance
++	  sacrifies to harden the kernel slab allocator against common
++	  freelist exploit methods.
++
+ config SLUB_CPU_PARTIAL
+ 	default y
+ 	depends on SLUB && SMP
+diff --git a/mm/slub.c b/mm/slub.c
+index 57e5156f02be..590e7830aaed 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -34,6 +34,7 @@
+ #include <linux/stacktrace.h>
+ #include <linux/prefetch.h>
+ #include <linux/memcontrol.h>
++#include <linux/random.h>
+ 
+ #include <trace/events/kmem.h>
+ 
+@@ -238,30 +239,50 @@ static inline void stat(const struct kmem_cache *s, enum stat_item si)
+  * 			Core slab cache functions
+  *******************************************************************/
+ 
++#ifdef CONFIG_SLAB_FREELIST_HARDENED
++# define initialize_random(s)					\
++		do {						\
++			s->random = get_random_long();		\
++		} while (0)
++# define FREEPTR_VAL(ptr, ptr_addr, s)	\
++		(void *)((unsigned long)(ptr) ^ s->random ^ (ptr_addr))
++#else
++# define initialize_random(s)		do { } while (0)
++# define FREEPTR_VAL(ptr, addr, s)	((void *)(ptr))
++#endif
++#define FREELIST_ENTRY(ptr_addr, s)				\
++		FREEPTR_VAL(*(unsigned long *)(ptr_addr),	\
++			    (unsigned long)ptr_addr, s)
++
+ static inline void *get_freepointer(struct kmem_cache *s, void *object)
+ {
+-	return *(void **)(object + s->offset);
++	return FREELIST_ENTRY(object + s->offset, s);
+ }
+ 
+ static void prefetch_freepointer(const struct kmem_cache *s, void *object)
+ {
+-	prefetch(object + s->offset);
++	if (object)
++		prefetch(FREELIST_ENTRY(object + s->offset, s));
+ }
+ 
+ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
+ {
++	unsigned long freepointer_addr;
+ 	void *p;
+ 
+ 	if (!debug_pagealloc_enabled())
+ 		return get_freepointer(s, object);
+ 
+-	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
+-	return p;
++	freepointer_addr = (unsigned long)object + s->offset;
++	probe_kernel_read(&p, (void **)freepointer_addr, sizeof(p));
++	return FREEPTR_VAL(p, freepointer_addr, s);
+ }
+ 
+ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+ {
+-	*(void **)(object + s->offset) = fp;
++	unsigned long freeptr_addr = (unsigned long)object + s->offset;
++
++	*(void **)freeptr_addr = FREEPTR_VAL(fp, freeptr_addr, s);
+ }
+ 
+ /* Loop over all objects in a slab */
+@@ -3536,6 +3557,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ {
+ 	s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
+ 	s->reserved = 0;
++	initialize_random(s);
+ 
+ 	if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
+ 		s->reserved = sizeof(struct rcu_head);
+-- 
+2.7.4
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
 
-iQIcBAEBCAAGBQJZTHHGAAoJEKcLNpZP5cTdu6IQAIAZQ4jhz0Uqcc6bwwQtK7rI
-LOkJCNCR3jFOfBG9cBYJgbvDNnoHyfqDR9exC5jMxVHVKDchUdrxSsYpiBsIZctp
-Oe1Apgd6lJIocsEGXMg1KLnYXUGCP9VgOLtrJCEoWpU2KDNKu6wa+ICzf8dK3ERF
-xidM6kkHmwYttetV8ERqjCEU3MwlJq6+el9bUvqDB/aNf0OAWNxuyswt+jmE11zG
-ugicDJ6/AMZ6m1RTo6W08TIbPS6sdgmpiJmJbHVq+5tqIbN/AUcT/Du+Q91Nr9ny
-+tpYsteWaq6GclU8uFeVjm9WH1uVLmEXBrAHbo8csvE4FolS86t6ljegS10UalXI
-AsRNpMPH5m9HwE+HdgloMowJgYYlyd/f6ykRwYzxVY05MomngQ3li/QO0NtNtj/G
-U3vdlsDs+YWNOzmhDDR4j7phJCtLePXHcGSanNilkMeO+h8ZqQXJdjDcY7dA3kJD
-ebJ5sDFOy8kbLiAm5cSxR5vChOqkjSAiWj/RqCQYTUhRfI3fb/51nRgD0of0md5V
-zEF18SYlvZHvWycKSUNRXxc7CHXUWnSYCgVnDwd6Kc0qeOWZmO5+3ValjVwSu6wb
-a1PApfsCxzGoKMlZ24PZaxk3V1Q/zGezhK2GrH8QL3knXhat5eeIv9qUD5GtIH8+
-z7vrwp7JljHA2dyW7tgV
-=Sft6
------END PGP SIGNATURE-----
-
---p4qYPpj5QlsIQJ0K--
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
