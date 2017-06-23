@@ -1,89 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 40F026B036A
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:14:56 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id o62so36733412pga.0
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 00:14:56 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id m29si3124833pli.455.2017.06.23.00.14.55
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 07CF86B03A4
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 03:29:46 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z81so10462040wrc.2
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 00:29:45 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id g66si3297998wmi.68.2017.06.23.00.29.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 00:14:55 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v2 12/12] mm, THP, swap: Add THP swapping out fallback counting
-Date: Fri, 23 Jun 2017 15:13:03 +0800
-Message-Id: <20170623071303.13469-13-ying.huang@intel.com>
-In-Reply-To: <20170623071303.13469-1-ying.huang@intel.com>
-References: <20170623071303.13469-1-ying.huang@intel.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Jun 2017 00:29:44 -0700 (PDT)
+Date: Fri, 23 Jun 2017 09:29:35 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using
+ PCID
+In-Reply-To: <CALCETrU5VfJMOENEff8HCVn3mihtC_e3xN7wotSimnJujR5YeA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1706230929260.2647@nanos>
+References: <cover.1498022414.git.luto@kernel.org> <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org> <alpine.DEB.2.20.1706211159430.2328@nanos> <CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com>
+ <alpine.DEB.2.20.1706221037320.1885@nanos> <CALCETrVm9oQCpovr0aZcDXoG-8hOoYPMDyhYZJPSBNFGemXQNg@mail.gmail.com> <alpine.DEB.2.20.1706222319330.2221@nanos> <CALCETrU5VfJMOENEff8HCVn3mihtC_e3xN7wotSimnJujR5YeA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-From: Huang Ying <ying.huang@intel.com>
+On Thu, 22 Jun 2017, Andy Lutomirski wrote:
+> On Thu, Jun 22, 2017 at 2:22 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > On Thu, 22 Jun 2017, Andy Lutomirski wrote:
+> >> On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> >> > Now one other optimization which should be trivial to add is to keep the 4
+> >> > asid context entries in cpu_tlbstate and cache the last asid in thread
+> >> > info. If that's still valid then use it otherwise unconditionally get a new
+> >> > one. That avoids the whole loop machinery and thread info is cache hot in
+> >> > the context switch anyway. Delta patch on top of your version below.
+> >>
+> >> I'm not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on
+> >> CPU 1 and a thread in that mm bounces back and forth between those
+> >> CPUs, won't your patch cause it to flush every time?
+> >
+> > Yeah, I was too focussed on the non migratory case, where two tasks from
+> > different processes play rapid ping pong. That's what I was looking at for
+> > various reasons.
+> >
+> > There the cached asid really helps by avoiding the loop completely, but
+> > yes, the search needs to be done for the bouncing between CPUs case.
+> >
+> > So maybe a combo of those might be interesting.
+> >
+> 
+> I'm not too worried about optimizing away the loop.  It's a loop over
+> four or six things that are all in cachelines that we need anyway.  I
+> suspect that we'll never be able to see it in any microbenchmark, let
+> alone real application.
 
-When swapping out THP (Transparent Huge Page), instead of swapping out
-the THP as a whole, sometimes we have to fallback to split the THP
-into normal pages before swapping, because no free swap clusters are
-available, or cgroup limit is exceeded, etc.  To count the number of
-the fallback, a new VM event THP_SWPOUT_FALLBACK is added, and counted
-when we fallback to split the THP.
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>
----
- include/linux/vm_event_item.h | 1 +
- mm/vmscan.c                   | 3 +++
- mm/vmstat.c                   | 1 +
- 3 files changed, 5 insertions(+)
-
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index c75024e80eed..e02820fc2861 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -86,6 +86,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
- 		THP_SWPOUT,
-+		THP_SWPOUT_FALLBACK,
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 		BALLOON_INFLATE,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f3abaef7c0b5..81703d6f9156 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1153,6 +1153,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					if (split_huge_page_to_list(page,
- 								    page_list))
- 						goto activate_locked;
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+					count_vm_event(THP_SWPOUT_FALLBACK);
-+#endif
- 					if (!add_to_swap(page))
- 						goto activate_locked;
- 				}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 243835d251a5..be5d427b4a1c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1072,6 +1072,7 @@ const char * const vmstat_text[] = {
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
- 	"thp_swpout",
-+	"thp_swpout_fallback",
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 	"balloon_inflate",
--- 
-2.11.0
+Fair enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
