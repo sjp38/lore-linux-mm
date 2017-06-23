@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9B6D6B0292
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 16:43:09 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v88so15695635wrb.1
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 13:43:09 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t70si4916421wme.143.2017.06.23.13.43.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3016B0292
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 16:59:47 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id m82so19636696pfk.0
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 13:59:47 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id l83si3990358pfk.80.2017.06.23.13.59.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 13:43:08 -0700 (PDT)
-Date: Fri, 23 Jun 2017 13:43:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/6] mm, migration: do not trigger OOM killer when
- migrating memory
-Message-Id: <20170623134305.4f59f673051120f95303fd89@linux-foundation.org>
-In-Reply-To: <20170623085345.11304-7-mhocko@kernel.org>
-References: <20170623085345.11304-1-mhocko@kernel.org>
-	<20170623085345.11304-7-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 23 Jun 2017 13:59:46 -0700 (PDT)
+Date: Fri, 23 Jun 2017 13:59:45 -0700
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
+ of poison pages
+Message-ID: <20170623205945.ovhfyymzfkevazpd@intel.com>
+References: <20170616190200.6210-1-tony.luck@intel.com>
+ <20170621021226.GA18024@hori1.linux.bs1.fc.nec.co.jp>
+ <20170621175403.n5kssz32e2oizl7k@intel.com>
+ <AT5PR84MB0082AF4EDEB05999494CA62FABDA0@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
+ <3908561D78D1C84285E8C5FCA982C28F612DCCAF@ORSMSX114.amr.corp.intel.com>
+ <CAPcyv4igNoRZ1EJxeD01xwq5AU_hhEs4LoXs-8XA2mFbWDr5eA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4igNoRZ1EJxeD01xwq5AU_hhEs4LoXs-8XA2mFbWDr5eA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Borislav Petkov <bp@suse.de>, "Hansen, Dave" <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, "Vaden, Tom (HPE Server OS Architecture)" <tom.vaden@hpe.com>
 
-On Fri, 23 Jun 2017 10:53:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-
-> From: Michal Hocko <mhocko@suse.com>
+On Thu, Jun 22, 2017 at 10:07:18PM -0700, Dan Williams wrote:
+> On Wed, Jun 21, 2017 at 1:30 PM, Luck, Tony <tony.luck@intel.com> wrote:
+> >> Persistent memory does have unpoisoning and would require this inverse
+> >> operation - see drivers/nvdimm/pmem.c pmem_clear_poison() and core.c
+> >> nvdimm_clear_poison().
+> >
+> > Nice.  Well this code will need to cooperate with that ... in particular if the page
+> > is in an area that can be unpoisoned ... then we should do that *instead* of marking
+> > the page not present (which breaks up huge/large pages and so affects performance).
+> >
+> > Instead of calling it "arch_unmap_pfn" it could be called something like arch_handle_poison()
+> > and do something like:
+> >
+> > void arch_handle_poison(unsigned long pfn)
+> > {
+> >         if this is a pmem page && pmem_clear_poison(pfn)
+> >                 return
+> >         if this is a nvdimm page && nvdimm_clear_poison(pfn)
+> >                 return
+> >         /* can't clear, map out from 1:1 region */
+> >         ... code from my patch ...
+> > }
+> >
+> > I'm just not sure how those first two "if" bits work ... particularly in terms of CONFIG dependencies and system
+> > capabilities.  Perhaps each of pmem and nvdimm could register their unpoison functions and this code could
+> > just call each in turn?
 > 
-> Page migration (for memory hotplug, soft_offline_page or mbind) needs
-> to allocate a new memory. This can trigger an oom killer if the target
-> memory is depleated. Although quite unlikely, still possible, especially
-> for the memory hotplug (offlining of memoery). Up to now we didn't
-> really have reasonable means to back off. __GFP_NORETRY can fail just
-> too easily and __GFP_THISNODE sticks to a single node and that is not
-> suitable for all callers.
-> 
-> But now that we have __GFP_RETRY_MAYFAIL we should use it.  It is
-> preferable to fail the migration than disrupt the system by killing some
-> processes.
+> We don't unpoison pmem without new data to write in it's place. What
+> context is arch_handle_poison() called? Ideally we only "clear" poison
+> when we know we are trying to write zero over the poisoned range.
 
-I'm not sure which tree this is against...
+Context is that of the process that did the access (but we've moved
+off the machine check stack and are now in normal kernel context).
+We are about to unmap this page from all applications that are
+using it.  But they may be running ... so now it a bad time to
+clear the poison. They might access the page and not get a signal.
 
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1492,7 +1492,8 @@ static struct page *new_page(struct page *p, unsigned long private, int **x)
->  
->  		return alloc_huge_page_node(hstate, nid);
->  	} else {
-> -		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-> +		return __alloc_pages_node(nid,
-> +				GFP_HIGHUSER_MOVABLE | __GFP_RETRY_MAYFAIL, 0);
->  	}
->  }
+If I move this code to after all the users PTEs have been cleared
+and TLBs flushed, then it would be safe to try to unpoison the page
+and not invalidate from the 1:1 mapping.
 
-new_page() is now
+But I'm not sure what happens next. For a normal DDR4 page I could
+put it back on the free list and allow it to be re-used. But for
+PMEM you have some other cleanup that you need to do to mark the
+block as lost from your file system.
 
-static struct page *new_page(struct page *p, unsigned long private, int **x)
-{
-	int nid = page_to_nid(p);
+Is this too early for you to be able to do that?
 
-	return new_page_nodemask(p, nid, &node_states[N_MEMORY]);
-}
-
-and new_page_nodemask() uses __GFP_RETRY_MAYFAIL so I simply dropped
-the above hunk.
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
