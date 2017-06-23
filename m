@@ -1,107 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 767776B0365
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:28 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id a80so27459442oic.8
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:28 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u35si1935430otb.226.2017.06.23.08.28.27
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D27A36B0372
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 11:28:51 -0400 (EDT)
+Received: by mail-ot0-f200.google.com with SMTP id 93so32778750oto.10
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
+Received: from mail-ot0-x234.google.com (mail-ot0-x234.google.com. [2607:f8b0:4003:c0f::234])
+        by mx.google.com with ESMTPS id 1si1666647oih.206.2017.06.23.08.28.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 08:28:27 -0700 (PDT)
-Received: from mail-vk0-f50.google.com (mail-vk0-f50.google.com [209.85.213.50])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B3D7522B6E
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 15:28:26 +0000 (UTC)
-Received: by mail-vk0-f50.google.com with SMTP id r126so7262898vkg.0
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:26 -0700 (PDT)
+        Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
+Received: by mail-ot0-x234.google.com with SMTP id 95so33835460ott.3
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 08:28:51 -0700 (PDT)
+Subject: Re: Sleeping BUG in khugepaged for i586
+References: <968ae9a9-5345-18ca-c7ce-d9beaf9f43b6@lwfinger.net>
+ <20170605144401.5a7e62887b476f0732560fa0@linux-foundation.org>
+ <caa7a4a3-0c80-432c-2deb-3480df319f65@suse.cz>
+ <1e883924-9766-4d2a-936c-7a49b337f9e2@lwfinger.net>
+ <9ab81c3c-e064-66d2-6e82-fc9bac125f56@suse.cz>
+ <alpine.DEB.2.10.1706071352100.38905@chino.kir.corp.google.com>
+ <20170608144831.GA19903@dhcp22.suse.cz>
+ <20170623120812.GS5308@dhcp22.suse.cz>
+ <66280cc3-6231-8d35-6d9a-113fe2d80409@suse.cz>
+ <20170623132558.GC5308@dhcp22.suse.cz>
+From: Larry Finger <Larry.Finger@lwfinger.net>
+Message-ID: <b358d07c-0a5d-9e0e-9468-8ab74ca05595@lwfinger.net>
+Date: Fri, 23 Jun 2017 10:28:49 -0500
 MIME-Version: 1.0
-In-Reply-To: <20170623115026.qqy5mpyihymocaet@pd.tnic>
-References: <cover.1498022414.git.luto@kernel.org> <57c1d18b1c11f9bc9a3bcf8bdee38033415e1a13.1498022414.git.luto@kernel.org>
- <20170623115026.qqy5mpyihymocaet@pd.tnic>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 23 Jun 2017 08:28:05 -0700
-Message-ID: <CALCETrU3AcncCUZacmtdPDAptbWjp+RTQpeBokbspp2e395o7A@mail.gmail.com>
-Subject: Re: [PATCH v3 10/11] x86/mm: Enable CR4.PCIDE on supported systems
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20170623132558.GC5308@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Jun 23, 2017 at 4:50 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Tue, Jun 20, 2017 at 10:22:16PM -0700, Andy Lutomirski wrote:
->> We can use PCID if the CPU has PCID and PGE and we're not on Xen.
+On 06/23/2017 08:25 AM, Michal Hocko wrote:
+> On Fri 23-06-17 15:13:45, Vlastimil Babka wrote:
+>> On 06/23/2017 02:08 PM, Michal Hocko wrote:
+>>> On Thu 08-06-17 16:48:31, Michal Hocko wrote:
+>>>> On Wed 07-06-17 13:56:01, David Rientjes wrote:
+>>>>
+>>>> I suspect, so cond_resched seems indeed inappropriate on 32b systems.
+>>>
+>>> The code still seems to be in the mmotm tree.
 >>
->> By itself, this has no effect.  The next patch will start using
->> PCID.
+>> Even mainline at this point - 338a16ba1549
 >>
->> Cc: Juergen Gross <jgross@suse.com>
->> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
->> Signed-off-by: Andy Lutomirski <luto@kernel.org>
->> ---
->>  arch/x86/include/asm/tlbflush.h |  8 ++++++++
->>  arch/x86/kernel/cpu/common.c    | 15 +++++++++++++++
->>  arch/x86/xen/enlighten_pv.c     |  6 ++++++
->>  3 files changed, 29 insertions(+)
+>>> Are there any plans to fix
+>>> this or drop the patch?
 >>
->> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
->> index 87b13e51e867..57b305e13c4c 100644
->> --- a/arch/x86/include/asm/tlbflush.h
->> +++ b/arch/x86/include/asm/tlbflush.h
->> @@ -243,6 +243,14 @@ static inline void __flush_tlb_all(void)
->>               __flush_tlb_global();
->>       else
->>               __flush_tlb();
->> +
->> +     /*
->> +      * Note: if we somehow had PCID but not PGE, then this wouldn't work --
->> +      * we'd end up flushing kernel translations for the current ASID but
->> +      * we might fail to flush kernel translations for other cached ASIDs.
->> +      *
->> +      * To avoid this issue, we force PCID off if PGE is off.
->> +      */
->>  }
->>
->>  static inline void __flush_tlb_one(unsigned long addr)
->> diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
->> index 904485e7b230..01caf66b270f 100644
->> --- a/arch/x86/kernel/cpu/common.c
->> +++ b/arch/x86/kernel/cpu/common.c
->> @@ -1143,6 +1143,21 @@ static void identify_cpu(struct cpuinfo_x86 *c)
->>       setup_smep(c);
->>       setup_smap(c);
->>
->> +     /* Set up PCID */
->> +     if (cpu_has(c, X86_FEATURE_PCID)) {
->> +             if (cpu_has(c, X86_FEATURE_PGE)) {
->
-> What are we protecting ourselves here against? Funny virtualization guests?
->
-> Because PGE should be ubiquitous by now. Or have you heard something?
+>> https://lkml.kernel.org/r/alpine.DEB.2.10.1706191341550.97821@chino.kir.corp.google.com
+> 
+> Ahh, I have missed that. Thanks!
 
-Yes, funny VM guests.  I've been known to throw weird options at qemu
-myself, and I prefer when the system works.  In this particular case,
-I think the failure mode would be stale kernel TLB entries, and that
-would be really annoying.
+I also missed that patch. Applying it to my box fixes the scheduling while 
+atomic splats and no downside has been detected.
 
->
->> +                     cr4_set_bits(X86_CR4_PCIDE);
->> +             } else {
->> +                     /*
->> +                      * flush_tlb_all(), as currently implemented, won't
->> +                      * work if PCID is on but PGE is not.  Since that
->> +                      * combination doesn't exist on real hardware, there's
->> +                      * no reason to try to fully support it.
->> +                      */
->> +                     clear_cpu_cap(c, X86_FEATURE_PCID);
->> +             }
->> +     }
->
-> This whole in setup_pcid() I guess, like the rest of the features.
+You may add "Reported-and-tested-by: Larry Finger <Larry.Finger@lwfinger.net>".
 
-Done.
+Thanks for everyone's efforts in fixing this problem.
+
+Larry
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
