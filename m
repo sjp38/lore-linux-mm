@@ -1,87 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDC916B0388
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:46:23 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u110so10856159wrb.14
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:46:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y3si3519035wmh.28.2017.06.23.01.46.22
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B60E6B03B0
+	for <linux-mm@kvack.org>; Fri, 23 Jun 2017 04:53:59 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 23so4737174wry.4
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:53:58 -0700 (PDT)
+Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
+        by mx.google.com with ESMTPS id w145si3377524wmw.126.2017.06.23.01.53.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Jun 2017 01:46:22 -0700 (PDT)
-Date: Fri, 23 Jun 2017 10:46:19 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jun 2017 01:53:57 -0700 (PDT)
+Received: by mail-wr0-f193.google.com with SMTP id x23so10900374wrb.0
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 01:53:57 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mmap, aslr: do not enforce legacy mmap on unlimited
- stacks
-Message-ID: <20170623084619.GI5308@dhcp22.suse.cz>
-References: <20170614082218.12450-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170614082218.12450-1-mhocko@kernel.org>
+Subject: [PATCH 0/6] mm: give __GFP_REPEAT a better semantic
+Date: Fri, 23 Jun 2017 10:53:39 +0200
+Message-Id: <20170623085345.11304-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
-Cc: Jiri Kosina <jkosina@suse.cz>, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Alex Belits <alex.belits@cavium.com>, Christoph Hellwig <hch@infradead.org>, Chris Wilson <chris@chris-wilson.co.uk>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Daney <david.daney@cavium.com>, Michal Hocko <mhocko@suse.com>, Ralf Baechle <ralf@linux-mips.org>
 
-ping?
+Hi,
+this is a follow up for __GFP_REPEAT clean up merged in 4.7. The previous
+version of this patch series was posted as an RFC
+http://lkml.kernel.org/r/20170307154843.32516-1-mhocko@kernel.org
+Since then I have updated the documentation based on feedback from Neil
+Brown. It also seems that drm/i915 guys would like to use the flag as
+well.  A new __GFP_REPEAT user in MIPS code has emerged so this is fixed
+as well.  I have also added some more users into the core VM. We can
+discuss them separately but I guess we have grown to the state where no
+other alternative has been proposed while there is a demand for the new
+semantic. We should simply merge the new flag and new users will emerge
+over time. There is no need for a flag day to convert all of them at once.
 
-On Wed 14-06-17 10:22:18, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Since cc503c1b43e0 ("x86: PIE executable randomization") we treat
-> applications with RLIMIT_STACK configured to unlimited as legacy
-> and so we a) set the mmap_base to 1/3 of address space + randomization
-> and b) mmap from bottom to top. This makes some sense as it allows the
-> stack to grow really large. On the other hand it reduces the address
-> space usable for default mmaps (wihout address hint) quite a lot. We
-> have received a bug report that SAP HANA workload has hit into this
-> limitation.
-> 
-> We could argue that the user just got what he asked for when setting
-> up the unlimited stack but to be realistic growing stack up to 1/6
-> TASK_SIZE (allowed by mmap_base) is pretty much unimited in the real
-> life. This would give mmap 20TB of additional address space which is
-> quite nice. Especially when it is much more likely to use that address
-> space than the reserved stack.
-> 
-> Digging into the history the original implementation of the
-> randomization 8817210d4d96 ("[PATCH] x86_64: Flexmap for 32bit and
-> randomized mappings for 64bit") didn't have this restriction.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi,
-> I am sending this as a RFC because I am not really sure how to deal with
-> this. We might as well ignore the reported issue and claim "do not use
-> unlimited stacks" and be done with it. I just stroke me as an unexpected
-> behavior.
-> 
->  arch/x86/mm/mmap.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-> index 19ad095b41df..797295e792b2 100644
-> --- a/arch/x86/mm/mmap.c
-> +++ b/arch/x86/mm/mmap.c
-> @@ -74,9 +74,6 @@ static int mmap_is_legacy(void)
->  	if (current->personality & ADDR_COMPAT_LAYOUT)
->  		return 1;
->  
-> -	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
-> -		return 1;
-> -
->  	return sysctl_legacy_va_layout;
->  }
->  
-> -- 
-> 2.11.0
-> 
+This is based on the current linux-next (next-20170623)
 
--- 
-Michal Hocko
-SUSE Labs
+The main motivation for the change is that the current implementation of
+__GFP_REPEAT is not very much useful. 
+
+The documentation says:
+ * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+ *   _might_ fail.  This depends upon the particular VM implementation.
+
+It just fails to mention that this is true only for large (costly) high
+order which has been the case since the flag was introduced. A similar
+semantic would be really helpful for smal orders as well, though,
+because we have places where a failure with a specific fallback error
+handling is preferred to a potential endless loop inside the page
+allocator.
+
+The earlier cleanup dropped __GFP_REPEAT usage for low (!costly) order
+users so only those which might use larger orders have stayed. One new user
+added in the meantime is addressed in patch 1.
+
+Let's rename the flag to something more verbose and use it for existing
+users. Semantic for those will not change. Then implement low (!costly)
+orders failure path which is hit after the page allocator is about
+to invoke the oom killer. With that we have a good counterpart for
+__GFP_NORETRY and finally can tell try as hard as possible without the
+OOM killer.
+
+Xfs code already has an existing annotation for allocations which are
+allowed to fail and we can trivially map them to the new gfp flag
+because it will provide the semantic KM_MAYFAIL wants. Christoph didn't
+consider the new flag really necessary but didn't respond to the OOM
+killer aspect of the change so I have kept the patch. If this is still
+seen as not really needed I can drop the patch.
+
+kvmalloc will allow also !costly high order allocations to retry hard
+before falling back to the vmalloc.
+
+drm/i915 asked for the new semantic explicitly.
+
+Memory migration code, especially for the memory hotplug, should back off
+rather than invoking the OOM killer as well.
+
+Diffstat (the biggest addition is the documentation)
+ Documentation/DMA-ISA-LPC.txt                |  2 +-
+ arch/mips/include/asm/pgalloc.h              |  2 +-
+ arch/powerpc/include/asm/book3s/64/pgalloc.h |  2 +-
+ arch/powerpc/kvm/book3s_64_mmu_hv.c          |  2 +-
+ drivers/gpu/drm/i915/i915_gem.c              |  3 +-
+ drivers/mmc/host/wbsd.c                      |  2 +-
+ drivers/s390/char/vmcp.c                     |  2 +-
+ drivers/target/target_core_transport.c       |  2 +-
+ drivers/vhost/net.c                          |  2 +-
+ drivers/vhost/scsi.c                         |  2 +-
+ drivers/vhost/vsock.c                        |  2 +-
+ fs/xfs/kmem.h                                | 10 +++++
+ include/linux/gfp.h                          | 55 +++++++++++++++++++++-------
+ include/linux/migrate.h                      |  2 +-
+ include/linux/slab.h                         |  3 +-
+ include/trace/events/mmflags.h               |  2 +-
+ mm/hugetlb.c                                 |  4 +-
+ mm/internal.h                                |  2 +-
+ mm/memory-failure.c                          |  3 +-
+ mm/mempolicy.c                               |  3 +-
+ mm/page_alloc.c                              | 14 +++++--
+ mm/sparse-vmemmap.c                          |  4 +-
+ mm/util.c                                    | 14 ++-----
+ mm/vmalloc.c                                 |  2 +-
+ mm/vmscan.c                                  |  8 ++--
+ net/core/dev.c                               |  6 +--
+ net/core/skbuff.c                            |  2 +-
+ net/sched/sch_fq.c                           |  2 +-
+ tools/perf/builtin-kmem.c                    |  2 +-
+ 29 files changed, 103 insertions(+), 58 deletions(-)
+
+Shortlog
+Michal Hocko (6):
+      MIPS: do not use __GFP_REPEAT for order-0 request
+      mm, tree wide: replace __GFP_REPEAT by __GFP_RETRY_MAYFAIL with more useful semantic
+      xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
+      mm: kvmalloc support __GFP_RETRY_MAYFAIL for all sizes
+      drm/i915: use __GFP_RETRY_MAYFAIL
+      mm, migration: do not trigger OOM killer when migrating memory
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
