@@ -1,57 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 565D76B02F3
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 00:34:38 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s65so56813143pfi.14
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 21:34:38 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id u17si5004459plj.480.2017.06.23.21.34.37
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 36C516B0292
+	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 02:15:59 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id f127so61325968pgc.10
+        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 23:15:59 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 87si4742179pfk.133.2017.06.23.23.15.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jun 2017 21:34:37 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id s66so10097767pfs.2
-        for <linux-mm@kvack.org>; Fri, 23 Jun 2017 21:34:37 -0700 (PDT)
-From: john.hubbard@gmail.com
-Subject: [PATCH 1/1] mm: remove unused zone_type variable from __remove_zone()
-Date: Fri, 23 Jun 2017 21:34:21 -0700
-Message-Id: <20170624043421.24465-2-jhubbard@nvidia.com>
-In-Reply-To: <20170624043421.24465-1-jhubbard@nvidia.com>
-References: <20170624043421.24465-1-jhubbard@nvidia.com>
+        Fri, 23 Jun 2017 23:15:58 -0700 (PDT)
+Subject: Re: [HMM 01/15] hmm: heterogeneous memory management documentation
+References: <20170524172024.30810-1-jglisse@redhat.com>
+ <20170524172024.30810-2-jglisse@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <3937c1fd-5ac9-a933-9562-98e728a22cfb@nvidia.com>
+Date: Fri, 23 Jun 2017 23:15:56 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170524172024.30810-2-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: John Hubbard <jhubbard@nvidia.com>
+On 05/24/2017 10:20 AM, J=C3=A9r=C3=B4me Glisse wrote:
+> This add documentation for HMM (Heterogeneous Memory Management). It
+> presents the motivation behind it, the features necessary for it to
+> be useful and and gives an overview of how this is implemented.
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> ---
+>   Documentation/vm/hmm.txt | 362 ++++++++++++++++++++++++++++++++++++++++=
++++++++
+>   MAINTAINERS              |   7 +
+>   2 files changed, 369 insertions(+)
+>   create mode 100644 Documentation/vm/hmm.txt
+>=20
+> diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
+> new file mode 100644
+> index 0000000..a18ffc0
+> --- /dev/null
+> +++ b/Documentation/vm/hmm.txt
+> @@ -0,0 +1,362 @@
+> +Heterogeneous Memory Management (HMM)
+> +
 
-__remove_zone() is setting up zone_type, but never using
-it for anything. This is not causing a warning, due to
-the (necessary) use of -Wno-unused-but-set-variable.
-However, it's noise, so just delete it.
+Some months ago, I made a rash promise to give this document some editing l=
+ove. I am still=20
+willing to do that if anyone sees the need, but I put it on the back burner=
+ because I=20
+suspect that the document is already good enough. This is based on not seei=
+ng any "I am=20
+having trouble understanding HMM" complaints.
 
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- mm/memory_hotplug.c | 3 ---
- 1 file changed, 3 deletions(-)
+If that's not the case, please speak up. Otherwise, I'm assuming that all i=
+s well in the=20
+HMM Documentation department.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 567a1dcafa1a..9bd73ecd7248 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -580,11 +580,8 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
- 	int nr_pages = PAGES_PER_SECTION;
--	int zone_type;
- 	unsigned long flags;
- 
--	zone_type = zone - pgdat->node_zones;
--
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
- 	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
- 	shrink_pgdat_span(pgdat, start_pfn, start_pfn + nr_pages);
--- 
-2.13.1
+thanks,
+--
+John Hubbard
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
