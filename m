@@ -1,77 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C146B0292
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 14:05:20 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id k14so31625018qkl.11
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 11:05:20 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F08616B02C3
+	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 14:05:26 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u51so32412467qte.15
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 11:05:26 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r25si6976608qtb.66.2017.06.24.11.05.18
+        by mx.google.com with ESMTPS id c11si6766438qka.280.2017.06.24.11.05.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jun 2017 11:05:19 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not freeing pud v3
-Date: Sat, 24 Jun 2017 14:05:14 -0400
-Message-Id: <20170624180514.3821-1-jglisse@redhat.com>
+        Sat, 24 Jun 2017 11:05:25 -0700 (PDT)
+Date: Sat, 24 Jun 2017 14:05:22 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
+ freeing pud v2
+Message-ID: <20170624180521.GA2830@redhat.com>
+References: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
+ <20170607170325.65ex46hoqjalprnu@black.fi.intel.com>
+ <20170607170651.exful7yvxvrjaolz@node.shutemov.name>
+ <1169495863.31360420.1496857080560.JavaMail.zimbra@redhat.com>
+ <20170607181705.7jortbns732jtiba@node.shutemov.name>
+ <20170623194805.GD3128@redhat.com>
+ <20170624064559.3upsr2temhjlw2jb@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170624064559.3upsr2temhjlw2jb@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Logan Gunthorpe <logang@deltatee.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+On Sat, Jun 24, 2017 at 08:45:59AM +0200, Ingo Molnar wrote:
+> 
+> * Jerome Glisse <jglisse@redhat.com> wrote:
+> 
+> > On Wed, Jun 07, 2017 at 09:17:06PM +0300, Kirill A. Shutemov wrote:
+> > > On Wed, Jun 07, 2017 at 01:38:00PM -0400, Jerome Glisse wrote:
+> > > > > On Wed, Jun 07, 2017 at 08:03:25PM +0300, Kirill A. Shutemov wrote:
+> > > > > > On Wed, Jun 07, 2017 at 10:46:20AM -0400, jglisse@redhat.com wrote:
+> > > > > > > From: Jerome Glisse <jglisse@redhat.com>
+> > > > > > > 
+> > > > > > > With commit af2cf278ef4f we no longer free pud so that we do not
+> > > > > > > have synchronize all pgd on hotremove/vfree. But the new 5 level
+> > > > > > > page table patchset reverted that for 4 level page table.
+> > > > > > > 
+> > > > > > > This patch restore af2cf278ef4f and disable free_pud() if we are
+> > > > > > > in the 4 level page table case thus avoiding BUG_ON() after hot-
+> > > > > > > remove.
+> > > > > > > 
+> > > > > > > af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in
+> > > > > > > remove_pagetable()
+> > > > > > > 
+> > > > > > > Changed since v1:
+> > > > > > >   - make free_pud() conditional on the number of page table
+> > > > > > >     level
+> > > > > > >   - improved commit message
+> > > > > > > 
+> > > > > > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > > > > > > Cc: Andy Lutomirski <luto@kernel.org>
+> > > > > > > Cc: Ingo Molnar <mingo@kernel.org>
+> > > > > > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > > > > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > > > > > > > thus we now trigger a BUG_ON() l128 in sync_global_pgds()
+> > > > > > > >
+> > > > > > > > This patch remove free_pud() like in af2cf278ef4f
+> > > > > > > ---
+> > > > > > >  arch/x86/mm/init_64.c | 11 +++++++++++
+> > > > > > >  1 file changed, 11 insertions(+)
+> > > > > > > 
+> > > > > > > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> > > > > > > index 95651dc..61028bc 100644
+> > > > > > > --- a/arch/x86/mm/init_64.c
+> > > > > > > +++ b/arch/x86/mm/init_64.c
+> > > > > > > @@ -771,6 +771,16 @@ static void __meminit free_pmd_table(pmd_t
+> > > > > > > *pmd_start, pud_t *pud)
+> > > > > > >  	spin_unlock(&init_mm.page_table_lock);
+> > > > > > >  }
+> > > > > > >  
+> > > > > > > +/*
+> > > > > > > + * For 4 levels page table we do not want to free puds but for 5 levels
+> > > > > > > + * we should free them. This code also need to change to adapt for boot
+> > > > > > > + * time switching between 4 and 5 level.
+> > > > > > > + */
+> > > > > > > +#if CONFIG_PGTABLE_LEVELS == 4
+> > > > > > > +static inline void free_pud_table(pud_t *pud_start, p4d_t *p4d)
+> > > > > > > +{
+> > > > > > > +}
+> > > > > > 
+> > > > > > Just "if (CONFIG_PGTABLE_LEVELS > 4)" before calling free_pud_table(), but
+> > > > > > okay -- I'll rework it anyway for boot-time switching.
+> > > > > 
+> > > > > Err. "if (CONFIG_PGTABLE_LEVELS == 4)" obviously.
+> > > > 
+> > > > You want me to respawn a v3 or is that good enough until you finish
+> > > > boot time 5 level page table ?
+> > > 
+> > > It doesn't matter for me. Upto Ingo.
+> > 
+> > Andrew any news on this ? This fix a regression in 4.12 so it would be nice to
+> > have this fix or similar in. I can repost a v3 without inline ie directly ifdefing
+> > the callsite.
+> > 
+> > Note that Kyrill will rework that but i think this is 4.13 material.
+> 
+> Please don't #ifdef the call site or tweak the inlines - isn't what Kirill 
+> suggested:
+> 
+> 	if (CONFIG_PGTABLE_LEVELS == 4)
+> 
+> at the call site enough to fix the bug?
 
-With commit af2cf278ef4f we no longer free pud so that we do not
-have synchronize all pgd on hotremove/vfree. But the new 5 level
-page table patchset reverted that for 4 level page table.
+Right solution is if (CONFIG_PGTABLE_LEVELS == 5) at call site. I will spawn
+a v3 with that instead of inline #if/#else
 
-This patch restore af2cf278ef4f and disable free_pud() if we are
-in the 4 level page table case thus avoiding BUG_ON() after hot-
-remove.
+> 
+> BTW., how can this be a regression, if in v4.12 CONFIG_PGTABLE_LEVELS is always 4?
 
-af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+So in af2cf278ef4f we no longer free pud and no longer synchronize pgd
+because if we don't free pud that is pointless. With Kirill 5 level page
+table code we need to free pud when in 5 level page table but not free
+p4d. The thing is Kirill didn't make the free_pud conditional on 5 level
+page table. So on 4 level page table with his patches that are now in 4.12
+it frees the pud ie the pgd entry and because we no longer synchronize
+pgd it can trigger the BUG_ON() after hotremove as reported by few peoples
+so far.
 
-Changed since v2:
-  - nove to if the callsite instead of having special version of
-    free_pud for 4 level page table
-Changed since v1:
-  - make free_pud() conditional on the number of page table
-    level
-  - improved commit message
+So yes this is a regression and yes people see that regression in the
+not so common case of hotremove freeing a pud and then a latter hotplug
+trying to add a new pud for same kernel virtual address range.
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Reviwed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- arch/x86/mm/init_64.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 95651dc58e09..dc4c99f9ca58 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -990,7 +990,13 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
- 
- 		pud_base = pud_offset(p4d, 0);
- 		remove_pud_table(pud_base, addr, next, direct);
--		free_pud_table(pud_base, p4d);
-+		/*
-+		 * For 4 levels page table we do not want to free puds but for
-+		 * 5 levels we should free them. This code also need to change
-+		 * to adapt for boot time switching between 4 and 5 level.
-+		 */
-+		if (CONFIG_PGTABLE_LEVELS == 5)
-+			free_pud_table(pud_base, p4d);
- 	}
- 
- 	if (direct)
--- 
-2.13.0
+> For CONFIG_PGTABLE_LEVELS == 5 it won't work - but we don't have 
+> CONFIG_PGTABLE_LEVELS == 5 upstream yet.
+
+In 4.12 there is already 5 level page table code and that is what regressed
+this whole pgd entries get out of sync and trigger BUG_ON()
+
+See Kirill f2a6a7050109e0a5c7a84c70aa6010f682b2f1ee for guilty patch.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
