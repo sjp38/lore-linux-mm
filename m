@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 18DD76B02FD
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 22:53:24 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y62so76903154pfa.3
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:24 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id EEE276B0313
+	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 22:53:26 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g27so76466132pfj.6
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:26 -0700 (PDT)
 Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id k6si6292045pgs.523.2017.06.24.19.53.23
+        by mx.google.com with ESMTPS id i187si6099477pfc.217.2017.06.24.19.53.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jun 2017 19:53:23 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id e199so2493068pfh.0
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:23 -0700 (PDT)
+        Sat, 24 Jun 2017 19:53:25 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id z6so4522621pfk.3
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:25 -0700 (PDT)
 From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC PATCH 3/4] mm/hotplug: make __add_pages() iterate on memory_block and split __add_section()
-Date: Sun, 25 Jun 2017 10:52:26 +0800
-Message-Id: <20170625025227.45665-4-richard.weiyang@gmail.com>
+Subject: [RFC PATCH 4/4] base/memory: pass start_section_nr to init_memory_block()
+Date: Sun, 25 Jun 2017 10:52:27 +0800
+Message-Id: <20170625025227.45665-5-richard.weiyang@gmail.com>
 In-Reply-To: <20170625025227.45665-1-richard.weiyang@gmail.com>
 References: <20170625025227.45665-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,114 +22,111 @@ List-ID: <linux-mm.kvack.org>
 To: mhocko@suse.com, linux-mm@kvack.org
 Cc: Wei Yang <richard.weiyang@gmail.com>
 
-Memory hotplug unit is memory_block which contains one or several
-mem_section. The current logic is iterating on each mem_section and add or
-adjust the memory_block every time.
+The second parameter of init_memory_block() is to calculate the
+start_section_nr for the memory_block. While current implementation dose
+some unnecessary transform between mem_sectioni and section_nr.
 
-This patch makes the __add_pages() iterate on memory_block and split
-__add_section() to two functions: __add_section() and __add_memory_block().
-
-The first one would take care of each section data and the second one would
-register the memory_block at once, which makes the function more clear and
-natural.
+This patch simplifies the function by just passing the start_section_nr to
+it. By doing so, we can also simplify add_memory_block() too.
 
 Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
 ---
- drivers/base/memory.c | 17 +++++------------
- mm/memory_hotplug.c   | 27 +++++++++++++++++----------
- 2 files changed, 22 insertions(+), 22 deletions(-)
+ drivers/base/memory.c  | 16 ++++++----------
+ include/linux/memory.h |  2 +-
+ mm/memory_hotplug.c    |  2 +-
+ 3 files changed, 8 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index b54cfe9cd98b..468e5ad1bc87 100644
+index 468e5ad1bc87..43783dbb1d5e 100644
 --- a/drivers/base/memory.c
 +++ b/drivers/base/memory.c
-@@ -705,19 +705,12 @@ int register_new_memory(int nid, struct mem_section *section)
+@@ -645,7 +645,7 @@ int register_memory(struct memory_block *memory)
+ }
+ 
+ static int init_memory_block(struct memory_block **memory,
+-			     struct mem_section *section, unsigned long state)
++			     int start_section_nr, unsigned long state)
+ {
+ 	struct memory_block *mem;
+ 	unsigned long start_pfn;
+@@ -656,9 +656,7 @@ static int init_memory_block(struct memory_block **memory,
+ 	if (!mem)
+ 		return -ENOMEM;
+ 
+-	scn_nr = __section_nr(section);
+-	mem->start_section_nr =
+-			base_memory_block_id(scn_nr) * sections_per_block;
++	mem->start_section_nr = start_section_nr;
+ 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
+ 	mem->state = state;
+ 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+@@ -673,21 +671,19 @@ static int init_memory_block(struct memory_block **memory,
+ static int add_memory_block(int base_section_nr)
+ {
+ 	struct memory_block *mem;
+-	int i, ret, section_count = 0, section_nr;
++	int i, ret, section_count = 0;
+ 
+ 	for (i = base_section_nr;
+ 	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
+ 	     i++) {
+ 		if (!present_section_nr(i))
+ 			continue;
+-		if (section_count == 0)
+-			section_nr = i;
+ 		section_count++;
+ 	}
+ 
+ 	if (section_count == 0)
+ 		return 0;
+-	ret = init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLINE);
++	ret = init_memory_block(&mem, base_section_nr, MEM_ONLINE);
+ 	if (ret)
+ 		return ret;
+ 	mem->section_count = section_count;
+@@ -698,14 +694,14 @@ static int add_memory_block(int base_section_nr)
+  * need an interface for the VM to add new memory regions,
+  * but without onlining it.
+  */
+-int register_new_memory(int nid, struct mem_section *section)
++int register_new_memory(int nid, int start_section_nr)
+ {
+ 	int ret = 0;
+ 	struct memory_block *mem;
  
  	mutex_lock(&mem_sysfs_mutex);
  
--	mem = find_memory_block(section);
--	if (mem) {
--		mem->section_count++;
--		put_device(&mem->dev);
--	} else {
--		ret = init_memory_block(&mem, section, MEM_OFFLINE);
--		if (ret)
--			goto out;
--		mem->section_count++;
--	}
-+	ret = init_memory_block(&mem, section, MEM_OFFLINE);
-+	if (ret)
-+		goto out;
-+	mem->section_count = sections_per_block;
- 
--	if (mem->section_count == sections_per_block)
--		ret = register_mem_sect_under_node(mem, nid);
-+	ret = register_mem_sect_under_node(mem, nid);
- out:
- 	mutex_unlock(&mem_sysfs_mutex);
- 	return ret;
+-	ret = init_memory_block(&mem, section, MEM_OFFLINE);
++	ret = init_memory_block(&mem, start_section_nr, MEM_OFFLINE);
+ 	if (ret)
+ 		goto out;
+ 	mem->section_count = sections_per_block;
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index 51a6355aa56d..0cbde14f7cea 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -108,7 +108,7 @@ extern int register_memory_notifier(struct notifier_block *nb);
+ extern void unregister_memory_notifier(struct notifier_block *nb);
+ extern int register_memory_isolate_notifier(struct notifier_block *nb);
+ extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+-extern int register_new_memory(int, struct mem_section *);
++extern int register_new_memory(int, int);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern int unregister_memory_section(struct mem_section *);
+ #endif
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a79a83ec965f..14a08b980b59 100644
+index 14a08b980b59..fc198847dd5b 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -302,8 +302,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
- }
- #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
- 
--static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
--		bool want_memblock)
-+static int __meminit __add_section(int nid, unsigned long phys_start_pfn)
- {
- 	int ret;
- 	int i;
-@@ -332,6 +331,18 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- 		SetPageReserved(page);
- 	}
- 
-+	return 0;
-+}
-+
-+static int __meminit __add_memory_block(int nid, unsigned long phys_start_pfn,
-+		bool want_memblock)
-+{
-+	int ret;
-+
-+	ret = __add_section(nid, phys_start_pfn);
-+	if (ret)
-+		return ret;
-+
+@@ -346,7 +346,7 @@ static int __meminit __add_memory_block(int nid, unsigned long phys_start_pfn,
  	if (!want_memblock)
  		return 0;
  
-@@ -347,15 +358,10 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
- int __ref __add_pages(int nid, unsigned long phys_start_pfn,
- 			unsigned long nr_pages, bool want_memblock)
- {
--	unsigned long i;
-+	unsigned long pfn;
- 	int err = 0;
--	int start_sec, end_sec;
- 	struct vmem_altmap *altmap;
+-	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
++	return register_new_memory(nid, pfn_to_section_nr(phys_start_pfn));
+ }
  
--	/* during initialize mem_map, align hot-added range to section */
--	start_sec = pfn_to_section_nr(phys_start_pfn);
--	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
--
- 	altmap = to_vmem_altmap((unsigned long) pfn_to_page(phys_start_pfn));
- 	if (altmap) {
- 		/*
-@@ -370,8 +376,9 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
- 		altmap->alloc = 0;
- 	}
- 
--	for (i = start_sec; i <= end_sec; i++) {
--		err = __add_section(nid, section_nr_to_pfn(i), want_memblock);
-+	for (pfn; pfn < phys_start_pfn + nr_pages;
-+			pfn += sections_per_block * PAGES_PER_SECTION) {
-+		err = __add_memory_block(nid, pfn, want_memblock);
- 
- 		/*
- 		 * EEXIST is finally dealt with by ioresource collision
+ /*
 -- 
 2.11.0
 
