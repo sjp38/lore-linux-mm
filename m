@@ -1,104 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A78E6B0292
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 23:31:23 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d62so77076296pfb.13
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 20:31:23 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id n10si4043999pgf.399.2017.06.24.20.31.22
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BB106B0292
+	for <linux-mm@kvack.org>; Sun, 25 Jun 2017 15:56:23 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id p138so78741756ioe.13
+        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 12:56:23 -0700 (PDT)
+Received: from mail-it0-x234.google.com (mail-it0-x234.google.com. [2607:f8b0:4001:c0b::234])
+        by mx.google.com with ESMTPS id b189si9904748ith.26.2017.06.25.12.56.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jun 2017 20:31:22 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/4] mm/hotplug: aligne the hotplugable range with
- memory_block
-References: <20170625025227.45665-1-richard.weiyang@gmail.com>
- <20170625025227.45665-2-richard.weiyang@gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <be965d3a-002b-9a9f-873b-b7237238ac21@nvidia.com>
-Date: Sat, 24 Jun 2017 20:31:20 -0700
+        Sun, 25 Jun 2017 12:56:22 -0700 (PDT)
+Received: by mail-it0-x234.google.com with SMTP id m84so14402815ita.0
+        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 12:56:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170625025227.45665-2-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170623015010.GA137429@beast>
+References: <20170623015010.GA137429@beast>
+From: Kees Cook <keescook@chromium.org>
+Date: Sun, 25 Jun 2017 12:56:21 -0700
+Message-ID: <CAGXu5jJEi_CS-CB=-4369TFRyeN4oQdmGS+HV-zoi4rSPpq3Jw@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Add SLUB free list pointer obfuscation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Laura Abbott <labbott@redhat.com>, Daniel Micay <danielmicay@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On 06/24/2017 07:52 PM, Wei Yang wrote:
-> memory hotplug is memory block aligned instead of section aligned.
-> 
-> This patch fix the range check during hotplug.
-> 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  drivers/base/memory.c  | 3 ++-
->  include/linux/memory.h | 2 ++
->  mm/memory_hotplug.c    | 9 +++++----
->  3 files changed, 9 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index c7c4e0325cdb..b54cfe9cd98b 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -31,7 +31,8 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
->  
->  #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
->  
-> -static int sections_per_block;
-> +int sections_per_block;
-> +EXPORT_SYMBOL(sections_per_block);
+On Thu, Jun 22, 2017 at 6:50 PM, Kees Cook <keescook@chromium.org> wrote:
+> This SLUB free list pointer obfuscation code is modified from Brad
+> Spengler/PaX Team's code in the last public patch of grsecurity/PaX based
+> on my understanding of the code. Changes or omissions from the original
+> code are mine and don't reflect the original grsecurity/PaX code.
+>
+> This adds a per-cache random value to SLUB caches that is XORed with
+> their freelist pointers. This adds nearly zero overhead and frustrates the
+> very common heap overflow exploitation method of overwriting freelist
+> pointers. A recent example of the attack is written up here:
+> http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
 
-Hi Wei,
+BTW, to quantify "nearly zero overhead", I ran multiple 200-run cycles
+of "hackbench -g 20 -l 1000", and saw:
 
-Is sections_per_block ever assigned a value? I am not seeing that happen,
-either in this patch, or in the larger patchset.
+before:
+mean 10.11882499999999999995
+variance .03320378329145728642
+stdev .18221905304181911048
 
+after:
+mean 10.12654000000000000014
+variance .04700556623115577889
+stdev .21680767106160192064
 
->  
->  static inline int base_memory_block_id(int section_nr)
->  {
-> diff --git a/include/linux/memory.h b/include/linux/memory.h
-> index b723a686fc10..51a6355aa56d 100644
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -142,4 +142,6 @@ extern struct memory_block *find_memory_block(struct mem_section *);
->   */
->  extern struct mutex text_mutex;
->  
-> +extern int sections_per_block;
-> +
->  #endif /* _LINUX_MEMORY_H_ */
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 387ca386142c..f5d06afc8645 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1183,11 +1183,12 @@ static int check_hotplug_memory_range(u64 start, u64 size)
->  {
->  	u64 start_pfn = PFN_DOWN(start);
->  	u64 nr_pages = size >> PAGE_SHIFT;
-> +	u64 page_per_block = sections_per_block * PAGES_PER_SECTION;
+The difference gets lost in the noise, but if the above is sensible,
+it's 0.07% slower. ;)
 
-"pages_per_block" would be a little better.
+-Kees
 
-Also, in the first line of the commit, s/aligne/align/.
-
-thanks,
-john h
-
->  
-> -	/* Memory range must be aligned with section */
-> -	if ((start_pfn & ~PAGE_SECTION_MASK) ||
-> -	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
-> -		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
-> +	/* Memory range must be aligned with memory_block */
-> +	if ((start_pfn & (page_per_block - 1)) ||
-> +	    (nr_pages % page_per_block) || (!nr_pages)) {
-> +		pr_err("Memory_block-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
->  				(unsigned long long)start,
->  				(unsigned long long)size);
->  		return -EINVAL;
-> 
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
