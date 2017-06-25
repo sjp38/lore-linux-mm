@@ -1,134 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EEE276B0313
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 22:53:26 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g27so76466132pfj.6
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:26 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id i187si6099477pfc.217.2017.06.24.19.53.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A78E6B0292
+	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 23:31:23 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d62so77076296pfb.13
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 20:31:23 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id n10si4043999pgf.399.2017.06.24.20.31.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jun 2017 19:53:25 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id z6so4522621pfk.3
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 19:53:25 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [RFC PATCH 4/4] base/memory: pass start_section_nr to init_memory_block()
-Date: Sun, 25 Jun 2017 10:52:27 +0800
-Message-Id: <20170625025227.45665-5-richard.weiyang@gmail.com>
-In-Reply-To: <20170625025227.45665-1-richard.weiyang@gmail.com>
+        Sat, 24 Jun 2017 20:31:22 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/4] mm/hotplug: aligne the hotplugable range with
+ memory_block
 References: <20170625025227.45665-1-richard.weiyang@gmail.com>
+ <20170625025227.45665-2-richard.weiyang@gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <be965d3a-002b-9a9f-873b-b7237238ac21@nvidia.com>
+Date: Sat, 24 Jun 2017 20:31:20 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170625025227.45665-2-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, linux-mm@kvack.org
-Cc: Wei Yang <richard.weiyang@gmail.com>
+To: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, linux-mm@kvack.org
 
-The second parameter of init_memory_block() is to calculate the
-start_section_nr for the memory_block. While current implementation dose
-some unnecessary transform between mem_sectioni and section_nr.
+On 06/24/2017 07:52 PM, Wei Yang wrote:
+> memory hotplug is memory block aligned instead of section aligned.
+> 
+> This patch fix the range check during hotplug.
+> 
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  drivers/base/memory.c  | 3 ++-
+>  include/linux/memory.h | 2 ++
+>  mm/memory_hotplug.c    | 9 +++++----
+>  3 files changed, 9 insertions(+), 5 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index c7c4e0325cdb..b54cfe9cd98b 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -31,7 +31,8 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
+>  
+>  #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
+>  
+> -static int sections_per_block;
+> +int sections_per_block;
+> +EXPORT_SYMBOL(sections_per_block);
 
-This patch simplifies the function by just passing the start_section_nr to
-it. By doing so, we can also simplify add_memory_block() too.
+Hi Wei,
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- drivers/base/memory.c  | 16 ++++++----------
- include/linux/memory.h |  2 +-
- mm/memory_hotplug.c    |  2 +-
- 3 files changed, 8 insertions(+), 12 deletions(-)
+Is sections_per_block ever assigned a value? I am not seeing that happen,
+either in this patch, or in the larger patchset.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 468e5ad1bc87..43783dbb1d5e 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -645,7 +645,7 @@ int register_memory(struct memory_block *memory)
- }
- 
- static int init_memory_block(struct memory_block **memory,
--			     struct mem_section *section, unsigned long state)
-+			     int start_section_nr, unsigned long state)
- {
- 	struct memory_block *mem;
- 	unsigned long start_pfn;
-@@ -656,9 +656,7 @@ static int init_memory_block(struct memory_block **memory,
- 	if (!mem)
- 		return -ENOMEM;
- 
--	scn_nr = __section_nr(section);
--	mem->start_section_nr =
--			base_memory_block_id(scn_nr) * sections_per_block;
-+	mem->start_section_nr = start_section_nr;
- 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
- 	mem->state = state;
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-@@ -673,21 +671,19 @@ static int init_memory_block(struct memory_block **memory,
- static int add_memory_block(int base_section_nr)
- {
- 	struct memory_block *mem;
--	int i, ret, section_count = 0, section_nr;
-+	int i, ret, section_count = 0;
- 
- 	for (i = base_section_nr;
- 	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
- 	     i++) {
- 		if (!present_section_nr(i))
- 			continue;
--		if (section_count == 0)
--			section_nr = i;
- 		section_count++;
- 	}
- 
- 	if (section_count == 0)
- 		return 0;
--	ret = init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLINE);
-+	ret = init_memory_block(&mem, base_section_nr, MEM_ONLINE);
- 	if (ret)
- 		return ret;
- 	mem->section_count = section_count;
-@@ -698,14 +694,14 @@ static int add_memory_block(int base_section_nr)
-  * need an interface for the VM to add new memory regions,
-  * but without onlining it.
-  */
--int register_new_memory(int nid, struct mem_section *section)
-+int register_new_memory(int nid, int start_section_nr)
- {
- 	int ret = 0;
- 	struct memory_block *mem;
- 
- 	mutex_lock(&mem_sysfs_mutex);
- 
--	ret = init_memory_block(&mem, section, MEM_OFFLINE);
-+	ret = init_memory_block(&mem, start_section_nr, MEM_OFFLINE);
- 	if (ret)
- 		goto out;
- 	mem->section_count = sections_per_block;
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 51a6355aa56d..0cbde14f7cea 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -108,7 +108,7 @@ extern int register_memory_notifier(struct notifier_block *nb);
- extern void unregister_memory_notifier(struct notifier_block *nb);
- extern int register_memory_isolate_notifier(struct notifier_block *nb);
- extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
--extern int register_new_memory(int, struct mem_section *);
-+extern int register_new_memory(int, int);
- #ifdef CONFIG_MEMORY_HOTREMOVE
- extern int unregister_memory_section(struct mem_section *);
- #endif
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 14a08b980b59..fc198847dd5b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -346,7 +346,7 @@ static int __meminit __add_memory_block(int nid, unsigned long phys_start_pfn,
- 	if (!want_memblock)
- 		return 0;
- 
--	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
-+	return register_new_memory(nid, pfn_to_section_nr(phys_start_pfn));
- }
- 
- /*
--- 
-2.11.0
+
+>  
+>  static inline int base_memory_block_id(int section_nr)
+>  {
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index b723a686fc10..51a6355aa56d 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -142,4 +142,6 @@ extern struct memory_block *find_memory_block(struct mem_section *);
+>   */
+>  extern struct mutex text_mutex;
+>  
+> +extern int sections_per_block;
+> +
+>  #endif /* _LINUX_MEMORY_H_ */
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 387ca386142c..f5d06afc8645 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1183,11 +1183,12 @@ static int check_hotplug_memory_range(u64 start, u64 size)
+>  {
+>  	u64 start_pfn = PFN_DOWN(start);
+>  	u64 nr_pages = size >> PAGE_SHIFT;
+> +	u64 page_per_block = sections_per_block * PAGES_PER_SECTION;
+
+"pages_per_block" would be a little better.
+
+Also, in the first line of the commit, s/aligne/align/.
+
+thanks,
+john h
+
+>  
+> -	/* Memory range must be aligned with section */
+> -	if ((start_pfn & ~PAGE_SECTION_MASK) ||
+> -	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+> -		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+> +	/* Memory range must be aligned with memory_block */
+> +	if ((start_pfn & (page_per_block - 1)) ||
+> +	    (nr_pages % page_per_block) || (!nr_pages)) {
+> +		pr_err("Memory_block-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+>  				(unsigned long long)start,
+>  				(unsigned long long)size);
+>  		return -EINVAL;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
