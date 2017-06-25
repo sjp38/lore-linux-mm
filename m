@@ -1,62 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BB106B0292
-	for <linux-mm@kvack.org>; Sun, 25 Jun 2017 15:56:23 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id p138so78741756ioe.13
-        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 12:56:23 -0700 (PDT)
-Received: from mail-it0-x234.google.com (mail-it0-x234.google.com. [2607:f8b0:4001:c0b::234])
-        by mx.google.com with ESMTPS id b189si9904748ith.26.2017.06.25.12.56.22
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 482DF6B0292
+	for <linux-mm@kvack.org>; Sun, 25 Jun 2017 19:04:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u62so99730257pgb.13
+        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 16:04:15 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id w20si7748502pgc.533.2017.06.25.16.04.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Jun 2017 12:56:22 -0700 (PDT)
-Received: by mail-it0-x234.google.com with SMTP id m84so14402815ita.0
-        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 12:56:22 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170623015010.GA137429@beast>
-References: <20170623015010.GA137429@beast>
-From: Kees Cook <keescook@chromium.org>
-Date: Sun, 25 Jun 2017 12:56:21 -0700
-Message-ID: <CAGXu5jJEi_CS-CB=-4369TFRyeN4oQdmGS+HV-zoi4rSPpq3Jw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Add SLUB free list pointer obfuscation
+        Sun, 25 Jun 2017 16:04:14 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id e199so5060338pfh.0
+        for <linux-mm@kvack.org>; Sun, 25 Jun 2017 16:04:14 -0700 (PDT)
+Message-ID: <1498431798.7935.5.camel@gmail.com>
+Subject: Re: [RFC v3 02/23] powerpc: introduce set_hidx_slot helper
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Mon, 26 Jun 2017 09:03:18 +1000
+In-Reply-To: <1498095579-6790-3-git-send-email-linuxram@us.ibm.com>
+References: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
+	 <1498095579-6790-3-git-send-email-linuxram@us.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Laura Abbott <labbott@redhat.com>, Daniel Micay <danielmicay@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Thu, Jun 22, 2017 at 6:50 PM, Kees Cook <keescook@chromium.org> wrote:
-> This SLUB free list pointer obfuscation code is modified from Brad
-> Spengler/PaX Team's code in the last public patch of grsecurity/PaX based
-> on my understanding of the code. Changes or omissions from the original
-> code are mine and don't reflect the original grsecurity/PaX code.
->
-> This adds a per-cache random value to SLUB caches that is XORed with
-> their freelist pointers. This adds nearly zero overhead and frustrates the
-> very common heap overflow exploitation method of overwriting freelist
-> pointers. A recent example of the attack is written up here:
-> http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
+On Wed, 2017-06-21 at 18:39 -0700, Ram Pai wrote:
+> Introduce set_hidx_slot() which sets the (H_PAGE_F_SECOND|H_PAGE_F_GIX)
+> bits at  the  appropriate  location  in  the  PTE  of  4K  PTE.  In the
+> case of 64K PTE, it sets the bits in the second part of the PTE. Though
+> the implementation for the former just needs the slot parameter, it does
+> take some additional parameters to keep the prototype consistent.
+> 
+> This function will come in handy as we  work  towards  re-arranging the
+> bits in the later patches.
+> 
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  arch/powerpc/include/asm/book3s/64/hash-4k.h  |  7 +++++++
+>  arch/powerpc/include/asm/book3s/64/hash-64k.h | 16 ++++++++++++++++
+>  2 files changed, 23 insertions(+)
+> 
+> diff --git a/arch/powerpc/include/asm/book3s/64/hash-4k.h b/arch/powerpc/include/asm/book3s/64/hash-4k.h
+> index 9c2c8f1..cef644c 100644
+> --- a/arch/powerpc/include/asm/book3s/64/hash-4k.h
+> +++ b/arch/powerpc/include/asm/book3s/64/hash-4k.h
+> @@ -55,6 +55,13 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
+>  }
+>  #endif
+>  
+> +static inline unsigned long set_hidx_slot(pte_t *ptep, real_pte_t rpte,
+> +			unsigned int subpg_index, unsigned long slot)
+> +{
+> +	return (slot << H_PAGE_F_GIX_SHIFT) &
+> +		(H_PAGE_F_SECOND | H_PAGE_F_GIX);
+> +}
+> +
 
-BTW, to quantify "nearly zero overhead", I ran multiple 200-run cycles
-of "hackbench -g 20 -l 1000", and saw:
+A comment on top would help explain that 4k and 64k are different, 64k
+is a new layout.
 
-before:
-mean 10.11882499999999999995
-variance .03320378329145728642
-stdev .18221905304181911048
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  
+>  static inline char *get_hpte_slot_array(pmd_t *pmdp)
+> diff --git a/arch/powerpc/include/asm/book3s/64/hash-64k.h b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> index 3f49941..4bac70a 100644
+> --- a/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> +++ b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> @@ -75,6 +75,22 @@ static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
+>  	return (pte_val(rpte.pte) >> H_PAGE_F_GIX_SHIFT) & 0xf;
+>  }
+>  
+> +static inline unsigned long set_hidx_slot(pte_t *ptep, real_pte_t rpte,
+> +		unsigned int subpg_index, unsigned long slot)
+> +{
+> +	unsigned long *hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+> +
+> +	rpte.hidx &= ~(0xfUL << (subpg_index << 2));
+> +	*hidxp = rpte.hidx  | (slot << (subpg_index << 2));
+> +	/*
+> +	 * Avoid race with __real_pte()
+> +	 * hidx must be committed to memory before committing
+> +	 * the pte.
+> +	 */
+> +	smp_wmb();
 
-after:
-mean 10.12654000000000000014
-variance .04700556623115577889
-stdev .21680767106160192064
+Whats the other paired barrier, is it in set_pte()?
 
-The difference gets lost in the noise, but if the above is sensible,
-it's 0.07% slower. ;)
+> +	return 0x0UL;
+> +}
 
--Kees
+We return 0 here and slot information for 4k pages, it is not that
+clear
 
--- 
-Kees Cook
-Pixel Security
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
