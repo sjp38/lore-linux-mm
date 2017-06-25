@@ -1,146 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F08616B02C3
-	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 14:05:26 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id u51so32412467qte.15
-        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 11:05:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c11si6766438qka.280.2017.06.24.11.05.25
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ACDC6B0292
+	for <linux-mm@kvack.org>; Sat, 24 Jun 2017 20:14:17 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u36so80335997pgn.5
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 17:14:17 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id j25si6167176pgn.409.2017.06.24.17.14.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jun 2017 11:05:25 -0700 (PDT)
-Date: Sat, 24 Jun 2017 14:05:22 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
- freeing pud v2
-Message-ID: <20170624180521.GA2830@redhat.com>
-References: <1496846780-17393-1-git-send-email-jglisse@redhat.com>
- <20170607170325.65ex46hoqjalprnu@black.fi.intel.com>
- <20170607170651.exful7yvxvrjaolz@node.shutemov.name>
- <1169495863.31360420.1496857080560.JavaMail.zimbra@redhat.com>
- <20170607181705.7jortbns732jtiba@node.shutemov.name>
- <20170623194805.GD3128@redhat.com>
- <20170624064559.3upsr2temhjlw2jb@gmail.com>
+        Sat, 24 Jun 2017 17:14:16 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id e187so10765463pgc.3
+        for <linux-mm@kvack.org>; Sat, 24 Jun 2017 17:14:16 -0700 (PDT)
+Date: Sun, 25 Jun 2017 08:14:13 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [PATCH 11/14] mm, memory_hotplug: do not associate hotadded
+ memory to zones until online
+Message-ID: <20170625001413.GA43522@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170515085827.16474-1-mhocko@kernel.org>
+ <20170515085827.16474-12-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="WIyZ46R2i8wDzkSu"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170624064559.3upsr2temhjlw2jb@gmail.com>
+In-Reply-To: <20170515085827.16474-12-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Logan Gunthorpe <logang@deltatee.com>
-
-On Sat, Jun 24, 2017 at 08:45:59AM +0200, Ingo Molnar wrote:
-> 
-> * Jerome Glisse <jglisse@redhat.com> wrote:
-> 
-> > On Wed, Jun 07, 2017 at 09:17:06PM +0300, Kirill A. Shutemov wrote:
-> > > On Wed, Jun 07, 2017 at 01:38:00PM -0400, Jerome Glisse wrote:
-> > > > > On Wed, Jun 07, 2017 at 08:03:25PM +0300, Kirill A. Shutemov wrote:
-> > > > > > On Wed, Jun 07, 2017 at 10:46:20AM -0400, jglisse@redhat.com wrote:
-> > > > > > > From: Jerome Glisse <jglisse@redhat.com>
-> > > > > > > 
-> > > > > > > With commit af2cf278ef4f we no longer free pud so that we do not
-> > > > > > > have synchronize all pgd on hotremove/vfree. But the new 5 level
-> > > > > > > page table patchset reverted that for 4 level page table.
-> > > > > > > 
-> > > > > > > This patch restore af2cf278ef4f and disable free_pud() if we are
-> > > > > > > in the 4 level page table case thus avoiding BUG_ON() after hot-
-> > > > > > > remove.
-> > > > > > > 
-> > > > > > > af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in
-> > > > > > > remove_pagetable()
-> > > > > > > 
-> > > > > > > Changed since v1:
-> > > > > > >   - make free_pud() conditional on the number of page table
-> > > > > > >     level
-> > > > > > >   - improved commit message
-> > > > > > > 
-> > > > > > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > > > > > > Cc: Andy Lutomirski <luto@kernel.org>
-> > > > > > > Cc: Ingo Molnar <mingo@kernel.org>
-> > > > > > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > > > > > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > > > > > > > thus we now trigger a BUG_ON() l128 in sync_global_pgds()
-> > > > > > > >
-> > > > > > > > This patch remove free_pud() like in af2cf278ef4f
-> > > > > > > ---
-> > > > > > >  arch/x86/mm/init_64.c | 11 +++++++++++
-> > > > > > >  1 file changed, 11 insertions(+)
-> > > > > > > 
-> > > > > > > diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> > > > > > > index 95651dc..61028bc 100644
-> > > > > > > --- a/arch/x86/mm/init_64.c
-> > > > > > > +++ b/arch/x86/mm/init_64.c
-> > > > > > > @@ -771,6 +771,16 @@ static void __meminit free_pmd_table(pmd_t
-> > > > > > > *pmd_start, pud_t *pud)
-> > > > > > >  	spin_unlock(&init_mm.page_table_lock);
-> > > > > > >  }
-> > > > > > >  
-> > > > > > > +/*
-> > > > > > > + * For 4 levels page table we do not want to free puds but for 5 levels
-> > > > > > > + * we should free them. This code also need to change to adapt for boot
-> > > > > > > + * time switching between 4 and 5 level.
-> > > > > > > + */
-> > > > > > > +#if CONFIG_PGTABLE_LEVELS == 4
-> > > > > > > +static inline void free_pud_table(pud_t *pud_start, p4d_t *p4d)
-> > > > > > > +{
-> > > > > > > +}
-> > > > > > 
-> > > > > > Just "if (CONFIG_PGTABLE_LEVELS > 4)" before calling free_pud_table(), but
-> > > > > > okay -- I'll rework it anyway for boot-time switching.
-> > > > > 
-> > > > > Err. "if (CONFIG_PGTABLE_LEVELS == 4)" obviously.
-> > > > 
-> > > > You want me to respawn a v3 or is that good enough until you finish
-> > > > boot time 5 level page table ?
-> > > 
-> > > It doesn't matter for me. Upto Ingo.
-> > 
-> > Andrew any news on this ? This fix a regression in 4.12 so it would be nice to
-> > have this fix or similar in. I can repost a v3 without inline ie directly ifdefing
-> > the callsite.
-> > 
-> > Note that Kyrill will rework that but i think this is 4.13 material.
-> 
-> Please don't #ifdef the call site or tweak the inlines - isn't what Kirill 
-> suggested:
-> 
-> 	if (CONFIG_PGTABLE_LEVELS == 4)
-> 
-> at the call site enough to fix the bug?
-
-Right solution is if (CONFIG_PGTABLE_LEVELS == 5) at call site. I will spawn
-a v3 with that instead of inline #if/#else
-
-> 
-> BTW., how can this be a regression, if in v4.12 CONFIG_PGTABLE_LEVELS is always 4?
-
-So in af2cf278ef4f we no longer free pud and no longer synchronize pgd
-because if we don't free pud that is pointless. With Kirill 5 level page
-table code we need to free pud when in 5 level page table but not free
-p4d. The thing is Kirill didn't make the free_pud conditional on 5 level
-page table. So on 4 level page table with his patches that are now in 4.12
-it frees the pud ie the pgd entry and because we no longer synchronize
-pgd it can trigger the BUG_ON() after hotremove as reported by few peoples
-so far.
-
-So yes this is a regression and yes people see that regression in the
-not so common case of hotremove freeing a pud and then a latter hotplug
-trying to add a new pud for same kernel virtual address range.
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, David Rientjes <rientjes@google.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Dan Williams <dan.j.williams@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
 
-> For CONFIG_PGTABLE_LEVELS == 5 it won't work - but we don't have 
-> CONFIG_PGTABLE_LEVELS == 5 upstream yet.
+--WIyZ46R2i8wDzkSu
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-In 4.12 there is already 5 level page table code and that is what regressed
-this whole pgd entries get out of sync and trigger BUG_ON()
+On Mon, May 15, 2017 at 10:58:24AM +0200, Michal Hocko wrote:
+>From: Michal Hocko <mhocko@suse.com>
+>
+[...]
+>+void move_pfn_range_to_zone(struct zone *zone,
+>+		unsigned long start_pfn, unsigned long nr_pages)
+>+{
+>+	struct pglist_data *pgdat =3D zone->zone_pgdat;
+>+	int nid =3D pgdat->node_id;
+>+	unsigned long flags;
+>+	unsigned long i;
 
-See Kirill f2a6a7050109e0a5c7a84c70aa6010f682b2f1ee for guilty patch.
+This is an unused variable:
 
-Cheers,
-Jerome
+  mm/memory_hotplug.c: In function =E2=80=98move_pfn_range_to_zone=E2=80=99:
+  mm/memory_hotplug.c:895:16: warning: unused variable =E2=80=98i=E2=80=99 =
+[-Wunused-variable]
+
+Do you suggest me to write a patch or you would fix it in your later rework?
+
+>+
+>+	if (zone_is_empty(zone))
+>+		init_currently_empty_zone(zone, start_pfn, nr_pages);
+>+
+>+	clear_zone_contiguous(zone);
+>+
+>+	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that =
+before */
+>+	pgdat_resize_lock(pgdat, &flags);
+>+	zone_span_writelock(zone);
+>+	resize_zone_range(zone, start_pfn, nr_pages);
+>+	zone_span_writeunlock(zone);
+>+	resize_pgdat_range(pgdat, start_pfn, nr_pages);
+>+	pgdat_resize_unlock(pgdat, &flags);
+>+
+>+	/*
+>+	 * TODO now we have a visible range of pages which are not associated
+>+	 * with their zone properly. Not nice but set_pfnblock_flags_mask
+>+	 * expects the zone spans the pfn range. All the pages in the range
+>+	 * are reserved so nobody should be touching them so we should be safe
+>+	 */
+>+	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLU=
+G);
+>+	for (i =3D 0; i < nr_pages; i++) {
+>+		unsigned long pfn =3D start_pfn + i;
+>+		set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+> 	}
+>=20
+>2.11.0
+
+--=20
+Wei Yang
+Help you, Help me
+
+--WIyZ46R2i8wDzkSu
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZTwBVAAoJEKcLNpZP5cTdenEP/1AkHjHqkfOfFd30ID2h4MfU
+dgLCqNauA7c8oRAsT4JIfGhDzweueF6plyDJq4Rl8terOYW8c2Yu0NflisJX9GTQ
+SCAlkYIxI2t5Vj8cPkBIEQE2/dLjKtmEq4tJjUngtLtvaOl054qzkdeTxHhIN553
+L5ZG9cuw91gz4C0jPUNUHU4sh6FdBRPCLe+OZwaarI8ZMX4H8w3bfLScCXzhHIHG
+K2evDLGpBPFc6kit1B/uhJuDlU2X1gPdrttSBtpfnySG/HDaLzg4Mv02dEHIju0t
+zrEP7bOVOryG9JPuVrgbTFQxmdlINkJDyu3ecsbeE+mbTkZK9Fssdbc0aINxpHwG
+b5H11BJ0XOChT/rJF9kHGv1aMJZtk9YtCm4/2XbbOglKu+Tllq67An23l1AOYeik
+m4knWyFdMWDHrYNS7mD3nJXQjFLyB+Mf5nzi6wF+3yaofBrc/qTdUQJI1Ls84iO0
+YpYUGwUwuWMpALJYeAxOCeGRD9MQNnSeoLWcmsG6OxuZv9oAgP/JkG1n/xfCFq72
+lJqGbq0inKlouizUQ3v56IiqmTXdv6j96SU9SdBGJn1b9bbVk2xCUwYMRhwqDaYk
+9HNHR18PyVFIr/dD6/c4D9EG+QuoBL64hmyyCpmnz/pia22EnPRoRV568FnepUpe
+JcYzMxsvuPjJM6AcSd1I
+=ZVRy
+-----END PGP SIGNATURE-----
+
+--WIyZ46R2i8wDzkSu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
