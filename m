@@ -1,174 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C1EB6B03A6
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 09:03:58 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g6so112202wmc.8
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 06:03:58 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id s130si62813wmd.9.2017.06.26.06.03.56
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 525FA6B03A7
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 09:04:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d5so611927pfe.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 06:04:19 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id b13si44528plk.20.2017.06.26.06.04.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 06:03:56 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id y5so123114wmh.3
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 06:03:56 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Date: Mon, 26 Jun 2017 15:03:46 +0200
-Message-Id: <20170626130346.26314-1-mhocko@kernel.org>
+        Mon, 26 Jun 2017 06:04:18 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id j186so84931pge.1
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 06:04:18 -0700 (PDT)
+Message-ID: <1498482248.5348.7.camel@gmail.com>
+Subject: Re: Error in freeing memory with zone reclaimable always returning
+ true.
+From: Ivid Suvarna <ivid.suvarna@gmail.com>
+Date: Mon, 26 Jun 2017 06:04:08 -0700
+In-Reply-To: <20170626080019.GC11534@dhcp22.suse.cz>
+References: 
+	<CABXF_ACjD535xtk5_1MO6O8rdT+eudCn=GG0tM1ntEb6t1JO8w@mail.gmail.com>
+	 <20170626080019.GC11534@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon, 2017-06-26 at 10:00 +0200, Michal Hocko wrote:
+> On Mon 26-06-17 12:59:17, Ivid Suvarna wrote:
+> > 
+> > Hi,
+> > 
+> > I have below code which tries to free memory,
+> > do
+> > {
+> > free=shrink_all_memory;
+> > }while(free>0);
+> What is the intention of such a code. It looks quite wrong to me, to
+> be
+> honest.
+> 
 
-David has noticed that the oom killer might kill additional tasks while
-the existing victim hasn't terminated yet because the oom_reaper marks
-the curent victim MMF_OOM_SKIP too early when mm->mm_users dropped down
-to 0. The race is as follows
+My case is somewhat similar to hibernation where memory is freed for
+hibernation image and I want to free as much memory as possible until
+no pages can be reclaimed. i.e., until free returns 0.A 
 
-oom_reap_task				do_exit
-					  exit_mm
-  __oom_reap_task_mm
-					    mmput
-					      __mmput
-    mmget_not_zero # fails
-    						exit_mmap # frees memory
-  set_bit(MMF_OOM_SKIP)
+> > 
+> > But kernel gets into infinite loop because shrink_all_memory always
+> > returns
+> > 1.
+> > When I added some debug statements to `mm/vmscan.c` and found that
+> > it is
+> > because zone_reclaimable() is always true in shrink_zones()
+> > 
+> > if (global_reclaim(sc) &&
+> > A A A A A A A A A A A A !reclaimable && zone_reclaimable(zone))
+> > A A A A A A A A A A A A reclaimable = true;
+> > 
+> > This issue gets solved by removing the above lines.
+> > I am using linux-kernel 4.4 and imx board.
+> The code has changed quite a bit since 4.4 but in princible
+> zone_reclaimable was a rather dubious heuristic to not fail reclaim
+> too
+> early because that would trigger the OOM in the page allocator path
+> prematurely. This has changed in 4.7 by 0a0337e0d1d1 ("mm, oom:
+> rework
+> oom detection"). zone_reclaimable later renamed to pgdat_reclaimable
+> is
+> gone from the kernel in the latests mmotm kernel.
+> 
 
-Currently we are try to reduce a risk of this race by taking oom_lock
-and wait for out_of_memory sleep while holding the lock to give the
-victim some time to exit. This is quite suboptimal approach because
-there is no guarantee the victim (especially a large one) will manage
-to unmap its address space and free enough memory to the particular oom
-domain which needs a memory (e.g. a specific NUMA node).
+Suppose for testing purpose say I remove these lines only and not apply
+the whole patch("mm, oom: rework oom detection") as a solution, then
+what are the possible side effects? Are we like skipping something
+(possible reclaimable pages) by doing this?
+And will this effect any
+other reclaim logics?
 
-Fix this problem by allowing __oom_reap_task_mm and __mmput path to
-race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed
-to run in parallel with other unmappers (hence the mmap_sem for read).
-The only tricky part is we have to exclude page tables tear down and all
-operations which modify the address space in the __mmput path. exit_mmap
-doesn't expect any other users so it doesn't use any locking. Nothing
-really forbids us to use mmap_sem for write, though. In fact we are
-already relying on this lock earlier in the __mmput path to synchronize
-with ksm and khugepaged.
+> > 
+> > Similar Issue is seen here[1]. And it is solved through a patch
+> > removing
+> > the offending lines. But it does not explain why the zone
+> > reclaimable goes
+> > into infinite loop and what causes it? And I ran the C program from
+> > [1]
+> > which is below. And instead of OOM it went on to infinite loop.
+> Yes the previous oom detection could lock up.
+> 
 
-Take the exclusive mmap_sem when calling free_pgtables and destroying
-vmas to sync with __oom_reap_task_mm which take the lock for read. All
-other operations can safely race with the parallel unmap.
+Could you explain more on why zone reclaimable be returning true
+always,
+even if there are no pages in LRU list to reclaim?
 
-Reported-by: David Rientjes <rientjes@google.com>
-Fixes: 26db62f179d1 ("oom: keep mm of the killed task available")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
+> > 
+> > 
+> > #include <stdlib.h>
+> > #include <string.h>
+> > 
+> > int main(void)
+> > {
+> > for (;;) {
+> > void *p = malloc(1024 * 1024);
+> > memset(p, 0, 1024 * 1024);
+> > }
+> > }
+> > 
+> > Also can this issue be related to memcg as in here "
+> > https://lwn.net/Articles/508923/" because I see the code flow in my
+> > case
+> > enters:
+> > 
+> > if(nr_soft_reclaimed)
+> > reclaimable=true;
+> > 
+> > I dont understand memcg correctly. But in my case CONFIG_MEMCG is
+> > not set.
+> then it never reaches that path.
+> 
 
-Hi,
-I am sending this as an RFC because I am not yet sure I haven't missed
-something subtle here but the appoach should work in principle. I have
-run it through some of my OOM stress tests to see if anything blows up
-and it all went smoothly.
+I did not understand. Are you saying that since MEMCG is disabled,
+above if statement should
+not be executed? If that is the case , then why I am entering the if
+block?
 
-The issue has been brought up by David [1]. There were some attempts to
-address it in oom proper [2][3] but the first one would cause problems
-on their own [4] while the later is just too hairy.
+> > 
+> > After some more debugging, I found a userspace process in sleeping
+> > state
+> > and has three threads. This process is in pause state through
+> > system_pause() and is accessing shared memory(`/dev/shm`) which is
+> > created
+> > with 100m size. This shared memory has some files.
+> > 
+> > Also this process has some anonymous private and shared mappings
+> > when I saw
+> > the output of `pmap -d PID` and there is no swap space in the
+> > system.
+> > 
+> > I found that this hang situation was not present after I remove
+> > that
+> > userspace process. But how can that be a solution since kernel
+> > should be
+> > able to handle any exception.
+> > 
+> > "I found no issues at all if I removed this userspace process".
+> I am not sure I understand what is the problem here but could you try
+> with the current upstream kernel?
+> 
 
-Thoughts, objections, alternatives?
+The issue is fixed in upstream kernel with or without
+userspaceA A process.
+My whole point of this thread is to determine whether the userspace
+process is creating this issueor not, since there is no issue found
+without my userspace process.
+I have a doubt whether private or shared mappings of this userspace
+process is creating problem.
 
-[1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com
-[2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp
-[3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp
-[4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp
+> > 
+> > So my doubts are:
+> > 
+> > A 1. How can this sleeping process in pause state cause issue in
+> > zone
+> > reclaimable returning true always.
+> It simply cannot. Sleeping process doesn't interact with the system.
+> 
+> > 
+> > A 2. How are the pages reclaimed from sleeping process which is
+> > using shared
+> > memory in linux?
+> There is a background reclaimer (kswapd for each NUMA node) and if
+> that
+> cannot catch up with the pace of allocation then the allocation
+> context
+> is pushed to reclaim memory (direct reclaim).
+> 
 
- mm/mmap.c     |  7 +++++++
- mm/oom_kill.c | 40 ++--------------------------------------
- 2 files changed, 9 insertions(+), 38 deletions(-)
+Thanks for clearing my doubts.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3bd5ecd20d4d..253808e716dc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
- 
-+	/*
-+	 * oom reaper might race with exit_mmap so make sure we won't free
-+	 * page tables or unmap VMAs under its feet
-+	 */
-+	down_write(&mm->mmap_sem);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
-@@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)
- 			nr_accounted += vma_pages(vma);
- 		vma = remove_vma(vma);
- 	}
-+	mm->mmap = NULL;
- 	vm_unacct_memory(nr_accounted);
-+	up_write(&mm->mmap_sem);
- }
- 
- /* Insert vm structure into process list sorted by address
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 0e2c925e7826..5dc0ff22d567 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	struct vm_area_struct *vma;
- 	bool ret = true;
- 
--	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * __oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
--	 */
--	mutex_lock(&oom_lock);
--
--	if (!down_read_trylock(&mm->mmap_sem)) {
--		ret = false;
--		goto unlock_oom;
--	}
--
--	/*
--	 * increase mm_users only after we know we will reap something so
--	 * that the mmput_async is called only when we have reaped something
--	 * and delayed __mmput doesn't matter that much
--	 */
--	if (!mmget_not_zero(mm)) {
--		up_read(&mm->mmap_sem);
--		goto unlock_oom;
--	}
-+	if (!down_read_trylock(&mm->mmap_sem))
-+		return false;
- 
- 	/*
- 	 * Tell all users of get_user/copy_from_user etc... that the content
-@@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
- 	up_read(&mm->mmap_sem);
- 
--	/*
--	 * Drop our reference but make sure the mmput slow path is called from a
--	 * different context because we shouldn't risk we get stuck there and
--	 * put the oom_reaper out of the way.
--	 */
--	mmput_async(mm);
--unlock_oom:
--	mutex_unlock(&oom_lock);
- 	return ret;
- }
- 
--- 
-2.11.0
+> > 
+> > A 3. I tried to unmount /dev/shm but was not possible since process
+> > was
+> > using it. Can we release shared memory by any way? I tried `munmap`
+> > but no
+> > use.
+> remove files from /dev/shm?
+> 
+
+Since there are some files in shared memory created by process,
+I just tried to remove them and test if the issue still exists. Sadly
+it exists.A 
+
+Cheers,
+Ivid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
