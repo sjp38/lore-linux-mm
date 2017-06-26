@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C686B02FD
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:34:22 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 91so1081584qkq.2
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:34:22 -0700 (PDT)
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com. [209.85.220.178])
-        by mx.google.com with ESMTPS id x24si222011qtb.1.2017.06.26.07.34.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC866B0313
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:42:35 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id j85so525601wmj.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:42:35 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id d17si12173687wrb.272.2017.06.26.07.42.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 07:34:20 -0700 (PDT)
-Received: by mail-qk0-f178.google.com with SMTP id 16so2742660qkg.2
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:34:20 -0700 (PDT)
-Message-ID: <1498487658.5168.8.camel@redhat.com>
-Subject: Re: [PATCH v7 16/22] block: convert to errseq_t based writeback
- error tracking
-From: Jeff Layton <jlayton@redhat.com>
-Date: Mon, 26 Jun 2017 10:34:18 -0400
-In-Reply-To: <1498310166.4796.4.camel@redhat.com>
-References: <20170616193427.13955-1-jlayton@redhat.com>
-	 <20170616193427.13955-17-jlayton@redhat.com>
-	 <20170620123544.GC19781@infradead.org>
-	 <1497980684.4555.16.camel@redhat.com>
-	 <20170624115946.GA22561@infradead.org> <1498310166.4796.4.camel@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Jun 2017 07:42:33 -0700 (PDT)
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Subject: [PATCH v7 0/3] ro protection for dynamic data
+Date: Mon, 26 Jun 2017 17:41:13 +0300
+Message-ID: <20170626144116.27599-1-igor.stoppa@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor
+ Stoppa <igor.stoppa@huawei.com>
 
-On Sat, 2017-06-24 at 09:16 -0400, Jeff Layton wrote:
-> On Sat, 2017-06-24 at 04:59 -0700, Christoph Hellwig wrote:
-> > On Tue, Jun 20, 2017 at 01:44:44PM -0400, Jeff Layton wrote:
-> > > In order to query for errors with errseq_t, you need a previously-
-> > > sampled point from which to check. When you call
-> > > filemap_write_and_wait_range though you don't have a struct file and so
-> > > no previously-sampled value.
-> > 
-> > So can we simply introduce variants of them that take a struct file?
-> > That would be:
-> > 
-> >  a) less churn
-> >  b) less code
-> >  c) less chance to get data integrity wrong
-> 
-> Yeah, I had that thought after I sent the reply to you earlier.
-> 
-> The main reason I didn't do that before was that I had myself convinced
-> that we needed to do the check_and_advance as late as possible in the
-> fsync process, after the metadata had been written.
-> 
-> Now that I think about it more, I think you're probably correct. As long
-> as we do the check and advance at some point after doing the
-> write_and_wait, we're fine here and shouldn't violate exactly once
-> semantics on the fsync return.
+Hi,
+please consider for inclusion.
 
-So I have a file_write_and_wait_range now that should DTRT for this
-patch.
+This patch introduces the possibility of protecting memory that has
+been allocated dynamically.
 
-The bigger question is -- what about more complex filesystems like
-ext4?  There are a couple of cases where we can return -EIO or -EROFS on
-fsync before filemap_write_and_wait_range is ever called. Like this one
-for instance:
+The memory is managed in pools: when a pool is made R/O, all the memory
+that is part of it, will become R/O.
 
-        if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
-                return -EIO;
+A R/O pool can be destroyed to recover its memory, but it cannot be
+turned back into R/W mode.
 
-...and the EXT4_MF_FS_ABORTED case.
+This is intentional. This feature is meant for data that doesn't need
+further modifications, after initialization.
 
-Are those conditions ever recoverable, such that a later fsync could
-succeed? IOW, could I do a remount or something such that the existing
-fds are left open and become usable again? 
+An example is provided, showing how to turn into a boot-time option the
+writable state of the security hooks.
+Prior to this patch, it was a compile-time option.
 
-If so, then we really ought to advance the errseq_t in the file when we
-catch those cases as well. If we have to do that, then it probably makes
-sense to leave the ext4 patch as-is.
+This is made possible, thanks to Tetsuo Handa's rework of the hooks
+structure (included in the patchset).
+
+Changes since the v6 version:
+- complete rewrite, to use the genalloc library
+- added sysfs interface for tracking of active pools
+
+The only question still open is if there should be a possibility for
+unprotecting a memory pool in other cases than destruction.
+
+The only cases found for this topic are:
+- protecting the LSM header structure between creation and insertion of a
+  security module that was not built as part of the kernel
+  (but the module can protect the headers after it has loaded)
+
+- unloading SELinux from RedHat, if the system has booted, but no policy
+  has been loaded yet - this feature is going away, according to Casey.
+
+
+Igor Stoppa (2):
+  Protectable memory support
+  Make LSM Writable Hooks a command line option
+
+Tetsuo Handa (1):
+  LSM: Convert security_hook_heads into explicit array of struct
+    list_head
+
+ arch/Kconfig                   |   1 +
+ include/linux/lsm_hooks.h      | 420 ++++++++++++++++++++---------------------
+ include/linux/page-flags.h     |   2 +
+ include/linux/pmalloc.h        | 111 +++++++++++
+ include/trace/events/mmflags.h |   1 +
+ init/main.c                    |   2 +
+ lib/Kconfig                    |   1 +
+ lib/genalloc.c                 |   4 +-
+ mm/Makefile                    |   1 +
+ mm/pmalloc.c                   | 346 +++++++++++++++++++++++++++++++++
+ mm/usercopy.c                  |  24 ++-
+ security/security.c            |  49 +++--
+ 12 files changed, 726 insertions(+), 236 deletions(-)
+ create mode 100644 include/linux/pmalloc.h
+ create mode 100644 mm/pmalloc.c
+
 -- 
-Jeff Layton <jlayton@redhat.com>
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
