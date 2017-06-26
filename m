@@ -1,43 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D526D6B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:05:32 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o8so10166120qtc.1
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 01:05:32 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B076B0292
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:19:37 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v76so45992304qka.5
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 01:19:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p3si9181820qkd.63.2017.06.26.01.05.32
+        by mx.google.com with ESMTPS id q63si10659262qkf.228.2017.06.26.01.19.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 01:05:32 -0700 (PDT)
-Date: Mon, 26 Jun 2017 10:05:26 +0200
+        Mon, 26 Jun 2017 01:19:37 -0700 (PDT)
+Date: Mon, 26 Jun 2017 10:19:31 +0200
 From: Carlos Maiolino <cmaiolino@redhat.com>
-Subject: Re: [PATCH v7 01/22] fs: remove call_fsync helper function
-Message-ID: <20170626080526.ufetu6blf2kllihn@eorzea.usersys.redhat.com>
+Subject: Re: [PATCH v7 04/22] buffer: set errors in mapping at the time that
+ the error occurs
+Message-ID: <20170626081931.i6jxjel5p2alq6rn@eorzea.usersys.redhat.com>
 References: <20170616193427.13955-1-jlayton@redhat.com>
- <20170616193427.13955-2-jlayton@redhat.com>
+ <20170616193427.13955-5-jlayton@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170616193427.13955-2-jlayton@redhat.com>
+In-Reply-To: <20170616193427.13955-5-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jeff Layton <jlayton@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Fri, Jun 16, 2017 at 03:34:06PM -0400, Jeff Layton wrote:
-> Requested-by: Christoph Hellwig <hch@infradead.org>
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> ---
->  fs/sync.c          | 2 +-
->  include/linux/fs.h | 6 ------
->  ipc/shm.c          | 2 +-
->  3 files changed, 2 insertions(+), 8 deletions(-)
+On Fri, Jun 16, 2017 at 03:34:09PM -0400, Jeff Layton wrote:
+> I noticed on xfs that I could still sometimes get back an error on fsync
+> on a fd that was opened after the error condition had been cleared.
 > 
-> 2.13.0
-If it's worth to have one more reviewer, you can add:
+> The problem is that the buffer code sets the write_io_error flag and
+> then later checks that flag to set the error in the mapping. That flag
+> perisists for quite a while however. If the file is later opened with
+> O_TRUNC, the buffers will then be invalidated and the mapping's error
+> set such that a subsequent fsync will return error. I think this is
+> incorrect, as there was no writeback between the open and fsync.
+> 
+> Add a new mark_buffer_write_io_error operation that sets the flag and
+> the error in the mapping at the same time. Replace all calls to
+> set_buffer_write_io_error with mark_buffer_write_io_error, and remove
+> the places that check this flag in order to set the error in the
+> mapping.
+> 
+> This sets the error in the mapping earlier, at the time that it's first
+> detected.
+> 
+> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> ---
+>  fs/buffer.c                 | 20 +++++++++++++-------
+>  fs/gfs2/lops.c              |  2 +-
+>  include/linux/buffer_head.h |  1 +
+>  3 files changed, 15 insertions(+), 8 deletions(-)
+> 
 
 Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
 
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 7b4f4bfde91e..4d5d03b42e11 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -178,7 +178,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
+>  		set_buffer_uptodate(bh);
+>  	} else {
+>  		buffer_io_error(bh, ", lost sync page write");
+> -		set_buffer_write_io_error(bh);
+> +		mark_buffer_write_io_error(bh);
+>  		clear_buffer_uptodate(bh);
+>  	}
+>  	unlock_buffer(bh);
+> @@ -352,8 +352,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
+>  		set_buffer_uptodate(bh);
+>  	} else {
+>  		buffer_io_error(bh, ", lost async page write");
+> -		mapping_set_error(page->mapping, -EIO);
+> -		set_buffer_write_io_error(bh);
+> +		mark_buffer_write_io_error(bh);
+>  		clear_buffer_uptodate(bh);
+>  		SetPageError(page);
+>  	}
+> @@ -481,8 +480,6 @@ static void __remove_assoc_queue(struct buffer_head *bh)
+>  {
+>  	list_del_init(&bh->b_assoc_buffers);
+>  	WARN_ON(!bh->b_assoc_map);
+> -	if (buffer_write_io_error(bh))
+> -		mapping_set_error(bh->b_assoc_map, -EIO);
+>  	bh->b_assoc_map = NULL;
+>  }
+>  
+> @@ -1181,6 +1178,17 @@ void mark_buffer_dirty(struct buffer_head *bh)
+>  }
+>  EXPORT_SYMBOL(mark_buffer_dirty);
+>  
+> +void mark_buffer_write_io_error(struct buffer_head *bh)
+> +{
+> +	set_buffer_write_io_error(bh);
+> +	/* FIXME: do we need to set this in both places? */
+> +	if (bh->b_page && bh->b_page->mapping)
+> +		mapping_set_error(bh->b_page->mapping, -EIO);
+> +	if (bh->b_assoc_map)
+> +		mapping_set_error(bh->b_assoc_map, -EIO);
+> +}
+> +EXPORT_SYMBOL(mark_buffer_write_io_error);
+> +
+>  /*
+>   * Decrement a buffer_head's reference count.  If all buffers against a page
+>   * have zero reference count, are clean and unlocked, and if the page is clean
+> @@ -3266,8 +3274,6 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
+>  
+>  	bh = head;
+>  	do {
+> -		if (buffer_write_io_error(bh) && page->mapping)
+> -			mapping_set_error(page->mapping, -EIO);
+>  		if (buffer_busy(bh))
+>  			goto failed;
+>  		bh = bh->b_this_page;
+> diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
+> index 885d36e7a29f..1a9c2c08c1a1 100644
+> --- a/fs/gfs2/lops.c
+> +++ b/fs/gfs2/lops.c
+> @@ -182,7 +182,7 @@ static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
+>  		bh = bh->b_this_page;
+>  	do {
+>  		if (error)
+> -			set_buffer_write_io_error(bh);
+> +			mark_buffer_write_io_error(bh);
+>  		unlock_buffer(bh);
+>  		next = bh->b_this_page;
+>  		size -= bh->b_size;
+> diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+> index bd029e52ef5e..e0abeba3ced7 100644
+> --- a/include/linux/buffer_head.h
+> +++ b/include/linux/buffer_head.h
+> @@ -149,6 +149,7 @@ void buffer_check_dirty_writeback(struct page *page,
+>   */
+>  
+>  void mark_buffer_dirty(struct buffer_head *bh);
+> +void mark_buffer_write_io_error(struct buffer_head *bh);
+>  void init_buffer(struct buffer_head *, bh_end_io_t *, void *);
+>  void touch_buffer(struct buffer_head *bh);
+>  void set_bh_page(struct buffer_head *bh,
+> -- 
+> 2.13.0
 > 
 
 -- 
