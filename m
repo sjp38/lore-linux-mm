@@ -1,129 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 56D336B03C1
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:18:29 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id z22so47568153qka.4
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:18:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s58si7157026qte.115.2017.06.26.05.18.28
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F14046B03C3
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:18:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f134so707395wme.3
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:18:40 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si12142977wra.335.2017.06.26.05.18.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:18:28 -0700 (PDT)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 33/51] block: deal with dirtying pages for multipage bvec
-Date: Mon, 26 Jun 2017 20:10:16 +0800
-Message-Id: <20170626121034.3051-34-ming.lei@redhat.com>
-In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
-References: <20170626121034.3051-1-ming.lei@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Jun 2017 05:18:39 -0700 (PDT)
+Date: Mon, 26 Jun 2017 14:18:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/6] mm: kvmalloc support __GFP_RETRY_MAYFAIL for all
+ sizes
+Message-ID: <20170626121836.GL11534@dhcp22.suse.cz>
+References: <20170623085345.11304-1-mhocko@kernel.org>
+ <20170623085345.11304-5-mhocko@kernel.org>
+ <80500165-94c2-2d5c-ff7a-6310916da288@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <80500165-94c2-2d5c-ff7a-6310916da288@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-In bio_check_pages_dirty(), bvec->bv_page is used as flag
-for marking if the page has been dirtied & released, and if
-no, it will be dirtied in deferred workqueue.
+On Mon 26-06-17 14:00:27, Vlastimil Babka wrote:
+> On 06/23/2017 10:53 AM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Now that __GFP_RETRY_MAYFAIL has a reasonable semantic regardless of the
+> > request size we can drop the hackish implementation for !costly orders.
+> > __GFP_RETRY_MAYFAIL retries as long as the reclaim makes a forward
+> > progress and backs of when we are out of memory for the requested size.
+> > Therefore we do not need to enforce__GFP_NORETRY for !costly orders just
+> > to silent the oom killer anymore.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> The flag is now supported, but not for the embedded page table
+> allocations, so OOM is still theoretically possible, right?
+> That should be rare, though. Worth mentioning anywhere?
 
-With multipage bvec, we can't do that any more, so change
-the logic into checking all pages in one mp bvec, and only
-release all these pages if all are dirtied, otherwise dirty
-them all in deferred wrokqueue.
+Yes that is true. Not sure I would make it more complicated than
+necessary. I can add a note in there if you insist but to me it sounds
+like something that will only confuse people.
+ 
+> Other than that.
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- block/bio.c | 45 +++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 37 insertions(+), 8 deletions(-)
+Thanks!
 
-diff --git a/block/bio.c b/block/bio.c
-index bf7f25889f6e..22e5deec7ec7 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -1641,8 +1641,9 @@ void bio_set_pages_dirty(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all bia;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
- 		struct page *page = bvec->bv_page;
- 
- 		if (page && !PageCompound(page))
-@@ -1650,16 +1651,26 @@ void bio_set_pages_dirty(struct bio *bio)
- 	}
- }
- 
-+static inline void release_mp_bvec_pages(struct bio_vec *bvec)
-+{
-+	struct bio_vec bv;
-+	struct bvec_iter iter;
-+
-+	bvec_for_each_sp_bvec(bv, bvec, iter)
-+		put_page(bv.bv_page);
-+}
-+
- static void bio_release_pages(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	/* iterate each mp bvec */
-+	bio_for_each_segment_all_mp(bvec, bio, i) {
- 		struct page *page = bvec->bv_page;
- 
- 		if (page)
--			put_page(page);
-+			release_mp_bvec_pages(bvec);
- 	}
- }
- 
-@@ -1703,20 +1714,38 @@ static void bio_dirty_fn(struct work_struct *work)
- 	}
- }
- 
-+static inline void check_mp_bvec_pages(struct bio_vec *bvec,
-+		int *nr_dirty, int *nr_pages)
-+{
-+	struct bio_vec bv;
-+	struct bvec_iter iter;
-+
-+	bvec_for_each_sp_bvec(bv, bvec, iter) {
-+		struct page *page = bv.bv_page;
-+
-+		if (PageDirty(page) || PageCompound(page))
-+			(*nr_dirty)++;
-+		(*nr_pages)++;
-+	}
-+}
-+
- void bio_check_pages_dirty(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int nr_clean_pages = 0;
- 	int i;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
--		struct page *page = bvec->bv_page;
-+	bio_for_each_segment_all_mp(bvec, bio, i) {
-+		int nr_dirty = 0, nr_pages = 0;
-+
-+		check_mp_bvec_pages(bvec, &nr_dirty, &nr_pages);
- 
--		if (PageDirty(page) || PageCompound(page)) {
--			put_page(page);
-+		/* release all pages in the mp bvec if all are dirtied */
-+		if (nr_dirty == nr_pages) {
-+			release_mp_bvec_pages(bvec);
- 			bvec->bv_page = NULL;
- 		} else {
--			nr_clean_pages++;
-+			nr_clean_pages += nr_pages;
- 		}
- 	}
- 
+> > ---
+> >  mm/util.c | 14 ++++----------
+> >  1 file changed, 4 insertions(+), 10 deletions(-)
+> > 
+> > diff --git a/mm/util.c b/mm/util.c
+> > index 6520f2d4a226..ee250e2cde34 100644
+> > --- a/mm/util.c
+> > +++ b/mm/util.c
+> > @@ -339,9 +339,9 @@ EXPORT_SYMBOL(vm_mmap);
+> >   * Uses kmalloc to get the memory but if the allocation fails then falls back
+> >   * to the vmalloc allocator. Use kvfree for freeing the memory.
+> >   *
+> > - * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_RETRY_MAYFAIL
+> > - * is supported only for large (>32kB) allocations, and it should be used only if
+> > - * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
+> > + * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported.
+> > + * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
+> > + * preferable to the vmalloc fallback, due to visible performance drawbacks.
+> >   *
+> >   * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
+> >   */
+> > @@ -366,13 +366,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+> >  	if (size > PAGE_SIZE) {
+> >  		kmalloc_flags |= __GFP_NOWARN;
+> >  
+> > -		/*
+> > -		 * We have to override __GFP_RETRY_MAYFAIL by __GFP_NORETRY for !costly
+> > -		 * requests because there is no other way to tell the allocator
+> > -		 * that we want to fail rather than retry endlessly.
+> > -		 */
+> > -		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL) ||
+> > -				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
+> > +		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL))
+> >  			kmalloc_flags |= __GFP_NORETRY;
+> >  	}
+> >  
+> > 
+
 -- 
-2.9.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
