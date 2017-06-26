@@ -1,80 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 606426B0390
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:15:19 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id y141so47698380qka.13
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:15:19 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5E5BC6B0343
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:15:30 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id y141so47699522qka.13
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:15:30 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o57si10874593qta.56.2017.06.26.05.15.18
+        by mx.google.com with ESMTPS id m17si11496591qta.186.2017.06.26.05.15.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:15:18 -0700 (PDT)
+        Mon, 26 Jun 2017 05:15:29 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 15/51] btrfs: comment on direct access bvec table
-Date: Mon, 26 Jun 2017 20:09:58 +0800
-Message-Id: <20170626121034.3051-16-ming.lei@redhat.com>
+Subject: [PATCH v2 16/51] block: bounce: avoid direct access to bvec table
+Date: Mon, 26 Jun 2017 20:09:59 +0800
+Message-Id: <20170626121034.3051-17-ming.lei@redhat.com>
 In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
 References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
 
-Cc: Chris Mason <clm@fb.com>
-Cc: Josef Bacik <jbacik@fb.com>
-Cc: David Sterba <dsterba@suse.com>
-Cc: linux-btrfs@vger.kernel.org
+We will support multipage bvecs in the future, so change to
+iterator way for getting bv_page of bvec from original bio.
+
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/btrfs/compression.c |  4 ++++
- fs/btrfs/inode.c       | 12 ++++++++++++
- 2 files changed, 16 insertions(+)
+ block/bounce.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index 2c0b7b57fcd5..5972f74354ca 100644
---- a/fs/btrfs/compression.c
-+++ b/fs/btrfs/compression.c
-@@ -541,6 +541,10 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+diff --git a/block/bounce.c b/block/bounce.c
+index 916ee9a9a216..4eea1b2d8618 100644
+--- a/block/bounce.c
++++ b/block/bounce.c
+@@ -135,21 +135,22 @@ static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
+ static void bounce_end_io(struct bio *bio, mempool_t *pool)
+ {
+ 	struct bio *bio_orig = bio->bi_private;
+-	struct bio_vec *bvec, *org_vec;
++	struct bio_vec *bvec, orig_vec;
+ 	int i;
+-	int start = bio_orig->bi_iter.bi_idx;
++	struct bvec_iter orig_iter = bio_orig->bi_iter;
  
- 	/* we need the actual starting offset of this extent in the file */
- 	read_lock(&em_tree->lock);
-+	/*
-+	 * It is still safe to retrieve the 1st page of the bio
-+	 * in this way after supporting multipage bvec.
-+	 */
- 	em = lookup_extent_mapping(em_tree,
- 				   page_offset(bio->bi_io_vec->bv_page),
- 				   PAGE_SIZE);
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 4ab02b34f029..7e725d84917b 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -8055,6 +8055,12 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
- 	if (bio->bi_status)
- 		goto end;
+ 	/*
+ 	 * free up bounce indirect pages used
+ 	 */
+ 	bio_for_each_segment_all(bvec, bio, i) {
+-		org_vec = bio_orig->bi_io_vec + i + start;
+-
+-		if (bvec->bv_page == org_vec->bv_page)
+-			continue;
++		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
++		if (bvec->bv_page == orig_vec.bv_page)
++			goto next;
  
-+	/*
-+	 * WARNING:
-+	 *
-+	 * With multipage bvec, the following way of direct access to
-+	 * bvec table is only safe if the bio includes single page.
-+	 */
- 	ASSERT(bio->bi_vcnt == 1);
- 	io_tree = &BTRFS_I(inode)->io_tree;
- 	failure_tree = &BTRFS_I(inode)->io_failure_tree;
-@@ -8146,6 +8152,12 @@ static void btrfs_retry_endio(struct bio *bio)
+ 		dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
+ 		mempool_free(bvec->bv_page, pool);
++ next:
++		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
+ 	}
  
- 	uptodate = 1;
- 
-+	/*
-+	 * WARNING:
-+	 *
-+	 * With multipage bvec, the following way of direct access to
-+	 * bvec table is only safe if the bio includes single page.
-+	 */
- 	ASSERT(bio->bi_vcnt == 1);
- 	ASSERT(bio->bi_io_vec->bv_len == btrfs_inode_sectorsize(done->inode));
- 
+ 	bio_orig->bi_status = bio->bi_status;
 -- 
 2.9.4
 
