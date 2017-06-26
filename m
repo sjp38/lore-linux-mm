@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E637F6B03A7
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:16:19 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m54so48489521qtb.9
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:16:19 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A0D126B03A9
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:16:30 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o142so48268488qke.3
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:16:30 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x77si11798956qkg.199.2017.06.26.05.16.18
+        by mx.google.com with ESMTPS id t65si11067905qkb.378.2017.06.26.05.16.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:16:19 -0700 (PDT)
+        Mon, 26 Jun 2017 05:16:29 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 21/51] block: implement sp version of bvec iterator helpers
-Date: Mon, 26 Jun 2017 20:10:04 +0800
-Message-Id: <20170626121034.3051-22-ming.lei@redhat.com>
+Subject: [PATCH v2 22/51] block: introduce bio_for_each_segment_mp()
+Date: Mon, 26 Jun 2017 20:10:05 +0800
+Message-Id: <20170626121034.3051-23-ming.lei@redhat.com>
 In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
 References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,61 +20,143 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
 
-This patch implements singlepage version of the following
-3 helpers:
-	- bvec_iter_offset_sp()
-	- bvec_iter_len_sp()
-	- bvec_iter_page_sp()
-
-So that one multipage bvec can be splited to singlepage
-bvec, and make users of current bvec iterator happy.
+This helper is used to iterate multipage bvec and it is
+required in bio_clone().
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- include/linux/bvec.h | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
+ include/linux/bio.h  | 39 ++++++++++++++++++++++++++++++++++-----
+ include/linux/bvec.h | 37 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 66 insertions(+), 10 deletions(-)
 
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index d425be4d1ced..bdbc9480229d 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -68,6 +68,9 @@
+ #define bio_data_dir(bio) \
+ 	(op_is_write(bio_op(bio)) ? WRITE : READ)
+ 
++#define bio_iter_iovec_mp(bio, iter)				\
++	bvec_iter_bvec_mp((bio)->bi_io_vec, (iter))
++
+ /*
+  * Check whether this bio carries any data or not. A NULL bio is allowed.
+  */
+@@ -163,15 +166,31 @@ static inline void *bio_data(struct bio *bio)
+ #define bio_for_each_segment_all(bvl, bio, i)				\
+ 	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
+ 
+-static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+-				    unsigned bytes)
++static inline void __bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
++				      unsigned bytes, bool mp)
+ {
+ 	iter->bi_sector += bytes >> 9;
+ 
+-	if (bio_no_advance_iter(bio))
++	if (bio_no_advance_iter(bio)) {
+ 		iter->bi_size -= bytes;
+-	else
+-		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
++	} else {
++		if (!mp)
++			bvec_iter_advance(bio->bi_io_vec, iter, bytes);
++		else
++			bvec_iter_advance_mp(bio->bi_io_vec, iter, bytes);
++	}
++}
++
++static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
++				    unsigned bytes)
++{
++	__bio_advance_iter(bio, iter, bytes, false);
++}
++
++static inline void bio_advance_iter_mp(struct bio *bio, struct bvec_iter *iter,
++				       unsigned bytes)
++{
++	__bio_advance_iter(bio, iter, bytes, true);
+ }
+ 
+ #define __bio_for_each_segment(bvl, bio, iter, start)			\
+@@ -187,6 +206,16 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
+ #define bio_for_each_segment(bvl, bio, iter)				\
+ 	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
+ 
++#define __bio_for_each_segment_mp(bvl, bio, iter, start)		\
++	for (iter = (start);						\
++	     (iter).bi_size &&						\
++		((bvl = bio_iter_iovec_mp((bio), (iter))), 1);		\
++	     bio_advance_iter_mp((bio), &(iter), (bvl).bv_len))
++
++/* returns one real segment(multipage bvec) each time */
++#define bio_for_each_segment_mp(bvl, bio, iter)				\
++	__bio_for_each_segment_mp(bvl, bio, iter, (bio)->bi_iter)
++
+ #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
+ 
+ static inline unsigned bio_segments(struct bio *bio)
 diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index f52587e283d4..61632e9db3b8 100644
+index 61632e9db3b8..5c51c58fe202 100644
 --- a/include/linux/bvec.h
 +++ b/include/linux/bvec.h
-@@ -22,6 +22,7 @@
+@@ -128,16 +128,29 @@ struct bvec_iter {
+ 	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
+ })
  
- #include <linux/kernel.h>
- #include <linux/bug.h>
-+#include <linux/mm.h>
+-static inline void bvec_iter_advance(const struct bio_vec *bv,
+-				     struct bvec_iter *iter,
+-				     unsigned bytes)
++#define bvec_iter_bvec_mp(bvec, iter)				\
++((struct bio_vec) {						\
++	.bv_page	= bvec_iter_page_mp((bvec), (iter)),	\
++	.bv_len		= bvec_iter_len_mp((bvec), (iter)),	\
++	.bv_offset	= bvec_iter_offset_mp((bvec), (iter)),	\
++})
++
++static inline void __bvec_iter_advance(const struct bio_vec *bv,
++				       struct bvec_iter *iter,
++				       unsigned bytes, bool mp)
+ {
+ 	WARN_ONCE(bytes > iter->bi_size,
+ 		  "Attempted to advance past end of bvec iter\n");
  
- /*
-  * What is multipage bvecs(segment)?
-@@ -95,14 +96,25 @@ struct bvec_iter {
- #define bvec_iter_offset_mp(bvec, iter)				\
- 	(__bvec_iter_bvec((bvec), (iter))->bv_offset + (iter).bi_bvec_done)
+ 	while (bytes) {
+-		unsigned iter_len = bvec_iter_len(bv, *iter);
+-		unsigned len = min(bytes, iter_len);
++		unsigned len;
++
++		if (mp)
++			len = bvec_iter_len_mp(bv, *iter);
++		else
++			len = bvec_iter_len_sp(bv, *iter);
++
++		len = min(bytes, len);
  
-+#define bvec_iter_page_idx_mp(bvec, iter)			\
-+	(bvec_iter_offset_mp((bvec), (iter)) / PAGE_SIZE)
-+
-+
- /*
-  * <page, offset,length> of singlepage(sp) segment.
-  *
-  * This helpers will be implemented for building sp bvec in flight.
-  */
--#define bvec_iter_offset_sp(bvec, iter)	bvec_iter_offset_mp((bvec), (iter))
--#define bvec_iter_len_sp(bvec, iter)	bvec_iter_len_mp((bvec), (iter))
--#define bvec_iter_page_sp(bvec, iter)	bvec_iter_page_mp((bvec), (iter))
-+#define bvec_iter_offset_sp(bvec, iter)					\
-+	(bvec_iter_offset_mp((bvec), (iter)) % PAGE_SIZE)
-+
-+#define bvec_iter_len_sp(bvec, iter)					\
-+	min_t(unsigned, bvec_iter_len_mp((bvec), (iter)),		\
-+	    (PAGE_SIZE - (bvec_iter_offset_sp((bvec), (iter)))))
-+
-+#define bvec_iter_page_sp(bvec, iter)					\
-+	nth_page(bvec_iter_page_mp((bvec), (iter)),			\
-+		 bvec_iter_page_idx_mp((bvec), (iter)))
+ 		bytes -= len;
+ 		iter->bi_size -= len;
+@@ -150,6 +163,20 @@ static inline void bvec_iter_advance(const struct bio_vec *bv,
+ 	}
+ }
  
- /* current interfaces support sp style at default */
- #define bvec_iter_page(bvec, iter)	bvec_iter_page_sp((bvec), (iter))
++static inline void bvec_iter_advance(const struct bio_vec *bv,
++				     struct bvec_iter *iter,
++				     unsigned bytes)
++{
++	__bvec_iter_advance(bv, iter, bytes, false);
++}
++
++static inline void bvec_iter_advance_mp(const struct bio_vec *bv,
++					struct bvec_iter *iter,
++					unsigned bytes)
++{
++	__bvec_iter_advance(bv, iter, bytes, true);
++}
++
+ #define for_each_bvec(bvl, bio_vec, iter, start)			\
+ 	for (iter = (start);						\
+ 	     (iter).bi_size &&						\
 -- 
 2.9.4
 
