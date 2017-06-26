@@ -1,105 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EDF16B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 03:32:42 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 13so108471579pgg.8
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 00:32:42 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id g3si9522938plb.309.2017.06.26.00.32.41
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 08AD66B0292
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 03:46:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 77so26328wmm.13
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 00:46:39 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 101si12391604wrc.396.2017.06.26.00.46.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 00:32:41 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/4] mm/hotplug: walk_memroy_range on memory_block uit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Jun 2017 00:46:38 -0700 (PDT)
+Date: Mon, 26 Jun 2017 09:46:35 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH 0/4] mm/hotplug: make hotplug memory_block alligned
+Message-ID: <20170626074635.GB11534@dhcp22.suse.cz>
 References: <20170625025227.45665-1-richard.weiyang@gmail.com>
- <20170625025227.45665-3-richard.weiyang@gmail.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <eeb06db0-086a-29f9-306d-a702984594df@nvidia.com>
-Date: Mon, 26 Jun 2017 00:32:40 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170625025227.45665-3-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170625025227.45665-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org
 
-On 06/24/2017 07:52 PM, Wei Yang wrote:
-> hotplug memory range is memory_block aligned and walk_memroy_range guarded
-> with check_hotplug_memory_range(). This is save to iterate on the
-> memory_block base.> 
-> This patch adjust the iteration unit and assume there is not hole in
-> hotplug memory range.
-
-Hi Wei,
-
-In the patch subject, s/memroy/memory/ , and s/uit/unit/, and
-s/save/safe.
-
-Actually, I still have a tough time with it, so maybe the 
-description above could instead be worded approximately
-like this:
-
-Given that a hotpluggable memory range is now block-aligned,
-it is safe for walk_memory_range to iterate by blocks.
-
-Change walk_memory_range() so that it iterates at block
-boundaries, rather than section boundaries. Also, skip the check
-for whether pages are present in the section, and assume 
-that there are no holes in the range. (<Insert reason why 
-that is safe, here>)
-
-
+On Sun 25-06-17 10:52:23, Wei Yang wrote:
+> Michal & all
 > 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/memory_hotplug.c | 10 ++--------
->  1 file changed, 2 insertions(+), 8 deletions(-)
+> Previously we found the hotplug range is mem_section aligned instead of
+> memory_block.
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index f5d06afc8645..a79a83ec965f 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1858,17 +1858,11 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
->  	unsigned long pfn, section_nr;
->  	int ret;
->  
-> -	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> +	for (pfn = start_pfn; pfn < end_pfn;
-> +		pfn += PAGES_PER_SECTION * sections_per_block) {
+> Here is several draft patches to fix that. To make sure I am getting your
+> point correctly, I post it here before further investigation.
 
-Here, and in one or two other spots in the patch, it would be nice
-to repeat your approach from patch 0001, where you introduced a
-pages_per_block variable. That definitely helps when reading the code.
+This description doesn't explain what the problem is and why do we want
+to fix it. Before diving into the code and review changes it would help
+a lot to give a short introduction and explain your intention and your
+assumptions you base your changes on.
 
->  		section_nr = pfn_to_section_nr(pfn);
-> -		if (!present_section_nr(section_nr))
-> -			continue;
+So please start with a highlevel description first.
 
-Why is it safe to assume no holes in the memory range? (Maybe Michal's 
-patch already covered this and I haven't got that far yet?)
-
-The documentation for this routine says that it walks through all
-present memory sections in the range, so it seems like this patch
-breaks that.
-
->  
->  		section = __nr_to_section(section_nr);
-> -		/* same memblock? */
-> -		if (mem)
-> -			if ((section_nr >= mem->start_section_nr) &&
-> -			    (section_nr <= mem->end_section_nr))
-> -				continue;
-
-Yes, that deletion looks good.
-
-thanks,
-john h
-
->  
->  		mem = find_memory_block_hinted(section, mem);
->  		if (!mem)
+> Willing to see your comments. :-)
 > 
+> Wei Yang (4):
+>   mm/hotplug: aligne the hotplugable range with memory_block
+>   mm/hotplug: walk_memroy_range on memory_block uit
+>   mm/hotplug: make __add_pages() iterate on memory_block and split
+>     __add_section()
+>   base/memory: pass start_section_nr to init_memory_block()
+> 
+>  drivers/base/memory.c  | 34 ++++++++++++----------------------
+>  include/linux/memory.h |  4 +++-
+>  mm/memory_hotplug.c    | 48 +++++++++++++++++++++++++-----------------------
+>  3 files changed, 40 insertions(+), 46 deletions(-)
+> 
+> -- 
+> 2.11.0
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
