@@ -1,51 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7116B0338
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:14:14 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id g2so8144939qta.14
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:14:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b189si5770486qkd.383.2017.06.26.05.14.13
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C4C316B033C
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:14:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 12so695085wmn.1
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:14:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e11si12772651wre.37.2017.06.26.05.14.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:14:13 -0700 (PDT)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 09/51] block: comment on bio_iov_iter_get_pages()
-Date: Mon, 26 Jun 2017 20:09:52 +0800
-Message-Id: <20170626121034.3051-10-ming.lei@redhat.com>
-In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
-References: <20170626121034.3051-1-ming.lei@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Jun 2017 05:14:14 -0700 (PDT)
+Date: Mon, 26 Jun 2017 14:14:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/6] mm, tree wide: replace __GFP_REPEAT by
+ __GFP_RETRY_MAYFAIL with more useful semantic
+Message-ID: <20170626121411.GK11534@dhcp22.suse.cz>
+References: <20170623085345.11304-1-mhocko@kernel.org>
+ <20170623085345.11304-3-mhocko@kernel.org>
+ <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-bio_iov_iter_get_pages() used unused bvec spaces for
-storing page pointer array temporarily, and this patch
-comments on this usage wrt. multipage bvec support.
+On Mon 26-06-17 13:45:19, Vlastimil Babka wrote:
+> On 06/23/2017 10:53 AM, Michal Hocko wrote:
+[...]
+> > - GFP_KERNEL - both background and direct reclaim are allowed and the
+> >   _default_ page allocator behavior is used. That means that !costly
+> >   allocation requests are basically nofail (unless the requesting task
+> >   is killed by the OOM killer)
+> 
+> Should we explicitly point out that failure must be handled? After lots
+> of talking about "too small to fail", people might get the wrong impression.
 
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- block/bio.c | 4 ++++
- 1 file changed, 4 insertions(+)
+OK. What about the following.
+"That means that !costly allocation requests are basically nofail but
+there is no guarantee of thaat behavior so failures have to be checked
+properly by callers (e.g. OOM killer victim is allowed to fail
+currently).
 
-diff --git a/block/bio.c b/block/bio.c
-index a5db117e8dfa..bf7f25889f6e 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -870,6 +870,10 @@ EXPORT_SYMBOL(bio_add_page);
-  *
-  * Pins as many pages from *iter and appends them to @bio's bvec array. The
-  * pages will have to be released using put_page() when done.
-+ *
-+ * The hacking way of using bvec table as page pointer array is safe
-+ * even after multipage bvec is introduced because that space can be
-+ * thought as unused by bio_add_page().
-  */
- int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
- {
+> > and costly will fail early rather than
+> >   cause disruptive reclaim.
+> > - GFP_KERNEL | __GFP_NORETRY - overrides the default allocator behavior and
+> >   all allocation requests fail early rather than cause disruptive
+> >   reclaim (one round of reclaim in this implementation). The OOM killer
+> >   is not invoked.
+> > - GFP_KERNEL | __GFP_RETRY_MAYFAIL - overrides the default allocator behavior
+> >   and all allocation requests try really hard. The request will fail if the
+> >   reclaim cannot make any progress. The OOM killer won't be triggered.
+> > - GFP_KERNEL | __GFP_NOFAIL - overrides the default allocator behavior
+> >   and all allocation requests will loop endlessly until they
+> >   succeed. This might be really dangerous especially for larger orders.
+> > 
+> > Existing users of __GFP_REPEAT are changed to __GFP_RETRY_MAYFAIL because
+> > they already had their semantic. No new users are added.
+> > __alloc_pages_slowpath is changed to bail out for __GFP_RETRY_MAYFAIL if
+> > there is no progress and we have already passed the OOM point. This
+> > means that all the reclaim opportunities have been exhausted except the
+> > most disruptive one (the OOM killer) and a user defined fallback
+> > behavior is more sensible than keep retrying in the page allocator.
+> > 
+> > Changes since RFC
+> > - udpate documentation wording as per Neil Brown
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Thanks!
+
+> Some more minor comments below:
+> 
+> ...
+> 
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index 4c6656f1fee7..6be1f836b69e 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -25,7 +25,7 @@ struct vm_area_struct;
+> >  #define ___GFP_FS		0x80u
+> >  #define ___GFP_COLD		0x100u
+> >  #define ___GFP_NOWARN		0x200u
+> > -#define ___GFP_REPEAT		0x400u
+> > +#define ___GFP_RETRY_MAYFAIL		0x400u
+> 
+> Seems like one tab too many, the end result is off:
+
+will fix
+
+> (sigh, tabs are not only error prone, but also we make less money due to
+> them, I heard)
+> 
+> #define ___GFP_NOWARN           0x200u
+> #define ___GFP_RETRY_MAYFAIL            0x400u
+> #define ___GFP_NOFAIL           0x800u
+> 
+> 
+> >  #define ___GFP_NOFAIL		0x800u
+> >  #define ___GFP_NORETRY		0x1000u
+> >  #define ___GFP_MEMALLOC		0x2000u
+> > @@ -136,26 +136,55 @@ struct vm_area_struct;
+> >   *
+> >   * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
+> >   *
+> > - * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+> > - *   _might_ fail.  This depends upon the particular VM implementation.
+> > + * The default allocator behavior depends on the request size. We have a concept
+> > + * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
+> > + * !costly allocations are too essential to fail so they are implicitly
+> > + * non-failing (with some exceptions like OOM victims might fail) by default while
+> 
+> Again, emphasize need for error handling?
+
+the same wording as above?
+
 -- 
-2.9.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
