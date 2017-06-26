@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B50036B03DF
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:22:02 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id z22so48478563qtz.10
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:22:02 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ADA66B03E1
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:22:11 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id 91so47503851qkq.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:22:11 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i16si11349917qtf.90.2017.06.26.05.22.01
+        by mx.google.com with ESMTPS id a124si425609qkd.75.2017.06.26.05.22.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:22:01 -0700 (PDT)
+        Mon, 26 Jun 2017 05:22:10 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 50/51] block: enable multipage bvecs
-Date: Mon, 26 Jun 2017 20:10:33 +0800
-Message-Id: <20170626121034.3051-51-ming.lei@redhat.com>
+Subject: [PATCH v2 51/51] block: bio: pass segments to bio if bio_add_page() is bypassed
+Date: Mon, 26 Jun 2017 20:10:34 +0800
+Message-Id: <20170626121034.3051-52-ming.lei@redhat.com>
 In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
 References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,97 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
 
-This patch pulls the trigger for multipage bvecs.
-
-Now any request queue which supports queue cluster
-will see multipage bvecs.
+Under some situations, such as block direct I/O, we can't use
+bio_add_page() for merging pages into multipage bvec, so
+a new function is implemented for converting page array into one
+segment array, then these cases can benefit from multipage bvec
+too.
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/bio.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ block/bio.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 48 insertions(+), 6 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index c460888f14b5..436305cde045 100644
+index 436305cde045..e2bcbb842982 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -839,6 +839,11 @@ int bio_add_page(struct bio *bio, struct page *page,
- 	 * a consecutive offset.  Optimize this special case.
- 	 */
- 	if (bio->bi_vcnt > 0) {
-+		struct request_queue *q = NULL;
-+
-+		if (bio->bi_bdev)
-+			q = bdev_get_queue(bio->bi_bdev);
-+
- 		bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+@@ -876,6 +876,41 @@ int bio_add_page(struct bio *bio, struct page *page,
+ }
+ EXPORT_SYMBOL(bio_add_page);
  
- 		if (page == bv->bv_page &&
-@@ -846,6 +851,14 @@ int bio_add_page(struct bio *bio, struct page *page,
- 			bv->bv_len += len;
- 			goto done;
- 		}
++static unsigned convert_to_segs(struct bio* bio, struct page **pages,
++				unsigned char *page_cnt,
++				unsigned nr_pages)
++{
 +
-+		/* disable multipage bvec too if cluster isn't enabled */
-+		if (q && blk_queue_cluster(q) &&
-+		    (bvec_to_phys(bv) + bv->bv_len ==
-+		     page_to_phys(page) + offset)) {
-+			bv->bv_len += len;
-+			goto done;
++	unsigned idx;
++	unsigned nr_seg = 0;
++	struct request_queue *q = NULL;
++
++	if (bio->bi_bdev)
++		q = bdev_get_queue(bio->bi_bdev);
++
++	if (!q || !blk_queue_cluster(q)) {
++		memset(page_cnt, 0, nr_pages);
++		return nr_pages;
++	}
++
++	page_cnt[nr_seg] = 0;
++	for (idx = 1; idx < nr_pages; idx++) {
++		struct page *pg_s = pages[nr_seg];
++		struct page *pg = pages[idx];
++
++		if (page_to_pfn(pg_s) + page_cnt[nr_seg] + 1 ==
++		    page_to_pfn(pg)) {
++			page_cnt[nr_seg]++;
++		} else {
++			page_cnt[++nr_seg] = 0;
++			if (nr_seg < idx)
++				pages[nr_seg] = pg;
 +		}
++	}
++
++	return nr_seg + 1;
++}
++
+ /**
+  * bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
+  * @bio: bio to add pages to
+@@ -895,6 +930,8 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+ 	struct page **pages = (struct page **)bv;
+ 	size_t offset, diff;
+ 	ssize_t size;
++	unsigned short nr_segs;
++	unsigned char page_cnt[nr_pages];	/* at most 256 pages */
+ 
+ 	size = iov_iter_get_pages(iter, pages, LONG_MAX, nr_pages, &offset);
+ 	if (unlikely(size <= 0))
+@@ -910,13 +947,18 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+ 	 * need to be reflected here as well.
+ 	 */
+ 	bio->bi_iter.bi_size += size;
+-	bio->bi_vcnt += nr_pages;
+-
+ 	diff = (nr_pages * PAGE_SIZE - offset) - size;
+-	while (nr_pages--) {
+-		bv[nr_pages].bv_page = pages[nr_pages];
+-		bv[nr_pages].bv_len = PAGE_SIZE;
+-		bv[nr_pages].bv_offset = 0;
++
++	/* convert into segments */
++	nr_segs = convert_to_segs(bio, pages, page_cnt, nr_pages);
++	bio->bi_vcnt += nr_segs;
++
++	while (nr_segs--) {
++		unsigned cnt = (unsigned)page_cnt[nr_segs] + 1;
++
++		bv[nr_segs].bv_page = pages[nr_segs];
++		bv[nr_segs].bv_len = PAGE_SIZE * cnt;
++		bv[nr_segs].bv_offset = 0;
  	}
  
- 	if (bio->bi_vcnt >= bio->bi_max_vecs)
+ 	bv[0].bv_offset += offset;
 -- 
 2.9.4
 
