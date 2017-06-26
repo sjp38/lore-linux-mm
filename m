@@ -1,98 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F14046B03C3
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:18:40 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f134so707395wme.3
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:18:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o2si12142977wra.335.2017.06.26.05.18.39
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2E26B03C5
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:18:42 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id h15so46839391qte.0
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:18:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q77si10935633qka.83.2017.06.26.05.18.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 05:18:39 -0700 (PDT)
-Date: Mon, 26 Jun 2017 14:18:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/6] mm: kvmalloc support __GFP_RETRY_MAYFAIL for all
- sizes
-Message-ID: <20170626121836.GL11534@dhcp22.suse.cz>
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-5-mhocko@kernel.org>
- <80500165-94c2-2d5c-ff7a-6310916da288@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <80500165-94c2-2d5c-ff7a-6310916da288@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 05:18:41 -0700 (PDT)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH v2 34/51] block: convert to singe/multi page version of bio_for_each_segment_all()
+Date: Mon, 26 Jun 2017 20:10:17 +0800
+Message-Id: <20170626121034.3051-35-ming.lei@redhat.com>
+In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
+References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
 
-On Mon 26-06-17 14:00:27, Vlastimil Babka wrote:
-> On 06/23/2017 10:53 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Now that __GFP_RETRY_MAYFAIL has a reasonable semantic regardless of the
-> > request size we can drop the hackish implementation for !costly orders.
-> > __GFP_RETRY_MAYFAIL retries as long as the reclaim makes a forward
-> > progress and backs of when we are out of memory for the requested size.
-> > Therefore we do not need to enforce__GFP_NORETRY for !costly orders just
-> > to silent the oom killer anymore.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> The flag is now supported, but not for the embedded page table
-> allocations, so OOM is still theoretically possible, right?
-> That should be rare, though. Worth mentioning anywhere?
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
+---
+ block/bio.c       | 17 +++++++++++------
+ block/blk-zoned.c |  5 +++--
+ block/bounce.c    |  6 ++++--
+ 3 files changed, 18 insertions(+), 10 deletions(-)
 
-Yes that is true. Not sure I would make it more complicated than
-necessary. I can add a note in there if you insist but to me it sounds
-like something that will only confuse people.
+diff --git a/block/bio.c b/block/bio.c
+index 22e5deec7ec7..c460888f14b5 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -988,7 +988,7 @@ int bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
+ 	int i;
+ 	struct bio_vec *bv;
  
-> Other than that.
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
-> > ---
-> >  mm/util.c | 14 ++++----------
-> >  1 file changed, 4 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/util.c b/mm/util.c
-> > index 6520f2d4a226..ee250e2cde34 100644
-> > --- a/mm/util.c
-> > +++ b/mm/util.c
-> > @@ -339,9 +339,9 @@ EXPORT_SYMBOL(vm_mmap);
-> >   * Uses kmalloc to get the memory but if the allocation fails then falls back
-> >   * to the vmalloc allocator. Use kvfree for freeing the memory.
-> >   *
-> > - * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_RETRY_MAYFAIL
-> > - * is supported only for large (>32kB) allocations, and it should be used only if
-> > - * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
-> > + * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported.
-> > + * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
-> > + * preferable to the vmalloc fallback, due to visible performance drawbacks.
-> >   *
-> >   * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
-> >   */
-> > @@ -366,13 +366,7 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> >  	if (size > PAGE_SIZE) {
-> >  		kmalloc_flags |= __GFP_NOWARN;
-> >  
-> > -		/*
-> > -		 * We have to override __GFP_RETRY_MAYFAIL by __GFP_NORETRY for !costly
-> > -		 * requests because there is no other way to tell the allocator
-> > -		 * that we want to fail rather than retry endlessly.
-> > -		 */
-> > -		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL) ||
-> > -				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-> > +		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL))
-> >  			kmalloc_flags |= __GFP_NORETRY;
-> >  	}
-> >  
-> > 
-
+-	bio_for_each_segment_all(bv, bio, i) {
++	bio_for_each_segment_all_mp(bv, bio, i) {
+ 		bv->bv_page = alloc_page(gfp_mask);
+ 		if (!bv->bv_page) {
+ 			while (--bv >= bio->bi_io_vec)
+@@ -1089,8 +1089,9 @@ static int bio_copy_from_iter(struct bio *bio, struct iov_iter iter)
+ {
+ 	int i;
+ 	struct bio_vec *bvec;
++	struct bvec_iter_all bia;
+ 
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		ssize_t ret;
+ 
+ 		ret = copy_page_from_iter(bvec->bv_page,
+@@ -1120,8 +1121,9 @@ static int bio_copy_to_iter(struct bio *bio, struct iov_iter iter)
+ {
+ 	int i;
+ 	struct bio_vec *bvec;
++	struct bvec_iter_all bia;
+ 
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		ssize_t ret;
+ 
+ 		ret = copy_page_to_iter(bvec->bv_page,
+@@ -1143,8 +1145,9 @@ void bio_free_pages(struct bio *bio)
+ {
+ 	struct bio_vec *bvec;
+ 	int i;
++	struct bvec_iter_all bia;
+ 
+-	bio_for_each_segment_all(bvec, bio, i)
++	bio_for_each_segment_all_sp(bvec, bio, i, bia)
+ 		__free_page(bvec->bv_page);
+ }
+ EXPORT_SYMBOL(bio_free_pages);
+@@ -1435,11 +1438,12 @@ static void __bio_unmap_user(struct bio *bio)
+ {
+ 	struct bio_vec *bvec;
+ 	int i;
++	struct bvec_iter_all bia;
+ 
+ 	/*
+ 	 * make sure we dirty pages we wrote to
+ 	 */
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		if (bio_data_dir(bio) == READ)
+ 			set_page_dirty_lock(bvec->bv_page);
+ 
+@@ -1531,8 +1535,9 @@ static void bio_copy_kern_endio_read(struct bio *bio)
+ 	char *p = bio->bi_private;
+ 	struct bio_vec *bvec;
+ 	int i;
++	struct bvec_iter_all bia;
+ 
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		memcpy(p, page_address(bvec->bv_page), bvec->bv_len);
+ 		p += bvec->bv_len;
+ 	}
+diff --git a/block/blk-zoned.c b/block/blk-zoned.c
+index 3bd15d8095b1..558b84ae2d86 100644
+--- a/block/blk-zoned.c
++++ b/block/blk-zoned.c
+@@ -81,6 +81,7 @@ int blkdev_report_zones(struct block_device *bdev,
+ 	unsigned int ofst;
+ 	void *addr;
+ 	int ret;
++	struct bvec_iter_all bia;
+ 
+ 	if (!q)
+ 		return -ENXIO;
+@@ -148,7 +149,7 @@ int blkdev_report_zones(struct block_device *bdev,
+ 	n = 0;
+ 	nz = 0;
+ 	nr_rep = 0;
+-	bio_for_each_segment_all(bv, bio, i) {
++	bio_for_each_segment_all_sp(bv, bio, i, bia) {
+ 
+ 		if (!bv->bv_page)
+ 			break;
+@@ -181,7 +182,7 @@ int blkdev_report_zones(struct block_device *bdev,
+ 
+ 	*nr_zones = nz;
+ out:
+-	bio_for_each_segment_all(bv, bio, i)
++	bio_for_each_segment_all_sp(bv, bio, i, bia)
+ 		__free_page(bv->bv_page);
+ 	bio_put(bio);
+ 
+diff --git a/block/bounce.c b/block/bounce.c
+index 590dcdb1de76..1f46ba9535c1 100644
+--- a/block/bounce.c
++++ b/block/bounce.c
+@@ -144,11 +144,12 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
+ 	struct bio_vec *bvec, orig_vec;
+ 	int i;
+ 	struct bvec_iter orig_iter = bio_orig->bi_iter;
++	struct bvec_iter_all bia;
+ 
+ 	/*
+ 	 * free up bounce indirect pages used
+ 	 */
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
+ 		if (bvec->bv_page == orig_vec.bv_page)
+ 			goto next;
+@@ -205,6 +206,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
+ 	unsigned i = 0;
+ 	bool bounce = false;
+ 	int sectors = 0;
++	struct bvec_iter_all bia;
+ 
+ 	bio_for_each_segment(from, *bio_orig, iter) {
+ 		if (i++ < BIO_MAX_PAGES)
+@@ -223,7 +225,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
+ 	}
+ 	bio = bio_clone_bioset(*bio_orig, GFP_NOIO, bounce_bio_set);
+ 
+-	bio_for_each_segment_all(to, bio, i) {
++	bio_for_each_segment_all_sp(to, bio, i, bia) {
+ 		struct page *page = to->bv_page;
+ 
+ 		if (page_to_pfn(page) <= queue_bounce_pfn(q))
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
