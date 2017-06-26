@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0F56B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:45:22 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z45so28459627wrb.13
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:45:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 400856B02C3
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:53:16 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x23so28528318wrb.6
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:53:16 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e14si12262666wra.236.2017.06.26.04.45.20
+        by mx.google.com with ESMTPS id k90si9797487wmc.87.2017.06.26.04.53.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 04:45:20 -0700 (PDT)
+        Mon, 26 Jun 2017 04:53:14 -0700 (PDT)
 Subject: Re: [PATCH 2/6] mm, tree wide: replace __GFP_REPEAT by
  __GFP_RETRY_MAYFAIL with more useful semantic
 References: <20170623085345.11304-1-mhocko@kernel.org>
  <20170623085345.11304-3-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
-Date: Mon, 26 Jun 2017 13:45:19 +0200
+Message-ID: <ada868d0-077a-f3a9-7a0e-78a594834999@suse.cz>
+Date: Mon, 26 Jun 2017 13:53:13 +0200
 MIME-Version: 1.0
 In-Reply-To: <20170623085345.11304-3-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
@@ -27,77 +27,6 @@ To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
 On 06/23/2017 10:53 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> __GFP_REPEAT was designed to allow retry-but-eventually-fail semantic to
-> the page allocator. This has been true but only for allocations requests
-> larger than PAGE_ALLOC_COSTLY_ORDER. It has been always ignored for
-> smaller sizes. This is a bit unfortunate because there is no way to
-> express the same semantic for those requests and they are considered too
-> important to fail so they might end up looping in the page allocator for
-> ever, similarly to GFP_NOFAIL requests.
-> 
-> Now that the whole tree has been cleaned up and accidental or misled
-> usage of __GFP_REPEAT flag has been removed for !costly requests we can
-> give the original flag a better name and more importantly a more useful
-> semantic. Let's rename it to __GFP_RETRY_MAYFAIL which tells the user that
-> the allocator would try really hard but there is no promise of a
-> success. This will work independent of the order and overrides the
-> default allocator behavior. Page allocator users have several levels of
-> guarantee vs. cost options (take GFP_KERNEL as an example)
-> - GFP_KERNEL & ~__GFP_RECLAIM - optimistic allocation without _any_
->   attempt to free memory at all. The most light weight mode which even
->   doesn't kick the background reclaim. Should be used carefully because
->   it might deplete the memory and the next user might hit the more
->   aggressive reclaim
-> - GFP_KERNEL & ~__GFP_DIRECT_RECLAIM (or GFP_NOWAIT)- optimistic
->   allocation without any attempt to free memory from the current context
->   but can wake kswapd to reclaim memory if the zone is below the low
->   watermark. Can be used from either atomic contexts or when the request
->   is a performance optimization and there is another fallback for a slow
->   path.
-> - (GFP_KERNEL|__GFP_HIGH) & ~__GFP_DIRECT_RECLAIM (aka GFP_ATOMIC) - non
->   sleeping allocation with an expensive fallback so it can access some
->   portion of memory reserves. Usually used from interrupt/bh context with
->   an expensive slow path fallback.
-> - GFP_KERNEL - both background and direct reclaim are allowed and the
->   _default_ page allocator behavior is used. That means that !costly
->   allocation requests are basically nofail (unless the requesting task
->   is killed by the OOM killer)
-
-Should we explicitly point out that failure must be handled? After lots
-of talking about "too small to fail", people might get the wrong impression.
-
-> and costly will fail early rather than
->   cause disruptive reclaim.
-> - GFP_KERNEL | __GFP_NORETRY - overrides the default allocator behavior and
->   all allocation requests fail early rather than cause disruptive
->   reclaim (one round of reclaim in this implementation). The OOM killer
->   is not invoked.
-> - GFP_KERNEL | __GFP_RETRY_MAYFAIL - overrides the default allocator behavior
->   and all allocation requests try really hard. The request will fail if the
->   reclaim cannot make any progress. The OOM killer won't be triggered.
-> - GFP_KERNEL | __GFP_NOFAIL - overrides the default allocator behavior
->   and all allocation requests will loop endlessly until they
->   succeed. This might be really dangerous especially for larger orders.
-> 
-> Existing users of __GFP_REPEAT are changed to __GFP_RETRY_MAYFAIL because
-> they already had their semantic. No new users are added.
-> __alloc_pages_slowpath is changed to bail out for __GFP_RETRY_MAYFAIL if
-> there is no progress and we have already passed the OOM point. This
-> means that all the reclaim opportunities have been exhausted except the
-> most disruptive one (the OOM killer) and a user defined fallback
-> behavior is more sensible than keep retrying in the page allocator.
-> 
-> Changes since RFC
-> - udpate documentation wording as per Neil Brown
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Some more minor comments below:
-
 ...
 
 > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
@@ -110,16 +39,6 @@ Some more minor comments below:
 >  #define ___GFP_NOWARN		0x200u
 > -#define ___GFP_REPEAT		0x400u
 > +#define ___GFP_RETRY_MAYFAIL		0x400u
-
-Seems like one tab too many, the end result is off:
-(sigh, tabs are not only error prone, but also we make less money due to
-them, I heard)
-
-#define ___GFP_NOWARN           0x200u
-#define ___GFP_RETRY_MAYFAIL            0x400u
-#define ___GFP_NOFAIL           0x800u
-
-
 >  #define ___GFP_NOFAIL		0x800u
 >  #define ___GFP_NORETRY		0x1000u
 >  #define ___GFP_MEMALLOC		0x2000u
@@ -133,8 +52,26 @@ them, I heard)
 > + * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
 > + * !costly allocations are too essential to fail so they are implicitly
 > + * non-failing (with some exceptions like OOM victims might fail) by default while
+> + * costly requests try to be not disruptive and back off even without invoking
+> + * the OOM killer. The following three modifiers might be used to override some of
+> + * these implicit rules
+> + *
+> + * __GFP_NORETRY: The VM implementation will try only very lightweight
+> + *   memory direct reclaim to get some memory under memory pressure (thus
+> + *   it can sleep). It will avoid disruptive actions like OOM killer. The
+> + *   caller must handle the failure which is quite likely to happen under
+> + *   heavy memory pressure. The flag is suitable when failure can easily be
+> + *   handled at small cost, such as reduced throughput
+> + *
+> + * __GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
+> + *   procedures that have previously failed if there is some indication
+> + *   that progress has been made else where.  It can wait for other
+> + *   tasks to attempt high level approaches to freeing memory such as
+> + *   compaction (which removes fragmentation) and page-out.
+> + *   There is still a definite limit to the number of retries, but it is
+> + *   a larger limit than with __GFP_NORERY.
 
-Again, emphasize need for error handling?
+Also, __GFP_NORETRY ^ (for grep purposes).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
