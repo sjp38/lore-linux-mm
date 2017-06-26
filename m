@@ -1,45 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 66CCE6B02F4
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:19:58 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id o8so11950474qtc.1
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:19:58 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 954A86B03CF
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:20:09 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id v76so47720857qka.5
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:20:09 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x18si11205100qkb.94.2017.06.26.05.19.57
+        by mx.google.com with ESMTPS id p123si10964163qkd.290.2017.06.26.05.20.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:19:57 -0700 (PDT)
+        Mon, 26 Jun 2017 05:20:08 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 41/51] fs/iomap: convert to bio_for_each_segment_all_sp()
-Date: Mon, 26 Jun 2017 20:10:24 +0800
-Message-Id: <20170626121034.3051-42-ming.lei@redhat.com>
+Subject: [PATCH v2 42/51] ext4: convert to bio_for_each_segment_all_sp()
+Date: Mon, 26 Jun 2017 20:10:25 +0800
+Message-Id: <20170626121034.3051-43-ming.lei@redhat.com>
 In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
 References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org
 
+Cc: "Theodore Ts'o" <tytso@mit.edu>
+Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+Cc: linux-ext4@vger.kernel.org
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/iomap.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ fs/ext4/page-io.c  | 3 ++-
+ fs/ext4/readpage.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index c71a64b97fba..4319284c1fbd 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -696,8 +696,9 @@ static void iomap_dio_bio_end_io(struct bio *bio)
- 	} else {
- 		struct bio_vec *bvec;
- 		int i;
-+		struct bvec_iter_all bia;
+diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
+index 930ca0fc9a0f..0e59404fc530 100644
+--- a/fs/ext4/page-io.c
++++ b/fs/ext4/page-io.c
+@@ -62,8 +62,9 @@ static void ext4_finish_bio(struct bio *bio)
+ {
+ 	int i;
+ 	struct bio_vec *bvec;
++	struct bvec_iter_all bia;
  
--		bio_for_each_segment_all(bvec, bio, i)
-+		bio_for_each_segment_all_sp(bvec, bio, i, bia)
- 			put_page(bvec->bv_page);
- 		bio_put(bio);
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		struct page *page = bvec->bv_page;
+ #ifdef CONFIG_EXT4_FS_ENCRYPTION
+ 		struct page *data_page = NULL;
+diff --git a/fs/ext4/readpage.c b/fs/ext4/readpage.c
+index 40a5497b0f60..6bd33c4c1f7f 100644
+--- a/fs/ext4/readpage.c
++++ b/fs/ext4/readpage.c
+@@ -71,6 +71,7 @@ static void mpage_end_io(struct bio *bio)
+ {
+ 	struct bio_vec *bv;
+ 	int i;
++	struct bvec_iter_all bia;
+ 
+ 	if (ext4_bio_encrypted(bio)) {
+ 		if (bio->bi_status) {
+@@ -80,7 +81,7 @@ static void mpage_end_io(struct bio *bio)
+ 			return;
+ 		}
  	}
+-	bio_for_each_segment_all(bv, bio, i) {
++	bio_for_each_segment_all_sp(bv, bio, i, bia) {
+ 		struct page *page = bv->bv_page;
+ 
+ 		if (!bio->bi_status) {
 -- 
 2.9.4
 
