@@ -1,88 +1,696 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CC866B0313
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:42:35 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id j85so525601wmj.2
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:42:35 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 713C36B0314
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:43:23 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g46so28998360wrd.3
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:43:23 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id d17si12173687wrb.272.2017.06.26.07.42.33
+        by mx.google.com with ESMTPS id m124si202674wmm.192.2017.06.26.07.43.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 07:42:33 -0700 (PDT)
+        Mon, 26 Jun 2017 07:43:21 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH v7 0/3] ro protection for dynamic data
-Date: Mon, 26 Jun 2017 17:41:13 +0300
-Message-ID: <20170626144116.27599-1-igor.stoppa@huawei.com>
+Subject: [PATCH 1/3] Protectable memory support
+Date: Mon, 26 Jun 2017 17:41:14 +0300
+Message-ID: <20170626144116.27599-2-igor.stoppa@huawei.com>
+In-Reply-To: <20170626144116.27599-1-igor.stoppa@huawei.com>
+References: <20170626144116.27599-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com
 Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor
- Stoppa <igor.stoppa@huawei.com>
+ Stoppa <igor.stoppa@gmail.com>, Igor Stoppa <igor.stoppa@huawei.com>
 
-Hi,
-please consider for inclusion.
+From: Igor Stoppa <igor.stoppa@gmail.com>
 
-This patch introduces the possibility of protecting memory that has
-been allocated dynamically.
+The MMU available in many systems running Linux can often provide R/O
+protection to the memory pages it handles.
 
-The memory is managed in pools: when a pool is made R/O, all the memory
-that is part of it, will become R/O.
+However, the MMU-based protection works efficiently only when said pages
+contain exclusively data that will not need further modifications.
 
-A R/O pool can be destroyed to recover its memory, but it cannot be
-turned back into R/W mode.
+Statically allocated variables can be segregated into a dedicated
+section, but this does not sit very well with dynamically allocated ones.
 
-This is intentional. This feature is meant for data that doesn't need
-further modifications, after initialization.
+Dynamic allocation does not provide, currently, any means for grouping
+variables in memory pages that would contain exclusively data suitable
+for conversion to read only access mode.
 
-An example is provided, showing how to turn into a boot-time option the
-writable state of the security hooks.
-Prior to this patch, it was a compile-time option.
+The allocator here provided (pmalloc - protectable memory allocator)
+introduces the concept of pools of protectable memory.
 
-This is made possible, thanks to Tetsuo Handa's rework of the hooks
-structure (included in the patchset).
+A module can request a pool and then refer any allocation request to the
+pool handler it has received.
 
-Changes since the v6 version:
-- complete rewrite, to use the genalloc library
-- added sysfs interface for tracking of active pools
+Once all the chunks of memory associated to a specific pool are
+initialized, the pool can be protected.
 
-The only question still open is if there should be a possibility for
-unprotecting a memory pool in other cases than destruction.
+After this point, the pool can only be destroyed (it is up to the module
+to avoid any further references to the memory from the pool, after
+the destruction is invoked).
 
-The only cases found for this topic are:
-- protecting the LSM header structure between creation and insertion of a
-  security module that was not built as part of the kernel
-  (but the module can protect the headers after it has loaded)
+The latter case is mainly meant for releasing memory, when a module is
+unloaded.
 
-- unloading SELinux from RedHat, if the system has booted, but no policy
-  has been loaded yet - this feature is going away, according to Casey.
+A module can have as many pools as needed, for example to support the
+protection of data that is initialized in sufficiently distinct phases.
 
-
-Igor Stoppa (2):
-  Protectable memory support
-  Make LSM Writable Hooks a command line option
-
-Tetsuo Handa (1):
-  LSM: Convert security_hook_heads into explicit array of struct
-    list_head
-
+Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+---
  arch/Kconfig                   |   1 +
- include/linux/lsm_hooks.h      | 420 ++++++++++++++++++++---------------------
  include/linux/page-flags.h     |   2 +
- include/linux/pmalloc.h        | 111 +++++++++++
+ include/linux/pmalloc.h        | 111 +++++++++++++
  include/trace/events/mmflags.h |   1 +
  init/main.c                    |   2 +
  lib/Kconfig                    |   1 +
  lib/genalloc.c                 |   4 +-
  mm/Makefile                    |   1 +
- mm/pmalloc.c                   | 346 +++++++++++++++++++++++++++++++++
- mm/usercopy.c                  |  24 ++-
- security/security.c            |  49 +++--
- 12 files changed, 726 insertions(+), 236 deletions(-)
+ mm/pmalloc.c                   | 346 +++++++++++++++++++++++++++++++++++++++++
+ mm/usercopy.c                  |  24 +--
+ 10 files changed, 482 insertions(+), 11 deletions(-)
  create mode 100644 include/linux/pmalloc.h
  create mode 100644 mm/pmalloc.c
 
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 6c00e5b..9d16b51 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -228,6 +228,7 @@ config GENERIC_IDLE_POLL_SETUP
+ 
+ # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
+ config ARCH_HAS_SET_MEMORY
++	select GENERIC_ALLOCATOR
+ 	bool
+ 
+ # Select if arch init_task initializer is different to init/init_task.c
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 6b5818d..acc0723 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -81,6 +81,7 @@ enum pageflags {
+ 	PG_active,
+ 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
+ 	PG_slab,
++	PG_pmalloc,
+ 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
+ 	PG_arch_1,
+ 	PG_reserved,
+@@ -274,6 +275,7 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
+ 	TESTCLEARFLAG(Active, active, PF_HEAD)
+ __PAGEFLAG(Slab, slab, PF_NO_TAIL)
+ __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
++__PAGEFLAG(Pmalloc, pmalloc, PF_NO_TAIL)
+ PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
+ 
+ /* Xen */
+diff --git a/include/linux/pmalloc.h b/include/linux/pmalloc.h
+new file mode 100644
+index 0000000..0d65f83
+--- /dev/null
++++ b/include/linux/pmalloc.h
+@@ -0,0 +1,111 @@
++/*
++ * pmalloc.h: Header for Protectable Memory Allocator
++ *
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++
++#ifndef _PMALLOC_H
++#define _PMALLOC_H
++#include <linux/genalloc.h>
++
++#define PMALLOC_DEFAULT_ALLOC_ORDER (-1)
++
++/**
++ * pmalloc_create_pool - create a new protectable memory pool -
++ * @name: the name of the pool, must be unique
++ * @min_alloc_order: log2 of the minimum allocation size obtainable
++ *                   from the pool
++ *
++ * Creates a new (empty) memory pool for allocation of protectable
++ * memory. Memory will be allocated upon request (through pmalloc).
++ *
++ * Returns a pointer to the new pool, upon succes, otherwise a NULL.
++ */
++struct gen_pool *pmalloc_create_pool(const char *name,
++					 int min_alloc_order);
++
++
++/**
++ * pmalloc_get_pool - get a pool handler, from its name
++ * @name: the name of the pool sought after.
++ *
++ * Returns a pointer to the pool, upon succes, otherwise a NULL.
++ */
++struct gen_pool *pmalloc_get_pool(const char *name);
++
++
++
++/**
++ * pmalloc - allocate protectable memory from a pool
++ * @pool: handler to the pool to be used for memory allocation
++ * @size: amount of memory (in bytes) requested
++ *
++ * Allocates memory from an unprotected pool. If the pool doesn't have
++ * enough memory, an attempt is made to add to the pool a new chunk of
++ * memory (multiple of PAGE_SIZE) that can fit the new request.
++ *
++ * Returns the pointer to the memory requested, upon success,
++ * NULL otherwise (either no memory availabel or pool RO).
++ */
++void *pmalloc(struct gen_pool *pool, size_t size);
++
++
++
++/**
++ * pmalloc_free - release memory previously obtained through pmalloc
++ * @pool: the pool providing the memory
++ * @addr: the memory address obtained from pmalloc
++ * @size: the same amount of memory that was requested from pmalloc
++ *
++ * Releases the memory that was previously accounted for as in use.
++ * It works also on pocked pools, but the memory released is simply
++ * removed from the refcount of memory in use. It cannot be re-used.
++ */
++static __always_inline
++void pmalloc_free(struct gen_pool *pool, void *addr, size_t size)
++{
++	gen_pool_free(pool, (unsigned long)addr, size);
++}
++
++
++
++/**
++ * pmalloc_protect_pool - turn a RW pool into RO
++ * @pool: the pool to protect
++ *
++ * Write protects all the memory chunks assigned to the pool.
++ * This prevents further allocation.
++ *
++ * Returns 0 upon success, -EINVAL in abnormal cases.
++ */
++int pmalloc_protect_pool(struct gen_pool *pool);
++
++
++
++/**
++ * pmalloc_pool_protected - check if the pool is protected
++ * @pool: the pool to test
++ *
++ * Returns true if the pool is either protected or missing. False otherwise.
++ */
++bool pmalloc_pool_protected(struct gen_pool *pool);
++
++
++
++/**
++ * pmalloc_destroy_pool - destroys a pool and all the associated memory
++ * @pool: the pool to destroy
++ *
++ * All the memory that was allocated through pmalloc must first be freed
++ * with pmalloc_free. Falire to do so will BUG().
++ *
++ * Returns 0 upon success, -EINVAL in abnormal cases.
++ */
++int pmalloc_destroy_pool(struct gen_pool *pool);
++#endif
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index 304ff94..41d1587 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -91,6 +91,7 @@
+ 	{1UL << PG_lru,			"lru"		},		\
+ 	{1UL << PG_active,		"active"	},		\
+ 	{1UL << PG_slab,		"slab"		},		\
++	{1UL << PG_pmalloc,		"pmalloc"	},		\
+ 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
+ 	{1UL << PG_arch_1,		"arch_1"	},		\
+ 	{1UL << PG_reserved,		"reserved"	},		\
+diff --git a/init/main.c b/init/main.c
+index f866510..a703c9c 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -100,6 +100,7 @@ static int kernel_init(void *);
+ extern void init_IRQ(void);
+ extern void fork_init(void);
+ extern void radix_tree_init(void);
++int __init pmalloc_init(void);
+ 
+ /*
+  * Debug helper: via this flag we know that we are in 'early bootup code'
+@@ -653,6 +654,7 @@ asmlinkage __visible void __init start_kernel(void)
+ 	proc_caches_init();
+ 	buffer_init();
+ 	key_init();
++	pmalloc_init();
+ 	security_init();
+ 	dbg_late_init();
+ 	vfs_caches_init();
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 0c8b78a..3e3b8f6 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -270,6 +270,7 @@ config DECOMPRESS_LZ4
+ # Generic allocator support is selected if needed
+ #
+ config GENERIC_ALLOCATOR
++	depends on ARCH_HAS_SET_MEMORY
+ 	bool
+ 
+ #
+diff --git a/lib/genalloc.c b/lib/genalloc.c
+index 144fe6b..52165bb 100644
+--- a/lib/genalloc.c
++++ b/lib/genalloc.c
+@@ -648,12 +648,12 @@ unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
+ }
+ EXPORT_SYMBOL(gen_pool_best_fit);
+ 
+-static void devm_gen_pool_release(struct device *dev, void *res)
++void devm_gen_pool_release(struct device *dev, void *res)
+ {
+ 	gen_pool_destroy(*(struct gen_pool **)res);
+ }
+ 
+-static int devm_gen_pool_match(struct device *dev, void *res, void *data)
++int devm_gen_pool_match(struct device *dev, void *res, void *data)
+ {
+ 	struct gen_pool **p = res;
+ 
+diff --git a/mm/Makefile b/mm/Makefile
+index 026f6a8..b47dcf8 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -65,6 +65,7 @@ obj-$(CONFIG_SPARSEMEM)	+= sparse.o
+ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
+ obj-$(CONFIG_SLOB) += slob.o
+ obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
++obj-$(CONFIG_ARCH_HAS_SET_MEMORY) += pmalloc.o
+ obj-$(CONFIG_KSM) += ksm.o
+ obj-$(CONFIG_PAGE_POISONING) += page_poison.o
+ obj-$(CONFIG_SLAB) += slab.o
+diff --git a/mm/pmalloc.c b/mm/pmalloc.c
+new file mode 100644
+index 0000000..26f2bae
+--- /dev/null
++++ b/mm/pmalloc.c
+@@ -0,0 +1,346 @@
++/*
++ * pmalloc.c: Protectable Memory Allocator
++ *
++ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; version 2
++ * of the License.
++ */
++
++#include <linux/printk.h>
++#include <linux/init.h>
++#include <linux/mm.h>
++#include <linux/vmalloc.h>
++#include <linux/genalloc.h>
++#include <linux/kernel.h>
++#include <linux/log2.h>
++#include <linux/slab.h>
++#include <linux/device.h>
++#include <linux/atomic.h>
++#include <linux/rculist.h>
++#include <asm/set_memory.h>
++#include <asm/page.h>
++
++#include <linux/debugfs.h>
++#include <linux/kallsyms.h>
++
++
++/**
++ * pmalloc_data contains the data specific to a pmalloc pool,
++ * in a format compatible with the design of gen_alloc.
++ * Some of the fields are used for exposing the corresponding parameter
++ * to userspace, through sysfs.
++ */
++struct pmalloc_data {
++	struct gen_pool *pool;  /* Link back to the associated pool. */
++	atomic_t protected;     /* Status of the pool: RO or RW. */
++	atomic_t processed;     /* Is the pool already in sysfs? */
++	struct device dev;      /* Device used to connect to sysfs. */
++	struct device_attribute attr_protected; /* Sysfs attribute. */
++	struct device_attribute attr_avail;     /* Sysfs attribute. */
++	struct device_attribute attr_size;      /* Sysfs attribute. */
++};
++
++/**
++ * Keeps track of the safe point, where operatioms according to the normal
++ * device model are supported. Before this point, such operation are not
++ * available.
++ */
++static atomic_t into_post_init;
++
++static struct device pmalloc_dev;
++static struct lock_class_key pmalloc_lock_key;
++static struct class pmalloc_class = {
++	.name = "pmalloc",
++	.owner = THIS_MODULE,
++};
++
++static ssize_t __pmalloc_pool_show_protected(struct device *dev,
++					     struct device_attribute *attr,
++					     char *buf)
++{
++	struct pmalloc_data *data;
++
++	data = container_of(attr, struct pmalloc_data, attr_protected);
++	if (atomic_read(&data->protected))
++		return sprintf(buf, "protected\n");
++	else
++		return sprintf(buf, "unprotected\n");
++}
++
++static ssize_t __pmalloc_pool_show_avail(struct device *dev,
++					 struct device_attribute *attr,
++					 char *buf)
++{
++	struct pmalloc_data *data;
++
++	data = container_of(attr, struct pmalloc_data, attr_avail);
++	return sprintf(buf, "%lu\n", gen_pool_avail(data->pool));
++}
++
++static ssize_t __pmalloc_pool_show_size(struct device *dev,
++					struct device_attribute *attr,
++					char *buf)
++{
++	struct pmalloc_data *data;
++
++	data = container_of(attr, struct pmalloc_data, attr_size);
++	return sprintf(buf, "%lu\n", gen_pool_size(data->pool));
++}
++
++/**
++ * Exposes the pool and its attributes through sysfs.
++ */
++static void __pmalloc_connect(struct pmalloc_data *data)
++{
++	device_add(&data->dev);
++	device_create_file(&data->dev, &data->attr_protected);
++	device_create_file(&data->dev, &data->attr_avail);
++	device_create_file(&data->dev, &data->attr_size);
++}
++
++/**
++ * Removes the pool and its attributes from sysfs.
++ */
++static void __pmalloc_disconnect(struct pmalloc_data *data)
++{
++	device_remove_file(&data->dev, &data->attr_protected);
++	device_remove_file(&data->dev, &data->attr_avail);
++	device_remove_file(&data->dev, &data->attr_size);
++	device_del(&data->dev);
++}
++
++/**
++ * Declares an attribute of the pool.
++ */
++#define __pmalloc_attr_init(data, attr_name) \
++{ \
++	data->attr_##attr_name.attr.name = #attr_name; \
++	data->attr_##attr_name.attr.mode = VERIFY_OCTAL_PERMISSIONS(0444); \
++	data->attr_##attr_name.show = __pmalloc_pool_show_##attr_name; \
++}
++
++struct gen_pool *pmalloc_create_pool(const char *name,
++					 int min_alloc_order)
++{
++	struct gen_pool *pool;
++	struct pmalloc_data *data;
++
++	data = kzalloc(sizeof(struct pmalloc_data), GFP_KERNEL);
++	if (!data)
++		return NULL;
++	if (min_alloc_order < 0)
++		min_alloc_order = ilog2(sizeof(unsigned long));
++	pool = devm_gen_pool_create(&pmalloc_dev, min_alloc_order,
++				    -1, name);
++	if (!pool) {
++		kfree(data);
++		return NULL;
++	}
++	atomic_set(&data->protected, false);
++	device_initialize(&data->dev);
++	dev_set_name(&data->dev, "%s", name);
++	data->dev.class = &pmalloc_class;
++	atomic_set(&data->processed, atomic_read(&into_post_init));
++	data->pool = pool;
++	__pmalloc_attr_init(data, protected);
++	__pmalloc_attr_init(data, avail);
++	__pmalloc_attr_init(data, size);
++	if (atomic_read(&data->processed)) /* Check sysfs availability. */
++		__pmalloc_connect(data);   /* After late init. */
++	pool->data = data;
++	return pool;
++}
++
++
++struct gen_pool *pmalloc_get_pool(const char *name)
++{
++	return gen_pool_get(&pmalloc_dev, name);
++}
++
++
++/**
++ * To support hardened usercopy, tag/untag pages supplied by pmalloc.
++ * Pages are tagged when added to a pool and untagged when removed
++ * from said pool.
++ */
++#define PMALLOC_TAG_PAGE true
++#define PMALLOC_UNTAG_PAGE false
++static inline
++int __pmalloc_tag_pages(void *base, const size_t size, const bool set_tag)
++{
++	void *end = base + size - 1;
++
++	do {
++		struct page *page;
++
++		if (!is_vmalloc_addr(base))
++			return -EINVAL;
++		page = vmalloc_to_page(base);
++		if (set_tag)
++			__SetPagePmalloc(page);
++		else
++			__ClearPagePmalloc(page);
++		base += PAGE_SIZE;
++	} while ((PAGE_MASK & (unsigned long)base) <=
++		 (PAGE_MASK & (unsigned long)end));
++	return 0;
++}
++
++
++static void __page_untag(struct gen_pool *pool,
++			 struct gen_pool_chunk *chunk, void *data)
++{
++	__pmalloc_tag_pages((void *)chunk->start_addr,
++			    chunk->end_addr - chunk->start_addr + 1,
++			    PMALLOC_UNTAG_PAGE);
++}
++
++void *pmalloc(struct gen_pool *pool, size_t size)
++{
++	void *retval, *chunk;
++	size_t chunk_size;
++
++	if (!size || !pool ||
++	    atomic_read(&((struct pmalloc_data *)pool->data)->protected))
++		return NULL;
++	retval = (void *)gen_pool_alloc(pool, size);
++	if (retval)
++		return retval;
++	chunk_size = roundup(size, PAGE_SIZE);
++	chunk = vmalloc(chunk_size);
++	if (!chunk)
++		return NULL;
++	__pmalloc_tag_pages(chunk, size, PMALLOC_TAG_PAGE);
++	BUG_ON(gen_pool_add_virt(pool, (unsigned long)chunk,
++				(phys_addr_t)NULL, chunk_size, -1));
++	return (void *)gen_pool_alloc(pool, size);
++}
++
++static void __page_protection(struct gen_pool *pool,
++			      struct gen_pool_chunk *chunk, void *data)
++{
++	unsigned long pages;
++
++	if (!data)
++		return;
++	pages = roundup(chunk->end_addr - chunk->start_addr + 1,
++			PAGE_SIZE) / PAGE_SIZE;
++	if (*(bool *)data)
++		set_memory_ro(chunk->start_addr, pages);
++	else
++		set_memory_rw(chunk->start_addr, pages);
++}
++
++static int __pmalloc_pool_protection(struct gen_pool *pool, bool protection)
++{
++	if (!pool)
++		return -EINVAL;
++	BUG_ON(atomic_read(&((struct pmalloc_data *)pool->data)->protected)
++	       == protection);
++	atomic_set(&((struct pmalloc_data *)pool->data)->protected, protection);
++	gen_pool_for_each_chunk(pool, __page_protection, &protection);
++	return 0;
++}
++
++int pmalloc_protect_pool(struct gen_pool *pool)
++{
++	return __pmalloc_pool_protection(pool, true);
++}
++
++
++bool pmalloc_pool_protected(struct gen_pool *pool)
++{
++	if (!pool)
++		return true;
++	return atomic_read(&(((struct pmalloc_data *)pool->data)->protected));
++}
++
++
++void devm_gen_pool_release(struct device *dev, void *res);
++int devm_gen_pool_match(struct device *dev, void *res, void *data);
++
++int pmalloc_destroy_pool(struct gen_pool *pool)
++{
++	struct gen_pool **p;
++	struct pmalloc_data *data;
++
++	data = (struct pmalloc_data *)pool->data;
++	p = devres_find(&pmalloc_dev, devm_gen_pool_release,
++			devm_gen_pool_match, (void *)pool->name);
++	if (!p)
++		return -EINVAL;
++	__pmalloc_pool_protection(pool, false);
++	gen_pool_for_each_chunk(pool, __page_untag, NULL);
++	devm_gen_pool_release(&pmalloc_dev, p);
++	__pmalloc_disconnect(data);
++	kfree(data);
++	return 0;
++}
++
++static const char msg[] = "Not a valid Pmalloc object.";
++const char *__pmalloc_check_object(const void *ptr, unsigned long n)
++{
++	unsigned long p;
++
++	p = (unsigned long)ptr;
++	n = p + n - 1;
++	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
++		struct page *page;
++
++		if (!is_vmalloc_addr((void *)p))
++			return msg;
++		page = vmalloc_to_page((void *)p);
++		if (!(page && PagePmalloc(page)))
++			return msg;
++	}
++	return NULL;
++}
++EXPORT_SYMBOL(__pmalloc_check_object);
++
++
++/**
++ * Early init function, the main purpose is to create the device used
++ * in conjunction with genalloc, to track the pools as resources.
++ * It cannot register the device because it is called very early in the
++ * boot sequence and the sysfs is not yet fully initialized.
++ */
++int __init pmalloc_init(void)
++{
++	device_initialize(&pmalloc_dev);
++	dev_set_name(&pmalloc_dev, "%s", "pmalloc");
++	atomic_set(&into_post_init, false);
++	return 0;
++}
++
++static void __pmalloc_late_add(struct device *dev, void *pool_ptr, void *d)
++{
++	struct pmalloc_data *data;
++
++	data = (*(struct gen_pool **)pool_ptr)->data;
++	if (!atomic_read(&data->processed)) {
++		atomic_set(&data->processed, true);
++		__pmalloc_connect(data);
++	}
++}
++
++
++/**
++ * When the sysfs is ready for recieving registrations, connect all the
++ * pools previously created. Also enable further pools to be connected
++ * right away.
++ */
++static int __init pmalloc_late_init(void)
++{
++	int retval;
++
++	atomic_set(&into_post_init, true);
++	retval = __class_register(&pmalloc_class, &pmalloc_lock_key);
++	devres_for_each_res(&pmalloc_dev, devm_gen_pool_release,
++			    NULL, NULL, __pmalloc_late_add, NULL);
++	return retval;
++}
++late_initcall(pmalloc_late_init);
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index a9852b2..29bb691 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -195,22 +195,28 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
+ 	return NULL;
+ }
+ 
++extern const char *__pmalloc_check_object(const void *ptr, unsigned long n);
++
+ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+ 					    bool to_user)
+ {
+ 	struct page *page;
+ 
+-	if (!virt_addr_valid(ptr))
+-		return NULL;
+-
+-	page = virt_to_head_page(ptr);
+-
+-	/* Check slab allocator for flags and size. */
+-	if (PageSlab(page))
+-		return __check_heap_object(ptr, n, page);
++	if (virt_addr_valid(ptr)) {
++		page = virt_to_head_page(ptr);
+ 
++		/* Check slab allocator for flags and size. */
++		if (PageSlab(page))
++			return __check_heap_object(ptr, n, page);
+ 	/* Verify object does not incorrectly span multiple pages. */
+-	return check_page_span(ptr, n, page, to_user);
++		return check_page_span(ptr, n, page, to_user);
++	}
++	if (likely(is_vmalloc_addr(ptr))) {
++		page = vmalloc_to_page(ptr);
++		if (unlikely(page && PagePmalloc(page)))
++			return __pmalloc_check_object(ptr, n);
++	}
++	return NULL;
+ }
+ 
+ /*
 -- 
 2.9.3
 
