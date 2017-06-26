@@ -1,126 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C4C316B033C
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:14:15 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 12so695085wmn.1
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:14:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e11si12772651wre.37.2017.06.26.05.14.14
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E10DD6B0343
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:14:24 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id l87so47679795qki.7
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:14:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l91si4325222qtd.7.2017.06.26.05.14.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 05:14:14 -0700 (PDT)
-Date: Mon, 26 Jun 2017 14:14:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/6] mm, tree wide: replace __GFP_REPEAT by
- __GFP_RETRY_MAYFAIL with more useful semantic
-Message-ID: <20170626121411.GK11534@dhcp22.suse.cz>
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-3-mhocko@kernel.org>
- <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 05:14:24 -0700 (PDT)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH v2 10/51] dm: limit the max bio size as BIO_MAX_PAGES * PAGE_SIZE
+Date: Mon, 26 Jun 2017 20:09:53 +0800
+Message-Id: <20170626121034.3051-11-ming.lei@redhat.com>
+In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
+References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Mike Snitzer <snitzer@redhat.com>
 
-On Mon 26-06-17 13:45:19, Vlastimil Babka wrote:
-> On 06/23/2017 10:53 AM, Michal Hocko wrote:
-[...]
-> > - GFP_KERNEL - both background and direct reclaim are allowed and the
-> >   _default_ page allocator behavior is used. That means that !costly
-> >   allocation requests are basically nofail (unless the requesting task
-> >   is killed by the OOM killer)
-> 
-> Should we explicitly point out that failure must be handled? After lots
-> of talking about "too small to fail", people might get the wrong impression.
+For BIO based DM, some targets aren't ready for dealing with
+bigger incoming bio than 1Mbyte, such as crypt target.
 
-OK. What about the following.
-"That means that !costly allocation requests are basically nofail but
-there is no guarantee of thaat behavior so failures have to be checked
-properly by callers (e.g. OOM killer victim is allowed to fail
-currently).
+Cc: Mike Snitzer <snitzer@redhat.com>
+Cc:dm-devel@redhat.com
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
+---
+ drivers/md/dm.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-> > and costly will fail early rather than
-> >   cause disruptive reclaim.
-> > - GFP_KERNEL | __GFP_NORETRY - overrides the default allocator behavior and
-> >   all allocation requests fail early rather than cause disruptive
-> >   reclaim (one round of reclaim in this implementation). The OOM killer
-> >   is not invoked.
-> > - GFP_KERNEL | __GFP_RETRY_MAYFAIL - overrides the default allocator behavior
-> >   and all allocation requests try really hard. The request will fail if the
-> >   reclaim cannot make any progress. The OOM killer won't be triggered.
-> > - GFP_KERNEL | __GFP_NOFAIL - overrides the default allocator behavior
-> >   and all allocation requests will loop endlessly until they
-> >   succeed. This might be really dangerous especially for larger orders.
-> > 
-> > Existing users of __GFP_REPEAT are changed to __GFP_RETRY_MAYFAIL because
-> > they already had their semantic. No new users are added.
-> > __alloc_pages_slowpath is changed to bail out for __GFP_RETRY_MAYFAIL if
-> > there is no progress and we have already passed the OOM point. This
-> > means that all the reclaim opportunities have been exhausted except the
-> > most disruptive one (the OOM killer) and a user defined fallback
-> > behavior is more sensible than keep retrying in the page allocator.
-> > 
-> > Changes since RFC
-> > - udpate documentation wording as per Neil Brown
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
-> Some more minor comments below:
-> 
-> ...
-> 
-> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> > index 4c6656f1fee7..6be1f836b69e 100644
-> > --- a/include/linux/gfp.h
-> > +++ b/include/linux/gfp.h
-> > @@ -25,7 +25,7 @@ struct vm_area_struct;
-> >  #define ___GFP_FS		0x80u
-> >  #define ___GFP_COLD		0x100u
-> >  #define ___GFP_NOWARN		0x200u
-> > -#define ___GFP_REPEAT		0x400u
-> > +#define ___GFP_RETRY_MAYFAIL		0x400u
-> 
-> Seems like one tab too many, the end result is off:
-
-will fix
-
-> (sigh, tabs are not only error prone, but also we make less money due to
-> them, I heard)
-> 
-> #define ___GFP_NOWARN           0x200u
-> #define ___GFP_RETRY_MAYFAIL            0x400u
-> #define ___GFP_NOFAIL           0x800u
-> 
-> 
-> >  #define ___GFP_NOFAIL		0x800u
-> >  #define ___GFP_NORETRY		0x1000u
-> >  #define ___GFP_MEMALLOC		0x2000u
-> > @@ -136,26 +136,55 @@ struct vm_area_struct;
-> >   *
-> >   * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
-> >   *
-> > - * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
-> > - *   _might_ fail.  This depends upon the particular VM implementation.
-> > + * The default allocator behavior depends on the request size. We have a concept
-> > + * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
-> > + * !costly allocations are too essential to fail so they are implicitly
-> > + * non-failing (with some exceptions like OOM victims might fail) by default while
-> 
-> Again, emphasize need for error handling?
-
-the same wording as above?
-
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index 96bd13e581cd..49583c623cdd 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -921,7 +921,16 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
+ 		return -EINVAL;
+ 	}
+ 
+-	ti->max_io_len = (uint32_t) len;
++	/*
++	 * BIO based queue uses its own splitting. When multipage bvecs
++	 * is switched on, size of the incoming bio may be too big to
++	 * be handled in some targets, such as crypt.
++	 *
++	 * When these targets are ready for the big bio, we can remove
++	 * the limit.
++	 */
++	ti->max_io_len = min_t(uint32_t, len,
++			       (BIO_MAX_PAGES * PAGE_SIZE));
+ 
+ 	return 0;
+ }
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
