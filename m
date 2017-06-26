@@ -1,98 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 457D46B0314
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:13:47 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 4so28654313wrc.15
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:13:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w96si11896647wrc.383.2017.06.26.05.13.45
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BCCE6B0315
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:13:57 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o142so48249989qke.3
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:13:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n38si7934560qta.238.2017.06.26.05.13.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 05:13:46 -0700 (PDT)
-Subject: Re: [PATCH 6/6] mm, migration: do not trigger OOM killer when
- migrating memory
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-7-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <35aecfe6-4ef0-5d7f-cda0-fbe68cf356dc@suse.cz>
-Date: Mon, 26 Jun 2017 14:13:44 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170623085345.11304-7-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 05:13:56 -0700 (PDT)
+From: Ming Lei <ming.lei@redhat.com>
+Subject: [PATCH v2 07/51] bcache: comment on direct access to bvec table
+Date: Mon, 26 Jun 2017 20:09:50 +0800
+Message-Id: <20170626121034.3051-8-ming.lei@redhat.com>
+In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
+References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, linux-bcache@vger.kernel.org
 
-On 06/23/2017 10:53 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Page migration (for memory hotplug, soft_offline_page or mbind) needs
-> to allocate a new memory. This can trigger an oom killer if the target
-> memory is depleated. Although quite unlikely, still possible, especially
-> for the memory hotplug (offlining of memoery). Up to now we didn't
-> really have reasonable means to back off. __GFP_NORETRY can fail just
-> too easily and __GFP_THISNODE sticks to a single node and that is not
-> suitable for all callers.
-> 
-> But now that we have __GFP_RETRY_MAYFAIL we should use it.  It is
-> preferable to fail the migration than disrupt the system by killing some
-> processes.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+Looks all are safe after multipage bvec is supported.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-bcache@vger.kernel.org
+Signed-off-by: Ming Lei <ming.lei@redhat.com>
+---
+ drivers/md/bcache/btree.c | 1 +
+ drivers/md/bcache/super.c | 6 ++++++
+ drivers/md/bcache/util.c  | 7 +++++++
+ 3 files changed, 14 insertions(+)
 
-> ---
->  include/linux/migrate.h | 2 +-
->  mm/memory-failure.c     | 3 ++-
->  mm/mempolicy.c          | 3 ++-
->  3 files changed, 5 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index f80c9882403a..9f5885dae80e 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -34,7 +34,7 @@ extern char *migrate_reason_names[MR_TYPES];
->  static inline struct page *new_page_nodemask(struct page *page, int preferred_nid,
->  		nodemask_t *nodemask)
->  {
-> -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> +	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL;
->  
->  	if (PageHuge(page))
->  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index e2e0cb0e1d0f..fe0c484c6fdb 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1492,7 +1492,8 @@ static struct page *new_page(struct page *p, unsigned long private, int **x)
->  
->  		return alloc_huge_page_node(hstate, nid);
->  	} else {
-> -		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-> +		return __alloc_pages_node(nid,
-> +				GFP_HIGHUSER_MOVABLE | __GFP_RETRY_MAYFAIL, 0);
->  	}
->  }
->  
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 7d8e56214ac0..d911fa5cb2a7 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1078,7 +1078,8 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
->  	/*
->  	 * if !vma, alloc_page_vma() will use task or system default policy
->  	 */
-> -	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> +	return alloc_page_vma(GFP_HIGHUSER_MOVABLE | __GFP_RETRY_MAYFAIL,
-> +			vma, address);
->  }
->  #else
->  
-> 
+diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
+index 866dcf78ff8e..3da595ae565b 100644
+--- a/drivers/md/bcache/btree.c
++++ b/drivers/md/bcache/btree.c
+@@ -431,6 +431,7 @@ static void do_btree_node_write(struct btree *b)
+ 
+ 		continue_at(cl, btree_node_write_done, NULL);
+ 	} else {
++		/* No harm for multipage bvec since the new is just allocated */
+ 		b->bio->bi_vcnt = 0;
+ 		bch_bio_map(b->bio, i);
+ 
+diff --git a/drivers/md/bcache/super.c b/drivers/md/bcache/super.c
+index 8352fad765f6..6808f548cd13 100644
+--- a/drivers/md/bcache/super.c
++++ b/drivers/md/bcache/super.c
+@@ -208,6 +208,7 @@ static void write_bdev_super_endio(struct bio *bio)
+ 
+ static void __write_super(struct cache_sb *sb, struct bio *bio)
+ {
++	/* single page bio, safe for multipage bvec */
+ 	struct cache_sb *out = page_address(bio->bi_io_vec[0].bv_page);
+ 	unsigned i;
+ 
+@@ -1154,6 +1155,8 @@ static void register_bdev(struct cache_sb *sb, struct page *sb_page,
+ 	dc->bdev->bd_holder = dc;
+ 
+ 	bio_init(&dc->sb_bio, dc->sb_bio.bi_inline_vecs, 1);
++
++	/* single page bio, safe for multipage bvec */
+ 	dc->sb_bio.bi_io_vec[0].bv_page = sb_page;
+ 	get_page(sb_page);
+ 
+@@ -1799,6 +1802,7 @@ void bch_cache_release(struct kobject *kobj)
+ 	for (i = 0; i < RESERVE_NR; i++)
+ 		free_fifo(&ca->free[i]);
+ 
++	/* single page bio, safe for multipage bvec */
+ 	if (ca->sb_bio.bi_inline_vecs[0].bv_page)
+ 		put_page(ca->sb_bio.bi_io_vec[0].bv_page);
+ 
+@@ -1854,6 +1858,8 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
+ 	ca->bdev->bd_holder = ca;
+ 
+ 	bio_init(&ca->sb_bio, ca->sb_bio.bi_inline_vecs, 1);
++
++	/* single page bio, safe for multipage bvec */
+ 	ca->sb_bio.bi_io_vec[0].bv_page = sb_page;
+ 	get_page(sb_page);
+ 
+diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
+index 8c3a938f4bf0..11b4230ea6ad 100644
+--- a/drivers/md/bcache/util.c
++++ b/drivers/md/bcache/util.c
+@@ -223,6 +223,13 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
+ 		: 0;
+ }
+ 
++/*
++ * Generally it isn't good to access .bi_io_vec and .bi_vcnt
++ * directly, the preferred way is bio_add_page, but in
++ * this case, bch_bio_map() supposes that the bvec table
++ * is empty, so it is safe to access .bi_vcnt & .bi_io_vec
++ * in this way even after multipage bvec is supported.
++ */
+ void bch_bio_map(struct bio *bio, void *base)
+ {
+ 	size_t size = bio->bi_iter.bi_size;
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
