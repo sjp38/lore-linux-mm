@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 150B16B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 14:30:37 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id c6so2509073vke.7
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:30:37 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 94si279537uay.39.2017.06.26.11.30.35
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 799CF6B02B4
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 14:31:29 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 19so673472qty.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:31:29 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id v44si669583qtc.157.2017.06.26.11.31.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 11:30:35 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm, hugetlb: unclutter hugetlb allocation layers
+        Mon, 26 Jun 2017 11:31:28 -0700 (PDT)
+Subject: Re: [PATCH 2/3] hugetlb: add support for preferred node to
+ alloc_huge_page_nodemask
 References: <20170622193034.28972-1-mhocko@kernel.org>
- <20170622193034.28972-2-mhocko@kernel.org>
+ <20170622193034.28972-3-mhocko@kernel.org>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <0b9f7cea-64b1-d20a-0b2a-87fe3d09651f@oracle.com>
-Date: Mon, 26 Jun 2017 11:30:25 -0700
+Message-ID: <7adc4fb3-c1ef-3c9e-567f-30d91d96cbe4@oracle.com>
+Date: Mon, 26 Jun 2017 11:31:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170622193034.28972-2-mhocko@kernel.org>
+In-Reply-To: <20170622193034.28972-3-mhocko@kernel.org>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,46 +28,28 @@ Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman 
 On 06/22/2017 12:30 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> Hugetlb allocation path for fresh huge pages is unnecessarily complex
-> and it mixes different interfaces between layers. __alloc_buddy_huge_page
-> is the central place to perform a new allocation. It checks for the
-> hugetlb overcommit and then relies on __hugetlb_alloc_buddy_huge_page to
-> invoke the page allocator. This is all good except that
-> __alloc_buddy_huge_page pushes vma and address down the callchain and
-> so __hugetlb_alloc_buddy_huge_page has to deal with two different
-> allocation modes - one for memory policy and other node specific (or to
-> make it more obscure node non-specific) requests. This just screams for a
-> reorganization.
+> alloc_huge_page_nodemask tries to allocate from any numa node in the
+> allowed node mask starting from lower numa nodes. This might lead to
+> filling up those low NUMA nodes while others are not used. We can reduce
+> this risk by introducing a concept of the preferred node similar to what
+> we have in the regular page allocator. We will start allocating from the
+> preferred nid and then iterate over all allowed nodes in the zonelist
+> order until we try them all.
 > 
-> This patch pulls out all the vma specific handling up to
-> __alloc_buddy_huge_page_with_mpol where it belongs.
-> __alloc_buddy_huge_page will get nodemask argument and
-> __hugetlb_alloc_buddy_huge_page will become a trivial wrapper over the
-> page allocator.
+> This is mimicking the page allocator logic except it operates on
+> per-node mempools. dequeue_huge_page_vma already does this so distill
+> the zonelist logic into a more generic dequeue_huge_page_nodemask
+> and use it in alloc_huge_page_nodemask.
 > 
-> In short:
-> __alloc_buddy_huge_page_with_mpol - memory policy handling
->   __alloc_buddy_huge_page - overcommit handling and accounting
->     __hugetlb_alloc_buddy_huge_page - page allocator layer
-> 
-> Also note that __hugetlb_alloc_buddy_huge_page and its cpuset retry loop
-> is not really needed because the page allocator already handles the
-> cpusets update.
-> 
-> Finally __hugetlb_alloc_buddy_huge_page had a special case for node
-> specific allocations (when no policy is applied and there is a node
-> given). This has relied on __GFP_THISNODE to not fallback to a different
-> node. alloc_huge_page_node is the only caller which relies on this
-> behavior so move the __GFP_THISNODE there.
-> 
-> Not only this removes quite some code it also should make those layers
-> easier to follow and clear wrt responsibilities.
+> This will allow us to use proper per numa distance fallback also for
+> alloc_huge_page_node which can use alloc_huge_page_nodemask now and we
+> can get rid of alloc_huge_page_node helper which doesn't have any user
+> anymore.
 > 
 > Changes since v1
-> - pulled gfp mask out of __hugetlb_alloc_buddy_huge_page and make it an
->   explicit argument to allow __GFP_THISNODE in alloc_huge_page_node per
->   Vlastimil
-> 
+> - get rid of dequeue_huge_page_node because it is not really needed
+> - simplify dequeue_huge_page_nodemask and alloc_huge_page_nodemask a bit
+>   as per Vlastimil
 
 Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
@@ -74,237 +57,203 @@ Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
 -- 
 Mike Kravetz
 
+> 
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  include/linux/hugetlb.h |   2 +-
->  mm/hugetlb.c            | 133 +++++++++++-------------------------------------
->  2 files changed, 30 insertions(+), 105 deletions(-)
+>  include/linux/hugetlb.h |  5 +--
+>  include/linux/migrate.h |  2 +-
+>  mm/hugetlb.c            | 88 ++++++++++++++++++++++++-------------------------
+>  3 files changed, 48 insertions(+), 47 deletions(-)
 > 
 > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 8fd0725d3f30..66b621469f52 100644
+> index 66b621469f52..8d9fe131a240 100644
 > --- a/include/linux/hugetlb.h
 > +++ b/include/linux/hugetlb.h
-> @@ -349,7 +349,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
+> @@ -349,7 +349,8 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 >  struct page *alloc_huge_page_node(struct hstate *h, int nid);
 >  struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
 >  				unsigned long addr, int avoid_reserve);
-> -struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask);
-> +struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask);
+> -struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask);
+> +struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+> +				nodemask_t *nmask);
 >  int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
 >  			pgoff_t idx);
 >  
+> @@ -525,7 +526,7 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
+>  struct hstate {};
+>  #define alloc_huge_page(v, a, r) NULL
+>  #define alloc_huge_page_node(h, nid) NULL
+> -#define alloc_huge_page_nodemask(h, nmask) NULL
+> +#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
+>  #define alloc_huge_page_noerr(v, a, r) NULL
+>  #define alloc_bootmem_huge_page(h) NULL
+>  #define hstate_file(f) NULL
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index f80c9882403a..af3ccf93efaa 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -38,7 +38,7 @@ static inline struct page *new_page_nodemask(struct page *page, int preferred_ni
+>  
+>  	if (PageHuge(page))
+>  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+> -				nodemask);
+> +				preferred_nid, nodemask);
+>  
+>  	if (PageHighMem(page)
+>  	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 907786581812..fd6e0c50f949 100644
+> index fd6e0c50f949..1e516520433d 100644
 > --- a/mm/hugetlb.c
 > +++ b/mm/hugetlb.c
-> @@ -1521,82 +1521,19 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	return rc;
->  }
->  
-> -/*
-> - * There are 3 ways this can get called:
-> - * 1. With vma+addr: we use the VMA's memory policy
-> - * 2. With !vma, but nid=NUMA_NO_NODE:  We try to allocate a huge
-> - *    page from any node, and let the buddy allocator itself figure
-> - *    it out.
-> - * 3. With !vma, but nid!=NUMA_NO_NODE.  We allocate a huge page
-> - *    strictly from 'nid'
-> - */
->  static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-> -		struct vm_area_struct *vma, unsigned long addr, int nid)
-> +		gfp_t gfp_mask, int nid, nodemask_t *nmask)
->  {
->  	int order = huge_page_order(h);
-> -	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
-> -	unsigned int cpuset_mems_cookie;
->  
-> -	/*
-> -	 * We need a VMA to get a memory policy.  If we do not
-> -	 * have one, we use the 'nid' argument.
-> -	 *
-> -	 * The mempolicy stuff below has some non-inlined bits
-> -	 * and calls ->vm_ops.  That makes it hard to optimize at
-> -	 * compile-time, even when NUMA is off and it does
-> -	 * nothing.  This helps the compiler optimize it out.
-> -	 */
-> -	if (!IS_ENABLED(CONFIG_NUMA) || !vma) {
-> -		/*
-> -		 * If a specific node is requested, make sure to
-> -		 * get memory from there, but only when a node
-> -		 * is explicitly specified.
-> -		 */
-> -		if (nid != NUMA_NO_NODE)
-> -			gfp |= __GFP_THISNODE;
-> -		/*
-> -		 * Make sure to call something that can handle
-> -		 * nid=NUMA_NO_NODE
-> -		 */
-> -		return alloc_pages_node(nid, gfp, order);
-> -	}
-> -
-> -	/*
-> -	 * OK, so we have a VMA.  Fetch the mempolicy and try to
-> -	 * allocate a huge page with it.  We will only reach this
-> -	 * when CONFIG_NUMA=y.
-> -	 */
-> -	do {
-> -		struct page *page;
-> -		struct mempolicy *mpol;
-> -		int nid;
-> -		nodemask_t *nodemask;
-> -
-> -		cpuset_mems_cookie = read_mems_allowed_begin();
-> -		nid = huge_node(vma, addr, gfp, &mpol, &nodemask);
-> -		mpol_cond_put(mpol);
-> -		page = __alloc_pages_nodemask(gfp, order, nid, nodemask);
-> -		if (page)
-> -			return page;
-> -	} while (read_mems_allowed_retry(cpuset_mems_cookie));
-> -
-> -	return NULL;
-> +	gfp_mask |= __GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
-> +	if (nid == NUMA_NO_NODE)
-> +		nid = numa_mem_id();
-> +	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
->  }
->  
-> -/*
-> - * There are two ways to allocate a huge page:
-> - * 1. When you have a VMA and an address (like a fault)
-> - * 2. When you have no VMA (like when setting /proc/.../nr_hugepages)
-> - *
-> - * 'vma' and 'addr' are only for (1).  'nid' is always NUMA_NO_NODE in
-> - * this case which signifies that the allocation should be done with
-> - * respect for the VMA's memory policy.
-> - *
-> - * For (2), we ignore 'vma' and 'addr' and use 'nid' exclusively. This
-> - * implies that memory policies will not be taken in to account.
-> - */
-> -static struct page *__alloc_buddy_huge_page(struct hstate *h,
-> -		struct vm_area_struct *vma, unsigned long addr, int nid)
-> +static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
-> +		int nid, nodemask_t *nmask)
->  {
->  	struct page *page;
->  	unsigned int r_nid;
-> @@ -1605,15 +1542,6 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
->  		return NULL;
->  
->  	/*
-> -	 * Make sure that anyone specifying 'nid' is not also specifying a VMA.
-> -	 * This makes sure the caller is picking _one_ of the modes with which
-> -	 * we can call this function, not both.
-> -	 */
-> -	if (vma || (addr != -1)) {
-> -		VM_WARN_ON_ONCE(addr == -1);
-> -		VM_WARN_ON_ONCE(nid != NUMA_NO_NODE);
-> -	}
-> -	/*
->  	 * Assume we will successfully allocate the surplus page to
->  	 * prevent racing processes from causing the surplus to exceed
->  	 * overcommit
-> @@ -1646,7 +1574,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
->  	}
->  	spin_unlock(&hugetlb_lock);
->  
-> -	page = __hugetlb_alloc_buddy_huge_page(h, vma, addr, nid);
-> +	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
->  
->  	spin_lock(&hugetlb_lock);
->  	if (page) {
-> @@ -1671,26 +1599,23 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h,
->  }
->  
->  /*
-> - * Allocate a huge page from 'nid'.  Note, 'nid' may be
-> - * NUMA_NO_NODE, which means that it may be allocated
-> - * anywhere.
-> - */
-> -static
-> -struct page *__alloc_buddy_huge_page_no_mpol(struct hstate *h, int nid)
-> -{
-> -	unsigned long addr = -1;
-> -
-> -	return __alloc_buddy_huge_page(h, NULL, addr, nid);
-> -}
-> -
-> -/*
->   * Use the VMA's mpolicy to allocate a huge page from the buddy.
->   */
->  static
->  struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
->  		struct vm_area_struct *vma, unsigned long addr)
->  {
-> -	return __alloc_buddy_huge_page(h, vma, addr, NUMA_NO_NODE);
-> +	struct page *page;
-> +	struct mempolicy *mpol;
-> +	gfp_t gfp_mask = htlb_alloc_mask(h);
-> +	int nid;
-> +	nodemask_t *nodemask;
-> +
-> +	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
-> +	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
-> +	mpol_cond_put(mpol);
-> +
-> +	return page;
->  }
->  
->  /*
-> @@ -1700,21 +1625,26 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
->   */
->  struct page *alloc_huge_page_node(struct hstate *h, int nid)
->  {
-> +	gfp_t gfp_mask = htlb_alloc_mask(h);
->  	struct page *page = NULL;
->  
-> +	if (nid != NUMA_NO_NODE)
-> +		gfp_mask |= __GFP_THISNODE;
-> +
->  	spin_lock(&hugetlb_lock);
->  	if (h->free_huge_pages - h->resv_huge_pages > 0)
->  		page = dequeue_huge_page_node(h, nid);
->  	spin_unlock(&hugetlb_lock);
->  
->  	if (!page)
-> -		page = __alloc_buddy_huge_page_no_mpol(h, nid);
-> +		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
->  
+> @@ -887,19 +887,39 @@ static struct page *dequeue_huge_page_node_exact(struct hstate *h, int nid)
 >  	return page;
 >  }
 >  
-> -struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask)
-> +struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+> -static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+> +static struct page *dequeue_huge_page_nodemask(struct hstate *h, gfp_t gfp_mask, int nid,
+> +		nodemask_t *nmask)
 >  {
-> +	gfp_t gfp_mask = htlb_alloc_mask(h);
->  	struct page *page = NULL;
->  	int node;
+> -	struct page *page;
+> -	int node;
+> +	unsigned int cpuset_mems_cookie;
+> +	struct zonelist *zonelist;
+> +	struct zone *zone;
+> +	struct zoneref *z;
+> +	int node = -1;
 >  
-> @@ -1731,13 +1661,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, const nodemask_t *nmask)
->  		return page;
+> -	if (nid != NUMA_NO_NODE)
+> -		return dequeue_huge_page_node_exact(h, nid);
+> +	zonelist = node_zonelist(nid, gfp_mask);
+> +
+> +retry_cpuset:
+> +	cpuset_mems_cookie = read_mems_allowed_begin();
+> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), nmask) {
+> +		struct page *page;
+> +
+> +		if (!cpuset_zone_allowed(zone, gfp_mask))
+> +			continue;
+> +		/*
+> +		 * no need to ask again on the same node. Pool is node rather than
+> +		 * zone aware
+> +		 */
+> +		if (zone_to_nid(zone) == node)
+> +			continue;
+> +		node = zone_to_nid(zone);
+>  
+> -	for_each_online_node(node) {
+>  		page = dequeue_huge_page_node_exact(h, node);
+>  		if (page)
+>  			return page;
+>  	}
+> +	if (unlikely(read_mems_allowed_retry(cpuset_mems_cookie)))
+> +		goto retry_cpuset;
+> +
+>  	return NULL;
+>  }
+>  
+> @@ -917,15 +937,11 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  				unsigned long address, int avoid_reserve,
+>  				long chg)
+>  {
+> -	struct page *page = NULL;
+> +	struct page *page;
+>  	struct mempolicy *mpol;
+> -	nodemask_t *nodemask;
+>  	gfp_t gfp_mask;
+> +	nodemask_t *nodemask;
+>  	int nid;
+> -	struct zonelist *zonelist;
+> -	struct zone *zone;
+> -	struct zoneref *z;
+> -	unsigned int cpuset_mems_cookie;
+>  
+>  	/*
+>  	 * A child process with MAP_PRIVATE mappings created by their parent
+> @@ -940,32 +956,15 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+>  	if (avoid_reserve && h->free_huge_pages - h->resv_huge_pages == 0)
+>  		goto err;
+>  
+> -retry_cpuset:
+> -	cpuset_mems_cookie = read_mems_allowed_begin();
+>  	gfp_mask = htlb_alloc_mask(h);
+>  	nid = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
+> -	zonelist = node_zonelist(nid, gfp_mask);
+> -
+> -	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> -						MAX_NR_ZONES - 1, nodemask) {
+> -		if (cpuset_zone_allowed(zone, gfp_mask)) {
+> -			page = dequeue_huge_page_node(h, zone_to_nid(zone));
+> -			if (page) {
+> -				if (avoid_reserve)
+> -					break;
+> -				if (!vma_has_reserves(vma, chg))
+> -					break;
+> -
+> -				SetPagePrivate(page);
+> -				h->resv_huge_pages--;
+> -				break;
+> -			}
+> -		}
+> +	page = dequeue_huge_page_nodemask(h, gfp_mask, nid, nodemask);
+> +	if (page && !avoid_reserve && vma_has_reserves(vma, chg)) {
+> +		SetPagePrivate(page);
+> +		h->resv_huge_pages--;
+>  	}
+>  
+>  	mpol_cond_put(mpol);
+> -	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+> -		goto retry_cpuset;
+>  	return page;
+>  
+>  err:
+> @@ -1633,7 +1632,7 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>  
+>  	spin_lock(&hugetlb_lock);
+>  	if (h->free_huge_pages - h->resv_huge_pages > 0)
+> -		page = dequeue_huge_page_node(h, nid);
+> +		page = dequeue_huge_page_nodemask(h, gfp_mask, nid, NULL);
+>  	spin_unlock(&hugetlb_lock);
+>  
+>  	if (!page)
+> @@ -1642,26 +1641,27 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+>  	return page;
+>  }
+>  
+> -struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+> +
+> +struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+> +		nodemask_t *nmask)
+>  {
+>  	gfp_t gfp_mask = htlb_alloc_mask(h);
+> -	struct page *page = NULL;
+> -	int node;
+>  
+>  	spin_lock(&hugetlb_lock);
+>  	if (h->free_huge_pages - h->resv_huge_pages > 0) {
+> -		for_each_node_mask(node, *nmask) {
+> -			page = dequeue_huge_page_node_exact(h, node);
+> -			if (page)
+> -				break;
+> +		struct page *page;
+> +
+> +		page = dequeue_huge_page_nodemask(h, gfp_mask, preferred_nid, nmask);
+> +		if (page) {
+> +			spin_unlock(&hugetlb_lock);
+> +			return page;
+>  		}
+>  	}
+>  	spin_unlock(&hugetlb_lock);
+> -	if (page)
+> -		return page;
 >  
 >  	/* No reservations, try to overcommit */
-> -	for_each_node_mask(node, *nmask) {
-> -		page = __alloc_buddy_huge_page_no_mpol(h, node);
-> -		if (page)
-> -			return page;
-> -	}
-> -
-> -	return NULL;
-> +	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);
+> -	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);
+> +
+> +	return __alloc_buddy_huge_page(h, gfp_mask, preferred_nid, nmask);
 >  }
 >  
 >  /*
-> @@ -1765,7 +1689,8 @@ static int gather_surplus_pages(struct hstate *h, int delta)
->  retry:
->  	spin_unlock(&hugetlb_lock);
->  	for (i = 0; i < needed; i++) {
-> -		page = __alloc_buddy_huge_page_no_mpol(h, NUMA_NO_NODE);
-> +		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
-> +				NUMA_NO_NODE, NULL);
->  		if (!page) {
->  			alloc_ok = false;
->  			break;
 > 
 
 --
