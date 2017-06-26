@@ -1,133 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C16136B03B3
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:17:26 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id r30so22181590qtc.5
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:17:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r42si8741541qtc.252.2017.06.26.05.17.25
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C81696B03B5
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:17:32 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z81so28658857wrc.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:17:32 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l192si11288012wmb.67.2017.06.26.05.17.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:17:25 -0700 (PDT)
-From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 27/51] block: use bio_for_each_segment_mp() to map sg
-Date: Mon, 26 Jun 2017 20:10:10 +0800
-Message-Id: <20170626121034.3051-28-ming.lei@redhat.com>
-In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
-References: <20170626121034.3051-1-ming.lei@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Jun 2017 05:17:31 -0700 (PDT)
+Subject: Re: [PATCH 2/6] mm, tree wide: replace __GFP_REPEAT by
+ __GFP_RETRY_MAYFAIL with more useful semantic
+References: <20170623085345.11304-1-mhocko@kernel.org>
+ <20170623085345.11304-3-mhocko@kernel.org>
+ <db63b720-b7aa-1bd0-dde8-d324dfaa9c9b@suse.cz>
+ <20170626121411.GK11534@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <82f5331e-8a3d-ed61-3d5d-3dfcbf557072@suse.cz>
+Date: Mon, 26 Jun 2017 14:17:30 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170626121411.GK11534@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-It is more efficient to use bio_for_each_segment_mp()
-for mapping sg, meantime we have to consider splitting
-multipage bvec as done in blk_bio_segment_split().
+On 06/26/2017 02:14 PM, Michal Hocko wrote:
+> On Mon 26-06-17 13:45:19, Vlastimil Babka wrote:
+>> On 06/23/2017 10:53 AM, Michal Hocko wrote:
+> [...]
+>>> - GFP_KERNEL - both background and direct reclaim are allowed and the
+>>>   _default_ page allocator behavior is used. That means that !costly
+>>>   allocation requests are basically nofail (unless the requesting task
+>>>   is killed by the OOM killer)
+>>
+>> Should we explicitly point out that failure must be handled? After lots
+>> of talking about "too small to fail", people might get the wrong impression.
+> 
+> OK. What about the following.
+> "That means that !costly allocation requests are basically nofail but
+> there is no guarantee of thaat behavior so failures have to be checked
 
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- block/blk-merge.c | 72 +++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 52 insertions(+), 20 deletions(-)
+                           that
 
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index 8d2c2d763456..894dcd017b56 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -439,6 +439,56 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
- 	return 0;
- }
- 
-+static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
-+		struct scatterlist *sglist)
-+{
-+	if (!*sg)
-+		return sglist;
-+	else {
-+		/*
-+		 * If the driver previously mapped a shorter
-+		 * list, we could see a termination bit
-+		 * prematurely unless it fully inits the sg
-+		 * table on each mapping. We KNOW that there
-+		 * must be more entries here or the driver
-+		 * would be buggy, so force clear the
-+		 * termination bit to avoid doing a full
-+		 * sg_init_table() in drivers for each command.
-+		 */
-+		sg_unmark_end(*sg);
-+		return sg_next(*sg);
-+	}
-+}
-+
-+static inline unsigned
-+blk_bvec_map_sg(struct request_queue *q, struct bio_vec *bvec,
-+		struct scatterlist *sglist, struct scatterlist **sg)
-+{
-+	unsigned nbytes = bvec->bv_len;
-+	unsigned nsegs = 0, total = 0;
-+
-+	while (nbytes > 0) {
-+		unsigned seg_size;
-+		struct page *pg;
-+		unsigned offset, idx;
-+
-+		*sg = blk_next_sg(sg, sglist);
-+
-+		seg_size = min(nbytes, queue_max_segment_size(q));
-+		offset = (total + bvec->bv_offset) % PAGE_SIZE;
-+		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-+		pg = nth_page(bvec->bv_page, idx);
-+
-+		sg_set_page(*sg, pg, seg_size, offset);
-+
-+		total += seg_size;
-+		nbytes -= seg_size;
-+		nsegs++;
-+	}
-+
-+	return nsegs;
-+}
-+
- static inline void
- __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		     struct scatterlist *sglist, struct bio_vec *bvprv,
-@@ -472,25 +522,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		(*sg)->length += nbytes;
- 	} else {
- new_segment:
--		if (!*sg)
--			*sg = sglist;
--		else {
--			/*
--			 * If the driver previously mapped a shorter
--			 * list, we could see a termination bit
--			 * prematurely unless it fully inits the sg
--			 * table on each mapping. We KNOW that there
--			 * must be more entries here or the driver
--			 * would be buggy, so force clear the
--			 * termination bit to avoid doing a full
--			 * sg_init_table() in drivers for each command.
--			 */
--			sg_unmark_end(*sg);
--			*sg = sg_next(*sg);
--		}
--
--		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
--		(*nsegs)++;
-+		(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
- 
- 		/* for making iterator happy */
- 		bvec->bv_offset -= advance;
-@@ -516,7 +548,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
- 	int cluster = blk_queue_cluster(q), nsegs = 0;
- 
- 	for_each_bio(bio)
--		bio_for_each_segment(bvec, bio, iter)
-+		bio_for_each_segment_mp(bvec, bio, iter)
- 			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
- 					     &nsegs, &cluster);
- 
--- 
-2.9.4
+> properly by callers (e.g. OOM killer victim is allowed to fail
+> currently).
+
+Looks good, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
