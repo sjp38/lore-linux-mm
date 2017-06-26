@@ -1,77 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 400856B02C3
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:53:16 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id x23so28528318wrb.6
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:53:16 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6989E6B02F4
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:55:35 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b184so637437wme.14
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 04:55:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k90si9797487wmc.87.2017.06.26.04.53.14
+        by mx.google.com with ESMTPS id p46si11587216wrc.128.2017.06.26.04.55.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 04:53:14 -0700 (PDT)
-Subject: Re: [PATCH 2/6] mm, tree wide: replace __GFP_REPEAT by
- __GFP_RETRY_MAYFAIL with more useful semantic
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-3-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ada868d0-077a-f3a9-7a0e-78a594834999@suse.cz>
-Date: Mon, 26 Jun 2017 13:53:13 +0200
+        Mon, 26 Jun 2017 04:55:34 -0700 (PDT)
+Date: Mon, 26 Jun 2017 13:55:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v2 0/7] cgroup-aware OOM killer
+Message-ID: <20170626115531.GI11534@dhcp22.suse.cz>
+References: <1496342115-3974-1-git-send-email-guro@fb.com>
+ <20170609163022.GA9332@dhcp22.suse.cz>
+ <20170622171003.GB30035@castle>
+ <20170623134323.GB5314@dhcp22.suse.cz>
+ <20170623183946.GA24014@castle>
 MIME-Version: 1.0
-In-Reply-To: <20170623085345.11304-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170623183946.GA24014@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org
 
-On 06/23/2017 10:53 AM, Michal Hocko wrote:
-...
+On Fri 23-06-17 19:39:46, Roman Gushchin wrote:
+> On Fri, Jun 23, 2017 at 03:43:24PM +0200, Michal Hocko wrote:
+> > On Thu 22-06-17 18:10:03, Roman Gushchin wrote:
+> > > Hi, Michal!
+> > > 
+> > > Thank you very much for the review. I've tried to address your
+> > > comments in v3 (sent yesterday), so that is why it took some time to reply.
+> > 
+> > I will try to look at it sometimes next week hopefully
+> 
+> Thanks!
+> 
+> > > > - You seem to completely ignore per task oom_score_adj and override it
+> > > >   by the memcg value. This makes some sense but it can lead to an
+> > > >   unexpected behavior when somebody relies on the original behavior.
+> > > >   E.g. a workload that would corrupt data when killed unexpectedly and
+> > > >   so it is protected by OOM_SCORE_ADJ_MIN. Now this assumption will
+> > > >   break when running inside a container. I do not have a good answer
+> > > >   what is the desirable behavior and maybe there is no universal answer.
+> > > >   Maybe you just do not to kill those tasks? But then you have to be
+> > > >   careful when selecting a memcg victim. Hairy...
+> > > 
+> > > I do not ignore it completely, but it matters only for root cgroup tasks
+> > > and inside a cgroup when oom_kill_all_tasks is off.
+> > > 
+> > > I believe, that cgroup v2 requirement is a good enough. I mean you can't
+> > > move from v1 to v2 without changing cgroup settings, and if we will provide
+> > > per-cgroup oom_score_adj, it will be enough to reproduce the old behavior.
+> > > 
+> > > Also, if you think it's necessary, I can add a sysctl to turn the cgroup-aware
+> > > oom killer off completely and provide compatibility mode.
+> > > We can't really save the old system-wide behavior of per-process oom_score_adj,
+> > > it makes no sense in the containerized environment.
+> > 
+> > So what you are going to do with those applications that simply cannot
+> > be killed and which set OOM_SCORE_ADJ_MIN explicitly. Are they
+> > unsupported? How does a user find out? One way around this could be to
+> > simply to not kill tasks with OOM_SCORE_ADJ_MIN.
+> 
+> They won't be killed by cgroup OOM, but under some circumstances can be killed
+> by the global OOM (e.g. there are no other tasks in the selected cgroup,
+> cgroup v2 is used, and per-cgroup oom score adjustment is not set).
 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 4c6656f1fee7..6be1f836b69e 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -25,7 +25,7 @@ struct vm_area_struct;
->  #define ___GFP_FS		0x80u
->  #define ___GFP_COLD		0x100u
->  #define ___GFP_NOWARN		0x200u
-> -#define ___GFP_REPEAT		0x400u
-> +#define ___GFP_RETRY_MAYFAIL		0x400u
->  #define ___GFP_NOFAIL		0x800u
->  #define ___GFP_NORETRY		0x1000u
->  #define ___GFP_MEMALLOC		0x2000u
-> @@ -136,26 +136,55 @@ struct vm_area_struct;
->   *
->   * __GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
->   *
-> - * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
-> - *   _might_ fail.  This depends upon the particular VM implementation.
-> + * The default allocator behavior depends on the request size. We have a concept
-> + * of so called costly allocations (with order > PAGE_ALLOC_COSTLY_ORDER).
-> + * !costly allocations are too essential to fail so they are implicitly
-> + * non-failing (with some exceptions like OOM victims might fail) by default while
-> + * costly requests try to be not disruptive and back off even without invoking
-> + * the OOM killer. The following three modifiers might be used to override some of
-> + * these implicit rules
-> + *
-> + * __GFP_NORETRY: The VM implementation will try only very lightweight
-> + *   memory direct reclaim to get some memory under memory pressure (thus
-> + *   it can sleep). It will avoid disruptive actions like OOM killer. The
-> + *   caller must handle the failure which is quite likely to happen under
-> + *   heavy memory pressure. The flag is suitable when failure can easily be
-> + *   handled at small cost, such as reduced throughput
-> + *
-> + * __GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
-> + *   procedures that have previously failed if there is some indication
-> + *   that progress has been made else where.  It can wait for other
-> + *   tasks to attempt high level approaches to freeing memory such as
-> + *   compaction (which removes fragmentation) and page-out.
-> + *   There is still a definite limit to the number of retries, but it is
-> + *   a larger limit than with __GFP_NORERY.
+Hmm, mem_cgroup_select_oom_victim will happily select a memcg which
+contains OOM_SCORE_ADJ_MIN tasks because it ignores per-task score adj.
+So memcg OOM killer can kill those tasks AFAICS. But that is not all
+that important. Becasuse...
 
-Also, __GFP_NORETRY ^ (for grep purposes).
+> I believe, that per-process oom_score_adj should not play any role outside
+> of the containing cgroup, it's violation of isolation.
+> 
+> Right now if tasks with oom_score_adj=-1000 eating all memory in a cgroup,
+> they will be looping forever, OOM killer can't fix this.
+
+... Yes and that is a price we have to pay for the hard requirement
+that oom killer never kills OOM_SCORE_ADJ_MIN task. It is hard to
+change that without breaking any existing userspace which relies on the
+configuration to protect from an unexpected SIGKILL.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
