@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 598436B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:46:10 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p64so29064238wrc.8
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:46:10 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 598A46B02C3
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:58:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b20so829794wmd.6
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:58:56 -0700 (PDT)
 Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id a3si73447wmi.183.2017.06.26.08.46.08
+        by mx.google.com with ESMTP id m133si125133wmd.43.2017.06.26.08.58.54
         for <linux-mm@kvack.org>;
-        Mon, 26 Jun 2017 08:46:08 -0700 (PDT)
-Date: Mon, 26 Jun 2017 17:45:43 +0200
+        Mon, 26 Jun 2017 08:58:54 -0700 (PDT)
+Date: Mon, 26 Jun 2017 17:58:29 +0200
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH v7 34/36] x86/mm: Add support to encrypt the kernel
- in-place
-Message-ID: <20170626154543.fsuxfhxidytgo2ia@pd.tnic>
-References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
- <20170616185619.18967.38945.stgit@tlendack-t1.amdoffice.net>
- <20170623100013.upd4or6esjvulmvg@pd.tnic>
- <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
+Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using
+ PCID
+Message-ID: <20170626155829.4t2axppz7gwf7trd@pd.tnic>
+References: <cover.1498022414.git.luto@kernel.org>
+ <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
+In-Reply-To: <a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Jun 23, 2017 at 12:44:46PM -0500, Tom Lendacky wrote:
-> Normally the __p4d() macro would be used and that would be ok whether
-> CONFIG_X86_5LEVEL is defined or not. But since __p4d() is part of the
-> paravirt ops path I have to use native_make_p4d().
-
-So __p4d is in !CONFIG_PARAVIRT path.
-
-Regardless, we use the native_* variants in generic code to mean, not
-paravirt. Just define it in a separate patch like the rest of the p4*
-machinery and use it in your code. Sooner or later someone else will
-need it.
-
-> True, 5-level will only be turned on for specific hardware which is why
-> I originally had this as only 4-level pagetables. But in a comment from
-> you back on the v5 version you said it needed to support 5-level. I
-> guess we should have discussed this more,
-
-AFAIR, I said something along the lines of "what about 5-level page
-tables?" and whether we care.
-
-> but I also thought that should our hardware ever support 5-level
-> paging in the future then this would be good to go.
-
-There it is :-)
-
-> The macros work great if you are not running identity mapped. You could
-> use p*d_offset() to move easily through the tables, but those functions
-> use __va() to generate table virtual addresses. I've seen where
-> boot/compressed/pagetable.c #defines __va() to work with identity mapped
-> pages but that would only work if I create a separate file just for this
-> function.
+On Tue, Jun 20, 2017 at 10:22:17PM -0700, Andy Lutomirski wrote:
+> PCID is a "process context ID" -- it's what other architectures call
+> an address space ID.  Every non-global TLB entry is tagged with a
+> PCID, only TLB entries that match the currently selected PCID are
+> used, and we can switch PGDs without flushing the TLB.  x86's
+> PCID is 12 bits.
 > 
-> Given when this occurs it's very similar to what __startup_64() does in
-> regards to the IS_ENABLED(CONFIG_X86_5LEVEL) checks.
+> This is an unorthodox approach to using PCID.  x86's PCID is far too
+> short to uniquely identify a process, and we can't even really
+> uniquely identify a running process because there are monster
+> systems with over 4096 CPUs.  To make matters worse, past attempts
+> to use all 12 PCID bits have resulted in slowdowns instead of
+> speedups.
+> 
+> This patch uses PCID differently.  We use a PCID to identify a
+> recently-used mm on a per-cpu basis.  An mm has no fixed PCID
+> binding at all; instead, we give it a fresh PCID each time it's
+> loaded except in cases where we want to preserve the TLB, in which
+> case we reuse a recent value.
+> 
+> This seems to save about 100ns on context switches between mms.
 
-Ok.
+"... with my microbenchmark of ping-ponging." :)
+
+> 
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+>  arch/x86/include/asm/mmu_context.h     |  3 ++
+>  arch/x86/include/asm/processor-flags.h |  2 +
+>  arch/x86/include/asm/tlbflush.h        | 18 +++++++-
+>  arch/x86/mm/init.c                     |  1 +
+>  arch/x86/mm/tlb.c                      | 82 ++++++++++++++++++++++++++--------
+>  5 files changed, 86 insertions(+), 20 deletions(-)
+
+...
+
+> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+> index 57b305e13c4c..a9a5aa6f45f7 100644
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -82,6 +82,12 @@ static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)
+>  #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+>  #endif
+>  
+> +/*
+> + * 6 because 6 should be plenty and struct tlb_state will fit in
+> + * two cache lines.
+> + */
+> +#define NR_DYNAMIC_ASIDS 6
+
+TLB_NR_DYN_ASIDS
+
+Properly prefixed, I guess.
+
+The rest later, when you're done experimenting. :)
 
 -- 
 Regards/Gruss,
