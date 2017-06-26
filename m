@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 006E66B02C3
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:19:54 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id h15so46847163qte.0
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:19:53 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 66CCE6B02F4
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:19:58 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o8so11950474qtc.1
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 05:19:58 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f28si6797444qte.360.2017.06.26.05.19.52
+        by mx.google.com with ESMTPS id x18si11205100qkb.94.2017.06.26.05.19.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 05:19:53 -0700 (PDT)
+        Mon, 26 Jun 2017 05:19:57 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v2 40/51] fs/block: convert to bio_for_each_segment_all_sp()
-Date: Mon, 26 Jun 2017 20:10:23 +0800
-Message-Id: <20170626121034.3051-41-ming.lei@redhat.com>
+Subject: [PATCH v2 41/51] fs/iomap: convert to bio_for_each_segment_all_sp()
+Date: Mon, 26 Jun 2017 20:10:24 +0800
+Message-Id: <20170626121034.3051-42-ming.lei@redhat.com>
 In-Reply-To: <20170626121034.3051-1-ming.lei@redhat.com>
 References: <20170626121034.3051-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,31 +22,14 @@ Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vge
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/block_dev.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ fs/iomap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index a57c26bcb970..d82e43bd8e82 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -209,6 +209,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
- 	ssize_t ret;
- 	blk_qc_t qc;
- 	int i;
-+	struct bvec_iter_all bia;
- 
- 	if ((pos | iov_iter_alignment(iter)) &
- 	    (bdev_logical_block_size(bdev) - 1))
-@@ -253,7 +254,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
- 	}
- 	__set_current_state(TASK_RUNNING);
- 
--	bio_for_each_segment_all(bvec, &bio, i) {
-+	bio_for_each_segment_all_sp(bvec, &bio, i, bia) {
- 		if (should_dirty && !PageCompound(bvec->bv_page))
- 			set_page_dirty_lock(bvec->bv_page);
- 		put_page(bvec->bv_page);
-@@ -317,8 +318,9 @@ static void blkdev_bio_end_io(struct bio *bio)
+diff --git a/fs/iomap.c b/fs/iomap.c
+index c71a64b97fba..4319284c1fbd 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -696,8 +696,9 @@ static void iomap_dio_bio_end_io(struct bio *bio)
  	} else {
  		struct bio_vec *bvec;
  		int i;
