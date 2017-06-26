@@ -1,109 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 962F36B0313
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:46:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id f49so28997054wrf.5
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:46:02 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id q22si12597251wrb.377.2017.06.26.07.46.01
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD6E6B02F4
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:49:39 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id g2so1194183qta.14
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:49:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f19si251249qtc.27.2017.06.26.07.49.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 07:46:01 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 3/3] Make LSM Writable Hooks a command line option
-Date: Mon, 26 Jun 2017 17:41:16 +0300
-Message-ID: <20170626144116.27599-4-igor.stoppa@huawei.com>
-In-Reply-To: <20170626144116.27599-1-igor.stoppa@huawei.com>
-References: <20170626144116.27599-1-igor.stoppa@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 07:49:38 -0700 (PDT)
+Date: Mon, 26 Jun 2017 10:49:34 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not
+ freeing pud v3
+Message-ID: <20170626144934.GA3706@redhat.com>
+References: <20170624180514.3821-1-jglisse@redhat.com>
+ <20170626094304.bmvsia5zpixbazpu@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170626094304.bmvsia5zpixbazpu@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor
- Stoppa <igor.stoppa@gmail.com>, Igor Stoppa <igor.stoppa@huawei.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Logan Gunthorpe <logang@deltatee.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Igor Stoppa <igor.stoppa@gmail.com>
+On Mon, Jun 26, 2017 at 11:43:04AM +0200, Ingo Molnar wrote:
+> 
+> * jglisse@redhat.com <jglisse@redhat.com> wrote:
+> 
+> > From: Jerome Glisse <jglisse@redhat.com>
+> > 
+> > With commit af2cf278ef4f we no longer free pud so that we do not
+> > have synchronize all pgd on hotremove/vfree. But the new 5 level
+> > page table patchset reverted that for 4 level page table.
+> > 
+> > This patch restore af2cf278ef4f and disable free_pud() if we are
+> > in the 4 level page table case thus avoiding BUG_ON() after hot-
+> > remove.
+> > 
+> > af2cf278ef4f x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+> 
+> Am I correct that the _real_ buggy commit that introduced the breakage in v4.12 
+> is:
+> 
+>   f2a6a7050109: ("x86: Convert the rest of the code to support p4d_t")
+> 
+> ... right?
 
-This patch shows how it is possible to take advantage of pmalloc:
-instead of using the build-time option __lsm_ro_after_init, to decide if
-it is possible to keep the hooks modifiable, now this becomes a
-boot-time decision, based on the kernel command line.
+Correct.
 
-This patch relies on:
-
-"Convert security_hook_heads into explicit array of struct list_head"
-Author: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-to break free from the static constraint imposed by the previous
-hardening model, based on __ro_after_init.
-
-The default value is disabled, unless SE Linux debugging is turned on.
-
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-CC: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- security/security.c | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
-
-diff --git a/security/security.c b/security/security.c
-index 44c47b6..c7b4670 100644
---- a/security/security.c
-+++ b/security/security.c
-@@ -27,6 +27,7 @@
- #include <linux/personality.h>
- #include <linux/backing-dev.h>
- #include <linux/string.h>
-+#include <linux/pmalloc.h>
- #include <net/flow.h>
- 
- #define MAX_LSM_EVM_XATTR	2
-@@ -34,10 +35,19 @@
- /* Maximum number of letters for an LSM name string */
- #define SECURITY_NAME_MAX	10
- 
--static struct list_head hook_heads[LSM_MAX_HOOK_INDEX]
--	__lsm_ro_after_init;
- static ATOMIC_NOTIFIER_HEAD(lsm_notifier_chain);
- 
-+static int dynamic_lsm = IS_ENABLED(CONFIG_SECURITY_SELINUX_DISABLE);
-+
-+static __init int set_dynamic_lsm(char *str)
-+{
-+	get_option(&str, &dynamic_lsm);
-+	return 0;
-+}
-+early_param("dynamic_lsm", set_dynamic_lsm);
-+
-+static struct list_head *hook_heads;
-+static struct gen_pool *sec_pool;
- char *lsm_names;
- /* Boot-time LSM user choice */
- static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
-@@ -62,6 +72,11 @@ int __init security_init(void)
- {
- 	enum security_hook_index i;
- 
-+	sec_pool = pmalloc_create_pool("security", PMALLOC_DEFAULT_ALLOC_ORDER);
-+	BUG_ON(!sec_pool);
-+	hook_heads = pmalloc(sec_pool,
-+			     sizeof(struct list_head) * LSM_MAX_HOOK_INDEX);
-+	BUG_ON(!hook_heads);
- 	for (i = 0; i < LSM_MAX_HOOK_INDEX; i++)
- 		INIT_LIST_HEAD(&hook_heads[i]);
- 	pr_info("Security Framework initialized\n");
-@@ -77,7 +92,8 @@ int __init security_init(void)
- 	 * Load all the remaining security modules.
- 	 */
- 	do_security_initcalls();
--
-+	if (!dynamic_lsm)
-+		pmalloc_protect_pool(sec_pool);
- 	return 0;
- }
- 
--- 
-2.9.3
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
