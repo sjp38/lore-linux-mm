@@ -1,103 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C6536B0292
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:32:34 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id o7so2614644ite.13
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:32:34 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 142si359979iof.155.2017.06.26.08.32.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 08:32:33 -0700 (PDT)
-Date: Mon, 26 Jun 2017 08:22:41 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v7 21/22] xfs: minimal conversion to errseq_t writeback
- error reporting
-Message-ID: <20170626152241.GC4733@birch.djwong.org>
-References: <20170616193427.13955-1-jlayton@redhat.com>
- <20170616193427.13955-22-jlayton@redhat.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 598436B0292
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 11:46:10 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p64so29064238wrc.8
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 08:46:10 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id a3si73447wmi.183.2017.06.26.08.46.08
+        for <linux-mm@kvack.org>;
+        Mon, 26 Jun 2017 08:46:08 -0700 (PDT)
+Date: Mon, 26 Jun 2017 17:45:43 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v7 34/36] x86/mm: Add support to encrypt the kernel
+ in-place
+Message-ID: <20170626154543.fsuxfhxidytgo2ia@pd.tnic>
+References: <20170616184947.18967.84890.stgit@tlendack-t1.amdoffice.net>
+ <20170616185619.18967.38945.stgit@tlendack-t1.amdoffice.net>
+ <20170623100013.upd4or6esjvulmvg@pd.tnic>
+ <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170616193427.13955-22-jlayton@redhat.com>
+In-Reply-To: <af9a50f7-17ea-a840-6456-b6479e5d7e82@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Fri, Jun 16, 2017 at 03:34:26PM -0400, Jeff Layton wrote:
-> Just check and advance the data errseq_t in struct file before
-> before returning from fsync on normal files. Internal filemap_*
-> callers are left as-is.
+On Fri, Jun 23, 2017 at 12:44:46PM -0500, Tom Lendacky wrote:
+> Normally the __p4d() macro would be used and that would be ok whether
+> CONFIG_X86_5LEVEL is defined or not. But since __p4d() is part of the
+> paravirt ops path I have to use native_make_p4d().
+
+So __p4d is in !CONFIG_PARAVIRT path.
+
+Regardless, we use the native_* variants in generic code to mean, not
+paravirt. Just define it in a separate patch like the rest of the p4*
+machinery and use it in your code. Sooner or later someone else will
+need it.
+
+> True, 5-level will only be turned on for specific hardware which is why
+> I originally had this as only 4-level pagetables. But in a comment from
+> you back on the v5 version you said it needed to support 5-level. I
+> guess we should have discussed this more,
+
+AFAIR, I said something along the lines of "what about 5-level page
+tables?" and whether we care.
+
+> but I also thought that should our hardware ever support 5-level
+> paging in the future then this would be good to go.
+
+There it is :-)
+
+> The macros work great if you are not running identity mapped. You could
+> use p*d_offset() to move easily through the tables, but those functions
+> use __va() to generate table virtual addresses. I've seen where
+> boot/compressed/pagetable.c #defines __va() to work with identity mapped
+> pages but that would only work if I create a separate file just for this
+> function.
 > 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> ---
->  fs/xfs/xfs_file.c | 15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index 5fb5a0958a14..bc3b1575e8db 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -134,7 +134,7 @@ xfs_file_fsync(
->  	struct inode		*inode = file->f_mapping->host;
->  	struct xfs_inode	*ip = XFS_I(inode);
->  	struct xfs_mount	*mp = ip->i_mount;
-> -	int			error = 0;
-> +	int			error = 0, err2;
->  	int			log_flushed = 0;
->  	xfs_lsn_t		lsn = 0;
->  
-> @@ -142,10 +142,12 @@ xfs_file_fsync(
->  
->  	error = filemap_write_and_wait_range(inode->i_mapping, start, end);
->  	if (error)
-> -		return error;
-> +		goto out;
->  
-> -	if (XFS_FORCED_SHUTDOWN(mp))
-> -		return -EIO;
-> +	if (XFS_FORCED_SHUTDOWN(mp)) {
-> +		error = -EIO;
-> +		goto out;
-> +	}
->  
->  	xfs_iflags_clear(ip, XFS_ITRUNCATED);
->  
-> @@ -197,6 +199,11 @@ xfs_file_fsync(
->  	    mp->m_logdev_targp == mp->m_ddev_targp)
->  		xfs_blkdev_issue_flush(mp->m_ddev_targp);
->  
-> +out:
-> +	err2 = filemap_report_wb_err(file);
+> Given when this occurs it's very similar to what __startup_64() does in
+> regards to the IS_ENABLED(CONFIG_X86_5LEVEL) checks.
 
-Could we have a comment here to remind anyone reading the code a year
-from now that filemap_report_wb_err has side effects?  Pre-coffee me was
-wondering why we'd bother calling filemap_report_wb_err in the
-XFS_FORCED_SHUTDOWN case, then remembered that it touches data
-structures.
+Ok.
 
-The first sentence of the commit message (really, the word 'advance')
-added as a comment was adequate to remind me of the side effects.
+-- 
+Regards/Gruss,
+    Boris.
 
-Once that's added,
-Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-
---D
-
-> +	if (!error)
-> +		error = err2;
-> +
->  	return error;
->  }
->  
-> -- 
-> 2.13.0
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
