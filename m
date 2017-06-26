@@ -1,157 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 83BE56B02F4
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:27:35 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 77so28898107wrb.11
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:27:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l126si244583wmd.3.2017.06.26.07.27.33
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C686B02FD
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:34:22 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id 91so1081584qkq.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:34:22 -0700 (PDT)
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com. [209.85.220.178])
+        by mx.google.com with ESMTPS id x24si222011qtb.1.2017.06.26.07.34.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 07:27:33 -0700 (PDT)
-Date: Mon, 26 Jun 2017 16:27:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Error in freeing memory with zone reclaimable always returning
- true.
-Message-ID: <20170626142730.GP11534@dhcp22.suse.cz>
-References: <CABXF_ACjD535xtk5_1MO6O8rdT+eudCn=GG0tM1ntEb6t1JO8w@mail.gmail.com>
- <20170626080019.GC11534@dhcp22.suse.cz>
- <1498482248.5348.7.camel@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1498482248.5348.7.camel@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 07:34:20 -0700 (PDT)
+Received: by mail-qk0-f178.google.com with SMTP id 16so2742660qkg.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:34:20 -0700 (PDT)
+Message-ID: <1498487658.5168.8.camel@redhat.com>
+Subject: Re: [PATCH v7 16/22] block: convert to errseq_t based writeback
+ error tracking
+From: Jeff Layton <jlayton@redhat.com>
+Date: Mon, 26 Jun 2017 10:34:18 -0400
+In-Reply-To: <1498310166.4796.4.camel@redhat.com>
+References: <20170616193427.13955-1-jlayton@redhat.com>
+	 <20170616193427.13955-17-jlayton@redhat.com>
+	 <20170620123544.GC19781@infradead.org>
+	 <1497980684.4555.16.camel@redhat.com>
+	 <20170624115946.GA22561@infradead.org> <1498310166.4796.4.camel@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ivid Suvarna <ivid.suvarna@gmail.com>
-Cc: linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
-On Mon 26-06-17 06:04:08, Ivid Suvarna wrote:
-> On Mon, 2017-06-26 at 10:00 +0200, Michal Hocko wrote:
-> > On Mon 26-06-17 12:59:17, Ivid Suvarna wrote:
-> > > 
-> > > Hi,
-> > > 
-> > > I have below code which tries to free memory,
-> > > do
-> > > {
-> > > free=shrink_all_memory;
-> > > }while(free>0);
-> > What is the intention of such a code. It looks quite wrong to me, to
-> > be
-> > honest.
+On Sat, 2017-06-24 at 09:16 -0400, Jeff Layton wrote:
+> On Sat, 2017-06-24 at 04:59 -0700, Christoph Hellwig wrote:
+> > On Tue, Jun 20, 2017 at 01:44:44PM -0400, Jeff Layton wrote:
+> > > In order to query for errors with errseq_t, you need a previously-
+> > > sampled point from which to check. When you call
+> > > filemap_write_and_wait_range though you don't have a struct file and so
+> > > no previously-sampled value.
 > > 
-> 
-> My case is somewhat similar to hibernation where memory is freed for
-> hibernation image and I want to free as much memory as possible until
-> no pages can be reclaimed. i.e., until free returns 0. 
-
-I would just discourage you from doing something like that. Why would
-you want to swap out the working set for example? Isn't something like
-dropping the clean page cache sufficient?
-
-> > > But kernel gets into infinite loop because shrink_all_memory always
-> > > returns
-> > > 1.
-> > > When I added some debug statements to `mm/vmscan.c` and found that
-> > > it is
-> > > because zone_reclaimable() is always true in shrink_zones()
-> > > 
-> > > if (global_reclaim(sc) &&
-> > >             !reclaimable && zone_reclaimable(zone))
-> > >             reclaimable = true;
-> > > 
-> > > This issue gets solved by removing the above lines.
-> > > I am using linux-kernel 4.4 and imx board.
-> > The code has changed quite a bit since 4.4 but in princible
-> > zone_reclaimable was a rather dubious heuristic to not fail reclaim
-> > too
-> > early because that would trigger the OOM in the page allocator path
-> > prematurely. This has changed in 4.7 by 0a0337e0d1d1 ("mm, oom:
-> > rework
-> > oom detection"). zone_reclaimable later renamed to pgdat_reclaimable
-> > is
-> > gone from the kernel in the latests mmotm kernel.
+> > So can we simply introduce variants of them that take a struct file?
+> > That would be:
 > > 
+> >  a) less churn
+> >  b) less code
+> >  c) less chance to get data integrity wrong
 > 
-> Suppose for testing purpose say I remove these lines only and not apply
-> the whole patch("mm, oom: rework oom detection") as a solution, then
-> what are the possible side effects? Are we like skipping something
-> (possible reclaimable pages) by doing this?
-> And will this effect any other reclaim logics?
-
-as I've said oom detection at that time relied on this check. So you
-could trigger oom prematurelly.
-
-> > > Similar Issue is seen here[1]. And it is solved through a patch
-> > > removing
-> > > the offending lines. But it does not explain why the zone
-> > > reclaimable goes
-> > > into infinite loop and what causes it? And I ran the C program from
-> > > [1]
-> > > which is below. And instead of OOM it went on to infinite loop.
-> > Yes the previous oom detection could lock up.
-> > 
+> Yeah, I had that thought after I sent the reply to you earlier.
 > 
-> Could you explain more on why zone reclaimable be returning true
-> always,
-> even if there are no pages in LRU list to reclaim?
-
-It will not but the mere fact that basically any freed page would reset
-the NR_PAGES_SCANNED counter then chances are that this would keep you
-livelocked.
-
-> > > #include <stdlib.h>
-> > > #include <string.h>
-> > > 
-> > > int main(void)
-> > > {
-> > > for (;;) {
-> > > void *p = malloc(1024 * 1024);
-> > > memset(p, 0, 1024 * 1024);
-> > > }
-> > > }
-> > > 
-> > > Also can this issue be related to memcg as in here "
-> > > https://lwn.net/Articles/508923/" because I see the code flow in my
-> > > case
-> > > enters:
-> > > 
-> > > if(nr_soft_reclaimed)
-> > > reclaimable=true;
-> > > 
-> > > I dont understand memcg correctly. But in my case CONFIG_MEMCG is
-> > > not set.
-> > then it never reaches that path.
-> > 
+> The main reason I didn't do that before was that I had myself convinced
+> that we needed to do the check_and_advance as late as possible in the
+> fsync process, after the metadata had been written.
 > 
-> I did not understand. Are you saying that since MEMCG is disabled,
-> above if statement should
-> not be executed? If that is the case , then why I am entering the if
-> block?
+> Now that I think about it more, I think you're probably correct. As long
+> as we do the check and advance at some point after doing the
+> write_and_wait, we're fine here and shouldn't violate exactly once
+> semantics on the fsync return.
 
-If the memcg is disabled then nr_soft_reclaimed will never b true.
+So I have a file_write_and_wait_range now that should DTRT for this
+patch.
 
-[...]
-> > >  3. I tried to unmount /dev/shm but was not possible since process
-> > > was
-> > > using it. Can we release shared memory by any way? I tried `munmap`
-> > > but no
-> > > use.
-> > remove files from /dev/shm?
-> > 
-> 
-> Since there are some files in shared memory created by process,
-> I just tried to remove them and test if the issue still exists. Sadly
-> it exists. 
+The bigger question is -- what about more complex filesystems like
+ext4?  There are a couple of cases where we can return -EIO or -EROFS on
+fsync before filemap_write_and_wait_range is ever called. Like this one
+for instance:
 
-Files will exist as long as th process keeps them open. But I still do
-not understand what you are after...
+        if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+                return -EIO;
 
+...and the EXT4_MF_FS_ABORTED case.
+
+Are those conditions ever recoverable, such that a later fsync could
+succeed? IOW, could I do a remount or something such that the existing
+fds are left open and become usable again? 
+
+If so, then we really ought to advance the errseq_t in the file when we
+catch those cases as well. If we have to do that, then it probably makes
+sense to leave the ext4 patch as-is.
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
