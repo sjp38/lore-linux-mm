@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 713C36B0314
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:43:23 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g46so28998360wrd.3
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:43:23 -0700 (PDT)
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D43786B0313
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 10:43:56 -0400 (EDT)
+Received: by mail-ot0-f199.google.com with SMTP id 63so1982808otc.5
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 07:43:56 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id m124si202674wmm.192.2017.06.26.07.43.21
+        by mx.google.com with ESMTPS id b16si97906oth.118.2017.06.26.07.43.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 07:43:21 -0700 (PDT)
+        Mon, 26 Jun 2017 07:43:55 -0700 (PDT)
 From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [PATCH 1/3] Protectable memory support
-Date: Mon, 26 Jun 2017 17:41:14 +0300
-Message-ID: <20170626144116.27599-2-igor.stoppa@huawei.com>
+Subject: [PATCH 2/3] LSM: Convert security_hook_heads into explicit array of struct list_head
+Date: Mon, 26 Jun 2017 17:41:15 +0300
+Message-ID: <20170626144116.27599-3-igor.stoppa@huawei.com>
 In-Reply-To: <20170626144116.27599-1-igor.stoppa@huawei.com>
 References: <20170626144116.27599-1-igor.stoppa@huawei.com>
 MIME-Version: 1.0
@@ -20,677 +20,634 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, Igor
- Stoppa <igor.stoppa@gmail.com>, Igor Stoppa <igor.stoppa@huawei.com>
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, hch@infradead.org, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, James Morris <james.l.morris@oracle.com>, Igor Stoppa <igor.stoppa@huawei.com>
 
-From: Igor Stoppa <igor.stoppa@gmail.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-The MMU available in many systems running Linux can often provide R/O
-protection to the memory pages it handles.
+Commit 3dfc9b02864b19f4 ("LSM: Initialize security_hook_heads upon
+registration.") treats "struct security_hook_heads" as an implicit array
+of "struct list_head" so that we can eliminate code for static
+initialization. Although we haven't encountered compilers which do not
+treat sizeof(security_hook_heads) != sizeof(struct list_head) *
+(sizeof(security_hook_heads) / sizeof(struct list_head)), Casey does not
+like the assumption that a structure of N elements can be assumed to be
+the same as an array of N elements.
 
-However, the MMU-based protection works efficiently only when said pages
-contain exclusively data that will not need further modifications.
+Now that Kees found that randstruct complains about such casting
 
-Statically allocated variables can be segregated into a dedicated
-section, but this does not sit very well with dynamically allocated ones.
+  security/security.c: In function 'security_init':
+  security/security.c:59:20: note: found mismatched op0 struct pointer
+    types: 'struct list_head' and 'struct security_hook_heads'
 
-Dynamic allocation does not provide, currently, any means for grouping
-variables in memory pages that would contain exclusively data suitable
-for conversion to read only access mode.
+    struct list_head *list = (struct list_head *) &security_hook_heads;
 
-The allocator here provided (pmalloc - protectable memory allocator)
-introduces the concept of pools of protectable memory.
+and Christoph thinks that we should fix it rather than make randstruct
+whitelist it, this patch fixes it.
 
-A module can request a pool and then refer any allocation request to the
-pool handler it has received.
+It would be possible to revert commit 3dfc9b02864b19f4, but this patch
+converts security_hook_heads into an explicit array of struct list_head
+by introducing an enum, due to reasons explained below.
 
-Once all the chunks of memory associated to a specific pool are
-initialized, the pool can be protected.
+Igor proposed a sealable memory allocator, and the LSM hooks
+("struct security_hook_heads security_hook_heads" and
+"struct security_hook_list ...[]") will benefit from that allocator via
+protection using set_memory_ro()/set_memory_rw(), and that allocator
+will remove CONFIG_SECURITY_WRITABLE_HOOKS config option. Thus, we will
+likely be moving to that direction.
 
-After this point, the pool can only be destroyed (it is up to the module
-to avoid any further references to the memory from the pool, after
-the destruction is invoked).
+This means that these structures will be allocated at run time using
+that allocator, and therefore the address of these structures will be
+determined at run time rather than compile time.
 
-The latter case is mainly meant for releasing memory, when a module is
-unloaded.
+But currently, LSM_HOOK_INIT() macro depends on the address of
+security_hook_heads being known at compile time. If we use an enum
+so that LSM_HOOK_INIT() macro does not need to know absolute address of
+security_hook_heads, it will help us to use that allocator for LSM hooks.
 
-A module can have as many pools as needed, for example to support the
-protection of data that is initialized in sufficiently distinct phases.
+As a result of introducing an enum, security_hook_heads becomes a local
+variable. In order to pass 80 columns check by scripts/checkpatch.pl ,
+rename security_hook_heads to hook_heads.
 
-Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Rebased-by: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Paul Moore <paul@paul-moore.com>
+Cc: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: Casey Schaufler <casey@schaufler-ca.com>
+Cc: James Morris <james.l.morris@oracle.com>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: Christoph Hellwig <hch@infradead.org>
 ---
- arch/Kconfig                   |   1 +
- include/linux/page-flags.h     |   2 +
- include/linux/pmalloc.h        | 111 +++++++++++++
- include/trace/events/mmflags.h |   1 +
- init/main.c                    |   2 +
- lib/Kconfig                    |   1 +
- lib/genalloc.c                 |   4 +-
- mm/Makefile                    |   1 +
- mm/pmalloc.c                   | 346 +++++++++++++++++++++++++++++++++++++++++
- mm/usercopy.c                  |  24 +--
- 10 files changed, 482 insertions(+), 11 deletions(-)
- create mode 100644 include/linux/pmalloc.h
- create mode 100644 mm/pmalloc.c
+ include/linux/lsm_hooks.h | 420 +++++++++++++++++++++++-----------------------
+ security/security.c       |  31 ++--
+ 2 files changed, 227 insertions(+), 224 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 6c00e5b..9d16b51 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -228,6 +228,7 @@ config GENERIC_IDLE_POLL_SETUP
+diff --git a/include/linux/lsm_hooks.h b/include/linux/lsm_hooks.h
+index 3cc9d77..32f30fa 100644
+--- a/include/linux/lsm_hooks.h
++++ b/include/linux/lsm_hooks.h
+@@ -1694,225 +1694,226 @@ union security_list_options {
+ #endif /* CONFIG_AUDIT */
+ };
  
- # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
- config ARCH_HAS_SET_MEMORY
-+	select GENERIC_ALLOCATOR
- 	bool
- 
- # Select if arch init_task initializer is different to init/init_task.c
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 6b5818d..acc0723 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -81,6 +81,7 @@ enum pageflags {
- 	PG_active,
- 	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
- 	PG_slab,
-+	PG_pmalloc,
- 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
- 	PG_arch_1,
- 	PG_reserved,
-@@ -274,6 +275,7 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
- 	TESTCLEARFLAG(Active, active, PF_HEAD)
- __PAGEFLAG(Slab, slab, PF_NO_TAIL)
- __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
-+__PAGEFLAG(Pmalloc, pmalloc, PF_NO_TAIL)
- PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
- 
- /* Xen */
-diff --git a/include/linux/pmalloc.h b/include/linux/pmalloc.h
-new file mode 100644
-index 0000000..0d65f83
---- /dev/null
-+++ b/include/linux/pmalloc.h
-@@ -0,0 +1,111 @@
-+/*
-+ * pmalloc.h: Header for Protectable Memory Allocator
-+ *
-+ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+#ifndef _PMALLOC_H
-+#define _PMALLOC_H
-+#include <linux/genalloc.h>
-+
-+#define PMALLOC_DEFAULT_ALLOC_ORDER (-1)
-+
-+/**
-+ * pmalloc_create_pool - create a new protectable memory pool -
-+ * @name: the name of the pool, must be unique
-+ * @min_alloc_order: log2 of the minimum allocation size obtainable
-+ *                   from the pool
-+ *
-+ * Creates a new (empty) memory pool for allocation of protectable
-+ * memory. Memory will be allocated upon request (through pmalloc).
-+ *
-+ * Returns a pointer to the new pool, upon succes, otherwise a NULL.
-+ */
-+struct gen_pool *pmalloc_create_pool(const char *name,
-+					 int min_alloc_order);
-+
-+
-+/**
-+ * pmalloc_get_pool - get a pool handler, from its name
-+ * @name: the name of the pool sought after.
-+ *
-+ * Returns a pointer to the pool, upon succes, otherwise a NULL.
-+ */
-+struct gen_pool *pmalloc_get_pool(const char *name);
-+
-+
-+
-+/**
-+ * pmalloc - allocate protectable memory from a pool
-+ * @pool: handler to the pool to be used for memory allocation
-+ * @size: amount of memory (in bytes) requested
-+ *
-+ * Allocates memory from an unprotected pool. If the pool doesn't have
-+ * enough memory, an attempt is made to add to the pool a new chunk of
-+ * memory (multiple of PAGE_SIZE) that can fit the new request.
-+ *
-+ * Returns the pointer to the memory requested, upon success,
-+ * NULL otherwise (either no memory availabel or pool RO).
-+ */
-+void *pmalloc(struct gen_pool *pool, size_t size);
-+
-+
-+
-+/**
-+ * pmalloc_free - release memory previously obtained through pmalloc
-+ * @pool: the pool providing the memory
-+ * @addr: the memory address obtained from pmalloc
-+ * @size: the same amount of memory that was requested from pmalloc
-+ *
-+ * Releases the memory that was previously accounted for as in use.
-+ * It works also on pocked pools, but the memory released is simply
-+ * removed from the refcount of memory in use. It cannot be re-used.
-+ */
-+static __always_inline
-+void pmalloc_free(struct gen_pool *pool, void *addr, size_t size)
-+{
-+	gen_pool_free(pool, (unsigned long)addr, size);
-+}
-+
-+
-+
-+/**
-+ * pmalloc_protect_pool - turn a RW pool into RO
-+ * @pool: the pool to protect
-+ *
-+ * Write protects all the memory chunks assigned to the pool.
-+ * This prevents further allocation.
-+ *
-+ * Returns 0 upon success, -EINVAL in abnormal cases.
-+ */
-+int pmalloc_protect_pool(struct gen_pool *pool);
-+
-+
-+
-+/**
-+ * pmalloc_pool_protected - check if the pool is protected
-+ * @pool: the pool to test
-+ *
-+ * Returns true if the pool is either protected or missing. False otherwise.
-+ */
-+bool pmalloc_pool_protected(struct gen_pool *pool);
-+
-+
-+
-+/**
-+ * pmalloc_destroy_pool - destroys a pool and all the associated memory
-+ * @pool: the pool to destroy
-+ *
-+ * All the memory that was allocated through pmalloc must first be freed
-+ * with pmalloc_free. Falire to do so will BUG().
-+ *
-+ * Returns 0 upon success, -EINVAL in abnormal cases.
-+ */
-+int pmalloc_destroy_pool(struct gen_pool *pool);
-+#endif
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index 304ff94..41d1587 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -91,6 +91,7 @@
- 	{1UL << PG_lru,			"lru"		},		\
- 	{1UL << PG_active,		"active"	},		\
- 	{1UL << PG_slab,		"slab"		},		\
-+	{1UL << PG_pmalloc,		"pmalloc"	},		\
- 	{1UL << PG_owner_priv_1,	"owner_priv_1"	},		\
- 	{1UL << PG_arch_1,		"arch_1"	},		\
- 	{1UL << PG_reserved,		"reserved"	},		\
-diff --git a/init/main.c b/init/main.c
-index f866510..a703c9c 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -100,6 +100,7 @@ static int kernel_init(void *);
- extern void init_IRQ(void);
- extern void fork_init(void);
- extern void radix_tree_init(void);
-+int __init pmalloc_init(void);
- 
- /*
-  * Debug helper: via this flag we know that we are in 'early bootup code'
-@@ -653,6 +654,7 @@ asmlinkage __visible void __init start_kernel(void)
- 	proc_caches_init();
- 	buffer_init();
- 	key_init();
-+	pmalloc_init();
- 	security_init();
- 	dbg_late_init();
- 	vfs_caches_init();
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 0c8b78a..3e3b8f6 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -270,6 +270,7 @@ config DECOMPRESS_LZ4
- # Generic allocator support is selected if needed
- #
- config GENERIC_ALLOCATOR
-+	depends on ARCH_HAS_SET_MEMORY
- 	bool
- 
- #
-diff --git a/lib/genalloc.c b/lib/genalloc.c
-index 144fe6b..52165bb 100644
---- a/lib/genalloc.c
-+++ b/lib/genalloc.c
-@@ -648,12 +648,12 @@ unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
- }
- EXPORT_SYMBOL(gen_pool_best_fit);
- 
--static void devm_gen_pool_release(struct device *dev, void *res)
-+void devm_gen_pool_release(struct device *dev, void *res)
- {
- 	gen_pool_destroy(*(struct gen_pool **)res);
- }
- 
--static int devm_gen_pool_match(struct device *dev, void *res, void *data)
-+int devm_gen_pool_match(struct device *dev, void *res, void *data)
- {
- 	struct gen_pool **p = res;
- 
-diff --git a/mm/Makefile b/mm/Makefile
-index 026f6a8..b47dcf8 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -65,6 +65,7 @@ obj-$(CONFIG_SPARSEMEM)	+= sparse.o
- obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
- obj-$(CONFIG_SLOB) += slob.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
-+obj-$(CONFIG_ARCH_HAS_SET_MEMORY) += pmalloc.o
- obj-$(CONFIG_KSM) += ksm.o
- obj-$(CONFIG_PAGE_POISONING) += page_poison.o
- obj-$(CONFIG_SLAB) += slab.o
-diff --git a/mm/pmalloc.c b/mm/pmalloc.c
-new file mode 100644
-index 0000000..26f2bae
---- /dev/null
-+++ b/mm/pmalloc.c
-@@ -0,0 +1,346 @@
-+/*
-+ * pmalloc.c: Protectable Memory Allocator
-+ *
-+ * (C) Copyright 2017 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; version 2
-+ * of the License.
-+ */
-+
-+#include <linux/printk.h>
-+#include <linux/init.h>
-+#include <linux/mm.h>
-+#include <linux/vmalloc.h>
-+#include <linux/genalloc.h>
-+#include <linux/kernel.h>
-+#include <linux/log2.h>
-+#include <linux/slab.h>
-+#include <linux/device.h>
-+#include <linux/atomic.h>
-+#include <linux/rculist.h>
-+#include <asm/set_memory.h>
-+#include <asm/page.h>
-+
-+#include <linux/debugfs.h>
-+#include <linux/kallsyms.h>
-+
-+
-+/**
-+ * pmalloc_data contains the data specific to a pmalloc pool,
-+ * in a format compatible with the design of gen_alloc.
-+ * Some of the fields are used for exposing the corresponding parameter
-+ * to userspace, through sysfs.
-+ */
-+struct pmalloc_data {
-+	struct gen_pool *pool;  /* Link back to the associated pool. */
-+	atomic_t protected;     /* Status of the pool: RO or RW. */
-+	atomic_t processed;     /* Is the pool already in sysfs? */
-+	struct device dev;      /* Device used to connect to sysfs. */
-+	struct device_attribute attr_protected; /* Sysfs attribute. */
-+	struct device_attribute attr_avail;     /* Sysfs attribute. */
-+	struct device_attribute attr_size;      /* Sysfs attribute. */
-+};
-+
-+/**
-+ * Keeps track of the safe point, where operatioms according to the normal
-+ * device model are supported. Before this point, such operation are not
-+ * available.
-+ */
-+static atomic_t into_post_init;
-+
-+static struct device pmalloc_dev;
-+static struct lock_class_key pmalloc_lock_key;
-+static struct class pmalloc_class = {
-+	.name = "pmalloc",
-+	.owner = THIS_MODULE,
-+};
-+
-+static ssize_t __pmalloc_pool_show_protected(struct device *dev,
-+					     struct device_attribute *attr,
-+					     char *buf)
-+{
-+	struct pmalloc_data *data;
-+
-+	data = container_of(attr, struct pmalloc_data, attr_protected);
-+	if (atomic_read(&data->protected))
-+		return sprintf(buf, "protected\n");
-+	else
-+		return sprintf(buf, "unprotected\n");
-+}
-+
-+static ssize_t __pmalloc_pool_show_avail(struct device *dev,
-+					 struct device_attribute *attr,
-+					 char *buf)
-+{
-+	struct pmalloc_data *data;
-+
-+	data = container_of(attr, struct pmalloc_data, attr_avail);
-+	return sprintf(buf, "%lu\n", gen_pool_avail(data->pool));
-+}
-+
-+static ssize_t __pmalloc_pool_show_size(struct device *dev,
-+					struct device_attribute *attr,
-+					char *buf)
-+{
-+	struct pmalloc_data *data;
-+
-+	data = container_of(attr, struct pmalloc_data, attr_size);
-+	return sprintf(buf, "%lu\n", gen_pool_size(data->pool));
-+}
-+
-+/**
-+ * Exposes the pool and its attributes through sysfs.
-+ */
-+static void __pmalloc_connect(struct pmalloc_data *data)
-+{
-+	device_add(&data->dev);
-+	device_create_file(&data->dev, &data->attr_protected);
-+	device_create_file(&data->dev, &data->attr_avail);
-+	device_create_file(&data->dev, &data->attr_size);
-+}
-+
-+/**
-+ * Removes the pool and its attributes from sysfs.
-+ */
-+static void __pmalloc_disconnect(struct pmalloc_data *data)
-+{
-+	device_remove_file(&data->dev, &data->attr_protected);
-+	device_remove_file(&data->dev, &data->attr_avail);
-+	device_remove_file(&data->dev, &data->attr_size);
-+	device_del(&data->dev);
-+}
-+
-+/**
-+ * Declares an attribute of the pool.
-+ */
-+#define __pmalloc_attr_init(data, attr_name) \
-+{ \
-+	data->attr_##attr_name.attr.name = #attr_name; \
-+	data->attr_##attr_name.attr.mode = VERIFY_OCTAL_PERMISSIONS(0444); \
-+	data->attr_##attr_name.show = __pmalloc_pool_show_##attr_name; \
-+}
-+
-+struct gen_pool *pmalloc_create_pool(const char *name,
-+					 int min_alloc_order)
-+{
-+	struct gen_pool *pool;
-+	struct pmalloc_data *data;
-+
-+	data = kzalloc(sizeof(struct pmalloc_data), GFP_KERNEL);
-+	if (!data)
-+		return NULL;
-+	if (min_alloc_order < 0)
-+		min_alloc_order = ilog2(sizeof(unsigned long));
-+	pool = devm_gen_pool_create(&pmalloc_dev, min_alloc_order,
-+				    -1, name);
-+	if (!pool) {
-+		kfree(data);
-+		return NULL;
-+	}
-+	atomic_set(&data->protected, false);
-+	device_initialize(&data->dev);
-+	dev_set_name(&data->dev, "%s", name);
-+	data->dev.class = &pmalloc_class;
-+	atomic_set(&data->processed, atomic_read(&into_post_init));
-+	data->pool = pool;
-+	__pmalloc_attr_init(data, protected);
-+	__pmalloc_attr_init(data, avail);
-+	__pmalloc_attr_init(data, size);
-+	if (atomic_read(&data->processed)) /* Check sysfs availability. */
-+		__pmalloc_connect(data);   /* After late init. */
-+	pool->data = data;
-+	return pool;
-+}
-+
-+
-+struct gen_pool *pmalloc_get_pool(const char *name)
-+{
-+	return gen_pool_get(&pmalloc_dev, name);
-+}
-+
-+
-+/**
-+ * To support hardened usercopy, tag/untag pages supplied by pmalloc.
-+ * Pages are tagged when added to a pool and untagged when removed
-+ * from said pool.
-+ */
-+#define PMALLOC_TAG_PAGE true
-+#define PMALLOC_UNTAG_PAGE false
-+static inline
-+int __pmalloc_tag_pages(void *base, const size_t size, const bool set_tag)
-+{
-+	void *end = base + size - 1;
-+
-+	do {
-+		struct page *page;
-+
-+		if (!is_vmalloc_addr(base))
-+			return -EINVAL;
-+		page = vmalloc_to_page(base);
-+		if (set_tag)
-+			__SetPagePmalloc(page);
-+		else
-+			__ClearPagePmalloc(page);
-+		base += PAGE_SIZE;
-+	} while ((PAGE_MASK & (unsigned long)base) <=
-+		 (PAGE_MASK & (unsigned long)end));
-+	return 0;
-+}
-+
-+
-+static void __page_untag(struct gen_pool *pool,
-+			 struct gen_pool_chunk *chunk, void *data)
-+{
-+	__pmalloc_tag_pages((void *)chunk->start_addr,
-+			    chunk->end_addr - chunk->start_addr + 1,
-+			    PMALLOC_UNTAG_PAGE);
-+}
-+
-+void *pmalloc(struct gen_pool *pool, size_t size)
-+{
-+	void *retval, *chunk;
-+	size_t chunk_size;
-+
-+	if (!size || !pool ||
-+	    atomic_read(&((struct pmalloc_data *)pool->data)->protected))
-+		return NULL;
-+	retval = (void *)gen_pool_alloc(pool, size);
-+	if (retval)
-+		return retval;
-+	chunk_size = roundup(size, PAGE_SIZE);
-+	chunk = vmalloc(chunk_size);
-+	if (!chunk)
-+		return NULL;
-+	__pmalloc_tag_pages(chunk, size, PMALLOC_TAG_PAGE);
-+	BUG_ON(gen_pool_add_virt(pool, (unsigned long)chunk,
-+				(phys_addr_t)NULL, chunk_size, -1));
-+	return (void *)gen_pool_alloc(pool, size);
-+}
-+
-+static void __page_protection(struct gen_pool *pool,
-+			      struct gen_pool_chunk *chunk, void *data)
-+{
-+	unsigned long pages;
-+
-+	if (!data)
-+		return;
-+	pages = roundup(chunk->end_addr - chunk->start_addr + 1,
-+			PAGE_SIZE) / PAGE_SIZE;
-+	if (*(bool *)data)
-+		set_memory_ro(chunk->start_addr, pages);
-+	else
-+		set_memory_rw(chunk->start_addr, pages);
-+}
-+
-+static int __pmalloc_pool_protection(struct gen_pool *pool, bool protection)
-+{
-+	if (!pool)
-+		return -EINVAL;
-+	BUG_ON(atomic_read(&((struct pmalloc_data *)pool->data)->protected)
-+	       == protection);
-+	atomic_set(&((struct pmalloc_data *)pool->data)->protected, protection);
-+	gen_pool_for_each_chunk(pool, __page_protection, &protection);
-+	return 0;
-+}
-+
-+int pmalloc_protect_pool(struct gen_pool *pool)
-+{
-+	return __pmalloc_pool_protection(pool, true);
-+}
-+
-+
-+bool pmalloc_pool_protected(struct gen_pool *pool)
-+{
-+	if (!pool)
-+		return true;
-+	return atomic_read(&(((struct pmalloc_data *)pool->data)->protected));
-+}
-+
-+
-+void devm_gen_pool_release(struct device *dev, void *res);
-+int devm_gen_pool_match(struct device *dev, void *res, void *data);
-+
-+int pmalloc_destroy_pool(struct gen_pool *pool)
-+{
-+	struct gen_pool **p;
-+	struct pmalloc_data *data;
-+
-+	data = (struct pmalloc_data *)pool->data;
-+	p = devres_find(&pmalloc_dev, devm_gen_pool_release,
-+			devm_gen_pool_match, (void *)pool->name);
-+	if (!p)
-+		return -EINVAL;
-+	__pmalloc_pool_protection(pool, false);
-+	gen_pool_for_each_chunk(pool, __page_untag, NULL);
-+	devm_gen_pool_release(&pmalloc_dev, p);
-+	__pmalloc_disconnect(data);
-+	kfree(data);
-+	return 0;
-+}
-+
-+static const char msg[] = "Not a valid Pmalloc object.";
-+const char *__pmalloc_check_object(const void *ptr, unsigned long n)
-+{
-+	unsigned long p;
-+
-+	p = (unsigned long)ptr;
-+	n = p + n - 1;
-+	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
-+		struct page *page;
-+
-+		if (!is_vmalloc_addr((void *)p))
-+			return msg;
-+		page = vmalloc_to_page((void *)p);
-+		if (!(page && PagePmalloc(page)))
-+			return msg;
-+	}
-+	return NULL;
-+}
-+EXPORT_SYMBOL(__pmalloc_check_object);
-+
-+
-+/**
-+ * Early init function, the main purpose is to create the device used
-+ * in conjunction with genalloc, to track the pools as resources.
-+ * It cannot register the device because it is called very early in the
-+ * boot sequence and the sysfs is not yet fully initialized.
-+ */
-+int __init pmalloc_init(void)
-+{
-+	device_initialize(&pmalloc_dev);
-+	dev_set_name(&pmalloc_dev, "%s", "pmalloc");
-+	atomic_set(&into_post_init, false);
-+	return 0;
-+}
-+
-+static void __pmalloc_late_add(struct device *dev, void *pool_ptr, void *d)
-+{
-+	struct pmalloc_data *data;
-+
-+	data = (*(struct gen_pool **)pool_ptr)->data;
-+	if (!atomic_read(&data->processed)) {
-+		atomic_set(&data->processed, true);
-+		__pmalloc_connect(data);
-+	}
-+}
-+
-+
-+/**
-+ * When the sysfs is ready for recieving registrations, connect all the
-+ * pools previously created. Also enable further pools to be connected
-+ * right away.
-+ */
-+static int __init pmalloc_late_init(void)
-+{
-+	int retval;
-+
-+	atomic_set(&into_post_init, true);
-+	retval = __class_register(&pmalloc_class, &pmalloc_lock_key);
-+	devres_for_each_res(&pmalloc_dev, devm_gen_pool_release,
-+			    NULL, NULL, __pmalloc_late_add, NULL);
-+	return retval;
-+}
-+late_initcall(pmalloc_late_init);
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index a9852b2..29bb691 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -195,22 +195,28 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
- 	return NULL;
- }
- 
-+extern const char *__pmalloc_check_object(const void *ptr, unsigned long n);
-+
- static inline const char *check_heap_object(const void *ptr, unsigned long n,
- 					    bool to_user)
- {
- 	struct page *page;
- 
--	if (!virt_addr_valid(ptr))
--		return NULL;
--
--	page = virt_to_head_page(ptr);
--
--	/* Check slab allocator for flags and size. */
--	if (PageSlab(page))
--		return __check_heap_object(ptr, n, page);
-+	if (virt_addr_valid(ptr)) {
-+		page = virt_to_head_page(ptr);
- 
-+		/* Check slab allocator for flags and size. */
-+		if (PageSlab(page))
-+			return __check_heap_object(ptr, n, page);
- 	/* Verify object does not incorrectly span multiple pages. */
--	return check_page_span(ptr, n, page, to_user);
-+		return check_page_span(ptr, n, page, to_user);
-+	}
-+	if (likely(is_vmalloc_addr(ptr))) {
-+		page = vmalloc_to_page(ptr);
-+		if (unlikely(page && PagePmalloc(page)))
-+			return __pmalloc_check_object(ptr, n);
-+	}
-+	return NULL;
- }
+-struct security_hook_heads {
+-	struct list_head binder_set_context_mgr;
+-	struct list_head binder_transaction;
+-	struct list_head binder_transfer_binder;
+-	struct list_head binder_transfer_file;
+-	struct list_head ptrace_access_check;
+-	struct list_head ptrace_traceme;
+-	struct list_head capget;
+-	struct list_head capset;
+-	struct list_head capable;
+-	struct list_head quotactl;
+-	struct list_head quota_on;
+-	struct list_head syslog;
+-	struct list_head settime;
+-	struct list_head vm_enough_memory;
+-	struct list_head bprm_set_creds;
+-	struct list_head bprm_check_security;
+-	struct list_head bprm_secureexec;
+-	struct list_head bprm_committing_creds;
+-	struct list_head bprm_committed_creds;
+-	struct list_head sb_alloc_security;
+-	struct list_head sb_free_security;
+-	struct list_head sb_copy_data;
+-	struct list_head sb_remount;
+-	struct list_head sb_kern_mount;
+-	struct list_head sb_show_options;
+-	struct list_head sb_statfs;
+-	struct list_head sb_mount;
+-	struct list_head sb_umount;
+-	struct list_head sb_pivotroot;
+-	struct list_head sb_set_mnt_opts;
+-	struct list_head sb_clone_mnt_opts;
+-	struct list_head sb_parse_opts_str;
+-	struct list_head dentry_init_security;
+-	struct list_head dentry_create_files_as;
++enum security_hook_index {
++	LSM_binder_set_context_mgr,
++	LSM_binder_transaction,
++	LSM_binder_transfer_binder,
++	LSM_binder_transfer_file,
++	LSM_ptrace_access_check,
++	LSM_ptrace_traceme,
++	LSM_capget,
++	LSM_capset,
++	LSM_capable,
++	LSM_quotactl,
++	LSM_quota_on,
++	LSM_syslog,
++	LSM_settime,
++	LSM_vm_enough_memory,
++	LSM_bprm_set_creds,
++	LSM_bprm_check_security,
++	LSM_bprm_secureexec,
++	LSM_bprm_committing_creds,
++	LSM_bprm_committed_creds,
++	LSM_sb_alloc_security,
++	LSM_sb_free_security,
++	LSM_sb_copy_data,
++	LSM_sb_remount,
++	LSM_sb_kern_mount,
++	LSM_sb_show_options,
++	LSM_sb_statfs,
++	LSM_sb_mount,
++	LSM_sb_umount,
++	LSM_sb_pivotroot,
++	LSM_sb_set_mnt_opts,
++	LSM_sb_clone_mnt_opts,
++	LSM_sb_parse_opts_str,
++	LSM_dentry_init_security,
++	LSM_dentry_create_files_as,
+ #ifdef CONFIG_SECURITY_PATH
+-	struct list_head path_unlink;
+-	struct list_head path_mkdir;
+-	struct list_head path_rmdir;
+-	struct list_head path_mknod;
+-	struct list_head path_truncate;
+-	struct list_head path_symlink;
+-	struct list_head path_link;
+-	struct list_head path_rename;
+-	struct list_head path_chmod;
+-	struct list_head path_chown;
+-	struct list_head path_chroot;
++	LSM_path_unlink,
++	LSM_path_mkdir,
++	LSM_path_rmdir,
++	LSM_path_mknod,
++	LSM_path_truncate,
++	LSM_path_symlink,
++	LSM_path_link,
++	LSM_path_rename,
++	LSM_path_chmod,
++	LSM_path_chown,
++	LSM_path_chroot,
+ #endif
+-	struct list_head inode_alloc_security;
+-	struct list_head inode_free_security;
+-	struct list_head inode_init_security;
+-	struct list_head inode_create;
+-	struct list_head inode_link;
+-	struct list_head inode_unlink;
+-	struct list_head inode_symlink;
+-	struct list_head inode_mkdir;
+-	struct list_head inode_rmdir;
+-	struct list_head inode_mknod;
+-	struct list_head inode_rename;
+-	struct list_head inode_readlink;
+-	struct list_head inode_follow_link;
+-	struct list_head inode_permission;
+-	struct list_head inode_setattr;
+-	struct list_head inode_getattr;
+-	struct list_head inode_setxattr;
+-	struct list_head inode_post_setxattr;
+-	struct list_head inode_getxattr;
+-	struct list_head inode_listxattr;
+-	struct list_head inode_removexattr;
+-	struct list_head inode_need_killpriv;
+-	struct list_head inode_killpriv;
+-	struct list_head inode_getsecurity;
+-	struct list_head inode_setsecurity;
+-	struct list_head inode_listsecurity;
+-	struct list_head inode_getsecid;
+-	struct list_head inode_copy_up;
+-	struct list_head inode_copy_up_xattr;
+-	struct list_head file_permission;
+-	struct list_head file_alloc_security;
+-	struct list_head file_free_security;
+-	struct list_head file_ioctl;
+-	struct list_head mmap_addr;
+-	struct list_head mmap_file;
+-	struct list_head file_mprotect;
+-	struct list_head file_lock;
+-	struct list_head file_fcntl;
+-	struct list_head file_set_fowner;
+-	struct list_head file_send_sigiotask;
+-	struct list_head file_receive;
+-	struct list_head file_open;
+-	struct list_head task_create;
+-	struct list_head task_alloc;
+-	struct list_head task_free;
+-	struct list_head cred_alloc_blank;
+-	struct list_head cred_free;
+-	struct list_head cred_prepare;
+-	struct list_head cred_transfer;
+-	struct list_head kernel_act_as;
+-	struct list_head kernel_create_files_as;
+-	struct list_head kernel_read_file;
+-	struct list_head kernel_post_read_file;
+-	struct list_head kernel_module_request;
+-	struct list_head task_fix_setuid;
+-	struct list_head task_setpgid;
+-	struct list_head task_getpgid;
+-	struct list_head task_getsid;
+-	struct list_head task_getsecid;
+-	struct list_head task_setnice;
+-	struct list_head task_setioprio;
+-	struct list_head task_getioprio;
+-	struct list_head task_prlimit;
+-	struct list_head task_setrlimit;
+-	struct list_head task_setscheduler;
+-	struct list_head task_getscheduler;
+-	struct list_head task_movememory;
+-	struct list_head task_kill;
+-	struct list_head task_prctl;
+-	struct list_head task_to_inode;
+-	struct list_head ipc_permission;
+-	struct list_head ipc_getsecid;
+-	struct list_head msg_msg_alloc_security;
+-	struct list_head msg_msg_free_security;
+-	struct list_head msg_queue_alloc_security;
+-	struct list_head msg_queue_free_security;
+-	struct list_head msg_queue_associate;
+-	struct list_head msg_queue_msgctl;
+-	struct list_head msg_queue_msgsnd;
+-	struct list_head msg_queue_msgrcv;
+-	struct list_head shm_alloc_security;
+-	struct list_head shm_free_security;
+-	struct list_head shm_associate;
+-	struct list_head shm_shmctl;
+-	struct list_head shm_shmat;
+-	struct list_head sem_alloc_security;
+-	struct list_head sem_free_security;
+-	struct list_head sem_associate;
+-	struct list_head sem_semctl;
+-	struct list_head sem_semop;
+-	struct list_head netlink_send;
+-	struct list_head d_instantiate;
+-	struct list_head getprocattr;
+-	struct list_head setprocattr;
+-	struct list_head ismaclabel;
+-	struct list_head secid_to_secctx;
+-	struct list_head secctx_to_secid;
+-	struct list_head release_secctx;
+-	struct list_head inode_invalidate_secctx;
+-	struct list_head inode_notifysecctx;
+-	struct list_head inode_setsecctx;
+-	struct list_head inode_getsecctx;
++	LSM_inode_alloc_security,
++	LSM_inode_free_security,
++	LSM_inode_init_security,
++	LSM_inode_create,
++	LSM_inode_link,
++	LSM_inode_unlink,
++	LSM_inode_symlink,
++	LSM_inode_mkdir,
++	LSM_inode_rmdir,
++	LSM_inode_mknod,
++	LSM_inode_rename,
++	LSM_inode_readlink,
++	LSM_inode_follow_link,
++	LSM_inode_permission,
++	LSM_inode_setattr,
++	LSM_inode_getattr,
++	LSM_inode_setxattr,
++	LSM_inode_post_setxattr,
++	LSM_inode_getxattr,
++	LSM_inode_listxattr,
++	LSM_inode_removexattr,
++	LSM_inode_need_killpriv,
++	LSM_inode_killpriv,
++	LSM_inode_getsecurity,
++	LSM_inode_setsecurity,
++	LSM_inode_listsecurity,
++	LSM_inode_getsecid,
++	LSM_inode_copy_up,
++	LSM_inode_copy_up_xattr,
++	LSM_file_permission,
++	LSM_file_alloc_security,
++	LSM_file_free_security,
++	LSM_file_ioctl,
++	LSM_mmap_addr,
++	LSM_mmap_file,
++	LSM_file_mprotect,
++	LSM_file_lock,
++	LSM_file_fcntl,
++	LSM_file_set_fowner,
++	LSM_file_send_sigiotask,
++	LSM_file_receive,
++	LSM_file_open,
++	LSM_task_create,
++	LSM_task_alloc,
++	LSM_task_free,
++	LSM_cred_alloc_blank,
++	LSM_cred_free,
++	LSM_cred_prepare,
++	LSM_cred_transfer,
++	LSM_kernel_act_as,
++	LSM_kernel_create_files_as,
++	LSM_kernel_read_file,
++	LSM_kernel_post_read_file,
++	LSM_kernel_module_request,
++	LSM_task_fix_setuid,
++	LSM_task_setpgid,
++	LSM_task_getpgid,
++	LSM_task_getsid,
++	LSM_task_getsecid,
++	LSM_task_setnice,
++	LSM_task_setioprio,
++	LSM_task_getioprio,
++	LSM_task_prlimit,
++	LSM_task_setrlimit,
++	LSM_task_setscheduler,
++	LSM_task_getscheduler,
++	LSM_task_movememory,
++	LSM_task_kill,
++	LSM_task_prctl,
++	LSM_task_to_inode,
++	LSM_ipc_permission,
++	LSM_ipc_getsecid,
++	LSM_msg_msg_alloc_security,
++	LSM_msg_msg_free_security,
++	LSM_msg_queue_alloc_security,
++	LSM_msg_queue_free_security,
++	LSM_msg_queue_associate,
++	LSM_msg_queue_msgctl,
++	LSM_msg_queue_msgsnd,
++	LSM_msg_queue_msgrcv,
++	LSM_shm_alloc_security,
++	LSM_shm_free_security,
++	LSM_shm_associate,
++	LSM_shm_shmctl,
++	LSM_shm_shmat,
++	LSM_sem_alloc_security,
++	LSM_sem_free_security,
++	LSM_sem_associate,
++	LSM_sem_semctl,
++	LSM_sem_semop,
++	LSM_netlink_send,
++	LSM_d_instantiate,
++	LSM_getprocattr,
++	LSM_setprocattr,
++	LSM_ismaclabel,
++	LSM_secid_to_secctx,
++	LSM_secctx_to_secid,
++	LSM_release_secctx,
++	LSM_inode_invalidate_secctx,
++	LSM_inode_notifysecctx,
++	LSM_inode_setsecctx,
++	LSM_inode_getsecctx,
+ #ifdef CONFIG_SECURITY_NETWORK
+-	struct list_head unix_stream_connect;
+-	struct list_head unix_may_send;
+-	struct list_head socket_create;
+-	struct list_head socket_post_create;
+-	struct list_head socket_bind;
+-	struct list_head socket_connect;
+-	struct list_head socket_listen;
+-	struct list_head socket_accept;
+-	struct list_head socket_sendmsg;
+-	struct list_head socket_recvmsg;
+-	struct list_head socket_getsockname;
+-	struct list_head socket_getpeername;
+-	struct list_head socket_getsockopt;
+-	struct list_head socket_setsockopt;
+-	struct list_head socket_shutdown;
+-	struct list_head socket_sock_rcv_skb;
+-	struct list_head socket_getpeersec_stream;
+-	struct list_head socket_getpeersec_dgram;
+-	struct list_head sk_alloc_security;
+-	struct list_head sk_free_security;
+-	struct list_head sk_clone_security;
+-	struct list_head sk_getsecid;
+-	struct list_head sock_graft;
+-	struct list_head inet_conn_request;
+-	struct list_head inet_csk_clone;
+-	struct list_head inet_conn_established;
+-	struct list_head secmark_relabel_packet;
+-	struct list_head secmark_refcount_inc;
+-	struct list_head secmark_refcount_dec;
+-	struct list_head req_classify_flow;
+-	struct list_head tun_dev_alloc_security;
+-	struct list_head tun_dev_free_security;
+-	struct list_head tun_dev_create;
+-	struct list_head tun_dev_attach_queue;
+-	struct list_head tun_dev_attach;
+-	struct list_head tun_dev_open;
++	LSM_unix_stream_connect,
++	LSM_unix_may_send,
++	LSM_socket_create,
++	LSM_socket_post_create,
++	LSM_socket_bind,
++	LSM_socket_connect,
++	LSM_socket_listen,
++	LSM_socket_accept,
++	LSM_socket_sendmsg,
++	LSM_socket_recvmsg,
++	LSM_socket_getsockname,
++	LSM_socket_getpeername,
++	LSM_socket_getsockopt,
++	LSM_socket_setsockopt,
++	LSM_socket_shutdown,
++	LSM_socket_sock_rcv_skb,
++	LSM_socket_getpeersec_stream,
++	LSM_socket_getpeersec_dgram,
++	LSM_sk_alloc_security,
++	LSM_sk_free_security,
++	LSM_sk_clone_security,
++	LSM_sk_getsecid,
++	LSM_sock_graft,
++	LSM_inet_conn_request,
++	LSM_inet_csk_clone,
++	LSM_inet_conn_established,
++	LSM_secmark_relabel_packet,
++	LSM_secmark_refcount_inc,
++	LSM_secmark_refcount_dec,
++	LSM_req_classify_flow,
++	LSM_tun_dev_alloc_security,
++	LSM_tun_dev_free_security,
++	LSM_tun_dev_create,
++	LSM_tun_dev_attach_queue,
++	LSM_tun_dev_attach,
++	LSM_tun_dev_open,
+ #endif	/* CONFIG_SECURITY_NETWORK */
+ #ifdef CONFIG_SECURITY_INFINIBAND
+-	struct list_head ib_pkey_access;
+-	struct list_head ib_endport_manage_subnet;
+-	struct list_head ib_alloc_security;
+-	struct list_head ib_free_security;
++	LSM_ib_pkey_access,
++	LSM_ib_endport_manage_subnet,
++	LSM_ib_alloc_security,
++	LSM_ib_free_security,
+ #endif	/* CONFIG_SECURITY_INFINIBAND */
+ #ifdef CONFIG_SECURITY_NETWORK_XFRM
+-	struct list_head xfrm_policy_alloc_security;
+-	struct list_head xfrm_policy_clone_security;
+-	struct list_head xfrm_policy_free_security;
+-	struct list_head xfrm_policy_delete_security;
+-	struct list_head xfrm_state_alloc;
+-	struct list_head xfrm_state_alloc_acquire;
+-	struct list_head xfrm_state_free_security;
+-	struct list_head xfrm_state_delete_security;
+-	struct list_head xfrm_policy_lookup;
+-	struct list_head xfrm_state_pol_flow_match;
+-	struct list_head xfrm_decode_session;
++	LSM_xfrm_policy_alloc_security,
++	LSM_xfrm_policy_clone_security,
++	LSM_xfrm_policy_free_security,
++	LSM_xfrm_policy_delete_security,
++	LSM_xfrm_state_alloc,
++	LSM_xfrm_state_alloc_acquire,
++	LSM_xfrm_state_free_security,
++	LSM_xfrm_state_delete_security,
++	LSM_xfrm_policy_lookup,
++	LSM_xfrm_state_pol_flow_match,
++	LSM_xfrm_decode_session,
+ #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
+ #ifdef CONFIG_KEYS
+-	struct list_head key_alloc;
+-	struct list_head key_free;
+-	struct list_head key_permission;
+-	struct list_head key_getsecurity;
++	LSM_key_alloc,
++	LSM_key_free,
++	LSM_key_permission,
++	LSM_key_getsecurity,
+ #endif	/* CONFIG_KEYS */
+ #ifdef CONFIG_AUDIT
+-	struct list_head audit_rule_init;
+-	struct list_head audit_rule_known;
+-	struct list_head audit_rule_match;
+-	struct list_head audit_rule_free;
++	LSM_audit_rule_init,
++	LSM_audit_rule_known,
++	LSM_audit_rule_match,
++	LSM_audit_rule_free,
+ #endif /* CONFIG_AUDIT */
++	LSM_MAX_HOOK_INDEX,
+ };
  
  /*
+@@ -1921,8 +1922,8 @@ struct security_hook_heads {
+  */
+ struct security_hook_list {
+ 	struct list_head		list;
+-	struct list_head		*head;
+ 	union security_list_options	hook;
++	enum security_hook_index	idx;
+ 	char				*lsm;
+ };
+ 
+@@ -1933,9 +1934,8 @@ struct security_hook_list {
+  * text involved.
+  */
+ #define LSM_HOOK_INIT(HEAD, HOOK) \
+-	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
++	{ .idx = LSM_##HEAD, .hook = { .HEAD = HOOK } }
+ 
+-extern struct security_hook_heads security_hook_heads;
+ extern char *lsm_names;
+ 
+ extern void security_add_hooks(struct security_hook_list *hooks, int count,
+diff --git a/security/security.c b/security/security.c
+index 3013237..44c47b6 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -34,7 +34,8 @@
+ /* Maximum number of letters for an LSM name string */
+ #define SECURITY_NAME_MAX	10
+ 
+-struct security_hook_heads security_hook_heads __lsm_ro_after_init;
++static struct list_head hook_heads[LSM_MAX_HOOK_INDEX]
++	__lsm_ro_after_init;
+ static ATOMIC_NOTIFIER_HEAD(lsm_notifier_chain);
+ 
+ char *lsm_names;
+@@ -59,12 +60,10 @@ static void __init do_security_initcalls(void)
+  */
+ int __init security_init(void)
+ {
+-	int i;
+-	struct list_head *list = (struct list_head *) &security_hook_heads;
++	enum security_hook_index i;
+ 
+-	for (i = 0; i < sizeof(security_hook_heads) / sizeof(struct list_head);
+-	     i++)
+-		INIT_LIST_HEAD(&list[i]);
++	for (i = 0; i < LSM_MAX_HOOK_INDEX; i++)
++		INIT_LIST_HEAD(&hook_heads[i]);
+ 	pr_info("Security Framework initialized\n");
+ 
+ 	/*
+@@ -161,8 +160,12 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
+ 	int i;
+ 
+ 	for (i = 0; i < count; i++) {
++		enum security_hook_index idx = hooks[i].idx;
++
+ 		hooks[i].lsm = lsm;
+-		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
++		/* Can't hit this BUG_ON() unless LSM_HOOK_INIT() is broken. */
++		BUG_ON(idx < 0 || idx >= LSM_MAX_HOOK_INDEX);
++		list_add_tail_rcu(&hooks[i].list, &hook_heads[idx]);
+ 	}
+ 	if (lsm_append(lsm, &lsm_names) < 0)
+ 		panic("%s - Cannot get early memory.\n", __func__);
+@@ -200,7 +203,7 @@ EXPORT_SYMBOL(unregister_lsm_notifier);
+ 	do {							\
+ 		struct security_hook_list *P;			\
+ 								\
+-		list_for_each_entry(P, &security_hook_heads.FUNC, list)	\
++		list_for_each_entry(P, &hook_heads[LSM_##FUNC], list)	\
+ 			P->hook.FUNC(__VA_ARGS__);		\
+ 	} while (0)
+ 
+@@ -209,7 +212,7 @@ EXPORT_SYMBOL(unregister_lsm_notifier);
+ 	do {							\
+ 		struct security_hook_list *P;			\
+ 								\
+-		list_for_each_entry(P, &security_hook_heads.FUNC, list) { \
++		list_for_each_entry(P, &hook_heads[LSM_##FUNC], list) {	\
+ 			RC = P->hook.FUNC(__VA_ARGS__);		\
+ 			if (RC != 0)				\
+ 				break;				\
+@@ -316,7 +319,7 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+ 	 * agree that it should be set it will. If any module
+ 	 * thinks it should not be set it won't.
+ 	 */
+-	list_for_each_entry(hp, &security_hook_heads.vm_enough_memory, list) {
++	list_for_each_entry(hp, &hook_heads[LSM_vm_enough_memory], list) {
+ 		rc = hp->hook.vm_enough_memory(mm, pages);
+ 		if (rc <= 0) {
+ 			cap_sys_admin = 0;
+@@ -809,7 +812,7 @@ int security_inode_getsecurity(struct inode *inode, const char *name, void **buf
+ 	/*
+ 	 * Only one module will provide an attribute with a given name.
+ 	 */
+-	list_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
++	list_for_each_entry(hp, &hook_heads[LSM_inode_getsecurity], list) {
+ 		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+ 		if (rc != -EOPNOTSUPP)
+ 			return rc;
+@@ -827,7 +830,7 @@ int security_inode_setsecurity(struct inode *inode, const char *name, const void
+ 	/*
+ 	 * Only one module will provide an attribute with a given name.
+ 	 */
+-	list_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
++	list_for_each_entry(hp, &hook_heads[LSM_inode_setsecurity], list) {
+ 		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+ 								flags);
+ 		if (rc != -EOPNOTSUPP)
+@@ -1135,7 +1138,7 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	int rc = -ENOSYS;
+ 	struct security_hook_list *hp;
+ 
+-	list_for_each_entry(hp, &security_hook_heads.task_prctl, list) {
++	list_for_each_entry(hp, &hook_heads[LSM_task_prctl], list) {
+ 		thisrc = hp->hook.task_prctl(option, arg2, arg3, arg4, arg5);
+ 		if (thisrc != -ENOSYS) {
+ 			rc = thisrc;
+@@ -1638,7 +1641,7 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
+ 	 * For speed optimization, we explicitly break the loop rather than
+ 	 * using the macro
+ 	 */
+-	list_for_each_entry(hp, &security_hook_heads.xfrm_state_pol_flow_match,
++	list_for_each_entry(hp, &hook_heads[LSM_xfrm_state_pol_flow_match],
+ 				list) {
+ 		rc = hp->hook.xfrm_state_pol_flow_match(x, xp, fl);
+ 		break;
 -- 
 2.9.3
 
