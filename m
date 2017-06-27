@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 54FC76B03B9
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:08:54 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id p135so20894686ita.11
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:08:54 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0046.outbound.protection.outlook.com. [104.47.41.46])
-        by mx.google.com with ESMTPS id t206si3108664iod.121.2017.06.27.08.08.53
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BFE656B03BB
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:09:06 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g7so29995886pgp.1
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:09:06 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0067.outbound.protection.outlook.com. [104.47.34.67])
+        by mx.google.com with ESMTPS id h2si2058928pfb.158.2017.06.27.08.09.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 08:08:53 -0700 (PDT)
+        Tue, 27 Jun 2017 08:09:05 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v8 RESEND 08/38] x86/mm: Add support to enable SME in early
- boot processing
-Date: Tue, 27 Jun 2017 10:08:43 -0500
-Message-ID: <20170627150843.17428.77939.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v8 RESEND 09/38] x86/mm: Simplify p[g4um]d_page() macros
+Date: Tue, 27 Jun 2017 10:08:55 -0500
+Message-ID: <20170627150855.17428.90364.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
 References: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,242 +23,71 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Add support to the early boot code to use Secure Memory Encryption (SME).
-Since the kernel has been loaded into memory in a decrypted state, encrypt
-the kernel in place and update the early pagetables with the memory
-encryption mask so that new pagetable entries will use memory encryption.
+Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
+use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
+duplicating the code.
 
-The routines to set the encryption mask and perform the encryption are
-stub routines for now with functionality to be added in a later patch.
-
+Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/mem_encrypt.h |    8 +++++
- arch/x86/kernel/head64.c           |   53 +++++++++++++++++++++++++++++-------
- arch/x86/kernel/head_64.S          |   20 ++++++++++++--
- arch/x86/mm/mem_encrypt.c          |    9 ++++++
- include/linux/mem_encrypt.h        |    5 +++
- 5 files changed, 82 insertions(+), 13 deletions(-)
+ arch/x86/include/asm/pgtable.h |   16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-index a105796..475e34f 100644
---- a/arch/x86/include/asm/mem_encrypt.h
-+++ b/arch/x86/include/asm/mem_encrypt.h
-@@ -15,14 +15,22 @@
- 
- #ifndef __ASSEMBLY__
- 
-+#include <linux/init.h>
-+
- #ifdef CONFIG_AMD_MEM_ENCRYPT
- 
- extern unsigned long sme_me_mask;
- 
-+void __init sme_encrypt_kernel(void);
-+void __init sme_enable(void);
-+
- #else	/* !CONFIG_AMD_MEM_ENCRYPT */
- 
- #define sme_me_mask	0UL
- 
-+static inline void __init sme_encrypt_kernel(void) { }
-+static inline void __init sme_enable(void) { }
-+
- #endif	/* CONFIG_AMD_MEM_ENCRYPT */
- 
- #endif	/* __ASSEMBLY__ */
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 46c3c73..1f0ddcc 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -14,6 +14,7 @@
- #include <linux/start_kernel.h>
- #include <linux/io.h>
- #include <linux/memblock.h>
-+#include <linux/mem_encrypt.h>
- 
- #include <asm/processor.h>
- #include <asm/proto.h>
-@@ -45,9 +46,10 @@ static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
- 	return ptr - (void *)_text + (void *)physaddr;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 77037b6..b64ea52 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -195,6 +195,11 @@ static inline unsigned long p4d_pfn(p4d_t p4d)
+ 	return (p4d_val(p4d) & p4d_pfn_mask(p4d)) >> PAGE_SHIFT;
  }
  
--void __head __startup_64(unsigned long physaddr)
-+unsigned long __head __startup_64(unsigned long physaddr)
- {
- 	unsigned long load_delta, *p;
-+	unsigned long pgtable_flags;
- 	pgdval_t *pgd;
- 	p4dval_t *p4d;
- 	pudval_t *pud;
-@@ -68,6 +70,12 @@ void __head __startup_64(unsigned long physaddr)
- 	if (load_delta & ~PMD_PAGE_MASK)
- 		for (;;);
- 
-+	/* Activate Secure Memory Encryption (SME) if supported and enabled */
-+	sme_enable();
-+
-+	/* Include the SME encryption mask in the fixup value */
-+	load_delta += sme_get_me_mask();
-+
- 	/* Fixup the physical addresses in the page table */
- 
- 	pgd = fixup_pointer(&early_top_pgt, physaddr);
-@@ -94,28 +102,30 @@ void __head __startup_64(unsigned long physaddr)
- 
- 	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
- 	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
-+	pgtable_flags = _KERNPG_TABLE + sme_get_me_mask();
- 
- 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
- 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
- 
- 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
--		pgd[i + 0] = (pgdval_t)p4d + _KERNPG_TABLE;
--		pgd[i + 1] = (pgdval_t)p4d + _KERNPG_TABLE;
-+		pgd[i + 0] = (pgdval_t)p4d + pgtable_flags;
-+		pgd[i + 1] = (pgdval_t)p4d + pgtable_flags;
- 
- 		i = (physaddr >> P4D_SHIFT) % PTRS_PER_P4D;
--		p4d[i + 0] = (pgdval_t)pud + _KERNPG_TABLE;
--		p4d[i + 1] = (pgdval_t)pud + _KERNPG_TABLE;
-+		p4d[i + 0] = (pgdval_t)pud + pgtable_flags;
-+		p4d[i + 1] = (pgdval_t)pud + pgtable_flags;
- 	} else {
- 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
--		pgd[i + 0] = (pgdval_t)pud + _KERNPG_TABLE;
--		pgd[i + 1] = (pgdval_t)pud + _KERNPG_TABLE;
-+		pgd[i + 0] = (pgdval_t)pud + pgtable_flags;
-+		pgd[i + 1] = (pgdval_t)pud + pgtable_flags;
- 	}
- 
- 	i = (physaddr >> PUD_SHIFT) % PTRS_PER_PUD;
--	pud[i + 0] = (pudval_t)pmd + _KERNPG_TABLE;
--	pud[i + 1] = (pudval_t)pmd + _KERNPG_TABLE;
-+	pud[i + 0] = (pudval_t)pmd + pgtable_flags;
-+	pud[i + 1] = (pudval_t)pmd + pgtable_flags;
- 
- 	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
-+	pmd_entry += sme_get_me_mask();
- 	pmd_entry +=  physaddr;
- 
- 	for (i = 0; i < DIV_ROUND_UP(_end - _text, PMD_SIZE); i++) {
-@@ -136,9 +146,30 @@ void __head __startup_64(unsigned long physaddr)
- 			pmd[i] += load_delta;
- 	}
- 
--	/* Fixup phys_base */
-+	/*
-+	 * Fixup phys_base - remove the memory encryption mask to obtain
-+	 * the true physical address.
-+	 */
- 	p = fixup_pointer(&phys_base, physaddr);
--	*p += load_delta;
-+	*p += load_delta - sme_get_me_mask();
-+
-+	/* Encrypt the kernel (if SME is active) */
-+	sme_encrypt_kernel();
-+
-+	/*
-+	 * Return the SME encryption mask (if SME is active) to be used as a
-+	 * modifier for the initial pgdir entry programmed into CR3.
-+	 */
-+	return sme_get_me_mask();
++static inline unsigned long pgd_pfn(pgd_t pgd)
++{
++	return (pgd_val(pgd) & PTE_PFN_MASK) >> PAGE_SHIFT;
 +}
 +
-+unsigned long __startup_secondary_64(void)
-+{
-+	/*
-+	 * Return the SME encryption mask (if SME is active) to be used as a
-+	 * modifier for the initial pgdir entry programmed into CR3.
-+	 */
-+	return sme_get_me_mask();
- }
- 
- /* Wipe all early page tables except for the kernel symbol map */
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index 6225550..ec5d5e9 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -73,12 +73,19 @@ startup_64:
- 	/* Sanitize CPU configuration */
- 	call verify_cpu
- 
-+	/*
-+	 * Perform pagetable fixups. Additionally, if SME is active, encrypt
-+	 * the kernel and retrieve the modifier (SME encryption mask if SME
-+	 * is active) to be added to the initial pgdir entry that will be
-+	 * programmed into CR3.
-+	 */
- 	leaq	_text(%rip), %rdi
- 	pushq	%rsi
- 	call	__startup_64
- 	popq	%rsi
- 
--	movq	$(early_top_pgt - __START_KERNEL_map), %rax
-+	/* Form the CR3 value being sure to include the CR3 modifier */
-+	addq	$(early_top_pgt - __START_KERNEL_map), %rax
- 	jmp 1f
- ENTRY(secondary_startup_64)
- 	/*
-@@ -98,7 +105,16 @@ ENTRY(secondary_startup_64)
- 	/* Sanitize CPU configuration */
- 	call verify_cpu
- 
--	movq	$(init_top_pgt - __START_KERNEL_map), %rax
-+	/*
-+	 * Retrieve the modifier (SME encryption mask if SME is active) to be
-+	 * added to the initial pgdir entry that will be programmed into CR3.
-+	 */
-+	pushq	%rsi
-+	call	__startup_secondary_64
-+	popq	%rsi
-+
-+	/* Form the CR3 value being sure to include the CR3 modifier */
-+	addq	$(init_top_pgt - __START_KERNEL_map), %rax
- 1:
- 
- 	/* Enable PAE mode, PGE and LA57 */
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index b99d469..3ac6f99 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -11,6 +11,7 @@
+ static inline int p4d_large(p4d_t p4d)
+ {
+ 	/* No 512 GiB pages yet */
+@@ -704,8 +709,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
   */
- 
- #include <linux/linkage.h>
-+#include <linux/init.h>
+-#define pmd_page(pmd)		\
+-	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page(pmd_pfn(pmd))
  
  /*
-  * Since SME related variables are set early in the boot process they must
-@@ -19,3 +20,11 @@
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -773,8 +777,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
   */
- unsigned long sme_me_mask __section(.data) = 0;
- EXPORT_SYMBOL_GPL(sme_me_mask);
-+
-+void __init sme_encrypt_kernel(void)
-+{
-+}
-+
-+void __init sme_enable(void)
-+{
-+}
-diff --git a/include/linux/mem_encrypt.h b/include/linux/mem_encrypt.h
-index 59769f7..570f4fc 100644
---- a/include/linux/mem_encrypt.h
-+++ b/include/linux/mem_encrypt.h
-@@ -30,6 +30,11 @@ static inline bool sme_active(void)
- 	return !!sme_me_mask;
- }
+-#define pud_page(pud)		\
+-	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
++#define pud_page(pud)	pfn_to_page(pud_pfn(pud))
  
-+static inline unsigned long sme_get_me_mask(void)
-+{
-+	return sme_me_mask;
-+}
-+
- #endif	/* __ASSEMBLY__ */
+ /* Find an entry in the second-level page table.. */
+ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+@@ -824,8 +827,7 @@ static inline unsigned long p4d_page_vaddr(p4d_t p4d)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define p4d_page(p4d)		\
+-	pfn_to_page((p4d_val(p4d) & p4d_pfn_mask(p4d)) >> PAGE_SHIFT)
++#define p4d_page(p4d)	pfn_to_page(p4d_pfn(p4d))
  
- #endif	/* __MEM_ENCRYPT_H__ */
+ /* Find an entry in the third-level page table.. */
+ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
+@@ -859,7 +861,7 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
++#define pgd_page(pgd)	pfn_to_page(pgd_pfn(pgd))
+ 
+ /* to find an entry in a page-table-directory. */
+ static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
