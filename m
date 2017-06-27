@@ -1,191 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C8EBA6B0279
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:38:14 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 76so18293209pgh.11
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 21:38:14 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id j19si1218402pgk.571.2017.06.26.21.38.13
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E62D86B02C3
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:56:46 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u62so18270561pgb.13
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 21:56:46 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g85si1238048pfd.255.2017.06.26.21.56.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 21:38:13 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id e199so3077537pfh.0
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 21:38:13 -0700 (PDT)
-Message-ID: <1498538287.5692.3.camel@gmail.com>
-Subject: Re: Error in freeing memory with zone reclaimable always returning
- true.
-From: Ivid Suvarna <ivid.suvarna@gmail.com>
-Date: Mon, 26 Jun 2017 21:38:07 -0700
-In-Reply-To: <20170626142730.GP11534@dhcp22.suse.cz>
-References: 
-	<CABXF_ACjD535xtk5_1MO6O8rdT+eudCn=GG0tM1ntEb6t1JO8w@mail.gmail.com>
-	 <20170626080019.GC11534@dhcp22.suse.cz> <1498482248.5348.7.camel@gmail.com>
-	 <20170626142730.GP11534@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Mon, 26 Jun 2017 21:56:45 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5R4s29x136744
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:56:45 -0400
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bb4bq2nya-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:56:45 -0400
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 27 Jun 2017 14:56:42 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v5R4uetm393494
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 14:56:40 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v5R4uWfo014808
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 14:56:32 +1000
+Subject: Re: [PATCH] mm/memory_hotplug: remove an unused variable in
+ move_pfn_range_to_zone()
+References: <20170626231928.54565-1-richard.weiyang@gmail.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 27 Jun 2017 10:26:38 +0530
+MIME-Version: 1.0
+In-Reply-To: <20170626231928.54565-1-richard.weiyang@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <6a58b706-f409-b81f-4859-a6323bce1758@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Wei Yang <richard.weiyang@gmail.com>, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2017-06-26 at 16:27 +0200, Michal Hocko wrote:
-> On Mon 26-06-17 06:04:08, Ivid Suvarna wrote:
-> > 
-> > On Mon, 2017-06-26 at 10:00 +0200, Michal Hocko wrote:
-> > > 
-> > > On Mon 26-06-17 12:59:17, Ivid Suvarna wrote:
-> > > > 
-> > > > 
-> > > > Hi,
-> > > > 
-> > > > I have below code which tries to free memory,
-> > > > do
-> > > > {
-> > > > free=shrink_all_memory;
-> > > > }while(free>0);
-> > > What is the intention of such a code. It looks quite wrong to me,
-> > > to
-> > > be
-> > > honest.
-> > > 
-> > My case is somewhat similar to hibernation where memory is freed
-> > for
-> > hibernation image and I want to free as much memory as possible
-> > until
-> > no pages can be reclaimed. i.e., until free returns 0.A 
-> I would just discourage you from doing something like that. Why would
-> you want to swap out the working set for example? Isn't something
-> like
-> dropping the clean page cache sufficient?
+On 06/27/2017 04:49 AM, Wei Yang wrote:
+> There is an unused variable in move_pfn_range_to_zone().
 > 
-> > 
-> > > 
-> > > > 
-> > > > But kernel gets into infinite loop because shrink_all_memory
-> > > > always
-> > > > returns
-> > > > 1.
-> > > > When I added some debug statements to `mm/vmscan.c` and found
-> > > > that
-> > > > it is
-> > > > because zone_reclaimable() is always true in shrink_zones()
-> > > > 
-> > > > if (global_reclaim(sc) &&
-> > > > A A A A A A A A A A A A !reclaimable && zone_reclaimable(zone))
-> > > > A A A A A A A A A A A A reclaimable = true;
-> > > > 
-> > > > This issue gets solved by removing the above lines.
-> > > > I am using linux-kernel 4.4 and imx board.
-> > > The code has changed quite a bit since 4.4 but in princible
-> > > zone_reclaimable was a rather dubious heuristic to not fail
-> > > reclaim
-> > > too
-> > > early because that would trigger the OOM in the page allocator
-> > > path
-> > > prematurely. This has changed in 4.7 by 0a0337e0d1d1 ("mm, oom:
-> > > rework
-> > > oom detection"). zone_reclaimable later renamed to
-> > > pgdat_reclaimable
-> > > is
-> > > gone from the kernel in the latests mmotm kernel.
-> > > 
-> > Suppose for testing purpose say I remove these lines only and not
-> > apply
-> > the whole patch("mm, oom: rework oom detection") as a solution,
-> > then
-> > what are the possible side effects? Are we like skipping something
-> > (possible reclaimable pages) by doing this?
-> > And will this effect any other reclaim logics?
-> as I've said oom detection at that time relied on this check. So you
-> could trigger oom prematurelly.
+> This patch just removes it.
 > 
-> > 
-> > > 
-> > > > 
-> > > > Similar Issue is seen here[1]. And it is solved through a patch
-> > > > removing
-> > > > the offending lines. But it does not explain why the zone
-> > > > reclaimable goes
-> > > > into infinite loop and what causes it? And I ran the C program
-> > > > from
-> > > > [1]
-> > > > which is below. And instead of OOM it went on to infinite loop.
-> > > Yes the previous oom detection could lock up.
-> > > 
-> > Could you explain more on why zone reclaimable be returning true
-> > always,
-> > even if there are no pages in LRU list to reclaim?
-> It will not but the mere fact that basically any freed page would
-> reset
-> the NR_PAGES_SCANNED counter then chances are that this would keep
-> you
-> livelocked.
+> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> ---
+>  mm/memory_hotplug.c | 1 -
+>  1 file changed, 1 deletion(-)
 > 
-> > 
-> > > 
-> > > > 
-> > > > #include <stdlib.h>
-> > > > #include <string.h>
-> > > > 
-> > > > int main(void)
-> > > > {
-> > > > for (;;) {
-> > > > void *p = malloc(1024 * 1024);
-> > > > memset(p, 0, 1024 * 1024);
-> > > > }
-> > > > }
-> > > > 
-> > > > Also can this issue be related to memcg as in here "
-> > > > https://lwn.net/Articles/508923/" because I see the code flow
-> > > > in my
-> > > > case
-> > > > enters:
-> > > > 
-> > > > if(nr_soft_reclaimed)
-> > > > reclaimable=true;
-> > > > 
-> > > > I dont understand memcg correctly. But in my case CONFIG_MEMCG
-> > > > is
-> > > > not set.
-> > > then it never reaches that path.
-> > > 
-> > I did not understand. Are you saying that since MEMCG is disabled,
-> > above if statement should
-> > not be executed? If that is the case , then why I am entering the
-> > if
-> > block?
-> If the memcg is disabled then nr_soft_reclaimed will never b true.
-> 
-> [...]
-> > 
-> > > 
-> > > > 
-> > > > A 3. I tried to unmount /dev/shm but was not possible since
-> > > > process
-> > > > was
-> > > > using it. Can we release shared memory by any way? I tried
-> > > > `munmap`
-> > > > but no
-> > > > use.
-> > > remove files from /dev/shm?
-> > > 
-> > Since there are some files in shared memory created by process,
-> > I just tried to remove them and test if the issue still exists.
-> > Sadly
-> > it exists.A 
-> Files will exist as long as th process keeps them open. But I still
-> do
-> not understand what you are after...
-> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 514014dde16b..16167c92bbf1 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -899,7 +899,6 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
+>  	struct pglist_data *pgdat = zone->zone_pgdat;
+>  	int nid = pgdat->node_id;
+>  	unsigned long flags;
+> -	unsigned long i;
+>  
+>  	if (zone_is_empty(zone))
+>  		init_currently_empty_zone(zone, start_pfn, nr_pages);
 
-Thanks Michal for the clarifications. One last thing, in suspend to ram
-or suspend to disk we freeze userspace processes. Is there any way to
-print the userspace processes that were freezed during
-suspend?i.e.,either process name or PID.
+We have this down in the function. IIRC I had checked out tag
+mmotm-2017-06-16-13-59 where I am looking out for this function.
 
-Cheers,
-Ivid
+for (i = 0; i < nr_pages; i++) {
+	unsigned long pfn = start_pfn + i;
+	set_page_links(pfn_to_page(pfn), zone_idx(zone), nid, pfn);
+}
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
