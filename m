@@ -1,82 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3AD6B036A
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 14:40:03 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id u126so14917503qka.9
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:40:03 -0700 (PDT)
-Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2607:b400:92:8300:0:c6:2117:b0e])
-        by mx.google.com with ESMTPS id p16si3421339qtb.121.2017.06.27.11.40.02
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8B76B02F4
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:07:39 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id a67so12401216vkf.12
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 13:07:39 -0700 (PDT)
+Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
+        by mx.google.com with ESMTPS id j12si64572vkc.276.2017.06.27.13.07.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 11:40:02 -0700 (PDT)
-Received: from mr2.cc.vt.edu (mr2.cc.ipv6.vt.edu [IPv6:2607:b400:92:8400:0:90:e077:bf22])
-	by omr1.cc.vt.edu (8.14.4/8.14.4) with ESMTP id v5RIe2vc027741
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 14:40:02 -0400
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by mr2.cc.vt.edu (8.14.7/8.14.7) with ESMTP id v5RIdvGH018808
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 14:40:02 -0400
-Received: by mail-qt0-f197.google.com with SMTP id 50so15687512qtz.3
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:40:02 -0700 (PDT)
-From: valdis.kletnieks@vt.edu
-Subject: Re: linux-next: BUG: Bad page state in process ip6tables-save pfn:1499f4
-In-Reply-To: <20170627163734.6js4jkwkwlz6xwir@black.fi.intel.com>
-References: <CANaxB-zPGB8Yy9480pTFmj9HECGs3quq9Ak18aBUbx9TsNSsaw@mail.gmail.com> <20170624001738.GB7946@gmail.com> <20170624150824.GA19708@gmail.com> <bff14c53-815a-0874-5ed9-43d3f4c54ffd@suse.cz>
- <20170627163734.6js4jkwkwlz6xwir@black.fi.intel.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1498588793_8534P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 27 Jun 2017 14:39:53 -0400
-Message-ID: <8643.1498588793@turing-police.cc.vt.edu>
+        Tue, 27 Jun 2017 13:07:38 -0700 (PDT)
+Received: by mail-ua0-x241.google.com with SMTP id g40so3011314uaa.3
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 13:07:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170627175118.GA14286@infradead.org>
+References: <20170627173323.11287-1-igor.stoppa@huawei.com>
+ <20170627173323.11287-4-igor.stoppa@huawei.com> <20170627175118.GA14286@infradead.org>
+From: "igor.stoppa@gmail.com" <igor.stoppa@gmail.com>
+Date: Tue, 27 Jun 2017 23:07:17 +0300
+Message-ID: <CAH2bzCQQyCEkBEe5tWRLnXek=L6MUJai1D77ogjaBjW7wJJmfA@mail.gmail.com>
+Subject: Re: [PATCH 3/3] Make LSM Writable Hooks a command line option
+Content-Type: multipart/alternative; boundary="94eb2c047dc68424bb0552f69e2c"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Punit Agrawal <punit.agrawal@arm.com>, Steve Capper <steve.capper@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrei Vagin <avagin@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, penguin-kernel@i-love.sakura.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, labbott@redhat.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
---==_Exmh_1498588793_8534P
-Content-Type: text/plain; charset=us-ascii
+--94eb2c047dc68424bb0552f69e2c
+Content-Type: text/plain; charset="UTF-8"
 
-On Tue, 27 Jun 2017 19:37:34 +0300, "Kirill A. Shutemov" said:
+On 27 June 2017 at 20:51, Christoph Hellwig <hch@infradead.org> wrote:
 
-> > > commit c3aab7b2d4e8434d53bc81770442c14ccf0794a8
-> > > Merge: 849c34f 93a7379
-> > > Author: Stephen Rothwell
-> > > Date:   Fri Jun 23 16:40:07 2017 +1000
-> > >
-> > >     Merge branch 'akpm-current/current'
-> >
-> > Hm is it really the merge of mmotm itself and not one of the patches in
-> > mmotm?
-> > Anyway smells like THP, adding Kirill.
+> On Tue, Jun 27, 2017 at 08:33:23PM +0300, Igor Stoppa wrote:
 >
-> Okay, it took a while to figure it out.
+> [...]
+
+
+> > The default value is disabled, unless SE Linux debugging is turned on.
 >
-> The bug is in patch "mm, gup: ensure real head page is ref-counted when
-> using hugepages". We should look for a head *before* the loop. Otherwise
-> 'page' may point to the first page beyond the compound page.
+> Can we please just force it to be read-only?
 >
-> The patch below should help.
 
-Confirmed that fixes the BUGs that I was hitting.
+I'm sorry, I'm not quite sure I understand your comment.
 
-Tested-By: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+I'm trying to replicate the behavior of __lsm_ro_after_init:
 
---==_Exmh_1498588793_8534P
-Content-Type: application/pgp-signature
+line 1967 @ [1]   - Did I get it wrong?
 
------BEGIN PGP SIGNATURE-----
-Comment: Exmh version 2.8.0 04/21/2017
+thanks, igor
 
-iQEVAwUBWVKmeY0DS38y7CIcAQJjpAf/aQ1PsbY4ZHUDDn2GSOfXbZKIflyMBCML
-z/RDQh1nzdoE8hAaPfHmDznHsHLX1XSD6HU20TJK2r1tXKLZ652jVVhxwFz6o1zA
-cTr5AKGuynXpOhstmJS1XF12wI16Jb87o31zT3wVwU7QbgpXnSXUdBcO7cWRgzwk
-+8bTeBKpORg92K93gERbmZVLaTNEVEIssxAWXq0303KnbPnwLwEpX9LdsQ7KJtIx
-7ZUYEdb9j9PzXl5Aso5r2vO6VfoMCbjb/hPtBObXKX10vwWEbLPNyx831CmYWjRl
-Qm5F4mqLhBW1yplasaaK7Z86DEIr+KQ7WSmM48W94EoGGYnNc5lDSQ==
-=pUDz
------END PGP SIGNATURE-----
 
---==_Exmh_1498588793_8534P--
+
+[1]
+https://kernel.googlesource.com/pub/scm/linux/kernel/git/jmorris/linux-security/+/5965453d5e3fb425e6f9d6b4fec403bda3f33107/include/linux/lsm_hooks.h
+
+--94eb2c047dc68424bb0552f69e2c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On 2=
+7 June 2017 at 20:51, Christoph Hellwig <span dir=3D"ltr">&lt;<a href=3D"ma=
+ilto:hch@infradead.org" target=3D"_blank">hch@infradead.org</a>&gt;</span> =
+wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8=
+ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><span class=3D"=
+gmail-">On Tue, Jun 27, 2017 at 08:33:23PM +0300, Igor Stoppa wrote:<br><br=
+></span></blockquote><div>[...]</div><div>=C2=A0</div><blockquote class=3D"=
+gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(20=
+4,204,204);padding-left:1ex"><span class=3D"gmail-">
+&gt; The default value is disabled, unless SE Linux debugging is turned on.=
+<br>
+<br>
+</span>Can we please just force it to be read-only?<br>
+</blockquote></div><br>I&#39;m sorry, I&#39;m not quite sure I understand y=
+our comment.
+</div><div class=3D"gmail_extra"><br></div><div class=3D"gmail_extra">I&#39=
+;m trying to replicate the behavior of __lsm_ro_after_init:</div><div class=
+=3D"gmail_extra"><br></div><div class=3D"gmail_extra">line 1967 @ [1] =C2=
+=A0 - Did I get it wrong?</div><div class=3D"gmail_extra"><br></div><div cl=
+ass=3D"gmail_extra">thanks, igor</div><div class=3D"gmail_extra"><br></div>=
+<div class=3D"gmail_extra"><br></div><div class=3D"gmail_extra"><br></div><=
+div class=3D"gmail_extra">[1] <a href=3D"https://kernel.googlesource.com/pu=
+b/scm/linux/kernel/git/jmorris/linux-security/+/5965453d5e3fb425e6f9d6b4fec=
+403bda3f33107/include/linux/lsm_hooks.h">https://kernel.googlesource.com/pu=
+b/scm/linux/kernel/git/jmorris/linux-security/+/5965453d5e3fb425e6f9d6b4fec=
+403bda3f33107/include/linux/lsm_hooks.h</a><br></div></div>
+
+--94eb2c047dc68424bb0552f69e2c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
