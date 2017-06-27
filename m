@@ -1,119 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DE66B02F4
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 03:03:10 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id t3so3576422wme.9
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:03:10 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B26E56B02F4
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 03:06:47 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z5so3595485wmz.4
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:06:47 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 88si13740638wrf.105.2017.06.27.00.03.08
+        by mx.google.com with ESMTPS id l13si14115138wrl.55.2017.06.27.00.06.46
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 00:03:08 -0700 (PDT)
-Subject: Re: mmotm 2017-06-23-15-03 uploaded
-From: Vlastimil Babka <vbabka@suse.cz>
-References: <594d905d.geNp0UO7DULvNDPS%akpm@linux-foundation.org>
- <CAC=cRTNJe5Bo-1E+3oJEbWM8Yt5SyZOhnUiC9U5OK0GWrp1E0g@mail.gmail.com>
- <c3caa911-6e40-42a8-da4d-45243fb7f4ad@suse.cz>
-Message-ID: <13ab3968-a7e4-add3-b050-438d462f7fc4@suse.cz>
-Date: Tue, 27 Jun 2017 09:03:07 +0200
+        Tue, 27 Jun 2017 00:06:46 -0700 (PDT)
+Date: Tue, 27 Jun 2017 09:06:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
+ delivery
+Message-ID: <20170627070643.GA28078@dhcp22.suse.cz>
+References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <c3caa911-6e40-42a8-da4d-45243fb7f4ad@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: huang ying <huang.ying.caritas@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, mhocko@suse.cz, Mark Brown <broonie@kernel.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>
+To: Prakash Sangappa <prakash.sangappa@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>
 
-[+CC Rasmus, sorry]
+This is an user visible API so let's CC linux-api mailing list.
 
-On 06/27/2017 09:01 AM, Vlastimil Babka wrote:
-> On 06/27/2017 08:45 AM, huang ying wrote:
->> On Sat, Jun 24, 2017 at 6:04 AM,  <akpm@linux-foundation.org> wrote:
->>> * mm-page_allocc-eliminate-unsigned-confusion-in-__rmqueue_fallback.patch
->>
->> After git bisecting, find the above patch will cause the following bug
->> on i386 with memory eater + swap.
->>
->> [   10.657876] BUG: unable to handle kernel paging request at 001fe2b8
->> [   10.658412] IP: set_pfnblock_flags_mask+0x50/0x80
->> [   10.658779] *pde = 00000000
->> [   10.658779]
->> [   10.659126] Oops: 0000 [#1] SMP
->> [   10.659372] CPU: 0 PID: 1403 Comm: usemem Not tainted 4.12.0-rc6-mm1+ #12
->> [   10.659888] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
->> BIOS 1.10.2-1 04/01/2014
->> [   10.660522] task: f54a4c40 task.stack: f54ee000
->> [   10.660878] EIP: set_pfnblock_flags_mask+0x50/0x80
->> [   10.661246] EFLAGS: 00010006 CPU: 0
->> [   10.661517] EAX: 0007f8ae EBX: 00000000 ECX: 00000009 EDX: 00000200
->> [   10.661994] ESI: 001fe2b8 EDI: 00000e00 EBP: f54efd8c ESP: f54efd80
->> [   10.662473]  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
->> [   10.662891] CR0: 80050033 CR2: 001fe2b8 CR3: 356a3000 CR4: 00000690
->> [   10.663378] Call Trace:
->> [   10.663577]  set_pageblock_migratetype+0x31/0x40
->> [   10.663933]  __rmqueue+0x367/0x560
->> [   10.664197]  get_page_from_freelist+0x5b7/0x8e0
->> [   10.664546]  __alloc_pages_nodemask+0x31a/0x1000
->> [   10.664913]  ? handle_mm_fault+0x1e8/0x840
->> [   10.665230]  handle_mm_fault+0x71d/0x840
->> [   10.665537]  __do_page_fault+0x175/0x400
->> [   10.665848]  ? vmalloc_sync_all+0x190/0x190
->> [   10.666173]  do_page_fault+0xb/0x10
->> [   10.666446]  common_exception+0x64/0x6a
->> [   10.666742] EIP: 0x8005e04c
->> [   10.666959] EFLAGS: 00010246 CPU: 0
->> [   10.667229] EAX: 07d47400 EBX: 80063000 ECX: bfc964d8 EDX: 67179000
->> [   10.667705] ESI: 07d47400 EDI: 07d47400 EBP: 00000000 ESP: bfc962cc
->> [   10.668180]  DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 007b
->> [   10.668595]  ? vmalloc_sync_all+0x190/0x190
->> [   10.668922] Code: 8b 5b 28 25 00 fc ff ff 29 c1 89 c8 b9 1f 00 00
->> 00 2b 4d 08 c1 e8 0a c1 e0 02 89 c6 c1 e8 05 83 e6 1f 29 f1 8d 34 83
->> d3 e7 d3 e2 <8b> 1e f7 d7 eb 0c 8d 76 00 8d bc 27 00 00 00 00 89 c3 89
->> d9 89
->> [   10.670369] EIP: set_pfnblock_flags_mask+0x50/0x80 SS:ESP: 0068:f54efd80
->> [   10.670881] CR2: 00000000001fe2b8
->> [   10.671140] ---[ end trace f51518af57e6b531 ]---
->>
->> I think this comes from the signed and unsigned int comparison on
->> i386.  The gcc version is,
+On Mon 26-06-17 12:46:13, Prakash Sangappa wrote:
+> In some cases, userfaultfd mechanism should just deliver a SIGBUS signal
+> to the faulting process, instead of the page-fault event. Dealing with
+> page-fault event using a monitor thread can be an overhead in these
+> cases. For example applications like the database could use the signaling
+> mechanism for robustness purpose.
+
+this is rather confusing. What is the reason that the monitor would be
+slower than signal delivery and handling?
+
+> Database uses hugetlbfs for performance reason. Files on hugetlbfs
+> filesystem are created and huge pages allocated using fallocate() API.
+> Pages are deallocated/freed using fallocate() hole punching support.
+> These files are mmapped and accessed by many processes as shared memory.
+> The database keeps track of which offsets in the hugetlbfs file have
+> pages allocated.
 > 
-> Yes, the unsigned vs signed comparison is wrong, and effectively the
-> same problem as the previous wrong attempt, which removed the order >= 0
-> condition. Thanks for the report.
+> Any access to mapped address over holes in the file, which can occur due
+> to bugs in the application, is considered invalid and expect the process
+> to simply receive a SIGBUS.  However, currently when a hole in the file is
+> accessed via the mapped address, kernel/mm attempts to automatically
+> allocate a page at page fault time, resulting in implicitly filling the
+> hole in the file. This may not be the desired behavior for applications
+> like the database that want to explicitly manage page allocations of
+> hugetlbfs files.
+
+So you register UFFD_FEATURE_SIGBUS on each region tha you are unmapping
+and than just let those offenders die?
+
+> Using userfaultfd mechanism, with this support to get a signal, database
+> application can prevent pages from being allocated implicitly when
+> processes access mapped address over holes in the file.
 > 
-> However, the patch in mmotm seems to be missing this crucial hunk that
-> Rasmus had in the patch he sent [1]:
+> This patch adds the feature to request for a SIGBUS signal to userfaultfd
+> mechanism.
 > 
-> -__rmqueue_fallback(struct zone *zone, unsigned int order, int
-> start_migratetype)
-> +__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+> See following for previous discussion about the database requirement
+> leading to this proposal as suggested by Andrea.
 > 
-> which makes this a signed vs signed comparison.
+> http://www.spinics.net/lists/linux-mm/msg129224.html
+
+Please make those requirements part of the changelog.
+
+> Signed-off-by: Prakash <prakash.sangappa@oracle.com>
+> ---
+>  fs/userfaultfd.c                 |  5 +++++
+>  include/uapi/linux/userfaultfd.h | 10 +++++++++-
+>  2 files changed, 14 insertions(+), 1 deletion(-)
 > 
-> What happened to it? Andrew?
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 1d622f2..5686d6d2 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -371,6 +371,11 @@ int handle_userfault(struct vm_fault *vmf, unsigned
+> long reason)
+>      VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+>      VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
 > 
-> [1] http://lkml.kernel.org/r/20170621185529.2265-1-linux@rasmusvillemoes.dk
+> +    if (ctx->features & UFFD_FEATURE_SIGBUS) {
+> +        goto out;
+> +    }
+> +
+>      /*
+>       * If it's already released don't get it. This avoids to loop
+>       * in __get_user_pages if userfaultfd_release waits on the
+> diff --git a/include/uapi/linux/userfaultfd.h
+> b/include/uapi/linux/userfaultfd.h
+> index 3b05953..d39d5db 100644
+> --- a/include/uapi/linux/userfaultfd.h
+> +++ b/include/uapi/linux/userfaultfd.h
+> @@ -23,7 +23,8 @@
+>                 UFFD_FEATURE_EVENT_REMOVE |    \
+>                 UFFD_FEATURE_EVENT_UNMAP |        \
+>                 UFFD_FEATURE_MISSING_HUGETLBFS |    \
+> -               UFFD_FEATURE_MISSING_SHMEM)
+> +               UFFD_FEATURE_MISSING_SHMEM |        \
+> +               UFFD_FEATURE_SIGBUS)
+>  #define UFFD_API_IOCTLS                \
+>      ((__u64)1 << _UFFDIO_REGISTER |        \
+>       (__u64)1 << _UFFDIO_UNREGISTER |    \
+> @@ -153,6 +154,12 @@ struct uffdio_api {
+>       * UFFD_FEATURE_MISSING_SHMEM works the same as
+>       * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
+>       * (i.e. tmpfs and other shmem based APIs).
+> +     *
+> +     * UFFD_FEATURE_SIGBUS feature means no page-fault
+> +     * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
+> +     * a SIGBUS signal will be sent to the faulting process.
+> +     * The application process can enable this behavior by adding
+> +     * it to uffdio_api.features.
+>       */
+>  #define UFFD_FEATURE_PAGEFAULT_FLAG_WP        (1<<0)
+>  #define UFFD_FEATURE_EVENT_FORK            (1<<1)
+> @@ -161,6 +168,7 @@ struct uffdio_api {
+>  #define UFFD_FEATURE_MISSING_HUGETLBFS        (1<<4)
+>  #define UFFD_FEATURE_MISSING_SHMEM        (1<<5)
+>  #define UFFD_FEATURE_EVENT_UNMAP        (1<<6)
+> +#define UFFD_FEATURE_SIGBUS            (1<<7)
+>      __u64 features;
 > 
->> gcc (Debian 6.3.0-18) 6.3.0 20170516
->>
->> Best Regards,
->> Huang, Ying
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+>      __u64 ioctls;
+> -- 
+> 2.7.4
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
