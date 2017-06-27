@@ -1,71 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 798EB6B0279
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 01:37:06 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b184so3304691wme.14
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 22:37:06 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j14si14048372wrb.98.2017.06.26.22.37.04
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9091B6B0279
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 02:12:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d5so18815574pfe.2
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 23:12:16 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id i16si1330276pfj.91.2017.06.26.23.12.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Jun 2017 22:37:05 -0700 (PDT)
-Date: Tue, 27 Jun 2017 07:37:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] mm: remove unused zone_type variable from
- __remove_zone()
-Message-ID: <20170627053702.GC28072@dhcp22.suse.cz>
-References: <20170624043421.24465-1-jhubbard@nvidia.com>
- <20170624043421.24465-2-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jun 2017 23:12:15 -0700 (PDT)
+Date: Mon, 26 Jun 2017 23:12:11 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 16/51] block: bounce: avoid direct access to bvec table
+Message-ID: <20170627061211.GA27359@bombadil.infradead.org>
+References: <20170626121034.3051-1-ming.lei@redhat.com>
+ <20170626121034.3051-17-ming.lei@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170624043421.24465-2-jhubbard@nvidia.com>
+In-Reply-To: <20170626121034.3051-17-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 23-06-17 21:34:21, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> __remove_zone() is setting up zone_type, but never using
-> it for anything. This is not causing a warning, due to
-> the (necessary) use of -Wno-unused-but-set-variable.
-> However, it's noise, so just delete it.
-
-I plan to remove the function completely FWIW but this is a trivial
-impovement.
- 
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memory_hotplug.c | 3 ---
->  1 file changed, 3 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 567a1dcafa1a..9bd73ecd7248 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -580,11 +580,8 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn)
->  {
->  	struct pglist_data *pgdat = zone->zone_pgdat;
->  	int nr_pages = PAGES_PER_SECTION;
-> -	int zone_type;
->  	unsigned long flags;
->  
-> -	zone_type = zone - pgdat->node_zones;
+On Mon, Jun 26, 2017 at 08:09:59PM +0800, Ming Lei wrote:
+>  	bio_for_each_segment_all(bvec, bio, i) {
+> -		org_vec = bio_orig->bi_io_vec + i + start;
 > -
->  	pgdat_resize_lock(zone->zone_pgdat, &flags);
->  	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
->  	shrink_pgdat_span(pgdat, start_pfn, start_pfn + nr_pages);
-> -- 
-> 2.13.1
+> -		if (bvec->bv_page == org_vec->bv_page)
+> -			continue;
+> +		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
+> +		if (bvec->bv_page == orig_vec.bv_page)
+> +			goto next;
+>  
+>  		dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
+>  		mempool_free(bvec->bv_page, pool);
+> + next:
+> +		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
+>  	}
+>  
 
--- 
-Michal Hocko
-SUSE Labs
+I think this might be written more clearly as:
+
+ 	bio_for_each_segment_all(bvec, bio, i) {
+		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
+		if (bvec->bv_page != orig_vec.bv_page) {
+ 			dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
+	 		mempool_free(bvec->bv_page, pool);
+		}
+		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
+ 	}
+
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
