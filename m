@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 404086B03A5
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:00:47 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 100so20051506ioh.0
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:00:47 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0044.outbound.protection.outlook.com. [104.47.34.44])
-        by mx.google.com with ESMTPS id u8si2358334itf.145.2017.06.27.08.00.44
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 771C76B03A7
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:00:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s4so29529880pgr.3
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:00:56 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0044.outbound.protection.outlook.com. [104.47.41.44])
+        by mx.google.com with ESMTPS id n63si2049001pfj.107.2017.06.27.08.00.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 08:00:45 -0700 (PDT)
+        Tue, 27 Jun 2017 08:00:54 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v8 25/38] swiotlb: Add warnings for use of bounce buffers
- with SME
-Date: Tue, 27 Jun 2017 10:00:36 -0500
-Message-ID: <20170627150036.15908.80988.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v8 26/38] x86/CPU/AMD: Make the microcode level available
+ earlier in the boot
+Date: Tue, 27 Jun 2017 10:00:45 -0500
+Message-ID: <20170627150045.15908.23856.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170627145607.15908.26571.stgit@tlendack-t1.amdoffice.net>
 References: <20170627145607.15908.26571.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,78 +24,51 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Add warnings to let the user know when bounce buffers are being used for
-DMA when SME is active.  Since the bounce buffers are not in encrypted
-memory, these notifications are to allow the user to determine some
-appropriate action - if necessary.  Actions can range from utilizing an
-IOMMU, replacing the device with another device that can support 64-bit
-DMA, ignoring the message if the device isn't used much, etc.
+Move the setting of the cpuinfo_x86.microcode field from amd_init() to
+early_amd_init() so that it is available earlier in the boot process. This
+avoids having to read MSR_AMD64_PATCH_LEVEL directly during early boot.
 
+Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- include/linux/dma-mapping.h |   13 +++++++++++++
- lib/swiotlb.c               |    3 +++
- 2 files changed, 16 insertions(+)
+ arch/x86/kernel/cpu/amd.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index 4f3eece..a156c40 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -10,6 +10,7 @@
- #include <linux/scatterlist.h>
- #include <linux/kmemcheck.h>
- #include <linux/bug.h>
-+#include <linux/mem_encrypt.h>
+diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
+index 5bdcbd4..fdcf305 100644
+--- a/arch/x86/kernel/cpu/amd.c
++++ b/arch/x86/kernel/cpu/amd.c
+@@ -547,8 +547,12 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
  
- /**
-  * List of possible attributes associated with a DMA mapping. The semantics
-@@ -554,6 +555,12 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
- #endif
- }
- 
-+static inline void dma_check_mask(struct device *dev, u64 mask)
-+{
-+	if (sme_active() && (mask < (((u64)sme_get_me_mask() << 1) - 1)))
-+		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
-+}
-+
- #ifndef HAVE_ARCH_DMA_SUPPORTED
- static inline int dma_supported(struct device *dev, u64 mask)
+ static void early_init_amd(struct cpuinfo_x86 *c)
  {
-@@ -577,6 +584,9 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
++	u32 dummy;
++
+ 	early_init_amd_mc(c);
  
- 	if (!dev->dma_mask || !dma_supported(dev, mask))
- 		return -EIO;
++	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 +
-+	dma_check_mask(dev, mask);
-+
- 	*dev->dma_mask = mask;
- 	return 0;
- }
-@@ -596,6 +606,9 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
+ 	/*
+ 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
+ 	 * with P/T states and does not stop in deep C-states
+@@ -746,8 +750,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
+ 
+ static void init_amd(struct cpuinfo_x86 *c)
  {
- 	if (!dma_supported(dev, mask))
- 		return -EIO;
-+
-+	dma_check_mask(dev, mask);
-+
- 	dev->coherent_dma_mask = mask;
- 	return 0;
- }
-diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-index 04ac91a..8c6c83e 100644
---- a/lib/swiotlb.c
-+++ b/lib/swiotlb.c
-@@ -507,6 +507,9 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
- 	if (no_iotlb_memory)
- 		panic("Can not allocate SWIOTLB buffer earlier and can't now provide you with the DMA bounce buffer");
+-	u32 dummy;
+-
+ 	early_init_amd(c);
  
-+	if (sme_active())
-+		pr_warn_once("SME is active and system is using DMA bounce buffers\n");
-+
- 	mask = dma_get_seg_boundary(hwdev);
+ 	/*
+@@ -809,8 +811,6 @@ static void init_amd(struct cpuinfo_x86 *c)
+ 	if (c->x86 > 0x11)
+ 		set_cpu_cap(c, X86_FEATURE_ARAT);
  
- 	tbl_dma_addr &= mask;
+-	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
+-
+ 	/* 3DNow or LM implies PREFETCHW */
+ 	if (!cpu_has(c, X86_FEATURE_3DNOWPREFETCH))
+ 		if (cpu_has(c, X86_FEATURE_3DNOW) || cpu_has(c, X86_FEATURE_LM))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
