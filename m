@@ -1,73 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 523016B0315
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 18:09:23 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id r65so17162961qki.8
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 15:09:23 -0700 (PDT)
-Received: from mail-qt0-x236.google.com (mail-qt0-x236.google.com. [2607:f8b0:400d:c0d::236])
-        by mx.google.com with ESMTPS id c28si448062qtg.85.2017.06.27.15.09.22
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C2306B02F3
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 19:04:20 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id r4so30344144ith.7
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:04:20 -0700 (PDT)
+Received: from mail-it0-x232.google.com (mail-it0-x232.google.com. [2607:f8b0:4001:c0b::232])
+        by mx.google.com with ESMTPS id 89si480397iod.229.2017.06.27.16.04.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 15:09:22 -0700 (PDT)
-Received: by mail-qt0-x236.google.com with SMTP id f92so36248901qtb.2
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 15:09:22 -0700 (PDT)
+        Tue, 27 Jun 2017 16:04:19 -0700 (PDT)
+Received: by mail-it0-x232.google.com with SMTP id v202so21571099itb.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:04:19 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F612E4285@ORSMSX114.amr.corp.intel.com>
-References: <20170616190200.6210-1-tony.luck@intel.com> <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
- <20170621174740.npbtg2e4o65tyrss@intel.com> <AT5PR84MB00823EB30BD7BF0EA3DAFF0BABD80@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
- <3908561D78D1C84285E8C5FCA982C28F612E4285@ORSMSX114.amr.corp.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 27 Jun 2017 15:09:21 -0700
-Message-ID: <CAPcyv4gC_6TpwVSjuOzxrz3OdVZCVWD0QVWhBzAuOxUNHJHRMQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of
- poison pages
+In-Reply-To: <1497544976-7856-6-git-send-email-s.mesoraca16@gmail.com>
+References: <1497544976-7856-1-git-send-email-s.mesoraca16@gmail.com> <1497544976-7856-6-git-send-email-s.mesoraca16@gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 27 Jun 2017 16:04:17 -0700
+Message-ID: <CAGXu5jJuQx2qOt_aDqDQDcqGOZ5kmr5rQ9Zjv=MRRCJ65ERfGw@mail.gmail.com>
+Subject: Re: [RFC v2 5/9] S.A.R.A. WX Protection
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, Borislav Petkov <bp@suse.de>, "Hansen, Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yazen Ghannam <yazen.ghannam@amd.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Salvatore Mesoraca <s.mesoraca16@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-security-module <linux-security-module@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Brad Spengler <spender@grsecurity.net>, PaX Team <pageexec@freemail.hu>, Casey Schaufler <casey@schaufler-ca.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Jann Horn <jannh@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Jun 27, 2017 at 3:04 PM, Luck, Tony <tony.luck@intel.com> wrote:
->> > > > +if (set_memory_np(decoy_addr, 1))
->> > > > +pr_warn("Could not invalidate pfn=0x%lx from 1:1 map \n",
->>
->> Another concept to consider is mapping the page as UC rather than
->> completely unmapping it.
->
-> UC would also avoid the speculative prefetch issue.  The Vol 3, Section 11.3 SDM says:
->
-> Strong Uncacheable (UC) -System memory locations are not cached. All reads and writes
-> appear on the system bus and are executed in program order without reordering. No speculative
-> memory accesses, pagetable walks, or prefetches of speculated branch targets are made.
-> This type of cache-control is useful for memory-mapped I/O devices. When used with normal
-> RAM, it greatly reduces processor performance.
->
-> But then I went and read the code for set_memory_uc() ... which calls "reserve_memtyep()"
-> which does all kinds of things to avoid issues with MTRRs and other stuff.  Which all looks
-> really more complex that we need just here.
->
->> The uncorrectable error scope could be smaller than a page size, like:
->> * memory ECC width (e.g., 8 bytes)
->> * cache line size (e.g., 64 bytes)
->> * block device logical block size (e.g., 512 bytes, for persistent memory)
->>
->> UC preserves the ability to access adjacent data within the page that
->> hasn't gone bad, and is particularly useful for persistent memory.
->
-> If you want to dig into the non-poisoned pieces of the page later it might be
-> better to set up a new scratch UC mapping to do that.
->
-> My takeaway from Dan's comments on unpoisoning is that this isn't the context
-> that he wants to do that.  He'd rather wait until he has somebody overwriting the
-> page with fresh data.
->
-> So I think I'd like to keep the patch as-is.
+On Thu, Jun 15, 2017 at 9:42 AM, Salvatore Mesoraca
+<s.mesoraca16@gmail.com> wrote:
+> +static int sara_check_vmflags(vm_flags_t vm_flags)
+> +{
+> +       u16 sara_wxp_flags = get_current_sara_wxp_flags();
+> +
+> +       if (sara_enabled && wxprot_enabled) {
+> +               if (sara_wxp_flags & SARA_WXP_WXORX &&
+> +                   vm_flags & VM_WRITE &&
+> +                   vm_flags & VM_EXEC) {
+> +                       if ((sara_wxp_flags & SARA_WXP_VERBOSE))
+> +                               pr_wxp("W^X");
+> +                       if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
+> +                               return -EPERM;
+> +               }
+> +               if (sara_wxp_flags & SARA_WXP_MMAP &&
+> +                   (vm_flags & VM_EXEC ||
+> +                    (!(vm_flags & VM_MAYWRITE) && (vm_flags & VM_MAYEXEC))) &&
+> +                   get_current_sara_mmap_blocked()) {
+> +                       if ((sara_wxp_flags & SARA_WXP_VERBOSE))
+> +                               pr_wxp("executable mmap");
+> +                       if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
+> +                               return -EPERM;
+> +               }
+> +       }
 
-Yes, the persistent-memory poison interactions should be handled
-separately and not hold up this patch for the normal system-memory
-case. We might dove-tail support for this into stray write protection
-where we unmap all of pmem while nothing in the kernel is actively
-accessing it.
+Given the subtle differences between these various if blocks (here and
+in the other hook), I think it would be nice to have some beefy
+comments here to describe specifically what's being checked (and why).
+It'll help others review this code, and help validate code against
+intent.
+
+I would also try to minimize the written code by creating a macro for
+a repeated pattern here:
+
+> +                               if ((sara_wxp_flags & SARA_WXP_VERBOSE))
+> +                                       pr_wxp("mprotect on file mmap");
+> +                               if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
+> +                                       return -EACCES;
+
+These four lines are repeated several times with only the const char *
+and return value changing. Perhaps something like:
+
+#define sara_return(err, msg) do { \
+                               if ((sara_wxp_flags & SARA_WXP_VERBOSE)) \
+                                       pr_wxp(err); \
+                               if (!(sara_wxp_flags & SARA_WXP_COMPLAIN)) \
+                                       return -err; \
+} while (0)
+
+Then each if block turns into something quite easier to parse:
+
+               if (sara_wxp_flags & SARA_WXP_WXORX &&
+                   vm_flags & VM_WRITE &&
+                   vm_flags & VM_EXEC)
+                       sara_return(EPERM, "W^X");
+
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
