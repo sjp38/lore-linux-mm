@@ -1,71 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 359E66B02FD
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:50:39 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 23so25217430wry.4
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:50:39 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 62si14848696wrh.283.2017.06.27.08.50.37
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0DF6B0313
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 12:02:06 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 19so11077072qty.2
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:02:06 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id a75si3038029qkc.317.2017.06.27.09.02.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 08:50:37 -0700 (PDT)
-Date: Tue, 27 Jun 2017 17:50:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM kills with lots of free swap
-Message-ID: <20170627155035.GA20189@dhcp22.suse.cz>
-References: <CAA25o9T1WmkWJn1LA-vS=W_Qu8pBw3rfMtTreLNu8fLuZjTDsw@mail.gmail.com>
- <20170627071104.GB28078@dhcp22.suse.cz>
- <CAA25o9T1q9gWzb0BeXY3mvLOth-ow=yjVuwD9ct5f1giBWo=XQ@mail.gmail.com>
- <CAA25o9TUkHd9w+DNBdH_4w6LTEEb+Q6QAycHcqx-z3mwh+G=kA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Jun 2017 09:02:03 -0700 (PDT)
+Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
+ delivery
+References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
+ <20170627070643.GA28078@dhcp22.suse.cz> <20170627153557.GB10091@rapoport-lnx>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Message-ID: <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
+Date: Tue, 27 Jun 2017 09:01:20 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA25o9TUkHd9w+DNBdH_4w6LTEEb+Q6QAycHcqx-z3mwh+G=kA@mail.gmail.com>
+In-Reply-To: <20170627153557.GB10091@rapoport-lnx>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
 
-On Tue 27-06-17 08:22:36, Luigi Semenzato wrote:
-> (sorry, I forgot to turn off HTML formatting)
-> 
-> Thank you, I can try this on ToT, although I think that the problem is
-> not with the OOM killer itself but earlier---i.e. invoking the OOM
-> killer seems unnecessary and wrong.  Here's the question.
-> 
-> The general strategy for page allocation seems to be (please correct
-> me as needed):
-> 
-> 1. look in the free lists
-> 2. if that did not succeed, try to reclaim, then try again to allocate
-> 3. keep trying as long as progress is made (i.e. something was reclaimed)
-> 4. if no progress was made and no pages were found, invoke the OOM killer.
+On 6/27/17 8:35 AM, Mike Rapoport wrote:
 
-Yes that is the case very broadly speaking. The hard question really is
-what "no progress" actually means. We use "no pages could be reclaimed"
-as the indicator. We cannot blow up at the first such instance of
-course because that could be too early (e.g. data under writeback
-and many other details). With 4.7+ kernels this is implemented in
-should_reclaim_retry. Prior to the rework we used to rely on
-zone_reclaimable which simply checked how many pages we have scanned
-since the last page has been freed and if that is 6 times the
-reclaimable memory then we simply give up. It had some issues described
-in 0a0337e0d1d1 ("mm, oom: rework oom detection").
+> On Tue, Jun 27, 2017 at 09:06:43AM +0200, Michal Hocko wrote:
+>> This is an user visible API so let's CC linux-api mailing list.
+>>
+>> On Mon 26-06-17 12:46:13, Prakash Sangappa wrote:
+>>> In some cases, userfaultfd mechanism should just deliver a SIGBUS signal
+>>> to the faulting process, instead of the page-fault event. Dealing with
+>>> page-fault event using a monitor thread can be an overhead in these
+>>> cases. For example applications like the database could use the signaling
+>>> mechanism for robustness purpose.
+>> this is rather confusing. What is the reason that the monitor would be
+>> slower than signal delivery and handling?
+>>
+>>> Database uses hugetlbfs for performance reason. Files on hugetlbfs
+>>> filesystem are created and huge pages allocated using fallocate() API.
+>>> Pages are deallocated/freed using fallocate() hole punching support.
+>>> These files are mmapped and accessed by many processes as shared memory.
+>>> The database keeps track of which offsets in the hugetlbfs file have
+>>> pages allocated.
+>>>
+>>> Any access to mapped address over holes in the file, which can occur due
+>>> to bugs in the application, is considered invalid and expect the process
+>>> to simply receive a SIGBUS.  However, currently when a hole in the file is
+>>> accessed via the mapped address, kernel/mm attempts to automatically
+>>> allocate a page at page fault time, resulting in implicitly filling the
+>>> hole in the file. This may not be the desired behavior for applications
+>>> like the database that want to explicitly manage page allocations of
+>>> hugetlbfs files.
+>> So you register UFFD_FEATURE_SIGBUS on each region tha you are unmapping
+>> and than just let those offenders die?
+>   
+> If I understand correctly, the database will create the mapping, then it'll
+> open userfaultfd and register those mappings with the userfault.
+> Afterwards, when the application accesses a hole userfault will cause
+> SIGBUS and the application will process it in whatever way it likes, e.g.
+> just die.
 
-> I'd like to know if that "progress is made" notion is possibly buggy.
-> Specifically, does it mean "progress is made by this task"?  Is it
-> possible that resource contention creates a situation where most tasks
-> in most cases can reclaim and allocate, but one task randomly fails to
-> make progress?
+Yes.
 
-This can happen, alhtough it is quite unlikely. We are trying to
-throttle allocations but you can hardly fight a consistent badluck ;)
+> What I don't understand is why won't you use userfault monitor process that
+> will take care of the page fault events?
+> It shouldn't be much overhead running it and it can keep track on all the
+> userfault file descriptors for you and it will allow more versatile error
+> handling that SIGBUS.
+>
 
-In order to see what is going on in your particular case we need an oom
-report though.
--- 
-Michal Hocko
-SUSE Labs
+Co-ordination with the external monitor process by all the database 
+processes
+to send  their userfaultfd is still an overhead.
+
+
+>>> Using userfaultfd mechanism, with this support to get a signal, database
+>>> application can prevent pages from being allocated implicitly when
+>>> processes access mapped address over holes in the file.
+>>>
+>>> This patch adds the feature to request for a SIGBUS signal to userfaultfd
+>>> mechanism.
+>>>
+>>> See following for previous discussion about the database requirement
+>>> leading to this proposal as suggested by Andrea.
+>>>
+>>> http://www.spinics.net/lists/linux-mm/msg129224.html
+>> Please make those requirements part of the changelog.
+>>
+>>> Signed-off-by: Prakash <prakash.sangappa@oracle.com>
+>>> ---
+>>>   fs/userfaultfd.c                 |  5 +++++
+>>>   include/uapi/linux/userfaultfd.h | 10 +++++++++-
+>>>   2 files changed, 14 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+>>> index 1d622f2..5686d6d2 100644
+>>> --- a/fs/userfaultfd.c
+>>> +++ b/fs/userfaultfd.c
+>>> @@ -371,6 +371,11 @@ int handle_userfault(struct vm_fault *vmf, unsigned
+>>> long reason)
+>>>       VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+>>>       VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+>>>
+>>> +    if (ctx->features & UFFD_FEATURE_SIGBUS) {
+>>> +        goto out;
+>>> +    }
+>>> +
+>>>       /*
+>>>        * If it's already released don't get it. This avoids to loop
+>>>        * in __get_user_pages if userfaultfd_release waits on the
+>>> diff --git a/include/uapi/linux/userfaultfd.h
+>>> b/include/uapi/linux/userfaultfd.h
+>>> index 3b05953..d39d5db 100644
+>>> --- a/include/uapi/linux/userfaultfd.h
+>>> +++ b/include/uapi/linux/userfaultfd.h
+>>> @@ -23,7 +23,8 @@
+>>>                  UFFD_FEATURE_EVENT_REMOVE |    \
+>>>                  UFFD_FEATURE_EVENT_UNMAP |        \
+>>>                  UFFD_FEATURE_MISSING_HUGETLBFS |    \
+>>> -               UFFD_FEATURE_MISSING_SHMEM)
+>>> +               UFFD_FEATURE_MISSING_SHMEM |        \
+>>> +               UFFD_FEATURE_SIGBUS)
+>>>   #define UFFD_API_IOCTLS                \
+>>>       ((__u64)1 << _UFFDIO_REGISTER |        \
+>>>        (__u64)1 << _UFFDIO_UNREGISTER |    \
+>>> @@ -153,6 +154,12 @@ struct uffdio_api {
+>>>        * UFFD_FEATURE_MISSING_SHMEM works the same as
+>>>        * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
+>>>        * (i.e. tmpfs and other shmem based APIs).
+>>> +     *
+>>> +     * UFFD_FEATURE_SIGBUS feature means no page-fault
+>>> +     * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
+>>> +     * a SIGBUS signal will be sent to the faulting process.
+>>> +     * The application process can enable this behavior by adding
+>>> +     * it to uffdio_api.features.
+>>>        */
+>>>   #define UFFD_FEATURE_PAGEFAULT_FLAG_WP        (1<<0)
+>>>   #define UFFD_FEATURE_EVENT_FORK            (1<<1)
+>>> @@ -161,6 +168,7 @@ struct uffdio_api {
+>>>   #define UFFD_FEATURE_MISSING_HUGETLBFS        (1<<4)
+>>>   #define UFFD_FEATURE_MISSING_SHMEM        (1<<5)
+>>>   #define UFFD_FEATURE_EVENT_UNMAP        (1<<6)
+>>> +#define UFFD_FEATURE_SIGBUS            (1<<7)
+>>>       __u64 features;
+>>>
+>>>       __u64 ioctls;
+>>> -- 
+>>> 2.7.4
+>>>
+>> -- 
+>> Michal Hocko
+>> SUSE Labs
+>>
+> --
+> Sincerely yours,
+> Mike.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
