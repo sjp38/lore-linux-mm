@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B98036B02FD
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:49:10 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u36so25171315pgn.5
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:49:10 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F956B0311
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:49:13 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z10so24165639pff.1
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:49:13 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u72si1788824pfk.160.2017.06.27.04.49.08
+        by mx.google.com with ESMTPS id z61si1983895plb.173.2017.06.27.04.49.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 04:49:08 -0700 (PDT)
+        Tue, 27 Jun 2017 04:49:12 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 4/5] mm: convert mm_struct.mm_users from atomic_t to refcount_t
-Date: Tue, 27 Jun 2017 14:48:46 +0300
-Message-Id: <1498564127-11097-5-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 5/5] mm: convert mm_struct.mm_count from atomic_t to refcount_t
+Date: Tue, 27 Jun 2017 14:48:47 +0300
+Message-Id: <1498564127-11097-6-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1498564127-11097-1-git-send-email-elena.reshetova@intel.com>
 References: <1498564127-11097-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -31,661 +31,228 @@ Signed-off-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 Signed-off-by: David Windsor <dwindsor@gmail.com>
 ---
- arch/alpha/kernel/smp.c               |  6 +++---
- arch/arc/mm/tlb.c                     |  2 +-
- arch/blackfin/mach-common/smp.c       |  2 +-
- arch/ia64/include/asm/tlbflush.h      |  2 +-
- arch/ia64/kernel/smp.c                |  2 +-
- arch/ia64/sn/kernel/sn2/sn2_smp.c     |  4 ++--
- arch/mips/kernel/process.c            |  2 +-
- arch/mips/kernel/smp.c                |  6 +++---
- arch/parisc/include/asm/mmu_context.h |  2 +-
- arch/powerpc/mm/hugetlbpage.c         |  2 +-
- arch/powerpc/mm/icswx.c               |  4 ++--
- arch/sh/kernel/smp.c                  |  6 +++---
- arch/sparc/kernel/smp_64.c            |  6 +++---
- arch/sparc/mm/srmmu.c                 |  2 +-
- arch/um/kernel/tlb.c                  |  2 +-
- arch/x86/kernel/tboot.c               |  2 +-
- drivers/firmware/efi/arm-runtime.c    |  2 +-
- fs/coredump.c                         |  2 +-
- fs/proc/base.c                        |  2 +-
- include/linux/mm_types.h              |  3 ++-
- include/linux/sched/mm.h              |  4 ++--
- kernel/events/uprobes.c               |  2 +-
- kernel/exit.c                         |  2 +-
- kernel/fork.c                         | 10 +++++-----
- kernel/sched/core.c                   |  2 +-
- lib/is_single_threaded.c              |  2 +-
- mm/debug.c                            |  2 +-
- mm/init-mm.c                          |  2 +-
- mm/khugepaged.c                       |  2 +-
- mm/ksm.c                              |  2 +-
- mm/memory.c                           |  2 +-
- mm/mmu_notifier.c                     |  4 ++--
- mm/mprotect.c                         |  2 +-
- mm/oom_kill.c                         |  2 +-
- mm/swapfile.c                         |  2 +-
- mm/vmacache.c                         |  2 +-
- 36 files changed, 53 insertions(+), 52 deletions(-)
+ arch/blackfin/mach-common/smp.c          | 2 +-
+ arch/x86/kernel/tboot.c                  | 2 +-
+ drivers/firmware/efi/arm-runtime.c       | 2 +-
+ drivers/gpu/drm/amd/amdkfd/kfd_process.c | 2 +-
+ fs/proc/task_nommu.c                     | 4 ++--
+ fs/userfaultfd.c                         | 3 +--
+ include/linux/mm_types.h                 | 2 +-
+ include/linux/sched/mm.h                 | 6 +++---
+ kernel/fork.c                            | 2 +-
+ mm/debug.c                               | 2 +-
+ mm/init-mm.c                             | 2 +-
+ mm/mmu_notifier.c                        | 6 +++---
+ 12 files changed, 17 insertions(+), 18 deletions(-)
 
-diff --git a/arch/alpha/kernel/smp.c b/arch/alpha/kernel/smp.c
-index 9fc5604..d397939 100644
---- a/arch/alpha/kernel/smp.c
-+++ b/arch/alpha/kernel/smp.c
-@@ -653,7 +653,7 @@ flush_tlb_mm(struct mm_struct *mm)
- 
- 	if (mm == current->active_mm) {
- 		flush_tlb_current(mm);
--		if (atomic_read(&mm->mm_users) <= 1) {
-+		if (refcount_read(&mm->mm_users) <= 1) {
- 			int cpu, this_cpu = smp_processor_id();
- 			for (cpu = 0; cpu < NR_CPUS; cpu++) {
- 				if (!cpu_online(cpu) || cpu == this_cpu)
-@@ -702,7 +702,7 @@ flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
- 
- 	if (mm == current->active_mm) {
- 		flush_tlb_current_page(mm, vma, addr);
--		if (atomic_read(&mm->mm_users) <= 1) {
-+		if (refcount_read(&mm->mm_users) <= 1) {
- 			int cpu, this_cpu = smp_processor_id();
- 			for (cpu = 0; cpu < NR_CPUS; cpu++) {
- 				if (!cpu_online(cpu) || cpu == this_cpu)
-@@ -758,7 +758,7 @@ flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
- 
- 	if (mm == current->active_mm) {
- 		__load_new_mm_context(mm);
--		if (atomic_read(&mm->mm_users) <= 1) {
-+		if (refcount_read(&mm->mm_users) <= 1) {
- 			int cpu, this_cpu = smp_processor_id();
- 			for (cpu = 0; cpu < NR_CPUS; cpu++) {
- 				if (!cpu_online(cpu) || cpu == this_cpu)
-diff --git a/arch/arc/mm/tlb.c b/arch/arc/mm/tlb.c
-index d0126fd..73da120 100644
---- a/arch/arc/mm/tlb.c
-+++ b/arch/arc/mm/tlb.c
-@@ -299,7 +299,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
- 	 * Only for fork( ) do we need to move parent to a new MMU ctxt,
- 	 * all other cases are NOPs, hence this check.
- 	 */
--	if (atomic_read(&mm->mm_users) == 0)
-+	if (refcount_read(&mm->mm_users) == 0)
- 		return;
- 
- 	/*
 diff --git a/arch/blackfin/mach-common/smp.c b/arch/blackfin/mach-common/smp.c
-index b32ddab..ed69b4f 100644
+index ed69b4f..f288f66 100644
 --- a/arch/blackfin/mach-common/smp.c
 +++ b/arch/blackfin/mach-common/smp.c
-@@ -423,7 +423,7 @@ void cpu_die(void)
- {
+@@ -424,7 +424,7 @@ void cpu_die(void)
  	(void)cpu_report_death();
  
--	atomic_dec(&init_mm.mm_users);
-+	refcount_dec(&init_mm.mm_users);
- 	atomic_dec(&init_mm.mm_count);
+ 	refcount_dec(&init_mm.mm_users);
+-	atomic_dec(&init_mm.mm_count);
++	refcount_dec(&init_mm.mm_count);
  
  	local_irq_disable();
-diff --git a/arch/ia64/include/asm/tlbflush.h b/arch/ia64/include/asm/tlbflush.h
-index 3be25df..650708a 100644
---- a/arch/ia64/include/asm/tlbflush.h
-+++ b/arch/ia64/include/asm/tlbflush.h
-@@ -56,7 +56,7 @@ flush_tlb_mm (struct mm_struct *mm)
- 	set_bit(mm->context, ia64_ctx.flushmap);
- 	mm->context = 0;
- 
--	if (atomic_read(&mm->mm_users) == 0)
-+	if (refcount_read(&mm->mm_users) == 0)
- 		return;		/* happens as a result of exit_mmap() */
- 
- #ifdef CONFIG_SMP
-diff --git a/arch/ia64/kernel/smp.c b/arch/ia64/kernel/smp.c
-index 7f706d4..dd7b680 100644
---- a/arch/ia64/kernel/smp.c
-+++ b/arch/ia64/kernel/smp.c
-@@ -295,7 +295,7 @@ smp_flush_tlb_mm (struct mm_struct *mm)
- 	cpumask_var_t cpus;
- 	preempt_disable();
- 	/* this happens for the common case of a single-threaded fork():  */
--	if (likely(mm == current->active_mm && atomic_read(&mm->mm_users) == 1))
-+	if (likely(mm == current->active_mm && refcount_read(&mm->mm_users) == 1))
- 	{
- 		local_finish_flush_tlb_mm(mm);
- 		preempt_enable();
-diff --git a/arch/ia64/sn/kernel/sn2/sn2_smp.c b/arch/ia64/sn/kernel/sn2/sn2_smp.c
-index b73b0eb..47c1bac 100644
---- a/arch/ia64/sn/kernel/sn2/sn2_smp.c
-+++ b/arch/ia64/sn/kernel/sn2/sn2_smp.c
-@@ -123,7 +123,7 @@ void sn_migrate(struct task_struct *task)
- void sn_tlb_migrate_finish(struct mm_struct *mm)
- {
- 	/* flush_tlb_mm is inefficient if more than 1 users of mm */
--	if (mm == current->mm && mm && atomic_read(&mm->mm_users) == 1)
-+	if (mm == current->mm && mm && refcount_read(&mm->mm_users) == 1)
- 		flush_tlb_mm(mm);
- }
- 
-@@ -205,7 +205,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
- 		return;
- 	}
- 
--	if (atomic_read(&mm->mm_users) == 1 && mymm) {
-+	if (refcount_read(&mm->mm_users) == 1 && mymm) {
- 		flush_tlb_mm(mm);
- 		__this_cpu_inc(ptcstats.change_rid);
- 		preempt_enable();
-diff --git a/arch/mips/kernel/process.c b/arch/mips/kernel/process.c
-index b68e10f..67b8b0c 100644
---- a/arch/mips/kernel/process.c
-+++ b/arch/mips/kernel/process.c
-@@ -721,7 +721,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
- 		/* No need to send an IPI for the local CPU */
- 		max_users = (task->mm == current->mm) ? 1 : 0;
- 
--		if (atomic_read(&current->mm->mm_users) > max_users)
-+		if (refcount_read(&current->mm->mm_users) > max_users)
- 			smp_call_function(prepare_for_fp_mode_switch,
- 					  (void *)current->mm, 1);
- 	}
-diff --git a/arch/mips/kernel/smp.c b/arch/mips/kernel/smp.c
-index 6e71130..f49e949 100644
---- a/arch/mips/kernel/smp.c
-+++ b/arch/mips/kernel/smp.c
-@@ -511,7 +511,7 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	preempt_disable();
- 
--	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-+	if ((refcount_read(&mm->mm_users) != 1) || (current->mm != mm)) {
- 		smp_on_other_tlbs(flush_tlb_mm_ipi, mm);
- 	} else {
- 		unsigned int cpu;
-@@ -544,7 +544,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
- 	struct mm_struct *mm = vma->vm_mm;
- 
- 	preempt_disable();
--	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-+	if ((refcount_read(&mm->mm_users) != 1) || (current->mm != mm)) {
- 		struct flush_tlb_data fd = {
- 			.vma = vma,
- 			.addr1 = start,
-@@ -598,7 +598,7 @@ static void flush_tlb_page_ipi(void *info)
- void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
- {
- 	preempt_disable();
--	if ((atomic_read(&vma->vm_mm->mm_users) != 1) || (current->mm != vma->vm_mm)) {
-+	if ((refcount_read(&vma->vm_mm->mm_users) != 1) || (current->mm != vma->vm_mm)) {
- 		struct flush_tlb_data fd = {
- 			.vma = vma,
- 			.addr1 = page,
-diff --git a/arch/parisc/include/asm/mmu_context.h b/arch/parisc/include/asm/mmu_context.h
-index 59be257..e64f398 100644
---- a/arch/parisc/include/asm/mmu_context.h
-+++ b/arch/parisc/include/asm/mmu_context.h
-@@ -21,7 +21,7 @@ extern void free_sid(unsigned long);
- static inline int
- init_new_context(struct task_struct *tsk, struct mm_struct *mm)
- {
--	BUG_ON(atomic_read(&mm->mm_users) != 1);
-+	BUG_ON(refcount_read(&mm->mm_users) != 1);
- 
- 	mm->context = alloc_sid();
- 	return 0;
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 8c3389c..26aef24 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -403,7 +403,7 @@ static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
- 
- 	batchp = &get_cpu_var(hugepd_freelist_cur);
- 
--	if (atomic_read(&tlb->mm->mm_users) < 2 ||
-+	if (refcount_read(&tlb->mm->mm_users) < 2 ||
- 	    cpumask_equal(mm_cpumask(tlb->mm),
- 			  cpumask_of(smp_processor_id()))) {
- 		kmem_cache_free(hugepte_cache, hugepte);
-diff --git a/arch/powerpc/mm/icswx.c b/arch/powerpc/mm/icswx.c
-index 915412e..2406ff8 100644
---- a/arch/powerpc/mm/icswx.c
-+++ b/arch/powerpc/mm/icswx.c
-@@ -110,7 +110,7 @@ int use_cop(unsigned long acop, struct mm_struct *mm)
- 	 * running. We need to send an IPI to force them to pick up any
- 	 * change in PID and ACOP.
- 	 */
--	if (atomic_read(&mm->mm_users) > 1)
-+	if (refcount_read(&mm->mm_users) > 1)
- 		smp_call_function(sync_cop, mm, 1);
- 
- out:
-@@ -150,7 +150,7 @@ void drop_cop(unsigned long acop, struct mm_struct *mm)
- 	 * running. We need to send an IPI to force them to pick up any
- 	 * change in PID and ACOP.
- 	 */
--	if (atomic_read(&mm->mm_users) > 1)
-+	if (refcount_read(&mm->mm_users) > 1)
- 		smp_call_function(sync_cop, mm, 1);
- 
- 	if (free_pid != COP_PID_NONE)
-diff --git a/arch/sh/kernel/smp.c b/arch/sh/kernel/smp.c
-index c483422..4be203a 100644
---- a/arch/sh/kernel/smp.c
-+++ b/arch/sh/kernel/smp.c
-@@ -364,7 +364,7 @@ void flush_tlb_mm(struct mm_struct *mm)
- {
- 	preempt_disable();
- 
--	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-+	if ((refcount_read(&mm->mm_users) != 1) || (current->mm != mm)) {
- 		smp_call_function(flush_tlb_mm_ipi, (void *)mm, 1);
- 	} else {
- 		int i;
-@@ -396,7 +396,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
- 	struct mm_struct *mm = vma->vm_mm;
- 
- 	preempt_disable();
--	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-+	if ((refcount_read(&mm->mm_users) != 1) || (current->mm != mm)) {
- 		struct flush_tlb_data fd;
- 
- 		fd.vma = vma;
-@@ -439,7 +439,7 @@ static void flush_tlb_page_ipi(void *info)
- void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
- {
- 	preempt_disable();
--	if ((atomic_read(&vma->vm_mm->mm_users) != 1) ||
-+	if ((refcount_read(&vma->vm_mm->mm_users) != 1) ||
- 	    (current->mm != vma->vm_mm)) {
- 		struct flush_tlb_data fd;
- 
-diff --git a/arch/sparc/kernel/smp_64.c b/arch/sparc/kernel/smp_64.c
-index b3bc0ac..895567f 100644
---- a/arch/sparc/kernel/smp_64.c
-+++ b/arch/sparc/kernel/smp_64.c
-@@ -1064,7 +1064,7 @@ void smp_flush_tlb_mm(struct mm_struct *mm)
- 	u32 ctx = CTX_HWBITS(mm->context);
- 	int cpu = get_cpu();
- 
--	if (atomic_read(&mm->mm_users) == 1) {
-+	if (refcount_read(&mm->mm_users) == 1) {
- 		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
- 		goto local_flush_and_out;
- 	}
-@@ -1102,7 +1102,7 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
- 	info.nr = nr;
- 	info.vaddrs = vaddrs;
- 
--	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
-+	if (mm == current->mm && refcount_read(&mm->mm_users) == 1)
- 		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
- 	else
- 		smp_call_function_many(mm_cpumask(mm), tlb_pending_func,
-@@ -1118,7 +1118,7 @@ void smp_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr)
- 	unsigned long context = CTX_HWBITS(mm->context);
- 	int cpu = get_cpu();
- 
--	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
-+	if (mm == current->mm && refcount_read(&mm->mm_users) == 1)
- 		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
- 	else
- 		smp_cross_call_masked(&xcall_flush_tlb_page,
-diff --git a/arch/sparc/mm/srmmu.c b/arch/sparc/mm/srmmu.c
-index 8e76ebb..08a0d91 100644
---- a/arch/sparc/mm/srmmu.c
-+++ b/arch/sparc/mm/srmmu.c
-@@ -1663,7 +1663,7 @@ static void smp_flush_tlb_mm(struct mm_struct *mm)
- 		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
- 		if (!cpumask_empty(&cpu_mask)) {
- 			xc1((smpfunc_t) local_ops->tlb_mm, (unsigned long) mm);
--			if (atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
-+			if (refcount_read(&mm->mm_users) == 1 && current->active_mm == mm)
- 				cpumask_copy(mm_cpumask(mm),
- 					     cpumask_of(smp_processor_id()));
- 		}
-diff --git a/arch/um/kernel/tlb.c b/arch/um/kernel/tlb.c
-index 37508b1..f653d3b 100644
---- a/arch/um/kernel/tlb.c
-+++ b/arch/um/kernel/tlb.c
-@@ -531,7 +531,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	 * Don't bother flushing if this address space is about to be
- 	 * destroyed.
- 	 */
--	if (atomic_read(&mm->mm_users) == 0)
-+	if (refcount_read(&mm->mm_users) == 0)
- 		return;
- 
- 	fix_range(mm, start, end, 0);
+ 	platform_cpu_die();
 diff --git a/arch/x86/kernel/tboot.c b/arch/x86/kernel/tboot.c
-index b868fa1..39aaca5 100644
+index 39aaca5..fdbae72 100644
 --- a/arch/x86/kernel/tboot.c
 +++ b/arch/x86/kernel/tboot.c
-@@ -102,7 +102,7 @@ static pgd_t *tboot_pg_dir;
- static struct mm_struct tboot_mm = {
+@@ -103,7 +103,7 @@ static struct mm_struct tboot_mm = {
  	.mm_rb          = RB_ROOT,
  	.pgd            = swapper_pg_dir,
--	.mm_users       = ATOMIC_INIT(2),
-+	.mm_users       = REFCOUNT_INIT(2),
- 	.mm_count       = ATOMIC_INIT(1),
+ 	.mm_users       = REFCOUNT_INIT(2),
+-	.mm_count       = ATOMIC_INIT(1),
++	.mm_count       = REFCOUNT_INIT(1),
  	.mmap_sem       = __RWSEM_INITIALIZER(init_mm.mmap_sem),
  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
+ 	.mmlist         = LIST_HEAD_INIT(init_mm.mmlist),
 diff --git a/drivers/firmware/efi/arm-runtime.c b/drivers/firmware/efi/arm-runtime.c
-index 974c5a3..a9c41e2 100644
+index a9c41e2..24aeaef 100644
 --- a/drivers/firmware/efi/arm-runtime.c
 +++ b/drivers/firmware/efi/arm-runtime.c
-@@ -32,7 +32,7 @@ extern u64 efi_system_table;
- 
+@@ -33,7 +33,7 @@ extern u64 efi_system_table;
  static struct mm_struct efi_mm = {
  	.mm_rb			= RB_ROOT,
--	.mm_users		= ATOMIC_INIT(2),
-+	.mm_users		= REFCOUNT_INIT(2),
- 	.mm_count		= ATOMIC_INIT(1),
+ 	.mm_users		= REFCOUNT_INIT(2),
+-	.mm_count		= ATOMIC_INIT(1),
++	.mm_count		= REFCOUNT_INIT(1),
  	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
  	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
-diff --git a/fs/coredump.c b/fs/coredump.c
-index 5926837..c65db7f 100644
---- a/fs/coredump.c
-+++ b/fs/coredump.c
-@@ -349,7 +349,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
- 		return nr;
+ 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
+diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_process.c b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
+index 84d1ffd..ba63d26 100644
+--- a/drivers/gpu/drm/amd/amdkfd/kfd_process.c
++++ b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
+@@ -205,7 +205,7 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
+ 	BUG_ON(!kfd_process_wq);
  
- 	tsk->flags |= PF_DUMPCORE;
--	if (atomic_read(&mm->mm_users) == nr + 1)
-+	if (refcount_read(&mm->mm_users) == nr + 1)
- 		goto done;
- 	/*
- 	 * We should find and kill all tasks which use this mm, and we should
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index c87b6b9..7030d1f 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1067,7 +1067,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- 		struct task_struct *p = find_lock_task_mm(task);
+ 	p = container_of(rcu, struct kfd_process, rcu);
+-	BUG_ON(atomic_read(&p->mm->mm_count) <= 0);
++	BUG_ON(refcount_read(&p->mm->mm_count) == 0);
  
- 		if (p) {
--			if (atomic_read(&p->mm->mm_users) > 1) {
-+			if (refcount_read(&p->mm->mm_users) > 1) {
- 				mm = p->mm;
- 				mmgrab(mm);
- 			}
+ 	mmdrop(p->mm);
+ 
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index e969e79..eea6b91 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -38,7 +38,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 			size = vma->vm_end - vma->vm_start;
+ 		}
+ 
+-		if (atomic_read(&mm->mm_count) > 1 ||
++		if (refcount_read(&mm->mm_count) > 1 ||
+ 		    vma->vm_flags & VM_MAYSHARE) {
+ 			sbytes += size;
+ 		} else {
+@@ -48,7 +48,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		}
+ 	}
+ 
+-	if (atomic_read(&mm->mm_count) > 1)
++	if (refcount_read(&mm->mm_count) > 1)
+ 		sbytes += kobjsize(mm);
+ 	else
+ 		bytes += kobjsize(mm);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index f7555fc..a5d5015 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -624,7 +624,7 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
+ 		ctx->features = octx->features;
+ 		ctx->released = false;
+ 		ctx->mm = vma->vm_mm;
+-		atomic_inc(&ctx->mm->mm_count);
++		mmgrab(ctx->mm);
+ 
+ 		userfaultfd_ctx_get(octx);
+ 		fctx->orig = octx;
+@@ -1826,7 +1826,6 @@ static struct file *userfaultfd_file_create(int flags)
+ 	ctx->mm = current->mm;
+ 	/* prevent the mm struct to be freed */
+ 	mmgrab(ctx->mm);
+-
+ 	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
+ 				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
+ 	if (IS_ERR(file)) {
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index f60f45f..e87b5fe 100644
+index e87b5fe..a29f66d 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -7,6 +7,7 @@
- #include <linux/list.h>
- #include <linux/spinlock.h>
- #include <linux/rbtree.h>
-+#include <linux/refcount.h>
- #include <linux/rwsem.h>
- #include <linux/completion.h>
- #include <linux/cpumask.h>
-@@ -380,7 +381,7 @@ struct mm_struct {
- 	 * (which may then free the &struct mm_struct if @mm_count also
- 	 * drops to 0).
+@@ -390,7 +390,7 @@ struct mm_struct {
+ 	 * Use mmgrab()/mmdrop() to modify. When this drops to 0, the
+ 	 * &struct mm_struct is freed.
  	 */
--	atomic_t mm_users;
-+	refcount_t mm_users;
+-	atomic_t mm_count;
++	refcount_t mm_count;
  
- 	/**
- 	 * @mm_count: The number of references to &struct mm_struct
+ 	atomic_long_t nr_ptes;			/* PTE page table pages */
+ #if CONFIG_PGTABLE_LEVELS > 2
 diff --git a/include/linux/sched/mm.h b/include/linux/sched/mm.h
-index 830953e..1a15aa9d1 100644
+index 1a15aa9d1..5e80e9e 100644
 --- a/include/linux/sched/mm.h
 +++ b/include/linux/sched/mm.h
-@@ -74,12 +74,12 @@ static inline void mmdrop_async(struct mm_struct *mm)
+@@ -31,14 +31,14 @@ extern struct mm_struct * mm_alloc(void);
   */
- static inline void mmget(struct mm_struct *mm)
+ static inline void mmgrab(struct mm_struct *mm)
  {
--	atomic_inc(&mm->mm_users);
-+	refcount_inc(&mm->mm_users);
+-	atomic_inc(&mm->mm_count);
++	refcount_inc(&mm->mm_count);
  }
  
- static inline bool mmget_not_zero(struct mm_struct *mm)
+ /* mmdrop drops the mm and the page tables */
+ extern void __mmdrop(struct mm_struct *);
+ static inline void mmdrop(struct mm_struct *mm)
  {
--	return atomic_inc_not_zero(&mm->mm_users);
-+	return refcount_inc_not_zero(&mm->mm_users);
+-	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
++	if (unlikely(refcount_dec_and_test(&mm->mm_count)))
+ 		__mmdrop(mm);
  }
  
- /* mmput gets rid of the mappings and all user-space */
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 4ffafc8..ca093957 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -1123,7 +1123,7 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
- 	if (no_uprobe_events() || !valid_vma(vma, false))
- 		return;
+@@ -50,7 +50,7 @@ static inline void mmdrop_async_fn(struct work_struct *work)
  
--	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
-+	if (!refcount_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
- 		return;
- 
- 	if (!test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags) ||
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 516acdb..c7eedb7 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -432,7 +432,7 @@ void mm_update_next_owner(struct mm_struct *mm)
- 	 * candidates.  Do not leave the mm pointing to a possibly
- 	 * freed task structure.
- 	 */
--	if (atomic_read(&mm->mm_users) <= 1) {
-+	if (refcount_read(&mm->mm_users) <= 1) {
- 		mm->owner = NULL;
- 		return;
- 	}
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 3ffd9b1..3bbfe0e 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -769,7 +769,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
- 	mm->mmap = NULL;
- 	mm->mm_rb = RB_ROOT;
- 	mm->vmacache_seqnum = 0;
--	atomic_set(&mm->mm_users, 1);
-+	refcount_set(&mm->mm_users, 1);
- 	atomic_set(&mm->mm_count, 1);
- 	init_rwsem(&mm->mmap_sem);
- 	INIT_LIST_HEAD(&mm->mmlist);
-@@ -872,7 +872,7 @@ EXPORT_SYMBOL_GPL(__mmdrop);
- 
- static inline void __mmput(struct mm_struct *mm)
+ static inline void mmdrop_async(struct mm_struct *mm)
  {
--	VM_BUG_ON(atomic_read(&mm->mm_users));
-+	VM_BUG_ON(refcount_read(&mm->mm_users));
- 
- 	uprobe_clear_state(mm);
- 	exit_aio(mm);
-@@ -899,7 +899,7 @@ void mmput(struct mm_struct *mm)
- {
- 	might_sleep();
- 
--	if (atomic_dec_and_test(&mm->mm_users))
-+	if (refcount_dec_and_test(&mm->mm_users))
- 		__mmput(mm);
- }
- EXPORT_SYMBOL_GPL(mmput);
-@@ -913,7 +913,7 @@ static void mmput_async_fn(struct work_struct *work)
- 
- void mmput_async(struct mm_struct *mm)
- {
--	if (atomic_dec_and_test(&mm->mm_users)) {
-+	if (refcount_dec_and_test(&mm->mm_users)) {
- 		INIT_WORK(&mm->async_put_work, mmput_async_fn);
+-	if (unlikely(atomic_dec_and_test(&mm->mm_count))) {
++	if (unlikely(refcount_dec_and_test(&mm->mm_count))) {
+ 		INIT_WORK(&mm->async_put_work, mmdrop_async_fn);
  		schedule_work(&mm->async_put_work);
  	}
-@@ -1112,7 +1112,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
- 	 */
- 	if (tsk->clear_child_tid) {
- 		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
--		    atomic_read(&mm->mm_users) > 1) {
-+		    refcount_read(&mm->mm_users) > 1) {
- 			/*
- 			 * We don't check the error code - if userspace has
- 			 * not set up a proper pointer then tough luck.
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 3b31fc0..f0adc8c 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -2205,7 +2205,7 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
- #endif
- 
- #ifdef CONFIG_NUMA_BALANCING
--	if (p->mm && atomic_read(&p->mm->mm_users) == 1) {
-+	if (p->mm && refcount_read(&p->mm->mm_users) == 1) {
- 		p->mm->numa_next_scan = jiffies + msecs_to_jiffies(sysctl_numa_balancing_scan_delay);
- 		p->mm->numa_scan_seq = 0;
- 	}
-diff --git a/lib/is_single_threaded.c b/lib/is_single_threaded.c
-index 9c7d89d..249d2fd 100644
---- a/lib/is_single_threaded.c
-+++ b/lib/is_single_threaded.c
-@@ -26,7 +26,7 @@ bool current_is_single_threaded(void)
- 	if (atomic_read(&task->signal->live) != 1)
- 		return false;
- 
--	if (atomic_read(&mm->mm_users) == 1)
-+	if (refcount_read(&mm->mm_users) == 1)
- 		return true;
- 
- 	ret = false;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 3bbfe0e..0334742 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -770,7 +770,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm->mm_rb = RB_ROOT;
+ 	mm->vmacache_seqnum = 0;
+ 	refcount_set(&mm->mm_users, 1);
+-	atomic_set(&mm->mm_count, 1);
++	refcount_set(&mm->mm_count, 1);
+ 	init_rwsem(&mm->mmap_sem);
+ 	INIT_LIST_HEAD(&mm->mmlist);
+ 	mm->core_state = NULL;
 diff --git a/mm/debug.c b/mm/debug.c
-index db1cd26..0866505 100644
+index 0866505..eebbd15 100644
 --- a/mm/debug.c
 +++ b/mm/debug.c
-@@ -134,7 +134,7 @@ void dump_mm(const struct mm_struct *mm)
- 		mm->get_unmapped_area,
+@@ -135,7 +135,7 @@ void dump_mm(const struct mm_struct *mm)
  #endif
  		mm->mmap_base, mm->mmap_legacy_base, mm->highest_vm_end,
--		mm->pgd, atomic_read(&mm->mm_users),
-+		mm->pgd, refcount_read(&mm->mm_users),
- 		atomic_read(&mm->mm_count),
+ 		mm->pgd, refcount_read(&mm->mm_users),
+-		atomic_read(&mm->mm_count),
++		refcount_read(&mm->mm_count),
  		atomic_long_read((atomic_long_t *)&mm->nr_ptes),
  		mm_nr_pmds((struct mm_struct *)mm),
+ 		mm->map_count,
 diff --git a/mm/init-mm.c b/mm/init-mm.c
-index 975e49f..6927a72 100644
+index 6927a72..8de5267 100644
 --- a/mm/init-mm.c
 +++ b/mm/init-mm.c
-@@ -17,7 +17,7 @@
- struct mm_struct init_mm = {
+@@ -18,7 +18,7 @@ struct mm_struct init_mm = {
  	.mm_rb		= RB_ROOT,
  	.pgd		= swapper_pg_dir,
--	.mm_users	= ATOMIC_INIT(2),
-+	.mm_users	= REFCOUNT_INIT(2),
- 	.mm_count	= ATOMIC_INIT(1),
+ 	.mm_users	= REFCOUNT_INIT(2),
+-	.mm_count	= ATOMIC_INIT(1),
++	.mm_count	= REFCOUNT_INIT(1),
  	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
  	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index ba40b7f..2798a96 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -393,7 +393,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
- 
- static inline int khugepaged_test_exit(struct mm_struct *mm)
- {
--	return atomic_read(&mm->mm_users) == 0;
-+	return refcount_read(&mm->mm_users) == 0;
- }
- 
- int __khugepaged_enter(struct mm_struct *mm)
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 19b4f2d..d6d96b0 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -360,7 +360,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
-  */
- static inline bool ksm_test_exit(struct mm_struct *mm)
- {
--	return atomic_read(&mm->mm_users) == 0;
-+	return refcount_read(&mm->mm_users) == 0;
- }
- 
- /*
-diff --git a/mm/memory.c b/mm/memory.c
-index 235ba51..7130206 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -378,7 +378,7 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
- 	 * When there's less then two users of this mm there cannot be a
- 	 * concurrent page-table walk.
- 	 */
--	if (atomic_read(&tlb->mm->mm_users) < 2) {
-+	if (refcount_read(&tlb->mm->mm_users) < 2) {
- 		__tlb_remove_table(table);
- 		return;
- 	}
+ 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),
 diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index a7652ac..b8c3dda 100644
+index b8c3dda..21fae87 100644
 --- a/mm/mmu_notifier.c
 +++ b/mm/mmu_notifier.c
-@@ -250,7 +250,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- 	int ret;
+@@ -349,7 +349,7 @@ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
+  */
+ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ {
+-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
++	BUG_ON(refcount_read(&mm->mm_count) == 0);
  
--	BUG_ON(atomic_read(&mm->mm_users) <= 0);
-+	BUG_ON(refcount_read(&mm->mm_users) == 0);
- 
- 	/*
- 	 * Verify that mmu_notifier_init() already run and the global srcu is
-@@ -296,7 +296,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 		up_write(&mm->mmap_sem);
- 	kfree(mmu_notifier_mm);
- out:
--	BUG_ON(atomic_read(&mm->mm_users) <= 0);
-+	BUG_ON(refcount_read(&mm->mm_users) == 0);
- 	return ret;
- }
- 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 8edd0d5..7ccd6c3 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -63,7 +63,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	/* Get target node for single threaded private VMAs */
- 	if (prot_numa && !(vma->vm_flags & VM_SHARED) &&
--	    atomic_read(&vma->vm_mm->mm_users) == 1)
-+	    refcount_read(&vma->vm_mm->mm_users) == 1)
- 		target_node = numa_node_id();
- 
- 	arch_enter_lazy_mmu_mode();
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d083714..4cc7297 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -777,7 +777,7 @@ static bool task_will_free_mem(struct task_struct *task)
- 	if (test_bit(MMF_OOM_SKIP, &mm->flags))
- 		return false;
- 
--	if (atomic_read(&mm->mm_users) <= 1)
-+	if (refcount_read(&mm->mm_users) <= 1)
- 		return true;
- 
- 	/*
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1781308..5e2cb9b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1739,7 +1739,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
+ 	if (!hlist_unhashed(&mn->hlist)) {
  		/*
- 		 * Don't hold on to start_mm if it looks like exiting.
- 		 */
--		if (atomic_read(&start_mm->mm_users) == 1) {
-+		if (refcount_read(&start_mm->mm_users) == 1) {
- 			mmput(start_mm);
- 			start_mm = &init_mm;
- 			mmget(&init_mm);
-diff --git a/mm/vmacache.c b/mm/vmacache.c
-index 7ffa0ee..4b29541 100644
---- a/mm/vmacache.c
-+++ b/mm/vmacache.c
-@@ -27,7 +27,7 @@ void vmacache_flush_all(struct mm_struct *mm)
- 	 * to worry about other threads' seqnum. Current's
- 	 * flush will occur upon the next lookup.
+@@ -382,7 +382,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
  	 */
--	if (atomic_read(&mm->mm_users) == 1)
-+	if (refcount_read(&mm->mm_users) == 1)
- 		return;
+ 	synchronize_srcu(&srcu);
  
- 	rcu_read_lock();
+-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
++	BUG_ON(refcount_read(&mm->mm_count) == 0);
+ 
+ 	mmdrop(mm);
+ }
+@@ -402,7 +402,7 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+ 	hlist_del_init_rcu(&mn->hlist);
+ 	spin_unlock(&mm->mmu_notifier_mm->lock);
+ 
+-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
++	BUG_ON(refcount_read(&mm->mm_count) == 0);
+ 	mmdrop(mm);
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
 -- 
 2.7.4
 
