@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 96C506B02F4
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:49:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h81so23987985pfh.15
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:49:01 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5156B02FA
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:49:05 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 86so24029197pfq.11
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:49:05 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u72si1788824pfk.160.2017.06.27.04.49.00
+        by mx.google.com with ESMTPS id u72si1788824pfk.160.2017.06.27.04.49.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 04:49:00 -0700 (PDT)
+        Tue, 27 Jun 2017 04:49:04 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 2/5] mm: convert anon_vma.refcount from atomic_t to refcount_t
-Date: Tue, 27 Jun 2017 14:48:44 +0300
-Message-Id: <1498564127-11097-3-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 3/5] mm: convert kmemleak_object.use_count from atomic_t to refcount_t
+Date: Tue, 27 Jun 2017 14:48:45 +0300
+Message-Id: <1498564127-11097-4-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1498564127-11097-1-git-send-email-elena.reshetova@intel.com>
 References: <1498564127-11097-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -31,115 +31,79 @@ Signed-off-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 Signed-off-by: David Windsor <dwindsor@gmail.com>
 ---
- include/linux/rmap.h |  7 ++++---
- mm/rmap.c            | 14 +++++++-------
- 2 files changed, 11 insertions(+), 10 deletions(-)
+ mm/kmemleak.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 8c89e90..a8f4a97 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -10,6 +10,7 @@
- #include <linux/rwsem.h>
- #include <linux/memcontrol.h>
- #include <linux/highmem.h>
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 20036d4..8755a99 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -107,7 +107,7 @@
+ 
+ #include <asm/sections.h>
+ #include <asm/processor.h>
+-#include <linux/atomic.h>
 +#include <linux/refcount.h>
  
+ #include <linux/kasan.h>
+ #include <linux/kmemcheck.h>
+@@ -156,7 +156,7 @@ struct kmemleak_object {
+ 	struct rb_node rb_node;
+ 	struct rcu_head rcu;		/* object_list lockless traversal */
+ 	/* object usage count; object freed when use_count == 0 */
+-	atomic_t use_count;
++	refcount_t use_count;
+ 	unsigned long pointer;
+ 	size_t size;
+ 	/* minimum number of a pointers found before it is considered leak */
+@@ -436,7 +436,7 @@ static struct kmemleak_object *lookup_object(unsigned long ptr, int alias)
+  */
+ static int get_object(struct kmemleak_object *object)
+ {
+-	return atomic_inc_not_zero(&object->use_count);
++	return refcount_inc_not_zero(&object->use_count);
+ }
+ 
  /*
-  * The anon_vma heads a list of private "related" vmas, to scan if
-@@ -35,7 +36,7 @@ struct anon_vma {
- 	 * the reference is responsible for clearing up the
- 	 * anon_vma if they are the last user on release
- 	 */
--	atomic_t refcount;
-+	refcount_t refcount;
+@@ -469,7 +469,7 @@ static void free_object_rcu(struct rcu_head *rcu)
+  */
+ static void put_object(struct kmemleak_object *object)
+ {
+-	if (!atomic_dec_and_test(&object->use_count))
++	if (!refcount_dec_and_test(&object->use_count))
+ 		return;
+ 
+ 	/* should only get here after delete_object was called */
+@@ -558,7 +558,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	INIT_LIST_HEAD(&object->gray_list);
+ 	INIT_HLIST_HEAD(&object->area_list);
+ 	spin_lock_init(&object->lock);
+-	atomic_set(&object->use_count, 1);
++	refcount_set(&object->use_count, 1);
+ 	object->flags = OBJECT_ALLOCATED;
+ 	object->pointer = ptr;
+ 	object->size = size;
+@@ -631,7 +631,7 @@ static void __delete_object(struct kmemleak_object *object)
+ 	unsigned long flags;
+ 
+ 	WARN_ON(!(object->flags & OBJECT_ALLOCATED));
+-	WARN_ON(atomic_read(&object->use_count) < 1);
++	WARN_ON(refcount_read(&object->use_count) < 1);
  
  	/*
- 	 * Count of child anon_vmas and VMAs which points to this anon_vma.
-@@ -102,14 +103,14 @@ enum ttu_flags {
- #ifdef CONFIG_MMU
- static inline void get_anon_vma(struct anon_vma *anon_vma)
- {
--	atomic_inc(&anon_vma->refcount);
-+	refcount_inc(&anon_vma->refcount);
- }
- 
- void __put_anon_vma(struct anon_vma *anon_vma);
- 
- static inline void put_anon_vma(struct anon_vma *anon_vma)
- {
--	if (atomic_dec_and_test(&anon_vma->refcount))
-+	if (refcount_dec_and_test(&anon_vma->refcount))
- 		__put_anon_vma(anon_vma);
- }
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index f683801..55d7f9e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -79,7 +79,7 @@ static inline struct anon_vma *anon_vma_alloc(void)
- 
- 	anon_vma = kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
- 	if (anon_vma) {
--		atomic_set(&anon_vma->refcount, 1);
-+		refcount_set(&anon_vma->refcount, 1);
- 		anon_vma->degree = 1;	/* Reference for first vma */
- 		anon_vma->parent = anon_vma;
- 		/*
-@@ -94,7 +94,7 @@ static inline struct anon_vma *anon_vma_alloc(void)
- 
- static inline void anon_vma_free(struct anon_vma *anon_vma)
- {
--	VM_BUG_ON(atomic_read(&anon_vma->refcount));
-+	VM_BUG_ON(refcount_read(&anon_vma->refcount));
- 
- 	/*
- 	 * Synchronize against page_lock_anon_vma_read() such that
-@@ -423,7 +423,7 @@ static void anon_vma_ctor(void *data)
- 	struct anon_vma *anon_vma = data;
- 
- 	init_rwsem(&anon_vma->rwsem);
--	atomic_set(&anon_vma->refcount, 0);
-+	refcount_set(&anon_vma->refcount, 0);
- 	anon_vma->rb_root = RB_ROOT;
- }
- 
-@@ -472,7 +472,7 @@ struct anon_vma *page_get_anon_vma(struct page *page)
- 		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
--	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
-+	if (!refcount_inc_not_zero(&anon_vma->refcount)) {
- 		anon_vma = NULL;
- 		goto out;
- 	}
-@@ -531,7 +531,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
- 	}
- 
- 	/* trylock failed, we got to sleep */
--	if (!atomic_inc_not_zero(&anon_vma->refcount)) {
-+	if (!refcount_inc_not_zero(&anon_vma->refcount)) {
- 		anon_vma = NULL;
- 		goto out;
- 	}
-@@ -546,7 +546,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
- 	rcu_read_unlock();
- 	anon_vma_lock_read(anon_vma);
- 
--	if (atomic_dec_and_test(&anon_vma->refcount)) {
-+	if (refcount_dec_and_test(&anon_vma->refcount)) {
- 		/*
- 		 * Oops, we held the last refcount, release the lock
- 		 * and bail -- can't simply use put_anon_vma() because
-@@ -1585,7 +1585,7 @@ void __put_anon_vma(struct anon_vma *anon_vma)
- 	struct anon_vma *root = anon_vma->root;
- 
- 	anon_vma_free(anon_vma);
--	if (root != anon_vma && atomic_dec_and_test(&root->refcount))
-+	if (root != anon_vma && refcount_dec_and_test(&root->refcount))
- 		anon_vma_free(root);
- }
- 
+ 	 * Locking here also ensures that the corresponding memory block
+@@ -1398,9 +1398,9 @@ static void kmemleak_scan(void)
+ 		 * With a few exceptions there should be a maximum of
+ 		 * 1 reference to any object at this point.
+ 		 */
+-		if (atomic_read(&object->use_count) > 1) {
++		if (refcount_read(&object->use_count) > 1) {
+ 			pr_debug("object->use_count = %d\n",
+-				 atomic_read(&object->use_count));
++				 refcount_read(&object->use_count));
+ 			dump_object_info(object);
+ 		}
+ #endif
 -- 
 2.7.4
 
