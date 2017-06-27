@@ -1,38 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 738C26B0279
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:39:32 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p15so25292901pgs.7
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:39:32 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u19si1961229plj.4.2017.06.27.04.39.31
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD67F6B0279
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:48:54 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v9so24154616pfk.5
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 04:48:54 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id u72si1788824pfk.160.2017.06.27.04.48.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 04:39:31 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170626130346.26314-1-mhocko@kernel.org>
-	<201706271952.FEB21375.SFJFHOQLOtVOMF@I-love.SAKURA.ne.jp>
-	<20170627112650.GK28072@dhcp22.suse.cz>
-In-Reply-To: <20170627112650.GK28072@dhcp22.suse.cz>
-Message-Id: <201706272039.HGG51520.QOMHFVOFtOSJFL@I-love.SAKURA.ne.jp>
-Date: Tue, 27 Jun 2017 20:39:28 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Jun 2017 04:48:53 -0700 (PDT)
+From: Elena Reshetova <elena.reshetova@intel.com>
+Subject: [PATCH 0/5] v2 mm subsystem refcounter conversions
+Date: Tue, 27 Jun 2017 14:48:42 +0300
+Message-Id: <1498564127-11097-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, andrea@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, peterz@infradead.org, gregkh@linuxfoundation.org, keescook@chromium.org, viro@zeniv.linux.org.uk, catalin.marinas@arm.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, Elena Reshetova <elena.reshetova@intel.com>
 
-Michal Hocko wrote:
-> > I wonder why you prefer timeout based approach. Your patch will after all
-> > set MMF_OOM_SKIP if operations between down_write() and up_write() took
-> > more than one second.
-> 
-> if we reach down_write then we have unmapped the address space in
-> exit_mmap and oom reaper cannot do much more.
+Changes in v2:
+No changes in patches apart from trivial rebases, but now by
+default refcount_t = atomic_t and uses all atomic standard operations
+unless CONFIG_REFCOUNT_FULL is enabled. This is a compromize for the
+systems that are critical on performance and cannot accept even
+slight delay on the refcounter operations.
 
-So, by the time down_write() is called, majority of memory is already released, isn't it?
+
+Elena Reshetova (5):
+  mm: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+  mm: convert anon_vma.refcount from atomic_t to refcount_t
+  mm: convert kmemleak_object.use_count from atomic_t to refcount_t
+  mm: convert mm_struct.mm_users from atomic_t to refcount_t
+  mm: convert mm_struct.mm_count from atomic_t to refcount_t
+
+ arch/alpha/kernel/smp.c                  |  6 +++---
+ arch/arc/mm/tlb.c                        |  2 +-
+ arch/blackfin/mach-common/smp.c          |  4 ++--
+ arch/ia64/include/asm/tlbflush.h         |  2 +-
+ arch/ia64/kernel/smp.c                   |  2 +-
+ arch/ia64/sn/kernel/sn2/sn2_smp.c        |  4 ++--
+ arch/mips/kernel/process.c               |  2 +-
+ arch/mips/kernel/smp.c                   |  6 +++---
+ arch/parisc/include/asm/mmu_context.h    |  2 +-
+ arch/powerpc/mm/hugetlbpage.c            |  2 +-
+ arch/powerpc/mm/icswx.c                  |  4 ++--
+ arch/sh/kernel/smp.c                     |  6 +++---
+ arch/sparc/kernel/smp_64.c               |  6 +++---
+ arch/sparc/mm/srmmu.c                    |  2 +-
+ arch/um/kernel/tlb.c                     |  2 +-
+ arch/x86/kernel/tboot.c                  |  4 ++--
+ drivers/firmware/efi/arm-runtime.c       |  4 ++--
+ drivers/gpu/drm/amd/amdkfd/kfd_process.c |  2 +-
+ fs/coredump.c                            |  2 +-
+ fs/proc/base.c                           |  2 +-
+ fs/proc/task_nommu.c                     |  4 ++--
+ fs/userfaultfd.c                         |  3 +--
+ include/linux/backing-dev-defs.h         |  3 ++-
+ include/linux/backing-dev.h              |  4 ++--
+ include/linux/mm_types.h                 |  5 +++--
+ include/linux/rmap.h                     |  7 ++++---
+ include/linux/sched/mm.h                 | 10 +++++-----
+ kernel/events/uprobes.c                  |  2 +-
+ kernel/exit.c                            |  2 +-
+ kernel/fork.c                            | 12 ++++++------
+ kernel/sched/core.c                      |  2 +-
+ lib/is_single_threaded.c                 |  2 +-
+ mm/backing-dev.c                         | 13 +++++++------
+ mm/debug.c                               |  4 ++--
+ mm/init-mm.c                             |  4 ++--
+ mm/khugepaged.c                          |  2 +-
+ mm/kmemleak.c                            | 16 ++++++++--------
+ mm/ksm.c                                 |  2 +-
+ mm/memory.c                              |  2 +-
+ mm/mmu_notifier.c                        | 10 +++++-----
+ mm/mprotect.c                            |  2 +-
+ mm/oom_kill.c                            |  2 +-
+ mm/rmap.c                                | 14 +++++++-------
+ mm/swapfile.c                            |  2 +-
+ mm/vmacache.c                            |  2 +-
+ 45 files changed, 100 insertions(+), 97 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
