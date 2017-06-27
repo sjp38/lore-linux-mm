@@ -1,126 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ABBDB6B0314
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 12:38:40 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e3so30725543pfc.4
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:38:40 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id h129si1543229pgc.92.2017.06.27.09.38.39
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8895F6B03A8
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 12:41:56 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 12so5951331wmn.1
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:41:56 -0700 (PDT)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id j61si5906147wrj.331.2017.06.27.09.41.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 09:38:39 -0700 (PDT)
-Date: Tue, 27 Jun 2017 19:37:34 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: linux-next: BUG: Bad page state in process ip6tables-save
- pfn:1499f4
-Message-ID: <20170627163734.6js4jkwkwlz6xwir@black.fi.intel.com>
-References: <CANaxB-zPGB8Yy9480pTFmj9HECGs3quq9Ak18aBUbx9TsNSsaw@mail.gmail.com>
- <20170624001738.GB7946@gmail.com>
- <20170624150824.GA19708@gmail.com>
- <bff14c53-815a-0874-5ed9-43d3f4c54ffd@suse.cz>
+        Tue, 27 Jun 2017 09:41:55 -0700 (PDT)
+Received: by mail-wm0-x22d.google.com with SMTP id w126so29963291wme.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:41:55 -0700 (PDT)
+Date: Tue, 27 Jun 2017 19:41:52 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: next-20170620 BUG in do_page_fault / do_huge_pmd_wp_page
+Message-ID: <20170627164152.w5awvgpyppex6oa2@node.shutemov.name>
+References: <20815.1498188418@turing-police.cc.vt.edu>
+ <CA+G9fYvpDRb2VLpXC1yiYZGbqO23dMAix4Ra2+8vhzFoc=MdZQ@mail.gmail.com>
+ <dde0cb3d-ffa2-f90d-fe21-26cf5dd9383c@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bff14c53-815a-0874-5ed9-43d3f4c54ffd@suse.cz>
+In-Reply-To: <dde0cb3d-ffa2-f90d-fe21-26cf5dd9383c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Punit Agrawal <punit.agrawal@arm.com>, Steve Capper <steve.capper@arm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrei Vagin <avagin@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Naresh Kamboju <naresh.kamboju@linaro.org>, valdis.kletnieks@vt.edu
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Jun 27, 2017 at 09:18:15AM +0200, Vlastimil Babka wrote:
-> On 06/24/2017 05:08 PM, Andrei Vagin wrote:
-> > On Fri, Jun 23, 2017 at 05:17:44PM -0700, Andrei Vagin wrote:
-> >> On Thu, Jun 22, 2017 at 11:21:03PM -0700, Andrei Vagin wrote:
-> >>> Hello,
-> >>>
-> >>> We run CRIU tests for linux-next and today they triggered a kernel
-> >>> bug. I want to mention that this kernel is built with kasan. This bug
-> >>> was triggered in travis-ci. I can't reproduce it on my host. Without
-> >>> kasan, kernel crashed but it is impossible to get a kernel log for
-> >>> this case.
-> >>
-> >> We use this tree
-> >> https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/
-> >>
-> >> This issue isn't reproduced on the akpm-base branch and
-> >> it is reproduced each time on the akpm branch. I didn't
-> >> have time today to bisect it, will do on Monday.
-> > 
-> > c3aab7b2d4e8434d53bc81770442c14ccf0794a8 is the first bad commit
-> > 
-> > commit c3aab7b2d4e8434d53bc81770442c14ccf0794a8
-> > Merge: 849c34f 93a7379
-> > Author: Stephen Rothwell
-> > Date:   Fri Jun 23 16:40:07 2017 +1000
-> > 
-> >     Merge branch 'akpm-current/current'
+On Tue, Jun 27, 2017 at 09:13:31AM +0200, Vlastimil Babka wrote:
+> +CC Kirill, those 512 numbers smell like THP related.
 > 
-> Hm is it really the merge of mmotm itself and not one of the patches in
-> mmotm?
-> Anyway smells like THP, adding Kirill.
+> On 06/23/2017 07:48 AM, Naresh Kamboju wrote:
+> > Hi Valdis,
+> > 
+> > On 23 June 2017 at 08:56,  <valdis.kletnieks@vt.edu> wrote:
+> >> Saw this at boot of next-20170620.  Not sure how I managed to hit 4 BUG in a row...
+> >>
+> >> Looked in 'git log -- mm/' but not seeing anything blatantly obvious.
+> >>
+> >> This ringing any bells?  I'm not in a position to recreate or bisect this until
+> >> the weekend.
+> >>
+> >> [  315.409076] BUG: Bad rss-counter state mm:ffff8a223deb4640 idx:0 val:-512
+> >> [  315.412889] BUG: Bad rss-counter state mm:ffff8a223deb4640 idx:1 val:512
+> >> [  315.416694] BUG: non-zero nr_ptes on freeing mm: 1
+> >> [  315.436098] BUG: Bad page state in process gdm  pfn:3e8400
+> >> [  315.439802] page:ffffe8af0fa10000 count:-1 mapcount:0 mapping:          (null) index:0x1
 
-Okay, it took a while to figure it out.
+Could you check this helps:
 
-The bug is in patch "mm, gup: ensure real head page is ref-counted when
-using hugepages". We should look for a head *before* the loop. Otherwise
-'page' may point to the first page beyond the compound page.
+http://lkml.kernel.org/r/20170627163734.6js4jkwkwlz6xwir@black.fi.intel.com
 
-The patch below should help.
-
-If no objections, Andrew, could you fold it into the problematic patch?
-
-diff --git a/mm/gup.c b/mm/gup.c
-index d8db6e5016a8..6f9ca86b3d03 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1424,6 +1424,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 
- 	refs = 0;
- 	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+	head = compound_head(page);
- 	do {
- 		pages[*nr] = page;
- 		(*nr)++;
-@@ -1431,7 +1432,6 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
--	head = compound_head(page);
- 	if (!page_cache_add_speculative(head, refs)) {
- 		*nr -= refs;
- 		return 0;
-@@ -1462,6 +1462,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 
- 	refs = 0;
- 	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-+	head = compound_head(page);
- 	do {
- 		pages[*nr] = page;
- 		(*nr)++;
-@@ -1469,7 +1470,6 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
--	head = compound_head(page);
- 	if (!page_cache_add_speculative(head, refs)) {
- 		*nr -= refs;
- 		return 0;
-@@ -1499,6 +1499,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
- 	BUILD_BUG_ON(pgd_devmap(orig));
- 	refs = 0;
- 	page = pgd_page(orig) + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
-+	head = compound_head(page);
- 	do {
- 		pages[*nr] = page;
- 		(*nr)++;
-@@ -1506,7 +1507,6 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
--	head = compound_head(page);
- 	if (!page_cache_add_speculative(head, refs)) {
- 		*nr -= refs;
- 		return 0;
 -- 
  Kirill A. Shutemov
 
