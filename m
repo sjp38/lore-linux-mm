@@ -1,59 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E6D2483296
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:21:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h81so28552020pfh.15
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:21:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z32si2263729plh.158.2017.06.27.08.21.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB3983296
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:22:39 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id n124so5581607wmg.5
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:22:39 -0700 (PDT)
+Received: from mail-wr0-x22f.google.com (mail-wr0-x22f.google.com. [2a00:1450:400c:c0c::22f])
+        by mx.google.com with ESMTPS id 5si15208719wrz.303.2017.06.27.08.22.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 08:21:27 -0700 (PDT)
-Date: Tue, 27 Jun 2017 08:20:00 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v7 16/22] block: convert to errseq_t based writeback
- error tracking
-Message-ID: <20170627152000.GA29664@infradead.org>
-References: <20170616193427.13955-1-jlayton@redhat.com>
- <20170616193427.13955-17-jlayton@redhat.com>
- <20170620123544.GC19781@infradead.org>
- <1497980684.4555.16.camel@redhat.com>
- <20170624115946.GA22561@infradead.org>
- <1498310166.4796.4.camel@redhat.com>
- <1498487658.5168.8.camel@redhat.com>
+        Tue, 27 Jun 2017 08:22:37 -0700 (PDT)
+Received: by mail-wr0-x22f.google.com with SMTP id r103so161084451wrb.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:22:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1498487658.5168.8.camel@redhat.com>
+In-Reply-To: <CAA25o9T1q9gWzb0BeXY3mvLOth-ow=yjVuwD9ct5f1giBWo=XQ@mail.gmail.com>
+References: <CAA25o9T1WmkWJn1LA-vS=W_Qu8pBw3rfMtTreLNu8fLuZjTDsw@mail.gmail.com>
+ <20170627071104.GB28078@dhcp22.suse.cz> <CAA25o9T1q9gWzb0BeXY3mvLOth-ow=yjVuwD9ct5f1giBWo=XQ@mail.gmail.com>
+From: Luigi Semenzato <semenzato@google.com>
+Date: Tue, 27 Jun 2017 08:22:36 -0700
+Message-ID: <CAA25o9TUkHd9w+DNBdH_4w6LTEEb+Q6QAycHcqx-z3mwh+G=kA@mail.gmail.com>
+Subject: Re: OOM kills with lots of free swap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, Jun 26, 2017 at 10:34:18AM -0400, Jeff Layton wrote:
-> The bigger question is -- what about more complex filesystems like
-> ext4?  There are a couple of cases where we can return -EIO or -EROFS on
-> fsync before filemap_write_and_wait_range is ever called. Like this one
-> for instance:
-> 
->         if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
->                 return -EIO;
-> 
-> ...and the EXT4_MF_FS_ABORTED case.
-> 
-> Are those conditions ever recoverable, such that a later fsync could
-> succeed? IOW, could I do a remount or something such that the existing
-> fds are left open and become usable again? 
+(sorry, I forgot to turn off HTML formatting)
 
-This looks copied from the xfs forced shutdown code, and in that
-case it's final and permanent - you'll need an unmount to
-clear it.
+Thank you, I can try this on ToT, although I think that the problem is
+not with the OOM killer itself but earlier---i.e. invoking the OOM
+killer seems unnecessary and wrong.  Here's the question.
 
-> If so, then we really ought to advance the errseq_t in the file when we
-> catch those cases as well. If we have to do that, then it probably makes
-> sense to leave the ext4 patch as-is.
+The general strategy for page allocation seems to be (please correct
+me as needed):
 
-I think it can switch to the new file helper.
+1. look in the free lists
+2. if that did not succeed, try to reclaim, then try again to allocate
+3. keep trying as long as progress is made (i.e. something was reclaimed)
+4. if no progress was made and no pages were found, invoke the OOM killer.
+
+I'd like to know if that "progress is made" notion is possibly buggy.
+Specifically, does it mean "progress is made by this task"?  Is it
+possible that resource contention creates a situation where most tasks
+in most cases can reclaim and allocate, but one task randomly fails to
+make progress?
+
+On Tue, Jun 27, 2017 at 8:21 AM, Luigi Semenzato <semenzato@google.com> wrote:
+> (copying Minchan because I just asked him the same question.)
+>
+> Thank you, I can try this on ToT, although I think that the problem is not
+> with the OOM killer itself but earlier---i.e. invoking the OOM killer seems
+> unnecessary and wrong.  Here's the question.
+>
+> The general strategy for page allocation seems to be (please correct me as
+> needed):
+>
+> 1. look in the free lists
+> 2. if that did not succeed, try to reclaim, then try again to allocate
+> 3. keep trying as long as progress is made (i.e. something was reclaimed)
+> 4. if no progress was made and no pages were found, invoke the OOM killer.
+>
+> I'd like to know if that "progress is made" notion is possibly buggy.
+> Specifically, does it mean "progress is made by this task"?  Is it possible
+> that resource contention creates a situation where most tasks in most cases
+> can reclaim and allocate, but one task randomly fails to make progress?
+>
+>
+> On Tue, Jun 27, 2017 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>>
+>> On Fri 23-06-17 16:29:39, Luigi Semenzato wrote:
+>> > It is fairly easy to trigger OOM-kills with almost empty swap, by
+>> > running several fast-allocating processes in parallel.  I can
+>> > reproduce this on many 3.x kernels (I think I tried also on 4.4 but am
+>> > not sure).  I am hoping this is a known problem.
+>>
+>> The oom detection code has been reworked considerably in 4.7 so I would
+>> like to see whether your problem is still presenet with more up-to-date
+>> kernels. Also an OOM report is really necessary to get any clue what
+>> might have been going on.
+>>
+>> --
+>> Michal Hocko
+>> SUSE Labs
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
