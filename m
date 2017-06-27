@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B7BB86B02B4
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 20:17:40 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id n124so2570528wmg.5
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 17:17:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m29si13483992wrb.254.2017.06.26.17.17.39
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D716C6B0279
+	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 22:13:39 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id o62so16294381pga.0
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 19:13:39 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id u185si1043428pgd.119.2017.06.26.19.13.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 17:17:39 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5R0Di9K136409
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 20:17:38 -0400
-Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bb2kr0wqw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Jun 2017 20:17:37 -0400
-Received: from localhost
-	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Mon, 26 Jun 2017 20:17:37 -0400
-Date: Mon, 26 Jun 2017 17:17:27 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v3 02/23] powerpc: introduce set_hidx_slot helper
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1498095579-6790-1-git-send-email-linuxram@us.ibm.com>
- <1498095579-6790-3-git-send-email-linuxram@us.ibm.com>
- <1498431798.7935.5.camel@gmail.com>
- <1498449778.31581.118.camel@kernel.crashing.org>
+        Mon, 26 Jun 2017 19:13:39 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id z6so2629455pfk.3
+        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 19:13:38 -0700 (PDT)
+Date: Tue, 27 Jun 2017 10:13:35 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC PATCH 0/4] mm/hotplug: make hotplug memory_block alligned
+Message-ID: <20170627021335.GA62718@WeideMBP.lan>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170625025227.45665-1-richard.weiyang@gmail.com>
+ <20170626074635.GB11534@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="DocE+STaALJfprDB"
 Content-Disposition: inline
-In-Reply-To: <1498449778.31581.118.camel@kernel.crashing.org>
-Message-Id: <20170627001727.GB5846@ram.oc3035372033.ibm.com>
+In-Reply-To: <20170626074635.GB11534@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Balbir Singh <bsingharora@gmail.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Michal Hocko <mhocko@suse.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org
 
-On Sun, Jun 25, 2017 at 11:02:58PM -0500, Benjamin Herrenschmidt wrote:
-> On Mon, 2017-06-26 at 09:03 +1000, Balbir Singh wrote:
-> > On Wed, 2017-06-21 at 18:39 -0700, Ram Pai wrote:
-> > > Introduce set_hidx_slot() which sets the (H_PAGE_F_SECOND|H_PAGE_F_GIX)
-> > > bits at  the  appropriate  location  in  the  PTE  of  4K  PTE.  In the
-> > > case of 64K PTE, it sets the bits in the second part of the PTE. Though
-> > > the implementation for the former just needs the slot parameter, it does
-> > > take some additional parameters to keep the prototype consistent.
-> > > 
-> > > This function will come in handy as we  work  towards  re-arranging the
-> > > bits in the later patches.
-> 
-> The name somewhat sucks. Something like pte_set_hash_slot() or
-> something like that would be much more meaningful.
 
-ok. pte_set_hash_slot() sounds good.
-RP
+--DocE+STaALJfprDB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+On Mon, Jun 26, 2017 at 09:46:35AM +0200, Michal Hocko wrote:
+>On Sun 25-06-17 10:52:23, Wei Yang wrote:
+>> Michal & all
+>>=20
+>> Previously we found the hotplug range is mem_section aligned instead of
+>> memory_block.
+>>=20
+>> Here is several draft patches to fix that. To make sure I am getting your
+>> point correctly, I post it here before further investigation.
+>
+>This description doesn't explain what the problem is and why do we want
+>to fix it. Before diving into the code and review changes it would help
+>a lot to give a short introduction and explain your intention and your
+>assumptions you base your changes on.
+>
+>So please start with a highlevel description first.
+>
+
+Here is the high level description in my mind, glad to see your comment.
+
+
+The minimum unit of memory hotplug is memory_block instead of mem_section.
+While in current implementation, we see several concept misunderstanding.
+
+For example:
+1. The alignment check is based on mem_section instead of memory_block
+2. Online memory range on section base instead of memory_block base
+
+Even memory_block and mem_section are close related, they are two concepts.=
+ It
+is possible to initialize and register them respectively.
+
+For example:
+1. In __add_section(), it tries to register these two in one place.
+
+This patch generally does the following:
+1. Aligned the range with memory_block
+2. Online rage with memory_block base
+3. Split the registration of memory_block and mem_section
+
+
+
+--=20
+Wei Yang
+Help you, Help me
+
+--DocE+STaALJfprDB
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJZUb9PAAoJEKcLNpZP5cTduEkP/i5QNL6RogFS/sxW/kmiba+x
+KRd45pBAtnw2hi9qMeSkuNbo8RxRIP2LYY95b2GFPmHJVdezkuPp9plyiDmVPrNQ
+GUZ0CxuSDvP0m/RSxbExeH4WOHsViZZ1YNDFSv3Sqvq6ROv9wrzkEq92ZM+vIBsB
+nj82aHGXzBMfl9J+kzkE42B3gFa/2aM+fRPdLndKL80nvEP3JQk/DNYPrKOz+Ou0
+9YEF/zux8ZsGRKkOc6cyzZCy8STJjEpRhuAOc8hZukJ70zyuopXaRsI1sXU0daFa
+IEfO9cq+dOsLIVCsvvuccP5ngVeJdG21XZFfLLINX99Lv5nbxYMKL7/SEogm2U+K
+HL2suQyqtpfz4XI/PCuK3m5RIPshGF9RFogrwTe3WiMqmnR166s/EfKnZhPd25xx
+HUuTXYy0ixCvFfkMkIADoBXtOTD8c+2GE0aYt29PF+7gBqgGpYpJaeap1dagxN55
+uwnRQPsh6iAGBsbJPLdOatq+CUg74x2DzmrRIOJChHk/eKpHLtDljtLcAJc2bThy
+Bn4bcDOTngv6aygJ1beY2SF0sQuM/irz+GNcqDNyBL2NBi59LD7drZ8ujNDN5xR4
+prLlPvg4JOPw2CB3fxeLf0m0i26qEniA1Y3ObtYLPlzv2jISPrqonGCswJPULydh
+EiDv6fG/kfN0lNGlEpgq
+=Bfbt
+-----END PGP SIGNATURE-----
+
+--DocE+STaALJfprDB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
