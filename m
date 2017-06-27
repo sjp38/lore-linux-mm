@@ -1,113 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 507A583296
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:21:10 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g6so5563517wmc.8
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:21:10 -0700 (PDT)
-Received: from mail-wr0-x232.google.com (mail-wr0-x232.google.com. [2a00:1450:400c:c0c::232])
-        by mx.google.com with ESMTPS id q73si2988568wmd.8.2017.06.27.08.21.08
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E6D2483296
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:21:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h81so28552020pfh.15
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:21:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id z32si2263729plh.158.2017.06.27.08.21.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 08:21:08 -0700 (PDT)
-Received: by mail-wr0-x232.google.com with SMTP id 77so161018753wrb.1
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:21:08 -0700 (PDT)
+        Tue, 27 Jun 2017 08:21:27 -0700 (PDT)
+Date: Tue, 27 Jun 2017 08:20:00 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v7 16/22] block: convert to errseq_t based writeback
+ error tracking
+Message-ID: <20170627152000.GA29664@infradead.org>
+References: <20170616193427.13955-1-jlayton@redhat.com>
+ <20170616193427.13955-17-jlayton@redhat.com>
+ <20170620123544.GC19781@infradead.org>
+ <1497980684.4555.16.camel@redhat.com>
+ <20170624115946.GA22561@infradead.org>
+ <1498310166.4796.4.camel@redhat.com>
+ <1498487658.5168.8.camel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170627071104.GB28078@dhcp22.suse.cz>
-References: <CAA25o9T1WmkWJn1LA-vS=W_Qu8pBw3rfMtTreLNu8fLuZjTDsw@mail.gmail.com>
- <20170627071104.GB28078@dhcp22.suse.cz>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Tue, 27 Jun 2017 08:21:07 -0700
-Message-ID: <CAA25o9T1q9gWzb0BeXY3mvLOth-ow=yjVuwD9ct5f1giBWo=XQ@mail.gmail.com>
-Subject: Re: OOM kills with lots of free swap
-Content-Type: multipart/alternative; boundary="001a113c2ba4e809aa0552f29d39"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1498487658.5168.8.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, tytso@mit.edu, axboe@kernel.dk, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, corbet@lwn.net, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, "Darrick J . Wong" <darrick.wong@oracle.com>, Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-block@vger.kernel.org
 
---001a113c2ba4e809aa0552f29d39
-Content-Type: text/plain; charset="UTF-8"
+On Mon, Jun 26, 2017 at 10:34:18AM -0400, Jeff Layton wrote:
+> The bigger question is -- what about more complex filesystems like
+> ext4?  There are a couple of cases where we can return -EIO or -EROFS on
+> fsync before filemap_write_and_wait_range is ever called. Like this one
+> for instance:
+> 
+>         if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+>                 return -EIO;
+> 
+> ...and the EXT4_MF_FS_ABORTED case.
+> 
+> Are those conditions ever recoverable, such that a later fsync could
+> succeed? IOW, could I do a remount or something such that the existing
+> fds are left open and become usable again? 
 
-(copying Minchan because I just asked him the same question.)
+This looks copied from the xfs forced shutdown code, and in that
+case it's final and permanent - you'll need an unmount to
+clear it.
 
-Thank you, I can try this on ToT, although I think that the problem is not
-with the OOM killer itself but earlier---i.e. invoking the OOM killer seems
-unnecessary and wrong.  Here's the question.
+> If so, then we really ought to advance the errseq_t in the file when we
+> catch those cases as well. If we have to do that, then it probably makes
+> sense to leave the ext4 patch as-is.
 
-The general strategy for page allocation seems to be (please correct me as
-needed):
-
-1. look in the free lists
-2. if that did not succeed, try to reclaim, then try again to allocate
-3. keep trying as long as progress is made (i.e. something was reclaimed)
-4. if no progress was made and no pages were found, invoke the OOM killer.
-
-I'd like to know if that "progress is made" notion is possibly buggy.
-Specifically, does it mean "progress is made by this task"?  Is it possible
-that resource contention creates a situation where most tasks in most cases
-can reclaim and allocate, but one task randomly fails to make progress?
-
-
-On Tue, Jun 27, 2017 at 12:11 AM, Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Fri 23-06-17 16:29:39, Luigi Semenzato wrote:
-> > It is fairly easy to trigger OOM-kills with almost empty swap, by
-> > running several fast-allocating processes in parallel.  I can
-> > reproduce this on many 3.x kernels (I think I tried also on 4.4 but am
-> > not sure).  I am hoping this is a known problem.
->
-> The oom detection code has been reworked considerably in 4.7 so I would
-> like to see whether your problem is still presenet with more up-to-date
-> kernels. Also an OOM report is really necessary to get any clue what
-> might have been going on.
->
-> --
-> Michal Hocko
-> SUSE Labs
->
-
---001a113c2ba4e809aa0552f29d39
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>(copying Minchan because I just asked him the same qu=
-estion.)</div><div><br></div>Thank you, I can try this on ToT, although I t=
-hink that the problem is not with the OOM killer itself but earlier---i.e. =
-invoking the OOM killer seems unnecessary and wrong.=C2=A0 Here&#39;s the q=
-uestion.<div><br></div><div>The general strategy for page allocation seems =
-to be (please correct me as needed):</div><div><br></div><div>1. look in th=
-e free lists</div><div>2. if that did not succeed, try to reclaim, then try=
- again to allocate</div><div>3. keep trying as long as progress is made (i.=
-e. something was reclaimed)</div><div>4. if no progress was made and no pag=
-es were found, invoke the OOM killer.</div><div><br></div><div>I&#39;d like=
- to know if that &quot;progress is made&quot; notion is possibly buggy.=C2=
-=A0 Specifically, does it mean &quot;progress is made by this task&quot;?=
-=C2=A0 Is it possible that resource contention creates a situation where mo=
-st tasks in most cases can reclaim and allocate, but one task randomly fail=
-s to make progress?</div><div><br></div></div><div class=3D"gmail_extra"><b=
-r><div class=3D"gmail_quote">On Tue, Jun 27, 2017 at 12:11 AM, Michal Hocko=
- <span dir=3D"ltr">&lt;<a href=3D"mailto:mhocko@kernel.org" target=3D"_blan=
-k">mhocko@kernel.org</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_qu=
-ote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex=
-"><span class=3D"">On Fri 23-06-17 16:29:39, Luigi Semenzato wrote:<br>
-&gt; It is fairly easy to trigger OOM-kills with almost empty swap, by<br>
-&gt; running several fast-allocating processes in parallel.=C2=A0 I can<br>
-&gt; reproduce this on many 3.x kernels (I think I tried also on 4.4 but am=
-<br>
-&gt; not sure).=C2=A0 I am hoping this is a known problem.<br>
-<br>
-</span>The oom detection code has been reworked considerably in 4.7 so I wo=
-uld<br>
-like to see whether your problem is still presenet with more up-to-date<br>
-kernels. Also an OOM report is really necessary to get any clue what<br>
-might have been going on.<br>
-<span class=3D"HOEnZb"><font color=3D"#888888"><br>
---<br>
-Michal Hocko<br>
-SUSE Labs<br>
-</font></span></blockquote></div><br></div>
-
---001a113c2ba4e809aa0552f29d39--
+I think it can switch to the new file helper.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
