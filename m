@@ -1,60 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E946B0279
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 10:41:32 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 12so5358638wmn.1
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:41:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d202si2846312wmd.169.2017.06.27.07.41.30
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5826B0279
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 10:54:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v62so27903367pfd.10
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 07:54:50 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 61si2166706plz.518.2017.06.27.07.54.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 07:41:30 -0700 (PDT)
-Date: Tue, 27 Jun 2017 16:41:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170627144125.GP28072@dhcp22.suse.cz>
-References: <20170627112650.GK28072@dhcp22.suse.cz>
- <201706272039.HGG51520.QOMHFVOFtOSJFL@I-love.SAKURA.ne.jp>
- <20170627120317.GL28072@dhcp22.suse.cz>
- <201706272231.ABH00025.FMOFOJSVLOQHFt@I-love.SAKURA.ne.jp>
- <20170627135555.GN28072@dhcp22.suse.cz>
- <201706272326.BAG00561.LMJVHSFQtOOFFO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201706272326.BAG00561.LMJVHSFQtOOFFO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Jun 2017 07:54:49 -0700 (PDT)
+From: Matthew Auld <matthew.auld@intel.com>
+Subject: [PATCH 01/20] mm/shmem: introduce shmem_file_setup_with_mnt
+Date: Tue, 27 Jun 2017 15:54:25 +0100
+Message-Id: <20170627145444.20491-2-matthew.auld@intel.com>
+In-Reply-To: <20170627145444.20491-1-matthew.auld@intel.com>
+References: <20170627145444.20491-1-matthew.auld@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, andrea@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Tue 27-06-17 23:26:22, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 27-06-17 22:31:58, Tetsuo Handa wrote:
-[...]
-> > > shouldn't we try __oom_reap_task_mm() before calling these down_write()
-> > > if mm is OOM victim's?
-> > 
-> > This is what we try. We simply try to get mmap_sem for read and do our
-> > work as soon as possible with the proposed patch. This is already an
-> > improvement, no?
-> 
-> We can ask the OOM reaper kernel thread try to reap before the OOM killer
-> releases oom_lock mutex. But that is not guaranteed. It is possible that
-> the OOM victim thread is executed until down_write() in __ksm_exit() or
-> __khugepaged_exit() and then the OOM reaper kernel thread starts calling
-> down_read_trylock().
+We are planning to use our own tmpfs mnt in i915 in place of the
+shm_mnt, such that we can control the mount options, in particular
+huge=, which we require to support huge-gtt-pages. So rather than roll
+our own version of __shmem_file_setup, it would be preferred if we could
+just give shmem our mnt, and let it do the rest.
 
-I strongly suspect we are getting tangent here. While I see your concern
-and yes the approach can be probably improved, can we focus on one thing
-at the time? I would like to fix the original problem first and only
-then go deeper down the rat hole of other subtle details. Do you have
-any fundamental objection to the suggested approach or see any issues
-with it?
+Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+---
+ include/linux/shmem_fs.h |  2 ++
+ mm/shmem.c               | 30 ++++++++++++++++++++++--------
+ 2 files changed, 24 insertions(+), 8 deletions(-)
 
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index a7d6bd2a918f..27de676f0b63 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
+ 					loff_t size, unsigned long flags);
+ extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
+ 					    unsigned long flags);
++extern struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt,
++		const char *name, loff_t size, unsigned long flags);
+ extern int shmem_zero_setup(struct vm_area_struct *);
+ extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e67d6ba4e98e..88cca428403d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -4130,7 +4130,7 @@ static const struct dentry_operations anon_ops = {
+ 	.d_dname = simple_dname
+ };
+ 
+-static struct file *__shmem_file_setup(const char *name, loff_t size,
++static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
+ 				       unsigned long flags, unsigned int i_flags)
+ {
+ 	struct file *res;
+@@ -4139,8 +4139,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	struct super_block *sb;
+ 	struct qstr this;
+ 
+-	if (IS_ERR(shm_mnt))
+-		return ERR_CAST(shm_mnt);
++	if (IS_ERR(mnt))
++		return ERR_CAST(mnt);
+ 
+ 	if (size < 0 || size > MAX_LFS_FILESIZE)
+ 		return ERR_PTR(-EINVAL);
+@@ -4152,8 +4152,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	this.name = name;
+ 	this.len = strlen(name);
+ 	this.hash = 0; /* will go */
+-	sb = shm_mnt->mnt_sb;
+-	path.mnt = mntget(shm_mnt);
++	sb = mnt->mnt_sb;
++	path.mnt = mntget(mnt);
+ 	path.dentry = d_alloc_pseudo(sb, &this);
+ 	if (!path.dentry)
+ 		goto put_memory;
+@@ -4198,7 +4198,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+  */
+ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, S_PRIVATE);
++	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
+ }
+ 
+ /**
+@@ -4209,11 +4209,25 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
+  */
+ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, 0);
++	return __shmem_file_setup(shm_mnt, name, size, flags, 0);
+ }
+ EXPORT_SYMBOL_GPL(shmem_file_setup);
+ 
+ /**
++ * shmem_file_setup_with_mnt - get an unlinked file living in tmpfs
++ * @mnt: the tmpfs mount where the file will be created
++ * @name: name for dentry (to be seen in /proc/<pid>/maps
++ * @size: size to be set for the file
++ * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
++ */
++struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt, const char *name,
++				       loff_t size, unsigned long flags)
++{
++	return __shmem_file_setup(mnt, name, size, flags, 0);
++}
++EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
++
++/**
+  * shmem_zero_setup - setup a shared anonymous mapping
+  * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
+  */
+@@ -4228,7 +4242,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+ 	 * accessible to the user through its mapping, use S_PRIVATE flag to
+ 	 * bypass file security, in the same way as shmem_kernel_file_setup().
+ 	 */
+-	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
++	file = shmem_kernel_file_setup("dev/zero", size, vma->vm_flags);
+ 	if (IS_ERR(file))
+ 		return PTR_ERR(file);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
