@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D72176B0279
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 03:35:16 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id g53so9374979qtc.6
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:35:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x128si2198025qke.211.2017.06.27.00.35.16
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 119EB6B0279
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 03:38:12 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id 64so6820821uag.8
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:38:12 -0700 (PDT)
+Received: from mail-ua0-x229.google.com (mail-ua0-x229.google.com. [2607:f8b0:400c:c08::229])
+        by mx.google.com with ESMTPS id v7si1004738vka.106.2017.06.27.00.38.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 00:35:16 -0700 (PDT)
-Date: Tue, 27 Jun 2017 15:34:55 +0800
-From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH v2 16/51] block: bounce: avoid direct access to bvec table
-Message-ID: <20170627073454.GA31283@ming.t460p>
-References: <20170626121034.3051-1-ming.lei@redhat.com>
- <20170626121034.3051-17-ming.lei@redhat.com>
- <20170627061211.GA27359@bombadil.infradead.org>
+        Tue, 27 Jun 2017 00:38:10 -0700 (PDT)
+Received: by mail-ua0-x229.google.com with SMTP id j53so13701118uaa.2
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:38:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170627061211.GA27359@bombadil.infradead.org>
+In-Reply-To: <13ab3968-a7e4-add3-b050-438d462f7fc4@suse.cz>
+References: <594d905d.geNp0UO7DULvNDPS%akpm@linux-foundation.org>
+ <CAC=cRTNJe5Bo-1E+3oJEbWM8Yt5SyZOhnUiC9U5OK0GWrp1E0g@mail.gmail.com>
+ <c3caa911-6e40-42a8-da4d-45243fb7f4ad@suse.cz> <13ab3968-a7e4-add3-b050-438d462f7fc4@suse.cz>
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Date: Tue, 27 Jun 2017 09:38:09 +0200
+Message-ID: <CAKwiHFjfrWqa+0NhL1EHKJwmghrL52Xzn-tYJsOi1B41shCsTg@mail.gmail.com>
+Subject: Re: mmotm 2017-06-23-15-03 uploaded
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: huang ying <huang.ying.caritas@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, mhocko@suse.cz, Mark Brown <broonie@kernel.org>
 
-On Mon, Jun 26, 2017 at 11:12:11PM -0700, Matthew Wilcox wrote:
-> On Mon, Jun 26, 2017 at 08:09:59PM +0800, Ming Lei wrote:
-> >  	bio_for_each_segment_all(bvec, bio, i) {
-> > -		org_vec = bio_orig->bi_io_vec + i + start;
-> > -
-> > -		if (bvec->bv_page == org_vec->bv_page)
-> > -			continue;
-> > +		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
-> > +		if (bvec->bv_page == orig_vec.bv_page)
-> > +			goto next;
-> >  
-> >  		dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
-> >  		mempool_free(bvec->bv_page, pool);
-> > + next:
-> > +		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
-> >  	}
-> >  
-> 
-> I think this might be written more clearly as:
-> 
->  	bio_for_each_segment_all(bvec, bio, i) {
-> 		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
-> 		if (bvec->bv_page != orig_vec.bv_page) {
->  			dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
-> 	 		mempool_free(bvec->bv_page, pool);
-> 		}
-> 		bio_advance_iter(bio_orig, &orig_iter, orig_vec.bv_len);
->  	}
-> 
-> What do you think?
+>>
+>> However, the patch in mmotm seems to be missing this crucial hunk that
+>> Rasmus had in the patch he sent [1]:
+>>
+>> -__rmqueue_fallback(struct zone *zone, unsigned int order, int
+>> start_migratetype)
+>> +__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+>>
+>> which makes this a signed vs signed comparison.
+>>
+>> What happened to it? Andrew?
 
-Yeah, looks the above code is more clean, will do it in V3.
+This is really odd. Checking, I see that it was also absent from the
+'this patch has been added to -mm' mail, but I admit I don't proofread
+those to see they match what I sent. Oh well. Let me know if I need to
+do anything.
 
-thanks,
-Ming
+Rasmus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
