@@ -1,281 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 80F4D6B03AE
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 12:09:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z10so29991097pff.1
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:09:17 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id u18si2332613plj.279.2017.06.27.09.09.16
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABBDB6B0314
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 12:38:40 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e3so30725543pfc.4
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 09:38:40 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id h129si1543229pgc.92.2017.06.27.09.38.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 09:09:16 -0700 (PDT)
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Subject: [RFC PATCH v2] userfaultfd: Add feature to request for a signal
- delivery
-Message-ID: <ff16daf5-7ba0-3dc2-7f73-eb7db8336df7@oracle.com>
-Date: Tue, 27 Jun 2017 09:08:40 -0700
+        Tue, 27 Jun 2017 09:38:39 -0700 (PDT)
+Date: Tue, 27 Jun 2017 19:37:34 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: linux-next: BUG: Bad page state in process ip6tables-save
+ pfn:1499f4
+Message-ID: <20170627163734.6js4jkwkwlz6xwir@black.fi.intel.com>
+References: <CANaxB-zPGB8Yy9480pTFmj9HECGs3quq9Ak18aBUbx9TsNSsaw@mail.gmail.com>
+ <20170624001738.GB7946@gmail.com>
+ <20170624150824.GA19708@gmail.com>
+ <bff14c53-815a-0874-5ed9-43d3f4c54ffd@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
- boundary="------------96F7F87A7D87C44A8ED72EAF"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bff14c53-815a-0874-5ed9-43d3f4c54ffd@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Punit Agrawal <punit.agrawal@arm.com>, Steve Capper <steve.capper@arm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrei Vagin <avagin@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Cyrill Gorcunov <gorcunov@openvz.org>
 
-This is a multi-part message in MIME format.
---------------96F7F87A7D87C44A8ED72EAF
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+On Tue, Jun 27, 2017 at 09:18:15AM +0200, Vlastimil Babka wrote:
+> On 06/24/2017 05:08 PM, Andrei Vagin wrote:
+> > On Fri, Jun 23, 2017 at 05:17:44PM -0700, Andrei Vagin wrote:
+> >> On Thu, Jun 22, 2017 at 11:21:03PM -0700, Andrei Vagin wrote:
+> >>> Hello,
+> >>>
+> >>> We run CRIU tests for linux-next and today they triggered a kernel
+> >>> bug. I want to mention that this kernel is built with kasan. This bug
+> >>> was triggered in travis-ci. I can't reproduce it on my host. Without
+> >>> kasan, kernel crashed but it is impossible to get a kernel log for
+> >>> this case.
+> >>
+> >> We use this tree
+> >> https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/
+> >>
+> >> This issue isn't reproduced on the akpm-base branch and
+> >> it is reproduced each time on the akpm branch. I didn't
+> >> have time today to bisect it, will do on Monday.
+> > 
+> > c3aab7b2d4e8434d53bc81770442c14ccf0794a8 is the first bad commit
+> > 
+> > commit c3aab7b2d4e8434d53bc81770442c14ccf0794a8
+> > Merge: 849c34f 93a7379
+> > Author: Stephen Rothwell
+> > Date:   Fri Jun 23 16:40:07 2017 +1000
+> > 
+> >     Merge branch 'akpm-current/current'
+> 
+> Hm is it really the merge of mmotm itself and not one of the patches in
+> mmotm?
+> Anyway smells like THP, adding Kirill.
 
-Applications like the database use hugetlbfs for performance reason.
-Files on hugetlbfs filesystem are created and huge pages allocated
-using fallocate() API. Pages are deallocated/freed using fallocate() hole
-punching support. These files are mmap'ed and accessed by many
-single threaded processes as shared memory.  The database keeps
-track of which offsets in the hugetlbfs file have pages allocated.
+Okay, it took a while to figure it out.
 
-Any access to mapped address over holes in the file, which can occur due
-to bugs in the application, is considered invalid and expect the process
-to simply receive a SIGBUS.  However, currently when a hole in the file is
-accessed via the mmap'ed address, kernel/mm attempts to automatically
-allocate a page at page fault time, resulting in implicitly filling the
-hole in the file. This may not be the desired behavior for applications
-like the database that want to explicitly manage page allocations of
-hugetlbfs files. The requirement here is for a way to prevent the kernel
-from implicitly allocating a page  to fill holes in hugetbfs file.
+The bug is in patch "mm, gup: ensure real head page is ref-counted when
+using hugepages". We should look for a head *before* the loop. Otherwise
+'page' may point to the first page beyond the compound page.
 
-This can be achieved using userfaultfd mechanism to intercept page-fault
-events when mmap'ed address over holes in the file are accessed, and
-prevent kernel from implicitly filling the hole. However, currently using
-userfaultfd would require each of the database processes to use a monitor
-thread and the setup cost associated with it,  is considered an overhead.
+The patch below should help.
 
-It would be better if userfaultd mechanism could have a way to request
-simply sending a signal,for the robustness use case described above.
-This would not require the use of a monitor thread.
+If no objections, Andrew, could you fold it into the problematic patch?
 
-This patch adds the feature to userfaultfd mechanism to request for a
-SIGBUS signal delivery to the faulting process, instead of the
-page-fault event.
-
-See following for previous discussion about a different solution
-to the above database requirement, leading to this proposal to enhance
-userfaultfd, as suggested by Andrea.
-
-http://www.spinics.net/lists/linux-mm/msg129224.html
-
-Signed-off-by: Prakash <prakash.sangappa@oracle.com>
----
-  fs/userfaultfd.c                 |  5 +++++
-  include/uapi/linux/userfaultfd.h | 10 +++++++++-
-  2 files changed, 14 insertions(+), 1 deletion(-)
-
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 1d622f2..5686d6d2 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -371,6 +371,11 @@ int handle_userfault(struct vm_fault *vmf, unsigned 
-long reason)
-      VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
-      VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
-
-+    if (ctx->features & UFFD_FEATURE_SIGBUS) {
-+        goto out;
-+    }
-+
-      /*
-       * If it's already released don't get it. This avoids to loop
-       * in __get_user_pages if userfaultfd_release waits on the
-diff --git a/include/uapi/linux/userfaultfd.h 
-b/include/uapi/linux/userfaultfd.h
-index 3b05953..d39d5db 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -23,7 +23,8 @@
-                 UFFD_FEATURE_EVENT_REMOVE |    \
-                 UFFD_FEATURE_EVENT_UNMAP |        \
-                 UFFD_FEATURE_MISSING_HUGETLBFS |    \
--               UFFD_FEATURE_MISSING_SHMEM)
-+               UFFD_FEATURE_MISSING_SHMEM |        \
-+               UFFD_FEATURE_SIGBUS)
-  #define UFFD_API_IOCTLS                \
-      ((__u64)1 << _UFFDIO_REGISTER |        \
-       (__u64)1 << _UFFDIO_UNREGISTER |    \
-@@ -153,6 +154,12 @@ struct uffdio_api {
-       * UFFD_FEATURE_MISSING_SHMEM works the same as
-       * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
-       * (i.e. tmpfs and other shmem based APIs).
-+     *
-+     * UFFD_FEATURE_SIGBUS feature means no page-fault
-+     * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
-+     * a SIGBUS signal will be sent to the faulting process.
-+     * The application process can enable this behavior by adding
-+     * it to uffdio_api.features.
-       */
-  #define UFFD_FEATURE_PAGEFAULT_FLAG_WP (1<<0)
-  #define UFFD_FEATURE_EVENT_FORK            (1<<1)
-@@ -161,6 +168,7 @@ struct uffdio_api {
-  #define UFFD_FEATURE_MISSING_HUGETLBFS (1<<4)
-  #define UFFD_FEATURE_MISSING_SHMEM        (1<<5)
-  #define UFFD_FEATURE_EVENT_UNMAP        (1<<6)
-+#define UFFD_FEATURE_SIGBUS            (1<<7)
-      __u64 features;
-
-      __u64 ioctls;
+diff --git a/mm/gup.c b/mm/gup.c
+index d8db6e5016a8..6f9ca86b3d03 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1424,6 +1424,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 
+ 	refs = 0;
+ 	page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
++	head = compound_head(page);
+ 	do {
+ 		pages[*nr] = page;
+ 		(*nr)++;
+@@ -1431,7 +1432,6 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
+-	head = compound_head(page);
+ 	if (!page_cache_add_speculative(head, refs)) {
+ 		*nr -= refs;
+ 		return 0;
+@@ -1462,6 +1462,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 
+ 	refs = 0;
+ 	page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
++	head = compound_head(page);
+ 	do {
+ 		pages[*nr] = page;
+ 		(*nr)++;
+@@ -1469,7 +1470,6 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
+-	head = compound_head(page);
+ 	if (!page_cache_add_speculative(head, refs)) {
+ 		*nr -= refs;
+ 		return 0;
+@@ -1499,6 +1499,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+ 	BUILD_BUG_ON(pgd_devmap(orig));
+ 	refs = 0;
+ 	page = pgd_page(orig) + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
++	head = compound_head(page);
+ 	do {
+ 		pages[*nr] = page;
+ 		(*nr)++;
+@@ -1506,7 +1507,6 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
+-	head = compound_head(page);
+ 	if (!page_cache_add_speculative(head, refs)) {
+ 		*nr -= refs;
+ 		return 0;
 -- 
-2.7.4
-
---------------96F7F87A7D87C44A8ED72EAF
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: 8bit
-
-<html>
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <tt>Applications like the database use hugetlbfs for performance
-      reason. </tt><tt><br>
-    </tt><tt> Files on hugetlbfs filesystem are created and huge pages
-      allocated </tt><tt><br>
-    </tt><tt> using fallocate() API. Pages are deallocated/freed using
-      fallocate() hole </tt><tt><br>
-    </tt><tt> punching support. These files are mmap'ed and accessed by
-      many </tt><tt><br>
-    </tt><tt> single threaded processes as shared memory.A  The database
-      keeps </tt><tt><br>
-    </tt><tt> track of which offsets in the hugetlbfs file have pages
-      allocated. </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> Any access to mapped address over holes in the file, which
-      can occur due </tt><tt><br>
-    </tt><tt> to bugs in the application, is considered invalid and
-      expect the process </tt><tt><br>
-    </tt><tt> to simply receive a SIGBUS.A  However, currently when a
-      hole in the file is </tt><tt><br>
-    </tt><tt> accessed via the mmap'ed address, kernel/mm attempts to
-      automatically </tt><tt><br>
-    </tt><tt> allocate a page at page fault time, resulting in
-      implicitly filling the </tt><tt><br>
-    </tt><tt> hole in the file. This may not be the desired behavior for
-      applications </tt><tt><br>
-    </tt><tt> like the database that want to explicitly manage page
-      allocations of </tt><tt><br>
-    </tt><tt> hugetlbfs files. The requirement here is for a way to
-      prevent the kernel </tt><tt><br>
-    </tt><tt> from implicitly allocating a pageA  to fill holes in
-      hugetbfs file.</tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> This can be achieved using userfaultfd mechanism to
-      intercept page-fault</tt><tt><br>
-    </tt><tt> events when mmap'ed address over holes in the file are
-      accessed, and</tt><tt><br>
-    </tt><tt> prevent kernel from implicitly filling the hole. However,
-      currently using</tt><tt><br>
-    </tt><tt> userfaultfd would require each of the database processes
-      to use a monitor </tt><tt><br>
-    </tt><tt> thread and the setup cost associated with it,A  is
-      considered an overhead. </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> It would be better if userfaultd mechanism could have a
-      way to request</tt><tt><br>
-    </tt><tt>simply sending a signal,</tt><tt> for the robustness use
-      case described above.</tt><tt><br>
-      This would not require the use of a monitor thread.<br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> This patch adds the feature to userfaultfd mechanism to
-      request for a </tt><tt><br>
-    </tt><tt>SIGBUS signal delivery to the faulting process, instead of
-      the </tt><tt><br>
-    </tt><tt>page-fault event.</tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> See following for previous discussion about a different
-      solution</tt><tt><br>
-    </tt><tt>to the above database requirement, leading to this proposal
-      to enhance </tt><tt><br>
-    </tt><tt>userfaultfd, as suggested by Andrea. </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> </tt><tt><a class="moz-txt-link-freetext"
-        href="http://www.spinics.net/lists/linux-mm/msg129224.html">http://www.spinics.net/lists/linux-mm/msg129224.html</a></tt><tt>
-    </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> Signed-off-by: Prakash </tt><tt><a
-        class="moz-txt-link-rfc2396E"
-        href="mailto:prakash.sangappa@oracle.com">&lt;prakash.sangappa@oracle.com&gt;</a></tt><tt>
-    </tt><tt><br>
-    </tt><tt> --- </tt><tt><br>
-    </tt><tt> A fs/userfaultfd.cA A A A A A A A A A A A A A A A  |A  5 +++++ </tt><tt><br>
-    </tt><tt> A include/uapi/linux/userfaultfd.h | 10 +++++++++- </tt><tt><br>
-    </tt><tt> A 2 files changed, 14 insertions(+), 1 deletion(-) </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c </tt><tt><br>
-    </tt><tt> index 1d622f2..5686d6d2 100644 </tt><tt><br>
-    </tt><tt> --- a/fs/userfaultfd.c </tt><tt><br>
-    </tt><tt> +++ b/fs/userfaultfd.c </tt><tt><br>
-    </tt><tt> @@ -371,6 +371,11 @@ int handle_userfault(struct vm_fault
-      *vmf, unsigned long reason) </tt><tt><br>
-    </tt><tt> A A A A  VM_BUG_ON(reason &amp;
-      ~(VM_UFFD_MISSING|VM_UFFD_WP)); </tt><tt><br>
-    </tt><tt> A A A A  VM_BUG_ON(!(reason &amp; VM_UFFD_MISSING) ^ !!(reason
-      &amp; VM_UFFD_WP)); </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> +A A A  if (ctx-&gt;features &amp; UFFD_FEATURE_SIGBUS) { </tt><tt><br>
-    </tt><tt> +A A A A A A A  goto out; </tt><tt><br>
-    </tt><tt> +A A A  } </tt><tt><br>
-    </tt><tt> + </tt><tt><br>
-    </tt><tt> A A A A  /* </tt><tt><br>
-    </tt><tt> A A A A A  * If it's already released don't get it. This avoids
-      to loop </tt><tt><br>
-    </tt><tt> A A A A A  * in __get_user_pages if userfaultfd_release waits
-      on the </tt><tt><br>
-    </tt><tt> diff --git a/include/uapi/linux/userfaultfd.h
-      b/include/uapi/linux/userfaultfd.h </tt><tt><br>
-    </tt><tt> index 3b05953..d39d5db 100644 </tt><tt><br>
-    </tt><tt> --- a/include/uapi/linux/userfaultfd.h </tt><tt><br>
-    </tt><tt> +++ b/include/uapi/linux/userfaultfd.h </tt><tt><br>
-    </tt><tt> @@ -23,7 +23,8 @@ </tt><tt><br>
-    </tt><tt> A A A A A A A A A A A A A A A  UFFD_FEATURE_EVENT_REMOVE |A A A  \ </tt><tt><br>
-    </tt><tt> A A A A A A A A A A A A A A A  UFFD_FEATURE_EVENT_UNMAP |A A A A A A A  \ </tt><tt><br>
-    </tt><tt> A A A A A A A A A A A A A A A  UFFD_FEATURE_MISSING_HUGETLBFS |A A A  \ </tt><tt><br>
-    </tt><tt> -A A A A A A A A A A A A A A  UFFD_FEATURE_MISSING_SHMEM) </tt><tt><br>
-    </tt><tt> +A A A A A A A A A A A A A A  UFFD_FEATURE_MISSING_SHMEM |A A A A A A A  \ </tt><tt><br>
-    </tt><tt> +A A A A A A A A A A A A A A  UFFD_FEATURE_SIGBUS) </tt><tt><br>
-    </tt><tt> A #define UFFD_API_IOCTLSA A A A A A A A A A A A A A A  \ </tt><tt><br>
-    </tt><tt> A A A A  ((__u64)1 &lt;&lt; _UFFDIO_REGISTER |A A A A A A A  \ </tt><tt><br>
-    </tt><tt> A A A A A  (__u64)1 &lt;&lt; _UFFDIO_UNREGISTER |A A A  \ </tt><tt><br>
-    </tt><tt> @@ -153,6 +154,12 @@ struct uffdio_api { </tt><tt><br>
-    </tt><tt> A A A A A  * UFFD_FEATURE_MISSING_SHMEM works the same as </tt><tt><br>
-    </tt><tt> A A A A A  * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to
-      shmem </tt><tt><br>
-    </tt><tt> A A A A A  * (i.e. tmpfs and other shmem based APIs). </tt><tt><br>
-    </tt><tt> +A A A A  * </tt><tt><br>
-    </tt><tt> +A A A A  * UFFD_FEATURE_SIGBUS feature means no page-fault </tt><tt><br>
-    </tt><tt> +A A A A  * (UFFD_EVENT_PAGEFAULT) event will be delivered,
-      instead </tt><tt><br>
-    </tt><tt> +A A A A  * a SIGBUS signal will be sent to the faulting
-      process. </tt><tt><br>
-    </tt><tt> +A A A A  * The application process can enable this behavior
-      by adding </tt><tt><br>
-    </tt><tt> +A A A A  * it to uffdio_api.features. </tt><tt><br>
-    </tt><tt> A A A A A  */ </tt><tt><br>
-    </tt><tt> A #define UFFD_FEATURE_PAGEFAULT_FLAG_WPA A A A A A A 
-      (1&lt;&lt;0) </tt><tt><br>
-    </tt><tt> A #define UFFD_FEATURE_EVENT_FORKA A A A A A A A A A A  (1&lt;&lt;1) </tt><tt><br>
-    </tt><tt> @@ -161,6 +168,7 @@ struct uffdio_api { </tt><tt><br>
-    </tt><tt> A #define UFFD_FEATURE_MISSING_HUGETLBFSA A A A A A A 
-      (1&lt;&lt;4) </tt><tt><br>
-    </tt><tt> A #define UFFD_FEATURE_MISSING_SHMEMA A A A A A A  (1&lt;&lt;5) </tt><tt><br>
-    </tt><tt> A #define UFFD_FEATURE_EVENT_UNMAPA A A A A A A  (1&lt;&lt;6) </tt><tt><br>
-    </tt><tt> +#define UFFD_FEATURE_SIGBUSA A A A A A A A A A A  (1&lt;&lt;7) </tt><tt><br>
-    </tt><tt> A A A A  __u64 features; </tt><tt><br>
-    </tt><tt> </tt><tt><br>
-    </tt><tt> A A A A  __u64 ioctls; </tt><tt><br>
-    </tt><tt> </tt><tt><span class="moz-txt-tag">--A <br>
-      </span></tt><tt>2.7.4 </tt><br>
-  </body>
-</html>
-
---------------96F7F87A7D87C44A8ED72EAF--
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
