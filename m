@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2FC83296
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:13:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d5so28592536pfe.2
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:13:47 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0078.outbound.protection.outlook.com. [104.47.32.78])
-        by mx.google.com with ESMTPS id k8si2196175pli.565.2017.06.27.08.13.46
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E86B83296
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:14:15 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id r65so12693710qki.8
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:14:15 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0067.outbound.protection.outlook.com. [104.47.33.67])
+        by mx.google.com with ESMTPS id q81si3067071qke.272.2017.06.27.08.14.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 08:13:46 -0700 (PDT)
+        Tue, 27 Jun 2017 08:14:14 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v8 RESEND 33/38] x86/mm: Use proper encryption attributes
- with /dev/mem
-Date: Tue, 27 Jun 2017 10:13:38 -0500
-Message-ID: <20170627151338.17428.47553.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v8 RESEND 34/38] x86/mm: Create native_make_p4d() for
+ PGTABLE_LEVELS <= 4
+Date: Tue, 27 Jun 2017 10:13:48 -0500
+Message-ID: <20170627151348.17428.43372.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
 References: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,98 +24,31 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-When accessing memory using /dev/mem (or /dev/kmem) use the proper
-encryption attributes when mapping the memory.
+Currently, native_make_p4d() is only defined when CONFIG_PGTABLE_LEVELS
+is greater than 4. Create a macro that will allow for defining and using
+native_make_p4d() when CONFIG_PGTABLES_LEVELS is not greater than 4.
 
-To insure the proper attributes are applied when reading or writing
-/dev/mem, update the xlate_dev_mem_ptr() function to use memremap()
-which will essentially perform the same steps of applying __va for
-RAM or using ioremap() if not RAM.
-
-To insure the proper attributes are applied when mmapping /dev/mem,
-update the phys_mem_access_prot() to call phys_mem_access_encrypted(),
-a new function which will check if the memory should be mapped encrypted
-or not. If it is not to be mapped encrypted then the VMA protection
-value is updated to remove the encryption bit.
-
-Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/io.h |    3 +++
- arch/x86/mm/ioremap.c     |   18 +++++++++---------
- arch/x86/mm/pat.c         |    3 +++
- 3 files changed, 15 insertions(+), 9 deletions(-)
+ arch/x86/include/asm/pgtable_types.h |    5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-index 09c5557..e080a39 100644
---- a/arch/x86/include/asm/io.h
-+++ b/arch/x86/include/asm/io.h
-@@ -386,4 +386,7 @@ extern bool arch_memremap_can_ram_remap(resource_size_t offset,
- 					unsigned long flags);
- #define arch_memremap_can_ram_remap arch_memremap_can_ram_remap
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 830992f..6c55973 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -309,6 +309,11 @@ static inline p4dval_t native_p4d_val(p4d_t p4d)
+ #else
+ #include <asm-generic/pgtable-nop4d.h>
  
-+extern bool phys_mem_access_encrypted(unsigned long phys_addr,
-+				      unsigned long size);
-+
- #endif /* _ASM_X86_IO_H */
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index effa529..71d4ca7 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -396,12 +396,10 @@ void *xlate_dev_mem_ptr(phys_addr_t phys)
- 	unsigned long offset = phys & ~PAGE_MASK;
- 	void *vaddr;
- 
--	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
--	if (page_is_ram(start >> PAGE_SHIFT))
--		return __va(phys);
-+	/* memremap() maps if RAM, otherwise falls back to ioremap() */
-+	vaddr = memremap(start, PAGE_SIZE, MEMREMAP_WB);
- 
--	vaddr = ioremap_cache(start, PAGE_SIZE);
--	/* Only add the offset on success and return NULL if the ioremap() failed: */
-+	/* Only add the offset on success and return NULL if memremap() failed */
- 	if (vaddr)
- 		vaddr += offset;
- 
-@@ -410,10 +408,7 @@ void *xlate_dev_mem_ptr(phys_addr_t phys)
- 
- void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
- {
--	if (page_is_ram(phys >> PAGE_SHIFT))
--		return;
--
--	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
-+	memunmap((void *)((unsigned long)addr & PAGE_MASK));
- }
- 
- /*
-@@ -622,6 +617,11 @@ pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
- 	return prot;
- }
- 
-+bool phys_mem_access_encrypted(unsigned long phys_addr, unsigned long size)
++static inline p4d_t native_make_p4d(pudval_t val)
 +{
-+	return arch_memremap_can_ram_remap(phys_addr, size, 0);
++	return (p4d_t) { .pgd = native_make_pgd((pgdval_t)val) };
 +}
 +
- #ifdef CONFIG_ARCH_USE_MEMREMAP_PROT
- /* Remap memory with encryption */
- void __init *early_memremap_encrypted(resource_size_t phys_addr,
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 6753d9c..b970c95 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -748,6 +748,9 @@ void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
- pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
- 				unsigned long size, pgprot_t vma_prot)
+ static inline p4dval_t native_p4d_val(p4d_t p4d)
  {
-+	if (!phys_mem_access_encrypted(pfn << PAGE_SHIFT, size))
-+		vma_prot = pgprot_decrypted(vma_prot);
-+
- 	return vma_prot;
- }
- 
+ 	return native_pgd_val(p4d.pgd);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
