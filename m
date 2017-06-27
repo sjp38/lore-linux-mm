@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 409DB6B02FA
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 19:07:38 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id h64so28901522iod.9
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:07:38 -0700 (PDT)
-Received: from mail-io0-x229.google.com (mail-io0-x229.google.com. [2607:f8b0:4001:c06::229])
-        by mx.google.com with ESMTPS id w71si3709355itc.8.2017.06.27.16.07.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B536B02FA
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 19:13:10 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g86so29156773iod.14
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:13:10 -0700 (PDT)
+Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
+        by mx.google.com with ESMTPS id 82si476372ioq.48.2017.06.27.16.13.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 16:07:37 -0700 (PDT)
-Received: by mail-io0-x229.google.com with SMTP id h64so26538841iod.0
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:07:37 -0700 (PDT)
+        Tue, 27 Jun 2017 16:13:09 -0700 (PDT)
+Received: by mail-io0-x22d.google.com with SMTP id h64so26591515iod.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:13:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1497544976-7856-7-git-send-email-s.mesoraca16@gmail.com>
-References: <1497544976-7856-1-git-send-email-s.mesoraca16@gmail.com> <1497544976-7856-7-git-send-email-s.mesoraca16@gmail.com>
+In-Reply-To: <1497544976-7856-8-git-send-email-s.mesoraca16@gmail.com>
+References: <1497544976-7856-1-git-send-email-s.mesoraca16@gmail.com> <1497544976-7856-8-git-send-email-s.mesoraca16@gmail.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Tue, 27 Jun 2017 16:07:36 -0700
-Message-ID: <CAGXu5jJ2DykaU6bbFGRcOaZK9nn5dFUYQ6UjXCq9Y97DwYpCyA@mail.gmail.com>
-Subject: Re: [RFC v2 6/9] Creation of "pagefault_handler_x86" LSM hook
+Date: Tue, 27 Jun 2017 16:13:08 -0700
+Message-ID: <CAGXu5jJ+GHJSgoHk3Vmf=JueVgwkP6ZSVm5kkMbCGBySp2VqmA@mail.gmail.com>
+Subject: Re: [RFC v2 7/9] Trampoline emulation
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -26,158 +26,159 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-security-module <linux-security-m
 
 On Thu, Jun 15, 2017 at 9:42 AM, Salvatore Mesoraca
 <s.mesoraca16@gmail.com> wrote:
-> Creation of a new hook to let LSM modules handle user-space pagefaults on
-> x86.
-> It can be used to avoid segfaulting the originating process.
-> If it's the case it can modify process registers before returning.
-> This is not a security feature by itself, it's a way to soften some
-> unwanted side-effects of restrictive security features.
-> In particular this is used by S.A.R.A. can be used to implement what
-> PaX call "trampoline emulation" that, in practice, allow for some specific
-> code sequences to be executed even if they are in non executable memory.
-> This may look like a bad thing at first, but you have to consider
-> that:
-> - This allows for strict memory restrictions (e.g. W^X) to stay on even
->   when they should be turned off. And, even if this emulation
->   makes those features less effective, it's still better than having
->   them turned off completely.
-> - The only code sequences emulated are trampolines used to make
->   function calls. In many cases, when you have the chance to
->   make arbitrary memory writes, you can already manipulate the
->   control flow of the program by overwriting function pointers or
->   return values. So, in many cases, the "trampoline emulation"
->   doesn't introduce new exploit vectors.
-> - It's a feature that can be turned on only if needed, on a per
->   executable file basis.
+> Some programs need to generate part of their code at runtime. Luckily
+> enough, in some cases they only generate well-known code sequences (the
+> "trampolines") that can be easily recognized and emulated by the kernel.
+> This way WX Protection can still be active, so a potential attacker won't
+> be able to generate arbitrary sequences of code, but just those that are
+> explicitly allowed. This is not ideal, but it's still better than having WX
+> Protection completely disabled.
+> In particular S.A.R.A. is able to recognize trampolines used by GCC for
+> nested C functions and libffi's trampolines.
+> This feature is implemented only on x86_32 and x86_64.
+> The assembly sequences used here were originally obtained from PaX source
+> code.
 
-Can this be made arch-agnostic? It seems a per-arch register-handling
-routine would be needed, though. :(
-
--Kees
+See below about the language grsecurity has asked people to use in commit logs.
 
 >
 > Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
 > ---
->  arch/x86/mm/fault.c       |  6 ++++++
->  include/linux/lsm_hooks.h |  9 +++++++++
->  include/linux/security.h  | 11 +++++++++++
->  security/security.c       | 11 +++++++++++
->  4 files changed, 37 insertions(+)
+>  security/sara/Kconfig               |  17 ++++
+>  security/sara/include/trampolines.h | 171 ++++++++++++++++++++++++++++++++++++
+>  security/sara/wxprot.c              | 140 +++++++++++++++++++++++++++++
+>  3 files changed, 328 insertions(+)
+>  create mode 100644 security/sara/include/trampolines.h
 >
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 8ad91a0..b75b81a 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -15,6 +15,7 @@
->  #include <linux/prefetch.h>            /* prefetchw                    */
->  #include <linux/context_tracking.h>    /* exception_enter(), ...       */
->  #include <linux/uaccess.h>             /* faulthandler_disabled()      */
-> +#include <linux/security.h>            /* security_pagefault_handler   */
+> diff --git a/security/sara/Kconfig b/security/sara/Kconfig
+> index 6c74069..f406805 100644
+> --- a/security/sara/Kconfig
+> +++ b/security/sara/Kconfig
+> @@ -96,6 +96,23 @@ choice
+>                   Documentation/security/SARA.rst.
+>  endchoice
 >
->  #include <asm/cpufeature.h>            /* boot_cpu_has, ...            */
->  #include <asm/traps.h>                 /* dotraplinkage, ...           */
-> @@ -1358,6 +1359,11 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
->                         local_irq_enable();
->         }
->
-> +       if (unlikely(security_pagefault_handler_x86(regs,
-> +                                                   error_code,
-> +                                                   address)))
-> +               return;
+> +config SECURITY_SARA_WXPROT_EMUTRAMP
+> +       bool "Enable emulation for some types of trampolines"
+> +       depends on SECURITY_SARA_WXPROT
+> +       depends on X86
+> +       default y
+> +       help
+> +         Some programs and libraries need to execute special small code
+> +         snippets from non-executable memory pages.
+> +         Most notable examples are the GCC and libffi trampolines.
+> +         This features make it possible to execute those trampolines even
+> +         if they reside in non-executable memory pages.
+> +         This features need to be enabled on a per-executable basis
+> +         via user-space utilities.
+> +         See Documentation/security/SARA.rst. for further information.
 > +
->         perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
->
->         if (error_code & PF_WRITE)
-> diff --git a/include/linux/lsm_hooks.h b/include/linux/lsm_hooks.h
-> index 33dab16..da487e5 100644
-> --- a/include/linux/lsm_hooks.h
-> +++ b/include/linux/lsm_hooks.h
-> @@ -488,6 +488,11 @@
->   *     @vmflags contains requested the vmflags.
->   *     Return 0 if the operation is allowed to continue otherwise return
->   *     the appropriate error code.
-> + * @pagefault_handler_x86:
-> + *     Handle pagefaults on x86.
-> + *     @regs contains process' registers.
-> + *     @error_code contains error code for the pagefault.
-> + *     @address contains the address that caused the pagefault.
->   * @file_lock:
->   *     Check permission before performing file locking operations.
->   *     Note: this hook mediates both flock and fcntl style locks.
-> @@ -1483,6 +1488,9 @@
->         int (*file_mprotect)(struct vm_area_struct *vma, unsigned long reqprot,
->                                 unsigned long prot);
->         int (*check_vmflags)(vm_flags_t vmflags);
-> +       int (*pagefault_handler_x86)(struct pt_regs *regs,
-> +                                    unsigned long error_code,
-> +                                    unsigned long address);
->         int (*file_lock)(struct file *file, unsigned int cmd);
->         int (*file_fcntl)(struct file *file, unsigned int cmd,
->                                 unsigned long arg);
-> @@ -1754,6 +1762,7 @@ struct security_hook_heads {
->         struct list_head mmap_file;
->         struct list_head file_mprotect;
->         struct list_head check_vmflags;
-> +       struct list_head pagefault_handler_x86;
->         struct list_head file_lock;
->         struct list_head file_fcntl;
->         struct list_head file_set_fowner;
-> diff --git a/include/linux/security.h b/include/linux/security.h
-> index 8701872..3b91999 100644
-> --- a/include/linux/security.h
-> +++ b/include/linux/security.h
-> @@ -301,6 +301,9 @@ int security_mmap_file(struct file *file, unsigned long prot,
->  int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
->                            unsigned long prot);
->  int security_check_vmflags(vm_flags_t vmflags);
-> +int __maybe_unused security_pagefault_handler_x86(struct pt_regs *regs,
-> +                                                 unsigned long error_code,
-> +                                                 unsigned long address);
->  int security_file_lock(struct file *file, unsigned int cmd);
->  int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
->  void security_file_set_fowner(struct file *file);
-> @@ -829,6 +832,14 @@ static inline int security_check_vmflags(vm_flags_t vmflags)
->         return 0;
->  }
->
-> +static inline int __maybe_unused security_pagefault_handler_x86(
-> +                                               struct pt_regs *regs,
-> +                                               unsigned long error_code,
-> +                                               unsigned long address)
-> +{
-> +       return 0;
-> +}
+> +         If unsure, answer y.
 > +
->  static inline int security_file_lock(struct file *file, unsigned int cmd)
->  {
->         return 0;
-> diff --git a/security/security.c b/security/security.c
-> index 7e45846..f7df697 100644
-> --- a/security/security.c
-> +++ b/security/security.c
-> @@ -905,6 +905,17 @@ int security_check_vmflags(vm_flags_t vmflags)
->         return call_int_hook(check_vmflags, 0, vmflags);
->  }
->
-> +int __maybe_unused security_pagefault_handler_x86(struct pt_regs *regs,
-> +                                                 unsigned long error_code,
-> +                                                 unsigned long address)
-> +{
-> +       return call_int_hook(pagefault_handler_x86,
-> +                            0,
-> +                            regs,
-> +                            error_code,
-> +                            address);
-> +}
-> +
->  int security_file_lock(struct file *file, unsigned int cmd)
->  {
->         return call_int_hook(file_lock, 0, file, cmd);
-> --
-> 1.9.1
->
+>  config SECURITY_SARA_WXPROT_DISABLED
+>         bool "WX protection will be disabled at boot."
+>         depends on SECURITY_SARA_WXPROT
+> diff --git a/security/sara/include/trampolines.h b/security/sara/include/trampolines.h
+> new file mode 100644
+> index 0000000..eab0a85
+> --- /dev/null
+> +++ b/security/sara/include/trampolines.h
+> @@ -0,0 +1,171 @@
+> +/*
+> + * S.A.R.A. Linux Security Module
+> + *
+> + * Copyright (C) 2017 Salvatore Mesoraca <s.mesoraca16@gmail.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2, as
+> + * published by the Free Software Foundation.
+> + *
+> + * Assembly sequences used here were copied from
+> + * PaX patch by PaX Team <pageexec@freemail.hu>
 
+Given this copying, please include the grsecurity/PaX copyright notice
+too. Please see the recommendations here:
+http://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project/Get_Involved
 
+> + *
+> + */
+> +
+> +#ifndef __SARA_TRAMPOLINES_H
+> +#define __SARA_TRAMPOLINES_H
+> +#ifdef CONFIG_SECURITY_SARA_WXPROT_EMUTRAMP
+> +
+> +
+> +/* x86_32 */
+> +
+> +
+> +struct libffi_trampoline_x86_32 {
+> +       unsigned char mov;
+> +       unsigned int addr1;
+> +       unsigned char jmp;
+> +       unsigned int addr2;
+> +} __packed;
+> +
+> +struct gcc_trampoline_x86_32_type1 {
+> +       unsigned char mov1;
+> +       unsigned int addr1;
+> +       unsigned char mov2;
+> +       unsigned int addr2;
+> +       unsigned short jmp;
+> +} __packed;
+> +
+> +struct gcc_trampoline_x86_32_type2 {
+> +       unsigned char mov;
+> +       unsigned int addr1;
+> +       unsigned char jmp;
+> +       unsigned int addr2;
+> +} __packed;
+> +
+> +union trampolines_x86_32 {
+> +       struct libffi_trampoline_x86_32 lf;
+> +       struct gcc_trampoline_x86_32_type1 g1;
+> +       struct gcc_trampoline_x86_32_type2 g2;
+> +};
+> +
+> +#define is_valid_libffi_trampoline_x86_32(UNION)       \
+> +       (UNION.lf.mov == 0xB8 &&                        \
+> +       UNION.lf.jmp == 0xE9)
+> +
+> +#define emulate_libffi_trampoline_x86_32(UNION, REGS) do {     \
+> +       (REGS)->ax = UNION.lf.addr1;                            \
+> +       (REGS)->ip = (unsigned int) ((REGS)->ip +               \
+> +                                    UNION.lf.addr2 +           \
+> +                                    sizeof(UNION.lf));         \
+> +} while (0)
+> +
+> +#define is_valid_gcc_trampoline_x86_32_type1(UNION, REGS)      \
+> +       (UNION.g1.mov1 == 0xB9 &&                               \
+> +       UNION.g1.mov2 == 0xB8 &&                                \
+> +       UNION.g1.jmp == 0xE0FF &&                               \
+> +       REGS->ip > REGS->sp)
+> +
+> +#define emulate_gcc_trampoline_x86_32_type1(UNION, REGS) do {  \
+> +       (REGS)->cx = UNION.g1.addr1;                            \
+> +       (REGS)->ax = UNION.g1.addr2;                            \
+> +       (REGS)->ip = UNION.g1.addr2;                            \
+> +} while (0)
+> +
+> +#define is_valid_gcc_trampoline_x86_32_type2(UNION, REGS)      \
+> +       (UNION.g2.mov == 0xB9 &&                                \
+> +       UNION.g2.jmp == 0xE9 &&                                 \
+> +       REGS->ip > REGS->sp)
+> +
+> +#define emulate_gcc_trampoline_x86_32_type2(UNION, REGS) do {  \
+> +       (REGS)->cx = UNION.g2.addr1;                            \
+> +       (REGS)->ip = (unsigned int) ((REGS)->ip +               \
+> +                                    UNION.g2.addr2 +           \
+> +                                    sizeof(UNION.g2));         \
+> +} while (0)
+
+These all seem like they need to live in arch/x86/... somewhere rather
+than in the LSM, but maybe this isn't needed on other architectures?
+This seems to be very arch and compiler specific...
+
+-Kees
 
 -- 
 Kees Cook
