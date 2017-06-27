@@ -1,80 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 626546B02FD
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 18:05:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e3so38365843pfc.4
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 15:05:02 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 88si277297plb.131.2017.06.27.15.05.00
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D7A8E6B0313
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 18:07:19 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id h64so27880749iod.9
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 15:07:19 -0700 (PDT)
+Received: from mail-it0-x22a.google.com (mail-it0-x22a.google.com. [2607:f8b0:4001:c0b::22a])
+        by mx.google.com with ESMTPS id x185si3525753itd.66.2017.06.27.15.07.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 15:05:00 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH] mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings
- of poison pages
-Date: Tue, 27 Jun 2017 22:04:58 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F612E4285@ORSMSX114.amr.corp.intel.com>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
- <20170621174740.npbtg2e4o65tyrss@intel.com>
- <AT5PR84MB00823EB30BD7BF0EA3DAFF0BABD80@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-In-Reply-To: <AT5PR84MB00823EB30BD7BF0EA3DAFF0BABD80@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 27 Jun 2017 15:07:18 -0700 (PDT)
+Received: by mail-it0-x22a.google.com with SMTP id m84so23770248ita.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 15:07:18 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20170627073132.GC28078@dhcp22.suse.cz>
+References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
+ <1497915397-93805-23-git-send-email-keescook@chromium.org>
+ <06bde73d-ca3c-8f91-0142-ddf3af99875e@redhat.com> <CAGXu5jKBB8TF7e74QkuxOu0iy6TZe3Q_0Fs21tbyq23Js3v3Mw@mail.gmail.com>
+ <20170627073132.GC28078@dhcp22.suse.cz>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 27 Jun 2017 15:07:17 -0700
+Message-ID: <CAGXu5jK5L8ZhMAHEMBDWhnDMDS-Wt-aNMUbOMrMHT25qWqNoRA@mail.gmail.com>
+Subject: Re: [PATCH 22/23] usercopy: split user-controlled slabs to separate caches
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, Borislav Petkov <bp@suse.de>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yazen Ghannam <yazen.ghannam@amd.com>, "Kani, Toshimitsu" <toshi.kani@hpe.com>, "Williams, Dan J" <dan.j.williams@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Laura Abbott <labbott@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> > > > +if (set_memory_np(decoy_addr, 1))
-> > > > +pr_warn("Could not invalidate pfn=3D0x%lx from 1:1 map \n",
+On Tue, Jun 27, 2017 at 12:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> But I am not really sure I understand consequences of this patch. So how
+> do those attacks look like. Do you have an example of a CVE which would
+> be prevented by this measure?
+
+It's a regular practice, especially for heap grooming. You can see an
+example here:
+http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
+which even recognizes this as a common method, saying "the standard
+msgget() technique". Having the separate caches doesn't strictly
+_stop_ some attacks, but it changes the nature of what the attacker
+has to do. Instead of having a universal way to groom the heap, they
+must be forced into other paths. Generally speaking this can reduce
+what's possible making the attack either impossible, more expensive to
+develop, or less reliable.
+
+>> This would mean building out *_user() versions for all the various
+>> *alloc() functions, though. That gets kind of long/ugly.
 >
-> Another concept to consider is mapping the page as UC rather than
-> completely unmapping it.
+> Only prepare those which are really needed. It seems only handful of
+> them in your patch.
 
-UC would also avoid the speculative prefetch issue.  The Vol 3, Section 11.=
-3 SDM says:
+Okay, if that's the desired approach, we can do that.
 
-Strong Uncacheable (UC) -System memory locations are not cached. All reads =
-and writes
-appear on the system bus and are executed in program order without reorderi=
-ng. No speculative
-memory accesses, pagetable walks, or prefetches of speculated branch target=
-s are made.
-This type of cache-control is useful for memory-mapped I/O devices. When us=
-ed with normal
-RAM, it greatly reduces processor performance.
+> OK, I was about to ask about vmalloc fallbacks. So this is not
+> implemented in your patch. Does it metter from the security point of
+> view?
 
-But then I went and read the code for set_memory_uc() ... which calls "rese=
-rve_memtyep()"
-which does all kinds of things to avoid issues with MTRRs and other stuff. =
- Which all looks
-really more complex that we need just here.
+Right, the HIDESYM-like feature hasn't been ported by anyone yet, so
+this hasn't happened. It would simply build on similar logic.
 
-> The uncorrectable error scope could be smaller than a page size, like:
-> * memory ECC width (e.g., 8 bytes)
-> * cache line size (e.g., 64 bytes)
-> * block device logical block size (e.g., 512 bytes, for persistent memory=
-)
->
-> UC preserves the ability to access adjacent data within the page that
-> hasn't gone bad, and is particularly useful for persistent memory.
+-Kees
 
-If you want to dig into the non-poisoned pieces of the page later it might =
-be
-better to set up a new scratch UC mapping to do that.
-
-My takeaway from Dan's comments on unpoisoning is that this isn't the conte=
-xt
-that he wants to do that.  He'd rather wait until he has somebody overwriti=
-ng the
-page with fresh data.
-
-So I think I'd like to keep the patch as-is.
-
--Tony
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
