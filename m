@@ -1,21 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9036B03AF
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:01:41 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z10so28130256pff.1
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:01:41 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0063.outbound.protection.outlook.com. [104.47.41.63])
-        by mx.google.com with ESMTPS id m13si2060646pfi.212.2017.06.27.08.01.39
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 723096B03B0
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 11:07:31 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y62so28624869pfa.3
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 08:07:31 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0077.outbound.protection.outlook.com. [104.47.38.77])
+        by mx.google.com with ESMTPS id d11si2294773plj.174.2017.06.27.08.07.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 27 Jun 2017 08:01:39 -0700 (PDT)
+        Tue, 27 Jun 2017 08:07:29 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v8 30/38] kvm: x86: svm: Support Secure Memory Encryption
- within KVM
-Date: Tue, 27 Jun 2017 10:01:31 -0500
-Message-ID: <20170627150131.15908.22634.stgit@tlendack-t1.amdoffice.net>
-In-Reply-To: <20170627145607.15908.26571.stgit@tlendack-t1.amdoffice.net>
-References: <20170627145607.15908.26571.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v8 RESEND 00/38] x86: Secure Memory Encryption (AMD)
+Date: Tue, 27 Jun 2017 10:07:19 -0500
+Message-ID: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -24,272 +21,309 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Update the KVM support to work with SME. The VMCB has a number of fields
-where physical addresses are used and these addresses must contain the
-memory encryption mask in order to properly access the encrypted memory.
-Also, use the memory encryption mask when creating and using the nested
-page tables.
+RESENDING - Mail Server Issues
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+This patch series provides support for AMD's new Secure Memory Encryption (SME)
+feature.
+
+SME can be used to mark individual pages of memory as encrypted through the
+page tables. A page of memory that is marked encrypted will be automatically
+decrypted when read from DRAM and will be automatically encrypted when
+written to DRAM. Details on SME can found in the links below.
+
+The SME feature is identified through a CPUID function and enabled through
+the SYSCFG MSR. Once enabled, page table entries will determine how the
+memory is accessed. If a page table entry has the memory encryption mask set,
+then that memory will be accessed as encrypted memory. The memory encryption
+mask (as well as other related information) is determined from settings
+returned through the same CPUID function that identifies the presence of the
+feature.
+
+The approach that this patch series takes is to encrypt everything possible
+starting early in the boot where the kernel is encrypted. Using the page
+table macros the encryption mask can be incorporated into all page table
+entries and page allocations. By updating the protection map, userspace
+allocations are also marked encrypted. Certain data must be accounted for
+as having been placed in memory before SME was enabled (EFI, initrd, etc.)
+and accessed accordingly.
+
+This patch series is a pre-cursor to another AMD processor feature called
+Secure Encrypted Virtualization (SEV). The support for SEV will build upon
+the SME support and will be submitted later. Details on SEV can be found
+in the links below.
+
+The following links provide additional detail:
+
+AMD Memory Encryption whitepaper:
+   http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
+
+AMD64 Architecture Programmer's Manual:
+   http://support.amd.com/TechDocs/24593.pdf
+   SME is section 7.10
+   SEV is section 15.34
+
 ---
- arch/x86/include/asm/kvm_host.h |    2 +-
- arch/x86/kvm/mmu.c              |   12 ++++++++----
- arch/x86/kvm/mmu.h              |    2 +-
- arch/x86/kvm/svm.c              |   35 ++++++++++++++++++-----------------
- arch/x86/kvm/vmx.c              |    3 ++-
- arch/x86/kvm/x86.c              |    3 ++-
- 6 files changed, 32 insertions(+), 25 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 695605e..6d1267f 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1069,7 +1069,7 @@ struct kvm_arch_async_pf {
- void kvm_mmu_uninit_vm(struct kvm *kvm);
- void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
--		u64 acc_track_mask);
-+		u64 acc_track_mask, u64 me_mask);
- 
- void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
- void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index cb82259..e85888c 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -107,7 +107,7 @@ enum {
- 	(((address) >> PT32_LEVEL_SHIFT(level)) & ((1 << PT32_LEVEL_BITS) - 1))
- 
- 
--#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
-+#define PT64_BASE_ADDR_MASK __sme_clr((((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1)))
- #define PT64_DIR_BASE_ADDR_MASK \
- 	(PT64_BASE_ADDR_MASK & ~((1ULL << (PAGE_SHIFT + PT64_LEVEL_BITS)) - 1))
- #define PT64_LVL_ADDR_MASK(level) \
-@@ -125,7 +125,7 @@ enum {
- 					    * PT32_LEVEL_BITS))) - 1))
- 
- #define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
--			| shadow_x_mask | shadow_nx_mask)
-+			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
- 
- #define ACC_EXEC_MASK    1
- #define ACC_WRITE_MASK   PT_WRITABLE_MASK
-@@ -184,6 +184,7 @@ struct kvm_shadow_walk_iterator {
- static u64 __read_mostly shadow_dirty_mask;
- static u64 __read_mostly shadow_mmio_mask;
- static u64 __read_mostly shadow_present_mask;
-+static u64 __read_mostly shadow_me_mask;
- 
- /*
-  * The mask/value to distinguish a PTE that has been marked not-present for
-@@ -317,7 +318,7 @@ static bool check_mmio_spte(struct kvm_vcpu *vcpu, u64 spte)
- 
- void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
--		u64 acc_track_mask)
-+		u64 acc_track_mask, u64 me_mask)
- {
- 	if (acc_track_mask != 0)
- 		acc_track_mask |= SPTE_SPECIAL_MASK;
-@@ -330,6 +331,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 	shadow_present_mask = p_mask;
- 	shadow_acc_track_mask = acc_track_mask;
- 	WARN_ON(shadow_accessed_mask != 0 && shadow_acc_track_mask != 0);
-+	shadow_me_mask = me_mask;
- }
- EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
- 
-@@ -2398,7 +2400,8 @@ static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
- 	BUILD_BUG_ON(VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
- 
- 	spte = __pa(sp->spt) | shadow_present_mask | PT_WRITABLE_MASK |
--	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask;
-+	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask |
-+	       shadow_me_mask;
- 
- 	mmu_spte_set(sptep, spte);
- 
-@@ -2700,6 +2703,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
- 		pte_access &= ~ACC_WRITE_MASK;
- 
- 	spte |= (u64)pfn << PAGE_SHIFT;
-+	spte |= shadow_me_mask;
- 
- 	if (pte_access & ACC_WRITE_MASK) {
- 
-diff --git a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h
-index 330bf3a..08b779d 100644
---- a/arch/x86/kvm/mmu.h
-+++ b/arch/x86/kvm/mmu.h
-@@ -48,7 +48,7 @@
- 
- static inline u64 rsvd_bits(int s, int e)
- {
--	return ((1ULL << (e - s + 1)) - 1) << s;
-+	return __sme_clr(((1ULL << (e - s + 1)) - 1) << s);
- }
- 
- void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index ba9891a..d2e9fca 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -1138,9 +1138,9 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
- {
- 	struct vmcb *vmcb = svm->vmcb;
- 	struct kvm_arch *vm_data = &svm->vcpu.kvm->arch;
--	phys_addr_t bpa = page_to_phys(svm->avic_backing_page);
--	phys_addr_t lpa = page_to_phys(vm_data->avic_logical_id_table_page);
--	phys_addr_t ppa = page_to_phys(vm_data->avic_physical_id_table_page);
-+	phys_addr_t bpa = __sme_set(page_to_phys(svm->avic_backing_page));
-+	phys_addr_t lpa = __sme_set(page_to_phys(vm_data->avic_logical_id_table_page));
-+	phys_addr_t ppa = __sme_set(page_to_phys(vm_data->avic_physical_id_table_page));
- 
- 	vmcb->control.avic_backing_page = bpa & AVIC_HPA_MASK;
- 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
-@@ -1203,8 +1203,8 @@ static void init_vmcb(struct vcpu_svm *svm)
- 		set_intercept(svm, INTERCEPT_MWAIT);
- 	}
- 
--	control->iopm_base_pa = iopm_base;
--	control->msrpm_base_pa = __pa(svm->msrpm);
-+	control->iopm_base_pa = __sme_set(iopm_base);
-+	control->msrpm_base_pa = __sme_set(__pa(svm->msrpm));
- 	control->int_ctl = V_INTR_MASKING_MASK;
- 
- 	init_seg(&save->es);
-@@ -1338,9 +1338,9 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
- 		return -EINVAL;
- 
- 	new_entry = READ_ONCE(*entry);
--	new_entry = (page_to_phys(svm->avic_backing_page) &
--		     AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK) |
--		     AVIC_PHYSICAL_ID_ENTRY_VALID_MASK;
-+	new_entry = __sme_set((page_to_phys(svm->avic_backing_page) &
-+			      AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK) |
-+			      AVIC_PHYSICAL_ID_ENTRY_VALID_MASK);
- 	WRITE_ONCE(*entry, new_entry);
- 
- 	svm->avic_physical_id_cache = entry;
-@@ -1608,7 +1608,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
- 
- 	svm->vmcb = page_address(page);
- 	clear_page(svm->vmcb);
--	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
-+	svm->vmcb_pa = __sme_set(page_to_pfn(page) << PAGE_SHIFT);
- 	svm->asid_generation = 0;
- 	init_vmcb(svm);
- 
-@@ -1636,7 +1636,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
-+	__free_page(pfn_to_page(__sme_clr(svm->vmcb_pa) >> PAGE_SHIFT));
- 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
- 	__free_page(virt_to_page(svm->nested.hsave));
- 	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
-@@ -2303,7 +2303,7 @@ static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
- 	u64 pdpte;
- 	int ret;
- 
--	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(cr3), &pdpte,
-+	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(__sme_clr(cr3)), &pdpte,
- 				       offset_in_page(cr3) + index * 8, 8);
- 	if (ret)
- 		return 0;
-@@ -2315,7 +2315,7 @@ static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	svm->vmcb->control.nested_cr3 = root;
-+	svm->vmcb->control.nested_cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_NPT);
- 	svm_flush_tlb(vcpu);
- }
-@@ -2803,7 +2803,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
- 		svm->nested.msrpm[p] = svm->msrpm[p] | value;
- 	}
- 
--	svm->vmcb->control.msrpm_base_pa = __pa(svm->nested.msrpm);
-+	svm->vmcb->control.msrpm_base_pa = __sme_set(__pa(svm->nested.msrpm));
- 
- 	return true;
- }
-@@ -4435,7 +4435,7 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
- 	pr_debug("SVM: %s: use GA mode for irq %u\n", __func__,
- 		 irq.vector);
- 	*svm = to_svm(vcpu);
--	vcpu_info->pi_desc_addr = page_to_phys((*svm)->avic_backing_page);
-+	vcpu_info->pi_desc_addr = __sme_set(page_to_phys((*svm)->avic_backing_page));
- 	vcpu_info->vector = irq.vector;
- 
- 	return 0;
-@@ -4486,7 +4486,8 @@ static int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
- 			struct amd_iommu_pi_data pi;
- 
- 			/* Try to enable guest_mode in IRTE */
--			pi.base = page_to_phys(svm->avic_backing_page) & AVIC_HPA_MASK;
-+			pi.base = __sme_set(page_to_phys(svm->avic_backing_page) &
-+					    AVIC_HPA_MASK);
- 			pi.ga_tag = AVIC_GATAG(kvm->arch.avic_vm_id,
- 						     svm->vcpu.vcpu_id);
- 			pi.is_guest_mode = true;
-@@ -4911,7 +4912,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	svm->vmcb->save.cr3 = root;
-+	svm->vmcb->save.cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_CR);
- 	svm_flush_tlb(vcpu);
- }
-@@ -4920,7 +4921,7 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	svm->vmcb->control.nested_cr3 = root;
-+	svm->vmcb->control.nested_cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_NPT);
- 
- 	/* Also sync guest cr3 here in case we live migrate */
-diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index 7dd53fb..53098cd 100644
---- a/arch/x86/kvm/vmx.c
-+++ b/arch/x86/kvm/vmx.c
-@@ -6452,7 +6452,8 @@ void vmx_enable_tdp(void)
- 		enable_ept_ad_bits ? VMX_EPT_DIRTY_BIT : 0ull,
- 		0ull, VMX_EPT_EXECUTABLE_MASK,
- 		cpu_has_vmx_ept_execute_only() ? 0ull : VMX_EPT_READABLE_MASK,
--		enable_ept_ad_bits ? 0ull : VMX_EPT_RWX_MASK);
-+		enable_ept_ad_bits ? 0ull : VMX_EPT_RWX_MASK,
-+		0ull);
- 
- 	ept_set_mmio_spte_mask();
- 	kvm_enable_tdp();
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 87d3cb9..559f710 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -54,6 +54,7 @@
- #include <linux/kvm_irqfd.h>
- #include <linux/irqbypass.h>
- #include <linux/sched/stat.h>
-+#include <linux/mem_encrypt.h>
- 
- #include <trace/events/kvm.h>
- 
-@@ -6095,7 +6096,7 @@ int kvm_arch_init(void *opaque)
- 
- 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
- 			PT_DIRTY_MASK, PT64_NX_MASK, 0,
--			PT_PRESENT_MASK, 0);
-+			PT_PRESENT_MASK, 0, sme_me_mask);
- 	kvm_timer_init();
- 
- 	perf_register_guest_info_callbacks(&kvm_guest_cbs);
+This patch series is based off of the master branch of tip:
+  https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
+
+  Commit 6ab5af989579 ("Merge branch 'irq/core'")
+
+Source code is also available at https://github.com/codomania/tip/tree/sme-v8
+
+
+Still to do:
+- Kdump support, including using memremap() instead of ioremap_cache()
+
+Changes since v7:
+- Fixed kbuild test robot failure related to pgprot_decrypted() macro
+  usage for some non-x86 archs
+- Moved calls to encrypt the kernel and retrieve the encryption mask
+  from assembler (head_64.S) into C (head64.c)
+- Removed use of phys_to_virt() in __ioremap_caller() when address is in
+  the ISA range. Now regular ioremap() processing occurs.
+- Two new, small patches:
+  - Introduced a native_make_p4d() for use when CONFIG_PGTABLE_LEVELS is
+    not greater than 4
+  - Introduced __nostackp GCC option to turn off stack protection on a
+    per function basis
+- General code cleanup based on feedback
+
+Changes since v6:
+- Fixed the asm include file issue that caused build errors on other archs
+- Rebased the CR3 register changes on top of Andy Lutomirski's patch
+- Added a patch to clear the SME cpu feature if running as a PV guest under
+  Xen
+- Added a patch to obtain the AMD microcode level earlier in the boot
+  instead of directly reading the MSR
+- Refactor patch #8 ("x86/mm: Add support to enable SME in early boot
+  processing") because the 5-level paging support moved the code into the
+  new C-function __startup_64()
+- Removed need to decrypt trampoline area in-place (set memory attributes
+  before copying the trampoline code)
+- General code cleanup based on feedback
+
+Changes since v5:
+- Added support for 5-level paging
+- Added IOMMU support
+- Created a generic asm/mem_encrypt.h in order to remove a bunch of
+  #ifndef/#define entries
+- Removed changes to the __va() macro and defined a function to return
+  the true physical address in cr3
+- Removed sysfs support as it was determined not to be needed
+- General code cleanup based on feedback
+- General cleanup of patch subjects and descriptions
+
+Changes since v4:
+- Re-worked mapping of setup data to not use a fixed list. Rather, check
+  dynamically whether the requested early_memremap()/memremap() call
+  needs to be mapped decrypted.
+- Moved SME cpu feature into scattered features
+- Moved some declarations into header files
+- Cleared the encryption mask from the __PHYSICAL_MASK so that users
+  of macros such as pmd_pfn_mask() don't have to worry/know about the
+  encryption mask
+- Updated some return types and values related to EFI and e820 functions
+  so that an error could be returned
+- During cpu shutdown, removed cache disabling and added a check for kexec
+  in progress to use wbinvd followed immediately by halt in order to avoid
+  any memory corruption
+- Update how persistent memory is identified
+- Added a function to find command line arguments and their values
+- Added sysfs support
+- General code cleanup based on feedback
+- General cleanup of patch subjects and descriptions
+
+
+Changes since v3:
+- Broke out some of the patches into smaller individual patches
+- Updated Documentation
+- Added a message to indicate why the IOMMU was disabled
+- Updated CPU feature support for SME by taking into account whether
+  BIOS has enabled SME
+- Eliminated redundant functions
+- Added some warning messages for DMA usage of bounce buffers when SME
+  is active
+- Added support for persistent memory
+- Added support to determine when setup data is being mapped and be sure
+  to map it un-encrypted
+- Added CONFIG support to set the default action of whether to activate
+  SME if it is supported/enabled
+- Added support for (re)booting with kexec
+
+Changes since v2:
+- Updated Documentation
+- Make the encryption mask available outside of arch/x86 through a
+  standard include file
+- Conversion of assembler routines to C where possible (not everything
+  could be converted, e.g. the routine that does the actual encryption
+  needs to be copied into a safe location and it is difficult to
+  determine the actual length of the function in order to copy it)
+- Fix SME feature use of scattered CPUID feature
+- Creation of SME specific functions for things like encrypting
+  the setup data, ramdisk, etc.
+- New take on early_memremap / memremap encryption support
+- Additional support for accessing video buffers (fbdev/gpu) as
+  un-encrypted
+- Disable IOMMU for now - need to investigate further in relation to
+  how it needs to be programmed relative to accessing physical memory
+
+Changes since v1:
+- Added Documentation.
+- Removed AMD vendor check for setting the PAT write protect mode
+- Updated naming of trampoline flag for SME as well as moving of the
+  SME check to before paging is enabled.
+- Change to early_memremap to identify the data being mapped as either
+  boot data or kernel data.  The idea being that boot data will have
+  been placed in memory as un-encrypted data and would need to be accessed
+  as such.
+- Updated debugfs support for the bootparams to access the data properly.
+- Do not set the SYSCFG[MEME] bit, only check it.  The setting of the
+  MemEncryptionModeEn bit results in a reduction of physical address size
+  of the processor.  It is possible that BIOS could have configured resources
+  resources into a range that will now not be addressable.  To prevent this,
+  rely on BIOS to set the SYSCFG[MEME] bit and only then enable memory
+  encryption support in the kernel.
+
+Tom Lendacky (38):
+      x86: Document AMD Secure Memory Encryption (SME)
+      x86/mm/pat: Set write-protect cache mode for full PAT support
+      x86, mpparse, x86/acpi, x86/PCI, x86/dmi, SFI: Use memremap for RAM mappings
+      x86/CPU/AMD: Add the Secure Memory Encryption CPU feature
+      x86/CPU/AMD: Handle SME reduction in physical address size
+      x86/mm: Add Secure Memory Encryption (SME) support
+      x86/mm: Remove phys_to_virt() usage in ioremap()
+      x86/mm: Add support to enable SME in early boot processing
+      x86/mm: Simplify p[g4um]d_page() macros
+      x86/mm: Provide general kernel support for memory encryption
+      x86/mm: Add SME support for read_cr3_pa()
+      x86/mm: Extend early_memremap() support with additional attrs
+      x86/mm: Add support for early encrypt/decrypt of memory
+      x86/mm: Insure that boot memory areas are mapped properly
+      x86/boot/e820: Add support to determine the E820 type of an address
+      efi: Add an EFI table address match function
+      efi: Update efi_mem_type() to return an error rather than 0
+      x86/efi: Update EFI pagetable creation to work with SME
+      x86/mm: Add support to access boot related data in the clear
+      x86, mpparse: Use memremap to map the mpf and mpc data
+      x86/mm: Add support to access persistent memory in the clear
+      x86/mm: Add support for changing the memory encryption attribute
+      x86/realmode: Decrypt trampoline area if memory encryption is active
+      x86, swiotlb: Add memory encryption support
+      swiotlb: Add warnings for use of bounce buffers with SME
+      x86/CPU/AMD: Make the microcode level available earlier in the boot
+      iommu/amd: Allow the AMD IOMMU to work with memory encryption
+      x86, realmode: Check for memory encryption on the APs
+      x86, drm, fbdev: Do not specify encrypted memory for video mappings
+      kvm: x86: svm: Support Secure Memory Encryption within KVM
+      x86/mm, kexec: Allow kexec to be used with SME
+      xen/x86: Remove SME feature in PV guests
+      x86/mm: Use proper encryption attributes with /dev/mem
+      x86/mm: Create native_make_p4d() for PGTABLE_LEVELS <= 4
+      x86/mm: Add support to encrypt the kernel in-place
+      x86/boot: Add early cmdline parsing for options with arguments
+      compiler-gcc.h: Introduce __nostackp function attribute
+      x86/mm: Add support to make use of Secure Memory Encryption
+
+
+ Documentation/admin-guide/kernel-parameters.txt |   11 
+ Documentation/x86/amd-memory-encryption.txt     |   68 +++
+ arch/ia64/kernel/efi.c                          |    4 
+ arch/x86/Kconfig                                |   29 +
+ arch/x86/boot/compressed/pagetable.c            |    7 
+ arch/x86/include/asm/cmdline.h                  |    2 
+ arch/x86/include/asm/cpufeatures.h              |    1 
+ arch/x86/include/asm/dma-mapping.h              |    5 
+ arch/x86/include/asm/dmi.h                      |    8 
+ arch/x86/include/asm/e820/api.h                 |    2 
+ arch/x86/include/asm/fixmap.h                   |   20 +
+ arch/x86/include/asm/init.h                     |    1 
+ arch/x86/include/asm/io.h                       |    8 
+ arch/x86/include/asm/kexec.h                    |    8 
+ arch/x86/include/asm/kvm_host.h                 |    2 
+ arch/x86/include/asm/mem_encrypt.h              |   80 +++
+ arch/x86/include/asm/msr-index.h                |    2 
+ arch/x86/include/asm/page_types.h               |    3 
+ arch/x86/include/asm/pgtable.h                  |   28 +
+ arch/x86/include/asm/pgtable_types.h            |   57 ++
+ arch/x86/include/asm/processor-flags.h          |    5 
+ arch/x86/include/asm/processor.h                |    8 
+ arch/x86/include/asm/realmode.h                 |   12 
+ arch/x86/include/asm/set_memory.h               |    3 
+ arch/x86/include/asm/vga.h                      |   14 +
+ arch/x86/kernel/acpi/boot.c                     |    6 
+ arch/x86/kernel/cpu/amd.c                       |   25 +
+ arch/x86/kernel/cpu/scattered.c                 |    1 
+ arch/x86/kernel/e820.c                          |   26 +
+ arch/x86/kernel/espfix_64.c                     |    2 
+ arch/x86/kernel/head64.c                        |   93 +++-
+ arch/x86/kernel/head_64.S                       |   40 +-
+ arch/x86/kernel/kdebugfs.c                      |   34 -
+ arch/x86/kernel/ksysfs.c                        |   28 +
+ arch/x86/kernel/machine_kexec_64.c              |   22 +
+ arch/x86/kernel/mpparse.c                       |  108 +++-
+ arch/x86/kernel/pci-dma.c                       |   11 
+ arch/x86/kernel/pci-nommu.c                     |    2 
+ arch/x86/kernel/pci-swiotlb.c                   |   15 +
+ arch/x86/kernel/process.c                       |   17 +
+ arch/x86/kernel/setup.c                         |    9 
+ arch/x86/kvm/mmu.c                              |   12 
+ arch/x86/kvm/mmu.h                              |    2 
+ arch/x86/kvm/svm.c                              |   35 +
+ arch/x86/kvm/vmx.c                              |    3 
+ arch/x86/kvm/x86.c                              |    3 
+ arch/x86/lib/cmdline.c                          |  105 ++++
+ arch/x86/mm/Makefile                            |    2 
+ arch/x86/mm/ident_map.c                         |   12 
+ arch/x86/mm/ioremap.c                           |  275 ++++++++++-
+ arch/x86/mm/kasan_init_64.c                     |    6 
+ arch/x86/mm/mem_encrypt.c                       |  593 +++++++++++++++++++++++
+ arch/x86/mm/mem_encrypt_boot.S                  |  150 ++++++
+ arch/x86/mm/pageattr.c                          |   67 +++
+ arch/x86/mm/pat.c                               |    9 
+ arch/x86/pci/common.c                           |    4 
+ arch/x86/platform/efi/efi.c                     |    6 
+ arch/x86/platform/efi/efi_64.c                  |   15 -
+ arch/x86/realmode/init.c                        |   12 
+ arch/x86/realmode/rm/trampoline_64.S            |   24 +
+ arch/x86/xen/enlighten_pv.c                     |    1 
+ drivers/firmware/dmi-sysfs.c                    |    5 
+ drivers/firmware/efi/efi.c                      |   33 +
+ drivers/firmware/pcdp.c                         |    4 
+ drivers/gpu/drm/drm_gem.c                       |    2 
+ drivers/gpu/drm/drm_vm.c                        |    4 
+ drivers/gpu/drm/ttm/ttm_bo_vm.c                 |    7 
+ drivers/gpu/drm/udl/udl_fb.c                    |    4 
+ drivers/iommu/amd_iommu.c                       |   30 +
+ drivers/iommu/amd_iommu_init.c                  |   34 +
+ drivers/iommu/amd_iommu_proto.h                 |   10 
+ drivers/iommu/amd_iommu_types.h                 |    2 
+ drivers/sfi/sfi_core.c                          |   22 -
+ drivers/video/fbdev/core/fbmem.c                |   12 
+ include/asm-generic/early_ioremap.h             |    2 
+ include/asm-generic/pgtable.h                   |   12 
+ include/linux/compiler-gcc.h                    |    2 
+ include/linux/compiler.h                        |    4 
+ include/linux/dma-mapping.h                     |   13 +
+ include/linux/efi.h                             |    9 
+ include/linux/io.h                              |    2 
+ include/linux/kexec.h                           |    8 
+ include/linux/mem_encrypt.h                     |   48 ++
+ include/linux/swiotlb.h                         |    1 
+ init/main.c                                     |   10 
+ kernel/kexec_core.c                             |   12 
+ kernel/memremap.c                               |   20 +
+ lib/swiotlb.c                                   |   57 ++
+ mm/early_ioremap.c                              |   28 +
+ 89 files changed, 2293 insertions(+), 267 deletions(-)
+ create mode 100644 Documentation/x86/amd-memory-encryption.txt
+ create mode 100644 arch/x86/include/asm/mem_encrypt.h
+ create mode 100644 arch/x86/mm/mem_encrypt.c
+ create mode 100644 arch/x86/mm/mem_encrypt_boot.S
+ create mode 100644 include/linux/mem_encrypt.h
+
+-- 
+Tom Lendacky
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
