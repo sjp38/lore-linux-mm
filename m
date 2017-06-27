@@ -1,112 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 70AFB6B02C3
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 02:59:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u18so17533193pfa.8
-        for <linux-mm@kvack.org>; Mon, 26 Jun 2017 23:59:54 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id s78si1389710pfj.114.2017.06.26.23.59.53
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 887086B02C3
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 03:01:49 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c81so3578519wmd.10
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 00:01:49 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b82si1847980wmb.98.2017.06.27.00.01.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jun 2017 23:59:53 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/4] mm/hotplug: walk_memroy_range on memory_block uit
-References: <20170625025227.45665-1-richard.weiyang@gmail.com>
- <20170625025227.45665-3-richard.weiyang@gmail.com>
- <eeb06db0-086a-29f9-306d-a702984594df@nvidia.com>
- <20170626234038.GD53180@WeideMacBook-Pro.local>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <3ad226f5-92f1-352a-d7ee-159eef5d60e3@nvidia.com>
-Date: Mon, 26 Jun 2017 23:59:52 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 27 Jun 2017 00:01:48 -0700 (PDT)
+Subject: Re: mmotm 2017-06-23-15-03 uploaded
+References: <594d905d.geNp0UO7DULvNDPS%akpm@linux-foundation.org>
+ <CAC=cRTNJe5Bo-1E+3oJEbWM8Yt5SyZOhnUiC9U5OK0GWrp1E0g@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c3caa911-6e40-42a8-da4d-45243fb7f4ad@suse.cz>
+Date: Tue, 27 Jun 2017 09:01:46 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170626234038.GD53180@WeideMacBook-Pro.local>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CAC=cRTNJe5Bo-1E+3oJEbWM8Yt5SyZOhnUiC9U5OK0GWrp1E0g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, linux-mm@kvack.org
+To: huang ying <huang.ying.caritas@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: mm-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, mhocko@suse.cz, Mark Brown <broonie@kernel.org>
 
-On 06/26/2017 04:40 PM, Wei Yang wrote:
-> On Mon, Jun 26, 2017 at 12:32:40AM -0700, John Hubbard wrote:
->> On 06/24/2017 07:52 PM, Wei Yang wrote:
-[...]
->>
->> Why is it safe to assume no holes in the memory range? (Maybe Michal's 
->> patch already covered this and I haven't got that far yet?)
->>
->> The documentation for this routine says that it walks through all
->> present memory sections in the range, so it seems like this patch
->> breaks that.
->>
+On 06/27/2017 08:45 AM, huang ying wrote:
+> On Sat, Jun 24, 2017 at 6:04 AM,  <akpm@linux-foundation.org> wrote:
+>> * mm-page_allocc-eliminate-unsigned-confusion-in-__rmqueue_fallback.patch
 > 
-> Hmm... it is a little bit hard to describe.
+> After git bisecting, find the above patch will cause the following bug
+> on i386 with memory eater + swap.
 > 
-> First the documentation of the function is a little misleading. When you look
-> at the code, it call the "func" only once for a memory_block, not for every
-> present mem_section as it says. So have some memory in the memory_block would
-> meet the requirement.
+> [   10.657876] BUG: unable to handle kernel paging request at 001fe2b8
+> [   10.658412] IP: set_pfnblock_flags_mask+0x50/0x80
+> [   10.658779] *pde = 00000000
+> [   10.658779]
+> [   10.659126] Oops: 0000 [#1] SMP
+> [   10.659372] CPU: 0 PID: 1403 Comm: usemem Not tainted 4.12.0-rc6-mm1+ #12
+> [   10.659888] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+> BIOS 1.10.2-1 04/01/2014
+> [   10.660522] task: f54a4c40 task.stack: f54ee000
+> [   10.660878] EIP: set_pfnblock_flags_mask+0x50/0x80
+> [   10.661246] EFLAGS: 00010006 CPU: 0
+> [   10.661517] EAX: 0007f8ae EBX: 00000000 ECX: 00000009 EDX: 00000200
+> [   10.661994] ESI: 001fe2b8 EDI: 00000e00 EBP: f54efd8c ESP: f54efd80
+> [   10.662473]  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
+> [   10.662891] CR0: 80050033 CR2: 001fe2b8 CR3: 356a3000 CR4: 00000690
+> [   10.663378] Call Trace:
+> [   10.663577]  set_pageblock_migratetype+0x31/0x40
+> [   10.663933]  __rmqueue+0x367/0x560
+> [   10.664197]  get_page_from_freelist+0x5b7/0x8e0
+> [   10.664546]  __alloc_pages_nodemask+0x31a/0x1000
+> [   10.664913]  ? handle_mm_fault+0x1e8/0x840
+> [   10.665230]  handle_mm_fault+0x71d/0x840
+> [   10.665537]  __do_page_fault+0x175/0x400
+> [   10.665848]  ? vmalloc_sync_all+0x190/0x190
+> [   10.666173]  do_page_fault+0xb/0x10
+> [   10.666446]  common_exception+0x64/0x6a
+> [   10.666742] EIP: 0x8005e04c
+> [   10.666959] EFLAGS: 00010246 CPU: 0
+> [   10.667229] EAX: 07d47400 EBX: 80063000 ECX: bfc964d8 EDX: 67179000
+> [   10.667705] ESI: 07d47400 EDI: 07d47400 EBP: 00000000 ESP: bfc962cc
+> [   10.668180]  DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 007b
+> [   10.668595]  ? vmalloc_sync_all+0x190/0x190
+> [   10.668922] Code: 8b 5b 28 25 00 fc ff ff 29 c1 89 c8 b9 1f 00 00
+> 00 2b 4d 08 c1 e8 0a c1 e0 02 89 c6 c1 e8 05 83 e6 1f 29 f1 8d 34 83
+> d3 e7 d3 e2 <8b> 1e f7 d7 eb 0c 8d 76 00 8d bc 27 00 00 00 00 89 c3 89
+> d9 89
+> [   10.670369] EIP: set_pfnblock_flags_mask+0x50/0x80 SS:ESP: 0068:f54efd80
+> [   10.670881] CR2: 00000000001fe2b8
+> [   10.671140] ---[ end trace f51518af57e6b531 ]---
 > 
-> Second, after the check in patch 1, it is for sure the range is memory_block
-> aligned, which means it must have some memory in that memory_block. It would
-> be strange if someone claim to add a memory range but with no real memory.
-> 
-> This is why I remove the check here.
+> I think this comes from the signed and unsigned int comparison on
+> i386.  The gcc version is,
 
-OK. In that case, it seems like we should update the function documentation
-to match. Something like this, maybe? :
+Yes, the unsigned vs signed comparison is wrong, and effectively the
+same problem as the previous wrong attempt, which removed the order >= 0
+condition. Thanks for the report.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index bdaafcf46f49..d36b2f4eaf39 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1872,14 +1872,14 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
- /**
-- * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
-+ * walk_memory_range - walks through all mem blocks in [start_pfn, end_pfn)
-  * @start_pfn: start pfn of the memory range
-  * @end_pfn: end pfn of the memory range
-  * @arg: argument passed to func
-- * @func: callback for each memory section walked
-+ * @func: callback for each memory block walked
-  *
-- * This function walks through all present mem sections in range
-- * [start_pfn, end_pfn) and call func on each mem section.
-+ * This function walks through all mem blocks in the range
-+ * [start_pfn, end_pfn) and calls func on each mem block.
-  *
-  * Returns the return value of func.
-  */
+However, the patch in mmotm seems to be missing this crucial hunk that
+Rasmus had in the patch he sent [1]:
 
+-__rmqueue_fallback(struct zone *zone, unsigned int order, int
+start_migratetype)
++__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 
-thanks,
-john h
+which makes this a signed vs signed comparison.
 
+What happened to it? Andrew?
+
+[1] http://lkml.kernel.org/r/20170621185529.2265-1-linux@rasmusvillemoes.dk
+
+> gcc (Debian 6.3.0-18) 6.3.0 20170516
 > 
+> Best Regards,
+> Huang, Ying
 > 
->>>  
->>>  		section = __nr_to_section(section_nr);
->>> -		/* same memblock? */
->>> -		if (mem)
->>> -			if ((section_nr >= mem->start_section_nr) &&
->>> -			    (section_nr <= mem->end_section_nr))
->>> -				continue;
->>
->> Yes, that deletion looks good.
->>
-> 
-> From this we can see, if there IS some memory, the function will be invoked
-> and only invoked once.
-> 
->> thanks,
->> john h
->>
->>>  
->>>  		mem = find_memory_block_hinted(section, mem);
->>>  		if (!mem)
->>>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
