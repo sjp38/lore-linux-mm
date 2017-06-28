@@ -1,66 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A896B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 08:13:23 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l34so33274883wrc.12
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 05:13:23 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id d9si1705707wrc.290.2017.06.28.05.13.22
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DAFB6B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 08:17:40 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m188so56590490pgm.2
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 05:17:40 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id g9si1589093pli.273.2017.06.28.05.17.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 05:13:22 -0700 (PDT)
-Date: Wed, 28 Jun 2017 14:12:52 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
-Message-ID: <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
-References: <cover.1498140838.git.dvyukov@google.com>
- <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
- <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
- <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
- <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jun 2017 05:17:38 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 6/5] x86/KASLR: Fix detection 32/64 bit bootloaders for 5-level paging
+Date: Wed, 28 Jun 2017 15:17:30 +0300
+Message-Id: <20170628121730.43079-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
+References: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>
 
-On 2017-06-28 14:15:18 [+0300], Andrey Ryabinin wrote:
-> The main problem here is that arch_cmpxchg64_local() calls cmpxhg_local() instead of using arch_cmpxchg_local().
-> 
-> So, the patch bellow should fix the problem, also this will fix double instrumentation of cmpcxchg64[_local]().
-> But I haven't tested this patch yet.
+KASLR uses hack to detect whether we booted via startup_32() or
+startup_64(): it checks what is loaded into cr3 and compares it to
+_pgtables. _pgtables is the array of page tables where early code
+allocates page table from.
 
-tested, works. Next step?
+KASLR expects cr3 to point to _pgtables if we booted via startup_32(), but
+that's not true if we booted with 5-level paging enabled. In this case top
+level page table is allocated separately and only the first p4d page table
+is allocated from the array.
 
-> ---
->  arch/x86/include/asm/cmpxchg_64.h | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/x86/include/asm/cmpxchg_64.h b/arch/x86/include/asm/cmpxchg_64.h
-> index fafaebacca2d..7046a3cc2493 100644
-> --- a/arch/x86/include/asm/cmpxchg_64.h
-> +++ b/arch/x86/include/asm/cmpxchg_64.h
-> @@ -9,13 +9,13 @@ static inline void set_64bit(volatile u64 *ptr, u64 val)
->  #define arch_cmpxchg64(ptr, o, n)					\
->  ({									\
->  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-> -	cmpxchg((ptr), (o), (n));					\
-> +	arch_cmpxchg((ptr), (o), (n));					\
->  })
->  
->  #define arch_cmpxchg64_local(ptr, o, n)					\
->  ({									\
->  	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-> -	cmpxchg_local((ptr), (o), (n));					\
-> +	arch_cmpxchg_local((ptr), (o), (n));					\
->  })
->  
->  #define system_has_cmpxchg_double() boot_cpu_has(X86_FEATURE_CX16)
+Let's modify the check to cover both 4- and 5-level paging cases.
 
-Sebastian
+The patch also renames 'level4p' to 'top_level_pgt' as it now can hold
+page table for 4th or 5th level, depending on configuration.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Kees Cook <keescook@chromium.org>
+---
+ arch/x86/boot/compressed/pagetable.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
+index 8e69df96492e..da4cf44d4aac 100644
+--- a/arch/x86/boot/compressed/pagetable.c
++++ b/arch/x86/boot/compressed/pagetable.c
+@@ -63,7 +63,7 @@ static void *alloc_pgt_page(void *context)
+ static struct alloc_pgt_data pgt_data;
+ 
+ /* The top level page table entry pointer. */
+-static unsigned long level4p;
++static unsigned long top_level_pgt;
+ 
+ /*
+  * Mapping information structure passed to kernel_ident_mapping_init().
+@@ -91,9 +91,15 @@ void initialize_identity_maps(void)
+ 	 * If we came here via startup_32(), cr3 will be _pgtable already
+ 	 * and we must append to the existing area instead of entirely
+ 	 * overwriting it.
++	 *
++	 * With 5-level paging, we use _pgtable allocate p4d page table,
++	 * top-level page table is allocated separately.
++	 *
++	 * p4d_offset(top_level_pgt, 0) would cover both 4- and 5-level
++	 * cases. On 4-level paging it's equal to top_level_pgt.
+ 	 */
+-	level4p = read_cr3_pa();
+-	if (level4p == (unsigned long)_pgtable) {
++	top_level_pgt = read_cr3_pa();
++	if (p4d_offset((pgd_t *)top_level_pgt, 0) == (p4d_t *)_pgtable) {
+ 		debug_putstr("booted via startup_32()\n");
+ 		pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
+ 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE - BOOT_INIT_PGT_SIZE;
+@@ -103,7 +109,7 @@ void initialize_identity_maps(void)
+ 		pgt_data.pgt_buf = _pgtable;
+ 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE;
+ 		memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);
+-		level4p = (unsigned long)alloc_pgt_page(&pgt_data);
++		top_level_pgt = (unsigned long)alloc_pgt_page(&pgt_data);
+ 	}
+ }
+ 
+@@ -123,7 +129,7 @@ void add_identity_map(unsigned long start, unsigned long size)
+ 		return;
+ 
+ 	/* Build the mapping. */
+-	kernel_ident_mapping_init(&mapping_info, (pgd_t *)level4p,
++	kernel_ident_mapping_init(&mapping_info, (pgd_t *)top_level_pgt,
+ 				  start, end);
+ }
+ 
+@@ -134,5 +140,5 @@ void add_identity_map(unsigned long start, unsigned long size)
+  */
+ void finalize_identity_maps(void)
+ {
+-	write_cr3(level4p);
++	write_cr3(top_level_pgt);
+ }
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
