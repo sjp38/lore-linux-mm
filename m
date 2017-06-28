@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 53E39280393
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:19 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id r65so27963639qki.8
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:19 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AFA7280391
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:21 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id k14so27824986qkl.11
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:21 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a11si2639196qti.391.2017.06.28.11.01.18
+        by mx.google.com with ESMTPS id j76si2530071qke.391.2017.06.28.11.01.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 11:01:18 -0700 (PDT)
+        Wed, 28 Jun 2017 11:01:20 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 10/15] mm/hmm/devmem: dummy HMM device for ZONE_DEVICE memory v3
-Date: Wed, 28 Jun 2017 14:00:42 -0400
-Message-Id: <20170628180047.5386-11-jglisse@redhat.com>
+Subject: [PATCH 11/15] mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY
+Date: Wed, 28 Jun 2017 14:00:43 -0400
+Message-Id: <20170628180047.5386-12-jglisse@redhat.com>
 In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
 References: <20170628180047.5386-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,178 +21,292 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-This introduce a dummy HMM device class so device driver can use it to
-create hmm_device for the sole purpose of registering device memory.
-It is useful to device driver that want to manage multiple physical
-device memory under same struct device umbrella.
+Introduce a new migration mode that allow to offload the copy to
+a device DMA engine. This changes the workflow of migration and
+not all address_space migratepage callback can support this. So
+it needs to be tested in those cases.
 
-Changed since v2:
-  - use device_initcall() and drop everything that is module specific
-Changed since v1:
-  - Improve commit message
-  - Add drvdata parameter to set on struct device
+This is intended to be use by migrate_vma() which itself is use
+for thing like HMM (see include/linux/hmm.h).
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
 ---
- include/linux/hmm.h | 22 +++++++++++++-
- mm/hmm.c            | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 109 insertions(+), 1 deletion(-)
+ fs/aio.c                     |  8 +++++++
+ fs/f2fs/data.c               |  5 ++++-
+ fs/hugetlbfs/inode.c         |  5 ++++-
+ fs/ubifs/file.c              |  5 ++++-
+ include/linux/migrate.h      |  5 +++++
+ include/linux/migrate_mode.h |  5 +++++
+ mm/balloon_compaction.c      |  8 +++++++
+ mm/migrate.c                 | 52 ++++++++++++++++++++++++++++++++++----------
+ mm/zsmalloc.c                |  8 +++++++
+ 9 files changed, 86 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 2fd539b0eab3..458d0d6d82f3 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -72,11 +72,11 @@
+diff --git a/fs/aio.c b/fs/aio.c
+index 34027b67e2f4..e908a30a1c8a 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -373,6 +373,14 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	pgoff_t idx;
+ 	int rc;
  
- #if IS_ENABLED(CONFIG_HMM)
++	/*
++	 * We cannot support the _NO_COPY case here, because copy needs to
++	 * happen under the ctx->completion_lock. That does not work with the
++	 * migration workflow of MIGRATE_SYNC_NO_COPY.
++	 */
++	if (mode == MIGRATE_SYNC_NO_COPY)
++		return -EINVAL;
++
+ 	rc = 0;
  
-+#include <linux/device.h>
- #include <linux/migrate.h>
- #include <linux/memremap.h>
- #include <linux/completion.h>
+ 	/* mapping->private_lock here protects against the kioctx teardown.  */
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 7697d03e8a98..1d441c091a38 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -2235,7 +2235,10 @@ int f2fs_migrate_page(struct address_space *mapping,
+ 		SetPagePrivate(newpage);
+ 	set_page_private(newpage, page_private(page));
  
--
- struct hmm;
+-	migrate_page_copy(newpage, page);
++	if (mode != MIGRATE_SYNC_NO_COPY)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
  
- /*
-@@ -423,6 +423,26 @@ static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
- 
- 	return drvdata[1];
+ 	return MIGRATEPAGE_SUCCESS;
  }
-+
-+
-+/*
-+ * struct hmm_device - fake device to hang device memory onto
-+ *
-+ * @device: device struct
-+ * @minor: device minor number
-+ */
-+struct hmm_device {
-+	struct device		device;
-+	unsigned int		minor;
-+};
-+
-+/*
-+ * A device driver that wants to handle multiple devices memory through a
-+ * single fake device can use hmm_device to do so. This is purely a helper and
-+ * it is not strictly needed, in order to make use of any HMM functionality.
-+ */
-+struct hmm_device *hmm_device_new(void *drvdata);
-+void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* IS_ENABLED(CONFIG_DEVICE_PRIVATE) */
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 52388611635e..1db9c8df886d 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -846,7 +846,10 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
+ 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+-	migrate_page_copy(newpage, page);
++	if (mode != MIGRATE_SYNC_NO_COPY)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
  
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index 2cda3d67e2d0..b2292be50de0 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -1482,7 +1482,10 @@ static int ubifs_migrate_page(struct address_space *mapping,
+ 		SetPagePrivate(newpage);
+ 	}
  
-diff --git a/mm/hmm.c b/mm/hmm.c
-index ce403b7a7ee3..4e01c9ba9cc1 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -19,6 +19,7 @@
+-	migrate_page_copy(newpage, page);
++	if (mode != MIGRATE_SYNC_NO_COPY)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+ #endif
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 3e0d405dc842..e646ae44077d 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -59,6 +59,7 @@ extern void putback_movable_page(struct page *page);
+ 
+ extern int migrate_prep(void);
+ extern int migrate_prep_local(void);
++extern void migrate_page_states(struct page *newpage, struct page *page);
+ extern void migrate_page_copy(struct page *newpage, struct page *page);
+ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
+@@ -79,6 +80,10 @@ static inline int isolate_movable_page(struct page *page, isolate_mode_t mode)
+ static inline int migrate_prep(void) { return -ENOSYS; }
+ static inline int migrate_prep_local(void) { return -ENOSYS; }
+ 
++static inline void migrate_page_states(struct page *newpage, struct page *page)
++{
++}
++
+ static inline void migrate_page_copy(struct page *newpage,
+ 				     struct page *page) {}
+ 
+diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
+index ebf3d89a3919..bdf66af9b937 100644
+--- a/include/linux/migrate_mode.h
++++ b/include/linux/migrate_mode.h
+@@ -6,11 +6,16 @@
+  *	on most operations but not ->writepage as the potential stall time
+  *	is too significant
+  * MIGRATE_SYNC will block when migrating pages
++ * MIGRATE_SYNC_NO_COPY will block when migrating pages but will not copy pages
++ *	with the CPU. Instead, page copy happens outside the migratepage()
++ *	callback and is likely using a DMA engine. See migrate_vma() and HMM
++ *	(mm/hmm.c) for users of this mode.
   */
- #include <linux/mm.h>
- #include <linux/hmm.h>
-+#include <linux/init.h>
- #include <linux/rmap.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
-@@ -1102,4 +1103,91 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
- 	devm_release_mem_region(device, start, size);
+ enum migrate_mode {
+ 	MIGRATE_ASYNC,
+ 	MIGRATE_SYNC_LIGHT,
+ 	MIGRATE_SYNC,
++	MIGRATE_SYNC_NO_COPY,
+ };
+ 
+ #endif		/* MIGRATE_MODE_H_INCLUDED */
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index da91df50ba31..145b903eb023 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -139,6 +139,14 @@ int balloon_page_migrate(struct address_space *mapping,
+ {
+ 	struct balloon_dev_info *balloon = balloon_page_device(page);
+ 
++	/*
++	 * We can not easily support the no copy case here so ignore it as it
++	 * is unlikely to be use with ballon pages. See include/linux/hmm.h for
++	 * user of the MIGRATE_SYNC_NO_COPY mode.
++	 */
++	if (mode == MIGRATE_SYNC_NO_COPY)
++		return -EINVAL;
++
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 627671551873..37568e4e2ba6 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -603,15 +603,10 @@ static void copy_huge_page(struct page *dst, struct page *src)
+ /*
+  * Copy the page to its new location
+  */
+-void migrate_page_copy(struct page *newpage, struct page *page)
++void migrate_page_states(struct page *newpage, struct page *page)
+ {
+ 	int cpupid;
+ 
+-	if (PageHuge(page) || PageTransHuge(page))
+-		copy_huge_page(newpage, page);
+-	else
+-		copy_highpage(newpage, page);
+-
+ 	if (PageError(page))
+ 		SetPageError(newpage);
+ 	if (PageReferenced(page))
+@@ -665,6 +660,17 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+ 
+ 	mem_cgroup_migrate(page, newpage);
  }
- EXPORT_SYMBOL(hmm_devmem_remove);
++EXPORT_SYMBOL(migrate_page_states);
 +
-+/*
-+ * A device driver that wants to handle multiple devices memory through a
-+ * single fake device can use hmm_device to do so. This is purely a helper
-+ * and it is not needed to make use of any HMM functionality.
-+ */
-+#define HMM_DEVICE_MAX 256
-+
-+static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
-+static DEFINE_SPINLOCK(hmm_device_lock);
-+static struct class *hmm_device_class;
-+static dev_t hmm_device_devt;
-+
-+static void hmm_device_release(struct device *device)
++void migrate_page_copy(struct page *newpage, struct page *page)
 +{
-+	struct hmm_device *hmm_device;
++	if (PageHuge(page) || PageTransHuge(page))
++		copy_huge_page(newpage, page);
++	else
++		copy_highpage(newpage, page);
 +
-+	hmm_device = container_of(device, struct hmm_device, device);
-+	spin_lock(&hmm_device_lock);
-+	clear_bit(hmm_device->minor, hmm_device_mask);
-+	spin_unlock(&hmm_device_lock);
-+
-+	kfree(hmm_device);
++	migrate_page_states(newpage, page);
 +}
+ EXPORT_SYMBOL(migrate_page_copy);
+ 
+ /************************************************************
+@@ -690,7 +696,10 @@ int migrate_page(struct address_space *mapping,
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+ 
+-	migrate_page_copy(newpage, page);
++	if (mode != MIGRATE_SYNC_NO_COPY)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
+ 	return MIGRATEPAGE_SUCCESS;
+ }
+ EXPORT_SYMBOL(migrate_page);
+@@ -740,12 +749,15 @@ int buffer_migrate_page(struct address_space *mapping,
+ 
+ 	SetPagePrivate(newpage);
+ 
+-	migrate_page_copy(newpage, page);
++	if (mode != MIGRATE_SYNC_NO_COPY)
++		migrate_page_copy(newpage, page);
++	else
++		migrate_page_states(newpage, page);
+ 
+ 	bh = head;
+ 	do {
+ 		unlock_buffer(bh);
+- 		put_bh(bh);
++		put_bh(bh);
+ 		bh = bh->b_this_page;
+ 
+ 	} while (bh != head);
+@@ -804,8 +816,13 @@ static int fallback_migrate_page(struct address_space *mapping,
+ {
+ 	if (PageDirty(page)) {
+ 		/* Only writeback pages in full synchronous migration */
+-		if (mode != MIGRATE_SYNC)
++		switch (mode) {
++		case MIGRATE_SYNC:
++		case MIGRATE_SYNC_NO_COPY:
++			break;
++		default:
+ 			return -EBUSY;
++		}
+ 		return writeout(mapping, page);
+ 	}
+ 
+@@ -942,7 +959,11 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		 * the retry loop is too short and in the sync-light case,
+ 		 * the overhead of stalling is too much
+ 		 */
+-		if (mode != MIGRATE_SYNC) {
++		switch (mode) {
++		case MIGRATE_SYNC:
++		case MIGRATE_SYNC_NO_COPY:
++			break;
++		default:
+ 			rc = -EBUSY;
+ 			goto out_unlock;
+ 		}
+@@ -1212,8 +1233,15 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 		return -ENOMEM;
+ 
+ 	if (!trylock_page(hpage)) {
+-		if (!force || mode != MIGRATE_SYNC)
++		if (!force)
+ 			goto out;
++		switch (mode) {
++		case MIGRATE_SYNC:
++		case MIGRATE_SYNC_NO_COPY:
++			break;
++		default:
++			goto out;
++		}
+ 		lock_page(hpage);
+ 	}
+ 
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 15959d35fc26..a2c111046e1c 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1983,6 +1983,14 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 	unsigned int obj_idx;
+ 	int ret = -EAGAIN;
+ 
++	/*
++	 * We cannot support the _NO_COPY case here, because copy needs to
++	 * happen under the zs lock, which does not work with
++	 * MIGRATE_SYNC_NO_COPY workflow.
++	 */
++	if (mode == MIGRATE_SYNC_NO_COPY)
++		return -EINVAL;
 +
-+struct hmm_device *hmm_device_new(void *drvdata)
-+{
-+	struct hmm_device *hmm_device;
-+	int ret;
-+
-+	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
-+	if (!hmm_device)
-+		return ERR_PTR(-ENOMEM);
-+
-+	ret = alloc_chrdev_region(&hmm_device->device.devt, 0, 1, "hmm_device");
-+	if (ret < 0) {
-+		kfree(hmm_device);
-+		return NULL;
-+	}
-+
-+	spin_lock(&hmm_device_lock);
-+	hmm_device->minor = find_first_zero_bit(hmm_device_mask, HMM_DEVICE_MAX);
-+	if (hmm_device->minor >= HMM_DEVICE_MAX) {
-+		spin_unlock(&hmm_device_lock);
-+		kfree(hmm_device);
-+		return NULL;
-+	}
-+	set_bit(hmm_device->minor, hmm_device_mask);
-+	spin_unlock(&hmm_device_lock);
-+
-+	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
-+	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
-+					hmm_device->minor);
-+	hmm_device->device.release = hmm_device_release;
-+	dev_set_drvdata(&hmm_device->device, drvdata);
-+	hmm_device->device.class = hmm_device_class;
-+	device_initialize(&hmm_device->device);
-+
-+	return hmm_device;
-+}
-+EXPORT_SYMBOL(hmm_device_new);
-+
-+void hmm_device_put(struct hmm_device *hmm_device)
-+{
-+	put_device(&hmm_device->device);
-+}
-+EXPORT_SYMBOL(hmm_device_put);
-+
-+static int __init hmm_init(void)
-+{
-+	int ret;
-+
-+	ret = alloc_chrdev_region(&hmm_device_devt, 0,
-+				  HMM_DEVICE_MAX,
-+				  "hmm_device");
-+	if (ret)
-+		return ret;
-+
-+	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
-+	if (IS_ERR(hmm_device_class)) {
-+		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
-+		return PTR_ERR(hmm_device_class);
-+	}
-+	return 0;
-+}
-+
-+device_initcall(hmm_init);
- #endif /* IS_ENABLED(CONFIG_DEVICE_PRIVATE) */
+ 	VM_BUG_ON_PAGE(!PageMovable(page), page);
+ 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+ 
 -- 
 2.13.0
 
