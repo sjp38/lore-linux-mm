@@ -1,162 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 284696B02F4
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:38:59 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z81so32746198wrc.2
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:38:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y128si3409085wmg.15.2017.06.28.00.38.57
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 88A5A6B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 04:14:25 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id 134so22141721qkh.1
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 01:14:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h8si1480284qke.151.2017.06.28.01.14.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 00:38:57 -0700 (PDT)
-Date: Wed, 28 Jun 2017 09:38:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memory_hotplug: adjust zone/node size during
- __offline_pages()
-Message-ID: <20170628073854.GA5225@dhcp22.suse.cz>
-References: <20170628034531.70940-1-richard.weiyang@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170628034531.70940-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jun 2017 01:14:24 -0700 (PDT)
+From: "Jerome Marchand" <jmarchan@redhat.com>
+Subject: [PATCH] mm/zsmalloc: simplify zs_max_alloc_size handling
+Date: Wed, 28 Jun 2017 10:14:20 +0200
+Message-Id: <20170628081420.26898-1-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Mahendran Ganesh <opensource.ganesh@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 28-06-17 11:45:31, Wei Yang wrote:
-> After onlining a memory_block and then offline it, the valid_zones will not
-> come back to the original state.
-> 
-> For example:
-> 
->     $cat memory4?/valid_zones
->     Movable Normal
->     Movable Normal
->     Movable Normal
-> 
->     $echo online > memory40/state
->     $cat memory4?/valid_zones
->     Movable
->     Movable
->     Movable
-> 
->     $echo offline > memory40/state
->     $cat memory4?/valid_zones
->     Movable
->     Movable
->     Movable
-> 
-> While the expected behavior is back to the original valid_zones.
+Commit 40f9fb8cffc6 ("mm/zsmalloc: support allocating obj with size of
+ZS_MAX_ALLOC_SIZE") fixes a size calculation error that prevented
+zsmalloc to allocate an object of the maximal size
+(ZS_MAX_ALLOC_SIZE). I think however the fix is unneededly
+complicated.
 
-Yes this is a known restriction currently. Nobody complained so far. I
-guess that is because nobody really cares.
+This patch replaces the dynamic calculation of zs_size_classes at init
+time by a compile time calculation that uses the DIV_ROUND_UP() macro
+already used in get_size_class_index().
 
-> The reason is during __offline_pages(), zone/node related fields are not
-> adjusted.
-> 
-> This patch adjusts zone/node related fields in __offline_pages().
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ mm/zsmalloc.c | 52 +++++++++++++++-------------------------------------
+ 1 file changed, 15 insertions(+), 37 deletions(-)
 
-My plan for the next release cycle is to remove the zone restriction
-altogether and allow onlining movable inside kernel zones. This would
-make this change completely irrelevant. So I would rather not do this
-now unless you have a strong usecase for it or an existing usecase broke
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index d41edd2..134024b 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -116,6 +116,11 @@
+ #define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS - OBJ_TAG_BITS)
+ #define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
  
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/memory_hotplug.c | 42 ++++++++++++++++++++++++++++++++++++------
->  1 file changed, 36 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 9b94ca67ab00..823939d57f9b 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -879,8 +879,8 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
->  	return online_type == MMOP_ONLINE_KEEP;
->  }
->  
-> -static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
-> -		unsigned long nr_pages)
-> +static void __meminit upsize_zone_range(struct zone *zone,
-> +		unsigned long start_pfn, unsigned long nr_pages)
->  {
->  	unsigned long old_end_pfn = zone_end_pfn(zone);
->  
-> @@ -890,8 +890,21 @@ static void __meminit resize_zone_range(struct zone *zone, unsigned long start_p
->  	zone->spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - zone->zone_start_pfn;
->  }
->  
-> -static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned long start_pfn,
-> -                                     unsigned long nr_pages)
-> +static void __meminit downsize_zone_range(struct zone *zone,
-> +		unsigned long start_pfn, unsigned long nr_pages)
-> +{
-> +	unsigned long old_end_pfn = zone_end_pfn(zone);
-> +
-> +	if (start_pfn == zone->zone_start_pfn
-> +		|| old_end_pfn == (start_pfn + nr_pages))
-> +		zone->spanned_pages -= nr_pages;
-> +
-> +	if (start_pfn == zone->zone_start_pfn)
-> +		zone->zone_start_pfn += nr_pages;
-> +}
-> +
-> +static void __meminit upsize_pgdat_range(struct pglist_data *pgdat,
-> +		unsigned long start_pfn, unsigned long nr_pages)
->  {
->  	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
->  
-> @@ -901,6 +914,19 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
->  	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
->  }
->  
-> +static void __meminit downsize_pgdat_range(struct pglist_data *pgdat,
-> +		unsigned long start_pfn, unsigned long nr_pages)
-> +{
-> +	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
-> +
-> +	if (pgdat->node_start_pfn == start_pfn)
-> +		pgdat->node_start_pfn = start_pfn;
-> +
-> +	if (pgdat->node_start_pfn == start_pfn
-> +		|| old_end_pfn == (start_pfn + nr_pages))
-> +		pgdat->node_spanned_pages -= nr_pages;
-> +}
-> +
->  void __ref move_pfn_range_to_zone(struct zone *zone,
->  		unsigned long start_pfn, unsigned long nr_pages)
->  {
-> @@ -916,9 +942,9 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
->  	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
->  	pgdat_resize_lock(pgdat, &flags);
->  	zone_span_writelock(zone);
-> -	resize_zone_range(zone, start_pfn, nr_pages);
-> +	upsize_zone_range(zone, start_pfn, nr_pages);
->  	zone_span_writeunlock(zone);
-> -	resize_pgdat_range(pgdat, start_pfn, nr_pages);
-> +	upsize_pgdat_range(pgdat, start_pfn, nr_pages);
->  	pgdat_resize_unlock(pgdat, &flags);
->  
->  	/*
-> @@ -1809,7 +1835,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  	zone->present_pages -= offlined_pages;
->  
->  	pgdat_resize_lock(zone->zone_pgdat, &flags);
-> +	zone_span_writelock(zone);
-> +	downsize_zone_range(zone, start_pfn, nr_pages);
-> +	zone_span_writeunlock(zone);
->  	zone->zone_pgdat->node_present_pages -= offlined_pages;
-> +	downsize_pgdat_range(zone->zone_pgdat, start_pfn, nr_pages);
->  	pgdat_resize_unlock(zone->zone_pgdat, &flags);
->  
->  	init_per_zone_wmark_min();
-> -- 
-> 2.11.0
-> 
-
++#define FULLNESS_BITS	2
++#define CLASS_BITS	8
++#define ISOLATED_BITS	3
++#define MAGIC_VAL_BITS	8
++
+ #define MAX(a, b) ((a) >= (b) ? (a) : (b))
+ /* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
+ #define ZS_MIN_ALLOC_SIZE \
+@@ -137,6 +142,8 @@
+  *  (reason above)
+  */
+ #define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> CLASS_BITS)
++#define ZS_SIZE_CLASSES	DIV_ROUND_UP(ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE, \
++				     ZS_SIZE_CLASS_DELTA)
+ 
+ enum fullness_group {
+ 	ZS_EMPTY,
+@@ -169,11 +176,6 @@ static struct vfsmount *zsmalloc_mnt;
+ #endif
+ 
+ /*
+- * number of size_classes
+- */
+-static int zs_size_classes;
+-
+-/*
+  * We assign a page to ZS_ALMOST_EMPTY fullness group when:
+  *	n <= N / f, where
+  * n = number of allocated objects
+@@ -244,7 +246,7 @@ struct link_free {
+ struct zs_pool {
+ 	const char *name;
+ 
+-	struct size_class **size_class;
++	struct size_class *size_class[ZS_SIZE_CLASSES];
+ 	struct kmem_cache *handle_cachep;
+ 	struct kmem_cache *zspage_cachep;
+ 
+@@ -268,11 +270,6 @@ struct zs_pool {
+ #endif
+ };
+ 
+-#define FULLNESS_BITS	2
+-#define CLASS_BITS	8
+-#define ISOLATED_BITS	3
+-#define MAGIC_VAL_BITS	8
+-
+ struct zspage {
+ 	struct {
+ 		unsigned int fullness:FULLNESS_BITS;
+@@ -551,7 +548,7 @@ static int get_size_class_index(int size)
+ 		idx = DIV_ROUND_UP(size - ZS_MIN_ALLOC_SIZE,
+ 				ZS_SIZE_CLASS_DELTA);
+ 
+-	return min(zs_size_classes - 1, idx);
++	return min((int)ZS_SIZE_CLASSES - 1, idx);
+ }
+ 
+ static inline void zs_stat_inc(struct size_class *class,
+@@ -610,7 +607,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 			"obj_allocated", "obj_used", "pages_used",
+ 			"pages_per_zspage", "freeable");
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		class = pool->size_class[i];
+ 
+ 		if (class->index != i)
+@@ -1294,17 +1291,6 @@ static int zs_cpu_dead(unsigned int cpu)
+ 	return 0;
+ }
+ 
+-static void __init init_zs_size_classes(void)
+-{
+-	int nr;
+-
+-	nr = (ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1;
+-	if ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) % ZS_SIZE_CLASS_DELTA)
+-		nr += 1;
+-
+-	zs_size_classes = nr;
+-}
+-
+ static bool can_merge(struct size_class *prev, int pages_per_zspage,
+ 					int objs_per_zspage)
+ {
+@@ -2145,7 +2131,7 @@ static void async_free_zspage(struct work_struct *work)
+ 	struct zs_pool *pool = container_of(work, struct zs_pool,
+ 					free_work);
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		class = pool->size_class[i];
+ 		if (class->index != i)
+ 			continue;
+@@ -2263,7 +2249,7 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 	int i;
+ 	struct size_class *class;
+ 
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		class = pool->size_class[i];
+ 		if (!class)
+ 			continue;
+@@ -2309,7 +2295,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+ 	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+ 			shrinker);
+ 
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		class = pool->size_class[i];
+ 		if (!class)
+ 			continue;
+@@ -2361,12 +2347,6 @@ struct zs_pool *zs_create_pool(const char *name)
+ 		return NULL;
+ 
+ 	init_deferred_free(pool);
+-	pool->size_class = kcalloc(zs_size_classes, sizeof(struct size_class *),
+-			GFP_KERNEL);
+-	if (!pool->size_class) {
+-		kfree(pool);
+-		return NULL;
+-	}
+ 
+ 	pool->name = kstrdup(name, GFP_KERNEL);
+ 	if (!pool->name)
+@@ -2379,7 +2359,7 @@ struct zs_pool *zs_create_pool(const char *name)
+ 	 * Iterate reversely, because, size of size_class that we want to use
+ 	 * for merging should be larger or equal to current size.
+ 	 */
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		int size;
+ 		int pages_per_zspage;
+ 		int objs_per_zspage;
+@@ -2453,7 +2433,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+ 	zs_unregister_migration(pool);
+ 	zs_pool_stat_destroy(pool);
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		int fg;
+ 		struct size_class *class = pool->size_class[i];
+ 
+@@ -2492,8 +2472,6 @@ static int __init zs_init(void)
+ 	if (ret)
+ 		goto hp_setup_fail;
+ 
+-	init_zs_size_classes();
+-
+ #ifdef CONFIG_ZPOOL
+ 	zpool_register_driver(&zs_zpool_driver);
+ #endif
 -- 
-Michal Hocko
-SUSE Labs
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
