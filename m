@@ -1,132 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B18252802FE
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 17:47:17 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id z10so67455695pff.1
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:47:17 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
-        by mx.google.com with ESMTPS id b3si2614835plb.145.2017.06.28.14.47.16
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C51D42802FE
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 18:02:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v9so67852824pfk.5
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 15:02:50 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id g5si2526355pln.247.2017.06.28.15.02.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 14:47:16 -0700 (PDT)
-Date: Wed, 28 Jun 2017 14:43:46 -0700
-In-Reply-To: <595331FE.3090700@huawei.com>
-References: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com> <20170621164036.4findvvz7jj4cvqo@gmail.com> <595331FE.3090700@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH] futex: avoid undefined behaviour when shift exponent is negative
-From: hpa@zytor.com
-Message-ID: <568AC6DF-7E6D-4F10-BD41-D43195629C13@zytor.com>
+        Wed, 28 Jun 2017 15:02:49 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 2/5] dax: relocate some dax functions
+Date: Wed, 28 Jun 2017 16:01:49 -0600
+Message-Id: <20170628220152.28161-3-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>, Ingo Molnar <mingo@kernel.org>
-Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On June 27, 2017 9:35:10 PM PDT, zhong jiang <zhongjiang@huawei=2Ecom> wrot=
-e:
->Hi,  Ingo
->
->Thank you for the comment=2E
->On 2017/6/22 0:40, Ingo Molnar wrote:
->> * zhong jiang <zhongjiang@huawei=2Ecom> wrote:
->>
->>> when shift expoment is negative, left shift alway zero=2E therefore,
->we
->>> modify the logic to avoid the warining=2E
->>>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei=2Ecom>
->>> ---
->>>  arch/x86/include/asm/futex=2Eh | 8 ++++++--
->>>  1 file changed, 6 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/arch/x86/include/asm/futex=2Eh
->b/arch/x86/include/asm/futex=2Eh
->>> index b4c1f54=2E=2E2425fca 100644
->>> --- a/arch/x86/include/asm/futex=2Eh
->>> +++ b/arch/x86/include/asm/futex=2Eh
->>> @@ -49,8 +49,12 @@ static inline int futex_atomic_op_inuser(int
->encoded_op, u32 __user *uaddr)
->>>  	int cmparg =3D (encoded_op << 20) >> 20;
->>>  	int oldval =3D 0, ret, tem;
->>> =20
->>> -	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
->>> -		oparg =3D 1 << oparg;
->>> +	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
->>> +		if (oparg >=3D 0)
->>> +			oparg =3D 1 << oparg;
->>> +		else
->>> +			oparg =3D 0;
->>> +	}
->> Could we avoid all these complications by using an unsigned type?
->I think it is not feasible=2E  a negative shift exponent is likely
->existence and reasonable=2E
->  as the above case,  oparg is a negative is common=2E=20
->
-> I think it can be avoided by following change=2E=20
->
->diff --git a/arch/x86/include/asm/futex=2Eh
->b/arch/x86/include/asm/futex=2Eh
->index b4c1f54=2E=2E3205e86 100644
->--- a/arch/x86/include/asm/futex=2Eh
->+++ b/arch/x86/include/asm/futex=2Eh
->@@ -50,7 +50,7 @@ static inline int futex_atomic_op_inuser(int
->encoded_op, u32 __user *uaddr)
->        int oldval =3D 0, ret, tem;
->
->        if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
->-               oparg =3D 1 << oparg;
->+               oparg =3D safe_shift(1, oparg);
->
->        if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
->                return -EFAULT;
->diff --git a/drivers/video/fbdev/core/fbmem=2Ec
->b/drivers/video/fbdev/core/fbmem=2Ec
->index 069fe79=2E=2Eb4edda3 100644
->--- a/drivers/video/fbdev/core/fbmem=2Ec
->+++ b/drivers/video/fbdev/core/fbmem=2Ec
->@@ -190,11 +190,6 @@ char* fb_get_buffer_offset(struct fb_info *info,
->struct fb_pixmap *buf, u32 size
->
-> #ifdef CONFIG_LOGO
->
->-static inline unsigned safe_shift(unsigned d, int n)
->-{
->-       return n < 0 ? d >> -n : d << n;
->-}
->-
-> static void fb_set_logocmap(struct fb_info *info,
->                                   const struct linux_logo *logo)
-> {
->diff --git a/include/linux/kernel=2Eh b/include/linux/kernel=2Eh
->index d043ada=2E=2Ef3b8856 100644
->--- a/include/linux/kernel=2Eh
->+++ b/include/linux/kernel=2Eh
->@@ -841,6 +841,10 @@ static inline void ftrace_dump(enum
->ftrace_dump_mode oops_dump_mode) { }
->  */
-> #define clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
->
->+static inline unsigned safe_shift(unsigned d, int n)
->+{
->+       return n < 0 ? d >> -n : d << n;
->+}
->
->Thansk
->zhongjiang
->
->> Thanks,
->>
->> 	Ingo
->>
->> =2E
->>
+dax_load_hole() will soon need to call dax_insert_mapping_entry(), so it
+needs to be moved lower in dax.c so the definition exists.
 
-What makes it reasonable?  It is totally ill-defined and doesn't do anythi=
-ng useful now?
---=20
-Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
+dax_wake_mapping_entry_waiter() will soon be removed from dax.h and be made
+static to dax.c, so we need to move its definition above all its callers.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+---
+ fs/dax.c | 138 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 69 insertions(+), 69 deletions(-)
+
+diff --git a/fs/dax.c b/fs/dax.c
+index 9187f3b..e850837 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -122,6 +122,31 @@ static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
+ }
+ 
+ /*
++ * We do not necessarily hold the mapping->tree_lock when we call this
++ * function so it is possible that 'entry' is no longer a valid item in the
++ * radix tree.  This is okay because all we really need to do is to find the
++ * correct waitqueue where tasks might be waiting for that old 'entry' and
++ * wake them.
++ */
++void dax_wake_mapping_entry_waiter(struct address_space *mapping,
++		pgoff_t index, void *entry, bool wake_all)
++{
++	struct exceptional_entry_key key;
++	wait_queue_head_t *wq;
++
++	wq = dax_entry_waitqueue(mapping, index, entry, &key);
++
++	/*
++	 * Checking for locked entry and prepare_to_wait_exclusive() happens
++	 * under mapping->tree_lock, ditto for entry handling in our callers.
++	 * So at this point all tasks that could have seen our entry locked
++	 * must be in the waitqueue and the following check will see them.
++	 */
++	if (waitqueue_active(wq))
++		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
++}
++
++/*
+  * Check whether the given slot is locked. The function must be called with
+  * mapping->tree_lock held
+  */
+@@ -393,31 +418,6 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
+ 	return entry;
+ }
+ 
+-/*
+- * We do not necessarily hold the mapping->tree_lock when we call this
+- * function so it is possible that 'entry' is no longer a valid item in the
+- * radix tree.  This is okay because all we really need to do is to find the
+- * correct waitqueue where tasks might be waiting for that old 'entry' and
+- * wake them.
+- */
+-void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+-		pgoff_t index, void *entry, bool wake_all)
+-{
+-	struct exceptional_entry_key key;
+-	wait_queue_head_t *wq;
+-
+-	wq = dax_entry_waitqueue(mapping, index, entry, &key);
+-
+-	/*
+-	 * Checking for locked entry and prepare_to_wait_exclusive() happens
+-	 * under mapping->tree_lock, ditto for entry handling in our callers.
+-	 * So at this point all tasks that could have seen our entry locked
+-	 * must be in the waitqueue and the following check will see them.
+-	 */
+-	if (waitqueue_active(wq))
+-		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+-}
+-
+ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+ 					  pgoff_t index, bool trunc)
+ {
+@@ -469,50 +469,6 @@ int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
+ 	return __dax_invalidate_mapping_entry(mapping, index, false);
+ }
+ 
+-/*
+- * The user has performed a load from a hole in the file.  Allocating
+- * a new page in the file would cause excessive storage usage for
+- * workloads with sparse files.  We allocate a page cache page instead.
+- * We'll kick it out of the page cache if it's ever written to,
+- * otherwise it will simply fall out of the page cache under memory
+- * pressure without ever having been dirtied.
+- */
+-static int dax_load_hole(struct address_space *mapping, void **entry,
+-			 struct vm_fault *vmf)
+-{
+-	struct inode *inode = mapping->host;
+-	struct page *page;
+-	int ret;
+-
+-	/* Hole page already exists? Return it...  */
+-	if (!radix_tree_exceptional_entry(*entry)) {
+-		page = *entry;
+-		goto finish_fault;
+-	}
+-
+-	/* This will replace locked radix tree entry with a hole page */
+-	page = find_or_create_page(mapping, vmf->pgoff,
+-				   vmf->gfp_mask | __GFP_ZERO);
+-	if (!page) {
+-		ret = VM_FAULT_OOM;
+-		goto out;
+-	}
+-
+-finish_fault:
+-	vmf->page = page;
+-	ret = finish_fault(vmf);
+-	vmf->page = NULL;
+-	*entry = page;
+-	if (!ret) {
+-		/* Grab reference for PTE that is now referencing the page */
+-		get_page(page);
+-		ret = VM_FAULT_NOPAGE;
+-	}
+-out:
+-	trace_dax_load_hole(inode, vmf, ret);
+-	return ret;
+-}
+-
+ static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
+ 		sector_t sector, size_t size, struct page *to,
+ 		unsigned long vaddr)
+@@ -937,6 +893,50 @@ int dax_pfn_mkwrite(struct vm_fault *vmf)
+ }
+ EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
+ 
++/*
++ * The user has performed a load from a hole in the file.  Allocating
++ * a new page in the file would cause excessive storage usage for
++ * workloads with sparse files.  We allocate a page cache page instead.
++ * We'll kick it out of the page cache if it's ever written to,
++ * otherwise it will simply fall out of the page cache under memory
++ * pressure without ever having been dirtied.
++ */
++static int dax_load_hole(struct address_space *mapping, void **entry,
++			 struct vm_fault *vmf)
++{
++	struct inode *inode = mapping->host;
++	struct page *page;
++	int ret;
++
++	/* Hole page already exists? Return it...  */
++	if (!radix_tree_exceptional_entry(*entry)) {
++		page = *entry;
++		goto finish_fault;
++	}
++
++	/* This will replace locked radix tree entry with a hole page */
++	page = find_or_create_page(mapping, vmf->pgoff,
++				   vmf->gfp_mask | __GFP_ZERO);
++	if (!page) {
++		ret = VM_FAULT_OOM;
++		goto out;
++	}
++
++finish_fault:
++	vmf->page = page;
++	ret = finish_fault(vmf);
++	vmf->page = NULL;
++	*entry = page;
++	if (!ret) {
++		/* Grab reference for PTE that is now referencing the page */
++		get_page(page);
++		ret = VM_FAULT_NOPAGE;
++	}
++out:
++	trace_dax_load_hole(inode, vmf, ret);
++	return ret;
++}
++
+ static bool dax_range_is_aligned(struct block_device *bdev,
+ 				 unsigned int offset, unsigned int length)
+ {
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
