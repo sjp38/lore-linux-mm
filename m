@@ -1,105 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D791C6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:55:21 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id x23so33585960wrb.6
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 06:55:21 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m203si5540942wma.47.2017.06.28.06.55.16
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C866B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:58:33 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 76so58934871pgh.11
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 06:58:33 -0700 (PDT)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20111.outbound.protection.outlook.com. [40.107.2.111])
+        by mx.google.com with ESMTPS id x88si1591451pff.121.2017.06.28.06.58.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 06:55:16 -0700 (PDT)
-Date: Wed, 28 Jun 2017 15:54:42 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 28 Jun 2017 06:58:32 -0700 (PDT)
 Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
-In-Reply-To: <alpine.DEB.2.20.1706281425350.1970@nanos>
-Message-ID: <alpine.DEB.2.20.1706281544480.1970@nanos>
-References: <cover.1498140838.git.dvyukov@google.com> <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com> <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc> <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
- <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com> <20170628121246.qnk2csgzbgpqrmw3@linutronix.de> <alpine.DEB.2.20.1706281425350.1970@nanos>
+References: <cover.1498140838.git.dvyukov@google.com>
+ <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
+ <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
+ <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+ <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
+ <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
+ <alpine.DEB.2.20.1706281425350.1970@nanos>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <cebda65a-1bdc-8b44-22e7-12fc1c45fa99@virtuozzo.com>
+Date: Wed, 28 Jun 2017 17:00:15 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.20.1706281425350.1970@nanos>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, 28 Jun 2017, Thomas Gleixner wrote:
+
+
+On 06/28/2017 04:20 PM, Thomas Gleixner wrote:
 > On Wed, 28 Jun 2017, Sebastian Andrzej Siewior wrote:
-> > On 2017-06-28 14:15:18 [+0300], Andrey Ryabinin wrote:
-> > > The main problem here is that arch_cmpxchg64_local() calls cmpxhg_local() instead of using arch_cmpxchg_local().
-> > > 
-> > > So, the patch bellow should fix the problem, also this will fix double instrumentation of cmpcxchg64[_local]().
-> > > But I haven't tested this patch yet.
-> > 
-> > tested, works. Next step?
+>> On 2017-06-28 14:15:18 [+0300], Andrey Ryabinin wrote:
+>>> The main problem here is that arch_cmpxchg64_local() calls cmpxhg_local() instead of using arch_cmpxchg_local().
+>>>
+>>> So, the patch bellow should fix the problem, also this will fix double instrumentation of cmpcxchg64[_local]().
+>>> But I haven't tested this patch yet.
+>>
+>> tested, works. Next step?
 > 
 > Check all other implementations in every architecture whether there is a
 > similar problem .....
 > 
-> But this really want's a proper cleanup unless we want to waste the time
-> over and over again with the next hard to figure out macro expansion fail.
-> 
-> First of all, cmpxchg64[_local]() can be implemented as inlines right away.
-> 
-> For cmpxchg*(), the situation is slightly different, but the sizeof()
-> evaluation should be done at the top most level, even if we do it further
-> down in the low level arch/asm-generic implementation once more.
-> 
-> Something along the lines of:
-> 
-> static inline unsigned long cmpxchg_varsize(void *ptr, unsigned long old,
-> 					    unsigned long new, int size)
-> {
-> 	switch (size) {
-> 	case 1:
-> 	case 2:
-> 	case 4:
-> 		break;
-> 	case 8:
-> 		if (sizeof(unsigned long) == 8)
-> 			break;
-> 	default:
-> 		BUILD_BUG_ON(1);
-> 	}
-> 	kasan_check(ptr, size);
-> 	return arch_cmpxchg(ptr, old, new);
-> }
-> 
-> #define cmpxchg(ptr, o, n)						\
-> ({									\
-> 	((__typeof__(*(ptr)))cmpxchg_varsize((ptr), (unsigned long)(o), \
-> 			     (unsigned long)(n), sizeof(*(ptr))));	\
-> })
-> 
-> That's the first step to cure the actual mess.
-> 
-> Ideally we get rid of that whole macro maze and convert everything to
-> proper inlines with actual cmpxchg8/16/32/64() variants, but that's going
-> to take some time. As an intermediate step we can at least propagate 'size'
-> to arch_cmpxchg(), which is not that much of an effort.
 
-And to be honest. That should have be done in the first place _BEFORE_
-adding that atomic-instrumented stuff. I'm tempted to revert that mess
-instead of 'fixing' it half arsed.
+This and similar problems could have been caught by -Wshadow warning:
 
-As a side note, we have files (aside of x86/asm/atomic.h) which include
-asm/cmpxchg.h ...
-
-net/sunrpc/xprtmultipath.c:#include <asm/cmpxchg.h>
-arch/x86/kvm/mmu.c:#include <asm/cmpxchg.h>
-arch/x86/um/asm/barrier.h:#include <asm/cmpxchg.h>
-
-I'm really tired of all this featuritis crammed into the code without much
-thought. Dammit, can we please stop this and clean up the existing mess
-first before duct taping more mess on top of it.
-
-Thanks,
-
-	tglx
+In file included from ../arch/x86/include/asm/atomic.h:282:0,
+                 from ../include/linux/atomic.h:4,
+                 from ../include/linux/jump_label.h:183,
+                 from ../arch/x86/include/asm/string_64.h:5,
+                 from ../arch/x86/include/asm/string.h:4,
+                 from ../include/linux/string.h:18,
+                 from ../include/linux/bitmap.h:8,
+                 from ../drivers/iommu/intel-iommu.c:24:
+../include/asm-generic/atomic-instrumented.h:376:18: warning: declaration of a??____ptra?? shadows a previous local [-Wshadow]
+  __typeof__(ptr) ____ptr = (ptr);  \
+                  ^
+../arch/x86/include/asm/cmpxchg_64.h:18:2: note: in expansion of macro a??cmpxchg_locala??
+  cmpxchg_local((ptr), (o), (n));     \
+  ^
+../include/asm-generic/atomic-instrumented.h:392:2: note: in expansion of macro a??arch_cmpxchg64_locala??
+  arch_cmpxchg64_local(____ptr, (old), (new)); \
+  ^
+../drivers/iommu/intel-iommu.c:2290:9: note: in expansion of macro a??cmpxchg64_locala??
+   tmp = cmpxchg64_local(&pte->val, 0ULL, pteval);
+         ^
+../include/asm-generic/atomic-instrumented.h:390:18: note: shadowed declaration is here
+  __typeof__(ptr) ____ptr = (ptr);  \
+                  ^
+../drivers/iommu/intel-iommu.c:2290:9: note: in expansion of macro a??cmpxchg64_locala??
+   tmp = cmpxchg64_local(&pte->val, 0ULL, pteval);
+         ^
 
 
-
-
+But for some reason we use -Wshadow only on W=2 level.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
