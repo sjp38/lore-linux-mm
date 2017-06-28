@@ -1,106 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3513B6B0292
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 20:22:12 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 76so43163537pgh.11
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 17:22:12 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id c86si425971pfe.323.2017.06.27.17.22.11
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 783476B0292
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 21:32:51 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v62so42299401pfd.10
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 18:32:51 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id q13si583134plk.482.2017.06.27.18.32.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 17:22:11 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id e199so6675825pfh.0
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 17:22:11 -0700 (PDT)
-Date: Wed, 28 Jun 2017 08:22:07 +0800
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: Re: [RFC PATCH 3/4] mm/hotplug: make __add_pages() iterate on
- memory_block and split __add_section()
-Message-ID: <20170628002207.GD66023@WeideMacBook-Pro.local>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20170625025227.45665-1-richard.weiyang@gmail.com>
- <20170625025227.45665-4-richard.weiyang@gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="bjuZg6miEcdLYP6q"
-Content-Disposition: inline
-In-Reply-To: <20170625025227.45665-4-richard.weiyang@gmail.com>
+        Tue, 27 Jun 2017 18:32:50 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id u36so6225610pgn.3
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 18:32:50 -0700 (PDT)
+From: Oliver O'Halloran <oohall@gmail.com>
+Subject: [PATCH v4 1/6] mm, x86: Add ARCH_HAS_ZONE_DEVICE to Kconfig
+Date: Wed, 28 Jun 2017 11:32:31 +1000
+Message-Id: <20170628013236.413-1-oohall@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: mhocko@suse.com, linux-mm@kvack.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
 
+Currently ZONE_DEVICE depends on X86_64 and this will get unwieldly as
+new architectures (and platforms) get ZONE_DEVICE support. Move to an
+arch selected Kconfig option to save us the trouble.
 
---bjuZg6miEcdLYP6q
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Cc: linux-mm@kvack.org
+Acked-by: Ingo Molnar <mingo@kernel.org>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
+---
+Andew, the rest of the series should be going in via the ppc tree, but
+since there's nothing ppc specific about this patch do you want to
+take it via mm?
+--
+v2: Added missing hunk.
+---
+ arch/x86/Kconfig | 1 +
+ mm/Kconfig       | 6 +++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
 
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index a79a83ec965f..14a08b980b59 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -302,8 +302,7 @@ void __init register_page_bootmem_info_node(struct pgl=
-ist_data *pgdat)
-> }
-> #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
->=20
->-static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
->-		bool want_memblock)
->+static int __meminit __add_section(int nid, unsigned long phys_start_pfn)
-> {
-> 	int ret;
-> 	int i;
->@@ -332,6 +331,18 @@ static int __meminit __add_section(int nid, unsigned =
-long phys_start_pfn,
-> 		SetPageReserved(page);
-> 	}
->=20
->+	return 0;
->+}
->+
->+static int __meminit __add_memory_block(int nid, unsigned long phys_start=
-_pfn,
->+		bool want_memblock)
->+{
->+	int ret;
->+
->+	ret =3D __add_section(nid, phys_start_pfn);
->+	if (ret)
->+		return ret;
->+
-
-One error here.
-
-I forget to iterate on each section in the memory_block.
-Fixed in my repo.
-
-
---=20
-Wei Yang
-Help you, Help me
-
---bjuZg6miEcdLYP6q
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJZUvavAAoJEKcLNpZP5cTdY+QP/3XfQBbGTNnVB0qXL2AahMe2
-evC72dQcGzF6J+JM6N5/dDUmBb6VixEarIHEEBFCmBNDp1hkFpaXK5lNug5NR/is
-5eEc/BNfLVKLHkMR2Em63JZBYUaq7SqpT254IB7ZNdT9h1kv0zXHf1gmvuSJZ5V5
-9b3xgBPAGg5c1djtFLMnYpik38NiqMxOiE7aCYxqKcNwGExZZVj4uDj2FznihVIb
-Is/zQNmgiSZyqhyRZr2CPcF0dTUtRz7CDUjTuwqYVHjVjLg9rqJNaTT0cMM3mx7u
-yZ8XfiIGdCHDA0r5GIc7xL+SydMS6qGlz32JMiwGQN+KjqtsXHqvynQ6ORXPeae4
-tAt60xrqs1DIJkNLCmhYqrYu5TImTOBDIgku0kXT8SIGRXDInUNlIQt8Ya42s+oJ
-HfSjljchwPqzi3DoXt0pBRjuDbpBJT+cJ2cGXvfmZrAiy7Uqgynb8tLs9jEm3YUI
-B9/s9MpCiCpn3GvBg5OFxP3mdS+uDffb2eLcn+sCzlImPvzf8OtmxphfC+MtUmnQ
-YufSuZuXU7dgeEkznSQdyJfDvuR8i7B4dZXpWuxI1+egOniR5SJUc4/LxKwvaJB5
-Rea7r6wR2lBhh5p51KFxzu9qCnxoq2I9cpMjAqIbECTi4005Gs3Rd2egdArRZVdK
-fi+tpP4cJuoIg2mnRdXU
-=pr0t
------END PGP SIGNATURE-----
-
---bjuZg6miEcdLYP6q--
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 37a14d7a4e3f..569e39a8293d 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -61,6 +61,7 @@ config X86
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_HAS_ZONE_DEVICE		if X86_64
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+ 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 5027cbc251f9..48b1af447fa7 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -668,12 +668,16 @@ config IDLE_PAGE_TRACKING
+ 
+ 	  See Documentation/vm/idle_page_tracking.txt for more details.
+ 
++# arch_add_memory() comprehends device memory
++config ARCH_HAS_ZONE_DEVICE
++	bool
++
+ config ZONE_DEVICE
+ 	bool "Device memory (pmem, etc...) hotplug support"
+ 	depends on MEMORY_HOTPLUG
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on SPARSEMEM_VMEMMAP
+-	depends on X86_64 #arch_add_memory() comprehends device memory
++	depends on ARCH_HAS_ZONE_DEVICE
+ 
+ 	help
+ 	  Device memory hotplug support allows for establishing pmem,
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
