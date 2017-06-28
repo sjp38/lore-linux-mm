@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D45F280391
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E058A280391
 	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:25 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id l55so29203004qtl.7
+Received: by mail-qk0-f200.google.com with SMTP id u126so27894044qka.9
         for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:25 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w44si2575670qtg.71.2017.06.28.11.01.23
+        by mx.google.com with ESMTPS id e6si2527528qtd.379.2017.06.28.11.01.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 11:01:23 -0700 (PDT)
+        Wed, 28 Jun 2017 11:01:24 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 14/15] mm/migrate: support un-addressable ZONE_DEVICE page in migration v2
-Date: Wed, 28 Jun 2017 14:00:46 -0400
-Message-Id: <20170628180047.5386-15-jglisse@redhat.com>
+Subject: [PATCH 15/15] mm/migrate: allow migrate_vma() to alloc new page on empty entry v3
+Date: Wed, 28 Jun 2017 14:00:47 -0400
+Message-Id: <20170628180047.5386-16-jglisse@redhat.com>
 In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
 References: <20170628180047.5386-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,360 +21,265 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-Allow to unmap and restore special swap entry of un-addressable
-ZONE_DEVICE memory.
+This allow caller of migrate_vma() to allocate new page for empty CPU
+page table entry. It only support anoymous memory and it won't allow
+new page to be instance if userfaultfd is armed.
 
+This is useful to device driver that want to migrate a range of virtual
+address and would rather allocate new memory than having to fault later
+on.
+
+Changed sinve v2:
+  - differentiate between empty CPU page table entry and non empty
+  - improve code comments explaining how this works
 Changed since v1:
-  - s/device unaddressable/device private/
+  - 5 level page table fix
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/migrate.h |  10 +++-
- mm/migrate.c            | 134 ++++++++++++++++++++++++++++++++++++++----------
- mm/page_vma_mapped.c    |  10 ++++
- mm/rmap.c               |  25 +++++++++
- 4 files changed, 150 insertions(+), 29 deletions(-)
+ include/linux/migrate.h |   9 +++
+ mm/migrate.c            | 158 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 161 insertions(+), 6 deletions(-)
 
 diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index ce87a2946897..c84541a9610f 100644
+index c84541a9610f..c65d0875cdc9 100644
 --- a/include/linux/migrate.h
 +++ b/include/linux/migrate.h
-@@ -146,12 +146,18 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 
- #ifdef CONFIG_MIGRATION
- 
-+/*
-+ * Watch out for PAE architecture, which has an unsigned long, and might not
-+ * have enough bits to store all physical address and flags. So far we have
-+ * enough room for all our flags.
-+ */
- #define MIGRATE_PFN_VALID	(1UL << 0)
- #define MIGRATE_PFN_MIGRATE	(1UL << 1)
- #define MIGRATE_PFN_LOCKED	(1UL << 2)
- #define MIGRATE_PFN_WRITE	(1UL << 3)
--#define MIGRATE_PFN_ERROR	(1UL << 4)
--#define MIGRATE_PFN_SHIFT	5
-+#define MIGRATE_PFN_DEVICE	(1UL << 4)
-+#define MIGRATE_PFN_ERROR	(1UL << 5)
-+#define MIGRATE_PFN_SHIFT	6
- 
- static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
- {
+@@ -205,6 +205,15 @@ static inline unsigned long migrate_pfn(unsigned long pfn)
+  * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in an
+  * unrecoverable state.
+  *
++ * For empty entry inside CPU page table (pte_none() or pmd_none() is true) we
++ * do set MIGRATE_PFN_MIGRATE flag inside the corresponding source array thus
++ * allowing device driver to allocate device memory for those unback virtual
++ * address. For this the device driver simply have to allocate device memory
++ * and properly set the destination entry like for regular migration. Note that
++ * this can still fails and thus inside the device driver must check if the
++ * migration was successful for those entry inside the finalize_and_map()
++ * callback just like for regular migration.
++ *
+  * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY ENTRIES
+  * OR BAD THINGS WILL HAPPEN !
+  *
 diff --git a/mm/migrate.c b/mm/migrate.c
-index d11fb4c8d785..c3ff98a4c3dc 100644
+index c3ff98a4c3dc..643ea61ca9bb 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -36,6 +36,7 @@
- #include <linux/hugetlb.h>
+@@ -37,6 +37,7 @@
  #include <linux/hugetlb_cgroup.h>
  #include <linux/gfp.h>
-+#include <linux/memremap.h>
+ #include <linux/memremap.h>
++#include <linux/userfaultfd_k.h>
  #include <linux/balloon_compaction.h>
  #include <linux/mmu_notifier.h>
  #include <linux/page_idle.h>
-@@ -227,7 +228,15 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
- 		if (is_write_migration_entry(entry))
- 			pte = maybe_mkwrite(pte, vma);
- 
--		flush_dcache_page(new);
-+		if (unlikely(is_zone_device_page(new)) &&
-+		    is_device_private_page(new)) {
-+			entry = make_device_private_entry(new, pte_write(pte));
-+			pte = swp_entry_to_pte(entry);
-+			if (pte_swp_soft_dirty(*pvmw.pte))
-+				pte = pte_mksoft_dirty(pte);
-+		} else
-+			flush_dcache_page(new);
+@@ -2102,7 +2103,23 @@ static int migrate_vma_collect_hole(unsigned long start,
+ 				    struct mm_walk *walk)
+ {
+ 	struct migrate_vma *migrate = walk->private;
+-	unsigned long addr, next;
++	unsigned long addr;
 +
- #ifdef CONFIG_HUGETLB_PAGE
- 		if (PageHuge(new)) {
- 			pte = pte_mkhuge(pte);
-@@ -2131,17 +2140,40 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		pte = *ptep;
- 		pfn = pte_pfn(pte);
- 
--		if (!pte_present(pte)) {
-+		if (pte_none(pte)) {
- 			mpfn = pfn = 0;
- 			goto next;
- 		}
- 
-+		if (!pte_present(pte)) {
-+			mpfn = pfn = 0;
-+
-+			/*
-+			 * Only care about unaddressable device page special
-+			 * page table entry. Other special swap entries are not
-+			 * migratable, and we ignore regular swapped page.
-+			 */
-+			entry = pte_to_swp_entry(pte);
-+			if (!is_device_private_entry(entry))
-+				goto next;
-+
-+			page = device_private_entry_to_page(entry);
-+			mpfn = migrate_pfn(page_to_pfn(page))|
-+				MIGRATE_PFN_DEVICE | MIGRATE_PFN_MIGRATE;
-+			if (is_write_device_private_entry(entry))
-+				mpfn |= MIGRATE_PFN_WRITE;
-+		} else {
-+			page = vm_normal_page(migrate->vma, addr, pte);
-+			mpfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
-+			mpfn |= pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
-+		}
-+
- 		/* FIXME support THP */
--		page = vm_normal_page(migrate->vma, addr, pte);
- 		if (!page || !page->mapping || PageTransCompound(page)) {
- 			mpfn = pfn = 0;
- 			goto next;
- 		}
-+		pfn = page_to_pfn(page);
- 
- 		/*
- 		 * By getting a reference on the page we pin it and that blocks
-@@ -2154,8 +2186,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		 */
- 		get_page(page);
- 		migrate->cpages++;
--		mpfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
--		mpfn |= pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
- 
- 		/*
- 		 * Optimize for the common case where page is only mapped once
-@@ -2186,6 +2216,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		}
- 
- next:
++	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
++		migrate->cpages++;
 +		migrate->dst[migrate->npages] = 0;
- 		migrate->src[migrate->npages++] = mpfn;
- 	}
- 	arch_leave_lazy_mmu_mode();
-@@ -2255,6 +2286,15 @@ static bool migrate_vma_check_page(struct page *page)
- 	if (PageCompound(page))
- 		return false;
- 
-+	/* Page from ZONE_DEVICE have one extra reference */
-+	if (is_zone_device_page(page)) {
-+		if (is_device_private_page(page)) {
-+			extra++;
-+		} else
-+			/* Other ZONE_DEVICE memory type are not supported */
-+			return false;
++		migrate->src[migrate->npages++] = MIGRATE_PFN_MIGRATE;
 +	}
 +
- 	if ((page_count(page) - extra) > page_mapcount(page))
- 		return false;
- 
-@@ -2292,24 +2332,30 @@ static void migrate_vma_prepare(struct migrate_vma *migrate)
- 			migrate->src[i] |= MIGRATE_PFN_LOCKED;
- 		}
- 
--		if (!PageLRU(page) && allow_drain) {
--			/* Drain CPU's pagevec */
--			lru_add_drain_all();
--			allow_drain = false;
--		}
-+		/* ZONE_DEVICE pages are not on LRU */
-+		if (!is_zone_device_page(page)) {
-+			if (!PageLRU(page) && allow_drain) {
-+				/* Drain CPU's pagevec */
-+				lru_add_drain_all();
-+				allow_drain = false;
-+			}
- 
--		if (isolate_lru_page(page)) {
--			if (remap) {
--				migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
--				migrate->cpages--;
--				restore++;
--			} else {
--				migrate->src[i] = 0;
--				unlock_page(page);
--				migrate->cpages--;
--				put_page(page);
-+			if (isolate_lru_page(page)) {
-+				if (remap) {
-+					migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-+					migrate->cpages--;
-+					restore++;
-+				} else {
-+					migrate->src[i] = 0;
-+					unlock_page(page);
-+					migrate->cpages--;
-+					put_page(page);
-+				}
-+				continue;
- 			}
--			continue;
++	return 0;
++}
 +
-+			/* Drop the reference we took in collect */
-+			put_page(page);
- 		}
++static int migrate_vma_collect_thp(unsigned long start,
++				    unsigned long end,
++				    struct mm_walk *walk)
++{
++	struct migrate_vma *migrate = walk->private;
++	unsigned long addr;
  
- 		if (!migrate_vma_check_page(page)) {
-@@ -2318,14 +2364,19 @@ static void migrate_vma_prepare(struct migrate_vma *migrate)
- 				migrate->cpages--;
- 				restore++;
+ 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+ 		migrate->dst[migrate->npages] = 0;
+@@ -2123,10 +2140,14 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 	spinlock_t *ptl;
+ 	pte_t *ptep;
  
--				get_page(page);
--				putback_lru_page(page);
-+				if (!is_zone_device_page(page)) {
-+					get_page(page);
-+					putback_lru_page(page);
-+				}
- 			} else {
- 				migrate->src[i] = 0;
- 				unlock_page(page);
- 				migrate->cpages--;
- 
--				putback_lru_page(page);
-+				if (!is_zone_device_page(page))
-+					putback_lru_page(page);
-+				else
-+					put_page(page);
- 			}
- 		}
+-	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {
++	if (pmd_none(*pmdp)) {
+ 		/* FIXME support THP */
+ 		return migrate_vma_collect_hole(start, end, walk);
  	}
-@@ -2396,7 +2447,10 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
- 		unlock_page(page);
- 		restore--;
++	if (pmd_trans_unstable(pmdp)) {
++		/* FIXME support THP */
++		return migrate_vma_collect_thp(start, end, walk);
++	}
  
--		putback_lru_page(page);
-+		if (is_zone_device_page(page))
-+			put_page(page);
-+		else
-+			putback_lru_page(page);
+ 	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
+ 	arch_enter_lazy_mmu_mode();
+@@ -2141,7 +2162,9 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 		pfn = pte_pfn(pte);
+ 
+ 		if (pte_none(pte)) {
+-			mpfn = pfn = 0;
++			mpfn = MIGRATE_PFN_MIGRATE;
++			migrate->cpages++;
++			pfn = 0;
+ 			goto next;
+ 		}
+ 
+@@ -2454,6 +2477,118 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
  	}
  }
  
-@@ -2427,6 +2481,26 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
++static void migrate_vma_insert_page(struct migrate_vma *migrate,
++				    unsigned long addr,
++				    struct page *page,
++				    unsigned long *src,
++				    unsigned long *dst)
++{
++	struct vm_area_struct *vma = migrate->vma;
++	struct mm_struct *mm = vma->vm_mm;
++	struct mem_cgroup *memcg;
++	spinlock_t *ptl;
++	pgd_t *pgdp;
++	p4d_t *p4dp;
++	pud_t *pudp;
++	pmd_t *pmdp;
++	pte_t *ptep;
++	pte_t entry;
++
++	/* Only allow populating anonymous memory */
++	if (!vma_is_anonymous(vma))
++		goto abort;
++
++	pgdp = pgd_offset(mm, addr);
++	p4dp = p4d_alloc(mm, pgdp, addr);
++	if (!p4dp)
++		goto abort;
++	pudp = pud_alloc(mm, p4dp, addr);
++	if (!pudp)
++		goto abort;
++	pmdp = pmd_alloc(mm, pudp, addr);
++	if (!pmdp)
++		goto abort;
++
++	if (pmd_trans_unstable(pmdp) || pmd_devmap(*pmdp))
++		goto abort;
++
++	/*
++	 * Use pte_alloc() instead of pte_alloc_map().  We can't run
++	 * pte_offset_map() on pmds where a huge pmd might be created
++	 * from a different thread.
++	 *
++	 * pte_alloc_map() is safe to use under down_write(mmap_sem) or when
++	 * parallel threads are excluded by other means.
++	 *
++	 * Here we only have down_read(mmap_sem).
++	 */
++	if (pte_alloc(mm, pmdp, addr))
++		goto abort;
++
++	/* See the comment in pte_alloc_one_map() */
++	if (unlikely(pmd_trans_unstable(pmdp)))
++		goto abort;
++
++	if (unlikely(anon_vma_prepare(vma)))
++		goto abort;
++	if (mem_cgroup_try_charge(page, vma->vm_mm, GFP_KERNEL, &memcg, false))
++		goto abort;
++
++	/*
++	 * The memory barrier inside __SetPageUptodate makes sure that
++	 * preceding stores to the page contents become visible before
++	 * the set_pte_at() write.
++	 */
++	__SetPageUptodate(page);
++
++	if (is_zone_device_page(page) && is_device_private_page(page)) {
++		swp_entry_t swp_entry;
++
++		swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
++		entry = swp_entry_to_pte(swp_entry);
++	} else {
++		entry = mk_pte(page, vma->vm_page_prot);
++		if (vma->vm_flags & VM_WRITE)
++			entry = pte_mkwrite(pte_mkdirty(entry));
++	}
++
++	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
++	if (!pte_none(*ptep)) {
++		pte_unmap_unlock(ptep, ptl);
++		mem_cgroup_cancel_charge(page, memcg, false);
++		goto abort;
++	}
++
++	/*
++	 * Check for usefaultfd but do not deliver the fault. Instead,
++	 * just back off.
++	 */
++	if (userfaultfd_missing(vma)) {
++		pte_unmap_unlock(ptep, ptl);
++		mem_cgroup_cancel_charge(page, memcg, false);
++		goto abort;
++	}
++
++	inc_mm_counter(mm, MM_ANONPAGES);
++	page_add_new_anon_rmap(page, vma, addr, false);
++	mem_cgroup_commit_charge(page, memcg, false, false);
++	if (!is_zone_device_page(page))
++		lru_cache_add_active_or_unevictable(page, vma);
++	set_pte_at(mm, addr, ptep, entry);
++
++	/* Take a reference on the page */
++	get_page(page);
++
++	/* No need to invalidate - it was non-present before */
++	update_mmu_cache(vma, addr, ptep);
++	pte_unmap_unlock(ptep, ptl);
++	*src = MIGRATE_PFN_MIGRATE;
++	return;
++
++abort:
++	*src &= ~MIGRATE_PFN_MIGRATE;
++}
++
+ /*
+  * migrate_vma_pages() - migrate meta-data from src page to dst page
+  * @migrate: migrate struct containing all migration information
+@@ -2474,10 +2609,15 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
+ 		struct address_space *mapping;
+ 		int r;
+ 
+-		if (!page || !newpage)
++		if (!newpage) {
++			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
+ 			continue;
+-		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
++		} else if (!page && (migrate->src[i] & MIGRATE_PFN_MIGRATE)) {
++			migrate_vma_insert_page(migrate, addr, newpage,
++						&migrate->src[i],
++						&migrate->dst[i]);
+ 			continue;
++		}
  
  		mapping = page_mapping(page);
  
-+		if (is_zone_device_page(newpage)) {
-+			if (is_device_private_page(newpage)) {
-+				/*
-+				 * For now only support private anonymous when
-+				 * migrating to un-addressable device memory.
-+				 */
-+				if (mapping) {
-+					migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-+					continue;
-+				}
-+			} else {
-+				/*
-+				 * Other types of ZONE_DEVICE page are not
-+				 * supported.
-+				 */
-+				migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-+				continue;
-+			}
-+		}
-+
- 		r = migrate_page(mapping, newpage, page, MIGRATE_SYNC_NO_COPY);
- 		if (r != MIGRATEPAGE_SUCCESS)
- 			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-@@ -2467,11 +2541,17 @@ static void migrate_vma_finalize(struct migrate_vma *migrate)
- 		unlock_page(page);
- 		migrate->cpages--;
+@@ -2527,8 +2667,14 @@ static void migrate_vma_finalize(struct migrate_vma *migrate)
+ 		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
+ 		struct page *page = migrate_pfn_to_page(migrate->src[i]);
  
--		putback_lru_page(page);
-+		if (is_zone_device_page(page))
-+			put_page(page);
-+		else
-+			putback_lru_page(page);
- 
- 		if (newpage != page) {
- 			unlock_page(newpage);
--			putback_lru_page(newpage);
-+			if (is_zone_device_page(newpage))
+-		if (!page)
++		if (!page) {
++			if (newpage) {
++				unlock_page(newpage);
 +				put_page(newpage);
-+			else
-+				putback_lru_page(newpage);
- 		}
- 	}
- }
-diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
-index 8ec6ba230bb9..c91e67051fff 100644
---- a/mm/page_vma_mapped.c
-+++ b/mm/page_vma_mapped.c
-@@ -48,6 +48,7 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
- 		if (!is_swap_pte(*pvmw->pte))
- 			return false;
- 		entry = pte_to_swp_entry(*pvmw->pte);
-+
- 		if (!is_migration_entry(entry))
- 			return false;
- 		if (migration_entry_to_page(entry) - pvmw->page >=
-@@ -60,6 +61,15 @@ static bool check_pte(struct page_vma_mapped_walk *pvmw)
- 		WARN_ON_ONCE(1);
- #endif
- 	} else {
-+		if (is_swap_pte(*pvmw->pte)) {
-+			swp_entry_t entry;
-+
-+			entry = pte_to_swp_entry(*pvmw->pte);
-+			if (is_device_private_entry(entry) &&
-+			    device_private_entry_to_page(entry) == pvmw->page)
-+				return true;
++			}
+ 			continue;
 +		}
 +
- 		if (!pte_present(*pvmw->pte))
- 			return false;
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index ced14f1af6dc..b3846c2bd5ff 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -63,6 +63,7 @@
- #include <linux/hugetlb.h>
- #include <linux/backing-dev.h>
- #include <linux/page_idle.h>
-+#include <linux/memremap.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1294,6 +1295,10 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
- 		return true;
- 
-+	if (IS_ENABLED(CONFIG_MIGRATION) && (flags & TTU_MIGRATION) &&
-+	    is_zone_device_page(page) && !is_device_private_page(page))
-+		return true;
-+
- 	if (flags & TTU_SPLIT_HUGE_PMD) {
- 		split_huge_pmd_address(vma, address,
- 				flags & TTU_MIGRATION, page);
-@@ -1329,6 +1334,26 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
- 		address = pvmw.address;
- 
-+		if (IS_ENABLED(CONFIG_MIGRATION) &&
-+		    (flags & TTU_MIGRATION) &&
-+		    is_zone_device_page(page)) {
-+			swp_entry_t entry;
-+			pte_t swp_pte;
-+
-+			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
-+
-+			/*
-+			 * Store the pfn of the page in a special migration
-+			 * pte. do_swap_page() will wait until the migration
-+			 * pte is removed and then restart fault handling.
-+			 */
-+			entry = make_migration_entry(page, 0);
-+			swp_pte = swp_entry_to_pte(entry);
-+			if (pte_soft_dirty(pteval))
-+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
-+			set_pte_at(mm, address, pvmw.pte, swp_pte);
-+			goto discard;
-+		}
- 
- 		if (!(flags & TTU_IGNORE_ACCESS)) {
- 			if (ptep_clear_flush_young_notify(vma, address,
+ 		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
+ 			if (newpage) {
+ 				unlock_page(newpage);
 -- 
 2.13.0
 
