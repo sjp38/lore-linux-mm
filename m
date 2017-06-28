@@ -1,144 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F2FC26B0292
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 23:45:37 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u5so46464437pgq.14
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 20:45:37 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id 61si762344plz.299.2017.06.27.20.45.36
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DDEB6B02C3
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:15:05 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id r126so15865830vkg.9
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 21:15:05 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d4si585300uaa.115.2017.06.27.21.15.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 20:45:36 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id e199so7228609pfh.0
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 20:45:36 -0700 (PDT)
-From: Wei Yang <richard.weiyang@gmail.com>
-Subject: [PATCH] mm/memory_hotplug: adjust zone/node size during __offline_pages()
-Date: Wed, 28 Jun 2017 11:45:31 +0800
-Message-Id: <20170628034531.70940-1-richard.weiyang@gmail.com>
+        Tue, 27 Jun 2017 21:15:03 -0700 (PDT)
+Date: Tue, 27 Jun 2017 21:12:20 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 3/6] xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
+Message-ID: <20170628041220.GB7736@birch.djwong.org>
+References: <20170623085345.11304-1-mhocko@kernel.org>
+ <20170623085345.11304-4-mhocko@kernel.org>
+ <20170627084950.GI28072@dhcp22.suse.cz>
+ <20170627134751.GA28043@infradead.org>
+ <20170627140654.GO28072@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170627140654.GO28072@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, xfs <linux-xfs@vger.kernel.org>
 
-After onlining a memory_block and then offline it, the valid_zones will not
-come back to the original state.
+[add linux-xfs to cc]
 
-For example:
+FYI this is a discussion of the patch "xfs: map KM_MAYFAIL to
+__GFP_RETRY_MAYFAIL" which was last discussed on the xfs list in March
+and now is in the -mm tree...
 
-    $cat memory4?/valid_zones
-    Movable Normal
-    Movable Normal
-    Movable Normal
+https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?h=next-20170627&id=43182d82c48fae80d31a9101b6bb06d75cee32c7
 
-    $echo online > memory40/state
-    $cat memory4?/valid_zones
-    Movable
-    Movable
-    Movable
+On Tue, Jun 27, 2017 at 04:06:54PM +0200, Michal Hocko wrote:
+> On Tue 27-06-17 06:47:51, Christoph Hellwig wrote:
+> > On Tue, Jun 27, 2017 at 10:49:50AM +0200, Michal Hocko wrote:
+> > > Christoph, Darrick
+> > > could you have a look at this patch please? Andrew has put it into mmotm
+> > > but I definitely do not want it passes your attention.
+> > 
+> > I don't think what we have to gain from it.  Callsite for KM_MAYFAIL
+> > should handler failures, but the current behavior seems to be doing fine
+> > too.
+> 
+> Last time I've asked I didnd't get any reply so let me ask again. Some
+> of those allocations seem to be small (e.g. by a random look
+> xlog_cil_init allocates struct xfs_cil which is 576B and struct
+> xfs_cil_ctx 176B). Those do not fail currently under most conditions and
+> it will retry allocation with the OOM killer if there is no progress. As
+> you know that failing those is acceptable, wouldn't it be better to
+> simply fail them and do not disrupt the system with the oom killer?
 
-    $echo offline > memory40/state
-    $cat memory4?/valid_zones
-    Movable
-    Movable
-    Movable
+I remember the first time I saw this patch, and didn't have much of an
+opinion either way -- the current behavior is fine, so why mess around?
+I'd just as soon XFS not have to deal with errors if it doesn't have to. :)
 
-While the expected behavior is back to the original valid_zones.
+But, you've asked again, so I'll be less glib this time.
 
-The reason is during __offline_pages(), zone/node related fields are not
-adjusted.
+I took a quick glance at all the MAYFAIL users in XFS.  /Nearly/ all
+them seem to be cases either where we're mounting a filesystem or are
+collecting memory for some ioctl -- in either case it's not hard to just
+fail back out to userspace.  The upcoming online fsck patches use it
+heavily, which is fine since we can always fail out to userspace and
+tell the admin to go run xfs_repair offline.
 
-This patch adjusts zone/node related fields in __offline_pages().
+The one user that caught my eye was xfs_iflush_cluster, which seems to
+want an array of pointers to a cluster's worth of struct xfs_inodes.  On
+a 64k block fs with 256 byte pointers I guess that could be ~2k worth of
+pointers, but otoh it looks like that's an optimization: If we're going
+to flush an inode out to disk we opportunistically scan the inode tree
+to see if the adjacent inodes are also ready to flush; if we can't get
+the memory for this, then it just backs off to flushing the one inode.
 
-Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
----
- mm/memory_hotplug.c | 42 ++++++++++++++++++++++++++++++++++++------
- 1 file changed, 36 insertions(+), 6 deletions(-)
+All the callers of MAYFAIL that I found actually /do/ check the return
+value and start bailing out... so, uh, I guess I'm fine with it.  At
+worst it's easily reverted during -rc if it causes problems.  Anyone
+have a stronger objection?
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9b94ca67ab00..823939d57f9b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -879,8 +879,8 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages,
- 	return online_type == MMOP_ONLINE_KEEP;
- }
- 
--static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
--		unsigned long nr_pages)
-+static void __meminit upsize_zone_range(struct zone *zone,
-+		unsigned long start_pfn, unsigned long nr_pages)
- {
- 	unsigned long old_end_pfn = zone_end_pfn(zone);
- 
-@@ -890,8 +890,21 @@ static void __meminit resize_zone_range(struct zone *zone, unsigned long start_p
- 	zone->spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - zone->zone_start_pfn;
- }
- 
--static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned long start_pfn,
--                                     unsigned long nr_pages)
-+static void __meminit downsize_zone_range(struct zone *zone,
-+		unsigned long start_pfn, unsigned long nr_pages)
-+{
-+	unsigned long old_end_pfn = zone_end_pfn(zone);
-+
-+	if (start_pfn == zone->zone_start_pfn
-+		|| old_end_pfn == (start_pfn + nr_pages))
-+		zone->spanned_pages -= nr_pages;
-+
-+	if (start_pfn == zone->zone_start_pfn)
-+		zone->zone_start_pfn += nr_pages;
-+}
-+
-+static void __meminit upsize_pgdat_range(struct pglist_data *pgdat,
-+		unsigned long start_pfn, unsigned long nr_pages)
- {
- 	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
- 
-@@ -901,6 +914,19 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
- 	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
- }
- 
-+static void __meminit downsize_pgdat_range(struct pglist_data *pgdat,
-+		unsigned long start_pfn, unsigned long nr_pages)
-+{
-+	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
-+
-+	if (pgdat->node_start_pfn == start_pfn)
-+		pgdat->node_start_pfn = start_pfn;
-+
-+	if (pgdat->node_start_pfn == start_pfn
-+		|| old_end_pfn == (start_pfn + nr_pages))
-+		pgdat->node_spanned_pages -= nr_pages;
-+}
-+
- void __ref move_pfn_range_to_zone(struct zone *zone,
- 		unsigned long start_pfn, unsigned long nr_pages)
- {
-@@ -916,9 +942,9 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
- 	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
- 	pgdat_resize_lock(pgdat, &flags);
- 	zone_span_writelock(zone);
--	resize_zone_range(zone, start_pfn, nr_pages);
-+	upsize_zone_range(zone, start_pfn, nr_pages);
- 	zone_span_writeunlock(zone);
--	resize_pgdat_range(pgdat, start_pfn, nr_pages);
-+	upsize_pgdat_range(pgdat, start_pfn, nr_pages);
- 	pgdat_resize_unlock(pgdat, &flags);
- 
- 	/*
-@@ -1809,7 +1835,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	zone->present_pages -= offlined_pages;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-+	zone_span_writelock(zone);
-+	downsize_zone_range(zone, start_pfn, nr_pages);
-+	zone_span_writeunlock(zone);
- 	zone->zone_pgdat->node_present_pages -= offlined_pages;
-+	downsize_pgdat_range(zone->zone_pgdat, start_pfn, nr_pages);
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
- 
- 	init_per_zone_wmark_min();
--- 
-2.11.0
+Acked-by: Darrick J. Wong <darrick.wong@oracle.com>
+
+--D
+
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
