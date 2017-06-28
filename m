@@ -1,140 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E35280301
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 18:02:53 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j186so70238195pge.12
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 15:02:53 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id o4si2268342pgd.352.2017.06.28.15.02.51
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B625280301
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 18:02:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 1so4714152pfi.14
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 15:02:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id y67si2379921pfy.16.2017.06.28.15.02.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 15:02:52 -0700 (PDT)
+        Wed, 28 Jun 2017 15:02:53 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 5/5] dax: move all DAX radix tree defs to fs/dax.c
-Date: Wed, 28 Jun 2017 16:01:52 -0600
-Message-Id: <20170628220152.28161-6-ross.zwisler@linux.intel.com>
-In-Reply-To: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
-References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 0/5] DAX common 4k zero page
+Date: Wed, 28 Jun 2017 16:01:47 -0600
+Message-Id: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Now that we no longer insert struct page pointers in DAX radix trees the
-page cache code no longer needs to know anything about DAX exceptional
-entries.  Move all the DAX exceptional entry definitions from dax.h to
-fs/dax.c.
+When servicing mmap() reads from file holes the current DAX code allocates
+a page cache page of all zeroes and places the struct page pointer in the
+mapping->page_tree radix tree.  This has three major drawbacks:
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Suggested-by: Jan Kara <jack@suse.cz>
+1) It consumes memory unnecessarily.  For every 4k page that is read via a
+DAX mmap() over a hole, we allocate a new page cache page.  This means that
+if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
+
+2) It is slower than using a common zero page because each page fault has
+more work to do.  Instead of just inserting a common zero page we have to
+allocate a page cache page, zero it, and then insert it.
+
+3) The fact that we had to check for both DAX exceptional entries and for
+page cache pages in the radix tree made the DAX code more complex.
+
+This series solves these issues by following the lead of the DAX PMD code
+and using a common 4k zero page instead.  This reduces memory usage and
+decreases latencies for some workloads, and it simplifies the DAX code,
+removing over 100 lines in total.
+
+Andrew, I'm still hoping to get this merged for v4.13 if possible. I I have
+addressed all of Jan's feedback, but he is on vacation for the next few
+weeks so he may not be able to give me Reviewed-by tags.  I think this
+series is relatively low risk with clear benefits, and I think we should be
+able to address any issues that come up during the v4.13 RC series.
+
+This series has passed my targeted testing and a full xfstests run on both
+XFS and ext4.
+
 ---
- fs/dax.c            | 34 ++++++++++++++++++++++++++++++++++
- include/linux/dax.h | 40 ----------------------------------------
- 2 files changed, 34 insertions(+), 40 deletions(-)
+Changes since v2:
+ - If we call insert_pfn() with 'mkwrite' for an entry that already exists,
+   don't overwrite the pte with a brand new one.  Just add the appropriate
+   flags. (Jan)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 896e2e7..1f1064e 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -55,6 +55,40 @@ static int __init init_dax_wait_table(void)
- }
- fs_initcall(init_dax_wait_table);
- 
-+/*
-+ * We use lowest available bit in exceptional entry for locking, one bit for
-+ * the entry size (PMD) and two more to tell us if the entry is a zero page or
-+ * an empty entry that is just used for locking.  In total four special bits.
-+ *
-+ * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-+ * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-+ * block allocation.
-+ */
-+#define RADIX_DAX_SHIFT		(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
-+#define RADIX_DAX_ENTRY_LOCK	(1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
-+#define RADIX_DAX_PMD		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-+#define RADIX_DAX_ZERO_PAGE	(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-+#define RADIX_DAX_EMPTY		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
-+
-+static unsigned long dax_radix_sector(void *entry)
-+{
-+	return (unsigned long)entry >> RADIX_DAX_SHIFT;
-+}
-+
-+static void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
-+{
-+	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
-+			((unsigned long)sector << RADIX_DAX_SHIFT) |
-+			RADIX_DAX_ENTRY_LOCK);
-+}
-+
-+static unsigned int dax_radix_order(void *entry)
-+{
-+	if ((unsigned long)entry & RADIX_DAX_PMD)
-+		return PMD_SHIFT - PAGE_SHIFT;
-+	return 0;
-+}
-+
- static int dax_is_pmd_entry(void *entry)
- {
- 	return (unsigned long)entry & RADIX_DAX_PMD;
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index d6fd797..3dcaec5 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -76,33 +76,6 @@ void *dax_get_private(struct dax_device *dax_dev);
- long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
- 		void **kaddr, pfn_t *pfn);
- 
--/*
-- * We use lowest available bit in exceptional entry for locking, one bit for
-- * the entry size (PMD) and two more to tell us if the entry is a zero page or
-- * an empty entry that is just used for locking.  In total four special bits.
-- *
-- * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-- * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-- * block allocation.
-- */
--#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
--#define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
--#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
--#define RADIX_DAX_ZERO_PAGE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
--#define RADIX_DAX_EMPTY (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
--
--static inline unsigned long dax_radix_sector(void *entry)
--{
--	return (unsigned long)entry >> RADIX_DAX_SHIFT;
--}
--
--static inline void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
--{
--	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
--			((unsigned long)sector << RADIX_DAX_SHIFT) |
--			RADIX_DAX_ENTRY_LOCK);
--}
--
- ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
- 		const struct iomap_ops *ops);
- int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-@@ -124,19 +97,6 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
- }
- #endif
- 
--#ifdef CONFIG_FS_DAX_PMD
--static inline unsigned int dax_radix_order(void *entry)
--{
--	if ((unsigned long)entry & RADIX_DAX_PMD)
--		return PMD_SHIFT - PAGE_SHIFT;
--	return 0;
--}
--#else
--static inline unsigned int dax_radix_order(void *entry)
--{
--	return 0;
--}
--#endif
- static inline bool vma_is_dax(struct vm_area_struct *vma)
- {
- 	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
+ - Keep put_locked_mapping_entry() as a simple wrapper for
+   dax_unlock_mapping_entry() so it has naming parity with
+   get_unlocked_mapping_entry(). (Jan)
+
+ - Remove DAX special casing in page_cache_tree_insert(), move
+   now-private definitions from dax.h to dax.c. (Jan)
+
+Ross Zwisler (5):
+  mm: add vm_insert_mixed_mkwrite()
+  dax: relocate some dax functions
+  dax: use common 4k zero page for dax mmap reads
+  dax: remove DAX code from page_cache_tree_insert()
+  dax: move all DAX radix tree defs to fs/dax.c
+
+ Documentation/filesystems/dax.txt |   5 +-
+ fs/dax.c                          | 345 ++++++++++++++++----------------------
+ fs/ext2/file.c                    |  25 +--
+ fs/ext4/file.c                    |  32 +---
+ fs/xfs/xfs_file.c                 |   2 +-
+ include/linux/dax.h               |  45 -----
+ include/linux/mm.h                |   2 +
+ include/trace/events/fs_dax.h     |   2 -
+ mm/filemap.c                      |  13 +-
+ mm/memory.c                       |  57 ++++++-
+ 10 files changed, 205 insertions(+), 323 deletions(-)
+
 -- 
 2.9.4
 
