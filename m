@@ -1,82 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7869C6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:05:53 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v26so3295172pfa.0
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 07:05:53 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0076.outbound.protection.outlook.com. [104.47.42.76])
-        by mx.google.com with ESMTPS id p129si1593432pga.260.2017.06.28.07.05.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 07:05:52 -0700 (PDT)
-Subject: Re: [PATCH v8 RESEND 27/38] iommu/amd: Allow the AMD IOMMU to work
- with memory encryption
-References: <20170627150718.17428.81813.stgit@tlendack-t1.amdoffice.net>
- <20170627151230.17428.75281.stgit@tlendack-t1.amdoffice.net>
- <20170628093627.GD14532@8bytes.org>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <03a9d0f5-1f0e-ca0c-78a4-c3a7242f6935@amd.com>
-Date: Wed, 28 Jun 2017 09:05:44 -0500
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C77A6B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:15:16 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id f127so58281351pgc.10
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 07:15:16 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id q196si1628681pfq.484.2017.06.28.07.15.14
+        for <linux-mm@kvack.org>;
+        Wed, 28 Jun 2017 07:15:15 -0700 (PDT)
+Date: Wed, 28 Jun 2017 15:14:20 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
+Message-ID: <20170628141420.GK5981@leverpostej>
+References: <cover.1498140838.git.dvyukov@google.com>
+ <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
+ <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
+ <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+ <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
+ <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
+ <alpine.DEB.2.20.1706281425350.1970@nanos>
+ <alpine.DEB.2.20.1706281544480.1970@nanos>
 MIME-Version: 1.0
-In-Reply-To: <20170628093627.GD14532@8bytes.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1706281544480.1970@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 6/28/2017 4:36 AM, Joerg Roedel wrote:
-> Hi Tom,
+On Wed, Jun 28, 2017 at 03:54:42PM +0200, Thomas Gleixner wrote:
+> On Wed, 28 Jun 2017, Thomas Gleixner wrote:
+> > On Wed, 28 Jun 2017, Sebastian Andrzej Siewior wrote:
+> > > On 2017-06-28 14:15:18 [+0300], Andrey Ryabinin wrote:
+> > > > The main problem here is that arch_cmpxchg64_local() calls cmpxhg_local() instead of using arch_cmpxchg_local().
+> > > > 
+> > > > So, the patch bellow should fix the problem, also this will fix double instrumentation of cmpcxchg64[_local]().
+> > > > But I haven't tested this patch yet.
+> > > 
+> > > tested, works. Next step?
+> > 
+> > Check all other implementations in every architecture whether there is a
+> > similar problem .....
 
-Hi Joerg,
+FWIW, as x86 is the only user of atomic-instrumented.h, any similar
+issues are unrelated to this series.
 
-> 
-> On Tue, Jun 27, 2017 at 10:12:30AM -0500, Tom Lendacky wrote:
->> ---
->>   drivers/iommu/amd_iommu.c       |   30 ++++++++++++++++--------------
->>   drivers/iommu/amd_iommu_init.c  |   34 ++++++++++++++++++++++++++++------
->>   drivers/iommu/amd_iommu_proto.h |   10 ++++++++++
->>   drivers/iommu/amd_iommu_types.h |    2 +-
->>   4 files changed, 55 insertions(+), 21 deletions(-)
-> 
-> Looks like a straightforward change. Just one nit below.
-> 
->> +static bool amd_iommu_supports_sme(void)
->> +{
->> +	if (!sme_active() || (boot_cpu_data.x86 != 0x17))
->> +		return true;
->> +
->> +	/* For Fam17h, a specific level of support is required */
->> +	if (boot_cpu_data.microcode >= 0x08001205)
->> +		return true;
->> +
->> +	if ((boot_cpu_data.microcode >= 0x08001126) &&
->> +	    (boot_cpu_data.microcode <= 0x080011ff))
->> +		return true;
->> +
->> +	pr_notice("AMD-Vi: IOMMU not currently supported when SME is active\n");
->> +
->> +	return false;
->> +}
-> 
-> The name of the function is misleading. It checks whether the IOMMU can
-> be enabled when SME is active. But the name suggests that it checks
-> whether the iommu hardware supports SME.
-> 
-> How about renaming it to amd_iommu_sme_check()?
+That's not to say they don't exist, just that they're orthognal to this.
 
-Can do.
+I've been reworking things for arm64 [1], but there's more cleanup
+needed first.
+
+> > But this really want's a proper cleanup unless we want to waste the time
+> > over and over again with the next hard to figure out macro expansion fail.
+> > 
+> > First of all, cmpxchg64[_local]() can be implemented as inlines right away.
+> > 
+> > For cmpxchg*(), the situation is slightly different, but the sizeof()
+> > evaluation should be done at the top most level, even if we do it further
+> > down in the low level arch/asm-generic implementation once more.
+> > 
+> > Something along the lines of:
+> > 
+> > static inline unsigned long cmpxchg_varsize(void *ptr, unsigned long old,
+> > 					    unsigned long new, int size)
+> > {
+> > 	switch (size) {
+> > 	case 1:
+> > 	case 2:
+> > 	case 4:
+> > 		break;
+> > 	case 8:
+> > 		if (sizeof(unsigned long) == 8)
+> > 			break;
+> > 	default:
+> > 		BUILD_BUG_ON(1);
+> > 	}
+> > 	kasan_check(ptr, size);
+> > 	return arch_cmpxchg(ptr, old, new);
+> > }
+
+This'll need to re-cast things before the call to arch_cmpxchg(), and we
+can move the check above the switch, as in [2].
+
+> > #define cmpxchg(ptr, o, n)						\
+> > ({									\
+> > 	((__typeof__(*(ptr)))cmpxchg_varsize((ptr), (unsigned long)(o), \
+> > 			     (unsigned long)(n), sizeof(*(ptr))));	\
+> > })
+> > 
+> > That's the first step to cure the actual mess.
+> > 
+> > Ideally we get rid of that whole macro maze and convert everything to
+> > proper inlines with actual cmpxchg8/16/32/64() variants, but that's going
+> > to take some time. As an intermediate step we can at least propagate 'size'
+> > to arch_cmpxchg(), which is not that much of an effort.
+> 
+> And to be honest. That should have be done in the first place _BEFORE_
+> adding that atomic-instrumented stuff. I'm tempted to revert that mess
+> instead of 'fixing' it half arsed.
+
+Sure.
+
+Let's figure out what this *should* look like first.
+
+If that's sufficiently different to what we have now, we revert this and
+clean things up first.
+
+> As a side note, we have files (aside of x86/asm/atomic.h) which include
+> asm/cmpxchg.h ...
+> 
+> net/sunrpc/xprtmultipath.c:#include <asm/cmpxchg.h>
+> arch/x86/kvm/mmu.c:#include <asm/cmpxchg.h>
+> arch/x86/um/asm/barrier.h:#include <asm/cmpxchg.h>
+
+Ugh. I'd sent out a patch [3] for the first of these a while back, as I
+spotted that when experimenting with arm64, but tht got dropped on the
+floor.
+
+I can resend that, if you like?
+
+I guess it'd also make sense to fix the x86 bits at the same time, so
+I'm fine with tahat being folded with other fixes.
+
+> I'm really tired of all this featuritis crammed into the code without much
+> thought. Dammit, can we please stop this and clean up the existing mess
+> first before duct taping more mess on top of it.
+
+Sorry for adding to the mess here.
 
 Thanks,
-Tom
+Mark.
 
-> 
-> With that change the patch is:
-> 
-> 	Acked-by: Joerg Roedel <jroedel@suse.de>
-> 
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/mark/linux.git/log/?h=arm64/kasan-atomic
+[2] https://lkml.kernel.org/r/20170628124552.GG5981@leverpostej
+[3] http://lkml.kernel.org/r/1489574142-20856-1-git-send-email-mark.rutland@arm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
