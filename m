@@ -1,92 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DDEB6B02C3
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:15:05 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id r126so15865830vkg.9
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 21:15:05 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d4si585300uaa.115.2017.06.27.21.15.03
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BB26B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:39:15 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id k3so30324998ita.4
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 21:39:15 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id z3si4262195ite.36.2017.06.27.21.39.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 21:15:03 -0700 (PDT)
-Date: Tue, 27 Jun 2017 21:12:20 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 3/6] xfs: map KM_MAYFAIL to __GFP_RETRY_MAYFAIL
-Message-ID: <20170628041220.GB7736@birch.djwong.org>
-References: <20170623085345.11304-1-mhocko@kernel.org>
- <20170623085345.11304-4-mhocko@kernel.org>
- <20170627084950.GI28072@dhcp22.suse.cz>
- <20170627134751.GA28043@infradead.org>
- <20170627140654.GO28072@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 27 Jun 2017 21:39:14 -0700 (PDT)
+Message-ID: <595331FE.3090700@huawei.com>
+Date: Wed, 28 Jun 2017 12:35:10 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170627140654.GO28072@dhcp22.suse.cz>
+Subject: Re: [PATCH] futex: avoid undefined behaviour when shift exponent
+ is negative
+References: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com> <20170621164036.4findvvz7jj4cvqo@gmail.com>
+In-Reply-To: <20170621164036.4findvvz7jj4cvqo@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, xfs <linux-xfs@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang <zhongjiang@huawei.com>
 
-[add linux-xfs to cc]
+Hi,  Ingo
 
-FYI this is a discussion of the patch "xfs: map KM_MAYFAIL to
-__GFP_RETRY_MAYFAIL" which was last discussed on the xfs list in March
-and now is in the -mm tree...
+Thank you for the comment.
+On 2017/6/22 0:40, Ingo Molnar wrote:
+> * zhong jiang <zhongjiang@huawei.com> wrote:
+>
+>> when shift expoment is negative, left shift alway zero. therefore, we
+>> modify the logic to avoid the warining.
+>>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  arch/x86/include/asm/futex.h | 8 ++++++--
+>>  1 file changed, 6 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/x86/include/asm/futex.h b/arch/x86/include/asm/futex.h
+>> index b4c1f54..2425fca 100644
+>> --- a/arch/x86/include/asm/futex.h
+>> +++ b/arch/x86/include/asm/futex.h
+>> @@ -49,8 +49,12 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+>>  	int cmparg = (encoded_op << 20) >> 20;
+>>  	int oldval = 0, ret, tem;
+>>  
+>> -	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
+>> -		oparg = 1 << oparg;
+>> +	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
+>> +		if (oparg >= 0)
+>> +			oparg = 1 << oparg;
+>> +		else
+>> +			oparg = 0;
+>> +	}
+> Could we avoid all these complications by using an unsigned type?
+  I think it is not feasible.  a negative shift exponent is likely existence and reasonable.
+  as the above case,  oparg is a negative is common. 
 
-https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/commit/?h=next-20170627&id=43182d82c48fae80d31a9101b6bb06d75cee32c7
+ I think it can be avoided by following change. 
 
-On Tue, Jun 27, 2017 at 04:06:54PM +0200, Michal Hocko wrote:
-> On Tue 27-06-17 06:47:51, Christoph Hellwig wrote:
-> > On Tue, Jun 27, 2017 at 10:49:50AM +0200, Michal Hocko wrote:
-> > > Christoph, Darrick
-> > > could you have a look at this patch please? Andrew has put it into mmotm
-> > > but I definitely do not want it passes your attention.
-> > 
-> > I don't think what we have to gain from it.  Callsite for KM_MAYFAIL
-> > should handler failures, but the current behavior seems to be doing fine
-> > too.
-> 
-> Last time I've asked I didnd't get any reply so let me ask again. Some
-> of those allocations seem to be small (e.g. by a random look
-> xlog_cil_init allocates struct xfs_cil which is 576B and struct
-> xfs_cil_ctx 176B). Those do not fail currently under most conditions and
-> it will retry allocation with the OOM killer if there is no progress. As
-> you know that failing those is acceptable, wouldn't it be better to
-> simply fail them and do not disrupt the system with the oom killer?
+  diff --git a/arch/x86/include/asm/futex.h b/arch/x86/include/asm/futex.h
+index b4c1f54..3205e86 100644
+--- a/arch/x86/include/asm/futex.h
++++ b/arch/x86/include/asm/futex.h
+@@ -50,7 +50,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+        int oldval = 0, ret, tem;
 
-I remember the first time I saw this patch, and didn't have much of an
-opinion either way -- the current behavior is fine, so why mess around?
-I'd just as soon XFS not have to deal with errors if it doesn't have to. :)
+        if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
+-               oparg = 1 << oparg;
++               oparg = safe_shift(1, oparg);
 
-But, you've asked again, so I'll be less glib this time.
+        if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+                return -EFAULT;
+diff --git a/drivers/video/fbdev/core/fbmem.c b/drivers/video/fbdev/core/fbmem.c
+index 069fe79..b4edda3 100644
+--- a/drivers/video/fbdev/core/fbmem.c
++++ b/drivers/video/fbdev/core/fbmem.c
+@@ -190,11 +190,6 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 
-I took a quick glance at all the MAYFAIL users in XFS.  /Nearly/ all
-them seem to be cases either where we're mounting a filesystem or are
-collecting memory for some ioctl -- in either case it's not hard to just
-fail back out to userspace.  The upcoming online fsck patches use it
-heavily, which is fine since we can always fail out to userspace and
-tell the admin to go run xfs_repair offline.
+ #ifdef CONFIG_LOGO
 
-The one user that caught my eye was xfs_iflush_cluster, which seems to
-want an array of pointers to a cluster's worth of struct xfs_inodes.  On
-a 64k block fs with 256 byte pointers I guess that could be ~2k worth of
-pointers, but otoh it looks like that's an optimization: If we're going
-to flush an inode out to disk we opportunistically scan the inode tree
-to see if the adjacent inodes are also ready to flush; if we can't get
-the memory for this, then it just backs off to flushing the one inode.
+-static inline unsigned safe_shift(unsigned d, int n)
+-{
+-       return n < 0 ? d >> -n : d << n;
+-}
+-
+ static void fb_set_logocmap(struct fb_info *info,
+                                   const struct linux_logo *logo)
+ {
+diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+index d043ada..f3b8856 100644
+--- a/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -841,6 +841,10 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
+  */
+ #define clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
 
-All the callers of MAYFAIL that I found actually /do/ check the return
-value and start bailing out... so, uh, I guess I'm fine with it.  At
-worst it's easily reverted during -rc if it causes problems.  Anyone
-have a stronger objection?
++static inline unsigned safe_shift(unsigned d, int n)
++{
++       return n < 0 ? d >> -n : d << n;
++}
 
-Acked-by: Darrick J. Wong <darrick.wong@oracle.com>
+Thansk
+zhongjiang
 
---D
+> Thanks,
+>
+> 	Ingo
+>
+> .
+>
 
-> -- 
-> Michal Hocko
-> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
