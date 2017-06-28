@@ -1,90 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 508346B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 13:08:20 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f17so28664140qte.13
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:08:20 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id l34si2447896qte.350.2017.06.28.10.08.19
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 27DF12802FE
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 13:18:59 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id m77so15568984lfe.3
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:18:59 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id j83si1283726lfi.200.2017.06.28.10.18.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 10:08:19 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id p21so8528289qke.0
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:08:19 -0700 (PDT)
-From: Doug Berger <opendmb@gmail.com>
-Subject: [PATCH] cma: fix calculation of aligned offset
-Date: Wed, 28 Jun 2017 10:07:41 -0700
-Message-Id: <20170628170742.2895-1-opendmb@gmail.com>
+        Wed, 28 Jun 2017 10:18:57 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id g21so5746900lfk.1
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:18:57 -0700 (PDT)
+Date: Wed, 28 Jun 2017 20:18:54 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH v3 1/2] mm/list_lru.c: fix list_lru_count_node() to be
+ race free
+Message-ID: <20170628171854.t4sjyjv55j673qzv@esperanza>
+References: <20170622174929.GB3273@esperanza>
+ <1498630044-26724-1-git-send-email-stummala@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1498630044-26724-1-git-send-email-stummala@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gregory Fong <gregory.0xf0@gmail.com>
-Cc: Doug Berger <opendmb@gmail.com>, Angus Clark <angus@angusclark.org>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Lucas Stach <l.stach@pengutronix.de>, Catalin Marinas <catalin.marinas@arm.com>, Shiraz Hashim <shashim@codeaurora.org>, Jaewon Kim <jaewon31.kim@samsung.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
+To: Sahitya Tummala <stummala@codeaurora.org>
+Cc: Alexander Polakov <apolyakov@beget.ru>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-The align_offset parameter is used by bitmap_find_next_zero_area_off()
-to represent the offset of map's base from the previous alignment
-boundary; the function ensures that the returned index, plus the
-align_offset, honors the specified align_mask.
+On Wed, Jun 28, 2017 at 11:37:23AM +0530, Sahitya Tummala wrote:
+> list_lru_count_node() iterates over all memcgs to get
+> the total number of entries on the node but it can race with
+> memcg_drain_all_list_lrus(), which migrates the entries from
+> a dead cgroup to another. This can return incorrect number of
+> entries from list_lru_count_node().
+> 
+> Fix this by keeping track of entries per node and simply return
+> it in list_lru_count_node().
+> 
+> Signed-off-by: Sahitya Tummala <stummala@codeaurora.org>
+> ---
+>  include/linux/list_lru.h |  1 +
+>  mm/list_lru.c            | 14 ++++++--------
+>  2 files changed, 7 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+> index cb0ba9f..eff61bc 100644
+> --- a/include/linux/list_lru.h
+> +++ b/include/linux/list_lru.h
+> @@ -44,6 +44,7 @@ struct list_lru_node {
+>  	/* for cgroup aware lrus points to per cgroup lists, otherwise NULL */
+>  	struct list_lru_memcg	*memcg_lrus;
+>  #endif
+> +	long nr_count;
 
-The logic introduced by commit b5be83e308f7 ("mm: cma: align to
-physical address, not CMA region position") has the cma driver
-calculate the offset to the *next* alignment boundary.  In most cases,
-the base alignment is greater than that specified when making
-allocations, resulting in a zero offset whether we align up or down.
-In the example given with the commit, the base alignment (8MB) was
-half the requested alignment (16MB) so the math also happened to work
-since the offset is 8MB in both directions.  However, when requesting
-allocations with an alignment greater than twice that of the base,
-the returned index would not be correctly aligned.
+'nr_count' sounds awkward. I think it should be called 'nr_items'.
 
-Also, the align_order arguments of cma_bitmap_aligned_mask() and
-cma_bitmap_aligned_offset() should not be negative so the argument
-type was made unsigned.
-
-Fixes: b5be83e308f7 ("mm: cma: align to physical address, not CMA region position")
-Signed-off-by: Angus Clark <angus@angusclark.org>
-Signed-off-by: Doug Berger <opendmb@gmail.com>
----
- mm/cma.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
-
-diff --git a/mm/cma.c b/mm/cma.c
-index 978b4a1441ef..56a388eb0242 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -59,7 +59,7 @@ const char *cma_get_name(const struct cma *cma)
- }
- 
- static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
--					     int align_order)
-+					     unsigned int align_order)
- {
- 	if (align_order <= cma->order_per_bit)
- 		return 0;
-@@ -67,17 +67,14 @@ static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
- }
- 
- /*
-- * Find a PFN aligned to the specified order and return an offset represented in
-- * order_per_bits.
-+ * Find the offset of the base PFN from the specified align_order.
-+ * The value returned is represented in order_per_bits.
-  */
- static unsigned long cma_bitmap_aligned_offset(const struct cma *cma,
--					       int align_order)
-+					       unsigned int align_order)
- {
--	if (align_order <= cma->order_per_bit)
--		return 0;
--
--	return (ALIGN(cma->base_pfn, (1UL << align_order))
--		- cma->base_pfn) >> cma->order_per_bit;
-+	return (cma->base_pfn & ((1UL << align_order) - 1))
-+		>> cma->order_per_bit;
- }
- 
- static unsigned long cma_bitmap_pages_to_bits(const struct cma *cma,
--- 
-2.13.0
+Other than that, looks good to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
