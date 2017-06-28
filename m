@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBD45280301
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:14 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id r62so27897209qkf.6
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:14 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC368280301
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:16 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id p21so27882404qke.14
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:16 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n10si1748455qtn.149.2017.06.28.11.01.13
+        by mx.google.com with ESMTPS id w145si2553041qka.263.2017.06.28.11.01.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 11:01:13 -0700 (PDT)
+        Wed, 28 Jun 2017 11:01:15 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 06/15] mm/memory_hotplug: introduce add_pages
-Date: Wed, 28 Jun 2017 14:00:38 -0400
-Message-Id: <20170628180047.5386-7-jglisse@redhat.com>
+Subject: [PATCH 08/15] mm/ZONE_DEVICE: special case put_page() for device private pages v2
+Date: Wed, 28 Jun 2017 14:00:40 -0400
+Message-Id: <20170628180047.5386-9-jglisse@redhat.com>
 In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
 References: <20170628180047.5386-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,117 +21,183 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Michal Hocko <mhocko@suse.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-From: Michal Hocko <mhocko@suse.com>
+A ZONE_DEVICE page that reach a refcount of 1 is free ie no longer
+have any user. For device private pages this is important to catch
+and thus we need to special case put_page() for this.
 
-There are new users of memory hotplug emerging. Some of them require
-different subset of arch_add_memory. There are some which only require
-allocation of struct pages without mapping those pages to the kernel
-address space. We currently have __add_pages for that purpose. But this
-is rather lowlevel and not very suitable for the code outside of the
-memory hotplug. E.g. x86_64 wants to update max_pfn which should be
-done by the caller. Introduce add_pages() which should care about those
-details if they are needed. Each architecture should define its
-implementation and select CONFIG_ARCH_HAS_ADD_PAGES. All others use
-the currently existing __add_pages.
+Changed since v1:
+  - use static key to disable special code path in put_page() by
+    default
+  - uninline put_zone_device_private_page()
+  - fix build issues with some kernel config related to header
+    inter-dependency
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- arch/x86/Kconfig               |  4 ++++
- arch/x86/mm/init_64.c          | 22 +++++++++++++++-------
- include/linux/memory_hotplug.h | 11 +++++++++++
- 3 files changed, 30 insertions(+), 7 deletions(-)
+ include/linux/memremap.h | 13 +++++++++++++
+ include/linux/mm.h       | 31 ++++++++++++++++++++++---------
+ kernel/memremap.c        | 19 ++++++++++++++++++-
+ mm/hmm.c                 |  8 ++++++++
+ 4 files changed, 61 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index aef4983d729e..60e608c2f976 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -2266,6 +2266,10 @@ source "kernel/livepatch/Kconfig"
- 
- endmenu
- 
-+config ARCH_HAS_ADD_PAGES
-+	def_bool y
-+	depends on X86_64 && ARCH_ENABLE_MEMORY_HOTPLUG
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index 45a97f7a612f..57546a07a558 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -126,6 +126,14 @@ struct dev_pagemap {
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap);
+ struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
 +
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 	depends on X86_64 || (X86_32 && HIGHMEM)
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index afe6250647a7..542729d77120 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -761,7 +761,7 @@ void __init paging_init(void)
-  * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
-  * updating.
-  */
--static void  update_end_of_memory_vars(u64 start, u64 size)
-+static void update_end_of_memory_vars(u64 start, u64 size)
- {
- 	unsigned long end_pfn = PFN_UP(start + size);
- 
-@@ -772,22 +772,30 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
- 	}
- }
- 
--int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
-+int add_pages(int nid, unsigned long start_pfn,
-+	      unsigned long nr_pages, bool want_memblock)
- {
--	unsigned long start_pfn = start >> PAGE_SHIFT;
--	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	int ret;
- 
--	init_memory_mapping(start, start + size);
--
- 	ret = __add_pages(nid, start_pfn, nr_pages, want_memblock);
- 	WARN_ON_ONCE(ret);
- 
- 	/* update max_pfn, max_low_pfn and high_memory */
--	update_end_of_memory_vars(start, size);
-+	update_end_of_memory_vars(start_pfn << PAGE_SHIFT,
-+				  nr_pages << PAGE_SHIFT);
- 
- 	return ret;
- }
++static inline bool is_zone_device_page(const struct page *page);
 +
-+int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
++static inline bool is_device_private_page(const struct page *page)
 +{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+
-+	init_memory_mapping(start, start + size);
-+
-+	return add_pages(nid, start_pfn, nr_pages, want_memblock);
++	return is_zone_device_page(page) &&
++		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
 +}
- EXPORT_SYMBOL_GPL(arch_add_memory);
- 
- #define PAGE_INUSE 0xFD
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index c8a5056a5ae0..0c19c38b7f20 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -133,6 +133,17 @@ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
- extern int __add_pages(int nid, unsigned long start_pfn,
- 	unsigned long nr_pages, bool want_memblock);
- 
-+#ifndef CONFIG_ARCH_HAS_ADD_PAGES
-+static inline int add_pages(int nid, unsigned long start_pfn,
-+			    unsigned long nr_pages, bool want_memblock)
-+{
-+	return __add_pages(nid, start_pfn, nr_pages, want_memblock);
-+}
-+#else /* ARCH_HAS_ADD_PAGES */
-+int add_pages(int nid, unsigned long start_pfn,
-+	      unsigned long nr_pages, bool want_memblock);
-+#endif /* ARCH_HAS_ADD_PAGES */
-+
- #ifdef CONFIG_NUMA
- extern int memory_add_physaddr_to_nid(u64 start);
  #else
+ static inline void *devm_memremap_pages(struct device *dev,
+ 		struct resource *res, struct percpu_ref *ref,
+@@ -144,6 +152,11 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ {
+ 	return NULL;
+ }
++
++static inline bool is_device_private_page(const struct page *page)
++{
++	return false;
++}
+ #endif
+ 
+ /**
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d53add704a7d..330a216ac315 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -23,6 +23,7 @@
+ #include <linux/page_ext.h>
+ #include <linux/err.h>
+ #include <linux/page_ref.h>
++#include <linux/memremap.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -788,25 +789,25 @@ static inline bool is_zone_device_page(const struct page *page)
+ {
+ 	return page_zonenum(page) == ZONE_DEVICE;
+ }
+-
+-static inline bool is_device_private_page(const struct page *page)
+-{
+-	/* See MEMORY_DEVICE_PRIVATE in include/linux/memory_hotplug.h */
+-	return ((page_zonenum(page) == ZONE_DEVICE) &&
+-		(page->pgmap->type == MEMORY_DEVICE_PRIVATE));
+-}
+ #else
+ static inline bool is_zone_device_page(const struct page *page)
+ {
+ 	return false;
+ }
++#endif
+ 
+-static inline bool is_device_private_page(const struct page *page)
++#ifdef CONFIG_DEVICE_PRIVATE
++void put_zone_device_private_page(struct page *page);
++#else
++static inline void put_zone_device_private_page(struct page *page)
+ {
+-	return false;
+ }
+ #endif
+ 
++static inline bool is_device_private_page(const struct page *page);
++
++DECLARE_STATIC_KEY_FALSE(device_private_key);
++
+ static inline void get_page(struct page *page)
+ {
+ 	page = compound_head(page);
+@@ -822,6 +823,18 @@ static inline void put_page(struct page *page)
+ {
+ 	page = compound_head(page);
+ 
++	/*
++	 * For private device pages we need to catch refcount transition from
++	 * 2 to 1, when refcount reach one it means the private device page is
++	 * free and we need to inform the device driver through callback. See
++	 * include/linux/memremap.h and HMM for details.
++	 */
++	if (static_branch_unlikely(&device_private_key) &&
++	    unlikely(is_device_private_page(page))) {
++		put_zone_device_private_page(page);
++		return;
++	}
++
+ 	if (put_page_testzero(page))
+ 		__put_page(page);
+ }
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index cd596d4a7356..b9baa6c07918 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -11,7 +11,6 @@
+  * General Public License for more details.
+  */
+ #include <linux/radix-tree.h>
+-#include <linux/memremap.h>
+ #include <linux/device.h>
+ #include <linux/types.h>
+ #include <linux/pfn_t.h>
+@@ -464,3 +463,21 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+ 	return pgmap ? pgmap->altmap : NULL;
+ }
+ #endif /* CONFIG_ZONE_DEVICE */
++
++
++#ifdef CONFIG_DEVICE_PRIVATE
++void put_zone_device_private_page(struct page *page)
++{
++	int count = page_ref_dec_return(page);
++
++	/*
++	 * If refcount is 1 then page is freed and refcount is stable as nobody
++	 * holds a reference on the page.
++	 */
++	if (count == 1)
++		page->pgmap->page_free(page, page->pgmap->data);
++	else if (!count)
++		__put_page(page);
++}
++EXPORT_SYMBOL(put_zone_device_private_page);
++#endif /* CONFIG_DEVICE_PRIVATE */
+diff --git a/mm/hmm.c b/mm/hmm.c
+index e7d5a363d6e5..ff9011ef51f3 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -25,9 +25,17 @@
+ #include <linux/sched.h>
+ #include <linux/swapops.h>
+ #include <linux/hugetlb.h>
++#include <linux/jump_label.h>
+ #include <linux/mmu_notifier.h>
+ 
+ 
++/*
++ * Device private memory see HMM (Documentation/vm/hmm.txt) or hmm.h
++ */
++DEFINE_STATIC_KEY_FALSE(device_private_key);
++EXPORT_SYMBOL(device_private_key);
++
++
+ #ifdef CONFIG_HMM
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
 -- 
 2.13.0
 
