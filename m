@@ -1,81 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 967C46B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 06:23:51 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p204so5205568wmg.3
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:23:51 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id q7si1448378wra.198.2017.06.28.03.23.50
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B26F6B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 07:10:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z81so33238631wrc.2
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 04:10:52 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u42si1514859wrc.363.2017.06.28.04.10.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 03:23:50 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id 62so48839498wmw.1
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:23:50 -0700 (PDT)
-Date: Wed, 28 Jun 2017 13:15:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] thp, mm: Fix crash due race in MADV_FREE handling
-Message-ID: <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
-References: <20170628101249.17879-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Jun 2017 04:10:50 -0700 (PDT)
+Date: Wed, 28 Jun 2017 13:10:14 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
+In-Reply-To: <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1706281306120.1970@nanos>
+References: <cover.1498140838.git.dvyukov@google.com> <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com> <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc> <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170628101249.17879-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Jun 28, 2017 at 01:12:49PM +0300, Kirill A. Shutemov wrote:
-> Reinette reported following crash:
+On Wed, 28 Jun 2017, Dmitry Vyukov wrote:
+> On Wed, Jun 28, 2017 at 12:02 PM, Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
+> > @@ -359,16 +359,16 @@ static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
+> >
+> >  #define cmpxchg64(ptr, old, new)                       \
+> >  ({                                                     \
+> > -       __typeof__(ptr) ____ptr = (ptr);                \
+> > -       kasan_check_write(____ptr, sizeof(*____ptr));   \
+> > -       arch_cmpxchg64(____ptr, (old), (new));          \
+> > +       __typeof__(ptr) ____ptr64 = (ptr);              \
+> > +       kasan_check_write(____ptr64, sizeof(*____ptr64));\
+> > +       arch_cmpxchg64(____ptr64, (old), (new));        \
+> >  })
+> >
+> >  #define cmpxchg64_local(ptr, old, new)                 \
+> >  ({                                                     \
+> > -       __typeof__(ptr) ____ptr = (ptr);                \
+> > -       kasan_check_write(____ptr, sizeof(*____ptr));   \
+> > -       arch_cmpxchg64_local(____ptr, (old), (new));    \
+> > +       __typeof__(ptr) ____ptr64 = (ptr);              \
+> > +       kasan_check_write(____ptr64, sizeof(*____ptr64));\
+> > +       arch_cmpxchg64_local(____ptr64, (old), (new));  \
+> >  })
+> >
+> >  #define cmpxchg_double(p1, p2, o1, o2, n1, n2)                         \
 > 
->   BUG: Bad page state in process log2exe  pfn:57600
->   page:ffffea00015d8000 count:0 mapcount:0 mapping:          (null) index:0x20200
->   flags: 0x4000000000040019(locked|uptodate|dirty|swapbacked)
->   raw: 4000000000040019 0000000000000000 0000000000020200 00000000ffffffff
->   raw: ffffea00015d8020 ffffea00015d8020 0000000000000000 0000000000000000
->   page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
->   bad because of flags: 0x1(locked)
->   Modules linked in: rfcomm 8021q bnep intel_rapl x86_pkg_temp_thermal coretemp efivars btusb btrtl btbcm pwm_lpss_pci snd_hda_codec_hdmi btintel pwm_lpss snd_hda_codec_realtek snd_soc_skl snd_hda_codec_generic snd_soc_skl_ipc spi_pxa2xx_platform snd_soc_sst_ipc snd_soc_sst_dsp i2c_designware_platform i2c_designware_core snd_hda_ext_core snd_soc_sst_match snd_hda_intel snd_hda_codec mei_me snd_hda_core mei snd_soc_rt286 snd_soc_rl6347a snd_soc_core efivarfs
->   CPU: 1 PID: 354 Comm: log2exe Not tainted 4.12.0-rc7-test-test #19
->   Hardware name: Intel corporation NUC6CAYS/NUC6CAYB, BIOS AYAPLCEL.86A.0027.2016.1108.1529 11/08/2016
->   Call Trace:
->    dump_stack+0x95/0xeb
->    bad_page+0x16a/0x1f0
->    free_pages_check_bad+0x117/0x190
->    ? rcu_read_lock_sched_held+0xa8/0x130
->    free_hot_cold_page+0x7b1/0xad0
->    __put_page+0x70/0xa0
->    madvise_free_huge_pmd+0x627/0x7b0
->    madvise_free_pte_range+0x6f8/0x1150
->    ? debug_check_no_locks_freed+0x280/0x280
->    ? swapin_walk_pmd_entry+0x380/0x380
->    __walk_page_range+0x6b5/0xe30
->    walk_page_range+0x13b/0x310
->    madvise_free_page_range.isra.16+0xad/0xd0
->    ? force_swapin_readahead+0x110/0x110
->    ? swapin_walk_pmd_entry+0x380/0x380
->    ? lru_add_drain_cpu+0x160/0x320
->    madvise_free_single_vma+0x2e4/0x470
->    ? madvise_free_page_range.isra.16+0xd0/0xd0
->    ? vmacache_update+0x100/0x130
->    ? find_vma+0x35/0x160
->    SyS_madvise+0x8ce/0x1450
 > 
-> If somebody frees the page under us and we hold the last reference to
-> it, put_page() would attempt to free the page before unlocking it.
+> Doh! Thanks for fixing this. I think I've a similar crash in a
+> different place when I developed the patch.
+> The problem is that when we do:
 > 
-> The fix is trivial reorder of operations.
+>        __typeof__(ptr) ____ptr = (ptr);                \
+>        arch_cmpxchg64_local(____ptr, (old), (new));    \
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Reinette Chatre <reinette.chatre@intel.com>
-> Fixes: 9818b8cde622 ("madvise_free, thp: fix madvise_free_huge_pmd return value after splitting")
+> We don't necessary pass value of our just declared ____ptr to
+> arch_cmpxchg64_local(). We just pass a symbolic identifier. So if
+> arch_cmpxchg64_local() declares own ____ptr and then tries to use what
+> we passed ("____ptr") it will actually refer to own variable declared
+> rather than to what we wanted to pass in.
+> 
+> In my case I ended up with something like:
+> 
+> __typeof__(foo) __ptr = __ptr;
+> 
+> which compiler decided to turn into 0.
+> 
+> Thank you, macros.
+> 
+> We can add more underscores, but the problem can happen again. Should
+> we prefix current function/macro name to all local vars?..
 
-Sorry, the wrong Fixes. The right one:
+Actually we can void that ___ptr dance completely.
 
-Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
+Thanks,
 
--- 
- Kirill A. Shutemov
+	tglx
+
+8<--------------------
+
+--- a/include/asm-generic/atomic-instrumented.h
++++ b/include/asm-generic/atomic-instrumented.h
+@@ -359,37 +359,32 @@ static __always_inline bool atomic64_add
+ 
+ #define cmpxchg(ptr, old, new)				\
+ ({							\
+-	__typeof__(ptr) ___ptr = (ptr);			\
+-	kasan_check_write(___ptr, sizeof(*___ptr));	\
++	kasan_check_write((ptr), sizeof(*(ptr)));	\
+ 	arch_cmpxchg((ptr), (old), (new));		\
+ })
+ 
+ #define sync_cmpxchg(ptr, old, new)			\
+ ({							\
+-	__typeof__(ptr) ___ptr = (ptr);			\
+-	kasan_check_write(___ptr, sizeof(*___ptr));	\
+-	arch_sync_cmpxchg(___ptr, (old), (new));	\
++	kasan_check_write((ptr), sizeof(*(ptr)));	\
++	arch_sync_cmpxchg((ptr), (old), (new));		\
+ })
+ 
+ #define cmpxchg_local(ptr, old, new)			\
+ ({							\
+-	__typeof__(ptr) ____ptr = (ptr);		\
+-	kasan_check_write(____ptr, sizeof(*____ptr));	\
+-	arch_cmpxchg_local(____ptr, (old), (new));	\
++	kasan_check_write((ptr), sizeof(*(ptr)));	\
++	arch_cmpxchg_local((ptr), (old), (new));	\
+ })
+ 
+ #define cmpxchg64(ptr, old, new)			\
+ ({							\
+-	__typeof__(ptr) ____ptr = (ptr);		\
+-	kasan_check_write(____ptr, sizeof(*____ptr));	\
+-	arch_cmpxchg64(____ptr, (old), (new));		\
++	kasan_check_write((ptr), sizeof(*(ptr)));	\
++	arch_cmpxchg64((ptr), (old), (new));		\
+ })
+ 
+ #define cmpxchg64_local(ptr, old, new)			\
+ ({							\
+-	__typeof__(ptr) ____ptr = (ptr);		\
+-	kasan_check_write(____ptr, sizeof(*____ptr));	\
+-	arch_cmpxchg64_local(____ptr, (old), (new));	\
++	kasan_check_write((ptr), sizeof(*(ptr)));	\
++	arch_cmpxchg64_local((ptr), (old), (new));	\
+ })
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
