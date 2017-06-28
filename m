@@ -1,98 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CEFF28030E
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:24:15 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id z62so46799322ioi.8
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:24:15 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z191si2664925ioe.46.2017.06.28.11.24.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7258E28030E
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:29:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p204so7260313wmg.3
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:29:26 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 9si2284234wrt.100.2017.06.28.11.21.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 11:24:14 -0700 (PDT)
-Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
- delivery
-References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
- <20170627070643.GA28078@dhcp22.suse.cz> <20170627153557.GB10091@rapoport-lnx>
- <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
- <20170628131806.GD10091@rapoport-lnx>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
-Date: Wed, 28 Jun 2017 11:23:32 -0700
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Jun 2017 11:21:48 -0700 (PDT)
+Date: Wed, 28 Jun 2017 20:21:16 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
+In-Reply-To: <20170628155445.GD8252@leverpostej>
+Message-ID: <alpine.DEB.2.20.1706282020490.1890@nanos>
+References: <cover.1498140838.git.dvyukov@google.com> <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com> <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc> <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+ <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com> <20170628121246.qnk2csgzbgpqrmw3@linutronix.de> <alpine.DEB.2.20.1706281425350.1970@nanos> <alpine.DEB.2.20.1706281544480.1970@nanos> <20170628141420.GK5981@leverpostej> <alpine.DEB.2.20.1706281709140.1970@nanos>
+ <20170628155445.GD8252@leverpostej>
 MIME-Version: 1.0
-In-Reply-To: <20170628131806.GD10091@rapoport-lnx>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
+On Wed, 28 Jun 2017, Mark Rutland wrote:
+> On Wed, Jun 28, 2017 at 05:24:24PM +0200, Thomas Gleixner wrote:
+> Given we're gonig to clean things up, we may as well avoid the backwards
+> include of <asm-generic/atomic_instrumented.h>, whcih was only there as
+> a bodge:
+> 
+> For the UP arches we do:
+> # echo '#include <asm-generic/atomic_up.h>' >arch/xxx/include/asm/atomic.h
+> # mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
+> 
+> Then we add a <linux/atomic_instrumented.h>:
+> 
+> #ifndef __LINUX_ATOMIC_INSTRUMENTED_H
+> #define __LINUX_ATOMIC INSTRUMENTED_H
+> 
+> #include <asm/atomic.h>
+> 
+> #if CONFIG_ATOMIC_INSTRUMENTED_H
+> <instrumentation>
+> #endif
+> 
+> #endif /* __LINUX_ATOMIC_ARCH_H */
+> 
+> ... and make <linux/atomic.h> incldue that rather than <asm/atomic.h>.
+> 
+> That way the instrumentation's orthogonal to the UP-ness of the arch,
+> and we can fold any other instrumentation in there, or later move it
+> directly into <linux/atomic.h>
 
+Sounds like a plan.
 
-On 6/28/17 6:18 AM, Mike Rapoport wrote:
-> On Tue, Jun 27, 2017 at 09:01:20AM -0700, Prakash Sangappa wrote:
->> On 6/27/17 8:35 AM, Mike Rapoport wrote:
->>
->>> On Tue, Jun 27, 2017 at 09:06:43AM +0200, Michal Hocko wrote:
->>>> This is an user visible API so let's CC linux-api mailing list.
->>>>
->>>> On Mon 26-06-17 12:46:13, Prakash Sangappa wrote:
->>>>
->>>>> Any access to mapped address over holes in the file, which can occur due
->>>>> to bugs in the application, is considered invalid and expect the process
->>>>> to simply receive a SIGBUS.  However, currently when a hole in the file is
->>>>> accessed via the mapped address, kernel/mm attempts to automatically
->>>>> allocate a page at page fault time, resulting in implicitly filling the
->>>>> hole in the file. This may not be the desired behavior for applications
->>>>> like the database that want to explicitly manage page allocations of
->>>>> hugetlbfs files.
->>>> So you register UFFD_FEATURE_SIGBUS on each region tha you are unmapping
->>>> and than just let those offenders die?
->>> If I understand correctly, the database will create the mapping, then it'll
->>> open userfaultfd and register those mappings with the userfault.
->>> Afterwards, when the application accesses a hole userfault will cause
->>> SIGBUS and the application will process it in whatever way it likes, e.g.
->>> just die.
->> Yes.
->>
->>> What I don't understand is why won't you use userfault monitor process that
->>> will take care of the page fault events?
->>> It shouldn't be much overhead running it and it can keep track on all the
->>> userfault file descriptors for you and it will allow more versatile error
->>> handling that SIGBUS.
->>>
->> Co-ordination with the external monitor process by all the database
->> processes
->> to send  their userfaultfd is still an overhead.
-> You are planning to register in userfaultfd only the holes you punch to
-> deallocate pages, am I right?
+Thanks,
 
-
-No, the entire mmap'ed region. The DB processes would mmap(MAP_NORESERVE)
-hugetlbfs files, register this mapped address with userfaultfd ones 
-right after
-the mmap() call.
-
->
-> And the co-ordination of the userfault file descriptor with the monitor
-> would have been added after calls to fallocate() and userfaultfd_register()?
-
-Well, the database application does not need to deal with a monitor.
-
->
-> I've just been thinking that maybe it would be possible to use
-> UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
-> of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
-> non-cooperative userfaultfd. It could be that it will solve your issue as
-> well.
->
-
-Will this result in a signal delivery?
-
-In the use case described, the database application does not need any event
-for  hole punching. Basically, just a signal for any invalid access to 
-mapped
-area over holes in the file.
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
