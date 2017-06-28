@@ -1,104 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DAFB6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 08:17:40 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m188so56590490pgm.2
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 05:17:40 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id g9si1589093pli.273.2017.06.28.05.17.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 004776B02C3
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 08:25:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c81so9907656wmd.10
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 05:25:21 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 53si1712611wry.114.2017.06.28.05.25.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 05:17:38 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 6/5] x86/KASLR: Fix detection 32/64 bit bootloaders for 5-level paging
-Date: Wed, 28 Jun 2017 15:17:30 +0300
-Message-Id: <20170628121730.43079-1-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
-References: <20170622122608.80435-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Jun 2017 05:25:20 -0700 (PDT)
+Date: Wed, 28 Jun 2017 14:24:50 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
+In-Reply-To: <CACT4Y+YqCP8RC9nRo5oBw2GFdFF+AVJgpcGGENR7hHL9s3GSHg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1706281423390.1970@nanos>
+References: <cover.1498140838.git.dvyukov@google.com> <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com> <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc> <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+ <alpine.DEB.2.20.1706281306120.1970@nanos> <CACT4Y+YqCP8RC9nRo5oBw2GFdFF+AVJgpcGGENR7hHL9s3GSHg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-KASLR uses hack to detect whether we booted via startup_32() or
-startup_64(): it checks what is loaded into cr3 and compares it to
-_pgtables. _pgtables is the array of page tables where early code
-allocates page table from.
+On Wed, 28 Jun 2017, Dmitry Vyukov wrote:
+> On Wed, Jun 28, 2017 at 1:10 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> >  #define cmpxchg_local(ptr, old, new)                   \
+> >  ({                                                     \
+> > -       __typeof__(ptr) ____ptr = (ptr);                \
+> > -       kasan_check_write(____ptr, sizeof(*____ptr));   \
+> > -       arch_cmpxchg_local(____ptr, (old), (new));      \
+> > +       kasan_check_write((ptr), sizeof(*(ptr)));       \
+> > +       arch_cmpxchg_local((ptr), (old), (new));        \
+> 
+> 
+> /\/\/\/\/\/\/\/\/\/\/\/\
+> 
+> These are macros.
+> If ptr is foo(), then we will call foo() twice.
 
-KASLR expects cr3 to point to _pgtables if we booted via startup_32(), but
-that's not true if we booted with 5-level paging enabled. In this case top
-level page table is allocated separately and only the first p4d page table
-is allocated from the array.
+If that's true, the foo() will be evaluated a gazillion more times down the
+way to the end of this macro maze.
 
-Let's modify the check to cover both 4- and 5-level paging cases.
+Thanks,
 
-The patch also renames 'level4p' to 'top_level_pgt' as it now can hold
-page table for 4th or 5th level, depending on configuration.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Kees Cook <keescook@chromium.org>
----
- arch/x86/boot/compressed/pagetable.c | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
-
-diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
-index 8e69df96492e..da4cf44d4aac 100644
---- a/arch/x86/boot/compressed/pagetable.c
-+++ b/arch/x86/boot/compressed/pagetable.c
-@@ -63,7 +63,7 @@ static void *alloc_pgt_page(void *context)
- static struct alloc_pgt_data pgt_data;
- 
- /* The top level page table entry pointer. */
--static unsigned long level4p;
-+static unsigned long top_level_pgt;
- 
- /*
-  * Mapping information structure passed to kernel_ident_mapping_init().
-@@ -91,9 +91,15 @@ void initialize_identity_maps(void)
- 	 * If we came here via startup_32(), cr3 will be _pgtable already
- 	 * and we must append to the existing area instead of entirely
- 	 * overwriting it.
-+	 *
-+	 * With 5-level paging, we use _pgtable allocate p4d page table,
-+	 * top-level page table is allocated separately.
-+	 *
-+	 * p4d_offset(top_level_pgt, 0) would cover both 4- and 5-level
-+	 * cases. On 4-level paging it's equal to top_level_pgt.
- 	 */
--	level4p = read_cr3_pa();
--	if (level4p == (unsigned long)_pgtable) {
-+	top_level_pgt = read_cr3_pa();
-+	if (p4d_offset((pgd_t *)top_level_pgt, 0) == (p4d_t *)_pgtable) {
- 		debug_putstr("booted via startup_32()\n");
- 		pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
- 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE - BOOT_INIT_PGT_SIZE;
-@@ -103,7 +109,7 @@ void initialize_identity_maps(void)
- 		pgt_data.pgt_buf = _pgtable;
- 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE;
- 		memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);
--		level4p = (unsigned long)alloc_pgt_page(&pgt_data);
-+		top_level_pgt = (unsigned long)alloc_pgt_page(&pgt_data);
- 	}
- }
- 
-@@ -123,7 +129,7 @@ void add_identity_map(unsigned long start, unsigned long size)
- 		return;
- 
- 	/* Build the mapping. */
--	kernel_ident_mapping_init(&mapping_info, (pgd_t *)level4p,
-+	kernel_ident_mapping_init(&mapping_info, (pgd_t *)top_level_pgt,
- 				  start, end);
- }
- 
-@@ -134,5 +140,5 @@ void add_identity_map(unsigned long start, unsigned long size)
-  */
- void finalize_identity_maps(void)
- {
--	write_cr3(level4p);
-+	write_cr3(top_level_pgt);
- }
--- 
-2.11.0
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
