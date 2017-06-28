@@ -1,188 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B536B02FA
-	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 19:13:10 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id g86so29156773iod.14
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:13:10 -0700 (PDT)
-Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
-        by mx.google.com with ESMTPS id 82si476372ioq.48.2017.06.27.16.13.09
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A5D956B0292
+	for <linux-mm@kvack.org>; Tue, 27 Jun 2017 20:11:44 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id f127so42012905pgc.10
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 17:11:44 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id s4si396260pgs.363.2017.06.27.17.11.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jun 2017 16:13:09 -0700 (PDT)
-Received: by mail-io0-x22d.google.com with SMTP id h64so26591515iod.0
-        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 16:13:09 -0700 (PDT)
+        Tue, 27 Jun 2017 17:11:43 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id u62so6061542pgb.0
+        for <linux-mm@kvack.org>; Tue, 27 Jun 2017 17:11:43 -0700 (PDT)
+Date: Wed, 28 Jun 2017 08:11:39 +0800
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: Re: [RFC PATCH 2/4] mm/hotplug: walk_memroy_range on memory_block uit
+Message-ID: <20170628001139.GA66023@WeideMacBook-Pro.local>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20170625025227.45665-1-richard.weiyang@gmail.com>
+ <20170625025227.45665-3-richard.weiyang@gmail.com>
+ <eeb06db0-086a-29f9-306d-a702984594df@nvidia.com>
+ <20170626234038.GD53180@WeideMacBook-Pro.local>
+ <3ad226f5-92f1-352a-d7ee-159eef5d60e3@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <1497544976-7856-8-git-send-email-s.mesoraca16@gmail.com>
-References: <1497544976-7856-1-git-send-email-s.mesoraca16@gmail.com> <1497544976-7856-8-git-send-email-s.mesoraca16@gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 27 Jun 2017 16:13:08 -0700
-Message-ID: <CAGXu5jJ+GHJSgoHk3Vmf=JueVgwkP6ZSVm5kkMbCGBySp2VqmA@mail.gmail.com>
-Subject: Re: [RFC v2 7/9] Trampoline emulation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="uAKRQypu60I7Lcqm"
+Content-Disposition: inline
+In-Reply-To: <3ad226f5-92f1-352a-d7ee-159eef5d60e3@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-security-module <linux-security-module@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Brad Spengler <spender@grsecurity.net>, PaX Team <pageexec@freemail.hu>, Casey Schaufler <casey@schaufler-ca.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Jann Horn <jannh@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, mhocko@suse.com, linux-mm@kvack.org
 
-On Thu, Jun 15, 2017 at 9:42 AM, Salvatore Mesoraca
-<s.mesoraca16@gmail.com> wrote:
-> Some programs need to generate part of their code at runtime. Luckily
-> enough, in some cases they only generate well-known code sequences (the
-> "trampolines") that can be easily recognized and emulated by the kernel.
-> This way WX Protection can still be active, so a potential attacker won't
-> be able to generate arbitrary sequences of code, but just those that are
-> explicitly allowed. This is not ideal, but it's still better than having WX
-> Protection completely disabled.
-> In particular S.A.R.A. is able to recognize trampolines used by GCC for
-> nested C functions and libffi's trampolines.
-> This feature is implemented only on x86_32 and x86_64.
-> The assembly sequences used here were originally obtained from PaX source
-> code.
 
-See below about the language grsecurity has asked people to use in commit logs.
+--uAKRQypu60I7Lcqm
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+On Mon, Jun 26, 2017 at 11:59:52PM -0700, John Hubbard wrote:
+>On 06/26/2017 04:40 PM, Wei Yang wrote:
+>> On Mon, Jun 26, 2017 at 12:32:40AM -0700, John Hubbard wrote:
+>>> On 06/24/2017 07:52 PM, Wei Yang wrote:
+>[...]
+>>>
+>>> Why is it safe to assume no holes in the memory range? (Maybe Michal's=
+=20
+>>> patch already covered this and I haven't got that far yet?)
+>>>
+>>> The documentation for this routine says that it walks through all
+>>> present memory sections in the range, so it seems like this patch
+>>> breaks that.
+>>>
+>>=20
+>> Hmm... it is a little bit hard to describe.
+>>=20
+>> First the documentation of the function is a little misleading. When you=
+ look
+>> at the code, it call the "func" only once for a memory_block, not for ev=
+ery
+>> present mem_section as it says. So have some memory in the memory_block =
+would
+>> meet the requirement.
+>>=20
+>> Second, after the check in patch 1, it is for sure the range is memory_b=
+lock
+>> aligned, which means it must have some memory in that memory_block. It w=
+ould
+>> be strange if someone claim to add a memory range but with no real memor=
+y.
+>>=20
+>> This is why I remove the check here.
+>
+>OK. In that case, it seems like we should update the function documentation
+>to match. Something like this, maybe? :
+>
+>diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>index bdaafcf46f49..d36b2f4eaf39 100644
+>--- a/mm/memory_hotplug.c
+>+++ b/mm/memory_hotplug.c
+>@@ -1872,14 +1872,14 @@ int offline_pages(unsigned long start_pfn, unsigne=
+d long nr_pages)
+> #endif /* CONFIG_MEMORY_HOTREMOVE */
+>=20
+> /**
+>- * walk_memory_range - walks through all mem sections in [start_pfn, end_=
+pfn)
+>+ * walk_memory_range - walks through all mem blocks in [start_pfn, end_pf=
+n)
+>  * @start_pfn: start pfn of the memory range
+>  * @end_pfn: end pfn of the memory range
+>  * @arg: argument passed to func
+>- * @func: callback for each memory section walked
+>+ * @func: callback for each memory block walked
+>  *
+>- * This function walks through all present mem sections in range
+>- * [start_pfn, end_pfn) and call func on each mem section.
+>+ * This function walks through all mem blocks in the range
+>+ * [start_pfn, end_pfn) and calls func on each mem block.
+>  *
+>  * Returns the return value of func.
+>  */
+>
+
+Yes, I have changed this in my repo.
 
 >
-> Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-> ---
->  security/sara/Kconfig               |  17 ++++
->  security/sara/include/trampolines.h | 171 ++++++++++++++++++++++++++++++++++++
->  security/sara/wxprot.c              | 140 +++++++++++++++++++++++++++++
->  3 files changed, 328 insertions(+)
->  create mode 100644 security/sara/include/trampolines.h
->
-> diff --git a/security/sara/Kconfig b/security/sara/Kconfig
-> index 6c74069..f406805 100644
-> --- a/security/sara/Kconfig
-> +++ b/security/sara/Kconfig
-> @@ -96,6 +96,23 @@ choice
->                   Documentation/security/SARA.rst.
->  endchoice
->
-> +config SECURITY_SARA_WXPROT_EMUTRAMP
-> +       bool "Enable emulation for some types of trampolines"
-> +       depends on SECURITY_SARA_WXPROT
-> +       depends on X86
-> +       default y
-> +       help
-> +         Some programs and libraries need to execute special small code
-> +         snippets from non-executable memory pages.
-> +         Most notable examples are the GCC and libffi trampolines.
-> +         This features make it possible to execute those trampolines even
-> +         if they reside in non-executable memory pages.
-> +         This features need to be enabled on a per-executable basis
-> +         via user-space utilities.
-> +         See Documentation/security/SARA.rst. for further information.
-> +
-> +         If unsure, answer y.
-> +
->  config SECURITY_SARA_WXPROT_DISABLED
->         bool "WX protection will be disabled at boot."
->         depends on SECURITY_SARA_WXPROT
-> diff --git a/security/sara/include/trampolines.h b/security/sara/include/trampolines.h
-> new file mode 100644
-> index 0000000..eab0a85
-> --- /dev/null
-> +++ b/security/sara/include/trampolines.h
-> @@ -0,0 +1,171 @@
-> +/*
-> + * S.A.R.A. Linux Security Module
-> + *
-> + * Copyright (C) 2017 Salvatore Mesoraca <s.mesoraca16@gmail.com>
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License version 2, as
-> + * published by the Free Software Foundation.
-> + *
-> + * Assembly sequences used here were copied from
-> + * PaX patch by PaX Team <pageexec@freemail.hu>
+>thanks,
+>john h
 
-Given this copying, please include the grsecurity/PaX copyright notice
-too. Please see the recommendations here:
-http://kernsec.org/wiki/index.php/Kernel_Self_Protection_Project/Get_Involved
+--=20
+Wei Yang
+Help you, Help me
 
-> + *
-> + */
-> +
-> +#ifndef __SARA_TRAMPOLINES_H
-> +#define __SARA_TRAMPOLINES_H
-> +#ifdef CONFIG_SECURITY_SARA_WXPROT_EMUTRAMP
-> +
-> +
-> +/* x86_32 */
-> +
-> +
-> +struct libffi_trampoline_x86_32 {
-> +       unsigned char mov;
-> +       unsigned int addr1;
-> +       unsigned char jmp;
-> +       unsigned int addr2;
-> +} __packed;
-> +
-> +struct gcc_trampoline_x86_32_type1 {
-> +       unsigned char mov1;
-> +       unsigned int addr1;
-> +       unsigned char mov2;
-> +       unsigned int addr2;
-> +       unsigned short jmp;
-> +} __packed;
-> +
-> +struct gcc_trampoline_x86_32_type2 {
-> +       unsigned char mov;
-> +       unsigned int addr1;
-> +       unsigned char jmp;
-> +       unsigned int addr2;
-> +} __packed;
-> +
-> +union trampolines_x86_32 {
-> +       struct libffi_trampoline_x86_32 lf;
-> +       struct gcc_trampoline_x86_32_type1 g1;
-> +       struct gcc_trampoline_x86_32_type2 g2;
-> +};
-> +
-> +#define is_valid_libffi_trampoline_x86_32(UNION)       \
-> +       (UNION.lf.mov == 0xB8 &&                        \
-> +       UNION.lf.jmp == 0xE9)
-> +
-> +#define emulate_libffi_trampoline_x86_32(UNION, REGS) do {     \
-> +       (REGS)->ax = UNION.lf.addr1;                            \
-> +       (REGS)->ip = (unsigned int) ((REGS)->ip +               \
-> +                                    UNION.lf.addr2 +           \
-> +                                    sizeof(UNION.lf));         \
-> +} while (0)
-> +
-> +#define is_valid_gcc_trampoline_x86_32_type1(UNION, REGS)      \
-> +       (UNION.g1.mov1 == 0xB9 &&                               \
-> +       UNION.g1.mov2 == 0xB8 &&                                \
-> +       UNION.g1.jmp == 0xE0FF &&                               \
-> +       REGS->ip > REGS->sp)
-> +
-> +#define emulate_gcc_trampoline_x86_32_type1(UNION, REGS) do {  \
-> +       (REGS)->cx = UNION.g1.addr1;                            \
-> +       (REGS)->ax = UNION.g1.addr2;                            \
-> +       (REGS)->ip = UNION.g1.addr2;                            \
-> +} while (0)
-> +
-> +#define is_valid_gcc_trampoline_x86_32_type2(UNION, REGS)      \
-> +       (UNION.g2.mov == 0xB9 &&                                \
-> +       UNION.g2.jmp == 0xE9 &&                                 \
-> +       REGS->ip > REGS->sp)
-> +
-> +#define emulate_gcc_trampoline_x86_32_type2(UNION, REGS) do {  \
-> +       (REGS)->cx = UNION.g2.addr1;                            \
-> +       (REGS)->ip = (unsigned int) ((REGS)->ip +               \
-> +                                    UNION.g2.addr2 +           \
-> +                                    sizeof(UNION.g2));         \
-> +} while (0)
+--uAKRQypu60I7Lcqm
+Content-Type: application/pgp-signature; name="signature.asc"
 
-These all seem like they need to live in arch/x86/... somewhere rather
-than in the LSM, but maybe this isn't needed on other architectures?
-This seems to be very arch and compiler specific...
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
--Kees
+iQIcBAEBCAAGBQJZUvQ7AAoJEKcLNpZP5cTdkB4P/1dW3PJKYXiEPdVAyomyYkhx
+qVGq8L/nDQKEzHwJnB9BfEiABxmc+Tna5Umq63+2M2ERjYVE4YhDks7G/u+yXgOz
+ZTS3gAlyZ2uBcB+NfD6eUfIcEqe4bjZzaQWFH93ehx/45AzCzjVLGdC19U4sxNX4
+KIS4NYhz56CX6QVrxFoOKksNFmvdNXRJfaASIvXnQw5SsEKPj0CKke9KSvIYGGZQ
+ZvMfPjioZGOTeW+jEcuFks8WBrLTOTR/oZcJUTc1Frd/1Ed5pxE2YfcDotT1pfNo
+cNc4P39zj4dcMaM3mfr+kh92/vm/OdeN4Z3kLxMv9NByJYvxEe38sxXWb0r6fCNM
+E+V6twaa6uHalPqvt+ylV/eN+yxNb6hPm3MN885evsqbY78ibiIp0Ox8xWxpeaNL
+Zm4Bg9sStICqHybk8wE0UG+i529h4SHKd7gXfT9pzV+QKsllPsFiIyO+cn+ohZLS
+E8jAYQY0TaVJv+32v5A2xOQiI6ehi3q16wfOJyDIqxLIjPEZcNfty1ytiDtOYuz2
+0fL0bxGVl5nZ40xvg+zrs5LjtWl5I+cSBme0H7BeOipPtxTzLqvBagU4dgA9Zebx
+kpXE4SdtxczHNikMtaljpFNsYnDY7wQXtMjJiEL9ufWNoP6RnJBtCfZmr7fOANUL
+aOm8RnSEkems42F5JeKa
+=9Q1k
+-----END PGP SIGNATURE-----
 
--- 
-Kees Cook
-Pixel Security
+--uAKRQypu60I7Lcqm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
