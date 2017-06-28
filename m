@@ -1,89 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DCC46B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 12:56:57 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b184so11039511wme.14
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:56:57 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id n84si3320037wmf.101.2017.06.28.09.56.55
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD006B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 13:03:11 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id d77so11943011oig.7
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:03:11 -0700 (PDT)
+Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
+        by mx.google.com with ESMTPS id 1si1769836oih.206.2017.06.28.10.03.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 09:56:55 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id i127so65624967wma.0
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:56:55 -0700 (PDT)
-Date: Wed, 28 Jun 2017 18:56:52 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
-Message-ID: <20170628165651.bier32hnv3y4hmd6@gmail.com>
-References: <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
- <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
- <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
- <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
- <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
- <alpine.DEB.2.20.1706281425350.1970@nanos>
- <alpine.DEB.2.20.1706281544480.1970@nanos>
- <20170628141420.GK5981@leverpostej>
- <alpine.DEB.2.20.1706281709140.1970@nanos>
- <20170628155445.GD8252@leverpostej>
+        Wed, 28 Jun 2017 10:03:10 -0700 (PDT)
+Received: by mail-io0-x22d.google.com with SMTP id h134so39423511iof.2
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 10:03:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170628155445.GD8252@leverpostej>
+In-Reply-To: <20170620040403.GA610@zzz.localdomain>
+References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
+ <1497915397-93805-22-git-send-email-keescook@chromium.org> <20170620040403.GA610@zzz.localdomain>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 28 Jun 2017 10:03:09 -0700
+Message-ID: <CAGXu5jLcZO3XHBd7i7Gnww4vwRpH10m2FvczEecnC_ars-N+Ow@mail.gmail.com>
+Subject: Re: [kernel-hardening] [PATCH 21/23] usercopy: Restrict non-usercopy
+ caches to size 0
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Mon, Jun 19, 2017 at 9:04 PM, Eric Biggers <ebiggers3@gmail.com> wrote:
+> Hi David + Kees,
+>
+> On Mon, Jun 19, 2017 at 04:36:35PM -0700, Kees Cook wrote:
+>> With all known usercopied cache whitelists now defined in the kernel, switch
+>> the default usercopy region of kmem_cache_create() to size 0. Any new caches
+>> with usercopy regions will now need to use kmem_cache_create_usercopy()
+>> instead of kmem_cache_create().
+>>
+>
+> While I'd certainly like to see the caches be whitelisted, it needs to be made
+> very clear that it's being done (the cover letter for this series falsely claims
+> that kmem_cache_create() is unchanged) and what the consequences are.  Is there
 
-* Mark Rutland <mark.rutland@arm.com> wrote:
+Well, in the first patch it is semantically unchanged: calls to
+kmem_cache_create() after the first patch whitelist the entire cache
+object. Only from this patch on does it change behavior to no longer
+whitelist the object.
 
-> > And instead of adding
-> > 
-> >     #include <asm/atomic-instrumented.h>
-> > 
-> > to the architecture code, we rather do
-> > 
-> > # mv arch/xxx/include/asm/atomic.h mv arch/xxx/include/asm/arch_atomic.h
-> > # echo '#include <asm-generic/atomic.h>' >arch/xxx/include/asm/atomic.h
-> > 
-> > # mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
-> > 
-> > and create a new include/asm-generic/atomic.h
-> > 
-> > #ifndef __ASM_GENERIC_ATOMIC_H
-> > #define __ASM_GENERIC_ATOMIC_H
-> > 
-> > #ifdef CONFIG_ATOMIC_INSTRUMENTED_H
-> > #include <asm-generic/atomic_instrumented.h>
-> > #else
-> > #include <asm-generic/atomic_up.h>
-> > #endif
-> > 
-> > #endif
-> 
-> Given we're gonig to clean things up, we may as well avoid the backwards
-> include of <asm-generic/atomic_instrumented.h>, whcih was only there as
-> a bodge:
+> any specific plan for identifying caches that were missed?  If it's expected for
 
-So, since the final v4.12 release is so close, I've put the following KASAN 
-commits aside into tip:WIP.locking/atomics:
+The plan for finding caches needing whitelisting is mainly code audit
+and operational testing. Encountering it is quite loud in that it BUGs
+the kernel during the hardened usercopy checks.
 
-4b47cc154eed: locking/atomic/x86, asm-generic: Add comments for atomic instrumentation
-35787d9d7ca4: locking/atomics, asm-generic: Add KASAN instrumentation to atomic operations
-68c1ed1fdb0a: kasan: Allow kasan_check_read/write() to accept pointers to volatiles
-f1c3049f6729: locking/atomic/x86: Switch atomic.h to use atomic-instrumented.h
-d079eebb3958: locking/atomic: Add asm-generic/atomic-instrumented.h
-007d185b4462: locking/atomic/x86: Use 's64 *' for 'old' argument of atomic64_try_cmpxchg()
-ba1c9f83f633: locking/atomic/x86: Un-macro-ify atomic ops implementation
+> people to just fix them as they are found, then they need to be helped a little
+> --- at the very least by putting a big comment above report_usercopy() that
+> explains the possible reasons why the error might have triggered and what to do
+> about it.
 
-(Note, I had to rebase these freshly, to decouple them from a refcount_t commit 
-that we need.)
+That sounds reasonable. It should have a comment even for the existing
+protections.
 
-and won't send them to Linus unless the cleanups are done and acked by Thomas.
+Thanks!
 
-Thanks,
+-Kees
 
-	Ingo
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
