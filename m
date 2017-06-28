@@ -1,84 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B625280301
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 18:02:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 1so4714152pfi.14
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 15:02:54 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FFA5280301
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 18:02:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e199so67150667pfh.7
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 15:02:55 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
         by mx.google.com with ESMTPS id y67si2379921pfy.16.2017.06.28.15.02.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 15:02:53 -0700 (PDT)
+        Wed, 28 Jun 2017 15:02:54 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v3 0/5] DAX common 4k zero page
-Date: Wed, 28 Jun 2017 16:01:47 -0600
-Message-Id: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
+Date: Wed, 28 Jun 2017 16:01:48 -0600
+Message-Id: <20170628220152.28161-2-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-When servicing mmap() reads from file holes the current DAX code allocates
-a page cache page of all zeroes and places the struct page pointer in the
-mapping->page_tree radix tree.  This has three major drawbacks:
+To be able to use the common 4k zero page in DAX we need to have our PTE
+fault path look more like our PMD fault path where a PTE entry can be
+marked as dirty and writeable as it is first inserted, rather than waiting
+for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
 
-1) It consumes memory unnecessarily.  For every 4k page that is read via a
-DAX mmap() over a hole, we allocate a new page cache page.  This means that
-if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
+Right now we can rely on having a dax_pfn_mkwrite() call because we can
+distinguish between these two cases in do_wp_page():
 
-2) It is slower than using a common zero page because each page fault has
-more work to do.  Instead of just inserting a common zero page we have to
-allocate a page cache page, zero it, and then insert it.
+	case 1: 4k zero page => writable DAX storage
+	case 2: read-only DAX storage => writeable DAX storage
 
-3) The fact that we had to check for both DAX exceptional entries and for
-page cache pages in the radix tree made the DAX code more complex.
+This distinction is made by via vm_normal_page().  vm_normal_page() returns
+false for the common 4k zero page, though, just as it does for DAX ptes.
+Instead of special casing the DAX + 4k zero page case, we will simplify our
+DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+get rid of dax_pfn_mkwrite() completely.
 
-This series solves these issues by following the lead of the DAX PMD code
-and using a common 4k zero page instead.  This reduces memory usage and
-decreases latencies for some workloads, and it simplifies the DAX code,
-removing over 100 lines in total.
+This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+will do the work that was previously done by wp_page_reuse() as part of the
+dax_pfn_mkwrite() call path.
 
-Andrew, I'm still hoping to get this merged for v4.13 if possible. I I have
-addressed all of Jan's feedback, but he is on vacation for the next few
-weeks so he may not be able to give me Reviewed-by tags.  I think this
-series is relatively low risk with clear benefits, and I think we should be
-able to address any issues that come up during the v4.13 RC series.
-
-This series has passed my targeted testing and a full xfstests run on both
-XFS and ext4.
-
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
-Changes since v2:
- - If we call insert_pfn() with 'mkwrite' for an entry that already exists,
-   don't overwrite the pte with a brand new one.  Just add the appropriate
-   flags. (Jan)
+ include/linux/mm.h |  2 ++
+ mm/memory.c        | 57 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 54 insertions(+), 5 deletions(-)
 
- - Keep put_locked_mapping_entry() as a simple wrapper for
-   dax_unlock_mapping_entry() so it has naming parity with
-   get_unlocked_mapping_entry(). (Jan)
-
- - Remove DAX special casing in page_cache_tree_insert(), move
-   now-private definitions from dax.h to dax.c. (Jan)
-
-Ross Zwisler (5):
-  mm: add vm_insert_mixed_mkwrite()
-  dax: relocate some dax functions
-  dax: use common 4k zero page for dax mmap reads
-  dax: remove DAX code from page_cache_tree_insert()
-  dax: move all DAX radix tree defs to fs/dax.c
-
- Documentation/filesystems/dax.txt |   5 +-
- fs/dax.c                          | 345 ++++++++++++++++----------------------
- fs/ext2/file.c                    |  25 +--
- fs/ext4/file.c                    |  32 +---
- fs/xfs/xfs_file.c                 |   2 +-
- include/linux/dax.h               |  45 -----
- include/linux/mm.h                |   2 +
- include/trace/events/fs_dax.h     |   2 -
- mm/filemap.c                      |  13 +-
- mm/memory.c                       |  57 ++++++-
- 10 files changed, 205 insertions(+), 323 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 6f543a4..096052f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2293,6 +2293,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn, pgprot_t pgprot);
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			pfn_t pfn);
++int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
++			pfn_t pfn);
+ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+ 
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index bb11c47..de4aa71 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1646,7 +1646,7 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+ EXPORT_SYMBOL(vm_insert_page);
+ 
+ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+-			pfn_t pfn, pgprot_t prot)
++			pfn_t pfn, pgprot_t prot, bool mkwrite)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	int retval;
+@@ -1658,14 +1658,26 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 	if (!pte)
+ 		goto out;
+ 	retval = -EBUSY;
+-	if (!pte_none(*pte))
+-		goto out_unlock;
++	if (!pte_none(*pte)) {
++		if (mkwrite) {
++			entry = *pte;
++			goto out_mkwrite;
++		} else
++			goto out_unlock;
++	}
+ 
+ 	/* Ok, finally just insert the thing.. */
+ 	if (pfn_t_devmap(pfn))
+ 		entry = pte_mkdevmap(pfn_t_pte(pfn, prot));
+ 	else
+ 		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
++
++out_mkwrite:
++	if (mkwrite) {
++		entry = pte_mkyoung(entry);
++		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++	}
++
+ 	set_pte_at(mm, addr, pte, entry);
+ 	update_mmu_cache(vma, addr, pte); /* XXX: why not for insert_page? */
+ 
+@@ -1736,7 +1748,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV));
+ 
+-	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
++	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot,
++			false);
+ 
+ 	return ret;
+ }
+@@ -1772,10 +1785,44 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 		page = pfn_to_page(pfn_t_to_pfn(pfn));
+ 		return insert_page(vma, addr, page, pgprot);
+ 	}
+-	return insert_pfn(vma, addr, pfn, pgprot);
++	return insert_pfn(vma, addr, pfn, pgprot, false);
+ }
+ EXPORT_SYMBOL(vm_insert_mixed);
+ 
++int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
++			pfn_t pfn)
++{
++	pgprot_t pgprot = vma->vm_page_prot;
++
++	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
++
++	if (addr < vma->vm_start || addr >= vma->vm_end)
++		return -EFAULT;
++
++	track_pfn_insert(vma, &pgprot, pfn);
++
++	/*
++	 * If we don't have pte special, then we have to use the pfn_valid()
++	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
++	 * refcount the page if pfn_valid is true (hence insert_page rather
++	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
++	 * without pte special, it would there be refcounted as a normal page.
++	 */
++	if (!HAVE_PTE_SPECIAL && !pfn_t_devmap(pfn) && pfn_t_valid(pfn)) {
++		struct page *page;
++
++		/*
++		 * At this point we are committed to insert_page()
++		 * regardless of whether the caller specified flags that
++		 * result in pfn_t_has_page() == false.
++		 */
++		page = pfn_to_page(pfn_t_to_pfn(pfn));
++		return insert_page(vma, addr, page, pgprot);
++	}
++	return insert_pfn(vma, addr, pfn, pgprot, true);
++}
++EXPORT_SYMBOL(vm_insert_mixed_mkwrite);
++
+ /*
+  * maps a range of physical memory into the requested pages. the old
+  * mappings are removed. any references to nonexistent pages results
 -- 
 2.9.4
 
