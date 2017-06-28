@@ -1,640 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1FD2280391
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:01:28 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id h47so21251934qta.12
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:01:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y71si2616090qkb.177.2017.06.28.11.01.26
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CEFF28030E
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 14:24:15 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id z62so46799322ioi.8
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:24:15 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z191si2664925ioe.46.2017.06.28.11.24.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 11:01:26 -0700 (PDT)
-From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 12/15] mm/migrate: new memory migration helper for use with device memory v4
-Date: Wed, 28 Jun 2017 14:00:44 -0400
-Message-Id: <20170628180047.5386-13-jglisse@redhat.com>
-In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
-References: <20170628180047.5386-1-jglisse@redhat.com>
+        Wed, 28 Jun 2017 11:24:14 -0700 (PDT)
+Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
+ delivery
+References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
+ <20170627070643.GA28078@dhcp22.suse.cz> <20170627153557.GB10091@rapoport-lnx>
+ <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
+ <20170628131806.GD10091@rapoport-lnx>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Message-ID: <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
+Date: Wed, 28 Jun 2017 11:23:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170628131806.GD10091@rapoport-lnx>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
 
-This patch add a new memory migration helpers, which migrate memory
-backing a range of virtual address of a process to different memory
-(which can be allocated through special allocator). It differs from
-numa migration by working on a range of virtual address and thus by
-doing migration in chunk that can be large enough to use DMA engine
-or special copy offloading engine.
 
-Expected users are any one with heterogeneous memory where different
-memory have different characteristics (latency, bandwidth, ...). As
-an example IBM platform with CAPI bus can make use of this feature
-to migrate between regular memory and CAPI device memory. New CPU
-architecture with a pool of high performance memory not manage as
-cache but presented as regular memory (while being faster and with
-lower latency than DDR) will also be prime user of this patch.
 
-Migration to private device memory will be useful for device that
-have large pool of such like GPU, NVidia plans to use HMM for that.
+On 6/28/17 6:18 AM, Mike Rapoport wrote:
+> On Tue, Jun 27, 2017 at 09:01:20AM -0700, Prakash Sangappa wrote:
+>> On 6/27/17 8:35 AM, Mike Rapoport wrote:
+>>
+>>> On Tue, Jun 27, 2017 at 09:06:43AM +0200, Michal Hocko wrote:
+>>>> This is an user visible API so let's CC linux-api mailing list.
+>>>>
+>>>> On Mon 26-06-17 12:46:13, Prakash Sangappa wrote:
+>>>>
+>>>>> Any access to mapped address over holes in the file, which can occur due
+>>>>> to bugs in the application, is considered invalid and expect the process
+>>>>> to simply receive a SIGBUS.  However, currently when a hole in the file is
+>>>>> accessed via the mapped address, kernel/mm attempts to automatically
+>>>>> allocate a page at page fault time, resulting in implicitly filling the
+>>>>> hole in the file. This may not be the desired behavior for applications
+>>>>> like the database that want to explicitly manage page allocations of
+>>>>> hugetlbfs files.
+>>>> So you register UFFD_FEATURE_SIGBUS on each region tha you are unmapping
+>>>> and than just let those offenders die?
+>>> If I understand correctly, the database will create the mapping, then it'll
+>>> open userfaultfd and register those mappings with the userfault.
+>>> Afterwards, when the application accesses a hole userfault will cause
+>>> SIGBUS and the application will process it in whatever way it likes, e.g.
+>>> just die.
+>> Yes.
+>>
+>>> What I don't understand is why won't you use userfault monitor process that
+>>> will take care of the page fault events?
+>>> It shouldn't be much overhead running it and it can keep track on all the
+>>> userfault file descriptors for you and it will allow more versatile error
+>>> handling that SIGBUS.
+>>>
+>> Co-ordination with the external monitor process by all the database
+>> processes
+>> to send  their userfaultfd is still an overhead.
+> You are planning to register in userfaultfd only the holes you punch to
+> deallocate pages, am I right?
 
-Changes since v3:
-  - Rebase
 
-Changes since v2:
-  - droped HMM prefix and HMM specific code
-Changes since v1:
-  - typos fix
-  - split early unmap optimization for page with single mapping
+No, the entire mmap'ed region. The DB processes would mmap(MAP_NORESERVE)
+hugetlbfs files, register this mapped address with userfaultfd ones 
+right after
+the mmap() call.
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
----
- include/linux/migrate.h | 104 ++++++++++++
- mm/migrate.c            | 444 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 548 insertions(+)
+>
+> And the co-ordination of the userfault file descriptor with the monitor
+> would have been added after calls to fallocate() and userfaultfd_register()?
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index e646ae44077d..ce87a2946897 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -143,4 +143,108 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- }
- #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
- 
-+
-+#ifdef CONFIG_MIGRATION
-+
-+#define MIGRATE_PFN_VALID	(1UL << 0)
-+#define MIGRATE_PFN_MIGRATE	(1UL << 1)
-+#define MIGRATE_PFN_LOCKED	(1UL << 2)
-+#define MIGRATE_PFN_WRITE	(1UL << 3)
-+#define MIGRATE_PFN_ERROR	(1UL << 4)
-+#define MIGRATE_PFN_SHIFT	5
-+
-+static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
-+{
-+	if (!(mpfn & MIGRATE_PFN_VALID))
-+		return NULL;
-+	return pfn_to_page(mpfn >> MIGRATE_PFN_SHIFT);
-+}
-+
-+static inline unsigned long migrate_pfn(unsigned long pfn)
-+{
-+	return (pfn << MIGRATE_PFN_SHIFT) | MIGRATE_PFN_VALID;
-+}
-+
-+/*
-+ * struct migrate_vma_ops - migrate operation callback
-+ *
-+ * @alloc_and_copy: alloc destination memory and copy source memory to it
-+ * @finalize_and_map: allow caller to map the successfully migrated pages
-+ *
-+ *
-+ * The alloc_and_copy() callback happens once all source pages have been locked,
-+ * unmapped and checked (checked whether pinned or not). All pages that can be
-+ * migrated will have an entry in the src array set with the pfn value of the
-+ * page and with the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set (other
-+ * flags might be set but should be ignored by the callback).
-+ *
-+ * The alloc_and_copy() callback can then allocate destination memory and copy
-+ * source memory to it for all those entries (ie with MIGRATE_PFN_VALID and
-+ * MIGRATE_PFN_MIGRATE flag set). Once these are allocated and copied, the
-+ * callback must update each corresponding entry in the dst array with the pfn
-+ * value of the destination page and with the MIGRATE_PFN_VALID and
-+ * MIGRATE_PFN_LOCKED flags set (destination pages must have their struct pages
-+ * locked, via lock_page()).
-+ *
-+ * At this point the alloc_and_copy() callback is done and returns.
-+ *
-+ * Note that the callback does not have to migrate all the pages that are
-+ * marked with MIGRATE_PFN_MIGRATE flag in src array unless this is a migration
-+ * from device memory to system memory (ie the MIGRATE_PFN_DEVICE flag is also
-+ * set in the src array entry). If the device driver cannot migrate a device
-+ * page back to system memory, then it must set the corresponding dst array
-+ * entry to MIGRATE_PFN_ERROR. This will trigger a SIGBUS if CPU tries to
-+ * access any of the virtual addresses originally backed by this page. Because
-+ * a SIGBUS is such a severe result for the userspace process, the device
-+ * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in an
-+ * unrecoverable state.
-+ *
-+ * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY ENTRIES
-+ * OR BAD THINGS WILL HAPPEN !
-+ *
-+ *
-+ * The finalize_and_map() callback happens after struct page migration from
-+ * source to destination (destination struct pages are the struct pages for the
-+ * memory allocated by the alloc_and_copy() callback).  Migration can fail, and
-+ * thus the finalize_and_map() allows the driver to inspect which pages were
-+ * successfully migrated, and which were not. Successfully migrated pages will
-+ * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
-+ *
-+ * It is safe to update device page table from within the finalize_and_map()
-+ * callback because both destination and source page are still locked, and the
-+ * mmap_sem is held in read mode (hence no one can unmap the range being
-+ * migrated).
-+ *
-+ * Once callback is done cleaning up things and updating its page table (if it
-+ * chose to do so, this is not an obligation) then it returns. At this point,
-+ * the HMM core will finish up the final steps, and the migration is complete.
-+ *
-+ * THE finalize_and_map() CALLBACK MUST NOT CHANGE ANY OF THE SRC OR DST ARRAY
-+ * ENTRIES OR BAD THINGS WILL HAPPEN !
-+ */
-+struct migrate_vma_ops {
-+	void (*alloc_and_copy)(struct vm_area_struct *vma,
-+			       const unsigned long *src,
-+			       unsigned long *dst,
-+			       unsigned long start,
-+			       unsigned long end,
-+			       void *private);
-+	void (*finalize_and_map)(struct vm_area_struct *vma,
-+				 const unsigned long *src,
-+				 const unsigned long *dst,
-+				 unsigned long start,
-+				 unsigned long end,
-+				 void *private);
-+};
-+
-+int migrate_vma(const struct migrate_vma_ops *ops,
-+		struct vm_area_struct *vma,
-+		unsigned long start,
-+		unsigned long end,
-+		unsigned long *src,
-+		unsigned long *dst,
-+		void *private);
-+
-+#endif /* CONFIG_MIGRATION */
-+
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 37568e4e2ba6..c2080658b905 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -397,6 +397,14 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 	int expected_count = 1 + extra_count;
- 	void **pslot;
- 
-+	/*
-+	 * ZONE_DEVICE pages have 1 refcount always held by their device
-+	 *
-+	 * Note that DAX memory will never reach that point as it does not have
-+	 * the MEMORY_DEVICE_ALLOW_MIGRATE flag set (see memory_hotplug.h).
-+	 */
-+	expected_count += is_zone_device_page(page);
-+
- 	if (!mapping) {
- 		/* Anonymous page without mapping */
- 		if (page_count(page) != expected_count)
-@@ -2068,3 +2076,439 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- #endif /* CONFIG_NUMA_BALANCING */
- 
- #endif /* CONFIG_NUMA */
-+
-+
-+struct migrate_vma {
-+	struct vm_area_struct	*vma;
-+	unsigned long		*dst;
-+	unsigned long		*src;
-+	unsigned long		cpages;
-+	unsigned long		npages;
-+	unsigned long		start;
-+	unsigned long		end;
-+};
-+
-+static int migrate_vma_collect_hole(unsigned long start,
-+				    unsigned long end,
-+				    struct mm_walk *walk)
-+{
-+	struct migrate_vma *migrate = walk->private;
-+	unsigned long addr, next;
-+
-+	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-+		migrate->dst[migrate->npages] = 0;
-+		migrate->src[migrate->npages++] = 0;
-+	}
-+
-+	return 0;
-+}
-+
-+static int migrate_vma_collect_pmd(pmd_t *pmdp,
-+				   unsigned long start,
-+				   unsigned long end,
-+				   struct mm_walk *walk)
-+{
-+	struct migrate_vma *migrate = walk->private;
-+	struct mm_struct *mm = walk->vma->vm_mm;
-+	unsigned long addr = start;
-+	spinlock_t *ptl;
-+	pte_t *ptep;
-+
-+	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {
-+		/* FIXME support THP */
-+		return migrate_vma_collect_hole(start, end, walk);
-+	}
-+
-+	ptep = pte_offset_map_lock(mm, pmdp, addr, &ptl);
-+	for (; addr < end; addr += PAGE_SIZE, ptep++) {
-+		unsigned long mpfn, pfn;
-+		struct page *page;
-+		pte_t pte;
-+
-+		pte = *ptep;
-+		pfn = pte_pfn(pte);
-+
-+		if (!pte_present(pte)) {
-+			mpfn = pfn = 0;
-+			goto next;
-+		}
-+
-+		/* FIXME support THP */
-+		page = vm_normal_page(migrate->vma, addr, pte);
-+		if (!page || !page->mapping || PageTransCompound(page)) {
-+			mpfn = pfn = 0;
-+			goto next;
-+		}
-+
-+		/*
-+		 * By getting a reference on the page we pin it and that blocks
-+		 * any kind of migration. Side effect is that it "freezes" the
-+		 * pte.
-+		 *
-+		 * We drop this reference after isolating the page from the lru
-+		 * for non device page (device page are not on the lru and thus
-+		 * can't be dropped from it).
-+		 */
-+		get_page(page);
-+		migrate->cpages++;
-+		mpfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
-+		mpfn |= pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
-+
-+next:
-+		migrate->src[migrate->npages++] = mpfn;
-+	}
-+	pte_unmap_unlock(ptep - 1, ptl);
-+
-+	return 0;
-+}
-+
-+/*
-+ * migrate_vma_collect() - collect pages over a range of virtual addresses
-+ * @migrate: migrate struct containing all migration information
-+ *
-+ * This will walk the CPU page table. For each virtual address backed by a
-+ * valid page, it updates the src array and takes a reference on the page, in
-+ * order to pin the page until we lock it and unmap it.
-+ */
-+static void migrate_vma_collect(struct migrate_vma *migrate)
-+{
-+	struct mm_walk mm_walk;
-+
-+	mm_walk.pmd_entry = migrate_vma_collect_pmd;
-+	mm_walk.pte_entry = NULL;
-+	mm_walk.pte_hole = migrate_vma_collect_hole;
-+	mm_walk.hugetlb_entry = NULL;
-+	mm_walk.test_walk = NULL;
-+	mm_walk.vma = migrate->vma;
-+	mm_walk.mm = migrate->vma->vm_mm;
-+	mm_walk.private = migrate;
-+
-+	walk_page_range(migrate->start, migrate->end, &mm_walk);
-+
-+	migrate->end = migrate->start + (migrate->npages << PAGE_SHIFT);
-+}
-+
-+/*
-+ * migrate_vma_check_page() - check if page is pinned or not
-+ * @page: struct page to check
-+ *
-+ * Pinned pages cannot be migrated. This is the same test as in
-+ * migrate_page_move_mapping(), except that here we allow migration of a
-+ * ZONE_DEVICE page.
-+ */
-+static bool migrate_vma_check_page(struct page *page)
-+{
-+	/*
-+	 * One extra ref because caller holds an extra reference, either from
-+	 * isolate_lru_page() for a regular page, or migrate_vma_collect() for
-+	 * a device page.
-+	 */
-+	int extra = 1;
-+
-+	/*
-+	 * FIXME support THP (transparent huge page), it is bit more complex to
-+	 * check them than regular pages, because they can be mapped with a pmd
-+	 * or with a pte (split pte mapping).
-+	 */
-+	if (PageCompound(page))
-+		return false;
-+
-+	if ((page_count(page) - extra) > page_mapcount(page))
-+		return false;
-+
-+	return true;
-+}
-+
-+/*
-+ * migrate_vma_prepare() - lock pages and isolate them from the lru
-+ * @migrate: migrate struct containing all migration information
-+ *
-+ * This locks pages that have been collected by migrate_vma_collect(). Once each
-+ * page is locked it is isolated from the lru (for non-device pages). Finally,
-+ * the ref taken by migrate_vma_collect() is dropped, as locked pages cannot be
-+ * migrated by concurrent kernel threads.
-+ */
-+static void migrate_vma_prepare(struct migrate_vma *migrate)
-+{
-+	const unsigned long npages = migrate->npages;
-+	const unsigned long start = migrate->start;
-+	unsigned long addr, i, restore = 0;
-+	bool allow_drain = true;
-+
-+	lru_add_drain();
-+
-+	for (i = 0; i < npages; i++) {
-+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-+
-+		if (!page)
-+			continue;
-+
-+		lock_page(page);
-+		migrate->src[i] |= MIGRATE_PFN_LOCKED;
-+
-+		if (!PageLRU(page) && allow_drain) {
-+			/* Drain CPU's pagevec */
-+			lru_add_drain_all();
-+			allow_drain = false;
-+		}
-+
-+		if (isolate_lru_page(page)) {
-+			migrate->src[i] = 0;
-+			unlock_page(page);
-+			migrate->cpages--;
-+			put_page(page);
-+			continue;
-+		}
-+
-+		if (!migrate_vma_check_page(page)) {
-+			migrate->src[i] = 0;
-+			unlock_page(page);
-+			migrate->cpages--;
-+
-+			putback_lru_page(page);
-+		}
-+	}
-+}
-+
-+/*
-+ * migrate_vma_unmap() - replace page mapping with special migration pte entry
-+ * @migrate: migrate struct containing all migration information
-+ *
-+ * Replace page mapping (CPU page table pte) with a special migration pte entry
-+ * and check again if it has been pinned. Pinned pages are restored because we
-+ * cannot migrate them.
-+ *
-+ * This is the last step before we call the device driver callback to allocate
-+ * destination memory and copy contents of original page over to new page.
-+ */
-+static void migrate_vma_unmap(struct migrate_vma *migrate)
-+{
-+	int flags = TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
-+	const unsigned long npages = migrate->npages;
-+	const unsigned long start = migrate->start;
-+	unsigned long addr, i, restore = 0;
-+
-+	for (i = 0; i < npages; i++) {
-+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-+
-+		if (!page || !(migrate->src[i] & MIGRATE_PFN_MIGRATE))
-+			continue;
-+
-+		try_to_unmap(page, flags);
-+		if (page_mapped(page) || !migrate_vma_check_page(page)) {
-+			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-+			migrate->cpages--;
-+			restore++;
-+		}
-+	}
-+
-+	for (addr = start, i = 0; i < npages && restore; addr += PAGE_SIZE, i++) {
-+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-+
-+		if (!page || (migrate->src[i] & MIGRATE_PFN_MIGRATE))
-+			continue;
-+
-+		remove_migration_ptes(page, page, false);
-+
-+		migrate->src[i] = 0;
-+		unlock_page(page);
-+		restore--;
-+
-+		putback_lru_page(page);
-+	}
-+}
-+
-+/*
-+ * migrate_vma_pages() - migrate meta-data from src page to dst page
-+ * @migrate: migrate struct containing all migration information
-+ *
-+ * This migrates struct page meta-data from source struct page to destination
-+ * struct page. This effectively finishes the migration from source page to the
-+ * destination page.
-+ */
-+static void migrate_vma_pages(struct migrate_vma *migrate)
-+{
-+	const unsigned long npages = migrate->npages;
-+	const unsigned long start = migrate->start;
-+	unsigned long addr, i;
-+
-+	for (i = 0, addr = start; i < npages; addr += PAGE_SIZE, i++) {
-+		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
-+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-+		struct address_space *mapping;
-+		int r;
-+
-+		if (!page || !newpage)
-+			continue;
-+		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
-+			continue;
-+
-+		mapping = page_mapping(page);
-+
-+		r = migrate_page(mapping, newpage, page, MIGRATE_SYNC_NO_COPY);
-+		if (r != MIGRATEPAGE_SUCCESS)
-+			migrate->src[i] &= ~MIGRATE_PFN_MIGRATE;
-+	}
-+}
-+
-+/*
-+ * migrate_vma_finalize() - restore CPU page table entry
-+ * @migrate: migrate struct containing all migration information
-+ *
-+ * This replaces the special migration pte entry with either a mapping to the
-+ * new page if migration was successful for that page, or to the original page
-+ * otherwise.
-+ *
-+ * This also unlocks the pages and puts them back on the lru, or drops the extra
-+ * refcount, for device pages.
-+ */
-+static void migrate_vma_finalize(struct migrate_vma *migrate)
-+{
-+	const unsigned long npages = migrate->npages;
-+	unsigned long i;
-+
-+	for (i = 0; i < npages; i++) {
-+		struct page *newpage = migrate_pfn_to_page(migrate->dst[i]);
-+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-+
-+		if (!page)
-+			continue;
-+		if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE) || !newpage) {
-+			if (newpage) {
-+				unlock_page(newpage);
-+				put_page(newpage);
-+			}
-+			newpage = page;
-+		}
-+
-+		remove_migration_ptes(page, newpage, false);
-+		unlock_page(page);
-+		migrate->cpages--;
-+
-+		putback_lru_page(page);
-+
-+		if (newpage != page) {
-+			unlock_page(newpage);
-+			putback_lru_page(newpage);
-+		}
-+	}
-+}
-+
-+/*
-+ * migrate_vma() - migrate a range of memory inside vma
-+ *
-+ * @ops: migration callback for allocating destination memory and copying
-+ * @vma: virtual memory area containing the range to be migrated
-+ * @start: start address of the range to migrate (inclusive)
-+ * @end: end address of the range to migrate (exclusive)
-+ * @src: array of hmm_pfn_t containing source pfns
-+ * @dst: array of hmm_pfn_t containing destination pfns
-+ * @private: pointer passed back to each of the callback
-+ * Returns: 0 on success, error code otherwise
-+ *
-+ * This function tries to migrate a range of memory virtual address range, using
-+ * callbacks to allocate and copy memory from source to destination. First it
-+ * collects all the pages backing each virtual address in the range, saving this
-+ * inside the src array. Then it locks those pages and unmaps them. Once the pages
-+ * are locked and unmapped, it checks whether each page is pinned or not. Pages
-+ * that aren't pinned have the MIGRATE_PFN_MIGRATE flag set (by this function)
-+ * in the corresponding src array entry. It then restores any pages that are
-+ * pinned, by remapping and unlocking those pages.
-+ *
-+ * At this point it calls the alloc_and_copy() callback. For documentation on
-+ * what is expected from that callback, see struct migrate_vma_ops comments in
-+ * include/linux/migrate.h
-+ *
-+ * After the alloc_and_copy() callback, this function goes over each entry in
-+ * the src array that has the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag
-+ * set. If the corresponding entry in dst array has MIGRATE_PFN_VALID flag set,
-+ * then the function tries to migrate struct page information from the source
-+ * struct page to the destination struct page. If it fails to migrate the struct
-+ * page information, then it clears the MIGRATE_PFN_MIGRATE flag in the src
-+ * array.
-+ *
-+ * At this point all successfully migrated pages have an entry in the src
-+ * array with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set and the dst
-+ * array entry with MIGRATE_PFN_VALID flag set.
-+ *
-+ * It then calls the finalize_and_map() callback. See comments for "struct
-+ * migrate_vma_ops", in include/linux/migrate.h for details about
-+ * finalize_and_map() behavior.
-+ *
-+ * After the finalize_and_map() callback, for successfully migrated pages, this
-+ * function updates the CPU page table to point to new pages, otherwise it
-+ * restores the CPU page table to point to the original source pages.
-+ *
-+ * Function returns 0 after the above steps, even if no pages were migrated
-+ * (The function only returns an error if any of the arguments are invalid.)
-+ *
-+ * Both src and dst array must be big enough for (end - start) >> PAGE_SHIFT
-+ * unsigned long entries.
-+ */
-+int migrate_vma(const struct migrate_vma_ops *ops,
-+		struct vm_area_struct *vma,
-+		unsigned long start,
-+		unsigned long end,
-+		unsigned long *src,
-+		unsigned long *dst,
-+		void *private)
-+{
-+	struct migrate_vma migrate;
-+
-+	/* Sanity check the arguments */
-+	start &= PAGE_MASK;
-+	end &= PAGE_MASK;
-+	if (!vma || is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL))
-+		return -EINVAL;
-+	if (start < vma->vm_start || start >= vma->vm_end)
-+		return -EINVAL;
-+	if (end <= vma->vm_start || end > vma->vm_end)
-+		return -EINVAL;
-+	if (!ops || !src || !dst || start >= end)
-+		return -EINVAL;
-+
-+	memset(src, 0, sizeof(*src) * ((end - start) >> PAGE_SHIFT));
-+	migrate.src = src;
-+	migrate.dst = dst;
-+	migrate.start = start;
-+	migrate.npages = 0;
-+	migrate.cpages = 0;
-+	migrate.end = end;
-+	migrate.vma = vma;
-+
-+	/* Collect, and try to unmap source pages */
-+	migrate_vma_collect(&migrate);
-+	if (!migrate.cpages)
-+		return 0;
-+
-+	/* Lock and isolate page */
-+	migrate_vma_prepare(&migrate);
-+	if (!migrate.cpages)
-+		return 0;
-+
-+	/* Unmap pages */
-+	migrate_vma_unmap(&migrate);
-+	if (!migrate.cpages)
-+		return 0;
-+
-+	/*
-+	 * At this point pages are locked and unmapped, and thus they have
-+	 * stable content and can safely be copied to destination memory that
-+	 * is allocated by the callback.
-+	 *
-+	 * Note that migration can fail in migrate_vma_struct_page() for each
-+	 * individual page.
-+	 */
-+	ops->alloc_and_copy(vma, src, dst, start, end, private);
-+
-+	/* This does the real migration of struct page */
-+	migrate_vma_pages(&migrate);
-+
-+	ops->finalize_and_map(vma, src, dst, start, end, private);
-+
-+	/* Unlock and remap pages */
-+	migrate_vma_finalize(&migrate);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(migrate_vma);
--- 
-2.13.0
+Well, the database application does not need to deal with a monitor.
+
+>
+> I've just been thinking that maybe it would be possible to use
+> UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
+> of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
+> non-cooperative userfaultfd. It could be that it will solve your issue as
+> well.
+>
+
+Will this result in a signal delivery?
+
+In the use case described, the database application does not need any event
+for  hole punching. Basically, just a signal for any invalid access to 
+mapped
+area over holes in the file.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
