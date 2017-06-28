@@ -1,70 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 07DDC6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 12:55:24 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m188so63665342pgm.2
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:55:24 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id i68si1884348pgc.593.2017.06.28.09.55.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DCC46B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 12:56:57 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b184so11039511wme.14
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:56:57 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id n84si3320037wmf.101.2017.06.28.09.56.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 09:55:23 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id z6so9741258pfk.3
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:55:23 -0700 (PDT)
-Date: Wed, 28 Jun 2017 09:55:20 -0700
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: [kernel-hardening] [PATCH 17/23] dcache: define usercopy region
- in dentry_cache slab cache
-Message-ID: <20170628165520.GA129364@gmail.com>
-References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
- <1497915397-93805-18-git-send-email-keescook@chromium.org>
- <20170620040834.GB610@zzz.localdomain>
- <CAGXu5jJyyO8CmukmmZdfmt34pubr8EzRJ4H2AMjc15UpLzrGcQ@mail.gmail.com>
+        Wed, 28 Jun 2017 09:56:55 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id i127so65624967wma.0
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:56:55 -0700 (PDT)
+Date: Wed, 28 Jun 2017 18:56:52 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
+Message-ID: <20170628165651.bier32hnv3y4hmd6@gmail.com>
+References: <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
+ <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
+ <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
+ <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
+ <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
+ <alpine.DEB.2.20.1706281425350.1970@nanos>
+ <alpine.DEB.2.20.1706281544480.1970@nanos>
+ <20170628141420.GK5981@leverpostej>
+ <alpine.DEB.2.20.1706281709140.1970@nanos>
+ <20170628155445.GD8252@leverpostej>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jJyyO8CmukmmZdfmt34pubr8EzRJ4H2AMjc15UpLzrGcQ@mail.gmail.com>
+In-Reply-To: <20170628155445.GD8252@leverpostej>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Jun 28, 2017 at 09:44:13AM -0700, Kees Cook wrote:
-> On Mon, Jun 19, 2017 at 9:08 PM, Eric Biggers <ebiggers3@gmail.com> wrote:
-> > On Mon, Jun 19, 2017 at 04:36:31PM -0700, Kees Cook wrote:
-> >> From: David Windsor <dave@nullcore.net>
-> >>
-> >> When a dentry name is short enough, it can be stored directly in
-> >> the dentry itself.  These dentry short names, stored in struct
-> >> dentry.d_iname and therefore contained in the dentry_cache slab cache,
-> >> need to be coped to/from userspace.
-> >>
-> >> In support of usercopy hardening, this patch defines a region in
-> >> the dentry_cache slab cache in which userspace copy operations
-> >> are allowed.
-> >>
-> >> This region is known as the slab cache's usercopy region.  Slab
-> >> caches can now check that each copy operation involving cache-managed
-> >> memory falls entirely within the slab's usercopy region.
-> >>
-> >> This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
-> >> whitelisting code in the last public patch of grsecurity/PaX based on my
-> >> understanding of the code. Changes or omissions from the original code are
-> >> mine and don't reflect the original grsecurity/PaX code.
-> >>
-> >
-> > For all these patches please mention *where* the data is being copied to/from
-> > userspace.
+
+* Mark Rutland <mark.rutland@arm.com> wrote:
+
+> > And instead of adding
+> > 
+> >     #include <asm/atomic-instrumented.h>
+> > 
+> > to the architecture code, we rather do
+> > 
+> > # mv arch/xxx/include/asm/atomic.h mv arch/xxx/include/asm/arch_atomic.h
+> > # echo '#include <asm-generic/atomic.h>' >arch/xxx/include/asm/atomic.h
+> > 
+> > # mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
+> > 
+> > and create a new include/asm-generic/atomic.h
+> > 
+> > #ifndef __ASM_GENERIC_ATOMIC_H
+> > #define __ASM_GENERIC_ATOMIC_H
+> > 
+> > #ifdef CONFIG_ATOMIC_INSTRUMENTED_H
+> > #include <asm-generic/atomic_instrumented.h>
+> > #else
+> > #include <asm-generic/atomic_up.h>
+> > #endif
+> > 
+> > #endif
 > 
-> Can you explain what you mean here? The field being copied is already
-> mentioned in the commit log; do you mean where in the kernel source
-> does the copy happen?
-> 
+> Given we're gonig to clean things up, we may as well avoid the backwards
+> include of <asm-generic/atomic_instrumented.h>, whcih was only there as
+> a bodge:
 
-Yes, for the ones where it isn't obvious, mentioning a syscall or ioctl might be
-sufficient.  Others may need more explanation.
+So, since the final v4.12 release is so close, I've put the following KASAN 
+commits aside into tip:WIP.locking/atomics:
 
-Eric
+4b47cc154eed: locking/atomic/x86, asm-generic: Add comments for atomic instrumentation
+35787d9d7ca4: locking/atomics, asm-generic: Add KASAN instrumentation to atomic operations
+68c1ed1fdb0a: kasan: Allow kasan_check_read/write() to accept pointers to volatiles
+f1c3049f6729: locking/atomic/x86: Switch atomic.h to use atomic-instrumented.h
+d079eebb3958: locking/atomic: Add asm-generic/atomic-instrumented.h
+007d185b4462: locking/atomic/x86: Use 's64 *' for 'old' argument of atomic64_try_cmpxchg()
+ba1c9f83f633: locking/atomic/x86: Un-macro-ify atomic ops implementation
+
+(Note, I had to rebase these freshly, to decouple them from a refcount_t commit 
+that we need.)
+
+and won't send them to Linus unless the cleanups are done and acked by Thomas.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
