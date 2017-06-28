@@ -1,162 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2186B02C3
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 11:55:40 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id t75so18957219pgb.0
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 08:55:40 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 88si1835343pfi.181.2017.06.28.08.55.39
-        for <linux-mm@kvack.org>;
-        Wed, 28 Jun 2017 08:55:39 -0700 (PDT)
-Date: Wed, 28 Jun 2017 16:54:45 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
-Message-ID: <20170628155445.GD8252@leverpostej>
-References: <cover.1498140838.git.dvyukov@google.com>
- <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com>
- <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc>
- <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
- <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com>
- <20170628121246.qnk2csgzbgpqrmw3@linutronix.de>
- <alpine.DEB.2.20.1706281425350.1970@nanos>
- <alpine.DEB.2.20.1706281544480.1970@nanos>
- <20170628141420.GK5981@leverpostej>
- <alpine.DEB.2.20.1706281709140.1970@nanos>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BB6E6B0292
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 12:40:02 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id o66so46706571ita.5
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:40:02 -0700 (PDT)
+Received: from mail-it0-x22d.google.com (mail-it0-x22d.google.com. [2607:f8b0:4001:c0b::22d])
+        by mx.google.com with ESMTPS id q204si2322384iod.11.2017.06.28.09.40.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jun 2017 09:40:01 -0700 (PDT)
+Received: by mail-it0-x22d.google.com with SMTP id v202so32543755itb.0
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 09:40:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1706281709140.1970@nanos>
+In-Reply-To: <20170628121730.43079-1-kirill.shutemov@linux.intel.com>
+References: <20170622122608.80435-1-kirill.shutemov@linux.intel.com> <20170628121730.43079-1-kirill.shutemov@linux.intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 28 Jun 2017 09:39:59 -0700
+Message-ID: <CAGXu5jJaK-bHnXF8z0RVqubHasnv6G0owCZ3TVyfpUgLKt_5Bw@mail.gmail.com>
+Subject: Re: [PATCH 6/5] x86/KASLR: Fix detection 32/64 bit bootloaders for
+ 5-level paging
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jun 28, 2017 at 05:24:24PM +0200, Thomas Gleixner wrote:
-> On Wed, 28 Jun 2017, Mark Rutland wrote:
-> > On Wed, Jun 28, 2017 at 03:54:42PM +0200, Thomas Gleixner wrote:
-> > > > static inline unsigned long cmpxchg_varsize(void *ptr, unsigned long old,
-> > > > 					    unsigned long new, int size)
-> > > > {
-> > > > 	switch (size) {
-> > > > 	case 1:
-> > > > 	case 2:
-> > > > 	case 4:
-> > > > 		break;
-> > > > 	case 8:
-> > > > 		if (sizeof(unsigned long) == 8)
-> > > > 			break;
-> > > > 	default:
-> > > > 		BUILD_BUG_ON(1);
-> > > > 	}
-> > > > 	kasan_check(ptr, size);
-> > > > 	return arch_cmpxchg(ptr, old, new);
-> > > > }
-> > 
-> > This'll need to re-cast things before the call to arch_cmpxchg(), and we
-> > can move the check above the switch, as in [2].
-> 
-> Sure, but I rather see that changed to:
-> 
-> 1) Create arch_cmpxchg8/16/32/64() inlines first
-> 
-> 2) Add that varsize wrapper:
-> 
-> static inline unsigned long cmpxchg_varsize(void *ptr, unsigned long old,
->                                             unsigned long new, int size)
-> {
->         switch (size) {
->         case 1:
->                 kasan_check_write(ptr, size);
->                 return arch_cmpxchg8((u8 *)ptr, (u8) old, (u8)new);
->         case 2:
->                 kasan_check_write(ptr, size);
->                 return arch_cmpxchg16((u16 *)ptr, (u16) old, (u16)new);
->         case 4:
->                 kasan_check_write(ptr, size);
->                 return arch_cmpxchg32((u32 *)ptr, (u32) old, (u32)new);
->         case 8:
->                 if (sizeof(unsigned long) == 8) {
->                         kasan_check_write(ptr, size);
->                         return arch_cmpxchg64((u64 *)ptr, (u64) old, (u64)new);
->                 }
->         default:
->                 BUILD_BUG();
+On Wed, Jun 28, 2017 at 5:17 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> KASLR uses hack to detect whether we booted via startup_32() or
+> startup_64(): it checks what is loaded into cr3 and compares it to
+> _pgtables. _pgtables is the array of page tables where early code
+> allocates page table from.
+>
+> KASLR expects cr3 to point to _pgtables if we booted via startup_32(), but
+> that's not true if we booted with 5-level paging enabled. In this case top
+> level page table is allocated separately and only the first p4d page table
+> is allocated from the array.
+>
+> Let's modify the check to cover both 4- and 5-level paging cases.
+>
+> The patch also renames 'level4p' to 'top_level_pgt' as it now can hold
+> page table for 4th or 5th level, depending on configuration.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Kees Cook <keescook@chromium.org>
+
+This looks good, thanks!
+
+Acked-by: Kees Cook <keescook@chromium.org>
+
+-Kees
+
+> ---
+>  arch/x86/boot/compressed/pagetable.c | 18 ++++++++++++------
+>  1 file changed, 12 insertions(+), 6 deletions(-)
+>
+> diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
+> index 8e69df96492e..da4cf44d4aac 100644
+> --- a/arch/x86/boot/compressed/pagetable.c
+> +++ b/arch/x86/boot/compressed/pagetable.c
+> @@ -63,7 +63,7 @@ static void *alloc_pgt_page(void *context)
+>  static struct alloc_pgt_data pgt_data;
+>
+>  /* The top level page table entry pointer. */
+> -static unsigned long level4p;
+> +static unsigned long top_level_pgt;
+>
+>  /*
+>   * Mapping information structure passed to kernel_ident_mapping_init().
+> @@ -91,9 +91,15 @@ void initialize_identity_maps(void)
+>          * If we came here via startup_32(), cr3 will be _pgtable already
+>          * and we must append to the existing area instead of entirely
+>          * overwriting it.
+> +        *
+> +        * With 5-level paging, we use _pgtable allocate p4d page table,
+> +        * top-level page table is allocated separately.
+> +        *
+> +        * p4d_offset(top_level_pgt, 0) would cover both 4- and 5-level
+> +        * cases. On 4-level paging it's equal to top_level_pgt.
+>          */
+> -       level4p = read_cr3_pa();
+> -       if (level4p == (unsigned long)_pgtable) {
+> +       top_level_pgt = read_cr3_pa();
+> +       if (p4d_offset((pgd_t *)top_level_pgt, 0) == (p4d_t *)_pgtable) {
+>                 debug_putstr("booted via startup_32()\n");
+>                 pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
+>                 pgt_data.pgt_buf_size = BOOT_PGT_SIZE - BOOT_INIT_PGT_SIZE;
+> @@ -103,7 +109,7 @@ void initialize_identity_maps(void)
+>                 pgt_data.pgt_buf = _pgtable;
+>                 pgt_data.pgt_buf_size = BOOT_PGT_SIZE;
+>                 memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);
+> -               level4p = (unsigned long)alloc_pgt_page(&pgt_data);
+> +               top_level_pgt = (unsigned long)alloc_pgt_page(&pgt_data);
 >         }
-> }
-> 
-> #define cmpxchg(ptr, o, n)                                              \
-> ({                                                                      \
->         ((__typeof__(*(ptr)))cmpxchg_varsize((ptr), (unsigned long)(o), \
->                              (unsigned long)(n), sizeof(*(ptr))));      \
-> })
-> 
-> Which allows us to create:
-> 
-> static inline u8 cmpxchg8(u8 *ptr, u8 old, u8 new)
-> {
-> 	kasan_check_write(ptr, sizeof(old));
-> 	return arch_cmpxchg8(ptr, old, new);
-> }
-> 
-> and friends as well and later migrate the existing users away from that
-> untyped macro mess.
+>  }
+>
+> @@ -123,7 +129,7 @@ void add_identity_map(unsigned long start, unsigned long size)
+>                 return;
+>
+>         /* Build the mapping. */
+> -       kernel_ident_mapping_init(&mapping_info, (pgd_t *)level4p,
+> +       kernel_ident_mapping_init(&mapping_info, (pgd_t *)top_level_pgt,
+>                                   start, end);
+>  }
+>
+> @@ -134,5 +140,5 @@ void add_identity_map(unsigned long start, unsigned long size)
+>   */
+>  void finalize_identity_maps(void)
+>  {
+> -       write_cr3(level4p);
+> +       write_cr3(top_level_pgt);
+>  }
+> --
+> 2.11.0
+>
 
-Sure, that makes sense to me.
 
-> 
-> And instead of adding
-> 
->     #include <asm/atomic-instrumented.h>
-> 
-> to the architecture code, we rather do
-> 
-> # mv arch/xxx/include/asm/atomic.h mv arch/xxx/include/asm/arch_atomic.h
-> # echo '#include <asm-generic/atomic.h>' >arch/xxx/include/asm/atomic.h
-> 
-> # mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
-> 
-> and create a new include/asm-generic/atomic.h
-> 
-> #ifndef __ASM_GENERIC_ATOMIC_H
-> #define __ASM_GENERIC_ATOMIC_H
-> 
-> #ifdef CONFIG_ATOMIC_INSTRUMENTED_H
-> #include <asm-generic/atomic_instrumented.h>
-> #else
-> #include <asm-generic/atomic_up.h>
-> #endif
-> 
-> #endif
 
-Given we're gonig to clean things up, we may as well avoid the backwards
-include of <asm-generic/atomic_instrumented.h>, whcih was only there as
-a bodge:
-
-For the UP arches we do:
-# echo '#include <asm-generic/atomic_up.h>' >arch/xxx/include/asm/atomic.h
-# mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
-
-Then we add a <linux/atomic_instrumented.h>:
-
-#ifndef __LINUX_ATOMIC_INSTRUMENTED_H
-#define __LINUX_ATOMIC INSTRUMENTED_H
-
-#include <asm/atomic.h>
-
-#if CONFIG_ATOMIC_INSTRUMENTED_H
-<instrumentation>
-#endif
-
-#endif /* __LINUX_ATOMIC_ARCH_H */
-
-... and make <linux/atomic.h> incldue that rather than <asm/atomic.h>.
-
-That way the instrumentation's orthogonal to the UP-ness of the arch,
-and we can fold any other instrumentation in there, or later move it
-directly into <linux/atomic.h>
-
-Thanks,
-Mark.
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
