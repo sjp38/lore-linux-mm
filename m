@@ -1,96 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A9C2F6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:06:35 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id t3so8706622wme.9
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:06:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i186si4828694wmd.88.2017.06.28.00.06.32
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BBA766B02C3
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:12:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 21so8047790wmt.15
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 00:12:42 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i16si5335076wme.37.2017.06.28.00.12.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 00:06:33 -0700 (PDT)
-Subject: Re: [PATCH] mm/memory_hotplug: just build zonelist for new added node
-References: <20170626035822.50155-1-richard.weiyang@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <855068c0-8361-9789-4208-36d43e8fd80d@suse.cz>
-Date: Wed, 28 Jun 2017 09:06:31 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jun 2017 00:12:41 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5S79OmR124881
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:12:40 -0400
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bc243ukax-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 03:12:39 -0400
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 28 Jun 2017 01:12:39 -0600
+Date: Wed, 28 Jun 2017 00:12:28 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v4 09/17] powerpc: call the hash functions with the correct
+ pkey value
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1498558319-32466-1-git-send-email-linuxram@us.ibm.com>
+ <1498558319-32466-10-git-send-email-linuxram@us.ibm.com>
+ <5e4fa932-4313-5376-2147-a6431bbec16b@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170626035822.50155-1-richard.weiyang@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5e4fa932-4313-5376-2147-a6431bbec16b@linux.vnet.ibm.com>
+Message-Id: <20170628071228.GA5561@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>, akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On 06/26/2017 05:58 AM, Wei Yang wrote:
-> In commit (9adb62a5df9c0fbef7) "mm/hotplug: correctly setup fallback
-> zonelists when creating new pgdat" tries to build the correct zonelist for
-> a new added node, while it is not necessary to rebuild it for already exist
-> nodes.
+On Tue, Jun 27, 2017 at 08:54:07PM +0530, Aneesh Kumar K.V wrote:
 > 
-> In build_zonelists(), it will iterate on nodes with memory. For a new added
-> node, it will have memory until node_states_set_node() is called in
-
-        it will not have memory
-
-right?
-
-> online_pages().
 > 
-> This patch will avoid to rebuild the zonelists for already exist nodes.
+> On Tuesday 27 June 2017 03:41 PM, Ram Pai wrote:
+> >Pass the correct protection key value to the hash functions on
+> >page fault.
+> >
+> >Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> >---
+> >  arch/powerpc/include/asm/pkeys.h | 11 +++++++++++
+> >  arch/powerpc/mm/hash_utils_64.c  |  4 ++++
+> >  arch/powerpc/mm/mem.c            |  6 ++++++
+> >  3 files changed, 21 insertions(+)
+> >
+> >diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+> >index ef1c601..1370b3f 100644
+> >--- a/arch/powerpc/include/asm/pkeys.h
+> >+++ b/arch/powerpc/include/asm/pkeys.h
+> >@@ -74,6 +74,17 @@ static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
+> >  }
+> >
+> >  /*
+> >+ * return the protection key of the vma corresponding to the
+> >+ * given effective address @ea.
+> >+ */
+> >+static inline int mm_pkey(struct mm_struct *mm, unsigned long ea)
+> >+{
+> >+	struct vm_area_struct *vma = find_vma(mm, ea);
+> >+	int pkey = vma ? vma_pkey(vma) : 0;
+> >+	return pkey;
+> >+}
+> >+
+> >+/*
+> >
 > 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+> That is not going to work in hash fault path right ? We can't do a
+> find_vma there without holding the mmap_sem
 
-Sounds correct, as far as the memory hotplug mess allows.
+There is a fundamental problem with this new design. Looks like we can't
+hold a lock in that path, without badly hurting the performance.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I am moving back to the old design. Cant by-pass the pte. The
+keys will be programmed into the pte which will than be used
+to program the hpte.
 
-Some style nitpicks below:
-
-> ---
->  mm/page_alloc.c | 16 +++++++++-------
->  1 file changed, 9 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 560eafe8234d..fc8181b44fd8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5200,15 +5200,17 @@ static int __build_all_zonelists(void *data)
->  	memset(node_load, 0, sizeof(node_load));
->  #endif
->  
-> -	if (self && !node_online(self->node_id)) {
-> +	/* This node is hotadded and no memory preset yet.
-
-On multiline comments, the first line should be empty after "/*"
-
-But I see Andrew already fixed that.
-
-> +	 * So just build zonelists is fine, no need to touch other nodes.
-> +	 */
-> +	if (self && !node_online(self->node_id))
->  		build_zonelists(self);
-> -	}
-> -
-> -	for_each_online_node(nid) {
-> -		pg_data_t *pgdat = NODE_DATA(nid);
-> +	else
-> +		for_each_online_node(nid) {
-> +			pg_data_t *pgdat = NODE_DATA(nid);
->  
-> -		build_zonelists(pgdat);
-> -	}
-> +			build_zonelists(pgdat);
-> +		}
-
-Personally I would use { } for the else block, and thus leave them also
-for the if block, not sure if this is recommended by the style guide though.
-
->  	/*
->  	 * Initialize the boot_pagesets that are going to be used
-> 
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
