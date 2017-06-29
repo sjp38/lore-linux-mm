@@ -1,84 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF336B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 13:46:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l81so3383089wmg.8
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 10:46:40 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id p64si1717421wmd.165.2017.06.29.10.46.39
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 02ADE6B02C3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 13:47:08 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v36so95683768pgn.6
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 10:47:07 -0700 (PDT)
+Received: from smtp.gentoo.org (smtp.gentoo.org. [140.211.166.183])
+        by mx.google.com with ESMTPS id 1si4009428pgt.572.2017.06.29.10.47.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 10:46:39 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id 62so89390994wmw.1
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 10:46:39 -0700 (PDT)
+        Thu, 29 Jun 2017 10:47:06 -0700 (PDT)
+Received: from grubbs.orbis-terrarum.net (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	by smtp.gentoo.org (Postfix) with ESMTPS id 75333341876
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 17:47:06 +0000 (UTC)
+Date: Thu, 29 Jun 2017 17:47:05 +0000
+From: "Robin H. Johnson" <robbat2@gentoo.org>
+Subject: Re: Regarding your thread on LKML - drm_radeon spamming
+ alloc_contig_range [WAS: Re: PROBLEM-PERSISTS: dmesg spam:
+ alloc_contig_range: [XX, YY) PFNs busy]
+Message-ID: <20170629174705.GN23586@orbis-terrarum.net>
 MIME-Version: 1.0
-In-Reply-To: <20170627155035.GA20189@dhcp22.suse.cz>
-References: <CAA25o9T1WmkWJn1LA-vS=W_Qu8pBw3rfMtTreLNu8fLuZjTDsw@mail.gmail.com>
- <20170627071104.GB28078@dhcp22.suse.cz> <CAA25o9T1q9gWzb0BeXY3mvLOth-ow=yjVuwD9ct5f1giBWo=XQ@mail.gmail.com>
- <CAA25o9TUkHd9w+DNBdH_4w6LTEEb+Q6QAycHcqx-z3mwh+G=kA@mail.gmail.com> <20170627155035.GA20189@dhcp22.suse.cz>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Thu, 29 Jun 2017 10:46:37 -0700
-Message-ID: <CAA25o9RL6ntbL9+ae11_AbGSZ7MNTNZv8yEW4jvZdMa-en+8ag@mail.gmail.com>
-Subject: Re: OOM kills with lots of free swap
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha512;
+	protocol="application/pgp-signature"; boundary="cADPt9qH4kAUtA4D"
+Content-Disposition: inline
+In-Reply-To: <CADK6UNEQ+WuKDRyUVPQ1RwOWCkvcU95OBh4obKj4dv62Kf5ipA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-Well, my apologies, I haven't been able to reproduce the problem, so
-there's nothing to go on here.
-
-We had a bug (a local patch) which caused this, then I had a bug in my
-test case, so I was confused.  I also have a recollection of this
-happening in older kernels (3.8 I think), but I am not going to go
-back that far since even if the problem exists, we have no evidence it
-happens frequently.
-
-Thanks!
+To: Kumar Abhishek <kumar.abhishek.kakkar@gmail.com>
+Cc: robbat2@orbis-terrarum.net, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, robbat2@gentoo.org, linux-mm@kvack.org, mina86@mina86.com
 
 
-On Tue, Jun 27, 2017 at 8:50 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 27-06-17 08:22:36, Luigi Semenzato wrote:
->> (sorry, I forgot to turn off HTML formatting)
->>
->> Thank you, I can try this on ToT, although I think that the problem is
->> not with the OOM killer itself but earlier---i.e. invoking the OOM
->> killer seems unnecessary and wrong.  Here's the question.
->>
->> The general strategy for page allocation seems to be (please correct
->> me as needed):
->>
->> 1. look in the free lists
->> 2. if that did not succeed, try to reclaim, then try again to allocate
->> 3. keep trying as long as progress is made (i.e. something was reclaimed)
->> 4. if no progress was made and no pages were found, invoke the OOM killer.
->
-> Yes that is the case very broadly speaking. The hard question really is
-> what "no progress" actually means. We use "no pages could be reclaimed"
-> as the indicator. We cannot blow up at the first such instance of
-> course because that could be too early (e.g. data under writeback
-> and many other details). With 4.7+ kernels this is implemented in
-> should_reclaim_retry. Prior to the rework we used to rely on
-> zone_reclaimable which simply checked how many pages we have scanned
-> since the last page has been freed and if that is 6 times the
-> reclaimable memory then we simply give up. It had some issues described
-> in 0a0337e0d1d1 ("mm, oom: rework oom detection").
->
->> I'd like to know if that "progress is made" notion is possibly buggy.
->> Specifically, does it mean "progress is made by this task"?  Is it
->> possible that resource contention creates a situation where most tasks
->> in most cases can reclaim and allocate, but one task randomly fails to
->> make progress?
->
-> This can happen, alhtough it is quite unlikely. We are trying to
-> throttle allocations but you can hardly fight a consistent badluck ;)
->
-> In order to see what is going on in your particular case we need an oom
-> report though.
-> --
-> Michal Hocko
-> SUSE Labs
+--cADPt9qH4kAUtA4D
+Content-Type: multipart/mixed; boundary="s84eBR/zx33jl1qi"
+Content-Disposition: inline
+
+
+--s84eBR/zx33jl1qi
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+
+CC'd back to LKML.
+
+On Thu, Jun 29, 2017 at 06:11:00PM +0530, Kumar Abhishek wrote:
+> Hi Robin,
+>=20
+> I am an independent developer who stumbled upon your thread on the LKML
+> after facing a similar issue - my kernel log being spammed by
+> alloc_contig_range messages. I am running Linux on an ARM system
+> (specifically the BeagleBoard-X15) and am on kernel version 4.9.33 with TI
+> patches on top of it.
+>=20
+> I am running Debian Stretch (9.0) on the system.
+>=20
+> Here's what my stack trace looks like:
+=2E.
+>=20
+> It's somewhat similar to your stack trace, but this here happens on an
+> etnaviv GPU (Vivante GCxx).
+>=20
+> In my case if I do 'sudo service lightdm stop', these messages stop too.
+> This seems to suggest that the problem may be in the X server rather than
+> the kernel? I seem to think this because I replicated this on an entirely
+> different set of hardware than yours.
+>=20
+> I just wanted to bring this to your notice, and also ask you if you manag=
+ed
+> to solve it for yourself.
+>=20
+> One solution could be to demote the pr_info in alloc_contig_range to
+> pr_debug or to do away with the message altogether, but this would be
+> suppressing the issue instead of really knowing what it is about.
+>=20
+> Let me know how I could further investigate this.
+The problem, as far as I got diagnosed on LKML, is that some of the GPUs
+have a bunch of non-fatal contiguous memory allocation requests: they
+have a meaningful fallback path on the allocation, so 'PFNs busy' is a
+false busy for their case.
+
+However, if there was a another consumer that does NOT have a fallback,
+the output would still be crucially useful.
+
+Attached is the patch that I unsuccessfully proposed on LKML to
+rate-limit the messages, with the last revision to only dump_stack() if
+CONFIG_CMA_DEBUG was set.
+
+The path that LKML wanted was to add a new parameter to suppress or at
+least demote the failure message, and update all of the callers: but it
+means that many of the indirect callers need that added parameter as
+well.
+
+mm/cma.c:cma_alloc this call can suppress the error, you can see it retry.
+mm/hugetlb.c: These callers should get the error message.
+
+The error message DOES still have a good general use in notifying you
+that something is going wrong. There was noticeable performance slowdown
+in my case when it was trying hard to allocate.
+
+--=20
+Robin Hugh Johnson
+E-Mail     : robbat2@orbis-terrarum.net
+Home Page  : http://www.orbis-terrarum.net/?l=3Dpeople.robbat2
+ICQ#       : 30269588 or 41961639
+GnuPG FP   : 11ACBA4F 4778E3F6 E4EDF38E B27B944E 34884E85
+
+--s84eBR/zx33jl1qi
+Content-Type: text/x-diff; charset=us-ascii
+Content-Disposition: attachment; filename="000-despam-pfn-busy.patch"
+Content-Transfer-Encoding: quoted-printable
+
+commit 808c209dc82ce79147122ca78e7047bc74a16149
+Author: Robin H. Johnson <robbat2@gentoo.org>
+Date:   Wed Nov 30 10:32:57 2016 -0800
+
+    mm: ratelimit & trace PFNs busy.
+   =20
+    Signed-off-by: Robin H. Johnson <robbat2@gentoo.org>
+	Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6de9440e3ae2..3c28ec3d18f8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7289,8 +7289,16 @@ int alloc_contig_range(unsigned long start, unsigned=
+ long end,
+=20
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end, false)) {
+-		pr_info("%s: [%lx, %lx) PFNs busy\n",
+-			__func__, outer_start, end);
++		static DEFINE_RATELIMIT_STATE(ratelimit_pfn_busy,
++					DEFAULT_RATELIMIT_INTERVAL,
++					DEFAULT_RATELIMIT_BURST);
++		if (__ratelimit(&ratelimit_pfn_busy)) {
++			pr_info("%s: [%lx, %lx) PFNs busy\n",
++				__func__, outer_start, end);
++			if (IS_ENABLED(CONFIG_CMA_DEBUG))
++				dump_stack();
++		}
++
+ 		ret =3D -EBUSY;
+ 		goto done;
+ 	}
+
+--s84eBR/zx33jl1qi--
+
+--cADPt9qH4kAUtA4D
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+Comment: Robbat2 @ Orbis-Terrarum Networks - The text below is a digital signature. If it doesn't make any sense to you, ignore it.
+
+iQKTBAEBCgB9FiEEveu2pS8Vb98xaNkRGTlfI8WIJsQFAllVPRhfFIAAAAAALgAo
+aXNzdWVyLWZwckBub3RhdGlvbnMub3BlbnBncC5maWZ0aGhvcnNlbWFuLm5ldEJE
+RUJCNkE1MkYxNTZGREYzMTY4RDkxMTE5Mzk1RjIzQzU4ODI2QzQACgkQGTlfI8WI
+JsQbNw//WXW+x1z7iooqHc+kok4wWPDY39I1tQTDNz9W/HwKWGRJxGoneN6CQJ+G
+HBCbDDun72JQtGzGy9bed4IZnhhjaKCaTSXG8UrDAJGQ/R6wt6vvDWTCHikEPNT2
+W80dUhG3mkWY5Wly1KzVcqxAUM9YYzD7RTwrRppepE4hPNj3q1AZ5x5vq8LS0pLX
+mCj43LG+5VstaA1LQCxW69OlFsVeRHKPXQKbzHKgucxVUaqTfu+2jP0ehdVlmXib
+M3vDhbFMkNVsjIXh0uXVs4I1kgJcqqQkBv/HIOqvOHpQ4VkRsZ/10BoTQPj8Yb3I
+XhTeiWxWbYDXstkEIqhViucrtyFpuDqHcWcYMa5UwUIUSxfBoVPI2RkzsUtszCS+
+o4V2vunzB2MPuRxqdVv02KinErleTvHbcORqr/r1BFjOhCezf5aXyJoJm+ziPjYs
+EhyvbBl4zIDzY0uSc90HfU6f6+p2HiIBY2MD6hDljlBR9RUk3uEIjy45THT8aPkU
+wVhi53FMk1nFG3POorMIBvHm8oCk5Vsn2qK+pEQOk6lbxC/x2MLWRahv1cCojm45
+fTzYayjqapT55A4v4Ep8p5dLrRVf0o5XBGyqtQgADFSfvq11XI1L8nDaOHa9ojoC
+GwriDD6U69fzEotFU2KIFYfLIFPmJz3DVu9fxCsnsjvBCN5W2MQ=
+=aCrF
+-----END PGP SIGNATURE-----
+
+--cADPt9qH4kAUtA4D--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
