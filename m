@@ -1,195 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B6AA06B0387
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 12:11:21 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b189so2994395wmb.12
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:11:21 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id k205si1538573wmf.17.2017.06.29.09.11.19
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 564516B02F3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 12:54:55 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id o20so72134880yba.9
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:54:55 -0700 (PDT)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id 132si1486680ywf.64.2017.06.29.09.54.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Jun 2017 09:11:20 -0700 (PDT)
-Date: Thu, 29 Jun 2017 18:11:15 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-Message-ID: <alpine.DEB.2.20.1706291803380.1861@nanos>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Jun 2017 09:54:54 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id w12so11982793qta.2
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:54:54 -0700 (PDT)
+Subject: Re: [PATCH] cma: fix calculation of aligned offset
+References: <20170628170742.2895-1-opendmb@gmail.com>
+ <CADtm3G6EWr6O5TEpXr_EUGA6_Fg7yBm12ttfXfC_EtQT7gyXFw@mail.gmail.com>
+From: Doug Berger <opendmb@gmail.com>
+Message-ID: <06989e55-b062-5312-1b26-f6db39153f7a@gmail.com>
+Date: Thu, 29 Jun 2017 09:54:51 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <CADtm3G6EWr6O5TEpXr_EUGA6_Fg7yBm12ttfXfC_EtQT7gyXFw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Gregory Fong <gregory.0xf0@gmail.com>
+Cc: Angus Clark <angus@angusclark.org>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Lucas Stach <l.stach@pengutronix.de>, Catalin Marinas <catalin.marinas@arm.com>, Shiraz Hashim <shashim@codeaurora.org>, Jaewon Kim <jaewon31.kim@samsung.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Danesh Petigara <dpetigara@broadcom.com>
 
-Andrey reported a potential deadlock with the memory hotplug lock and the
-cpu hotplug lock.
+On 06/28/2017 11:23 PM, Gregory Fong wrote:
+> On Wed, Jun 28, 2017 at 10:07 AM, Doug Berger <opendmb@gmail.com> wrote:
+>> The align_offset parameter is used by bitmap_find_next_zero_area_off()
+>> to represent the offset of map's base from the previous alignment
+>> boundary; the function ensures that the returned index, plus the
+>> align_offset, honors the specified align_mask.
+>>
+>> The logic introduced by commit b5be83e308f7 ("mm: cma: align to
+>> physical address, not CMA region position") has the cma driver
+>> calculate the offset to the *next* alignment boundary.
+> 
+> Wow, I had that completely backward, nice catch.
+Thanks go to Angus for that!
 
-The reason is that memory hotplug takes the memory hotplug lock and then
-calls stop_machine() which calls get_online_cpus(). That's the reverse lock
-order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
+>> In most cases,
+>> the base alignment is greater than that specified when making
+>> allocations, resulting in a zero offset whether we align up or down.
+>> In the example given with the commit, the base alignment (8MB) was
+>> half the requested alignment (16MB) so the math also happened to work
+>> since the offset is 8MB in both directions.  However, when requesting
+>> allocations with an alignment greater than twice that of the base,
+>> the returned index would not be correctly aligned.
+> 
+> It may be worth explaining what impact incorrect alignment has for an
+> end user, then considering for inclusion in stable.
+It would be difficult to explain in a general way since the end user is
+requesting the alignment and only she knows what the consequences would
+be for insufficient alignment.
 
-The problem has been there forever. The reason why this was never reported
-is that the cpu hotplug locking had this homebrewn recursive reader writer
-semaphore construct which due to the recursion evaded the full lock dep
-coverage. The memory hotplug code copied that construct verbatim and
-therefor has similar issues.
+I assume in general with the CMA it is most likely a DMA constraint.
+However, in our particular case the problem affected an allocation used
+by a co-processor.  The larger CONFIG_CMA_ALIGNMENT is the less likely
+users would run into this bug.  We encountered it after reducing our
+default CONFIG_CMA_ALIGNMENT.
 
-Two steps to fix this:
+I agree that it should be considered for stable.
 
-1) Convert the memory hotplug locking to a per cpu rwsem so the potential
-   issues get reported proper by lockdep.
-
-2) Lock the online cpus in mem_hotplug_begin() before taking the memory
-   hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
-   to avoid recursive locking.
-
-Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
----
-
-Note 1:
- Applies against -next or
-     
-   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/hotplug
-
- which contains the hotplug locking rework including stop_machine_cpuslocked()
-
-Note 2:
-
- Most of the call sites of get_online_mems() are also calling get_online_cpus().
-
- So we could switch the whole machinery to use the CPU hotplug locking for
- protecting both memory and CPU hotplug. That actually works and removes
- another 40 lines of code.
-
----
- mm/memory_hotplug.c |   85 +++++++---------------------------------------------
- mm/page_alloc.c     |    2 -
- 2 files changed, 14 insertions(+), 73 deletions(-)
-
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -52,32 +52,17 @@ static void generic_online_page(struct p
- static online_page_callback_t online_page_callback = generic_online_page;
- static DEFINE_MUTEX(online_page_callback_lock);
- 
--/* The same as the cpu_hotplug lock, but for memory hotplug. */
--static struct {
--	struct task_struct *active_writer;
--	struct mutex lock; /* Synchronizes accesses to refcount, */
--	/*
--	 * Also blocks the new readers during
--	 * an ongoing mem hotplug operation.
--	 */
--	int refcount;
-+DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
- 
--#ifdef CONFIG_DEBUG_LOCK_ALLOC
--	struct lockdep_map dep_map;
--#endif
--} mem_hotplug = {
--	.active_writer = NULL,
--	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
--	.refcount = 0,
--#ifdef CONFIG_DEBUG_LOCK_ALLOC
--	.dep_map = {.name = "mem_hotplug.lock" },
--#endif
--};
-+void get_online_mems(void)
-+{
-+	percpu_down_read(&mem_hotplug_lock);
-+}
- 
--/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
--#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
--#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
--#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
-+void put_online_mems(void)
-+{
-+	percpu_up_read(&mem_hotplug_lock);
-+}
- 
- #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
- bool memhp_auto_online;
-@@ -97,60 +82,16 @@ static int __init setup_memhp_default_st
- }
- __setup("memhp_default_state=", setup_memhp_default_state);
- 
--void get_online_mems(void)
--{
--	might_sleep();
--	if (mem_hotplug.active_writer == current)
--		return;
--	memhp_lock_acquire_read();
--	mutex_lock(&mem_hotplug.lock);
--	mem_hotplug.refcount++;
--	mutex_unlock(&mem_hotplug.lock);
--
--}
--
--void put_online_mems(void)
--{
--	if (mem_hotplug.active_writer == current)
--		return;
--	mutex_lock(&mem_hotplug.lock);
--
--	if (WARN_ON(!mem_hotplug.refcount))
--		mem_hotplug.refcount++; /* try to fix things up */
--
--	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
--		wake_up_process(mem_hotplug.active_writer);
--	mutex_unlock(&mem_hotplug.lock);
--	memhp_lock_release();
--
--}
--
--/* Serializes write accesses to mem_hotplug.active_writer. */
--static DEFINE_MUTEX(memory_add_remove_lock);
--
- void mem_hotplug_begin(void)
- {
--	mutex_lock(&memory_add_remove_lock);
--
--	mem_hotplug.active_writer = current;
--
--	memhp_lock_acquire();
--	for (;;) {
--		mutex_lock(&mem_hotplug.lock);
--		if (likely(!mem_hotplug.refcount))
--			break;
--		__set_current_state(TASK_UNINTERRUPTIBLE);
--		mutex_unlock(&mem_hotplug.lock);
--		schedule();
--	}
-+	cpus_read_lock();
-+	percpu_down_write(&mem_hotplug_lock);
- }
- 
- void mem_hotplug_done(void)
- {
--	mem_hotplug.active_writer = NULL;
--	mutex_unlock(&mem_hotplug.lock);
--	memhp_lock_release();
--	mutex_unlock(&memory_add_remove_lock);
-+	percpu_up_write(&mem_hotplug_lock);
-+	cpus_read_unlock();
- }
- 
- /* add this memory to iomem resource */
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5216,7 +5216,7 @@ void __ref build_all_zonelists(pg_data_t
- #endif
- 		/* we have to stop all cpus to guarantee there is no user
- 		   of zonelist */
--		stop_machine(__build_all_zonelists, pgdat, NULL);
-+		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
- 		/* cpuset refresh routine should be here */
- 	}
- 	vm_total_pages = nr_free_pagecache_pages();
+>>
+>> Also, the align_order arguments of cma_bitmap_aligned_mask() and
+>> cma_bitmap_aligned_offset() should not be negative so the argument
+>> type was made unsigned.
+>>
+>> Fixes: b5be83e308f7 ("mm: cma: align to physical address, not CMA region position")
+>> Signed-off-by: Angus Clark <angus@angusclark.org>
+>> Signed-off-by: Doug Berger <opendmb@gmail.com>
+> 
+> Acked-by: Gregory Fong <gregory.0xf0@gmail.com>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
