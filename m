@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C4DD6B033C
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t194so2615836oif.8
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:17 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B21A6B0343
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:20 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q184so21675084oih.5
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:20 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f188si3514239oia.112.2017.06.29.06.20.16
+        by mx.google.com with ESMTPS id c79si3485690oig.256.2017.06.29.06.20.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 06:20:16 -0700 (PDT)
+        Thu, 29 Jun 2017 06:20:19 -0700 (PDT)
 From: jlayton@kernel.org
-Subject: [PATCH v8 07/18] mm: don't TestClearPageError in __filemap_fdatawait_range
-Date: Thu, 29 Jun 2017 09:19:43 -0400
-Message-Id: <20170629131954.28733-8-jlayton@kernel.org>
+Subject: [PATCH v8 08/18] mm: clean up error handling in write_one_page
+Date: Thu, 29 Jun 2017 09:19:44 -0400
+Message-Id: <20170629131954.28733-9-jlayton@kernel.org>
 In-Reply-To: <20170629131954.28733-1-jlayton@kernel.org>
 References: <20170629131954.28733-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,89 +22,53 @@ Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David 
 
 From: Jeff Layton <jlayton@redhat.com>
 
-The -EIO returned here can end up overriding whatever error is marked in
-the address space, and be returned at fsync time, even when there is a
-more appropriate error stored in the mapping.
+Don't try to check PageError since that's potentially racy and not
+necessarily going to be set after writepage errors out.
 
-Read errors are also sometimes tracked on a per-page level using
-PG_error. Suppose we have a read error on a page, and then that page is
-subsequently dirtied by overwriting the whole page. Writeback doesn't
-clear PG_error, so we can then end up successfully writing back that
-page and still return -EIO on fsync.
-
-Worse yet, PG_error is cleared during a sync() syscall, but the -EIO
-return from that is silently discarded. Any subsystem that is relying on
-PG_error to report errors during fsync can easily lose writeback errors
-due to this. All you need is a stray sync() call to wait for writeback
-to complete and you've lost the error.
-
-Since the handling of the PG_error flag is somewhat inconsistent across
-subsystems, let's just rely on marking the address space when there are
-writeback errors. Change the TestClearPageError call to ClearPageError,
-and make __filemap_fdatawait_range a void return function.
+Instead, check the mapping for an error after writepage returns.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- mm/filemap.c | 20 +++++---------------
- 1 file changed, 5 insertions(+), 15 deletions(-)
+ mm/page-writeback.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 49bc9720fb00..eb99b5f23c61 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -386,17 +386,16 @@ int filemap_flush(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_flush);
- 
--static int __filemap_fdatawait_range(struct address_space *mapping,
-+static void __filemap_fdatawait_range(struct address_space *mapping,
- 				     loff_t start_byte, loff_t end_byte)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index b901fe52b153..db30ce0b7d80 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2371,9 +2371,8 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
+  *
+  * The page must be locked by the caller and will be unlocked upon return.
+  *
+- * write_one_page() returns a negative error code if I/O failed. Note that
+- * the address_space is not marked for error. The caller must do this if
+- * needed.
++ * Note that the mapping's AS_EIO/AS_ENOSPC flags will be cleared when this
++ * function returns.
+  */
+ int write_one_page(struct page *page)
  {
- 	pgoff_t index = start_byte >> PAGE_SHIFT;
- 	pgoff_t end = end_byte >> PAGE_SHIFT;
- 	struct pagevec pvec;
- 	int nr_pages;
--	int ret = 0;
- 
- 	if (end_byte < start_byte)
--		goto out;
-+		return;
- 
- 	pagevec_init(&pvec, 0);
- 	while ((index <= end) &&
-@@ -413,14 +412,11 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- 				continue;
- 
+@@ -2391,15 +2390,15 @@ int write_one_page(struct page *page)
+ 	if (clear_page_dirty_for_io(page)) {
+ 		get_page(page);
+ 		ret = mapping->a_ops->writepage(page, &wbc);
+-		if (ret == 0) {
++		if (ret == 0)
  			wait_on_page_writeback(page);
--			if (TestClearPageError(page))
+-			if (PageError(page))
 -				ret = -EIO;
-+			ClearPageError(page);
- 		}
- 		pagevec_release(&pvec);
- 		cond_resched();
+-		}
+ 		put_page(page);
+ 	} else {
+ 		unlock_page(page);
  	}
--out:
--	return ret;
++
++	if (!ret)
++		ret = filemap_check_errors(mapping);
+ 	return ret;
  }
- 
- /**
-@@ -440,14 +436,8 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
- 			    loff_t end_byte)
- {
--	int ret, ret2;
--
--	ret = __filemap_fdatawait_range(mapping, start_byte, end_byte);
--	ret2 = filemap_check_errors(mapping);
--	if (!ret)
--		ret = ret2;
--
--	return ret;
-+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-+	return filemap_check_errors(mapping);
- }
- EXPORT_SYMBOL(filemap_fdatawait_range);
- 
+ EXPORT_SYMBOL(write_one_page);
 -- 
 2.13.0
 
