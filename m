@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EBD96B0365
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:23 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id i21so1139521oib.0
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:23 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01EB66B0372
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:26 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id n2so21671566oig.12
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:25 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z198si3774500oia.9.2017.06.29.06.20.21
+        by mx.google.com with ESMTPS id 16si3497163oib.229.2017.06.29.06.20.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 06:20:21 -0700 (PDT)
+        Thu, 29 Jun 2017 06:20:24 -0700 (PDT)
 From: jlayton@kernel.org
-Subject: [PATCH v8 09/18] lib: add errseq_t type and infrastructure for handling it
-Date: Thu, 29 Jun 2017 09:19:45 -0400
-Message-Id: <20170629131954.28733-10-jlayton@kernel.org>
+Subject: [PATCH v8 10/18] fs: new infrastructure for writeback error handling and reporting
+Date: Thu, 29 Jun 2017 09:19:46 -0400
+Message-Id: <20170629131954.28733-11-jlayton@kernel.org>
 In-Reply-To: <20170629131954.28733-1-jlayton@kernel.org>
 References: <20170629131954.28733-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,309 +22,391 @@ Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David 
 
 From: Jeff Layton <jlayton@redhat.com>
 
-An errseq_t is a way of recording errors in one place, and allowing any
-number of "subscribers" to tell whether an error has been set again
-since a previous time.
+Most filesystems currently use mapping_set_error and
+filemap_check_errors for setting and reporting/clearing writeback errors
+at the mapping level. filemap_check_errors is indirectly called from
+most of the filemap_fdatawait_* functions and from
+filemap_write_and_wait*. These functions are called from all sorts of
+contexts to wait on writeback to finish -- e.g. mostly in fsync, but
+also in truncate calls, getattr, etc.
 
-It's implemented as an unsigned 32-bit value that is managed with atomic
-operations. The low order bits are designated to hold an error code
-(max size of MAX_ERRNO). The upper bits are used as a counter.
+The non-fsync callers are problematic. We should be reporting writeback
+errors during fsync, but many places spread over the tree clear out
+errors before they can be properly reported, or report errors at
+nonsensical times.
 
-The API works with consumers sampling an errseq_t value at a particular
-point in time. Later, that value can be used to tell whether new errors
-have been set since that time.
+If I get -EIO on a stat() call, there is no reason for me to assume that
+it is because some previous writeback failed. The fact that it also
+clears out the error such that a subsequent fsync returns 0 is a bug,
+and a nasty one since that's potentially silent data corruption.
 
-Note that there is a 1 in 512k risk of collisions here if new errors
-are being recorded frequently, since we have so few bits to use as a
-counter. To mitigate this, one bit is used as a flag to tell whether the
-value has been sampled since a new value was recorded. That allows
-us to avoid bumping the counter if no one has sampled it since it
-was last bumped.
+This patch adds a small bit of new infrastructure for setting and
+reporting errors during address_space writeback. While the above was my
+original impetus for adding this, I think it's also the case that
+current fsync semantics are just problematic for userland. Most
+applications that call fsync do so to ensure that the data they wrote
+has hit the backing store.
 
-Later patches will build on this infrastructure to change how writeback
-errors are tracked in the kernel.
+In the case where there are multiple writers to the file at the same
+time, this is really hard to determine. The first one to call fsync will
+see any stored error, and the rest get back 0. The processes with open
+fds may not be associated with one another in any way. They could even
+be in different containers, so ensuring coordination between all fsync
+callers is not really an option.
+
+One way to remedy this would be to track what file descriptor was used
+to dirty the file, but that's rather cumbersome and would likely be
+slow. However, there is a simpler way to improve the semantics here
+without incurring too much overhead.
+
+This set adds an errseq_t to struct address_space, and a corresponding
+one is added to struct file. Writeback errors are recorded in the
+mapping's errseq_t, and the one in struct file is used as the "since"
+value.
+
+This changes the semantics of the Linux fsync implementation such that
+applications can now use it to determine whether there were any
+writeback errors since fsync(fd) was last called (or since the file was
+opened in the case of fsync having never been called).
+
+Note that those writeback errors may have occurred when writing data
+that was dirtied via an entirely different fd, but that's the case now
+with the current mapping_set_error/filemap_check_error infrastructure.
+This will at least prevent you from getting a false report of success.
+
+The new behavior is still consistent with the POSIX spec, and is more
+reliable for application developers. This patch just adds some basic
+infrastructure for doing this, and ensures that the f_wb_err "cursor"
+is properly set when a file is opened. Later patches will change the
+existing code to use this new infrastructure for reporting errors at
+fsync time.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
-Reviewed-by: NeilBrown <neilb@suse.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- MAINTAINERS            |   6 ++
- include/linux/errseq.h |  19 +++++
- lib/Makefile           |   2 +-
- lib/errseq.c           | 208 +++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 234 insertions(+), 1 deletion(-)
- create mode 100644 include/linux/errseq.h
- create mode 100644 lib/errseq.c
+ drivers/dax/device.c           |  1 +
+ fs/block_dev.c                 |  1 +
+ fs/file_table.c                |  1 +
+ fs/open.c                      |  3 ++
+ include/linux/fs.h             | 60 ++++++++++++++++++++++++++++-
+ include/trace/events/filemap.h | 57 ++++++++++++++++++++++++++++
+ mm/filemap.c                   | 86 ++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 208 insertions(+), 1 deletion(-)
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 9e984645c4b0..c2465dc21946 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -4999,6 +4999,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
- F:	drivers/video/fbdev/s1d13xxxfb.c
- F:	include/video/s1d13xxxfb.h
+diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+index 006e657dfcb9..12943d19bfc4 100644
+--- a/drivers/dax/device.c
++++ b/drivers/dax/device.c
+@@ -499,6 +499,7 @@ static int dax_open(struct inode *inode, struct file *filp)
+ 	inode->i_mapping = __dax_inode->i_mapping;
+ 	inode->i_mapping->host = __dax_inode;
+ 	filp->f_mapping = inode->i_mapping;
++	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
+ 	filp->private_data = dev_dax;
+ 	inode->i_flags = S_DAX;
  
-+ERRSEQ ERROR TRACKING INFRASTRUCTURE
-+M:	Jeff Layton <jlayton@poochiereds.net>
-+S:	Maintained
-+F:	lib/errseq.c
-+F:	include/linux/errseq.h
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 519599dddd36..4d62fe771587 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -1743,6 +1743,7 @@ static int blkdev_open(struct inode * inode, struct file * filp)
+ 		return -ENOMEM;
+ 
+ 	filp->f_mapping = bdev->bd_inode->i_mapping;
++	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
+ 
+ 	return blkdev_get(bdev, filp->f_mode, filp);
+ }
+diff --git a/fs/file_table.c b/fs/file_table.c
+index 954d510b765a..72e861a35a7f 100644
+--- a/fs/file_table.c
++++ b/fs/file_table.c
+@@ -168,6 +168,7 @@ struct file *alloc_file(const struct path *path, fmode_t mode,
+ 	file->f_path = *path;
+ 	file->f_inode = path->dentry->d_inode;
+ 	file->f_mapping = path->dentry->d_inode->i_mapping;
++	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);
+ 	if ((mode & FMODE_READ) &&
+ 	     likely(fop->read || fop->read_iter))
+ 		mode |= FMODE_CAN_READ;
+diff --git a/fs/open.c b/fs/open.c
+index cd0c5be8d012..280d4a963791 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -707,6 +707,9 @@ static int do_dentry_open(struct file *f,
+ 	f->f_inode = inode;
+ 	f->f_mapping = inode->i_mapping;
+ 
++	/* Ensure that we skip any errors that predate opening of the file */
++	f->f_wb_err = filemap_sample_wb_err(f->f_mapping);
 +
- ET131X NETWORK DRIVER
- M:	Mark Einon <mark.einon@gmail.com>
- S:	Odd Fixes
-diff --git a/include/linux/errseq.h b/include/linux/errseq.h
-new file mode 100644
-index 000000000000..9e0d444ac88d
---- /dev/null
-+++ b/include/linux/errseq.h
-@@ -0,0 +1,19 @@
-+#ifndef _LINUX_ERRSEQ_H
-+#define _LINUX_ERRSEQ_H
-+
-+/* See lib/errseq.c for more info */
-+
-+typedef u32	errseq_t;
-+
-+errseq_t __errseq_set(errseq_t *eseq, int err);
-+static inline void errseq_set(errseq_t *eseq, int err)
-+{
-+	/* Optimize for the common case of no error */
-+	if (unlikely(err))
-+		__errseq_set(eseq, err);
-+}
-+
-+errseq_t errseq_sample(errseq_t *eseq);
-+int errseq_check(errseq_t *eseq, errseq_t since);
-+int errseq_check_and_advance(errseq_t *eseq, errseq_t *since);
-+#endif
-diff --git a/lib/Makefile b/lib/Makefile
-index 0166fbc0fa81..519782d9ca3f 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -41,7 +41,7 @@ obj-y += bcd.o div64.o sort.o parser.o debug_locks.o random32.o \
- 	 gcd.o lcm.o list_sort.o uuid.o flex_array.o iov_iter.o clz_ctz.o \
- 	 bsearch.o find_bit.o llist.o memweight.o kfifo.o \
- 	 percpu-refcount.o percpu_ida.o rhashtable.o reciprocal_div.o \
--	 once.o refcount.o usercopy.o
-+	 once.o refcount.o usercopy.o errseq.o
- obj-y += string_helpers.o
- obj-$(CONFIG_TEST_STRING_HELPERS) += test-string_helpers.o
- obj-y += hexdump.o
-diff --git a/lib/errseq.c b/lib/errseq.c
-new file mode 100644
-index 000000000000..841fa24e6e00
---- /dev/null
-+++ b/lib/errseq.c
-@@ -0,0 +1,208 @@
-+#include <linux/err.h>
-+#include <linux/bug.h>
-+#include <linux/atomic.h>
+ 	if (unlikely(f->f_flags & O_PATH)) {
+ 		f->f_mode = FMODE_PATH;
+ 		f->f_op = &empty_fops;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 74872c0f1c07..b524fd442057 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -30,7 +30,7 @@
+ #include <linux/percpu-rwsem.h>
+ #include <linux/workqueue.h>
+ #include <linux/delayed_call.h>
+-
 +#include <linux/errseq.h>
-+
-+/*
-+ * An errseq_t is a way of recording errors in one place, and allowing any
-+ * number of "subscribers" to tell whether it has changed since a previous
-+ * point where it was sampled.
-+ *
-+ * It's implemented as an unsigned 32-bit value. The low order bits are
-+ * designated to hold an error code (between 0 and -MAX_ERRNO). The upper bits
-+ * are used as a counter. This is done with atomics instead of locking so that
-+ * these functions can be called from any context.
-+ *
-+ * The general idea is for consumers to sample an errseq_t value. That value
-+ * can later be used to tell whether any new errors have occurred since that
-+ * sampling was done.
-+ *
-+ * Note that there is a risk of collisions if new errors are being recorded
-+ * frequently, since we have so few bits to use as a counter.
-+ *
-+ * To mitigate this, one bit is used as a flag to tell whether the value has
-+ * been sampled since a new value was recorded. That allows us to avoid bumping
-+ * the counter if no one has sampled it since the last time an error was
-+ * recorded.
-+ *
-+ * A new errseq_t should always be zeroed out.  A errseq_t value of all zeroes
-+ * is the special (but common) case where there has never been an error. An all
-+ * zero value thus serves as the "epoch" if one wishes to know whether there
-+ * has ever been an error set since it was first initialized.
-+ */
-+
-+/* The low bits are designated for error code (max of MAX_ERRNO) */
-+#define ERRSEQ_SHIFT		ilog2(MAX_ERRNO + 1)
-+
-+/* This bit is used as a flag to indicate whether the value has been seen */
-+#define ERRSEQ_SEEN		(1 << ERRSEQ_SHIFT)
-+
-+/* The lowest bit of the counter */
-+#define ERRSEQ_CTR_INC		(1 << (ERRSEQ_SHIFT + 1))
+ #include <asm/byteorder.h>
+ #include <uapi/linux/fs.h>
+ 
+@@ -392,6 +392,7 @@ struct address_space {
+ 	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
+ 	struct list_head	private_list;	/* ditto */
+ 	void			*private_data;	/* ditto */
++	errseq_t		wb_err;
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
+@@ -846,6 +847,7 @@ struct file {
+ 	 * Must not be taken from IRQ context.
+ 	 */
+ 	spinlock_t		f_lock;
++	errseq_t		f_wb_err;
+ 	atomic_long_t		f_count;
+ 	unsigned int 		f_flags;
+ 	fmode_t			f_mode;
+@@ -2520,6 +2522,62 @@ extern int filemap_fdatawrite_range(struct address_space *mapping,
+ 				loff_t start, loff_t end);
+ extern int filemap_check_errors(struct address_space *mapping);
+ 
++extern void __filemap_set_wb_err(struct address_space *mapping, int err);
++extern int __must_check file_check_and_advance_wb_err(struct file *file);
++extern int __must_check file_write_and_wait_range(struct file *file,
++						loff_t start, loff_t end);
 +
 +/**
-+ * __errseq_set - set a errseq_t for later reporting
-+ * @eseq: errseq_t field that should be set
-+ * @err: error to set
++ * filemap_set_wb_err - set a writeback error on an address_space
++ * @mapping: mapping in which to set writeback error
++ * @err: error to be set in mapping
 + *
-+ * This function sets the error in *eseq, and increments the sequence counter
-+ * if the last sequence was sampled at some point in the past.
++ * When writeback fails in some way, we must record that error so that
++ * userspace can be informed when fsync and the like are called.  We endeavor
++ * to report errors on any file that was open at the time of the error.  Some
++ * internal callers also need to know when writeback errors have occurred.
 + *
-+ * Any error set will always overwrite an existing error.
++ * When a writeback error occurs, most filesystems will want to call
++ * filemap_set_wb_err to record the error in the mapping so that it will be
++ * automatically reported whenever fsync is called on the file.
 + *
-+ * Most callers will want to use the errseq_set inline wrapper to efficiently
-+ * handle the common case where err is 0.
-+ *
-+ * We do return an errseq_t here, primarily for debugging purposes. The return
-+ * value should not be used as a previously sampled value in later calls as it
-+ * will not have the SEEN flag set.
++ * FIXME: mention FS_* flag here?
 + */
-+errseq_t __errseq_set(errseq_t *eseq, int err)
++static inline void filemap_set_wb_err(struct address_space *mapping, int err)
 +{
-+	errseq_t cur, old;
-+
-+	/* MAX_ERRNO must be able to serve as a mask */
-+	BUILD_BUG_ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
-+
-+	/*
-+	 * Ensure the error code actually fits where we want it to go. If it
-+	 * doesn't then just throw a warning and don't record anything. We
-+	 * also don't accept zero here as that would effectively clear a
-+	 * previous error.
-+	 */
-+	old = READ_ONCE(*eseq);
-+
-+	if (WARN(unlikely(err == 0 || (unsigned int)-err > MAX_ERRNO),
-+				"err = %d\n", err))
-+		return old;
-+
-+	for (;;) {
-+		errseq_t new;
-+
-+		/* Clear out error bits and set new error */
-+		new = (old & ~(MAX_ERRNO|ERRSEQ_SEEN)) | -err;
-+
-+		/* Only increment if someone has looked at it */
-+		if (old & ERRSEQ_SEEN)
-+			new += ERRSEQ_CTR_INC;
-+
-+		/* If there would be no change, then call it done */
-+		if (new == old) {
-+			cur = new;
-+			break;
-+		}
-+
-+		/* Try to swap the new value into place */
-+		cur = cmpxchg(eseq, old, new);
-+
-+		/*
-+		 * Call it success if we did the swap or someone else beat us
-+		 * to it for the same value.
-+		 */
-+		if (likely(cur == old || cur == new))
-+			break;
-+
-+		/* Raced with an update, try again */
-+		old = cur;
-+	}
-+	return cur;
++	/* Fastpath for common case of no error */
++	if (unlikely(err))
++		__filemap_set_wb_err(mapping, err);
 +}
-+EXPORT_SYMBOL(__errseq_set);
 +
 +/**
-+ * errseq_sample - grab current errseq_t value
-+ * @eseq: pointer to errseq_t to be sampled
++ * filemap_check_wb_error - has an error occurred since the mark was sampled?
++ * @mapping: mapping to check for writeback errors
++ * @since: previously-sampled errseq_t
 + *
-+ * This function allows callers to sample an errseq_t value, marking it as
-+ * "seen" if required.
++ * Grab the errseq_t value from the mapping, and see if it has changed "since"
++ * the given value was sampled.
++ *
++ * If it has then report the latest error set, otherwise return 0.
 + */
-+errseq_t errseq_sample(errseq_t *eseq)
++static inline int filemap_check_wb_err(struct address_space *mapping,
++					errseq_t since)
 +{
-+	errseq_t old = READ_ONCE(*eseq);
-+	errseq_t new = old;
-+
-+	/*
-+	 * For the common case of no errors ever having been set, we can skip
-+	 * marking the SEEN bit. Once an error has been set, the value will
-+	 * never go back to zero.
-+	 */
-+	if (old != 0) {
-+		new |= ERRSEQ_SEEN;
-+		if (old != new)
-+			cmpxchg(eseq, old, new);
-+	}
-+	return new;
++	return errseq_check(&mapping->wb_err, since);
 +}
-+EXPORT_SYMBOL(errseq_sample);
 +
 +/**
-+ * errseq_check - has an error occurred since a particular sample point?
-+ * @eseq: pointer to errseq_t value to be checked
-+ * @since: previously-sampled errseq_t from which to check
++ * filemap_sample_wb_err - sample the current errseq_t to test for later errors
++ * @mapping: mapping to be sampled
 + *
-+ * Grab the value that eseq points to, and see if it has changed "since"
-+ * the given value was sampled. The "since" value is not advanced, so there
-+ * is no need to mark the value as seen.
-+ *
-+ * Returns the latest error set in the errseq_t or 0 if it hasn't changed.
++ * Writeback errors are always reported relative to a particular sample point
++ * in the past. This function provides those sample points.
 + */
-+int errseq_check(errseq_t *eseq, errseq_t since)
++static inline errseq_t filemap_sample_wb_err(struct address_space *mapping)
 +{
-+	errseq_t cur = READ_ONCE(*eseq);
-+
-+	if (likely(cur == since))
-+		return 0;
-+	return -(cur & MAX_ERRNO);
++	return errseq_sample(&mapping->wb_err);
 +}
-+EXPORT_SYMBOL(errseq_check);
++
+ extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
+ 			   int datasync);
+ extern int vfs_fsync(struct file *file, int datasync);
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+index 42febb6bc1d5..ff91325b8123 100644
+--- a/include/trace/events/filemap.h
++++ b/include/trace/events/filemap.h
+@@ -10,6 +10,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/device.h>
+ #include <linux/kdev_t.h>
++#include <linux/errseq.h>
+ 
+ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 
+@@ -52,6 +53,62 @@ DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_add_to_page_cache,
+ 	TP_ARGS(page)
+ 	);
+ 
++TRACE_EVENT(filemap_set_wb_err,
++		TP_PROTO(struct address_space *mapping, errseq_t eseq),
++
++		TP_ARGS(mapping, eseq),
++
++		TP_STRUCT__entry(
++			__field(unsigned long, i_ino)
++			__field(dev_t, s_dev)
++			__field(errseq_t, errseq)
++		),
++
++		TP_fast_assign(
++			__entry->i_ino = mapping->host->i_ino;
++			__entry->errseq = eseq;
++			if (mapping->host->i_sb)
++				__entry->s_dev = mapping->host->i_sb->s_dev;
++			else
++				__entry->s_dev = mapping->host->i_rdev;
++		),
++
++		TP_printk("dev=%d:%d ino=0x%lx errseq=0x%x",
++			MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++			__entry->i_ino, __entry->errseq)
++);
++
++TRACE_EVENT(file_check_and_advance_wb_err,
++		TP_PROTO(struct file *file, errseq_t old),
++
++		TP_ARGS(file, old),
++
++		TP_STRUCT__entry(
++			__field(struct file *, file);
++			__field(unsigned long, i_ino)
++			__field(dev_t, s_dev)
++			__field(errseq_t, old)
++			__field(errseq_t, new)
++		),
++
++		TP_fast_assign(
++			__entry->file = file;
++			__entry->i_ino = file->f_mapping->host->i_ino;
++			if (file->f_mapping->host->i_sb)
++				__entry->s_dev =
++					file->f_mapping->host->i_sb->s_dev;
++			else
++				__entry->s_dev =
++					file->f_mapping->host->i_rdev;
++			__entry->old = old;
++			__entry->new = file->f_wb_err;
++		),
++
++		TP_printk("file=%p dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
++			__entry->file, MAJOR(__entry->s_dev),
++			MINOR(__entry->s_dev), __entry->i_ino, __entry->old,
++			__entry->new)
++);
+ #endif /* _TRACE_FILEMAP_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/filemap.c b/mm/filemap.c
+index eb99b5f23c61..5d03381dc0e0 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -553,6 +553,92 @@ int filemap_write_and_wait_range(struct address_space *mapping,
+ }
+ EXPORT_SYMBOL(filemap_write_and_wait_range);
+ 
++void __filemap_set_wb_err(struct address_space *mapping, int err)
++{
++	errseq_t eseq = __errseq_set(&mapping->wb_err, err);
++
++	trace_filemap_set_wb_err(mapping, eseq);
++}
++EXPORT_SYMBOL(__filemap_set_wb_err);
 +
 +/**
-+ * errseq_check_and_advance - check an errseq_t and advance to current value
-+ * @eseq: pointer to value being checked and reported
-+ * @since: pointer to previously-sampled errseq_t to check against and advance
++ * file_check_and_advance_wb_err - report wb error (if any) that was previously
++ * 				   and advance wb_err to current one
++ * @file: struct file on which the error is being reported
 + *
-+ * Grab the eseq value, and see whether it matches the value that "since"
-+ * points to. If it does, then just return 0.
++ * When userland calls fsync (or something like nfsd does the equivalent), we
++ * want to report any writeback errors that occurred since the last fsync (or
++ * since the file was opened if there haven't been any).
 + *
-+ * If it doesn't, then the value has changed. Set the "seen" flag, and try to
-+ * swap it into place as the new eseq value. Then, set that value as the new
-+ * "since" value, and return whatever the error portion is set to.
++ * Grab the wb_err from the mapping. If it matches what we have in the file,
++ * then just quickly return 0. The file is all caught up.
 + *
-+ * Note that no locking is provided here for concurrent updates to the "since"
-+ * value. The caller must provide that if necessary. Because of this, callers
-+ * may want to do a lockless errseq_check before taking the lock and calling
-+ * this.
++ * If it doesn't match, then take the mapping value, set the "seen" flag in
++ * it and try to swap it into place. If it works, or another task beat us
++ * to it with the new value, then update the f_wb_err and return the error
++ * portion. The error at this point must be reported via proper channels
++ * (a'la fsync, or NFS COMMIT operation, etc.).
++ *
++ * While we handle mapping->wb_err with atomic operations, the f_wb_err
++ * value is protected by the f_lock since we must ensure that it reflects
++ * the latest value swapped in for this file descriptor.
 + */
-+int errseq_check_and_advance(errseq_t *eseq, errseq_t *since)
++int file_check_and_advance_wb_err(struct file *file)
 +{
 +	int err = 0;
-+	errseq_t old, new;
++	errseq_t old = READ_ONCE(file->f_wb_err);
++	struct address_space *mapping = file->f_mapping;
 +
-+	/*
-+	 * Most callers will want to use the inline wrapper to check this,
-+	 * so that the common case of no error is handled without needing
-+	 * to take the lock that protects the "since" value.
-+	 */
-+	old = READ_ONCE(*eseq);
-+	if (old != *since) {
-+		/*
-+		 * Set the flag and try to swap it into place if it has
-+		 * changed.
-+		 *
-+		 * We don't care about the outcome of the swap here. If the
-+		 * swap doesn't occur, then it has either been updated by a
-+		 * writer who is altering the value in some way (updating
-+		 * counter or resetting the error), or another reader who is
-+		 * just setting the "seen" flag. Either outcome is OK, and we
-+		 * can advance "since" and return an error based on what we
-+		 * have.
-+		 */
-+		new = old | ERRSEQ_SEEN;
-+		if (new != old)
-+			cmpxchg(eseq, old, new);
-+		*since = new;
-+		err = -(new & MAX_ERRNO);
++	/* Locklessly handle the common case where nothing has changed */
++	if (errseq_check(&mapping->wb_err, old)) {
++		/* Something changed, must use slow path */
++		spin_lock(&file->f_lock);
++		old = file->f_wb_err;
++		err = errseq_check_and_advance(&mapping->wb_err,
++						&file->f_wb_err);
++		trace_file_check_and_advance_wb_err(file, old);
++		spin_unlock(&file->f_lock);
 +	}
 +	return err;
 +}
-+EXPORT_SYMBOL(errseq_check_and_advance);
++EXPORT_SYMBOL(file_check_and_advance_wb_err);
++
++/**
++ * file_write_and_wait_range - write out & wait on a file range
++ * @file:	file pointing to address_space with pages
++ * @lstart:	offset in bytes where the range starts
++ * @lend:	offset in bytes where the range ends (inclusive)
++ *
++ * Write out and wait upon file offsets lstart->lend, inclusive.
++ *
++ * Note that @lend is inclusive (describes the last byte to be written) so
++ * that this function can be used to write to the very end-of-file (end = -1).
++ *
++ * After writing out and waiting on the data, we check and advance the
++ * f_wb_err cursor to the latest value, and return any errors detected there.
++ */
++int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
++{
++	int err = 0;
++	struct address_space *mapping = file->f_mapping;
++
++	if ((!dax_mapping(mapping) && mapping->nrpages) ||
++	    (dax_mapping(mapping) && mapping->nrexceptional)) {
++		int err2;
++
++		err = __filemap_fdatawrite_range(mapping, lstart, lend,
++						 WB_SYNC_ALL);
++		/* See comment of filemap_write_and_wait() */
++		if (err != -EIO)
++			__filemap_fdatawait_range(mapping, lstart, lend);
++		err2 = file_check_and_advance_wb_err(file);
++		if (!err)
++			err = err2;
++	}
++	return err;
++}
++EXPORT_SYMBOL(file_write_and_wait_range);
++
+ /**
+  * replace_page_cache_page - replace a pagecache page with a new one
+  * @old:	page to be replaced
 -- 
 2.13.0
 
