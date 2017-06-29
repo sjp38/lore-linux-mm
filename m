@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BC8D6B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 04:09:15 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 77so35260868wrb.11
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:09:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m29si3384561wrb.254.2017.06.29.01.09.13
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Jun 2017 01:09:13 -0700 (PDT)
-Date: Thu, 29 Jun 2017 10:09:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
- delivery
-Message-ID: <20170629080910.GC31603@dhcp22.suse.cz>
-References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
- <20170627070643.GA28078@dhcp22.suse.cz>
- <20170627153557.GB10091@rapoport-lnx>
- <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
- <20170628131806.GD10091@rapoport-lnx>
- <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C956B0292
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 04:40:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n65so37124523pgn.15
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:40:45 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id f5si3587224plm.418.2017.06.29.01.40.44
+        for <linux-mm@kvack.org>;
+        Thu, 29 Jun 2017 01:40:44 -0700 (PDT)
+Date: Thu, 29 Jun 2017 17:40:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] thp, mm: Fix crash due race in MADV_FREE handling
+Message-ID: <20170629084042.GA22335@bbox>
+References: <20170628101249.17879-1-kirill.shutemov@linux.intel.com>
+ <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
+In-Reply-To: <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed 28-06-17 11:23:32, Prakash Sangappa wrote:
+On Wed, Jun 28, 2017 at 01:15:50PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Jun 28, 2017 at 01:12:49PM +0300, Kirill A. Shutemov wrote:
+> > Reinette reported following crash:
+> > 
+> >   BUG: Bad page state in process log2exe  pfn:57600
+> >   page:ffffea00015d8000 count:0 mapcount:0 mapping:          (null) index:0x20200
+> >   flags: 0x4000000000040019(locked|uptodate|dirty|swapbacked)
+> >   raw: 4000000000040019 0000000000000000 0000000000020200 00000000ffffffff
+> >   raw: ffffea00015d8020 ffffea00015d8020 0000000000000000 0000000000000000
+> >   page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+> >   bad because of flags: 0x1(locked)
+> >   Modules linked in: rfcomm 8021q bnep intel_rapl x86_pkg_temp_thermal coretemp efivars btusb btrtl btbcm pwm_lpss_pci snd_hda_codec_hdmi btintel pwm_lpss snd_hda_codec_realtek snd_soc_skl snd_hda_codec_generic snd_soc_skl_ipc spi_pxa2xx_platform snd_soc_sst_ipc snd_soc_sst_dsp i2c_designware_platform i2c_designware_core snd_hda_ext_core snd_soc_sst_match snd_hda_intel snd_hda_codec mei_me snd_hda_core mei snd_soc_rt286 snd_soc_rl6347a snd_soc_core efivarfs
+> >   CPU: 1 PID: 354 Comm: log2exe Not tainted 4.12.0-rc7-test-test #19
+> >   Hardware name: Intel corporation NUC6CAYS/NUC6CAYB, BIOS AYAPLCEL.86A.0027.2016.1108.1529 11/08/2016
+> >   Call Trace:
+> >    dump_stack+0x95/0xeb
+> >    bad_page+0x16a/0x1f0
+> >    free_pages_check_bad+0x117/0x190
+> >    ? rcu_read_lock_sched_held+0xa8/0x130
+> >    free_hot_cold_page+0x7b1/0xad0
+> >    __put_page+0x70/0xa0
+> >    madvise_free_huge_pmd+0x627/0x7b0
+> >    madvise_free_pte_range+0x6f8/0x1150
+> >    ? debug_check_no_locks_freed+0x280/0x280
+> >    ? swapin_walk_pmd_entry+0x380/0x380
+> >    __walk_page_range+0x6b5/0xe30
+> >    walk_page_range+0x13b/0x310
+> >    madvise_free_page_range.isra.16+0xad/0xd0
+> >    ? force_swapin_readahead+0x110/0x110
+> >    ? swapin_walk_pmd_entry+0x380/0x380
+> >    ? lru_add_drain_cpu+0x160/0x320
+> >    madvise_free_single_vma+0x2e4/0x470
+> >    ? madvise_free_page_range.isra.16+0xd0/0xd0
+> >    ? vmacache_update+0x100/0x130
+> >    ? find_vma+0x35/0x160
+> >    SyS_madvise+0x8ce/0x1450
+> > 
+> > If somebody frees the page under us and we hold the last reference to
+> > it, put_page() would attempt to free the page before unlocking it.
+> > 
+> > The fix is trivial reorder of operations.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Reported-by: Reinette Chatre <reinette.chatre@intel.com>
+> > Fixes: 9818b8cde622 ("madvise_free, thp: fix madvise_free_huge_pmd return value after splitting")
 > 
+> Sorry, the wrong Fixes. The right one:
 > 
-> On 6/28/17 6:18 AM, Mike Rapoport wrote:
-[...]
-> >I've just been thinking that maybe it would be possible to use
-> >UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
-> >of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
-> >non-cooperative userfaultfd. It could be that it will solve your issue as
-> >well.
-> >
+> Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
 > 
-> Will this result in a signal delivery?
-> 
-> In the use case described, the database application does not need any event
-> for  hole punching. Basically, just a signal for any invalid access to
-> mapped area over holes in the file.
 
-OK, but it would be better to think that through for other potential
-usecases so that this doesn't end up as a single hugetlb feature. E.g.
-what should happen if a regular anonymous memory gets swapped out?
-Should we deliver signal as well? How does userspace tell whether this
-was a no backing page from unavailable backing page?
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
