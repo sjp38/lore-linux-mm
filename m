@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D4EBD2802FE
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 02:48:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i185so612185wmi.7
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:48:17 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id i23si3289862wrb.180.2017.06.28.23.48.16
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 167706B0292
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 03:07:30 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u18so75858568pfa.8
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 00:07:30 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id o4si3452041plb.43.2017.06.29.00.07.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 23:48:16 -0700 (PDT)
-Date: Thu, 29 Jun 2017 08:47:46 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] locking/atomics: don't alias ____ptr
-In-Reply-To: <alpine.DEB.2.20.1706282020490.1890@nanos>
-Message-ID: <alpine.DEB.2.20.1706290844590.1861@nanos>
-References: <cover.1498140838.git.dvyukov@google.com> <85d51d3551b676ba1fc40e8fbddd2eadd056d8dd.1498140838.git.dvyukov@google.com> <20170628100246.7nsvhblgi3xjbc4m@breakpoint.cc> <CACT4Y+Yhy-jucOC37um5xZewEj0sdw8Hjte7oOYxDdxkzOTYoA@mail.gmail.com>
- <1c1cbbfb-8e34-dd33-0e73-bbb2a758e962@virtuozzo.com> <20170628121246.qnk2csgzbgpqrmw3@linutronix.de> <alpine.DEB.2.20.1706281425350.1970@nanos> <alpine.DEB.2.20.1706281544480.1970@nanos> <20170628141420.GK5981@leverpostej> <alpine.DEB.2.20.1706281709140.1970@nanos>
- <20170628155445.GD8252@leverpostej> <alpine.DEB.2.20.1706282020490.1890@nanos>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Jun 2017 00:07:29 -0700 (PDT)
+Message-ID: <5954A66D.0@huawei.com>
+Date: Thu, 29 Jun 2017 15:04:13 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH] futex: avoid undefined behaviour when shift exponent
+ is negative
+References: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com> <20170621164036.4findvvz7jj4cvqo@gmail.com> <595331FE.3090700@huawei.com> <alpine.DEB.2.20.1706282353190.1890@nanos> <59545DD6.3030508@huawei.com> <alpine.DEB.2.20.1706290832140.1861@nanos>
+In-Reply-To: <alpine.DEB.2.20.1706290832140.1861@nanos>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, "H. Peter Anvin" <hpa@zytor.com>, kasan-dev <kasan-dev@googlegroups.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>, akpm@linux-foundation.org, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 28 Jun 2017, Thomas Gleixner wrote:
-> On Wed, 28 Jun 2017, Mark Rutland wrote:
-> > On Wed, Jun 28, 2017 at 05:24:24PM +0200, Thomas Gleixner wrote:
-> > Given we're gonig to clean things up, we may as well avoid the backwards
-> > include of <asm-generic/atomic_instrumented.h>, whcih was only there as
-> > a bodge:
-> > 
-> > For the UP arches we do:
-> > # echo '#include <asm-generic/atomic_up.h>' >arch/xxx/include/asm/atomic.h
-> > # mv include/asm-generic/atomic.h include/asm-generic/atomic_up.h
-> > 
-> > Then we add a <linux/atomic_instrumented.h>:
-> > 
-> > #ifndef __LINUX_ATOMIC_INSTRUMENTED_H
-> > #define __LINUX_ATOMIC INSTRUMENTED_H
-> > 
-> > #include <asm/atomic.h>
-> > 
-> > #if CONFIG_ATOMIC_INSTRUMENTED_H
-> > <instrumentation>
-> > #endif
-> > 
-> > #endif /* __LINUX_ATOMIC_ARCH_H */
-> > 
-> > ... and make <linux/atomic.h> incldue that rather than <asm/atomic.h>.
-> > 
-> > That way the instrumentation's orthogonal to the UP-ness of the arch,
-> > and we can fold any other instrumentation in there, or later move it
-> > directly into <linux/atomic.h>
-> 
-> Sounds like a plan.
+On 2017/6/29 14:33, Thomas Gleixner wrote:
+> On Thu, 29 Jun 2017, zhong jiang wrote:
+>> On 2017/6/29 6:13, Thomas Gleixner wrote:
+>>> That's simply wrong. If oparg is negative and the SHIFT bit is set then the
+>>> result is undefined today and there is no way that this can be used at
+>>> all.
+>>>
+>>> On x86:
+>>>
+>>>    1 << -1	= 0x80000000
+>>>    1 << -2048	= 0x00000001
+>>>    1 << -2047	= 0x00000002
+>>   but I test the cases in x86_64 all is zero.   I wonder whether it is related to gcc or not
+>>
+>>   zj.c:15:8: warning: left shift count is negative [-Wshift-count-negative]
+>>   j = 1 << -2048;
+>>         ^
+>> [root@localhost zhongjiang]# ./zj
+>> j = 0
+> Which is not a surprise because the compiler can detect it as the shift is
+> a constant. oparg is not so constant ...
+  I get it. Thanks
+ 
+  Thanks
+  zhongjiang
+> Thanks,
+>
+> 	tglx
+>
+> .
+>
 
-Actually we should make it slightly different and make asm-generic/atomic.h
-the central point for everything.
-
-It should contain the wrapper macro and the central inlines including the
-kasan stuff and include either arch/arch_atomic.h or
-asm-generic/atomic_up.h.
-
-That way all potential instrumentation happens in the generic header (which
-is a NOP for archs which do not support it) and pull in the appropriate
-arch specific or generic UP low level implementations.
-
-Thanks,
-
-	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
