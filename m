@@ -1,340 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 01FAC6B037C
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 11:53:41 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x82so22009199oix.10
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 08:53:40 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v9si3795487oib.105.2017.06.29.08.53.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AA06B0387
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 12:11:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b189so2994395wmb.12
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:11:21 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id k205si1538573wmf.17.2017.06.29.09.11.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 08:53:39 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using PCID
-Date: Thu, 29 Jun 2017 08:53:22 -0700
-Message-Id: <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
-In-Reply-To: <cover.1498751203.git.luto@kernel.org>
-References: <cover.1498751203.git.luto@kernel.org>
-In-Reply-To: <cover.1498751203.git.luto@kernel.org>
-References: <cover.1498751203.git.luto@kernel.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Jun 2017 09:11:20 -0700 (PDT)
+Date: Thu, 29 Jun 2017 18:11:15 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
+Message-ID: <alpine.DEB.2.20.1706291803380.1861@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-PCID is a "process context ID" -- it's what other architectures call
-an address space ID.  Every non-global TLB entry is tagged with a
-PCID, only TLB entries that match the currently selected PCID are
-used, and we can switch PGDs without flushing the TLB.  x86's
-PCID is 12 bits.
+Andrey reported a potential deadlock with the memory hotplug lock and the
+cpu hotplug lock.
 
-This is an unorthodox approach to using PCID.  x86's PCID is far too
-short to uniquely identify a process, and we can't even really
-uniquely identify a running process because there are monster
-systems with over 4096 CPUs.  To make matters worse, past attempts
-to use all 12 PCID bits have resulted in slowdowns instead of
-speedups.
+The reason is that memory hotplug takes the memory hotplug lock and then
+calls stop_machine() which calls get_online_cpus(). That's the reverse lock
+order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
 
-This patch uses PCID differently.  We use a PCID to identify a
-recently-used mm on a per-cpu basis.  An mm has no fixed PCID
-binding at all; instead, we give it a fresh PCID each time it's
-loaded except in cases where we want to preserve the TLB, in which
-case we reuse a recent value.
+The problem has been there forever. The reason why this was never reported
+is that the cpu hotplug locking had this homebrewn recursive reader writer
+semaphore construct which due to the recursion evaded the full lock dep
+coverage. The memory hotplug code copied that construct verbatim and
+therefor has similar issues.
 
-Here are some benchmark results, done on a Skylake laptop at 2.3 GHz
-(turbo off, intel_pstate requesting max performance) under KVM with
-the guest using idle=poll (to avoid artifacts when bouncing between
-CPUs).  I haven't done any real statistics here -- I just ran them
-in a loop and picked the fastest results that didn't look like
-outliers.  Unpatched means commit a4eb8b993554, so all the
-bookkeeping overhead is gone.
+Two steps to fix this:
 
-ping-pong between two mms on the same CPU using eventfd:
-  patched:         1.22Aus
-  patched, nopcid: 1.33Aus
-  unpatched:       1.34Aus
+1) Convert the memory hotplug locking to a per cpu rwsem so the potential
+   issues get reported proper by lockdep.
 
-Same ping-pong, but now touch 512 pages (all zero-page to minimize
-cache misses) each iteration.  dTLB misses are measured by
-dtlb_load_misses.miss_causes_a_walk:
-  patched:         1.8Aus  11M  dTLB misses
-  patched, nopcid: 6.2Aus, 207M dTLB misses
-  unpatched:       6.1Aus, 190M dTLB misses
+2) Lock the online cpus in mem_hotplug_begin() before taking the memory
+   hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
+   to avoid recursive locking.
 
-Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 ---
- arch/x86/include/asm/mmu_context.h     |  3 ++
- arch/x86/include/asm/processor-flags.h |  2 +
- arch/x86/include/asm/tlbflush.h        | 18 +++++++-
- arch/x86/mm/init.c                     |  1 +
- arch/x86/mm/tlb.c                      | 82 +++++++++++++++++++++++++++-------
- 5 files changed, 88 insertions(+), 18 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 85f6b5575aad..14b3cdccf4f9 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -300,6 +300,9 @@ static inline unsigned long __get_current_cr3_fast(void)
- {
- 	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
+Note 1:
+ Applies against -next or
+     
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/hotplug
+
+ which contains the hotplug locking rework including stop_machine_cpuslocked()
+
+Note 2:
+
+ Most of the call sites of get_online_mems() are also calling get_online_cpus().
+
+ So we could switch the whole machinery to use the CPU hotplug locking for
+ protecting both memory and CPU hotplug. That actually works and removes
+ another 40 lines of code.
+
+---
+ mm/memory_hotplug.c |   85 +++++++---------------------------------------------
+ mm/page_alloc.c     |    2 -
+ 2 files changed, 14 insertions(+), 73 deletions(-)
+
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -52,32 +52,17 @@ static void generic_online_page(struct p
+ static online_page_callback_t online_page_callback = generic_online_page;
+ static DEFINE_MUTEX(online_page_callback_lock);
  
-+	if (static_cpu_has(X86_FEATURE_PCID))
-+		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-+
- 	/* For now, be very restrictive about when this can be called. */
- 	VM_WARN_ON(in_nmi() || !in_atomic());
+-/* The same as the cpu_hotplug lock, but for memory hotplug. */
+-static struct {
+-	struct task_struct *active_writer;
+-	struct mutex lock; /* Synchronizes accesses to refcount, */
+-	/*
+-	 * Also blocks the new readers during
+-	 * an ongoing mem hotplug operation.
+-	 */
+-	int refcount;
++DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
  
-diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h
-index 79aa2f98398d..791b60199aa4 100644
---- a/arch/x86/include/asm/processor-flags.h
-+++ b/arch/x86/include/asm/processor-flags.h
-@@ -35,6 +35,7 @@
- /* Mask off the address space ID bits. */
- #define CR3_ADDR_MASK 0x7FFFFFFFFFFFF000ull
- #define CR3_PCID_MASK 0xFFFull
-+#define CR3_NOFLUSH (1UL << 63)
- #else
- /*
-  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
-@@ -42,6 +43,7 @@
-  */
- #define CR3_ADDR_MASK 0xFFFFFFFFull
- #define CR3_PCID_MASK 0ull
-+#define CR3_NOFLUSH 0
- #endif
- 
- #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 6397275008db..d23e61dc0640 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -82,6 +82,12 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
- #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
- #endif
- 
-+/*
-+ * 6 because 6 should be plenty and struct tlb_state will fit in
-+ * two cache lines.
-+ */
-+#define TLB_NR_DYN_ASIDS 6
-+
- struct tlb_context {
- 	u64 ctx_id;
- 	u64 tlb_gen;
-@@ -95,6 +101,8 @@ struct tlb_state {
- 	 * mode even if we've already switched back to swapper_pg_dir.
- 	 */
- 	struct mm_struct *loaded_mm;
-+	u16 loaded_mm_asid;
-+	u16 next_asid;
- 
- 	/*
- 	 * Access to this CR4 shadow and to H/W CR4 is protected by
-@@ -104,7 +112,8 @@ struct tlb_state {
- 
- 	/*
- 	 * This is a list of all contexts that might exist in the TLB.
--	 * Since we don't yet use PCID, there is only one context.
-+	 * There is one per ASID that we use, and the ASID (what the
-+	 * CPU calls PCID) is the index into ctxts.
- 	 *
- 	 * For each context, ctx_id indicates which mm the TLB's user
- 	 * entries came from.  As an invariant, the TLB will never
-@@ -114,8 +123,13 @@ struct tlb_state {
- 	 * To be clear, this means that it's legal for the TLB code to
- 	 * flush the TLB without updating tlb_gen.  This can happen
- 	 * (for now, at least) due to paravirt remote flushes.
-+	 *
-+	 * NB: context 0 is a bit special, since it's also used by
-+	 * various bits of init code.  This is fine -- code that
-+	 * isn't aware of PCID will end up harmlessly flushing
-+	 * context 0.
- 	 */
--	struct tlb_context ctxs[1];
-+	struct tlb_context ctxs[TLB_NR_DYN_ASIDS];
- };
- DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
- 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 4d353efb2838..65ae17d45c4a 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -812,6 +812,7 @@ void __init zone_sizes_init(void)
- 
- DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
- 	.loaded_mm = &init_mm,
-+	.next_asid = 1,
- 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
- };
- EXPORT_SYMBOL_GPL(cpu_tlbstate);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 2c1b8881e9d3..63a5b451c128 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -30,6 +30,40 @@
- 
- atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
- 
-+static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
-+			    u16 *new_asid, bool *need_flush)
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map dep_map;
+-#endif
+-} mem_hotplug = {
+-	.active_writer = NULL,
+-	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
+-	.refcount = 0,
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	.dep_map = {.name = "mem_hotplug.lock" },
+-#endif
+-};
++void get_online_mems(void)
 +{
-+	u16 asid;
-+
-+	if (!static_cpu_has(X86_FEATURE_PCID)) {
-+		*new_asid = 0;
-+		*need_flush = true;
-+		return;
-+	}
-+
-+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-+		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
-+		    next->context.ctx_id)
-+			continue;
-+
-+		*new_asid = asid;
-+		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
-+			       next_tlb_gen);
-+		return;
-+	}
-+
-+	/*
-+	 * We don't currently own an ASID slot on this CPU.
-+	 * Allocate a slot.
-+	 */
-+	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
-+	if (*new_asid >= TLB_NR_DYN_ASIDS) {
-+		*new_asid = 0;
-+		this_cpu_write(cpu_tlbstate.next_asid, 1);
-+	}
-+	*need_flush = true;
++	percpu_down_read(&mem_hotplug_lock);
 +}
-+
- void leave_mm(int cpu)
+ 
+-/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
+-#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
+-#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+-#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
++void put_online_mems(void)
++{
++	percpu_up_read(&mem_hotplug_lock);
++}
+ 
+ #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
+ bool memhp_auto_online;
+@@ -97,60 +82,16 @@ static int __init setup_memhp_default_st
+ }
+ __setup("memhp_default_state=", setup_memhp_default_state);
+ 
+-void get_online_mems(void)
+-{
+-	might_sleep();
+-	if (mem_hotplug.active_writer == current)
+-		return;
+-	memhp_lock_acquire_read();
+-	mutex_lock(&mem_hotplug.lock);
+-	mem_hotplug.refcount++;
+-	mutex_unlock(&mem_hotplug.lock);
+-
+-}
+-
+-void put_online_mems(void)
+-{
+-	if (mem_hotplug.active_writer == current)
+-		return;
+-	mutex_lock(&mem_hotplug.lock);
+-
+-	if (WARN_ON(!mem_hotplug.refcount))
+-		mem_hotplug.refcount++; /* try to fix things up */
+-
+-	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
+-		wake_up_process(mem_hotplug.active_writer);
+-	mutex_unlock(&mem_hotplug.lock);
+-	memhp_lock_release();
+-
+-}
+-
+-/* Serializes write accesses to mem_hotplug.active_writer. */
+-static DEFINE_MUTEX(memory_add_remove_lock);
+-
+ void mem_hotplug_begin(void)
  {
- 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-@@ -65,6 +99,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 			struct task_struct *tsk)
- {
- 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
-+	u16 prev_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
- 	unsigned cpu = smp_processor_id();
- 	u64 next_tlb_gen;
- 
-@@ -84,12 +119,13 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 	/*
- 	 * Verify that CR3 is what we think it is.  This will catch
- 	 * hypothetical buggy code that directly switches to swapper_pg_dir
--	 * without going through leave_mm() / switch_mm_irqs_off().
-+	 * without going through leave_mm() / switch_mm_irqs_off() or that
-+	 * does something like write_cr3(read_cr3_pa()).
- 	 */
--	VM_BUG_ON(read_cr3_pa() != __pa(real_prev->pgd));
-+	VM_BUG_ON(__read_cr3() != (__pa(real_prev->pgd) | prev_asid));
- 
- 	if (real_prev == next) {
--		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
-+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
- 			  next->context.ctx_id);
- 
- 		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
-@@ -104,18 +140,20 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 
- 		/* Resume remote flushes and then read tlb_gen. */
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
-+		smp_mb__after_atomic();
- 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
- 
--		if (this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen) < next_tlb_gen) {
-+		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
-+		    next_tlb_gen) {
- 			/*
- 			 * Ideally, we'd have a flush_tlb() variant that
- 			 * takes the known CR3 value as input.  This would
- 			 * be faster on Xen PV and on hypothetical CPUs
- 			 * on which INVPCID is fast.
- 			 */
--			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
-+			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
- 				       next_tlb_gen);
--			write_cr3(__pa(next->pgd));
-+			write_cr3(__pa(next->pgd) | prev_asid);
- 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
- 					TLB_FLUSH_ALL);
- 		}
-@@ -126,8 +164,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 		 * are not reflected in tlb_gen.)
- 		 */
- 	} else {
--		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) ==
--			  next->context.ctx_id);
-+		u16 new_asid;
-+		bool need_flush;
- 
- 		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
- 			/*
-@@ -152,14 +190,25 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 		 * Start remote flushes and then read tlb_gen.
- 		 */
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
-+		smp_mb__after_atomic();
- 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
- 
--		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
--		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, next_tlb_gen);
--		this_cpu_write(cpu_tlbstate.loaded_mm, next);
--		write_cr3(__pa(next->pgd));
-+		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
- 
--		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
-+		if (need_flush) {
-+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
-+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
-+			write_cr3(__pa(next->pgd) | new_asid);
-+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
-+					TLB_FLUSH_ALL);
-+		} else {
-+			/* The new ASID is already up to date. */
-+			write_cr3(__pa(next->pgd) | new_asid | CR3_NOFLUSH);
-+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
-+		}
-+
-+		this_cpu_write(cpu_tlbstate.loaded_mm, next);
-+		this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
- 	}
- 
- 	load_mm_cr4(next);
-@@ -186,13 +235,14 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 	 *                   wants us to catch up to.
- 	 */
- 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
-+	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
- 	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
--	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
-+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
- 
- 	/* This code cannot presently handle being reentered. */
- 	VM_WARN_ON(!irqs_disabled());
- 
--	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
-+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
- 		   loaded_mm->context.ctx_id);
- 
- 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
-@@ -280,7 +330,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 	}
- 
- 	/* Both paths above update our state to mm_tlb_gen. */
--	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);
-+	this_cpu_write(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen, mm_tlb_gen);
+-	mutex_lock(&memory_add_remove_lock);
+-
+-	mem_hotplug.active_writer = current;
+-
+-	memhp_lock_acquire();
+-	for (;;) {
+-		mutex_lock(&mem_hotplug.lock);
+-		if (likely(!mem_hotplug.refcount))
+-			break;
+-		__set_current_state(TASK_UNINTERRUPTIBLE);
+-		mutex_unlock(&mem_hotplug.lock);
+-		schedule();
+-	}
++	cpus_read_lock();
++	percpu_down_write(&mem_hotplug_lock);
  }
  
- static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
--- 
-2.9.4
+ void mem_hotplug_done(void)
+ {
+-	mem_hotplug.active_writer = NULL;
+-	mutex_unlock(&mem_hotplug.lock);
+-	memhp_lock_release();
+-	mutex_unlock(&memory_add_remove_lock);
++	percpu_up_write(&mem_hotplug_lock);
++	cpus_read_unlock();
+ }
+ 
+ /* add this memory to iomem resource */
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5216,7 +5216,7 @@ void __ref build_all_zonelists(pg_data_t
+ #endif
+ 		/* we have to stop all cpus to guarantee there is no user
+ 		   of zonelist */
+-		stop_machine(__build_all_zonelists, pgdat, NULL);
++		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
+ 		/* cpuset refresh routine should be here */
+ 	}
+ 	vm_total_pages = nr_free_pagecache_pages();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
