@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 12DC76B02C3
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:02 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t194so2615474oif.8
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:02 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1F26B02F4
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:04 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 191so21739895oii.4
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:04 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d6si3434572oib.386.2017.06.29.06.20.01
+        by mx.google.com with ESMTPS id j132si3683595oib.277.2017.06.29.06.20.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 06:20:01 -0700 (PDT)
+        Thu, 29 Jun 2017 06:20:03 -0700 (PDT)
 From: jlayton@kernel.org
-Subject: [PATCH v8 01/18] fs: remove call_fsync helper function
-Date: Thu, 29 Jun 2017 09:19:37 -0400
-Message-Id: <20170629131954.28733-2-jlayton@kernel.org>
+Subject: [PATCH v8 02/18] buffer: use mapping_set_error instead of setting the flag
+Date: Thu, 29 Jun 2017 09:19:38 -0400
+Message-Id: <20170629131954.28733-3-jlayton@kernel.org>
 In-Reply-To: <20170629131954.28733-1-jlayton@kernel.org>
 References: <20170629131954.28733-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,59 +22,27 @@ Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David 
 
 From: Jeff Layton <jlayton@redhat.com>
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Matthew Wilcox <mawilcox@microsoft.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/sync.c          | 2 +-
- include/linux/fs.h | 6 ------
- ipc/shm.c          | 2 +-
- 3 files changed, 2 insertions(+), 8 deletions(-)
+ fs/buffer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/sync.c b/fs/sync.c
-index 11ba023434b1..2a54c1f22035 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -192,7 +192,7 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
- 		spin_unlock(&inode->i_lock);
- 		mark_inode_dirty_sync(inode);
- 	}
--	return call_fsync(file, start, end, datasync);
-+	return file->f_op->fsync(file, start, end, datasync);
- }
- EXPORT_SYMBOL(vfs_fsync_range);
- 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 1e53cd281437..4ff4498297fa 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1739,12 +1739,6 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
- 	return file->f_op->mmap(file, vma);
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 161be58c5cb0..4be8b914a222 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -482,7 +482,7 @@ static void __remove_assoc_queue(struct buffer_head *bh)
+ 	list_del_init(&bh->b_assoc_buffers);
+ 	WARN_ON(!bh->b_assoc_map);
+ 	if (buffer_write_io_error(bh))
+-		set_bit(AS_EIO, &bh->b_assoc_map->flags);
++		mapping_set_error(bh->b_assoc_map, -EIO);
+ 	bh->b_assoc_map = NULL;
  }
  
--static inline int call_fsync(struct file *file, loff_t start, loff_t end,
--			     int datasync)
--{
--	return file->f_op->fsync(file, start, end, datasync);
--}
--
- ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
- 			      unsigned long nr_segs, unsigned long fast_segs,
- 			      struct iovec *fast_pointer,
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 34c4344e8d4b..f45c7959b264 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -452,7 +452,7 @@ static int shm_fsync(struct file *file, loff_t start, loff_t end, int datasync)
- 
- 	if (!sfd->file->f_op->fsync)
- 		return -EINVAL;
--	return call_fsync(sfd->file, start, end, datasync);
-+	return sfd->file->f_op->fsync(sfd->file, start, end, datasync);
- }
- 
- static long shm_fallocate(struct file *file, int mode, loff_t offset,
 -- 
 2.13.0
 
