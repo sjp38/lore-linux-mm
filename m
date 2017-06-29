@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C63296B0390
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:32 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 191so21740617oii.4
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 604316B03A2
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 09:20:35 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id n2so21671785oig.12
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 06:20:35 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j67si3358710oih.220.2017.06.29.06.20.31
+        by mx.google.com with ESMTPS id o130si3590397oih.0.2017.06.29.06.20.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 06:20:32 -0700 (PDT)
+        Thu, 29 Jun 2017 06:20:34 -0700 (PDT)
 From: jlayton@kernel.org
-Subject: [PATCH v8 13/18] dax: set errors in mapping when writeback fails
-Date: Thu, 29 Jun 2017 09:19:49 -0400
-Message-Id: <20170629131954.28733-14-jlayton@kernel.org>
+Subject: [PATCH v8 14/18] block: convert to errseq_t based writeback error tracking
+Date: Thu, 29 Jun 2017 09:19:50 -0400
+Message-Id: <20170629131954.28733-15-jlayton@kernel.org>
 In-Reply-To: <20170629131954.28733-1-jlayton@kernel.org>
 References: <20170629131954.28733-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,45 +22,33 @@ Cc: Carlos Maiolino <cmaiolino@redhat.com>, Eryu Guan <eguan@redhat.com>, David 
 
 From: Jeff Layton <jlayton@redhat.com>
 
-Jan Kara's description for this patch is much better than mine, so I'm
-quoting it verbatim here:
+This is a very minimal conversion to errseq_t based error tracking
+for raw block device access. Just have it use the standard
+file_write_and_wait_range call.
 
-DAX currently doesn't set errors in the mapping when cache flushing
-fails in dax_writeback_mapping_range(). Since this function can get
-called only from fsync(2) or sync(2), this is actually as good as it can
-currently get since we correctly propagate the error up from
-dax_writeback_mapping_range() to filemap_fdatawrite()
-
-However, in the future better writeback error handling will enable us to
-properly report these errors on fsync(2) even if there are multiple file
-descriptors open against the file or if sync(2) gets called before
-fsync(2). So convert DAX to using standard error reporting through the
-mapping.
+Note that there are internal callers that call sync_blockdev
+and the like that are not affected by this. They'll continue
+to use the AS_EIO/AS_ENOSPC flags for error reporting like
+they always have for now.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-and-tested-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/dax.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/block_dev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index c22eaf162f95..441280e15d5b 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -856,8 +856,10 @@ int dax_writeback_mapping_range(struct address_space *mapping,
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 4d62fe771587..bcb0be6e423a 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -624,7 +624,7 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+ 	struct block_device *bdev = I_BDEV(bd_inode);
+ 	int error;
+ 	
+-	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
++	error = file_write_and_wait_range(filp, start, end);
+ 	if (error)
+ 		return error;
  
- 			ret = dax_writeback_one(bdev, dax_dev, mapping,
- 					indices[i], pvec.pages[i]);
--			if (ret < 0)
-+			if (ret < 0) {
-+				mapping_set_error(mapping, ret);
- 				goto out;
-+			}
- 		}
- 	}
- out:
 -- 
 2.13.0
 
