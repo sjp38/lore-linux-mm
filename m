@@ -1,92 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D0A306B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 15:39:21 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id g13so34675964uaj.7
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 12:39:21 -0700 (PDT)
-Received: from mail-ua0-x242.google.com (mail-ua0-x242.google.com. [2607:f8b0:400c:c08::242])
-        by mx.google.com with ESMTPS id o7si2801367uao.70.2017.06.29.12.39.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1991C6B0292
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 16:13:39 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y62so96373823pfa.3
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 13:13:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id q2si4666210plh.464.2017.06.29.13.13.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 12:39:21 -0700 (PDT)
-Received: by mail-ua0-x242.google.com with SMTP id l38so7363866uaf.1
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 12:39:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJuQx2qOt_aDqDQDcqGOZ5kmr5rQ9Zjv=MRRCJ65ERfGw@mail.gmail.com>
-References: <1497544976-7856-1-git-send-email-s.mesoraca16@gmail.com>
- <1497544976-7856-6-git-send-email-s.mesoraca16@gmail.com> <CAGXu5jJuQx2qOt_aDqDQDcqGOZ5kmr5rQ9Zjv=MRRCJ65ERfGw@mail.gmail.com>
-From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-Date: Thu, 29 Jun 2017 21:39:20 +0200
-Message-ID: <CAJHCu1Lr9KOdheHMO6tkaatizDpcgjAd3ouxiUxSeVyQPpkXOg@mail.gmail.com>
-Subject: Re: [RFC v2 5/9] S.A.R.A. WX Protection
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Jun 2017 13:13:38 -0700 (PDT)
+Subject: Re: [v3 1/6] mm, oom: use oom_victims counter to synchronize oom victim selection
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201706220040.v5M0eSnK074332@www262.sakura.ne.jp>
+	<20170622165858.GA30035@castle>
+	<201706230537.IDB21366.SQHJVFOOFOMFLt@I-love.SAKURA.ne.jp>
+	<201706230652.FDH69263.OtOLFSFMHFOQJV@I-love.SAKURA.ne.jp>
+	<20170629184748.GB27714@castle>
+In-Reply-To: <20170629184748.GB27714@castle>
+Message-Id: <201706300513.BGC60962.LQFJOOtMOFVFSH@I-love.SAKURA.ne.jp>
+Date: Fri, 30 Jun 2017 05:13:13 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-security-module <linux-security-module@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Brad Spengler <spender@grsecurity.net>, PaX Team <pageexec@freemail.hu>, Casey Schaufler <casey@schaufler-ca.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, Jann Horn <jannh@google.com>, Christoph Hellwig <hch@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: guro@fb.com
+Cc: linux-mm@kvack.org, mhocko@kernel.org, vdavydov.dev@gmail.com, hannes@cmpxchg.org, tj@kernel.org, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2017-06-28 1:04 GMT+02:00 Kees Cook <keescook@chromium.org>:
-> On Thu, Jun 15, 2017 at 9:42 AM, Salvatore Mesoraca
-> <s.mesoraca16@gmail.com> wrote:
->> +static int sara_check_vmflags(vm_flags_t vm_flags)
->> +{
->> +       u16 sara_wxp_flags = get_current_sara_wxp_flags();
->> +
->> +       if (sara_enabled && wxprot_enabled) {
->> +               if (sara_wxp_flags & SARA_WXP_WXORX &&
->> +                   vm_flags & VM_WRITE &&
->> +                   vm_flags & VM_EXEC) {
->> +                       if ((sara_wxp_flags & SARA_WXP_VERBOSE))
->> +                               pr_wxp("W^X");
->> +                       if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
->> +                               return -EPERM;
->> +               }
->> +               if (sara_wxp_flags & SARA_WXP_MMAP &&
->> +                   (vm_flags & VM_EXEC ||
->> +                    (!(vm_flags & VM_MAYWRITE) && (vm_flags & VM_MAYEXEC))) &&
->> +                   get_current_sara_mmap_blocked()) {
->> +                       if ((sara_wxp_flags & SARA_WXP_VERBOSE))
->> +                               pr_wxp("executable mmap");
->> +                       if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
->> +                               return -EPERM;
->> +               }
->> +       }
->
-> Given the subtle differences between these various if blocks (here and
-> in the other hook), I think it would be nice to have some beefy
-> comments here to describe specifically what's being checked (and why).
-> It'll help others review this code, and help validate code against
-> intent.
->
-> I would also try to minimize the written code by creating a macro for
-> a repeated pattern here:
->
->> +                               if ((sara_wxp_flags & SARA_WXP_VERBOSE))
->> +                                       pr_wxp("mprotect on file mmap");
->> +                               if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))
->> +                                       return -EACCES;
->
-> These four lines are repeated several times with only the const char *
-> and return value changing. Perhaps something like:
->
-> #define sara_return(err, msg) do { \
->                                if ((sara_wxp_flags & SARA_WXP_VERBOSE)) \
->                                        pr_wxp(err); \
->                                if (!(sara_wxp_flags & SARA_WXP_COMPLAIN)) \
->                                        return -err; \
-> } while (0)
->
-> Then each if block turns into something quite easier to parse:
->
->                if (sara_wxp_flags & SARA_WXP_WXORX &&
->                    vm_flags & VM_WRITE &&
->                    vm_flags & VM_EXEC)
->                        sara_return(EPERM, "W^X");
+Roman Gushchin wrote:
+> On Fri, Jun 23, 2017 at 06:52:20AM +0900, Tetsuo Handa wrote:
+> > Tetsuo Handa wrote:
+> > Oops, I misinterpreted. This is where a multithreaded OOM victim with or without
+> > the OOM reaper can get stuck forever. Think about a process with two threads is
+> > selected by the OOM killer and only one of these two threads can get TIF_MEMDIE.
+> > 
+> >   Thread-1                 Thread-2                 The OOM killer           The OOM reaper
+> > 
+> >                            Calls down_write(&current->mm->mmap_sem).
+> >   Enters __alloc_pages_slowpath().
+> >                            Enters __alloc_pages_slowpath().
+> >   Takes oom_lock.
+> >   Calls out_of_memory().
+> >                                                     Selects Thread-1 as an OOM victim.
+> >   Gets SIGKILL.            Gets SIGKILL.
+> >   Gets TIF_MEMDIE.
+> >   Releases oom_lock.
+> >   Leaves __alloc_pages_slowpath() because Thread-1 has TIF_MEMDIE.
+> >                                                                              Takes oom_lock.
+> >                                                                              Will do nothing because down_read_trylock() fails.
+> >                                                                              Releases oom_lock.
+> >                                                                              Gives up and sets MMF_OOM_SKIP after one second.
+> >                            Takes oom_lock.
+> >                            Calls out_of_memory().
+> >                            Will not check MMF_OOM_SKIP because Thread-1 still has TIF_MEMDIE. // <= get stuck waiting for Thread-1.
+> >                            Releases oom_lock.
+> >                            Will not leave __alloc_pages_slowpath() because Thread-2 does not have TIF_MEMDIE.
+> >                            Will not call up_write(&current->mm->mmap_sem).
+> >   Reaches do_exit().
+> >   Calls down_read(&current->mm->mmap_sem) in exit_mm() in do_exit(). // <= get stuck waiting for Thread-2.
+> >   Will not call up_read(&current->mm->mmap_sem) in exit_mm() in do_exit().
+> >   Will not clear TIF_MEMDIE in exit_oom_victim() in exit_mm() in do_exit().
+> 
+> That's interesting... Does it mean, that we have to give an access to the reserves
+> to all threads to guarantee the forward progress?
 
-I absolutely agree with all of the above. These issues will be addressed in v3.
-Thank you for your contribution.
+Yes, for we don't have __GFP_KILLABLE flag.
 
-Salvatore
+> 
+> What do you think about Michal's approach? He posted a link in the thread.
+
+Please read that thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
