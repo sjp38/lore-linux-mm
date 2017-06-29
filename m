@@ -1,113 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4890B6B0292
-	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:24:15 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id m54so34880014qtb.9
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 20:24:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d10si3804127qtg.184.2017.06.28.20.24.13
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4646E2802FE
+	for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:39:31 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 6so20586611oik.11
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 20:39:31 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id z70si2422636oia.152.2017.06.28.20.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 20:24:14 -0700 (PDT)
-Date: Wed, 28 Jun 2017 23:24:10 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] mm: convert three more cases to kvmalloc
-Message-ID: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 28 Jun 2017 20:39:29 -0700 (PDT)
+From: Sahitya Tummala <stummala@codeaurora.org>
+Subject: [PATCH v4 1/2] mm/list_lru.c: fix list_lru_count_node() to be race free
+Date: Thu, 29 Jun 2017 09:09:15 +0530
+Message-Id: <1498707555-30525-1-git-send-email-stummala@codeaurora.org>
+In-Reply-To: <20170628171854.t4sjyjv55j673qzv@esperanza>
+References: <20170628171854.t4sjyjv55j673qzv@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Polakov <apolyakov@beget.ru>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.cz>, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Cc: Sahitya Tummala <stummala@codeaurora.org>
 
-Hi
+list_lru_count_node() iterates over all memcgs to get
+the total number of entries on the node but it can race with
+memcg_drain_all_list_lrus(), which migrates the entries from
+a dead cgroup to another. This can return incorrect number of
+entries from list_lru_count_node().
 
-I'm submitting this for the next merge window.
+Fix this by keeping track of entries per node and simply return
+it in list_lru_count_node().
 
-Mikulas
-
-
-
-From: Mikulas Patocka <mpatocka@redhat.com>
-
-The patch a7c3e901 ("mm: introduce kv[mz]alloc helpers") converted a lot 
-of kernel code to kvmalloc. This patch converts three more forgotten 
-cases.
-
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-
+Signed-off-by: Sahitya Tummala <stummala@codeaurora.org>
 ---
- fs/file.c                 |   12 +-----------
- kernel/bpf/syscall.c      |   11 +----------
- kernel/cgroup/cgroup-v1.c |    7 +------
- 3 files changed, 3 insertions(+), 27 deletions(-)
+ include/linux/list_lru.h |  1 +
+ mm/list_lru.c            | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 8 deletions(-)
 
-Index: linux-2.6/fs/file.c
-===================================================================
---- linux-2.6.orig/fs/file.c
-+++ linux-2.6/fs/file.c
-@@ -32,17 +32,7 @@ unsigned int sysctl_nr_open_max =
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index cb0ba9f..fa7fd03 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -44,6 +44,7 @@ struct list_lru_node {
+ 	/* for cgroup aware lrus points to per cgroup lists, otherwise NULL */
+ 	struct list_lru_memcg	*memcg_lrus;
+ #endif
++	long nr_items;
+ } ____cacheline_aligned_in_smp;
  
- static void *alloc_fdmem(size_t size)
+ struct list_lru {
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 234676e..7a40fa2 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -117,6 +117,7 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
+ 		l = list_lru_from_kmem(nlru, item);
+ 		list_add_tail(item, &l->list);
+ 		l->nr_items++;
++		nlru->nr_items++;
+ 		spin_unlock(&nlru->lock);
+ 		return true;
+ 	}
+@@ -136,6 +137,7 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
+ 		l = list_lru_from_kmem(nlru, item);
+ 		list_del_init(item);
+ 		l->nr_items--;
++		nlru->nr_items--;
+ 		spin_unlock(&nlru->lock);
+ 		return true;
+ 	}
+@@ -183,15 +185,10 @@ unsigned long list_lru_count_one(struct list_lru *lru,
+ 
+ unsigned long list_lru_count_node(struct list_lru *lru, int nid)
  {
--	/*
--	 * Very large allocations can stress page reclaim, so fall back to
--	 * vmalloc() if the allocation size will be considered "large" by the VM.
--	 */
--	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
--		void *data = kmalloc(size, GFP_KERNEL_ACCOUNT |
--				     __GFP_NOWARN | __GFP_NORETRY);
--		if (data != NULL)
--			return data;
+-	long count = 0;
+-	int memcg_idx;
++	struct list_lru_node *nlru;
+ 
+-	count += __list_lru_count_one(lru, nid, -1);
+-	if (list_lru_memcg_aware(lru)) {
+-		for_each_memcg_cache_index(memcg_idx)
+-			count += __list_lru_count_one(lru, nid, memcg_idx);
 -	}
--	return __vmalloc(size, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
-+	return kvmalloc(size, GFP_KERNEL_ACCOUNT);
+-	return count;
++	nlru = &lru->node[nid];
++	return nlru->nr_items;
  }
+ EXPORT_SYMBOL_GPL(list_lru_count_node);
  
- static void __free_fdtable(struct fdtable *fdt)
-Index: linux-2.6/kernel/bpf/syscall.c
-===================================================================
---- linux-2.6.orig/kernel/bpf/syscall.c
-+++ linux-2.6/kernel/bpf/syscall.c
-@@ -58,16 +58,7 @@ void *bpf_map_area_alloc(size_t size)
- 	 * trigger under memory pressure as we really just want to
- 	 * fail instead.
- 	 */
--	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
--	void *area;
--
--	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
--		area = kmalloc(size, GFP_USER | flags);
--		if (area != NULL)
--			return area;
--	}
--
--	return __vmalloc(size, GFP_KERNEL | flags, PAGE_KERNEL);
-+	return kvmalloc(size, GFP_USER | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO);
- }
- 
- void bpf_map_area_free(void *area)
-Index: linux-2.6/kernel/cgroup/cgroup-v1.c
-===================================================================
---- linux-2.6.orig/kernel/cgroup/cgroup-v1.c
-+++ linux-2.6/kernel/cgroup/cgroup-v1.c
-@@ -184,15 +184,10 @@ struct cgroup_pidlist {
- /*
-  * The following two functions "fix" the issue where there are more pids
-  * than kmalloc will give memory for; in such cases, we use vmalloc/vfree.
-- * TODO: replace with a kernel-wide solution to this problem
-  */
--#define PIDLIST_TOO_LARGE(c) ((c) * sizeof(pid_t) > (PAGE_SIZE * 2))
- static void *pidlist_allocate(int count)
- {
--	if (PIDLIST_TOO_LARGE(count))
--		return vmalloc(count * sizeof(pid_t));
--	else
--		return kmalloc(count * sizeof(pid_t), GFP_KERNEL);
-+	return kvmalloc(count * sizeof(pid_t), GFP_KERNEL);
- }
- 
- static void pidlist_free(void *p)
+@@ -226,6 +223,7 @@ unsigned long list_lru_count_node(struct list_lru *lru, int nid)
+ 			assert_spin_locked(&nlru->lock);
+ 		case LRU_REMOVED:
+ 			isolated++;
++			nlru->nr_items--;
+ 			/*
+ 			 * If the lru lock has been dropped, our list
+ 			 * traversal is now invalid and so we have to
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
