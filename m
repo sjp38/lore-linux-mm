@@ -1,166 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 430E86B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 02:01:08 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d62so76412130pfb.13
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:01:08 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id w10si3045254pfl.445.2017.06.28.23.01.06
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B1F46B02C3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 02:14:59 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g46so35135514wrd.3
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:14:59 -0700 (PDT)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id s17si3261937wra.76.2017.06.28.23.14.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Jun 2017 23:01:07 -0700 (PDT)
-Message-ID: <595496D8.9010208@huawei.com>
-Date: Thu, 29 Jun 2017 13:57:44 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jun 2017 23:14:58 -0700 (PDT)
+Received: by mail-wm0-x233.google.com with SMTP id b184so2830596wme.1
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:14:57 -0700 (PDT)
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+References: <bug-196157-27@https.bugzilla.kernel.org/>
+ <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
+ <20170623071324.GD5308@dhcp22.suse.cz>
+ <3541d6c3-6c41-8210-ee94-fef313ecd83d@gmail.com>
+ <20170623113837.GM5308@dhcp22.suse.cz>
+ <a373c35d-7d83-973c-126e-a08c411115cb@gmail.com>
+ <20170626054623.GC31972@dhcp22.suse.cz>
+ <7b78db49-e0d8-9ace-bada-a48c9392a8ca@gmail.com>
+ <20170626091254.GG11534@dhcp22.suse.cz>
+From: Alkis Georgopoulos <alkisg@gmail.com>
+Message-ID: <5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
+Date: Thu, 29 Jun 2017 09:14:55 +0300
 MIME-Version: 1.0
-Subject: Re: [PATCH] futex: avoid undefined behaviour when shift exponent
- is negative
-References: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com> <20170621164036.4findvvz7jj4cvqo@gmail.com> <595331FE.3090700@huawei.com> <568AC6DF-7E6D-4F10-BD41-D43195629C13@zytor.com> <595461F4.3020300@huawei.com> <ECBE6E45-EED4-4BEA-B758-D7217E10E1FD@zytor.com>
-In-Reply-To: <ECBE6E45-EED4-4BEA-B758-D7217E10E1FD@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170626091254.GG11534@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com
-Cc: Ingo Molnar <mingo@kernel.org>, akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 2017/6/29 12:29, hpa@zytor.com wrote:
-> On June 28, 2017 7:12:04 PM PDT, zhong jiang <zhongjiang@huawei.com> wrote:
->> On 2017/6/29 5:43, hpa@zytor.com wrote:
->>> On June 27, 2017 9:35:10 PM PDT, zhong jiang <zhongjiang@huawei.com>
->> wrote:
->>>> Hi,  Ingo
->>>>
->>>> Thank you for the comment.
->>>> On 2017/6/22 0:40, Ingo Molnar wrote:
->>>>> * zhong jiang <zhongjiang@huawei.com> wrote:
->>>>>
->>>>>> when shift expoment is negative, left shift alway zero. therefore,
->>>> we
->>>>>> modify the logic to avoid the warining.
->>>>>>
->>>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>>>>> ---
->>>>>>  arch/x86/include/asm/futex.h | 8 ++++++--
->>>>>>  1 file changed, 6 insertions(+), 2 deletions(-)
->>>>>>
->>>>>> diff --git a/arch/x86/include/asm/futex.h
->>>> b/arch/x86/include/asm/futex.h
->>>>>> index b4c1f54..2425fca 100644
->>>>>> --- a/arch/x86/include/asm/futex.h
->>>>>> +++ b/arch/x86/include/asm/futex.h
->>>>>> @@ -49,8 +49,12 @@ static inline int futex_atomic_op_inuser(int
->>>> encoded_op, u32 __user *uaddr)
->>>>>>  	int cmparg = (encoded_op << 20) >> 20;
->>>>>>  	int oldval = 0, ret, tem;
->>>>>>  
->>>>>> -	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
->>>>>> -		oparg = 1 << oparg;
->>>>>> +	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
->>>>>> +		if (oparg >= 0)
->>>>>> +			oparg = 1 << oparg;
->>>>>> +		else
->>>>>> +			oparg = 0;
->>>>>> +	}
->>>>> Could we avoid all these complications by using an unsigned type?
->>>> I think it is not feasible.  a negative shift exponent is likely
->>>> existence and reasonable.
->>>>  as the above case,  oparg is a negative is common. 
->>>>
->>>> I think it can be avoided by following change. 
->>>>
->>>> diff --git a/arch/x86/include/asm/futex.h
->>>> b/arch/x86/include/asm/futex.h
->>>> index b4c1f54..3205e86 100644
->>>> --- a/arch/x86/include/asm/futex.h
->>>> +++ b/arch/x86/include/asm/futex.h
->>>> @@ -50,7 +50,7 @@ static inline int futex_atomic_op_inuser(int
->>>> encoded_op, u32 __user *uaddr)
->>>>        int oldval = 0, ret, tem;
->>>>
->>>>        if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
->>>> -               oparg = 1 << oparg;
->>>> +               oparg = safe_shift(1, oparg);
->>>>
->>>>        if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
->>>>                return -EFAULT;
->>>> diff --git a/drivers/video/fbdev/core/fbmem.c
->>>> b/drivers/video/fbdev/core/fbmem.c
->>>> index 069fe79..b4edda3 100644
->>>> --- a/drivers/video/fbdev/core/fbmem.c
->>>> +++ b/drivers/video/fbdev/core/fbmem.c
->>>> @@ -190,11 +190,6 @@ char* fb_get_buffer_offset(struct fb_info
->> *info,
->>>> struct fb_pixmap *buf, u32 size
->>>>
->>>> #ifdef CONFIG_LOGO
->>>>
->>>> -static inline unsigned safe_shift(unsigned d, int n)
->>>> -{
->>>> -       return n < 0 ? d >> -n : d << n;
->>>> -}
->>>> -
->>>> static void fb_set_logocmap(struct fb_info *info,
->>>>                                   const struct linux_logo *logo)
->>>> {
->>>> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
->>>> index d043ada..f3b8856 100644
->>>> --- a/include/linux/kernel.h
->>>> +++ b/include/linux/kernel.h
->>>> @@ -841,6 +841,10 @@ static inline void ftrace_dump(enum
->>>> ftrace_dump_mode oops_dump_mode) { }
->>>>  */
->>>> #define clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
->>>>
->>>> +static inline unsigned safe_shift(unsigned d, int n)
->>>> +{
->>>> +       return n < 0 ? d >> -n : d << n;
->>>> +}
->>>>
->>>> Thansk
->>>> zhongjiang
->>>>
->>>>> Thanks,
->>>>>
->>>>> 	Ingo
->>>>>
->>>>> .
->>>>>
->>> What makes it reasonable?  It is totally ill-defined and doesn't do
->> anything useful now?
->> Thanks you for comments.
->>
->> Maybe I mismake the meaning. I test the negative cases in x86 , all
->> case is zero. so I come to a conclusion.
->>
->> zj.c:15:8: warning: left shift count is negative
->> [-Wshift-count-negative]
->>  j = 1 << -2048;
->>        ^
->> [root@localhost zhongjiang]# ./zj
->> j = 0
->> j.c:15:8: warning: left shift count is negative
->> [-Wshift-count-negative]
->>  j = 1 << -2047;
->>        ^
->> [root@localhost zhongjiang]# ./zj
->> j = 0
->>
->> I insmod a module into kernel to test the testcasts, all of the result
->> is zero.
->>
->> I wonder whether I miss some point or not. Do you point out to me?
->> please
->>
->> Thanks
->> zhongjiang
->>
->>
-> When you use compile-time constants, the compiler generates the value at compile time, which can be totally different.
- yes, I test that. Thanks.
+I've been working on a system with highmem_is_dirtyable=1 for a couple
+of hours.
 
- Thanks
- zhongjiang
+While the disk benchmark showed no performance hit on intense disk
+activity, there are other serious problems that make this workaround
+unusable.
+
+I.e. when there's intense disk activity, the mouse cursor moves with
+extreme lag, like 1-2 fps. Switching with alt+tab from e.g. thunderbird
+to pidgin needs 10 seconds. kswapd hits 100% cpu usage. Etc etc, the
+system becomes unusable until the disk activity settles down.
+I was testing via SSH so I hadn't noticed the extreme lag.
+
+All those symptoms go away when resetting highmem_is_dirtyable=0.
+
+So currently 32bit installations with 16 GB RAM have no option but to
+remove the extra RAM...
+
+
+About ab8fabd46f81 ("mm: exclude reserved pages from dirtyable memory"),
+would it make sense for me to compile a kernel and test if everything
+works fine without it? I.e. if we see that this caused all those
+regressions, would it be revisited?
+
+And an unrelated idea, is there any way to tell linux to use a limited
+amount of RAM for page cache, e.g. only 1 GB?
+
+Kind regards,
+Alkis Georgopoulos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
