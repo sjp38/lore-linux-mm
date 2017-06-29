@@ -1,262 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 651E2280300
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 03:35:23 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v88so35273766wrb.1
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 00:35:23 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id r15si3214352wrr.99.2017.06.29.00.35.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 96F796B0292
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 04:02:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 62so860571wmw.13
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:02:38 -0700 (PDT)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id q84si533805wme.115.2017.06.29.01.02.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 00:35:21 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id u23so843158wma.2
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 00:35:21 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
-Date: Thu, 29 Jun 2017 09:35:09 +0200
-Message-Id: <20170629073509.623-3-mhocko@kernel.org>
-In-Reply-To: <20170629073509.623-1-mhocko@kernel.org>
-References: <20170629073509.623-1-mhocko@kernel.org>
+        Thu, 29 Jun 2017 01:02:37 -0700 (PDT)
+Received: by mail-wm0-x22d.google.com with SMTP id z75so17014350wmc.0
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:02:36 -0700 (PDT)
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+References: <bug-196157-27@https.bugzilla.kernel.org/>
+ <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
+ <20170623071324.GD5308@dhcp22.suse.cz>
+ <3541d6c3-6c41-8210-ee94-fef313ecd83d@gmail.com>
+ <20170623113837.GM5308@dhcp22.suse.cz>
+ <a373c35d-7d83-973c-126e-a08c411115cb@gmail.com>
+ <20170626054623.GC31972@dhcp22.suse.cz>
+ <7b78db49-e0d8-9ace-bada-a48c9392a8ca@gmail.com>
+ <20170626091254.GG11534@dhcp22.suse.cz>
+ <5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
+ <20170629071619.GB31603@dhcp22.suse.cz>
+From: Alkis Georgopoulos <alkisg@gmail.com>
+Message-ID: <c84a30f7-0524-5a30-e825-7e73d0cb06e2@gmail.com>
+Date: Thu, 29 Jun 2017 11:02:34 +0300
+MIME-Version: 1.0
+In-Reply-To: <20170629071619.GB31603@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-From: Michal Hocko <mhocko@suse.com>
+IGBPI?I1I? 29/06/2017 10:16 I?I 1/4 , I? Michal Hocko I-I3I?I+-I?Iu:
+> 
+> Or simply install 64b kernel. You can keep 32b userspace if you need
+> it but running 32b kernel will be always a fight.
 
-Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
-to precede the Movable zone in the physical memory range. The purpose of
-the movable zone is, however, not bound to any physical memory restriction.
-It merely defines a class of migrateable and reclaimable memory.
+Results with 64bit kernel on 32bit userspace:
+16.04.2 LTS (Xenial Xerus), 4.4.0-83-generic, i386, RAM=16131400
+Copying /lib to 1: 27.00
+Copying 1 to 2: 9.37
+Copying 2 to 3: 8.80
+Copying 3 to 4: 9.13
+Copying 4 to 5: 9.25
+Copying 5 to 6: 8.08
+Copying 6 to 7: 8.00
+Copying 7 to 8: 8.85
+Copying 8 to 9: 8.67
+Copying 9 to 10: 8.55
+Copying 10 to 11: 8.67
+Copying 11 to 12: 8.15
+Copying 12 to 13: 7.57
+Copying 13 to 14: 8.05
+Copying 14 to 15: 8.22
+Copying 15 to 16: 8.35
+Copying 16 to 17: 8.50
+Copying 17 to 18: 8.30
+Copying 18 to 19: 7.97
+Copying 19 to 20: 7.81
+Copying 20 to 21: 7.11
+Copying 21 to 22: 8.20
+Copying 22 to 23: 7.54
+Copying 23 to 24: 7.96
+Copying 24 to 25: 8.04
+Copying 25 to 26: 7.87
+Copying 26 to 27: 7.70
+Copying 27 to 28: 8.33
+Copying 28 to 29: 6.88
+Copying 29 to 30: 7.18
 
-There are users (e.g. CMA) who might want to reserve specific physical
-memory ranges for their own purpose. Moreover our pfn walkers have to be
-prepared for zones overlapping in the physical range already because we
-do support interleaving NUMA nodes and therefore zones can interleave as
-well. This means we can allow each memory block to be associated with a
-different zone.
+It doesn't have the 32bit slowness issue, and it's "only" 2 times slower
+than the full 64bit installation (so maybe there's an additional delay
+involved somewhere in userspace)...
+...but it's also hard to setup (e.g. Ubuntu doesn't allow 4.8 32bit
+kernel to coexist with 4.8 64bit because they have the same file names;
+so the 64 bit kernel needs to be 4.4),
+and it doesn't run some applications, e.g. VirtualBox or proprietary
+nvidia drivers...
 
-Loosen the current onlining semantic and allow explicit onlining type on
-any memblock. That means that online_{kernel,movable} will be allowed
-regardless of the physical address of the memblock as long as it is
-offline of course. This might result in moveble zone overlapping with
-other kernel zones. Default onlining then becomes a bit tricky but still
-sensible. echo online > memoryXY/state will online the given block to
-	1) the default zone if the given range is outside of any zone
-	2) the enclosing zone if such a zone doesn't interleave with
-	   any other zone
-        3) the default zone if more zones interleave for this range
-where default zone is movable zone only if movable_node is enabled
-otherwise it is a kernel zone.
 
-Here is an example of the semantic with (movable_node is not present but
-it work in an analogous way). We start with following memblocks, all of
-them offline
-memory34/valid_zones:Normal Movable
-memory35/valid_zones:Normal Movable
-memory36/valid_zones:Normal Movable
-memory37/valid_zones:Normal Movable
-memory38/valid_zones:Normal Movable
-memory39/valid_zones:Normal Movable
-memory40/valid_zones:Normal Movable
-memory41/valid_zones:Normal Movable
-
-Now, we online block 34 in default mode and block 37 as movable
-root@test1:/sys/devices/system/node/node1# echo online > memory34/state
-root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
-memory34/valid_zones:Normal
-memory35/valid_zones:Normal Movable
-memory36/valid_zones:Normal Movable
-memory37/valid_zones:Movable
-memory38/valid_zones:Normal Movable
-memory39/valid_zones:Normal Movable
-memory40/valid_zones:Normal Movable
-memory41/valid_zones:Normal Movable
-
-As we can see all other blocks can still be onlined both into Normal and
-Movable zones and the Normal is default because the Movable zone spans
-only block37 now.
-root@test1:/sys/devices/system/node/node1# echo online_movable > memory41/state
-memory34/valid_zones:Normal
-memory35/valid_zones:Normal Movable
-memory36/valid_zones:Normal Movable
-memory37/valid_zones:Movable
-memory38/valid_zones:Movable Normal
-memory39/valid_zones:Movable Normal
-memory40/valid_zones:Movable Normal
-memory41/valid_zones:Movable
-
-Now the default zone for blocks 37-41 has changed because movable zone
-spans that range.
-root@test1:/sys/devices/system/node/node1# echo online_kernel > memory39/state
-memory34/valid_zones:Normal
-memory35/valid_zones:Normal Movable
-memory36/valid_zones:Normal Movable
-memory37/valid_zones:Movable
-memory38/valid_zones:Normal Movable
-memory39/valid_zones:Normal
-memory40/valid_zones:Movable Normal
-memory41/valid_zones:Movable
-
-Note that the block 39 now belongs to the zone Normal and so block38
-falls into Normal by default as well.
-
-For completness
-root@test1:/sys/devices/system/node/node1# for i in memory[34]?
-do
-	echo online > $i/state 2>/dev/null
-done
-
-memory34/valid_zones:Normal
-memory35/valid_zones:Normal
-memory36/valid_zones:Normal
-memory37/valid_zones:Movable
-memory38/valid_zones:Normal
-memory39/valid_zones:Normal
-memory40/valid_zones:Movable
-memory41/valid_zones:Movable
-
-Implementation wise the change is quite straightforward. We can get rid
-of allow_online_pfn_range altogether. online_pages allows only offline
-nodes already. The original default_zone_for_pfn will become
-default_kernel_zone_for_pfn. New default_zone_for_pfn implements the
-above semantic. zone_for_pfn_range is slightly reorganized to implement
-kernel and movable online type explicitly and MMOP_ONLINE_KEEP becomes
-a catch all default behavior.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/base/memory.c |  3 ---
- mm/memory_hotplug.c   | 74 ++++++++++++++++-----------------------------------
- 2 files changed, 23 insertions(+), 54 deletions(-)
-
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 26383af9900c..4e3b61cda520 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -394,9 +394,6 @@ static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
- {
- 	struct zone *zone;
- 
--	if (!allow_online_pfn_range(nid, start_pfn, nr_pages, online_type))
--		return;
--
- 	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
- 	if (zone != default_zone) {
- 		strcat(buf, " ");
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6b9a60115e37..670f7acbecf4 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -894,7 +894,7 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
-  * If no kernel zone covers this pfn range it will automatically go
-  * to the ZONE_NORMAL.
-  */
--static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-+static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn,
- 		unsigned long nr_pages)
- {
- 	struct pglist_data *pgdat = NODE_DATA(nid);
-@@ -910,65 +910,40 @@ static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
- 	return &pgdat->node_zones[ZONE_NORMAL];
- }
- 
--bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, int online_type)
-+static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-+		unsigned long nr_pages)
- {
--	struct pglist_data *pgdat = NODE_DATA(nid);
--	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
--	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
-+	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
-+			nr_pages);
-+	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-+	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
-+	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
- 
- 	/*
--	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
--	 * physically before ZONE_MOVABLE. All we need is they do not
--	 * overlap. Historically we didn't allow ZONE_NORMAL after ZONE_MOVABLE
--	 * though so let's stick with it for simplicity for now.
--	 * TODO make sure we do not overlap with ZONE_DEVICE
-+	 * We inherit the existing zone in a simple case where zones do not
-+	 * overlap in the given range
- 	 */
--	if (online_type == MMOP_ONLINE_KERNEL) {
--		if (zone_is_empty(movable_zone))
--			return true;
--		return movable_zone->zone_start_pfn >= pfn + nr_pages;
--	} else if (online_type == MMOP_ONLINE_MOVABLE) {
--		return zone_end_pfn(default_zone) <= pfn;
--	}
--
--	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
--	return online_type == MMOP_ONLINE_KEEP;
--}
--
--static inline bool movable_pfn_range(int nid, struct zone *default_zone,
--		unsigned long start_pfn, unsigned long nr_pages)
--{
--	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
--				MMOP_ONLINE_KERNEL))
--		return true;
--
--	if (!movable_node_is_enabled())
--		return false;
-+	if (in_kernel ^ in_movable)
-+		return (in_kernel) ? kernel_zone : movable_zone;
- 
--	return !zone_intersects(default_zone, start_pfn, nr_pages);
-+	/*
-+	 * If the range doesn't belong to any zone or two zones overlap in the
-+	 * given range then we use movable zone only if movable_node is
-+	 * enabled because we always online to a kernel zone by default.
-+	 */
-+	return movable_node_enabled ? movable_zone : kernel_zone;
- }
- 
- struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
- 		unsigned long nr_pages)
- {
--	struct pglist_data *pgdat = NODE_DATA(nid);
--	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
-+	if (online_type == MMOP_ONLINE_KERNEL)
-+		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
- 
--	if (online_type == MMOP_ONLINE_KEEP) {
--		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
--		/*
--		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
--		 * movable zone if that is not possible (e.g. we are within
--		 * or past the existing movable zone). movable_node overrides
--		 * this default and defaults to movable zone
--		 */
--		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
--			zone = movable_zone;
--	} else if (online_type == MMOP_ONLINE_MOVABLE) {
--		zone = &pgdat->node_zones[ZONE_MOVABLE];
--	}
-+	if (online_type == MMOP_ONLINE_MOVABLE)
-+		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
- 
--	return zone;
-+	return default_zone_for_pfn(nid, start_pfn, nr_pages);
- }
- 
- /*
-@@ -997,9 +972,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	struct memory_notify arg;
- 
- 	nid = pfn_to_nid(pfn);
--	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
--		return -EINVAL;
--
- 	/* associate pfn range with the zone */
- 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
- 
--- 
-2.11.0
+Thank you very much for your continuous input on this, we'll see what we
+can do to locally avoid the issue, probably just tell sysadmins to avoid
+using -pae with more than 8 GB RAM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
