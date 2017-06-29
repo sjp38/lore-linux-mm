@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 747236B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 03:10:50 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c81so681288wmd.10
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 00:10:50 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EBD16B0292
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 03:16:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id t3so706728wme.9
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 00:16:24 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r5si427468wmr.54.2017.06.29.00.10.48
+        by mx.google.com with ESMTPS id y71si446976wmc.123.2017.06.29.00.16.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Jun 2017 00:10:49 -0700 (PDT)
-Date: Thu, 29 Jun 2017 09:10:46 +0200
+        Thu, 29 Jun 2017 00:16:22 -0700 (PDT)
+Date: Thu, 29 Jun 2017 09:16:20 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: convert three more cases to kvmalloc
-Message-ID: <20170629071046.GA31603@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
+ 4.x+/i386/16+RAM, compared to 3.x
+Message-ID: <20170629071619.GB31603@dhcp22.suse.cz>
+References: <bug-196157-27@https.bugzilla.kernel.org/>
+ <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
+ <20170623071324.GD5308@dhcp22.suse.cz>
+ <3541d6c3-6c41-8210-ee94-fef313ecd83d@gmail.com>
+ <20170623113837.GM5308@dhcp22.suse.cz>
+ <a373c35d-7d83-973c-126e-a08c411115cb@gmail.com>
+ <20170626054623.GC31972@dhcp22.suse.cz>
+ <7b78db49-e0d8-9ace-bada-a48c9392a8ca@gmail.com>
+ <20170626091254.GG11534@dhcp22.suse.cz>
+ <5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alkis Georgopoulos <alkisg@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed 28-06-17 23:24:10, Mikulas Patocka wrote:
-[...]
-> From: Mikulas Patocka <mpatocka@redhat.com>
+On Thu 29-06-17 09:14:55, Alkis Georgopoulos wrote:
+> I've been working on a system with highmem_is_dirtyable=1 for a couple
+> of hours.
 > 
-> The patch a7c3e901 ("mm: introduce kv[mz]alloc helpers") converted a lot 
-> of kernel code to kvmalloc. This patch converts three more forgotten 
-> cases.
+> While the disk benchmark showed no performance hit on intense disk
+> activity, there are other serious problems that make this workaround
+> unusable.
+> 
+> I.e. when there's intense disk activity, the mouse cursor moves with
+> extreme lag, like 1-2 fps. Switching with alt+tab from e.g. thunderbird
+> to pidgin needs 10 seconds. kswapd hits 100% cpu usage. Etc etc, the
+> system becomes unusable until the disk activity settles down.
+> I was testing via SSH so I hadn't noticed the extreme lag.
+> 
+> All those symptoms go away when resetting highmem_is_dirtyable=0.
+> 
+> So currently 32bit installations with 16 GB RAM have no option but to
+> remove the extra RAM...
 
-Thanks! I have two remarks below but other than that feel free to add
+Or simply install 64b kernel. You can keep 32b userspace if you need
+it but running 32b kernel will be always a fight.
+ 
+> About ab8fabd46f81 ("mm: exclude reserved pages from dirtyable memory"),
+> would it make sense for me to compile a kernel and test if everything
+> works fine without it? I.e. if we see that this caused all those
+> regressions, would it be revisited?
 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+The patch makes a lot of sense in general. I do not think we will revert
+it based on a configuration which is rare. We might come up with some
+tweaks in the dirty memory throttling but that area is quite tricky
+already. You can of course try to test without this commit applied (I
+believe you would have to go and checkout ab8fabd46f81 and revert the
+commit because a later revert sound more complicated to me. I might be
+wrong here because I haven't tried that myself though).
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-[...]
-> Index: linux-2.6/kernel/bpf/syscall.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/bpf/syscall.c
-> +++ linux-2.6/kernel/bpf/syscall.c
-> @@ -58,16 +58,7 @@ void *bpf_map_area_alloc(size_t size)
->  	 * trigger under memory pressure as we really just want to
->  	 * fail instead.
->  	 */
-> -	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
-> -	void *area;
-> -
-> -	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> -		area = kmalloc(size, GFP_USER | flags);
-> -		if (area != NULL)
-> -			return area;
-> -	}
-> -
-> -	return __vmalloc(size, GFP_KERNEL | flags, PAGE_KERNEL);
-> +	return kvmalloc(size, GFP_USER | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO);
+> And an unrelated idea, is there any way to tell linux to use a limited
+> amount of RAM for page cache, e.g. only 1 GB?
 
-kvzalloc without additional flags would be more appropriate.
-__GFP_NORETRY is explicitly documented as non-supported and NOWARN
-wouldn't be applied everywhere in the vmalloc path.
-
->  }
->  
->  void bpf_map_area_free(void *area)
-> Index: linux-2.6/kernel/cgroup/cgroup-v1.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/cgroup/cgroup-v1.c
-> +++ linux-2.6/kernel/cgroup/cgroup-v1.c
-> @@ -184,15 +184,10 @@ struct cgroup_pidlist {
->  /*
->   * The following two functions "fix" the issue where there are more pids
->   * than kmalloc will give memory for; in such cases, we use vmalloc/vfree.
-> - * TODO: replace with a kernel-wide solution to this problem
->   */
-> -#define PIDLIST_TOO_LARGE(c) ((c) * sizeof(pid_t) > (PAGE_SIZE * 2))
->  static void *pidlist_allocate(int count)
->  {
-> -	if (PIDLIST_TOO_LARGE(count))
-> -		return vmalloc(count * sizeof(pid_t));
-> -	else
-> -		return kmalloc(count * sizeof(pid_t), GFP_KERNEL);
-> +	return kvmalloc(count * sizeof(pid_t), GFP_KERNEL);
->  }
-
-I would rather use kvmalloc_array to have an overflow protection as
-well.
-
->  
->  static void pidlist_free(void *p)
-
+No.
 -- 
 Michal Hocko
 SUSE Labs
