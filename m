@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1F46B02C3
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 02:14:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g46so35135514wrd.3
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:14:59 -0700 (PDT)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id s17si3261937wra.76.2017.06.28.23.14.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 933986B02C3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 02:24:28 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i185so538415wmi.7
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:24:28 -0700 (PDT)
+Received: from mail-wr0-x22f.google.com (mail-wr0-x22f.google.com. [2a00:1450:400c:c0c::22f])
+        by mx.google.com with ESMTPS id u10si6878102wmg.100.2017.06.28.23.24.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jun 2017 23:14:58 -0700 (PDT)
-Received: by mail-wm0-x233.google.com with SMTP id b184so2830596wme.1
-        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:14:57 -0700 (PDT)
-Subject: Re: [Bug 196157] New: 100+ times slower disk writes on
- 4.x+/i386/16+RAM, compared to 3.x
-References: <bug-196157-27@https.bugzilla.kernel.org/>
- <20170622123736.1d80f1318eac41cd661b7757@linux-foundation.org>
- <20170623071324.GD5308@dhcp22.suse.cz>
- <3541d6c3-6c41-8210-ee94-fef313ecd83d@gmail.com>
- <20170623113837.GM5308@dhcp22.suse.cz>
- <a373c35d-7d83-973c-126e-a08c411115cb@gmail.com>
- <20170626054623.GC31972@dhcp22.suse.cz>
- <7b78db49-e0d8-9ace-bada-a48c9392a8ca@gmail.com>
- <20170626091254.GG11534@dhcp22.suse.cz>
-From: Alkis Georgopoulos <alkisg@gmail.com>
-Message-ID: <5eff5b8f-51ab-9749-0da5-88c270f0df92@gmail.com>
-Date: Thu, 29 Jun 2017 09:14:55 +0300
+        Wed, 28 Jun 2017 23:24:23 -0700 (PDT)
+Received: by mail-wr0-x22f.google.com with SMTP id k67so183515286wrc.2
+        for <linux-mm@kvack.org>; Wed, 28 Jun 2017 23:24:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170626091254.GG11534@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170628170742.2895-1-opendmb@gmail.com>
+References: <20170628170742.2895-1-opendmb@gmail.com>
+From: Gregory Fong <gregory.0xf0@gmail.com>
+Date: Wed, 28 Jun 2017 23:23:52 -0700
+Message-ID: <CADtm3G6EWr6O5TEpXr_EUGA6_Fg7yBm12ttfXfC_EtQT7gyXFw@mail.gmail.com>
+Subject: Re: [PATCH] cma: fix calculation of aligned offset
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+To: Doug Berger <opendmb@gmail.com>
+Cc: Angus Clark <angus@angusclark.org>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Lucas Stach <l.stach@pengutronix.de>, Catalin Marinas <catalin.marinas@arm.com>, Shiraz Hashim <shashim@codeaurora.org>, Jaewon Kim <jaewon31.kim@samsung.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, Danesh Petigara <dpetigara@broadcom.com>
 
-I've been working on a system with highmem_is_dirtyable=1 for a couple
-of hours.
+On Wed, Jun 28, 2017 at 10:07 AM, Doug Berger <opendmb@gmail.com> wrote:
+> The align_offset parameter is used by bitmap_find_next_zero_area_off()
+> to represent the offset of map's base from the previous alignment
+> boundary; the function ensures that the returned index, plus the
+> align_offset, honors the specified align_mask.
+>
+> The logic introduced by commit b5be83e308f7 ("mm: cma: align to
+> physical address, not CMA region position") has the cma driver
+> calculate the offset to the *next* alignment boundary.
 
-While the disk benchmark showed no performance hit on intense disk
-activity, there are other serious problems that make this workaround
-unusable.
+Wow, I had that completely backward, nice catch.
 
-I.e. when there's intense disk activity, the mouse cursor moves with
-extreme lag, like 1-2 fps. Switching with alt+tab from e.g. thunderbird
-to pidgin needs 10 seconds. kswapd hits 100% cpu usage. Etc etc, the
-system becomes unusable until the disk activity settles down.
-I was testing via SSH so I hadn't noticed the extreme lag.
+> In most cases,
+> the base alignment is greater than that specified when making
+> allocations, resulting in a zero offset whether we align up or down.
+> In the example given with the commit, the base alignment (8MB) was
+> half the requested alignment (16MB) so the math also happened to work
+> since the offset is 8MB in both directions.  However, when requesting
+> allocations with an alignment greater than twice that of the base,
+> the returned index would not be correctly aligned.
 
-All those symptoms go away when resetting highmem_is_dirtyable=0.
+It may be worth explaining what impact incorrect alignment has for an
+end user, then considering for inclusion in stable.
 
-So currently 32bit installations with 16 GB RAM have no option but to
-remove the extra RAM...
+>
+> Also, the align_order arguments of cma_bitmap_aligned_mask() and
+> cma_bitmap_aligned_offset() should not be negative so the argument
+> type was made unsigned.
+>
+> Fixes: b5be83e308f7 ("mm: cma: align to physical address, not CMA region position")
+> Signed-off-by: Angus Clark <angus@angusclark.org>
+> Signed-off-by: Doug Berger <opendmb@gmail.com>
 
-
-About ab8fabd46f81 ("mm: exclude reserved pages from dirtyable memory"),
-would it make sense for me to compile a kernel and test if everything
-works fine without it? I.e. if we see that this caused all those
-regressions, would it be revisited?
-
-And an unrelated idea, is there any way to tell linux to use a limited
-amount of RAM for page cache, e.g. only 1 GB?
-
-Kind regards,
-Alkis Georgopoulos
+Acked-by: Gregory Fong <gregory.0xf0@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
