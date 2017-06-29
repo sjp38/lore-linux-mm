@@ -1,82 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 90C956B0292
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 04:40:45 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n65so37124523pgn.15
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:40:45 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id f5si3587224plm.418.2017.06.29.01.40.44
-        for <linux-mm@kvack.org>;
-        Thu, 29 Jun 2017 01:40:44 -0700 (PDT)
-Date: Thu, 29 Jun 2017 17:40:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] thp, mm: Fix crash due race in MADV_FREE handling
-Message-ID: <20170629084042.GA22335@bbox>
-References: <20170628101249.17879-1-kirill.shutemov@linux.intel.com>
- <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BBC886B02C3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 04:46:26 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x23so35360621wrb.6
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 01:46:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l8si3580848wrb.95.2017.06.29.01.46.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Jun 2017 01:46:24 -0700 (PDT)
+Date: Thu, 29 Jun 2017 10:46:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170629084621.GE31603@dhcp22.suse.cz>
+References: <20170626130346.26314-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
+In-Reply-To: <20170626130346.26314-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Andrea Argangeli <andrea@kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Jun 28, 2017 at 01:15:50PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Jun 28, 2017 at 01:12:49PM +0300, Kirill A. Shutemov wrote:
-> > Reinette reported following crash:
-> > 
-> >   BUG: Bad page state in process log2exe  pfn:57600
-> >   page:ffffea00015d8000 count:0 mapcount:0 mapping:          (null) index:0x20200
-> >   flags: 0x4000000000040019(locked|uptodate|dirty|swapbacked)
-> >   raw: 4000000000040019 0000000000000000 0000000000020200 00000000ffffffff
-> >   raw: ffffea00015d8020 ffffea00015d8020 0000000000000000 0000000000000000
-> >   page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-> >   bad because of flags: 0x1(locked)
-> >   Modules linked in: rfcomm 8021q bnep intel_rapl x86_pkg_temp_thermal coretemp efivars btusb btrtl btbcm pwm_lpss_pci snd_hda_codec_hdmi btintel pwm_lpss snd_hda_codec_realtek snd_soc_skl snd_hda_codec_generic snd_soc_skl_ipc spi_pxa2xx_platform snd_soc_sst_ipc snd_soc_sst_dsp i2c_designware_platform i2c_designware_core snd_hda_ext_core snd_soc_sst_match snd_hda_intel snd_hda_codec mei_me snd_hda_core mei snd_soc_rt286 snd_soc_rl6347a snd_soc_core efivarfs
-> >   CPU: 1 PID: 354 Comm: log2exe Not tainted 4.12.0-rc7-test-test #19
-> >   Hardware name: Intel corporation NUC6CAYS/NUC6CAYB, BIOS AYAPLCEL.86A.0027.2016.1108.1529 11/08/2016
-> >   Call Trace:
-> >    dump_stack+0x95/0xeb
-> >    bad_page+0x16a/0x1f0
-> >    free_pages_check_bad+0x117/0x190
-> >    ? rcu_read_lock_sched_held+0xa8/0x130
-> >    free_hot_cold_page+0x7b1/0xad0
-> >    __put_page+0x70/0xa0
-> >    madvise_free_huge_pmd+0x627/0x7b0
-> >    madvise_free_pte_range+0x6f8/0x1150
-> >    ? debug_check_no_locks_freed+0x280/0x280
-> >    ? swapin_walk_pmd_entry+0x380/0x380
-> >    __walk_page_range+0x6b5/0xe30
-> >    walk_page_range+0x13b/0x310
-> >    madvise_free_page_range.isra.16+0xad/0xd0
-> >    ? force_swapin_readahead+0x110/0x110
-> >    ? swapin_walk_pmd_entry+0x380/0x380
-> >    ? lru_add_drain_cpu+0x160/0x320
-> >    madvise_free_single_vma+0x2e4/0x470
-> >    ? madvise_free_page_range.isra.16+0xd0/0xd0
-> >    ? vmacache_update+0x100/0x130
-> >    ? find_vma+0x35/0x160
-> >    SyS_madvise+0x8ce/0x1450
-> > 
-> > If somebody frees the page under us and we hold the last reference to
-> > it, put_page() would attempt to free the page before unlocking it.
-> > 
-> > The fix is trivial reorder of operations.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Reported-by: Reinette Chatre <reinette.chatre@intel.com>
-> > Fixes: 9818b8cde622 ("madvise_free, thp: fix madvise_free_huge_pmd return value after splitting")
-> 
-> Sorry, the wrong Fixes. The right one:
-> 
-> Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
-> 
+Forgot to CC Hugh.
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+Hugh, Andrew, do you see this could cause any problem wrt.
+ksm/khugepaged exit path?
 
-Thanks.
+On Mon 26-06-17 15:03:46, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> David has noticed that the oom killer might kill additional tasks while
+> the existing victim hasn't terminated yet because the oom_reaper marks
+> the curent victim MMF_OOM_SKIP too early when mm->mm_users dropped down
+> to 0. The race is as follows
+> 
+> oom_reap_task				do_exit
+> 					  exit_mm
+>   __oom_reap_task_mm
+> 					    mmput
+> 					      __mmput
+>     mmget_not_zero # fails
+>     						exit_mmap # frees memory
+>   set_bit(MMF_OOM_SKIP)
+> 
+> Currently we are try to reduce a risk of this race by taking oom_lock
+> and wait for out_of_memory sleep while holding the lock to give the
+> victim some time to exit. This is quite suboptimal approach because
+> there is no guarantee the victim (especially a large one) will manage
+> to unmap its address space and free enough memory to the particular oom
+> domain which needs a memory (e.g. a specific NUMA node).
+> 
+> Fix this problem by allowing __oom_reap_task_mm and __mmput path to
+> race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed
+> to run in parallel with other unmappers (hence the mmap_sem for read).
+> The only tricky part is we have to exclude page tables tear down and all
+> operations which modify the address space in the __mmput path. exit_mmap
+> doesn't expect any other users so it doesn't use any locking. Nothing
+> really forbids us to use mmap_sem for write, though. In fact we are
+> already relying on this lock earlier in the __mmput path to synchronize
+> with ksm and khugepaged.
+> 
+> Take the exclusive mmap_sem when calling free_pgtables and destroying
+> vmas to sync with __oom_reap_task_mm which take the lock for read. All
+> other operations can safely race with the parallel unmap.
+> 
+> Reported-by: David Rientjes <rientjes@google.com>
+> Fixes: 26db62f179d1 ("oom: keep mm of the killed task available")
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+> Hi,
+> I am sending this as an RFC because I am not yet sure I haven't missed
+> something subtle here but the appoach should work in principle. I have
+> run it through some of my OOM stress tests to see if anything blows up
+> and it all went smoothly.
+> 
+> The issue has been brought up by David [1]. There were some attempts to
+> address it in oom proper [2][3] but the first one would cause problems
+> on their own [4] while the later is just too hairy.
+> 
+> Thoughts, objections, alternatives?
+> 
+> [1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com
+> [2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp
+> [3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp
+> [4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp
+> 
+>  mm/mmap.c     |  7 +++++++
+>  mm/oom_kill.c | 40 ++--------------------------------------
+>  2 files changed, 9 insertions(+), 38 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 3bd5ecd20d4d..253808e716dc 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+>  
+> +	/*
+> +	 * oom reaper might race with exit_mmap so make sure we won't free
+> +	 * page tables or unmap VMAs under its feet
+> +	 */
+> +	down_write(&mm->mmap_sem);
+>  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, 0, -1);
+>  
+> @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)
+>  			nr_accounted += vma_pages(vma);
+>  		vma = remove_vma(vma);
+>  	}
+> +	mm->mmap = NULL;
+>  	vm_unacct_memory(nr_accounted);
+> +	up_write(&mm->mmap_sem);
+>  }
+>  
+>  /* Insert vm structure into process list sorted by address
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 0e2c925e7826..5dc0ff22d567 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	struct vm_area_struct *vma;
+>  	bool ret = true;
+>  
+> -	/*
+> -	 * We have to make sure to not race with the victim exit path
+> -	 * and cause premature new oom victim selection:
+> -	 * __oom_reap_task_mm		exit_mm
+> -	 *   mmget_not_zero
+> -	 *				  mmput
+> -	 *				    atomic_dec_and_test
+> -	 *				  exit_oom_victim
+> -	 *				[...]
+> -	 *				out_of_memory
+> -	 *				  select_bad_process
+> -	 *				    # no TIF_MEMDIE task selects new victim
+> -	 *  unmap_page_range # frees some memory
+> -	 */
+> -	mutex_lock(&oom_lock);
+> -
+> -	if (!down_read_trylock(&mm->mmap_sem)) {
+> -		ret = false;
+> -		goto unlock_oom;
+> -	}
+> -
+> -	/*
+> -	 * increase mm_users only after we know we will reap something so
+> -	 * that the mmput_async is called only when we have reaped something
+> -	 * and delayed __mmput doesn't matter that much
+> -	 */
+> -	if (!mmget_not_zero(mm)) {
+> -		up_read(&mm->mmap_sem);
+> -		goto unlock_oom;
+> -	}
+> +	if (!down_read_trylock(&mm->mmap_sem))
+> +		return false;
+>  
+>  	/*
+>  	 * Tell all users of get_user/copy_from_user etc... that the content
+> @@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+>  	up_read(&mm->mmap_sem);
+>  
+> -	/*
+> -	 * Drop our reference but make sure the mmput slow path is called from a
+> -	 * different context because we shouldn't risk we get stuck there and
+> -	 * put the oom_reaper out of the way.
+> -	 */
+> -	mmput_async(mm);
+> -unlock_oom:
+> -	mutex_unlock(&oom_lock);
+>  	return ret;
+>  }
+>  
+> -- 
+> 2.11.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
