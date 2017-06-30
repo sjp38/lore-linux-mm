@@ -1,37 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9272802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 09:58:33 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id p135so34478335ita.11
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 06:58:33 -0700 (PDT)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id c66si7596129ioc.232.2017.06.30.06.58.32
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 92B9E2802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 10:18:51 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z1so38459802wrz.10
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 07:18:51 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p91si6107862wrc.257.2017.06.30.07.18.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jun 2017 06:58:32 -0700 (PDT)
-Date: Fri, 30 Jun 2017 08:58:30 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm/slab: What is cache_reap work for?
-In-Reply-To: <201706271935.DJJ18719.OMFLFFHJSOVtQO@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.20.1706300856530.3291@east.gentwo.org>
-References: <201706271935.DJJ18719.OMFLFFHJSOVtQO@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 30 Jun 2017 07:18:50 -0700 (PDT)
+Date: Fri, 30 Jun 2017 16:18:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: "mm: use early_pfn_to_nid in page_ext_init" broken on some
+ configurations?
+Message-ID: <20170630141847.GN22917@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Yang Shi <yang.shi@linaro.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 27 Jun 2017, Tetsuo Handa wrote:
-
-> I hit an unable to invoke the OOM killer lockup shown below. According to
-> "cpus=2 node=0 flags=0x0 nice=0" part, it seems that cache_reap (in mm/slab.c)
-> work stuck waiting for disk_events_workfn (in block/genhd.c) work to complete.
-
-Cache reaping in SLAB is the expiration of objects since they are deemed
-to be cache cold after while. Reaping is a tick driven worker thread that
-calls other functions that are used during regular slab allocation and
-freeing. Maybe someone added code that can cause deadlocks if invoked from
-the tick?
+fe53ca54270a ("mm: use early_pfn_to_nid in page_ext_init") seem
+to silently depend on CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID resp.
+CONFIG_HAVE_MEMBLOCK_NODE_MAP. early_pfn_to_nid is returning zero with
+!defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) && !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
+I am not sure how widely is this used but such a code is tricky. I see
+how catching early allocations during defered initialization might be
+useful but a subtly broken code sounds like a problem to me.  So is
+fe53ca54270a worth this or we should revert it?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
