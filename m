@@ -1,59 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AA9852802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 15:05:59 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 123so5090582pgj.4
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 12:05:59 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id v5si6185871pgb.328.2017.06.30.12.05.58
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A7EC72802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 15:50:01 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v143so14769275qkb.6
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 12:50:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a36si8612817qkh.261.2017.06.30.12.50.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jun 2017 12:05:58 -0700 (PDT)
-Date: Fri, 30 Jun 2017 13:05:56 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 0/5] DAX common 4k zero page
-Message-ID: <20170630190556.GB27371@linux.intel.com>
-References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+        Fri, 30 Jun 2017 12:50:00 -0700 (PDT)
+Date: Fri, 30 Jun 2017 15:49:56 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
+Message-ID: <20170630194956.GB4275@redhat.com>
+References: <20170628180047.5386-1-jglisse@redhat.com>
+ <960ef002-3cfd-5b91-054e-aa685abc5f1f@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <960ef002-3cfd-5b91-054e-aa685abc5f1f@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
 
-On Wed, Jun 28, 2017 at 04:01:47PM -0600, Ross Zwisler wrote:
-> When servicing mmap() reads from file holes the current DAX code allocates
-> a page cache page of all zeroes and places the struct page pointer in the
-> mapping->page_tree radix tree.  This has three major drawbacks:
+On Thu, Jun 29, 2017 at 10:32:49PM -0700, John Hubbard wrote:
+> On 06/28/2017 11:00 AM, Jerome Glisse wrote:
+> > 
+> > Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
+> > test same kernel as kbuild system, git branch:
+> > 
+> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v24
+> > 
+> > Change since v23 is code comment fixes, simplify kernel configuration and
+> > improve allocation of new page on migration do device memory (last patch
+> > in this patchset).
 > 
-> 1) It consumes memory unnecessarily.  For every 4k page that is read via a
-> DAX mmap() over a hole, we allocate a new page cache page.  This means that
-> if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
+> Hi Jerome,
 > 
-> 2) It is slower than using a common zero page because each page fault has
-> more work to do.  Instead of just inserting a common zero page we have to
-> allocate a page cache page, zero it, and then insert it.
-> 
-> 3) The fact that we had to check for both DAX exceptional entries and for
-> page cache pages in the radix tree made the DAX code more complex.
-> 
-> This series solves these issues by following the lead of the DAX PMD code
-> and using a common 4k zero page instead.  This reduces memory usage and
-> decreases latencies for some workloads, and it simplifies the DAX code,
-> removing over 100 lines in total.
-> 
-> Andrew, I'm still hoping to get this merged for v4.13 if possible. I I have
-> addressed all of Jan's feedback, but he is on vacation for the next few
-> weeks so he may not be able to give me Reviewed-by tags.  I think this
-> series is relatively low risk with clear benefits, and I think we should be
-> able to address any issues that come up during the v4.13 RC series.
-> 
-> This series has passed my targeted testing and a full xfstests run on both
-> XFS and ext4.
+> Tiny note: one more change is that hmm_devmem_fault_range() has been
+> removed (and thanks for taking care of that, btw).
 
-This series has also passed the automated 0-day kernel builds in 168 configs.
+True i forgot to mention that.
+
+> 
+> Anyway, this looks good. A basic smoke test shows the following:
+> 
+> 1. We definitely *require* your other patch, 
+> "[PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not freeing pud v3",
+> otherwise I will reliably hit that bug every time I run my simple page fault
+> test. So, let me know if I should ping that thread. It looks like your patch
+> was not rejected, but I can't tell if (!rejected == accepted), there. :)
+
+Ingo did pick it up so it should shows in Linus tree soon i expect.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
