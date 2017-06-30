@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AFC26B0279
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 23:17:05 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t194so4492774oif.8
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:17:05 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id p204si597303oif.1.2017.06.29.20.17.04
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DA1926B0279
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 23:30:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l81so5223041wmg.8
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:30:26 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id a17si5114077wra.327.2017.06.29.20.30.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 20:17:04 -0700 (PDT)
-Subject: Re: [PATCH v4 2/2] fs/dcache.c: fix spin lockup issue on nlru->lock
-References: <20170628171854.t4sjyjv55j673qzv@esperanza>
- <1498707575-2472-1-git-send-email-stummala@codeaurora.org>
- <20170629154828.5b4877348470c42352620f41@linux-foundation.org>
-From: Sahitya Tummala <stummala@codeaurora.org>
-Message-ID: <ec645d13-5a25-0eaa-963b-3c3c3b2a72a2@codeaurora.org>
-Date: Fri, 30 Jun 2017 08:46:57 +0530
+        Thu, 29 Jun 2017 20:30:25 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id 62so98548830wmw.1
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:30:25 -0700 (PDT)
+Date: Fri, 30 Jun 2017 06:30:22 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] thp, mm: Fix crash due race in MADV_FREE handling
+Message-ID: <20170630033022.vzryosqtzw3xxqfc@node.shutemov.name>
+References: <20170628101249.17879-1-kirill.shutemov@linux.intel.com>
+ <20170628101550.7uybtgfaejtxd7jv@node.shutemov.name>
+ <20170629135051.e864cb987584c0d6fa7a074e@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170629154828.5b4877348470c42352620f41@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170629135051.e864cb987584c0d6fa7a074e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Polakov <apolyakov@beget.ru>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jan Kara <jack@suse.cz>, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
+On Thu, Jun 29, 2017 at 01:50:51PM -0700, Andrew Morton wrote:
+> On Wed, 28 Jun 2017 13:15:50 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Reported-by: Reinette Chatre <reinette.chatre@intel.com>
+> > > Fixes: 9818b8cde622 ("madvise_free, thp: fix madvise_free_huge_pmd return value after splitting")
+> > 
+> > Sorry, the wrong Fixes. The right one:
+> > 
+> > Fixes: b8d3c4c3009d ("mm/huge_memory.c: don't split THP page when MADV_FREE syscall is called")
+> 
+> So I'll add cc:stable, OK?
 
-On 6/30/2017 4:18 AM, Andrew Morton wrote:
->
->> --- a/fs/dcache.c
->> +++ b/fs/dcache.c
->> @@ -1133,11 +1133,12 @@ void shrink_dcache_sb(struct super_block *sb)
->>   		LIST_HEAD(dispose);
->>   
->>   		freed = list_lru_walk(&sb->s_dentry_lru,
->> -			dentry_lru_isolate_shrink, &dispose, UINT_MAX);
->> +			dentry_lru_isolate_shrink, &dispose, 1024);
->>   
->>   		this_cpu_sub(nr_dentry_unused, freed);
->>   		shrink_dentry_list(&dispose);
->> -	} while (freed > 0);
->> +		cond_resched();
->> +	} while (list_lru_count(&sb->s_dentry_lru) > 0);
->>   }
->>   EXPORT_SYMBOL(shrink_dcache_sb);
-> I'll add a cc:stable to this one - a large dentry list is a relatively
-> common thing.
->
-> I'm assumng that [1/2] does not need to be backported, OK?
-
-I think we should include [1/2] as well along with this patch, as this patch
-is using list_lru_count(), which can return incorrect count if [1/2] is 
-not included.
-
-Also, all the previous patches submitted for fixing this issue must be 
-dropped i.e,
-mm/list_lru.c: use cond_resched_lock() for nlru->lock must be dropped.
+Yep.
 
 -- 
-Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
