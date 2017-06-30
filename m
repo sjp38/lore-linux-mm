@@ -1,314 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7466B0279
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 01:32:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id j79so106369546pfj.9
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 22:32:52 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C826B0279
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 02:20:45 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u18so105673063pfa.8
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 23:20:45 -0700 (PDT)
 Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id b61si3467710pli.527.2017.06.29.22.32.50
+        by mx.google.com with ESMTPS id 184si5012393pgj.9.2017.06.29.23.20.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 22:32:50 -0700 (PDT)
-Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
-References: <20170628180047.5386-1-jglisse@redhat.com>
+        Thu, 29 Jun 2017 23:20:44 -0700 (PDT)
+Subject: Re: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
+References: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <960ef002-3cfd-5b91-054e-aa685abc5f1f@nvidia.com>
-Date: Thu, 29 Jun 2017 22:32:49 -0700
+Message-ID: <2fe798a6-38df-a1f3-adb1-d252e35ec564@nvidia.com>
+Date: Thu, 29 Jun 2017 23:20:42 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
+In-Reply-To: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
 Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
+To: Mikulas Patocka <mpatocka@redhat.com>, Michal Hocko <mhocko@kernel.org>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-On 06/28/2017 11:00 AM, J=C3=A9r=C3=B4me Glisse wrote:
->=20
-> Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
-> test same kernel as kbuild system, git branch:
->=20
-> https://cgit.freedesktop.org/~glisse/linux/log/?h=3Dhmm-v24
->=20
-> Change since v23 is code comment fixes, simplify kernel configuration and
-> improve allocation of new page on migration do device memory (last patch
-> in this patchset).
+On 06/29/2017 07:25 PM, Mikulas Patocka wrote:
+> The __vmalloc function has a parameter gfp_mask with the allocation flags,
+> however it doesn't fully respect the GFP_NOIO and GFP_NOFS flags. The
+> pages are allocated with the specified gfp flags, but the pagetables are
+> always allocated with GFP_KERNEL. This allocation can cause unexpected
+> recursion into the filesystem or I/O subsystem.
+> 
+> It is not practical to extend page table allocation routines with gfp
+> flags because it would require modification of architecture-specific code
+> in all architecturs. However, the process can temporarily request that all
+> allocations are done with GFP_NOFS or GFP_NOIO with with the functions
+> memalloc_nofs_save and memalloc_noio_save.
+> 
+> This patch makes the vmalloc code use memalloc_nofs_save or
+> memalloc_noio_save if the supplied gfp flags do not contain __GFP_FS or
+> __GFP_IO. It fixes some possible deadlocks in drivers/mtd/ubi/io.c,
+> fs/gfs2/, fs/btrfs/free-space-tree.c, fs/ubifs/,
+> fs/nfs/blocklayout/extent_tree.c where __vmalloc is used with the GFP_NOFS
+> flag.
+> 
+> The patch also simplifies code in dm-bufio.c, dm-ioctl.c and fs/xfs/kmem.c
+> by removing explicit calls to memalloc_nofs_save and memalloc_noio_save
+> before the call to __vmalloc.
+> 
+> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> 
+> ---
+>  drivers/md/dm-bufio.c |   24 +-----------------------
+>  drivers/md/dm-ioctl.c |    6 +-----
+>  fs/xfs/kmem.c         |   14 --------------
+>  mm/util.c             |    6 +++---
+>  mm/vmalloc.c          |   18 +++++++++++++++++-
+>  5 files changed, 22 insertions(+), 46 deletions(-)
+> 
+> Index: linux-2.6/mm/vmalloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/vmalloc.c
+> +++ linux-2.6/mm/vmalloc.c
+> @@ -31,6 +31,7 @@
+>  #include <linux/compiler.h>
+>  #include <linux/llist.h>
+>  #include <linux/bitops.h>
+> +#include <linux/sched/mm.h>
+>  
+>  #include <linux/uaccess.h>
+>  #include <asm/tlbflush.h>
+> @@ -1670,6 +1671,8 @@ static void *__vmalloc_area_node(struct
+>  	unsigned int nr_pages, array_size, i;
+>  	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+>  	const gfp_t alloc_mask = gfp_mask | __GFP_HIGHMEM | __GFP_NOWARN;
+> +	unsigned noio_flag;
+> +	int r;
+>  
+>  	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
+>  	array_size = (nr_pages * sizeof(struct page *));
+> @@ -1712,8 +1715,21 @@ static void *__vmalloc_area_node(struct
+>  			cond_resched();
+>  	}
+>  
+> -	if (map_vm_area(area, prot, pages))
+> +	if (unlikely(!(gfp_mask & __GFP_IO)))
+> +		noio_flag = memalloc_noio_save();
+> +	else if (unlikely(!(gfp_mask & __GFP_FS)))
+> +		noio_flag = memalloc_nofs_save();
+> +
+> +	r = map_vm_area(area, prot, pages);
+> +
+> +	if (unlikely(!(gfp_mask & __GFP_IO)))
+> +		memalloc_noio_restore(noio_flag);
+> +	else if (unlikely(!(gfp_mask & __GFP_FS)))
+> +		memalloc_nofs_restore(noio_flag);
+> +
+> +	if (unlikely(r))
+>  		goto fail;
+> +
+>  	return area->addr;
+>  
+>  fail:
+> Index: linux-2.6/mm/util.c
+> ===================================================================
+> --- linux-2.6.orig/mm/util.c
+> +++ linux-2.6/mm/util.c
+> @@ -351,10 +351,10 @@ void *kvmalloc_node(size_t size, gfp_t f
+>  	void *ret;
+>  
+>  	/*
+> -	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
+> -	 * so the given set of flags has to be compatible.
+> +	 * vmalloc uses blocking allocations for some internal allocations
+> +	 * (e.g page tables) so the given set of flags has to be compatible.
+>  	 */
+> -	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
+> +	WARN_ON_ONCE(!gfpflags_allow_blocking(flags));
 
-Hi Jerome,
+Hi Mikulas,
 
-Tiny note: one more change is that hmm_devmem_fault_range() has been
-removed (and thanks for taking care of that, btw).
+OK, so given the new behavior in the underlying __vmalloc code, I think it's
+appropriate to add this documentation change on top of what you have so far:
 
-Anyway, this looks good. A basic smoke test shows the following:
+ mm/util.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+diff --git a/mm/util.c b/mm/util.c
+index cdbc9022c021..39fe94530dd2 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -343,7 +343,8 @@ EXPORT_SYMBOL(vm_mmap);
+  * __GFP_RETRY_MAYFAIL is supported, and it should be used only if kmalloc is
+  * preferable to the vmalloc fallback, due to visible performance drawbacks.
+  *
+- * Any use of gfp flags outside of GFP_KERNEL should be consulted with mm people.
++ * Any use of gfp flags other than GFP_KERNEL, GFP_NOIO, or GFP_NOFS should
++ * be done only after consulting with mm people.
+  */
+ void *kvmalloc_node(size_t size, gfp_t flags, int node)
+ {
 
-1. We definitely *require* your other patch,=20
-"[PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not freeing pud v3=
-",
-otherwise I will reliably hit that bug every time I run my simple page faul=
-t
-test. So, let me know if I should ping that thread. It looks like your patc=
-h
-was not rejected, but I can't tell if (!rejected =3D=3D accepted), there. :=
-)
+>  
+>  	/*
+>  	 * We want to attempt a large physically contiguous block first because
+> Index: linux-2.6/drivers/md/dm-bufio.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/md/dm-bufio.c
+> +++ linux-2.6/drivers/md/dm-bufio.c
+> @@ -386,9 +386,6 @@ static void __cache_size_refresh(void)
+>  static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
+>  			       enum data_mode *data_mode)
+>  {
+> -	unsigned noio_flag;
+> -	void *ptr;
+> -
+>  	if (c->block_size <= DM_BUFIO_BLOCK_SIZE_SLAB_LIMIT) {
+>  		*data_mode = DATA_MODE_SLAB;
+>  		return kmem_cache_alloc(DM_BUFIO_CACHE(c), gfp_mask);
+> @@ -402,26 +399,7 @@ static void *alloc_buffer_data(struct dm
+>  	}
+>  
+>  	*data_mode = DATA_MODE_VMALLOC;
+> -
+> -	/*
+> -	 * __vmalloc allocates the data pages and auxiliary structures with
+> -	 * gfp_flags that were specified, but pagetables are always allocated
+> -	 * with GFP_KERNEL, no matter what was specified as gfp_mask.
+> -	 *
+> -	 * Consequently, we must set per-process flag PF_MEMALLOC_NOIO so that
+> -	 * all allocations done by this process (including pagetables) are done
+> -	 * as if GFP_NOIO was specified.
+> -	 */
+> -
+> -	if (gfp_mask & __GFP_NORETRY)
+> -		noio_flag = memalloc_noio_save();
+> -
+> -	ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+> -
+> -	if (gfp_mask & __GFP_NORETRY)
+> -		memalloc_noio_restore(noio_flag);
+> -
+> -	return ptr;
+> +	return __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
 
-We'll continue testing, but I expect at this point that anything we find
-can be patched up after HMM finally gets merged.
+Seems like a nice cleanup, and although I'm not an expert, it looks
+correct to me.
+
+>  }
+>  
+>  /*
+> Index: linux-2.6/drivers/md/dm-ioctl.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/md/dm-ioctl.c
+> +++ linux-2.6/drivers/md/dm-ioctl.c
+> @@ -1691,7 +1691,6 @@ static int copy_params(struct dm_ioctl _
+>  	struct dm_ioctl *dmi;
+>  	int secure_data;
+>  	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
+> -	unsigned noio_flag;
+>  
+>  	if (copy_from_user(param_kernel, user, minimum_data_size))
+>  		return -EFAULT;
+> @@ -1714,10 +1713,7 @@ static int copy_params(struct dm_ioctl _
+>  	 * suspended and the ioctl is needed to resume it.
+>  	 * Use kmalloc() rather than vmalloc() when we can.
+>  	 */
+> -	dmi = NULL;
+> -	noio_flag = memalloc_noio_save();
+> -	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
+> -	memalloc_noio_restore(noio_flag);
+> +	dmi = kvmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH);
+
+Pre-existing, and apologies if I missed a conversation about it, but is
+__GFP_HIGH necessary and appropriate for kvmalloc()? If so, maybe we
+should add it to the list of approved GFP flags in the function's
+documentation. But I tentatively think you can just pass in GFP_NOIO
+instead, and get the right behavior.
 
 thanks,
-John Hubbard
-NVIDIA
+john h
 
->=20
-> Everything else is the same. Below is the long description of what HMM
-> is about and why. At the end of this email i describe briefly each patch
-> and suggest reviewers for each of them.
->=20
->=20
-> Heterogeneous Memory Management (HMM) (description and justification)
->=20
-> Today device driver expose dedicated memory allocation API through their
-> device file, often relying on a combination of IOCTL and mmap calls. The
-> device can only access and use memory allocated through this API. This
-> effectively split the program address space into object allocated for the
-> device and useable by the device and other regular memory (malloc, mmap
-> of a file, share memory, =C3=A2) only accessible by CPU (or in a very lim=
-ited
-> way by a device by pinning memory).
->=20
-> Allowing different isolated component of a program to use a device thus
-> require duplication of the input data structure using device memory
-> allocator. This is reasonable for simple data structure (array, grid,
-> image, =C3=A2) but this get extremely complex with advance data structure
-> (list, tree, graph, =C3=A2) that rely on a web of memory pointers. This i=
-s
-> becoming a serious limitation on the kind of work load that can be
-> offloaded to device like GPU.
->=20
-> New industry standard like C++, OpenCL or CUDA are pushing to remove this
-> barrier. This require a shared address space between GPU device and CPU s=
-o
-> that GPU can access any memory of a process (while still obeying memory
-> protection like read only). This kind of feature is also appearing in
-> various other operating systems.
->=20
-> HMM is a set of helpers to facilitate several aspects of address space
-> sharing and device memory management. Unlike existing sharing mechanism
-> that rely on pining pages use by a device, HMM relies on mmu_notifier to
-> propagate CPU page table update to device page table.
->=20
-> Duplicating CPU page table is only one aspect necessary for efficiently
-> using device like GPU. GPU local memory have bandwidth in the TeraBytes/
-> second range but they are connected to main memory through a system bus
-> like PCIE that is limited to 32GigaBytes/second (PCIE 4.0 16x). Thus it
-> is necessary to allow migration of process memory from main system memory
-> to device memory. Issue is that on platform that only have PCIE the devic=
-e
-> memory is not accessible by the CPU with the same properties as main
-> memory (cache coherency, atomic operations, ...).
->=20
-> To allow migration from main memory to device memory HMM provides a set
-> of helper to hotplug device memory as a new type of ZONE_DEVICE memory
-> which is un-addressable by CPU but still has struct page representing it.
-> This allow most of the core kernel logic that deals with a process memory
-> to stay oblivious of the peculiarity of device memory.
->=20
-> When page backing an address of a process is migrated to device memory
-> the CPU page table entry is set to a new specific swap entry. CPU access
-> to such address triggers a migration back to system memory, just like if
-> the page was swap on disk. HMM also blocks any one from pinning a
-> ZONE_DEVICE page so that it can always be migrated back to system memory
-> if CPU access it. Conversely HMM does not migrate to device memory any
-> page that is pin in system memory.
->=20
-> To allow efficient migration between device memory and main memory a new
-> migrate_vma() helpers is added with this patchset. It allows to leverage
-> device DMA engine to perform the copy operation.
->=20
-> This feature will be use by upstream driver like nouveau mlx5 and probabl=
-y
-> other in the future (amdgpu is next suspect in line). We are actively
-> working on nouveau and mlx5 support. To test this patchset we also worked
-> with NVidia close source driver team, they have more resources than us to
-> test this kind of infrastructure and also a bigger and better userspace
-> eco-system with various real industry workload they can be use to test an=
-d
-> profile HMM.
->=20
-> The expected workload is a program builds a data set on the CPU (from dis=
-k,
-> from network, from sensors, =C3=A2). Program uses GPU API (OpenCL, CUDA, =
-...)
-> to give hint on memory placement for the input data and also for the outp=
-ut
-> buffer. Program call GPU API to schedule a GPU job, this happens using
-> device driver specific ioctl. All this is hidden from programmer point of
-> view in case of C++ compiler that transparently offload some part of a
-> program to GPU. Program can keep doing other stuff on the CPU while the
-> GPU is crunching numbers.
->=20
-> It is expected that CPU will not access the same data set as the GPU whil=
-e
-> GPU is working on it, but this is not mandatory. In fact we expect some
-> small memory object to be actively access by both GPU and CPU concurrentl=
-y
-> as synchronization channel and/or for monitoring purposes. Such object wi=
-ll
-> stay in system memory and should not be bottlenecked by system bus
-> bandwidth (rare write and read access from both CPU and GPU).
->=20
-> As we are relying on device driver API, HMM does not introduce any new
-> syscall nor does it modify any existing ones. It does not change any POSI=
-X
-> semantics or behaviors. For instance the child after a fork of a process
-> that is using HMM will not be impacted in anyway, nor is there any data
-> hazard between child COW or parent COW of memory that was migrated to
-> device prior to fork.
->=20
-> HMM assume a numbers of hardware features. Device must allow device page
-> table to be updated at any time (ie device job must be preemptable). Devi=
-ce
-> page table must provides memory protection such as read only. Device must
-> track write access (dirty bit). Device must have a minimum granularity th=
-at
-> match PAGE_SIZE (ie 4k).
->=20
->=20
-> Reviewer (just hint):
-> Patch 1  HMM documentation
-> Patch 2  introduce core infrastructure and definition of HMM, pretty
->          small patch and easy to review
-> Patch 3  introduce the mirror functionality of HMM, it relies on
->          mmu_notifier and thus someone familiar with that part would be
->          in better position to review
-> Patch 4  is an helper to snapshot CPU page table while synchronizing with
->          concurrent page table update. Understanding mmu_notifier makes
->          review easier.
-> Patch 5  is mostly a wrapper around handle_mm_fault()
-> Patch 6  add new add_pages() helper to avoid modifying each arch memory
->          hot plug function
-> Patch 7  add a new memory type for ZONE_DEVICE and also add all the logic
->          in various core mm to support this new type. Dan Williams and
->          any core mm contributor are best people to review each half of
->          this patchset
-> Patch 8  special case HMM ZONE_DEVICE pages inside put_page() Kirill and
->          Dan Williams are best person to review this
-> Patch 9  add helper to hotplug un-addressable device memory as new type
->          of ZONE_DEVICE memory (new type introducted in patch 3 of this
->          serie). This is boiler plate code around memory hotplug and it
->          also pick a free range of physical address for the device memory=
-.
->          Note that the physical address do not point to anything (at leas=
-t
->          as far as the kernel knows).
-> Patch 10 introduce a new hmm_device class as an helper for device driver
->          that want to expose multiple device memory under a common fake
->          device driver. This is usefull for multi-gpu configuration.
->          Anyone familiar with device driver infrastructure can review
->          this. Boiler plate code really.
-> Patch 11 add a new migrate mode. Any one familiar with page migration is
->          welcome to review.
-> Patch 12 introduce a new migration helper (migrate_vma()) that allow to
->          migrate a range of virtual address of a process using device DMA
->          engine to perform the copy. It is not limited to do copy from an=
-d
->          to device but can also do copy between any kind of source and
->          destination memory. Again anyone familiar with migration code
->          should be able to verify the logic.
-> Patch 13 optimize the new migrate_vma() by unmapping pages while we are
->          collecting them. This can be review by any mm folks.
-> Patch 14 add unaddressable memory migration to helper introduced in patch
->          7, this can be review by anyone familiar with migration code
-> Patch 15 add a feature that allow device to allocate non-present page on
->          the GPU when migrating a range of address to device memory. This
->          is an helper for device driver to avoid having to first allocate
->          system memory before migration to device memory
->=20
->=20
-> Previous patchset posting :
-> v1 http://lwn.net/Articles/597289/
-> v2 https://lkml.org/lkml/2014/6/12/559
-> v3 https://lkml.org/lkml/2014/6/13/633
-> v4 https://lkml.org/lkml/2014/8/29/423
-> v5 https://lkml.org/lkml/2014/11/3/759
-> v6 http://lwn.net/Articles/619737/
-> v7 http://lwn.net/Articles/627316/
-> v8 https://lwn.net/Articles/645515/
-> v9 https://lwn.net/Articles/651553/
-> v10 https://lwn.net/Articles/654430/
-> v11 http://www.gossamer-threads.com/lists/linux/kernel/2286424
-> v12 http://www.kernelhub.org/?msg=3D972982&p=3D2
-> v13 https://lwn.net/Articles/706856/
-> v14 https://lkml.org/lkml/2016/12/8/344
-> v15 http://www.mail-archive.com/linux-kernel@xxxxxxxxxxxxxxx/msg1304107.h=
-tml
-> v16 http://www.spinics.net/lists/linux-mm/msg119814.html
-> v17 https://lkml.org/lkml/2017/1/27/847
-> v18 https://lkml.org/lkml/2017/3/16/596
-> v19 https://lkml.org/lkml/2017/4/5/831
-> v20 https://lwn.net/Articles/720715/
-> v21 https://lkml.org/lkml/2017/4/24/747
-> v22 http://lkml.iu.edu/hypermail/linux/kernel/1705.2/05176.html
->=20
->=20
-> J=C3=A9r=C3=B4me Glisse (14):
->   hmm: heterogeneous memory management documentation v2
->   mm/hmm: heterogeneous memory management (HMM for short) v4
->   mm/hmm/mirror: mirror process address space on device with HMM helpers
->     v3
->   mm/hmm/mirror: helper to snapshot CPU page table v3
->   mm/hmm/mirror: device page fault handler
->   mm/ZONE_DEVICE: new type of ZONE_DEVICE for unaddressable memory v4
->   mm/ZONE_DEVICE: special case put_page() for device private pages v2
->   mm/hmm/devmem: device memory hotplug using ZONE_DEVICE v6
->   mm/hmm/devmem: dummy HMM device for ZONE_DEVICE memory v3
->   mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY
->   mm/migrate: new memory migration helper for use with device memory v4
->   mm/migrate: migrate_vma() unmap page from vma while collecting pages
->   mm/migrate: support un-addressable ZONE_DEVICE page in migration v2
->   mm/migrate: allow migrate_vma() to alloc new page on empty entry v3
->=20
-> Michal Hocko (1):
->   mm/memory_hotplug: introduce add_pages
->=20
->  Documentation/vm/hmm.txt       |  344 ++++++++++++
->  MAINTAINERS                    |    7 +
->  arch/x86/Kconfig               |    4 +
->  arch/x86/mm/init_64.c          |   22 +-
->  fs/aio.c                       |    8 +
->  fs/f2fs/data.c                 |    5 +-
->  fs/hugetlbfs/inode.c           |    5 +-
->  fs/proc/task_mmu.c             |    7 +
->  fs/ubifs/file.c                |    5 +-
->  include/linux/hmm.h            |  458 +++++++++++++++
->  include/linux/ioport.h         |    1 +
->  include/linux/memory_hotplug.h |   11 +
->  include/linux/memremap.h       |   86 +++
->  include/linux/migrate.h        |  124 +++++
->  include/linux/migrate_mode.h   |    5 +
->  include/linux/mm.h             |   25 +
->  include/linux/mm_types.h       |    6 +
->  include/linux/swap.h           |   24 +-
->  include/linux/swapops.h        |   68 +++
->  kernel/fork.c                  |    2 +
->  kernel/memremap.c              |   53 +-
->  mm/Kconfig                     |   34 ++
->  mm/Makefile                    |    2 +-
->  mm/balloon_compaction.c        |    8 +
->  mm/hmm.c                       | 1193 ++++++++++++++++++++++++++++++++++=
-++++++
->  mm/memory.c                    |   61 ++
->  mm/memory_hotplug.c            |   10 +-
->  mm/migrate.c                   |  806 ++++++++++++++++++++++++++-
->  mm/mprotect.c                  |   14 +
->  mm/page_vma_mapped.c           |   10 +
->  mm/rmap.c                      |   25 +
->  mm/zsmalloc.c                  |    8 +
->  32 files changed, 3411 insertions(+), 30 deletions(-)
->  create mode 100644 Documentation/vm/hmm.txt
->  create mode 100644 include/linux/hmm.h
->  create mode 100644 mm/hmm.c
->=20
+>  
+>  	if (!dmi) {
+>  		if (secure_data && clear_user(user, param_kernel->data_size))
+> Index: linux-2.6/fs/xfs/kmem.c
+> ===================================================================
+> --- linux-2.6.orig/fs/xfs/kmem.c
+> +++ linux-2.6/fs/xfs/kmem.c
+> @@ -48,7 +48,6 @@ kmem_alloc(size_t size, xfs_km_flags_t f
+>  void *
+>  kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+>  {
+> -	unsigned nofs_flag = 0;
+>  	void	*ptr;
+>  	gfp_t	lflags;
+>  
+> @@ -56,22 +55,9 @@ kmem_zalloc_large(size_t size, xfs_km_fl
+>  	if (ptr)
+>  		return ptr;
+>  
+> -	/*
+> -	 * __vmalloc() will allocate data pages and auxillary structures (e.g.
+> -	 * pagetables) with GFP_KERNEL, yet we may be under GFP_NOFS context
+> -	 * here. Hence we need to tell memory reclaim that we are in such a
+> -	 * context via PF_MEMALLOC_NOFS to prevent memory reclaim re-entering
+> -	 * the filesystem here and potentially deadlocking.
+> -	 */
+> -	if (flags & KM_NOFS)
+> -		nofs_flag = memalloc_nofs_save();
+> -
+>  	lflags = kmem_flags_convert(flags);
+>  	ptr = __vmalloc(size, lflags | __GFP_ZERO, PAGE_KERNEL);
+>  
+> -	if (flags & KM_NOFS)
+> -		memalloc_nofs_restore(nofs_flag);
+> -
+>  	return ptr;
+>  }
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
