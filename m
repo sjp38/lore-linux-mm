@@ -1,221 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CA20B6B0279
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 22:25:12 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id z22so46924165qka.4
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 19:25:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m139si6314248qke.76.2017.06.29.19.25.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 19:25:11 -0700 (PDT)
-Date: Thu, 29 Jun 2017 22:25:09 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
-Message-ID: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C37F46B0279
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 22:26:28 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g27so103435944pfj.6
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 19:26:28 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f8si5268411pli.377.2017.06.29.19.26.27
+        for <linux-mm@kvack.org>;
+        Thu, 29 Jun 2017 19:26:27 -0700 (PDT)
+Date: Fri, 30 Jun 2017 11:26:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v2 0/6] mm, swap: VMA based swap readahead
+Message-ID: <20170630022626.GA25190@bbox>
+References: <20170630014443.23983-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170630014443.23983-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-The __vmalloc function has a parameter gfp_mask with the allocation flags,
-however it doesn't fully respect the GFP_NOIO and GFP_NOFS flags. The
-pages are allocated with the specified gfp flags, but the pagetables are
-always allocated with GFP_KERNEL. This allocation can cause unexpected
-recursion into the filesystem or I/O subsystem.
+Hi Huang,
 
-It is not practical to extend page table allocation routines with gfp
-flags because it would require modification of architecture-specific code
-in all architecturs. However, the process can temporarily request that all
-allocations are done with GFP_NOFS or GFP_NOIO with with the functions
-memalloc_nofs_save and memalloc_noio_save.
+Ccing Johannes:
 
-This patch makes the vmalloc code use memalloc_nofs_save or
-memalloc_noio_save if the supplied gfp flags do not contain __GFP_FS or
-__GFP_IO. It fixes some possible deadlocks in drivers/mtd/ubi/io.c,
-fs/gfs2/, fs/btrfs/free-space-tree.c, fs/ubifs/,
-fs/nfs/blocklayout/extent_tree.c where __vmalloc is used with the GFP_NOFS
-flag.
+I don't read this patch yet but I remember Johannes tried VMA-based
+readahead approach long time ago so he might have good comment.
 
-The patch also simplifies code in dm-bufio.c, dm-ioctl.c and fs/xfs/kmem.c
-by removing explicit calls to memalloc_nofs_save and memalloc_noio_save
-before the call to __vmalloc.
-
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-
----
- drivers/md/dm-bufio.c |   24 +-----------------------
- drivers/md/dm-ioctl.c |    6 +-----
- fs/xfs/kmem.c         |   14 --------------
- mm/util.c             |    6 +++---
- mm/vmalloc.c          |   18 +++++++++++++++++-
- 5 files changed, 22 insertions(+), 46 deletions(-)
-
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -31,6 +31,7 @@
- #include <linux/compiler.h>
- #include <linux/llist.h>
- #include <linux/bitops.h>
-+#include <linux/sched/mm.h>
- 
- #include <linux/uaccess.h>
- #include <asm/tlbflush.h>
-@@ -1670,6 +1671,8 @@ static void *__vmalloc_area_node(struct
- 	unsigned int nr_pages, array_size, i;
- 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
- 	const gfp_t alloc_mask = gfp_mask | __GFP_HIGHMEM | __GFP_NOWARN;
-+	unsigned noio_flag;
-+	int r;
- 
- 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
- 	array_size = (nr_pages * sizeof(struct page *));
-@@ -1712,8 +1715,21 @@ static void *__vmalloc_area_node(struct
- 			cond_resched();
- 	}
- 
--	if (map_vm_area(area, prot, pages))
-+	if (unlikely(!(gfp_mask & __GFP_IO)))
-+		noio_flag = memalloc_noio_save();
-+	else if (unlikely(!(gfp_mask & __GFP_FS)))
-+		noio_flag = memalloc_nofs_save();
-+
-+	r = map_vm_area(area, prot, pages);
-+
-+	if (unlikely(!(gfp_mask & __GFP_IO)))
-+		memalloc_noio_restore(noio_flag);
-+	else if (unlikely(!(gfp_mask & __GFP_FS)))
-+		memalloc_nofs_restore(noio_flag);
-+
-+	if (unlikely(r))
- 		goto fail;
-+
- 	return area->addr;
- 
- fail:
-Index: linux-2.6/mm/util.c
-===================================================================
---- linux-2.6.orig/mm/util.c
-+++ linux-2.6/mm/util.c
-@@ -351,10 +351,10 @@ void *kvmalloc_node(size_t size, gfp_t f
- 	void *ret;
- 
- 	/*
--	 * vmalloc uses GFP_KERNEL for some internal allocations (e.g page tables)
--	 * so the given set of flags has to be compatible.
-+	 * vmalloc uses blocking allocations for some internal allocations
-+	 * (e.g page tables) so the given set of flags has to be compatible.
- 	 */
--	WARN_ON_ONCE((flags & GFP_KERNEL) != GFP_KERNEL);
-+	WARN_ON_ONCE(!gfpflags_allow_blocking(flags));
- 
- 	/*
- 	 * We want to attempt a large physically contiguous block first because
-Index: linux-2.6/drivers/md/dm-bufio.c
-===================================================================
---- linux-2.6.orig/drivers/md/dm-bufio.c
-+++ linux-2.6/drivers/md/dm-bufio.c
-@@ -386,9 +386,6 @@ static void __cache_size_refresh(void)
- static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
- 			       enum data_mode *data_mode)
- {
--	unsigned noio_flag;
--	void *ptr;
--
- 	if (c->block_size <= DM_BUFIO_BLOCK_SIZE_SLAB_LIMIT) {
- 		*data_mode = DATA_MODE_SLAB;
- 		return kmem_cache_alloc(DM_BUFIO_CACHE(c), gfp_mask);
-@@ -402,26 +399,7 @@ static void *alloc_buffer_data(struct dm
- 	}
- 
- 	*data_mode = DATA_MODE_VMALLOC;
--
--	/*
--	 * __vmalloc allocates the data pages and auxiliary structures with
--	 * gfp_flags that were specified, but pagetables are always allocated
--	 * with GFP_KERNEL, no matter what was specified as gfp_mask.
--	 *
--	 * Consequently, we must set per-process flag PF_MEMALLOC_NOIO so that
--	 * all allocations done by this process (including pagetables) are done
--	 * as if GFP_NOIO was specified.
--	 */
--
--	if (gfp_mask & __GFP_NORETRY)
--		noio_flag = memalloc_noio_save();
--
--	ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
--
--	if (gfp_mask & __GFP_NORETRY)
--		memalloc_noio_restore(noio_flag);
--
--	return ptr;
-+	return __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
- }
- 
- /*
-Index: linux-2.6/drivers/md/dm-ioctl.c
-===================================================================
---- linux-2.6.orig/drivers/md/dm-ioctl.c
-+++ linux-2.6/drivers/md/dm-ioctl.c
-@@ -1691,7 +1691,6 @@ static int copy_params(struct dm_ioctl _
- 	struct dm_ioctl *dmi;
- 	int secure_data;
- 	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
--	unsigned noio_flag;
- 
- 	if (copy_from_user(param_kernel, user, minimum_data_size))
- 		return -EFAULT;
-@@ -1714,10 +1713,7 @@ static int copy_params(struct dm_ioctl _
- 	 * suspended and the ioctl is needed to resume it.
- 	 * Use kmalloc() rather than vmalloc() when we can.
- 	 */
--	dmi = NULL;
--	noio_flag = memalloc_noio_save();
--	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
--	memalloc_noio_restore(noio_flag);
-+	dmi = kvmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH);
- 
- 	if (!dmi) {
- 		if (secure_data && clear_user(user, param_kernel->data_size))
-Index: linux-2.6/fs/xfs/kmem.c
-===================================================================
---- linux-2.6.orig/fs/xfs/kmem.c
-+++ linux-2.6/fs/xfs/kmem.c
-@@ -48,7 +48,6 @@ kmem_alloc(size_t size, xfs_km_flags_t f
- void *
- kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
- {
--	unsigned nofs_flag = 0;
- 	void	*ptr;
- 	gfp_t	lflags;
- 
-@@ -56,22 +55,9 @@ kmem_zalloc_large(size_t size, xfs_km_fl
- 	if (ptr)
- 		return ptr;
- 
--	/*
--	 * __vmalloc() will allocate data pages and auxillary structures (e.g.
--	 * pagetables) with GFP_KERNEL, yet we may be under GFP_NOFS context
--	 * here. Hence we need to tell memory reclaim that we are in such a
--	 * context via PF_MEMALLOC_NOFS to prevent memory reclaim re-entering
--	 * the filesystem here and potentially deadlocking.
--	 */
--	if (flags & KM_NOFS)
--		nofs_flag = memalloc_nofs_save();
--
- 	lflags = kmem_flags_convert(flags);
- 	ptr = __vmalloc(size, lflags | __GFP_ZERO, PAGE_KERNEL);
- 
--	if (flags & KM_NOFS)
--		memalloc_nofs_restore(nofs_flag);
--
- 	return ptr;
- }
- 
+On Fri, Jun 30, 2017 at 09:44:37AM +0800, Huang, Ying wrote:
+> The swap readahead is an important mechanism to reduce the swap in
+> latency.  Although pure sequential memory access pattern isn't very
+> popular for anonymous memory, the space locality is still considered
+> valid.
+> 
+> In the original swap readahead implementation, the consecutive blocks
+> in swap device are readahead based on the global space locality
+> estimation.  But the consecutive blocks in swap device just reflect
+> the order of page reclaiming, don't necessarily reflect the access
+> pattern in virtual memory space.  And the different tasks in the
+> system may have different access patterns, which makes the global
+> space locality estimation incorrect.
+> 
+> In this patchset, when page fault occurs, the virtual pages near the
+> fault address will be readahead instead of the swap slots near the
+> fault swap slot in swap device.  This avoid to readahead the unrelated
+> swap slots.  At the same time, the swap readahead is changed to work
+> on per-VMA from globally.  So that the different access patterns of
+> the different VMAs could be distinguished, and the different readahead
+> policy could be applied accordingly.  The original core readahead
+> detection and scaling algorithm is reused, because it is an effect
+> algorithm to detect the space locality.
+> 
+> In addition to the swap readahead changes, some new sysfs interface is
+> added to show the efficiency of the readahead algorithm and some other
+> swap statistics.
+> 
+> This new implementation will incur more small random read, on SSD, the
+> improved correctness of estimation and readahead target should beat
+> the potential increased overhead, this is also illustrated in the test
+> results below.  But on HDD, the overhead may beat the benefit, so the
+> original implementation will be used by default.
+> 
+> The test and result is as follow,
+> 
+> Common test condition
+> =====================
+> 
+> Test Machine: Xeon E5 v3 (2 sockets, 72 threads, 32G RAM)
+> Swap device: NVMe disk
+> 
+> Micro-benchmark with combined access pattern
+> ============================================
+> 
+> vm-scalability, sequential swap test case, 4 processes to eat 50G
+> virtual memory space, repeat the sequential memory writing until 300
+> seconds.  The first round writing will trigger swap out, the following
+> rounds will trigger sequential swap in and out.
+> 
+> At the same time, run vm-scalability random swap test case in
+> background, 8 processes to eat 30G virtual memory space, repeat the
+> random memory write until 300 seconds.  This will trigger random
+> swap-in in the background.
+> 
+> This is a combined workload with sequential and random memory
+> accessing at the same time.  The result (for sequential workload) is
+> as follow,
+> 
+> 			Base		Optimized
+> 			----		---------
+> throughput		345413 KB/s	414029 KB/s (+19.9%)
+> latency.average		97.14 us	61.06 us (-37.1%)
+> latency.50th		2 us		1 us
+> latency.60th		2 us		1 us
+> latency.70th		98 us		2 us
+> latency.80th		160 us		2 us
+> latency.90th		260 us		217 us
+> latency.95th		346 us		369 us
+> latency.99th		1.34 ms		1.09 ms
+> ra_hit%			52.69%		99.98%
+> 
+> The original swap readahead algorithm is confused by the background
+> random access workload, so readahead hit rate is lower.  The VMA-base
+> readahead algorithm works much better.
+> 
+> Linpack
+> =======
+> 
+> The test memory size is bigger than RAM to trigger swapping.
+> 
+> 			Base		Optimized
+> 			----		---------
+> elapsed_time		393.49 s	329.88 s (-16.2%)
+> ra_hit%			86.21%		98.82%
+> 
+> The score of base and optimized kernel hasn't visible changes.  But
+> the elapsed time reduced and readahead hit rate improved, so the
+> optimized kernel runs better for startup and tear down stages.  And
+> the absolute value of readahead hit rate is high, shows that the space
+> locality is still valid in some practical workloads.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
