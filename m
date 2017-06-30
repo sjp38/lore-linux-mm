@@ -1,77 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E7216B02F4
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 03:21:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u110so37546527wrb.14
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 00:21:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q84si2909311wme.115.2017.06.30.00.21.47
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC906B0279
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 03:53:31 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y62so109567622pfa.3
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 00:53:31 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 7si5846014plf.146.2017.06.30.00.53.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 00:21:47 -0700 (PDT)
-Date: Fri, 30 Jun 2017 09:21:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: convert three more cases to kvmalloc
-Message-ID: <20170630072142.GA19931@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com>
- <20170629071046.GA31603@dhcp22.suse.cz>
- <alpine.LRH.2.02.1706292205110.21823@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Jun 2017 00:53:30 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v2 0/6] mm, swap: VMA based swap readahead
+References: <20170630014443.23983-1-ying.huang@intel.com>
+	<20170630022626.GA25190@bbox>
+Date: Fri, 30 Jun 2017 15:53:17 +0800
+In-Reply-To: <20170630022626.GA25190@bbox> (Minchan Kim's message of "Fri, 30
+	Jun 2017 11:26:26 +0900")
+Message-ID: <87o9t5vrma.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1706292205110.21823@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu 29-06-17 22:13:26, Mikulas Patocka wrote:
-> 
-> 
-> On Thu, 29 Jun 2017, Michal Hocko wrote:
-[...]
-> > > Index: linux-2.6/kernel/bpf/syscall.c
-> > > ===================================================================
-> > > --- linux-2.6.orig/kernel/bpf/syscall.c
-> > > +++ linux-2.6/kernel/bpf/syscall.c
-> > > @@ -58,16 +58,7 @@ void *bpf_map_area_alloc(size_t size)
-> > >  	 * trigger under memory pressure as we really just want to
-> > >  	 * fail instead.
-> > >  	 */
-> > > -	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
-> > > -	void *area;
-> > > -
-> > > -	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> > > -		area = kmalloc(size, GFP_USER | flags);
-> > > -		if (area != NULL)
-> > > -			return area;
-> > > -	}
-> > > -
-> > > -	return __vmalloc(size, GFP_KERNEL | flags, PAGE_KERNEL);
-> > > +	return kvmalloc(size, GFP_USER | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO);
-> > 
-> > kvzalloc without additional flags would be more appropriate.
-> > __GFP_NORETRY is explicitly documented as non-supported
-> 
-> How is __GFP_NORETRY non-supported?
+Hi, Minchan,
 
-Because its semantic cannot be guaranteed throughout the alloaction
-stack. vmalloc will ignore it e.g. for page table allocations.
+Minchan Kim <minchan@kernel.org> writes:
+> Hi Huang,
+>
+> Ccing Johannes:
+>
+> I don't read this patch yet but I remember Johannes tried VMA-based
+> readahead approach long time ago so he might have good comment.
 
-> > and NOWARN wouldn't be applied everywhere in the vmalloc path.
-> 
-> __GFP_NORETRY and __GFP_NOWARN wouldn't be applied in the page-table 
-> allocation and they would be applied in the page allocation - that seems 
-> acceptable.
+Thanks a lot for your information and connecting!
 
-This is rather muddy semantic to me. Both page table and the page is an
-order-0 allocation. Page table allocations are much less likely but I've
-explicitly documented that explicit __GFP_NORETRY is unsupported. Slab
-allocation is already __GFP_NORETRY (unless you specify
-__GFP_RETRY_MAYFAIL in the current mmotm tree).
--- 
-Michal Hocko
-SUSE Labs
+Hi, Johannes,
+
+Do you have time to take a look at this patchset?
+
+Best Regards,
+Huang, Ying
+
+[snip]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
