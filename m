@@ -1,124 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C420B2802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:39:30 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l81so6115551wmg.8
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 01:39:30 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DBAF2802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:47:01 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c81so6130076wmd.10
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 01:47:01 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k16si5530737wrc.385.2017.06.30.01.39.29
+        by mx.google.com with ESMTPS id 65si10405437wmp.150.2017.06.30.01.46.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 01:39:29 -0700 (PDT)
-Date: Fri, 30 Jun 2017 10:39:26 +0200
+        Fri, 30 Jun 2017 01:46:59 -0700 (PDT)
+Date: Fri, 30 Jun 2017 10:46:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
-Message-ID: <20170630083926.GA22923@dhcp22.suse.cz>
-References: <20170629073509.623-1-mhocko@kernel.org>
- <20170629073509.623-3-mhocko@kernel.org>
- <CADZGycaXs-TsVN2xy_rpFE_ML5_rs=iYN6ZQZsAfjTVHFyLyEQ@mail.gmail.com>
+Subject: Re: Regarding your thread on LKML - drm_radeon spamming
+ alloc_contig_range [WAS: Re: PROBLEM-PERSISTS: dmesg spam:
+ alloc_contig_range: [XX, YY) PFNs busy]
+Message-ID: <20170630084653.GC22917@dhcp22.suse.cz>
+References: <CADK6UNEQ+WuKDRyUVPQ1RwOWCkvcU95OBh4obKj4dv62Kf5ipA@mail.gmail.com>
+ <20170629174705.GN23586@orbis-terrarum.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CADZGycaXs-TsVN2xy_rpFE_ML5_rs=iYN6ZQZsAfjTVHFyLyEQ@mail.gmail.com>
+In-Reply-To: <20170629174705.GN23586@orbis-terrarum.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Xishi Qiu <qiuxishi@huawei.com>, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Robin H. Johnson" <robbat2@gentoo.org>
+Cc: Kumar Abhishek <kumar.abhishek.kakkar@gmail.com>, robbat2@orbis-terrarum.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mina86@mina86.com, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>
 
-On Fri 30-06-17 11:09:51, Wei Yang wrote:
-> On Thu, Jun 29, 2017 at 3:35 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> >
-> 
-> Michal,
-> 
-> I love the idea very much.
-> 
-> > Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
-> > to precede the Movable zone in the physical memory range. The purpose of
-> > the movable zone is, however, not bound to any physical memory restriction.
-> > It merely defines a class of migrateable and reclaimable memory.
-> >
-> > There are users (e.g. CMA) who might want to reserve specific physical
-> > memory ranges for their own purpose. Moreover our pfn walkers have to be
-> > prepared for zones overlapping in the physical range already because we
-> > do support interleaving NUMA nodes and therefore zones can interleave as
-> > well. This means we can allow each memory block to be associated with a
-> > different zone.
-> >
-> > Loosen the current onlining semantic and allow explicit onlining type on
-> > any memblock. That means that online_{kernel,movable} will be allowed
-> > regardless of the physical address of the memblock as long as it is
-> > offline of course. This might result in moveble zone overlapping with
-> > other kernel zones. Default onlining then becomes a bit tricky but still
-> 
-> As here mentioned, we just remove the restriction for zone_movable.
-> For other zones, we still keep the restriction and the order as before.
+[CC Vlastimil, Joonsoo]
 
-All other zones except for ZONE_NORMAL are subject of the physical
-memory restrictions.
+On Thu 29-06-17 17:47:05, Robin H. Johnson wrote:
+> CC'd back to LKML.
+> 
+> On Thu, Jun 29, 2017 at 06:11:00PM +0530, Kumar Abhishek wrote:
+> > Hi Robin,
+> > 
+> > I am an independent developer who stumbled upon your thread on the LKML
+> > after facing a similar issue - my kernel log being spammed by
+> > alloc_contig_range messages. I am running Linux on an ARM system
+> > (specifically the BeagleBoard-X15) and am on kernel version 4.9.33 with TI
+> > patches on top of it.
+> > 
+> > I am running Debian Stretch (9.0) on the system.
+> > 
+> > Here's what my stack trace looks like:
+> ..
+> > 
+> > It's somewhat similar to your stack trace, but this here happens on an
+> > etnaviv GPU (Vivante GCxx).
+> > 
+> > In my case if I do 'sudo service lightdm stop', these messages stop too.
+> > This seems to suggest that the problem may be in the X server rather than
+> > the kernel? I seem to think this because I replicated this on an entirely
+> > different set of hardware than yours.
+> > 
+> > I just wanted to bring this to your notice, and also ask you if you managed
+> > to solve it for yourself.
+> > 
+> > One solution could be to demote the pr_info in alloc_contig_range to
+> > pr_debug or to do away with the message altogether, but this would be
+> > suppressing the issue instead of really knowing what it is about.
+> > 
+> > Let me know how I could further investigate this.
+> The problem, as far as I got diagnosed on LKML, is that some of the GPUs
+> have a bunch of non-fatal contiguous memory allocation requests: they
+> have a meaningful fallback path on the allocation, so 'PFNs busy' is a
+> false busy for their case.
+
+Well, later on we found out that a change to the compaction has changed
+a picture and 424f6c4818bb ("mm: alloc_contig: re-allow CMA to compact
+FS pages") fixed that issue. It went to 4.10 and I do not see it in 4.9
+stable tree. Maybe it can help in this case as well.
+
+> However, if there was a another consumer that does NOT have a fallback,
+> the output would still be crucially useful.
+> 
+> Attached is the patch that I unsuccessfully proposed on LKML to
+> rate-limit the messages, with the last revision to only dump_stack() if
+> CONFIG_CMA_DEBUG was set.
+
+The patch makes some sense to me in general. Try to repost it.
  
-> Maybe the title is a little misleading. Audience may thinks no restriction
-> for all zones.
-
-I thought the context was clear from the fact that this is a hotplug
-related patch. As such we do not allow online_{dma,dma32,normal} we only
-allow to online into a kernel zone. I can update the wording but do not
-have a good idea how.
-
-[...]
-> As I spotted on the previous patch, after several round of online/offline,
-> The output of valid_zones will differ.
+> The path that LKML wanted was to add a new parameter to suppress or at
+> least demote the failure message, and update all of the callers: but it
+> means that many of the indirect callers need that added parameter as
+> well.
 > 
-> For example in this case, after I offline memory37 and 41, I expect this:
+> mm/cma.c:cma_alloc this call can suppress the error, you can see it retry.
+> mm/hugetlb.c: These callers should get the error message.
 > 
->  memory34/valid_zones:Normal
->  memory35/valid_zones:Normal Movable
->  memory36/valid_zones:Normal Movable
->  memory37/valid_zones:Normal Movable
->  memory38/valid_zones:Normal Movable
->  memory39/valid_zones:Normal Movable
->  memory40/valid_zones:Normal Movable
->  memory41/valid_zones:Normal Movable
+> The error message DOES still have a good general use in notifying you
+> that something is going wrong. There was noticeable performance slowdown
+> in my case when it was trying hard to allocate.
 > 
-> While the current result would be
+> -- 
+> Robin Hugh Johnson
+> E-Mail     : robbat2@orbis-terrarum.net
+> Home Page  : http://www.orbis-terrarum.net/?l=people.robbat2
+> ICQ#       : 30269588 or 41961639
+> GnuPG FP   : 11ACBA4F 4778E3F6 E4EDF38E B27B944E 34884E85
+
+> commit 808c209dc82ce79147122ca78e7047bc74a16149
+> Author: Robin H. Johnson <robbat2@gentoo.org>
+> Date:   Wed Nov 30 10:32:57 2016 -0800
 > 
->  memory34/valid_zones:Normal
->  memory35/valid_zones:Normal Movable
->  memory36/valid_zones:Normal Movable
->  memory37/valid_zones:Movable Normal
->  memory38/valid_zones:Movable Normal
->  memory39/valid_zones:Movable Normal
->  memory40/valid_zones:Movable Normal
->  memory41/valid_zones:Movable Normal
+>     mm: ratelimit & trace PFNs busy.
+>     
+>     Signed-off-by: Robin H. Johnson <robbat2@gentoo.org>
+> 	Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6de9440e3ae2..3c28ec3d18f8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7289,8 +7289,16 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  
+>  	/* Make sure the range is really isolated. */
+>  	if (test_pages_isolated(outer_start, end, false)) {
+> -		pr_info("%s: [%lx, %lx) PFNs busy\n",
+> -			__func__, outer_start, end);
+> +		static DEFINE_RATELIMIT_STATE(ratelimit_pfn_busy,
+> +					DEFAULT_RATELIMIT_INTERVAL,
+> +					DEFAULT_RATELIMIT_BURST);
+> +		if (__ratelimit(&ratelimit_pfn_busy)) {
+> +			pr_info("%s: [%lx, %lx) PFNs busy\n",
+> +				__func__, outer_start, end);
+> +			if (IS_ENABLED(CONFIG_CMA_DEBUG))
+> +				dump_stack();
+> +		}
+> +
+>  		ret = -EBUSY;
+>  		goto done;
+>  	}
 
-You haven't written your sequence of onlining but if you used the same
-one as mentioned in the patch then you should get
-memory34/valid_zones:Normal
-memory35/valid_zones:Normal Movable
-memory36/valid_zones:Normal Movable
-memory37/valid_zones:Normal Movable
-memory38/valid_zones:Normal Movable
-memory39/valid_zones:Normal
-memory40/valid_zones:Movable Normal
-memory41/valid_zones:Movable Normal
 
-Even if you kept 37 as movable and offline 38 you wouldn't get 38-41
-movable by default because...
 
-> The reason is the same, we don't adjust the zone's range when offline
-> memory.
 
-.. of this.
-
-> This is also a known issue?
-
-yes and to be honest I do not plan to fix it unless somebody has a real
-life usecase for it. Now that we allow explicit onlininig type anywhere
-it seems like a reasonable behavior and this will allow us to remove
-quite some code which is always a good deal wrt longterm maintenance.
-
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
