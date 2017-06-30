@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F052802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 07:27:50 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p15so118440539pgs.7
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:27:50 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id g76si1624375pfd.25.2017.06.30.04.27.47
+	by kanga.kvack.org (Postfix) with ESMTP id 406C82802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 07:31:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b13so118451746pgn.4
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:31:35 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id g61si6075066plb.6.2017.06.30.04.31.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 04:27:48 -0700 (PDT)
+        Fri, 30 Jun 2017 04:31:33 -0700 (PDT)
 From: <zhouxianrong@huawei.com>
 Subject: [PATCH mm] introduce reverse buddy concept to reduce buddy fragment
-Date: Fri, 30 Jun 2017 19:22:35 +0800
-Message-ID: <1498821755-55542-1-git-send-email-zhouxianrong@huawei.com>
+Date: Fri, 30 Jun 2017 19:25:41 +0800
+Message-ID: <1498821941-55771-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,10 +20,29 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, alexander.h.duyck@intel.com, mhocko@suse.com, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, npiggin@gmail.com, kirill.shutemov@linux.intel.com, gi-oh.kim@profitbricks.com, luto@kernel.org, keescook@chromium.org, mark.rutland@arm.com, mingo@kernel.org, heiko.carstens@de.ibm.com, iamjoonsoo.kim@lge.com, rientjes@google.com, ming.ling@spreadtrum.com, jack@suse.cz, ebru.akagunduz@gmail.com, bigeasy@linutronix.de, Mi.Sophia.Wang@huawei.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, won.ho.park@huawei.com
 
-From: z00281421 <z00281421@notesmail.huawei.com>
+From: zhouxianrong <zhouxianrong@huawei.com>
 
+	when buddy is under fragment i find that still there are some pages 
+	just like AFFA mode. A is allocated, F is free, AF is buddy pair for
+	oder n, FA is buddy	pair for oder n as well. I want to compse the
+	FF as oder n + 1 and align to n other than n + 1. this patch broke
+	the rules of buddy stated as alignment to its length of oder. i think
+	we can do so except for kernel stack because the requirement comes from
+	buddy attribution rather than user. for kernel stack requirement i add
+	__GFP_NOREVERSEBUDDY for this purpose.
+	
+	a sample just like blow.
+	
+	Node 0, zone      DMA
+	  1389   1765    342    272      2      0      0      0      0      0      0
+		 0     75   4398   1560    379     27      2      0      0      0      0
+	Node 0, zone   Normal
+		20     24     14      2      0      0      0      0      0      0      0
+		 0      6    228      3      0      0      0      0      0      0      0
 
-Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+	the patch does not consider fallback allocation for now.
+
+Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
 ---
  include/linux/gfp.h         |    8 +-
  include/linux/mmzone.h      |    2 +
