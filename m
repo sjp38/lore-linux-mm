@@ -1,114 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0AC76B02FD
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 21:45:02 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id b13so107424670pgn.4
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 18:45:02 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id l5si4691214pgu.532.2017.06.29.18.45.02
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CDBFE6B0279
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 22:13:40 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u126so46868362qka.9
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 19:13:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z188si3330451qke.98.2017.06.29.19.13.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 18:45:02 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v2 6/6] mm, swap: Don't use VMA based swap readahead if HDD is used as swap
-Date: Fri, 30 Jun 2017 09:44:43 +0800
-Message-Id: <20170630014443.23983-7-ying.huang@intel.com>
-In-Reply-To: <20170630014443.23983-1-ying.huang@intel.com>
-References: <20170630014443.23983-1-ying.huang@intel.com>
+        Thu, 29 Jun 2017 19:13:38 -0700 (PDT)
+Date: Thu, 29 Jun 2017 22:13:26 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] mm: convert three more cases to kvmalloc
+In-Reply-To: <20170629071046.GA31603@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1706292205110.21823@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com> <20170629071046.GA31603@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
 
-VMA based swap readahead will readahead the virtual pages that is
-continuous in the virtual address space.  While the original swap
-readahead will readahead the swap slots that is continuous in the swap
-device.  Although VMA based swap readahead is more correct for the
-swap slots to be readahead, it will trigger more small random
-readings, which may cause the performance of HDD (hard disk) to
-degrade heavily, and may finally exceed the benefit.
 
-To avoid the issue, in this patch, if the HDD is used as swap, the VMA
-based swap readahead will be disabled, and the original swap readahead
-will be used instead.
+On Thu, 29 Jun 2017, Michal Hocko wrote:
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
----
- include/linux/swap.h | 11 ++++++-----
- mm/swapfile.c        |  8 +++++++-
- 2 files changed, 13 insertions(+), 6 deletions(-)
+> On Wed 28-06-17 23:24:10, Mikulas Patocka wrote:
+> [...]
+> > From: Mikulas Patocka <mpatocka@redhat.com>
+> > 
+> > The patch a7c3e901 ("mm: introduce kv[mz]alloc helpers") converted a lot 
+> > of kernel code to kvmalloc. This patch converts three more forgotten 
+> > cases.
+> 
+> Thanks! I have two remarks below but other than that feel free to add
+> 
+> > Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> [...]
+> > Index: linux-2.6/kernel/bpf/syscall.c
+> > ===================================================================
+> > --- linux-2.6.orig/kernel/bpf/syscall.c
+> > +++ linux-2.6/kernel/bpf/syscall.c
+> > @@ -58,16 +58,7 @@ void *bpf_map_area_alloc(size_t size)
+> >  	 * trigger under memory pressure as we really just want to
+> >  	 * fail instead.
+> >  	 */
+> > -	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
+> > -	void *area;
+> > -
+> > -	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+> > -		area = kmalloc(size, GFP_USER | flags);
+> > -		if (area != NULL)
+> > -			return area;
+> > -	}
+> > -
+> > -	return __vmalloc(size, GFP_KERNEL | flags, PAGE_KERNEL);
+> > +	return kvmalloc(size, GFP_USER | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO);
+> 
+> kvzalloc without additional flags would be more appropriate.
+> __GFP_NORETRY is explicitly documented as non-supported
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 34fe19f9b4c6..7fa4e4030ddb 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -398,16 +398,17 @@ extern struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 					   struct vm_fault *vmf,
- 					   struct vma_swap_readahead *swap_ra);
- 
--static inline bool swap_use_vma_readahead(void)
--{
--	return READ_ONCE(swap_vma_readahead);
--}
--
- /* linux/mm/swapfile.c */
- extern atomic_long_t nr_swap_pages;
- extern long total_swap_pages;
-+extern atomic_t nr_rotate_swap;
- extern bool has_usable_swap(void);
- 
-+static inline bool swap_use_vma_readahead(void)
-+{
-+	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
-+}
-+
- /* Swap 50% full? Release swapcache more aggressively.. */
- static inline bool vm_swap_full(void)
- {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6ba4aab2db0b..2685b9951cc1 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -96,6 +96,8 @@ static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
- /* Activity counter to indicate that a swapon or swapoff has occurred */
- static atomic_t proc_poll_event = ATOMIC_INIT(0);
- 
-+atomic_t nr_rotate_swap = ATOMIC_INIT(0);
-+
- static inline unsigned char swap_count(unsigned char ent)
- {
- 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
-@@ -2387,6 +2389,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (p->flags & SWP_CONTINUED)
- 		free_swap_count_continuations(p);
- 
-+	if (!p->bdev || !blk_queue_nonrot(bdev_get_queue(p->bdev)))
-+		atomic_dec(&nr_rotate_swap);
-+
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
- 	spin_lock(&p->lock);
-@@ -2963,7 +2968,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
- 			cluster_set_null(&cluster->index);
- 		}
--	}
-+	} else
-+		atomic_inc(&nr_rotate_swap);
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
- 	if (error)
--- 
-2.11.0
+How is __GFP_NORETRY non-supported?
+
+> and NOWARN wouldn't be applied everywhere in the vmalloc path.
+
+__GFP_NORETRY and __GFP_NOWARN wouldn't be applied in the page-table 
+allocation and they would be applied in the page allocation - that seems 
+acceptable.
+
+But the problem here is that if the system is under memory stress, 
+__GFP_NORETRY allocations would randomly fail (they would fail for example 
+if there's a plenty of free swap space and the system is busy swapping) 
+and that would make the BFP creation code randomly fail.
+
+BPF maintainers, please explain, how are you dealing with the random 
+memory allocation failures? Is there some other code in the BPF stack that 
+retries the failed allocations?
+
+> >  }
+> >  
+> >  void bpf_map_area_free(void *area)
+> > Index: linux-2.6/kernel/cgroup/cgroup-v1.c
+> > ===================================================================
+> > --- linux-2.6.orig/kernel/cgroup/cgroup-v1.c
+> > +++ linux-2.6/kernel/cgroup/cgroup-v1.c
+> > @@ -184,15 +184,10 @@ struct cgroup_pidlist {
+> >  /*
+> >   * The following two functions "fix" the issue where there are more pids
+> >   * than kmalloc will give memory for; in such cases, we use vmalloc/vfree.
+> > - * TODO: replace with a kernel-wide solution to this problem
+> >   */
+> > -#define PIDLIST_TOO_LARGE(c) ((c) * sizeof(pid_t) > (PAGE_SIZE * 2))
+> >  static void *pidlist_allocate(int count)
+> >  {
+> > -	if (PIDLIST_TOO_LARGE(count))
+> > -		return vmalloc(count * sizeof(pid_t));
+> > -	else
+> > -		return kmalloc(count * sizeof(pid_t), GFP_KERNEL);
+> > +	return kvmalloc(count * sizeof(pid_t), GFP_KERNEL);
+> >  }
+> 
+> I would rather use kvmalloc_array to have an overflow protection as
+> well.
+
+Yes.
+
+Mikulas
+
+> >  
+> >  static void pidlist_free(void *p)
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
