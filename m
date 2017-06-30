@@ -1,62 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A7EC72802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 15:50:01 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v143so14769275qkb.6
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 12:50:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a36si8612817qkh.261.2017.06.30.12.50.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D340B2802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 16:41:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f17so9104759wmd.11
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 13:41:06 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k86si4636478wmi.21.2017.06.30.13.41.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jun 2017 12:50:00 -0700 (PDT)
-Date: Fri, 30 Jun 2017 15:49:56 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
-Message-ID: <20170630194956.GB4275@redhat.com>
-References: <20170628180047.5386-1-jglisse@redhat.com>
- <960ef002-3cfd-5b91-054e-aa685abc5f1f@nvidia.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 30 Jun 2017 13:41:05 -0700 (PDT)
+Date: Fri, 30 Jun 2017 22:41:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
+Message-ID: <20170630204059.GA17255@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170630081245.GA22917@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1706301410160.8272@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <960ef002-3cfd-5b91-054e-aa685abc5f1f@nvidia.com>
+In-Reply-To: <alpine.LRH.2.02.1706301410160.8272@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-On Thu, Jun 29, 2017 at 10:32:49PM -0700, John Hubbard wrote:
-> On 06/28/2017 11:00 AM, Jerome Glisse wrote:
+On Fri 30-06-17 14:11:57, Mikulas Patocka wrote:
+> 
+> 
+> On Fri, 30 Jun 2017, Michal Hocko wrote:
+> 
+> > On Thu 29-06-17 22:25:09, Mikulas Patocka wrote:
+> > > The __vmalloc function has a parameter gfp_mask with the allocation flags,
+> > > however it doesn't fully respect the GFP_NOIO and GFP_NOFS flags. The
+> > > pages are allocated with the specified gfp flags, but the pagetables are
+> > > always allocated with GFP_KERNEL. This allocation can cause unexpected
+> > > recursion into the filesystem or I/O subsystem.
+> > > 
+> > > It is not practical to extend page table allocation routines with gfp
+> > > flags because it would require modification of architecture-specific code
+> > > in all architecturs. However, the process can temporarily request that all
+> > > allocations are done with GFP_NOFS or GFP_NOIO with with the functions
+> > > memalloc_nofs_save and memalloc_noio_save.
+> > > 
+> > > This patch makes the vmalloc code use memalloc_nofs_save or
+> > > memalloc_noio_save if the supplied gfp flags do not contain __GFP_FS or
+> > > __GFP_IO. It fixes some possible deadlocks in drivers/mtd/ubi/io.c,
+> > > fs/gfs2/, fs/btrfs/free-space-tree.c, fs/ubifs/,
+> > > fs/nfs/blocklayout/extent_tree.c where __vmalloc is used with the GFP_NOFS
+> > > flag.
 > > 
-> > Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
-> > test same kernel as kbuild system, git branch:
-> > 
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v24
-> > 
-> > Change since v23 is code comment fixes, simplify kernel configuration and
-> > improve allocation of new page on migration do device memory (last patch
-> > in this patchset).
+> > I strongly believe this is a step in the _wrong_ direction. Why? Because
 > 
-> Hi Jerome,
-> 
-> Tiny note: one more change is that hmm_devmem_fault_range() has been
-> removed (and thanks for taking care of that, btw).
+> What do you think __vmalloc with GFP_NOIO should do? Print a warning? 
+> Silently ignore the GFP_NOIO flag?
 
-True i forgot to mention that.
-
-> 
-> Anyway, this looks good. A basic smoke test shows the following:
-> 
-> 1. We definitely *require* your other patch, 
-> "[PATCH] x86/mm/hotplug: fix BUG_ON() after hotremove by not freeing pud v3",
-> otherwise I will reliably hit that bug every time I run my simple page fault
-> test. So, let me know if I should ping that thread. It looks like your patch
-> was not rejected, but I can't tell if (!rejected == accepted), there. :)
-
-Ingo did pick it up so it should shows in Linus tree soon i expect.
-
-Cheers,
-Jerome
+I think noio users are not that much different from nofs users. Simply
+use the scope API at the place where the scope starts and document why
+it is needed. vmalloc calls do not have to be any special then and they
+do not even have to think about proper gfp flags and they can use
+whatever is the default.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
