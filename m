@@ -1,121 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 944F92802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 07:47:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 13so118758917pgg.8
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:47:34 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0129.outbound.protection.outlook.com. [104.47.2.129])
-        by mx.google.com with ESMTPS id w8si5814627pfj.27.2017.06.30.04.47.32
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7EE2802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 07:49:03 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id d2so6950135qtb.10
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 04:49:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k64si7193762qte.373.2017.06.30.04.49.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 04:47:33 -0700 (PDT)
-Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-References: <alpine.DEB.2.20.1706291803380.1861@nanos>
- <20170630092747.GD22917@dhcp22.suse.cz>
- <alpine.DEB.2.20.1706301210210.1748@nanos>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <3f2395c6-bbe0-23c1-fe06-d17ffbf619c3@virtuozzo.com>
-Date: Fri, 30 Jun 2017 14:49:24 +0300
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1706301210210.1748@nanos>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Jun 2017 04:49:02 -0700 (PDT)
+From: "Jerome Marchand" <jmarchan@redhat.com>
+Subject: [PATCH v2] mm/zsmalloc: simplify zs_max_alloc_size handling
+Date: Fri, 30 Jun 2017 13:48:59 +0200
+Message-Id: <20170630114859.1979-1-jmarchan@redhat.com>
+In-Reply-To: <20170630012436.GA24520@bbox>
+References: <20170630012436.GA24520@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Mahendran Ganesh <opensource.ganesh@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Commit 40f9fb8cffc6 ("mm/zsmalloc: support allocating obj with size of
+ZS_MAX_ALLOC_SIZE") fixes a size calculation error that prevented
+zsmalloc to allocate an object of the maximal size
+(ZS_MAX_ALLOC_SIZE). I think however the fix is unneededly
+complicated.
 
+This patch replaces the dynamic calculation of zs_size_classes at init
+time by a compile time calculation that uses the DIV_ROUND_UP() macro
+already used in get_size_class_index().
 
-On 06/30/2017 01:15 PM, Thomas Gleixner wrote:
-> On Fri, 30 Jun 2017, Michal Hocko wrote:
->> So I like this simplification a lot! Even if we can get rid of the
->> stop_machine eventually this patch would be an improvement. A short
->> comment on why the per-cpu semaphore over the regular one is better
->> would be nice.
-> 
-> Yes, will add one.
-> 
-> The main point is that the current locking construct is evading lockdep due
-> to the ability to support recursive locking, which I did not observe so
-> far.
-> 
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ mm/zsmalloc.c | 52 +++++++++++++++-------------------------------------
+ 1 file changed, 15 insertions(+), 37 deletions(-)
 
-Like this?
-
-
-[  131.022567] ============================================
-[  131.023034] WARNING: possible recursive locking detected
-[  131.023034] 4.12.0-rc7-next-20170630 #10 Not tainted
-[  131.023034] --------------------------------------------
-[  131.023034] bash/2266 is trying to acquire lock:
-[  131.023034]  (cpu_hotplug_lock.rw_sem){++++++}, at: [<ffffffff8117fcd2>] lru_add_drain_all+0x42/0x190
-[  131.023034] 
-               but task is already holding lock:
-[  131.023034]  (cpu_hotplug_lock.rw_sem){++++++}, at: [<ffffffff811d5489>] mem_hotplug_begin+0x9/0x20
-[  131.023034] 
-               other info that might help us debug this:
-[  131.023034]  Possible unsafe locking scenario:
-
-[  131.023034]        CPU0
-[  131.023034]        ----
-[  131.023034]   lock(cpu_hotplug_lock.rw_sem);
-[  131.023034]   lock(cpu_hotplug_lock.rw_sem);
-[  131.023034] 
-                *** DEADLOCK ***
-
-[  131.023034]  May be due to missing lock nesting notation
-
-[  131.023034] 8 locks held by bash/2266:
-[  131.023034]  #0:  (sb_writers#8){.+.+.+}, at: [<ffffffff811e81f8>] vfs_write+0x1a8/0x1d0
-[  131.023034]  #1:  (&of->mutex){+.+.+.}, at: [<ffffffff81274b2c>] kernfs_fop_write+0xfc/0x1b0
-[  131.023034]  #2:  (s_active#48){.+.+.+}, at: [<ffffffff81274b34>] kernfs_fop_write+0x104/0x1b0
-[  131.023034]  #3:  (device_hotplug_lock){+.+.+.}, at: [<ffffffff816d4810>] lock_device_hotplug_sysfs+0x10/0x40
-[  131.023034]  #4:  (cpu_hotplug_lock.rw_sem){++++++}, at: [<ffffffff811d5489>] mem_hotplug_begin+0x9/0x20
-[  131.023034]  #5:  (mem_hotplug_lock.rw_sem){++++++}, at: [<ffffffff810ada81>] percpu_down_write+0x21/0x110
-[  131.023034]  #6:  (&dev->mutex){......}, at: [<ffffffff816d5bd5>] device_offline+0x45/0xb0
-[  131.023034]  #7:  (lock#3){+.+...}, at: [<ffffffff8117fccd>] lru_add_drain_all+0x3d/0x190
-[  131.023034] 
-               stack backtrace:
-[  131.023034] CPU: 0 PID: 2266 Comm: bash Not tainted 4.12.0-rc7-next-20170630 #10
-[  131.023034] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.10.2-0-g5f4c7b1-prebuilt.qemu-project.org 04/01/2014
-[  131.023034] Call Trace:
-[  131.023034]  dump_stack+0x85/0xc7
-[  131.023034]  __lock_acquire+0x1747/0x17a0
-[  131.023034]  ? lru_add_drain_all+0x3d/0x190
-[  131.023034]  ? __mutex_lock+0x218/0x940
-[  131.023034]  ? trace_hardirqs_on+0xd/0x10
-[  131.023034]  lock_acquire+0x103/0x200
-[  131.023034]  ? lock_acquire+0x103/0x200
-[  131.023034]  ? lru_add_drain_all+0x42/0x190
-[  131.023034]  cpus_read_lock+0x3d/0x80
-[  131.023034]  ? lru_add_drain_all+0x42/0x190
-[  131.023034]  lru_add_drain_all+0x42/0x190
-[  131.023034]  __offline_pages.constprop.25+0x5de/0x870
-[  131.023034]  offline_pages+0xc/0x10
-[  131.023034]  memory_subsys_offline+0x43/0x70
-[  131.023034]  device_offline+0x83/0xb0
-[  131.023034]  store_mem_state+0xdb/0xe0
-[  131.023034]  dev_attr_store+0x13/0x20
-[  131.023034]  sysfs_kf_write+0x40/0x50
-[  131.023034]  kernfs_fop_write+0x130/0x1b0
-[  131.023034]  __vfs_write+0x23/0x130
-[  131.023034]  ? rcu_read_lock_sched_held+0x6d/0x80
-[  131.023034]  ? rcu_sync_lockdep_assert+0x2a/0x50
-[  131.023034]  ? __sb_start_write+0xd4/0x1c0
-[  131.023034]  ? vfs_write+0x1a8/0x1d0
-[  131.023034]  vfs_write+0xc8/0x1d0
-[  131.023034]  SyS_write+0x44/0xa0
-[  131.023034]  entry_SYSCALL_64_fastpath+0x1f/0xbe
-[  131.023034] RIP: 0033:0x7fb6b54ac310
-[  131.023034] RSP: 002b:00007ffcb7b123e8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-[  131.023034] RAX: ffffffffffffffda RBX: 00007fb6b5767640 RCX: 00007fb6b54ac310
-[  131.023034] RDX: 0000000000000008 RSI: 00007fb6b5e2d000 RDI: 0000000000000001
-[  131.023034] RBP: 0000000000000007 R08: 00007fb6b57687a0 R09: 00007fb6b5e23700
-[  131.023034] R10: 0000000000000098 R11: 0000000000000246 R12: 0000000000000007
-[  131.023034] R13: 000000000173e9f0 R14: 0000000000000000 R15: 0000000000491569
-
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index d41edd2..cc98937 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -116,6 +116,11 @@
+ #define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS - OBJ_TAG_BITS)
+ #define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
+ 
++#define FULLNESS_BITS	2
++#define CLASS_BITS	8
++#define ISOLATED_BITS	3
++#define MAGIC_VAL_BITS	8
++
+ #define MAX(a, b) ((a) >= (b) ? (a) : (b))
+ /* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
+ #define ZS_MIN_ALLOC_SIZE \
+@@ -137,6 +142,8 @@
+  *  (reason above)
+  */
+ #define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> CLASS_BITS)
++#define ZS_SIZE_CLASSES	(DIV_ROUND_UP(ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE, \
++				      ZS_SIZE_CLASS_DELTA) + 1)
+ 
+ enum fullness_group {
+ 	ZS_EMPTY,
+@@ -169,11 +176,6 @@ static struct vfsmount *zsmalloc_mnt;
+ #endif
+ 
+ /*
+- * number of size_classes
+- */
+-static int zs_size_classes;
+-
+-/*
+  * We assign a page to ZS_ALMOST_EMPTY fullness group when:
+  *	n <= N / f, where
+  * n = number of allocated objects
+@@ -244,7 +246,7 @@ struct link_free {
+ struct zs_pool {
+ 	const char *name;
+ 
+-	struct size_class **size_class;
++	struct size_class *size_class[ZS_SIZE_CLASSES];
+ 	struct kmem_cache *handle_cachep;
+ 	struct kmem_cache *zspage_cachep;
+ 
+@@ -268,11 +270,6 @@ struct zs_pool {
+ #endif
+ };
+ 
+-#define FULLNESS_BITS	2
+-#define CLASS_BITS	8
+-#define ISOLATED_BITS	3
+-#define MAGIC_VAL_BITS	8
+-
+ struct zspage {
+ 	struct {
+ 		unsigned int fullness:FULLNESS_BITS;
+@@ -551,7 +548,7 @@ static int get_size_class_index(int size)
+ 		idx = DIV_ROUND_UP(size - ZS_MIN_ALLOC_SIZE,
+ 				ZS_SIZE_CLASS_DELTA);
+ 
+-	return min(zs_size_classes - 1, idx);
++	return min((int)ZS_SIZE_CLASSES - 1, idx);
+ }
+ 
+ static inline void zs_stat_inc(struct size_class *class,
+@@ -610,7 +607,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 			"obj_allocated", "obj_used", "pages_used",
+ 			"pages_per_zspage", "freeable");
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		class = pool->size_class[i];
+ 
+ 		if (class->index != i)
+@@ -1294,17 +1291,6 @@ static int zs_cpu_dead(unsigned int cpu)
+ 	return 0;
+ }
+ 
+-static void __init init_zs_size_classes(void)
+-{
+-	int nr;
+-
+-	nr = (ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1;
+-	if ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) % ZS_SIZE_CLASS_DELTA)
+-		nr += 1;
+-
+-	zs_size_classes = nr;
+-}
+-
+ static bool can_merge(struct size_class *prev, int pages_per_zspage,
+ 					int objs_per_zspage)
+ {
+@@ -2145,7 +2131,7 @@ static void async_free_zspage(struct work_struct *work)
+ 	struct zs_pool *pool = container_of(work, struct zs_pool,
+ 					free_work);
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		class = pool->size_class[i];
+ 		if (class->index != i)
+ 			continue;
+@@ -2263,7 +2249,7 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 	int i;
+ 	struct size_class *class;
+ 
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		class = pool->size_class[i];
+ 		if (!class)
+ 			continue;
+@@ -2309,7 +2295,7 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+ 	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+ 			shrinker);
+ 
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		class = pool->size_class[i];
+ 		if (!class)
+ 			continue;
+@@ -2361,12 +2347,6 @@ struct zs_pool *zs_create_pool(const char *name)
+ 		return NULL;
+ 
+ 	init_deferred_free(pool);
+-	pool->size_class = kcalloc(zs_size_classes, sizeof(struct size_class *),
+-			GFP_KERNEL);
+-	if (!pool->size_class) {
+-		kfree(pool);
+-		return NULL;
+-	}
+ 
+ 	pool->name = kstrdup(name, GFP_KERNEL);
+ 	if (!pool->name)
+@@ -2379,7 +2359,7 @@ struct zs_pool *zs_create_pool(const char *name)
+ 	 * Iterate reversely, because, size of size_class that we want to use
+ 	 * for merging should be larger or equal to current size.
+ 	 */
+-	for (i = zs_size_classes - 1; i >= 0; i--) {
++	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+ 		int size;
+ 		int pages_per_zspage;
+ 		int objs_per_zspage;
+@@ -2453,7 +2433,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+ 	zs_unregister_migration(pool);
+ 	zs_pool_stat_destroy(pool);
+ 
+-	for (i = 0; i < zs_size_classes; i++) {
++	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+ 		int fg;
+ 		struct size_class *class = pool->size_class[i];
+ 
+@@ -2492,8 +2472,6 @@ static int __init zs_init(void)
+ 	if (ret)
+ 		goto hp_setup_fail;
+ 
+-	init_zs_size_classes();
+-
+ #ifdef CONFIG_ZPOOL
+ 	zpool_register_driver(&zs_zpool_driver);
+ #endif
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
