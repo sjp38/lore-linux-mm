@@ -1,81 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1842802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:47:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id j85so6363573wmj.2
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 02:47:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6803E2802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:55:50 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 62so6358239wmw.13
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 02:55:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v24si5532417wrd.208.2017.06.30.02.47.37
+        by mx.google.com with ESMTPS id 10si9950390wme.0.2017.06.30.02.55.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 02:47:37 -0700 (PDT)
-Date: Fri, 30 Jun 2017 11:47:35 +0200
+        Fri, 30 Jun 2017 02:55:49 -0700 (PDT)
+Date: Fri, 30 Jun 2017 11:55:45 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
- delivery
-Message-ID: <20170630094718.GE22917@dhcp22.suse.cz>
-References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
- <20170627070643.GA28078@dhcp22.suse.cz>
- <20170627153557.GB10091@rapoport-lnx>
- <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
- <20170628131806.GD10091@rapoport-lnx>
- <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
- <20170629080910.GC31603@dhcp22.suse.cz>
- <936bde7b-1913-5589-22f4-9bbfdb6a8dd5@oracle.com>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
+Message-ID: <20170630095545.GF22917@dhcp22.suse.cz>
+References: <20170629073509.623-1-mhocko@kernel.org>
+ <20170629073509.623-3-mhocko@kernel.org>
+ <CADZGycaXs-TsVN2xy_rpFE_ML5_rs=iYN6ZQZsAfjTVHFyLyEQ@mail.gmail.com>
+ <20170630083926.GA22923@dhcp22.suse.cz>
+ <CADZGyca1-CzaHoR-==DN4kK_YrwmMVnKvowUv-5M4GQP7ZYubg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <936bde7b-1913-5589-22f4-9bbfdb6a8dd5@oracle.com>
+In-Reply-To: <CADZGyca1-CzaHoR-==DN4kK_YrwmMVnKvowUv-5M4GQP7ZYubg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "prakash.sangappa" <prakash.sangappa@oracle.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org, John Stultz <john.stultz@linaro.org>
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Xishi Qiu <qiuxishi@huawei.com>, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-[CC John, the thread started
-http://lkml.kernel.org/r/9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com]
-
-On Thu 29-06-17 14:41:22, prakash.sangappa wrote:
+On Fri 30-06-17 17:39:56, Wei Yang wrote:
+> On Fri, Jun 30, 2017 at 4:39 PM, Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > yes and to be honest I do not plan to fix it unless somebody has a real
+> > life usecase for it. Now that we allow explicit onlininig type anywhere
+> > it seems like a reasonable behavior and this will allow us to remove
+> > quite some code which is always a good deal wrt longterm maintenance.
+> >
 > 
-> 
-> On 06/29/2017 01:09 AM, Michal Hocko wrote:
-> >On Wed 28-06-17 11:23:32, Prakash Sangappa wrote:
-> >>
-> >>On 6/28/17 6:18 AM, Mike Rapoport wrote:
-> >[...]
-> >>>I've just been thinking that maybe it would be possible to use
-> >>>UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
-> >>>of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
-> >>>non-cooperative userfaultfd. It could be that it will solve your issue as
-> >>>well.
-> >>>
-> >>Will this result in a signal delivery?
-> >>
-> >>In the use case described, the database application does not need any event
-> >>for  hole punching. Basically, just a signal for any invalid access to
-> >>mapped area over holes in the file.
-> >OK, but it would be better to think that through for other potential
-> >usecases so that this doesn't end up as a single hugetlb feature. E.g.
-> >what should happen if a regular anonymous memory gets swapped out?
-> >Should we deliver signal as well? How does userspace tell whether this
-> >was a no backing page from unavailable backing page?
-> 
-> This may not be useful in all cases. Potential, it could be used
-> with use of mlock() on anonymous memory to ensure any access
-> to memory that is not locked is caught, again for robustness
-> purpose.
+> hmm... the statistics displayed in /proc/zoneinfo would be meaningless
+> for zone_normal and zone_movable.
 
-The thing I wanted to point out is that not only this should be a single
-usecase thing (I believe others will pop out as well - see below) but it
-should also be well defined as this is a user visible API. Please try to
-write a patch to the userfaultfd man page to clarify the exact semantic.
-This should help the further discussion.
+Why would they be meaningless? Counters will always reflect the actual
+use - if not then it is a bug. And wrt to zone description what is
+meaningless about
+memory34/valid_zones:Normal
+memory35/valid_zones:Normal Movable
+memory36/valid_zones:Movable
+memory37/valid_zones:Movable Normal
+memory38/valid_zones:Movable Normal
+memory39/valid_zones:Movable Normal
+memory40/valid_zones:Normal
+memory41/valid_zones:Movable
 
-As an aside, I rememeber that prior to MADV_FREE there was long
-discussion about lazy freeing of memory from userspace. Some users
-wanted to be signalled when their memory was freed by the system so that
-they could rebuild the original content (e.g. uncompressed images in
-memory). It seems like MADV_FREE + this signalling could be used for
-that usecase. John would surely know more about those usecases.
+And
+Node 1, zone   Normal
+  pages free     65465
+        min      156
+        low      221
+        high     286
+        spanned  229376
+        present  65536
+        managed  65536
+[...]
+  start_pfn:           1114112
+Node 1, zone  Movable
+  pages free     65443
+        min      156
+        low      221
+        high     286
+        spanned  196608
+        present  65536
+        managed  65536
+[...]
+  start_pfn:           1179648
+
+ranges are clearly defined as [start_pfn, start_pfn+managed] and managed
+matches the number of onlined pages (256MB).
 -- 
 Michal Hocko
 SUSE Labs
