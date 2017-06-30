@@ -1,168 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA532802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 09:00:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id j85so7105332wmj.2
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 06:00:28 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o25si5565529wra.182.2017.06.30.06.00.26
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F9072802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 09:08:17 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id v76so52508162qka.5
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 06:08:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z29si7728378qth.126.2017.06.30.06.08.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 06:00:27 -0700 (PDT)
-Date: Fri, 30 Jun 2017 15:00:22 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-In-Reply-To: <3f2395c6-bbe0-23c1-fe06-d17ffbf619c3@virtuozzo.com>
-Message-ID: <alpine.DEB.2.20.1706301418190.1748@nanos>
-References: <alpine.DEB.2.20.1706291803380.1861@nanos> <20170630092747.GD22917@dhcp22.suse.cz> <alpine.DEB.2.20.1706301210210.1748@nanos> <3f2395c6-bbe0-23c1-fe06-d17ffbf619c3@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Jun 2017 06:08:16 -0700 (PDT)
+Date: Fri, 30 Jun 2017 15:08:13 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal
+ delivery
+Message-ID: <20170630130813.GA5738@redhat.com>
+References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
+ <20170627070643.GA28078@dhcp22.suse.cz>
+ <20170627153557.GB10091@rapoport-lnx>
+ <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com>
+ <20170628131806.GD10091@rapoport-lnx>
+ <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com>
+ <20170629080910.GC31603@dhcp22.suse.cz>
+ <936bde7b-1913-5589-22f4-9bbfdb6a8dd5@oracle.com>
+ <20170630094718.GE22917@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170630094718.GE22917@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "prakash.sangappa" <prakash.sangappa@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org, John Stultz <john.stultz@linaro.org>
 
-On Fri, 30 Jun 2017, Andrey Ryabinin wrote:
-> On 06/30/2017 01:15 PM, Thomas Gleixner wrote:
-> > On Fri, 30 Jun 2017, Michal Hocko wrote:
-> >> So I like this simplification a lot! Even if we can get rid of the
-> >> stop_machine eventually this patch would be an improvement. A short
-> >> comment on why the per-cpu semaphore over the regular one is better
-> >> would be nice.
-> > 
-> > Yes, will add one.
-> > 
-> > The main point is that the current locking construct is evading lockdep due
-> > to the ability to support recursive locking, which I did not observe so
-> > far.
-> > 
+On Fri, Jun 30, 2017 at 11:47:35AM +0200, Michal Hocko wrote:
+> [CC John, the thread started
+> http://lkml.kernel.org/r/9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com]
 > 
-> Like this?
+> On Thu 29-06-17 14:41:22, prakash.sangappa wrote:
+> > 
+> > 
+> > On 06/29/2017 01:09 AM, Michal Hocko wrote:
+> > >On Wed 28-06-17 11:23:32, Prakash Sangappa wrote:
+> > >>
+> > >>On 6/28/17 6:18 AM, Mike Rapoport wrote:
+> > >[...]
+> > >>>I've just been thinking that maybe it would be possible to use
+> > >>>UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
+> > >>>of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
+> > >>>non-cooperative userfaultfd. It could be that it will solve your issue as
+> > >>>well.
+> > >>>
+> > >>Will this result in a signal delivery?
+> > >>
+> > >>In the use case described, the database application does not need any event
+> > >>for  hole punching. Basically, just a signal for any invalid access to
+> > >>mapped area over holes in the file.
+> > >OK, but it would be better to think that through for other potential
+> > >usecases so that this doesn't end up as a single hugetlb feature. E.g.
+> > >what should happen if a regular anonymous memory gets swapped out?
+> > >Should we deliver signal as well? How does userspace tell whether this
+> > >was a no backing page from unavailable backing page?
+> > 
+> > This may not be useful in all cases. Potential, it could be used
+> > with use of mlock() on anonymous memory to ensure any access
+> > to memory that is not locked is caught, again for robustness
+> > purpose.
+> 
+> The thing I wanted to point out is that not only this should be a single
+> usecase thing (I believe others will pop out as well - see below) but it
+> should also be well defined as this is a user visible API. Please try to
+> write a patch to the userfaultfd man page to clarify the exact semantic.
+> This should help the further discussion.
+> 
+> As an aside, I rememeber that prior to MADV_FREE there was long
+> discussion about lazy freeing of memory from userspace. Some users
+> wanted to be signalled when their memory was freed by the system so that
+> they could rebuild the original content (e.g. uncompressed images in
+> memory). It seems like MADV_FREE + this signalling could be used for
+> that usecase. John would surely know more about those usecases.
 
-Cute.....
+That would provide an equivalent API to the one volatile pages
+provided agreed. So it would allow to adapt code (if any?) more easily
+to drop the duplicate feature in volatile pages code (however it would
+be faster if the userland code using volatile pages lazy reclaim mode
+was converted to poll the uffd so the kernel talks directly to the
+monitor without involving a SIGBUS signal handler which will cause
+spurious enter/exit if compared to signal-less uffd API).
 
-> [  131.023034] Call Trace:
-> [  131.023034]  dump_stack+0x85/0xc7
-> [  131.023034]  __lock_acquire+0x1747/0x17a0
-> [  131.023034]  ? lru_add_drain_all+0x3d/0x190
-> [  131.023034]  ? __mutex_lock+0x218/0x940
-> [  131.023034]  ? trace_hardirqs_on+0xd/0x10
-> [  131.023034]  lock_acquire+0x103/0x200
-> [  131.023034]  ? lock_acquire+0x103/0x200
-> [  131.023034]  ? lru_add_drain_all+0x42/0x190
-> [  131.023034]  cpus_read_lock+0x3d/0x80
-> [  131.023034]  ? lru_add_drain_all+0x42/0x190
-> [  131.023034]  lru_add_drain_all+0x42/0x190
-> [  131.023034]  __offline_pages.constprop.25+0x5de/0x870
-> [  131.023034]  offline_pages+0xc/0x10
-> [  131.023034]  memory_subsys_offline+0x43/0x70
-> [  131.023034]  device_offline+0x83/0xb0
-> [  131.023034]  store_mem_state+0xdb/0xe0
-> [  131.023034]  dev_attr_store+0x13/0x20
-> [  131.023034]  sysfs_kf_write+0x40/0x50
-> [  131.023034]  kernfs_fop_write+0x130/0x1b0
-> [  131.023034]  __vfs_write+0x23/0x130
-> [  131.023034]  ? rcu_read_lock_sched_held+0x6d/0x80
-> [  131.023034]  ? rcu_sync_lockdep_assert+0x2a/0x50
-> [  131.023034]  ? __sb_start_write+0xd4/0x1c0
-> [  131.023034]  ? vfs_write+0x1a8/0x1d0
-> [  131.023034]  vfs_write+0xc8/0x1d0
-> [  131.023034]  SyS_write+0x44/0xa0
+The main benefit in my view is not volatile pages but that
+UFFD_FEATURE_SIGBUS would work equally well to enforce robustness on
+all kind of memory not only hugetlbfs (so one could run the database
+with robustness on THP over tmpfs) and the new cache can be injected
+in the filesystem using UFFDIO_COPY which is likely faster than
+fallocate as UFFDIO_COPY was already demonstrated to be faster even
+than a regular page fault.
 
-Why didn't trigger that here? Bah, I should have become suspicious due to
-not seeing a splat ....
+It's also simpler to handle backwards compatibility with the
+UFFDIO_API call, that allows probing if UFFD_FEATURE_SIGBUS is
+supported by the running kernel regardless of kernel version (so it
+can be backported and enabled by the database, without the database
+noticing it's on a older kernel version).
 
-The patch below should cure that.
+So while this wasn't the intended way to use the userfault and I
+already pointed out the possibility to use a single monitor to do all
+this, I'm positive about UFFD_FEATURE_SIGBUS if the overhead of having
+a monitor is so concerning.
+
+Ultimately there are many pros and just a single cons: the branch in
+handle_userfault().
+
+I wonder if it would be possible to use static_branch_enable() in
+UFFDIO_API and static_branch_unlikely in handle_userfault() to
+eliminate that branch but perhaps it's overkill and UFFDIO_API is
+unprivileged and it would send an IPI to all CPUs. I don't think we
+normally expose the static_branch_enable() to unprivileged userland
+and making UFFD_FEATURE_SIGBUS a privileged op doesn't sound
+attractive (although the alternative of altering a hugetlbfs mount
+option would be a privileged op).
 
 Thanks,
-
-	tglx
-
-8<-------------------
-Subject: mm: Change cpuhotplug lock order in lru_add_drain_all()
-From: Thomas Gleixner <tglx@linutronix.de>
-Date: Fri, 30 Jun 2017 14:25:24 +0200
-
-Not-Yet-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- include/linux/swap.h |    1 +
- mm/memory_hotplug.c  |    4 ++--
- mm/swap.c            |   11 ++++++++---
- 3 files changed, 11 insertions(+), 5 deletions(-)
-
-Index: b/include/linux/swap.h
-===================================================================
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -277,6 +277,7 @@ extern void mark_page_accessed(struct pa
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
- extern void lru_add_drain_all(void);
-+extern void lru_add_drain_all_cpuslocked(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
- extern void mark_page_lazyfree(struct page *page);
-Index: b/mm/memory_hotplug.c
-===================================================================
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1860,7 +1860,7 @@ static int __ref __offline_pages(unsigne
- 		goto failed_removal;
- 	ret = 0;
- 	if (drain) {
--		lru_add_drain_all();
-+		lru_add_drain_all_cpuslocked();
- 		cond_resched();
- 		drain_all_pages(zone);
- 	}
-@@ -1881,7 +1881,7 @@ static int __ref __offline_pages(unsigne
- 		}
- 	}
- 	/* drain all zone's lru pagevec, this is asynchronous... */
--	lru_add_drain_all();
-+	lru_add_drain_all_cpuslocked();
- 	yield();
- 	/* drain pcp pages, this is synchronous. */
- 	drain_all_pages(zone);
-Index: b/mm/swap.c
-===================================================================
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -687,7 +687,7 @@ static void lru_add_drain_per_cpu(struct
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
--void lru_add_drain_all(void)
-+void lru_add_drain_all_cpuslocked(void)
- {
- 	static DEFINE_MUTEX(lock);
- 	static struct cpumask has_work;
-@@ -701,7 +701,6 @@ void lru_add_drain_all(void)
- 		return;
- 
- 	mutex_lock(&lock);
--	get_online_cpus();
- 	cpumask_clear(&has_work);
- 
- 	for_each_online_cpu(cpu) {
-@@ -721,10 +720,16 @@ void lru_add_drain_all(void)
- 	for_each_cpu(cpu, &has_work)
- 		flush_work(&per_cpu(lru_add_drain_work, cpu));
- 
--	put_online_cpus();
- 	mutex_unlock(&lock);
- }
- 
-+void lru_add_drain_all(void)
-+{
-+	get_online_cpus();
-+	lru_add_drain_all_cpuslocked();
-+	put_online_cpus();
-+}
-+
- /**
-  * release_pages - batched put_page()
-  * @pages: array of pages to release
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
