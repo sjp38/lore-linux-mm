@@ -1,125 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C37F46B0279
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 22:26:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g27so103435944pfj.6
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 19:26:28 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id f8si5268411pli.377.2017.06.29.19.26.27
-        for <linux-mm@kvack.org>;
-        Thu, 29 Jun 2017 19:26:27 -0700 (PDT)
-Date: Fri, 30 Jun 2017 11:26:26 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm -v2 0/6] mm, swap: VMA based swap readahead
-Message-ID: <20170630022626.GA25190@bbox>
-References: <20170630014443.23983-1-ying.huang@intel.com>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C2D636B0279
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 23:10:13 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id 195so36952447vkj.8
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:10:13 -0700 (PDT)
+Received: from mail-vk0-x22d.google.com (mail-vk0-x22d.google.com. [2607:f8b0:400c:c05::22d])
+        by mx.google.com with ESMTPS id d25si3409316uai.219.2017.06.29.20.10.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Jun 2017 20:10:12 -0700 (PDT)
+Received: by mail-vk0-x22d.google.com with SMTP id r125so60145045vkf.1
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:10:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170630014443.23983-1-ying.huang@intel.com>
+In-Reply-To: <20170629073509.623-3-mhocko@kernel.org>
+References: <20170629073509.623-1-mhocko@kernel.org> <20170629073509.623-3-mhocko@kernel.org>
+From: Wei Yang <richard.weiyang@gmail.com>
+Date: Fri, 30 Jun 2017 11:09:51 +0800
+Message-ID: <CADZGycaXs-TsVN2xy_rpFE_ML5_rs=iYN6ZQZsAfjTVHFyLyEQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Xishi Qiu <qiuxishi@huawei.com>, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi Huang,
+On Thu, Jun 29, 2017 at 3:35 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
 
-Ccing Johannes:
+Michal,
 
-I don't read this patch yet but I remember Johannes tried VMA-based
-readahead approach long time ago so he might have good comment.
+I love the idea very much.
 
-On Fri, Jun 30, 2017 at 09:44:37AM +0800, Huang, Ying wrote:
-> The swap readahead is an important mechanism to reduce the swap in
-> latency.  Although pure sequential memory access pattern isn't very
-> popular for anonymous memory, the space locality is still considered
-> valid.
-> 
-> In the original swap readahead implementation, the consecutive blocks
-> in swap device are readahead based on the global space locality
-> estimation.  But the consecutive blocks in swap device just reflect
-> the order of page reclaiming, don't necessarily reflect the access
-> pattern in virtual memory space.  And the different tasks in the
-> system may have different access patterns, which makes the global
-> space locality estimation incorrect.
-> 
-> In this patchset, when page fault occurs, the virtual pages near the
-> fault address will be readahead instead of the swap slots near the
-> fault swap slot in swap device.  This avoid to readahead the unrelated
-> swap slots.  At the same time, the swap readahead is changed to work
-> on per-VMA from globally.  So that the different access patterns of
-> the different VMAs could be distinguished, and the different readahead
-> policy could be applied accordingly.  The original core readahead
-> detection and scaling algorithm is reused, because it is an effect
-> algorithm to detect the space locality.
-> 
-> In addition to the swap readahead changes, some new sysfs interface is
-> added to show the efficiency of the readahead algorithm and some other
-> swap statistics.
-> 
-> This new implementation will incur more small random read, on SSD, the
-> improved correctness of estimation and readahead target should beat
-> the potential increased overhead, this is also illustrated in the test
-> results below.  But on HDD, the overhead may beat the benefit, so the
-> original implementation will be used by default.
-> 
-> The test and result is as follow,
-> 
-> Common test condition
-> =====================
-> 
-> Test Machine: Xeon E5 v3 (2 sockets, 72 threads, 32G RAM)
-> Swap device: NVMe disk
-> 
-> Micro-benchmark with combined access pattern
-> ============================================
-> 
-> vm-scalability, sequential swap test case, 4 processes to eat 50G
-> virtual memory space, repeat the sequential memory writing until 300
-> seconds.  The first round writing will trigger swap out, the following
-> rounds will trigger sequential swap in and out.
-> 
-> At the same time, run vm-scalability random swap test case in
-> background, 8 processes to eat 30G virtual memory space, repeat the
-> random memory write until 300 seconds.  This will trigger random
-> swap-in in the background.
-> 
-> This is a combined workload with sequential and random memory
-> accessing at the same time.  The result (for sequential workload) is
-> as follow,
-> 
-> 			Base		Optimized
-> 			----		---------
-> throughput		345413 KB/s	414029 KB/s (+19.9%)
-> latency.average		97.14 us	61.06 us (-37.1%)
-> latency.50th		2 us		1 us
-> latency.60th		2 us		1 us
-> latency.70th		98 us		2 us
-> latency.80th		160 us		2 us
-> latency.90th		260 us		217 us
-> latency.95th		346 us		369 us
-> latency.99th		1.34 ms		1.09 ms
-> ra_hit%			52.69%		99.98%
-> 
-> The original swap readahead algorithm is confused by the background
-> random access workload, so readahead hit rate is lower.  The VMA-base
-> readahead algorithm works much better.
-> 
-> Linpack
-> =======
-> 
-> The test memory size is bigger than RAM to trigger swapping.
-> 
-> 			Base		Optimized
-> 			----		---------
-> elapsed_time		393.49 s	329.88 s (-16.2%)
-> ra_hit%			86.21%		98.82%
-> 
-> The score of base and optimized kernel hasn't visible changes.  But
-> the elapsed time reduced and readahead hit rate improved, so the
-> optimized kernel runs better for startup and tear down stages.  And
-> the absolute value of readahead hit rate is high, shows that the space
-> locality is still valid in some practical workloads.
+> Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
+> to precede the Movable zone in the physical memory range. The purpose of
+> the movable zone is, however, not bound to any physical memory restriction.
+> It merely defines a class of migrateable and reclaimable memory.
+>
+> There are users (e.g. CMA) who might want to reserve specific physical
+> memory ranges for their own purpose. Moreover our pfn walkers have to be
+> prepared for zones overlapping in the physical range already because we
+> do support interleaving NUMA nodes and therefore zones can interleave as
+> well. This means we can allow each memory block to be associated with a
+> different zone.
+>
+> Loosen the current onlining semantic and allow explicit onlining type on
+> any memblock. That means that online_{kernel,movable} will be allowed
+> regardless of the physical address of the memblock as long as it is
+> offline of course. This might result in moveble zone overlapping with
+> other kernel zones. Default onlining then becomes a bit tricky but still
+
+As here mentioned, we just remove the restriction for zone_movable.
+For other zones, we still keep the restriction and the order as before.
+
+Maybe the title is a little misleading. Audience may thinks no restriction
+for all zones.
+
+> sensible. echo online > memoryXY/state will online the given block to
+>         1) the default zone if the given range is outside of any zone
+>         2) the enclosing zone if such a zone doesn't interleave with
+>            any other zone
+>         3) the default zone if more zones interleave for this range
+> where default zone is movable zone only if movable_node is enabled
+> otherwise it is a kernel zone.
+>
+> Here is an example of the semantic with (movable_node is not present but
+> it work in an analogous way). We start with following memblocks, all of
+> them offline
+> memory34/valid_zones:Normal Movable
+> memory35/valid_zones:Normal Movable
+> memory36/valid_zones:Normal Movable
+> memory37/valid_zones:Normal Movable
+> memory38/valid_zones:Normal Movable
+> memory39/valid_zones:Normal Movable
+> memory40/valid_zones:Normal Movable
+> memory41/valid_zones:Normal Movable
+>
+> Now, we online block 34 in default mode and block 37 as movable
+> root@test1:/sys/devices/system/node/node1# echo online > memory34/state
+> root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
+> memory34/valid_zones:Normal
+> memory35/valid_zones:Normal Movable
+> memory36/valid_zones:Normal Movable
+> memory37/valid_zones:Movable
+> memory38/valid_zones:Normal Movable
+> memory39/valid_zones:Normal Movable
+> memory40/valid_zones:Normal Movable
+> memory41/valid_zones:Normal Movable
+>
+> As we can see all other blocks can still be onlined both into Normal and
+> Movable zones and the Normal is default because the Movable zone spans
+> only block37 now.
+> root@test1:/sys/devices/system/node/node1# echo online_movable > memory41/state
+> memory34/valid_zones:Normal
+> memory35/valid_zones:Normal Movable
+> memory36/valid_zones:Normal Movable
+> memory37/valid_zones:Movable
+> memory38/valid_zones:Movable Normal
+> memory39/valid_zones:Movable Normal
+> memory40/valid_zones:Movable Normal
+> memory41/valid_zones:Movable
+>
+
+As I spotted on the previous patch, after several round of online/offline,
+The output of valid_zones will differ.
+
+For example in this case, after I offline memory37 and 41, I expect this:
+
+ memory34/valid_zones:Normal
+ memory35/valid_zones:Normal Movable
+ memory36/valid_zones:Normal Movable
+ memory37/valid_zones:Normal Movable
+ memory38/valid_zones:Normal Movable
+ memory39/valid_zones:Normal Movable
+ memory40/valid_zones:Normal Movable
+ memory41/valid_zones:Normal Movable
+
+While the current result would be
+
+ memory34/valid_zones:Normal
+ memory35/valid_zones:Normal Movable
+ memory36/valid_zones:Normal Movable
+ memory37/valid_zones:Movable Normal
+ memory38/valid_zones:Movable Normal
+ memory39/valid_zones:Movable Normal
+ memory40/valid_zones:Movable Normal
+ memory41/valid_zones:Movable Normal
+
+The reason is the same, we don't adjust the zone's range when offline
+memory.
+
+This is also a known issue?
+
+> Now the default zone for blocks 37-41 has changed because movable zone
+> spans that range.
+> root@test1:/sys/devices/system/node/node1# echo online_kernel > memory39/state
+> memory34/valid_zones:Normal
+> memory35/valid_zones:Normal Movable
+> memory36/valid_zones:Normal Movable
+> memory37/valid_zones:Movable
+> memory38/valid_zones:Normal Movable
+> memory39/valid_zones:Normal
+> memory40/valid_zones:Movable Normal
+> memory41/valid_zones:Movable
+>
+> Note that the block 39 now belongs to the zone Normal and so block38
+> falls into Normal by default as well.
+>
+> For completness
+> root@test1:/sys/devices/system/node/node1# for i in memory[34]?
+> do
+>         echo online > $i/state 2>/dev/null
+> done
+>
+> memory34/valid_zones:Normal
+> memory35/valid_zones:Normal
+> memory36/valid_zones:Normal
+> memory37/valid_zones:Movable
+> memory38/valid_zones:Normal
+> memory39/valid_zones:Normal
+> memory40/valid_zones:Movable
+> memory41/valid_zones:Movable
+>
+> Implementation wise the change is quite straightforward. We can get rid
+> of allow_online_pfn_range altogether. online_pages allows only offline
+> nodes already. The original default_zone_for_pfn will become
+> default_kernel_zone_for_pfn. New default_zone_for_pfn implements the
+> above semantic. zone_for_pfn_range is slightly reorganized to implement
+> kernel and movable online type explicitly and MMOP_ONLINE_KEEP becomes
+> a catch all default behavior.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
