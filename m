@@ -1,63 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AE236B02C3
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 03:09:04 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 4so37609174wrc.15
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 00:09:04 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E7216B02F4
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 03:21:49 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u110so37546527wrb.14
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 00:21:49 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q48si5386679wrb.280.2017.06.30.00.09.02
+        by mx.google.com with ESMTPS id q84si2909311wme.115.2017.06.30.00.21.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 30 Jun 2017 00:09:03 -0700 (PDT)
-Date: Fri, 30 Jun 2017 09:08:54 +0200
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: git send-email (w/o Cc: stable)
-Message-ID: <20170630070833.rwevr2yvp4wwo3ou@pd.tnic>
-References: <20170616190200.6210-1-tony.luck@intel.com>
- <20170619180147.qolal6mz2wlrjbxk@pd.tnic>
- <20170621174740.npbtg2e4o65tyrss@intel.com>
- <20170622093904.ajzoi43vlkejqgi3@pd.tnic>
- <20170629221136.xbybfjb7tyloswf3@intel.com>
+        Fri, 30 Jun 2017 00:21:47 -0700 (PDT)
+Date: Fri, 30 Jun 2017 09:21:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: convert three more cases to kvmalloc
+Message-ID: <20170630072142.GA19931@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1706282317480.11892@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170629071046.GA31603@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1706292205110.21823@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170629221136.xbybfjb7tyloswf3@intel.com>
+In-Reply-To: <alpine.LRH.2.02.1706292205110.21823@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yazen Ghannam <yazen.ghannam@amd.com>, git@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-On Thu, Jun 29, 2017 at 03:11:37PM -0700, Luck, Tony wrote:
-> So there is a "--cc-cmd" option that can do the same as those "-cc" arguments.
-> Combine that with --suppress-cc=bodycc and things get a bit more automated.
+On Thu 29-06-17 22:13:26, Mikulas Patocka wrote:
+> 
+> 
+> On Thu, 29 Jun 2017, Michal Hocko wrote:
+[...]
+> > > Index: linux-2.6/kernel/bpf/syscall.c
+> > > ===================================================================
+> > > --- linux-2.6.orig/kernel/bpf/syscall.c
+> > > +++ linux-2.6/kernel/bpf/syscall.c
+> > > @@ -58,16 +58,7 @@ void *bpf_map_area_alloc(size_t size)
+> > >  	 * trigger under memory pressure as we really just want to
+> > >  	 * fail instead.
+> > >  	 */
+> > > -	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
+> > > -	void *area;
+> > > -
+> > > -	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
+> > > -		area = kmalloc(size, GFP_USER | flags);
+> > > -		if (area != NULL)
+> > > -			return area;
+> > > -	}
+> > > -
+> > > -	return __vmalloc(size, GFP_KERNEL | flags, PAGE_KERNEL);
+> > > +	return kvmalloc(size, GFP_USER | __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO);
+> > 
+> > kvzalloc without additional flags would be more appropriate.
+> > __GFP_NORETRY is explicitly documented as non-supported
+> 
+> How is __GFP_NORETRY non-supported?
 
-Yeah, whatever works for you.
+Because its semantic cannot be guaranteed throughout the alloaction
+stack. vmalloc will ignore it e.g. for page table allocations.
 
-I did play with cc-cmd somewhat but can't be bothered to generate the CC
-list per hand each time.
+> > and NOWARN wouldn't be applied everywhere in the vmalloc path.
+> 
+> __GFP_NORETRY and __GFP_NOWARN wouldn't be applied in the page-table 
+> allocation and they would be applied in the page allocation - that seems 
+> acceptable.
 
-I'd prefer if that switch:
-
-	--suppress-cc=<category>
-
-had the obvious <category> of single email address too:
-
-	--suppress-cc=stable@vger.kernel.org
-
-so that we can send patches and unconditionally suppress only that
-single recipient from the CC list.
-
-And maybe there is a way...
-
-Let me CC the git ML.
-
+This is rather muddy semantic to me. Both page table and the page is an
+order-0 allocation. Page table allocations are much less likely but I've
+explicitly documented that explicit __GFP_NORETRY is unsupported. Slab
+allocation is already __GFP_NORETRY (unless you specify
+__GFP_RETRY_MAYFAIL in the current mmotm tree).
 -- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
