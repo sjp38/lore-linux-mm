@@ -1,75 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B375B2802FE
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:20:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 12so6292318wmn.1
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 02:20:47 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j19si3255076wmi.49.2017.06.30.02.20.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D5E72802FE
+	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:27:51 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l81so6299585wmg.8
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 02:27:51 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n184si9989866wmn.34.2017.06.30.02.27.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jun 2017 02:20:45 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v5U9IlUY122893
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:20:43 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bd6tdvwaq-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 30 Jun 2017 05:20:43 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Fri, 30 Jun 2017 10:20:41 +0100
-Date: Fri, 30 Jun 2017 12:20:31 +0300
-In-Reply-To: <1497939652-16528-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1497939652-16528-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 30 Jun 2017 02:27:49 -0700 (PDT)
+Date: Fri, 30 Jun 2017 11:27:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
+Message-ID: <20170630092747.GD22917@dhcp22.suse.cz>
+References: <alpine.DEB.2.20.1706291803380.1861@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Re: [PATCH 0/7] userfaultfd: enable zeropage support for shmem
-From: Mike Rapoprt <rppt@linux.vnet.ibm.com>
-Message-Id: <221EB91B-4491-4737-BD8B-FE983E1084A4@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1706291803380.1861@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Hi,
+[CC Vladimir and Heiko who were touching this area lately]
 
-Any updates/comments?
+On Thu 29-06-17 18:11:15, Thomas Gleixner wrote:
+> Andrey reported a potential deadlock with the memory hotplug lock and the
+> cpu hotplug lock.
+> 
+> The reason is that memory hotplug takes the memory hotplug lock and then
+> calls stop_machine() which calls get_online_cpus(). That's the reverse lock
+> order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
 
+I always considered the stop_machine usage there totally gross. But
+never had time to look into it properly. Memory hotplug locking is a
+story of its own.
+ 
+> The problem has been there forever. The reason why this was never reported
+> is that the cpu hotplug locking had this homebrewn recursive reader writer
+> semaphore construct which due to the recursion evaded the full lock dep
+> coverage. The memory hotplug code copied that construct verbatim and
+> therefor has similar issues.
+> 
+> Two steps to fix this:
+> 
+> 1) Convert the memory hotplug locking to a per cpu rwsem so the potential
+>    issues get reported proper by lockdep.
+> 
+> 2) Lock the online cpus in mem_hotplug_begin() before taking the memory
+>    hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
+>    to avoid recursive locking.
 
-On June 20, 2017 9:20:45 AM GMT+03:00, Mike Rapoport <rppt@linux=2Evnet=2E=
-ibm=2Ecom> wrote:
->Hi,
->
->These patches enable support for UFFDIO_ZEROPAGE for shared memory=2E
->
->The first two patches are not strictly related to userfaultfd, they are
->just minor refactoring to reduce amount of code duplication=2E
->
->Mike Rapoport (7):
->shmem: shmem_charge: verify max_block is not exceeded before inode
->update
->  shmem: introduce shmem_inode_acct_block
->userfaultfd: shmem: add shmem_mfill_zeropage_pte for userfaultfd
->support
->  userfaultfd: mcopy_atomic: introduce mfill_atomic_pte helper
->  userfaultfd: shmem: wire up shmem_mfill_zeropage_pte
->  userfaultfd: report UFFDIO_ZEROPAGE as available for shmem VMAs
->  userfaultfd: selftest: enable testing of UFFDIO_ZEROPAGE for shmem
->
-> fs/userfaultfd=2Ec                         |  10 +-
-> include/linux/shmem_fs=2Eh                 |   6 ++
->mm/shmem=2Ec                               | 167
->+++++++++++++++++--------------
-> mm/userfaultfd=2Ec                         |  48 ++++++---
-> tools/testing/selftests/vm/userfaultfd=2Ec |   2 +-
-> 5 files changed, 136 insertions(+), 97 deletions(-)
+So I like this simplification a lot! Even if we can get rid of the
+stop_machine eventually this patch would be an improvement. A short
+comment on why the per-cpu semaphore over the regular one is better
+would be nice.
 
---=20
-Sent from my Android device with K-9 Mail=2E Please excuse my brevity=2E
+I cannot give my ack yet, I have to mull over the patch some
+more because this has been an area of subtle bugs (especially
+the lock dependency with the hotplug device locking - look at
+lock_device_hotplug_sysfs if you dare) but it looks good from the first
+look. Give me few days, please.
+
+> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> ---
+> 
+> Note 1:
+>  Applies against -next or
+>      
+>    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/hotplug
+> 
+>  which contains the hotplug locking rework including stop_machine_cpuslocked()
+> 
+> Note 2:
+> 
+>  Most of the call sites of get_online_mems() are also calling get_online_cpus().
+> 
+>  So we could switch the whole machinery to use the CPU hotplug locking for
+>  protecting both memory and CPU hotplug. That actually works and removes
+>  another 40 lines of code.
+> 
+> ---
+>  mm/memory_hotplug.c |   85 +++++++---------------------------------------------
+>  mm/page_alloc.c     |    2 -
+>  2 files changed, 14 insertions(+), 73 deletions(-)
+> 
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -52,32 +52,17 @@ static void generic_online_page(struct p
+>  static online_page_callback_t online_page_callback = generic_online_page;
+>  static DEFINE_MUTEX(online_page_callback_lock);
+>  
+> -/* The same as the cpu_hotplug lock, but for memory hotplug. */
+> -static struct {
+> -	struct task_struct *active_writer;
+> -	struct mutex lock; /* Synchronizes accesses to refcount, */
+> -	/*
+> -	 * Also blocks the new readers during
+> -	 * an ongoing mem hotplug operation.
+> -	 */
+> -	int refcount;
+> +DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
+>  
+> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
+> -	struct lockdep_map dep_map;
+> -#endif
+> -} mem_hotplug = {
+> -	.active_writer = NULL,
+> -	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
+> -	.refcount = 0,
+> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
+> -	.dep_map = {.name = "mem_hotplug.lock" },
+> -#endif
+> -};
+> +void get_online_mems(void)
+> +{
+> +	percpu_down_read(&mem_hotplug_lock);
+> +}
+>  
+> -/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
+> -#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
+> -#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+> -#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+> +void put_online_mems(void)
+> +{
+> +	percpu_up_read(&mem_hotplug_lock);
+> +}
+>  
+>  #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
+>  bool memhp_auto_online;
+> @@ -97,60 +82,16 @@ static int __init setup_memhp_default_st
+>  }
+>  __setup("memhp_default_state=", setup_memhp_default_state);
+>  
+> -void get_online_mems(void)
+> -{
+> -	might_sleep();
+> -	if (mem_hotplug.active_writer == current)
+> -		return;
+> -	memhp_lock_acquire_read();
+> -	mutex_lock(&mem_hotplug.lock);
+> -	mem_hotplug.refcount++;
+> -	mutex_unlock(&mem_hotplug.lock);
+> -
+> -}
+> -
+> -void put_online_mems(void)
+> -{
+> -	if (mem_hotplug.active_writer == current)
+> -		return;
+> -	mutex_lock(&mem_hotplug.lock);
+> -
+> -	if (WARN_ON(!mem_hotplug.refcount))
+> -		mem_hotplug.refcount++; /* try to fix things up */
+> -
+> -	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
+> -		wake_up_process(mem_hotplug.active_writer);
+> -	mutex_unlock(&mem_hotplug.lock);
+> -	memhp_lock_release();
+> -
+> -}
+> -
+> -/* Serializes write accesses to mem_hotplug.active_writer. */
+> -static DEFINE_MUTEX(memory_add_remove_lock);
+> -
+>  void mem_hotplug_begin(void)
+>  {
+> -	mutex_lock(&memory_add_remove_lock);
+> -
+> -	mem_hotplug.active_writer = current;
+> -
+> -	memhp_lock_acquire();
+> -	for (;;) {
+> -		mutex_lock(&mem_hotplug.lock);
+> -		if (likely(!mem_hotplug.refcount))
+> -			break;
+> -		__set_current_state(TASK_UNINTERRUPTIBLE);
+> -		mutex_unlock(&mem_hotplug.lock);
+> -		schedule();
+> -	}
+> +	cpus_read_lock();
+> +	percpu_down_write(&mem_hotplug_lock);
+>  }
+>  
+>  void mem_hotplug_done(void)
+>  {
+> -	mem_hotplug.active_writer = NULL;
+> -	mutex_unlock(&mem_hotplug.lock);
+> -	memhp_lock_release();
+> -	mutex_unlock(&memory_add_remove_lock);
+> +	percpu_up_write(&mem_hotplug_lock);
+> +	cpus_read_unlock();
+>  }
+>  
+>  /* add this memory to iomem resource */
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5216,7 +5216,7 @@ void __ref build_all_zonelists(pg_data_t
+>  #endif
+>  		/* we have to stop all cpus to guarantee there is no user
+>  		   of zonelist */
+> -		stop_machine(__build_all_zonelists, pgdat, NULL);
+> +		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
+>  		/* cpuset refresh routine should be here */
+>  	}
+>  	vm_total_pages = nr_free_pagecache_pages();
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
