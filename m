@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4629A6B02C3
-	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:45:36 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g27so101691533pfj.6
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 17:45:36 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id g4si5106352pln.186.2017.06.29.17.45.35
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 477C06B02C3
+	for <linux-mm@kvack.org>; Thu, 29 Jun 2017 20:49:44 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f17so4806519wmd.11
+        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 17:49:44 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j14si4937090wrb.98.2017.06.29.17.49.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jun 2017 17:45:35 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id e199so14978893pfh.0
-        for <linux-mm@kvack.org>; Thu, 29 Jun 2017 17:45:35 -0700 (PDT)
-Date: Fri, 30 Jun 2017 09:45:24 +0900
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: display allowed zones in the
- preferred ordering
-Message-ID: <20170630004522.GA13062@js1304-desktop>
-References: <20170629073509.623-1-mhocko@kernel.org>
- <20170629073509.623-2-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170629073509.623-2-mhocko@kernel.org>
+        Thu, 29 Jun 2017 17:49:43 -0700 (PDT)
+Date: Thu, 29 Jun 2017 17:49:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] cma: fix calculation of aligned offset
+Message-Id: <20170629174940.e985ba7e57f9501db5873b3c@linux-foundation.org>
+In-Reply-To: <b9185ff5-1468-4605-36c7-c856e830b9e2@gmail.com>
+References: <20170628170742.2895-1-opendmb@gmail.com>
+	<20170629134810.3a5b09dbdea001cca72080ce@linux-foundation.org>
+	<b9185ff5-1468-4605-36c7-c856e830b9e2@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Doug Berger <opendmb@gmail.com>
+Cc: Gregory Fong <gregory.0xf0@gmail.com>, Angus Clark <angus@angusclark.org>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Lucas Stach <l.stach@pengutronix.de>, Catalin Marinas <catalin.marinas@arm.com>, Shiraz Hashim <shashim@codeaurora.org>, Jaewon Kim <jaewon31.kim@samsung.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 29, 2017 at 09:35:08AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Thu, 29 Jun 2017 17:43:18 -0700 Doug Berger <opendmb@gmail.com> wrote:
+
+> On 06/29/2017 01:48 PM, Andrew Morton wrote:
+> > On Wed, 28 Jun 2017 10:07:41 -0700 Doug Berger <opendmb@gmail.com> wrote:
+> > 
+> >> The align_offset parameter is used by bitmap_find_next_zero_area_off()
+> >> to represent the offset of map's base from the previous alignment
+> >> boundary; the function ensures that the returned index, plus the
+> >> align_offset, honors the specified align_mask.
+> >>
+> >> The logic introduced by commit b5be83e308f7 ("mm: cma: align to
+> >> physical address, not CMA region position") has the cma driver
+> >> calculate the offset to the *next* alignment boundary.  In most cases,
+> >> the base alignment is greater than that specified when making
+> >> allocations, resulting in a zero offset whether we align up or down.
+> >> In the example given with the commit, the base alignment (8MB) was
+> >> half the requested alignment (16MB) so the math also happened to work
+> >> since the offset is 8MB in both directions.  However, when requesting
+> >> allocations with an alignment greater than twice that of the base,
+> >> the returned index would not be correctly aligned.
+> >>
+> >> Also, the align_order arguments of cma_bitmap_aligned_mask() and
+> >> cma_bitmap_aligned_offset() should not be negative so the argument
+> >> type was made unsigned.
+> > 
+> > The changelog doesn't describe the user-visible effects of the bug.  It
+> > should do so please, so that others can decide which kernel(s) need the fix.
+> > 
+> > Since the bug has been there for three years, I'll assume that -stable
+> > backporting is not needed.
+> > 
+> I'm afraid I'm confused by what you are asking me to do since it appears
+> that you have already signed-off on this patch.
 > 
-> Prior to "mm, memory_hotplug: do not associate hotadded memory to zones
-> until online" we used to allow to change the valid zone types of a
-> memory block if it is adjacent to a different zone type. This fact was
-> reflected in memoryNN/valid_zones by the ordering of printed zones.
-> The first one was default (echo online > memoryNN/state) and the other
-> one could be onlined explicitly by online_{movable,kernel}. This
-> behavior was removed by the said patch and as such the ordering was
-> not all that important. In most cases a kernel zone would be default
-> anyway. The only exception is movable_node handled by "mm,
-> memory_hotplug: support movable_node for hotpluggable nodes".
+> The direct user-visible effect of the bug is that if the user requests a
+> CMA allocation that is aligned with a granule that is more than twice
+> the base alignment of the CMA region she will receive an allocation that
+> does not have that alignment.
 > 
-> Let's reintroduce this behavior again because later patch will remove
-> the zone overlap restriction and so user will be allowed to online
-> kernel resp. movable block regardless of its placement. Original
-> behavior will then become significant again because it would be
-> non-trivial for users to see what is the default zone to online into.
+> As I indicated to Gregory, the follow-on consequences of the address not
+> satisfying the required alignment depend on why the alignment was
+> requested.  In our case it was a system crash, but it could also
+> manifest as data corruption on a network interface for example.
 > 
-> Implementation is really simple. Pull out zone selection out of
-> move_pfn_range into zone_for_pfn_range helper and use it in
-> show_valid_zones to display the zone for default onlining and then
-> both kernel and movable if they are allowed. Default online zone is not
-> duplicated.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> In general I would expect it to be unusual for anyone to request an
+> allocation alignment that is larger than the CMA base alignment which is
+> probably why the bug has been hiding for three years.
 > 
 
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Thanks.
+OK, it sounds like it isn't very critical so I'll remove the cc:stable
+and the patch will appear in 4.12 and no earlier kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
