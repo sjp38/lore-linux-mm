@@ -1,84 +1,116 @@
-From: Tetsuo Handa <penguin-kernel-JPay3/Yim36HaxMnTkn67Xf5DAMn2ifp@public.gmane.org>
-Subject: Re: [v3 1/6] mm, oom: use oom_victims counter to synchronize oom victim selection
-Date: Fri, 23 Jun 2017 06:52:20 +0900
-Message-ID: <201706230652.FDH69263.OtOLFSFMHFOQJV@I-love.SAKURA.ne.jp>
-References: <1498079956-24467-1-git-send-email-guro@fb.com>
-        <1498079956-24467-2-git-send-email-guro@fb.com>
-        <201706220040.v5M0eSnK074332@www262.sakura.ne.jp>
-        <20170622165858.GA30035@castle>
-        <201706230537.IDB21366.SQHJVFOOFOMFLt@I-love.SAKURA.ne.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <cgroups-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
-In-Reply-To: <201706230537.IDB21366.SQHJVFOOFOMFLt-JPay3/Yim36HaxMnTkn67Xf5DAMn2ifp@public.gmane.org>
-Sender: cgroups-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
-To: guro-b10kYP2dOMg@public.gmane.org
-Cc: linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, mhocko-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, vdavydov.dev-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, hannes-druUgvl0LCNAfugRpC6u6w@public.gmane.org, tj-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, kernel-team-b10kYP2dOMg@public.gmane.org, cgroups-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, penguin-kernel-JPay3/Yim36HaxMnTkn67Xf5DAMn2ifp@public.gmane.org
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED142802FE
+	for <linux-mm@kvack.org>; Sat,  1 Jul 2017 00:49:33 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id v76so61902895qka.5
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 21:49:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 66si9399693qkz.120.2017.06.30.21.49.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Jun 2017 21:49:31 -0700 (PDT)
+Date: Sat, 1 Jul 2017 00:49:21 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
+In-Reply-To: <884F0682-1AF6-4C23-806F-480C86A2A036@dilger.ca>
+Message-ID: <alpine.LRH.2.02.1707010048180.27681@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com> <884F0682-1AF6-4C23-806F-480C86A2A036@dilger.ca>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Michal Hocko <mhocko@kernel.org>, Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-Tetsuo Handa wrote:
-> Roman Gushchin wrote:
-> > On Thu, Jun 22, 2017 at 09:40:28AM +0900, Tetsuo Handa wrote:
-> > > Roman Gushchin wrote:
-> > > > --- a/mm/oom_kill.c
-> > > > +++ b/mm/oom_kill.c
-> > > > @@ -992,6 +992,13 @@ bool out_of_memory(struct oom_control *oc)
-> > > >  	if (oom_killer_disabled)
-> > > >  		return false;
-> > > >  
-> > > > +	/*
-> > > > +	 * If there are oom victims in flight, we don't need to select
-> > > > +	 * a new victim.
-> > > > +	 */
-> > > > +	if (atomic_read(&oom_victims) > 0)
-> > > > +		return true;
-> > > > +
-> > > >  	if (!is_memcg_oom(oc)) {
-> > > >  		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> > > >  		if (freed > 0)
-> > > 
-> > > The OOM reaper is not available for CONFIG_MMU=n kernels, and timeout based
-> > > giveup is not permitted, but a multithreaded process might be selected as
-> > > an OOM victim. Not setting TIF_MEMDIE to all threads sharing an OOM victim's
-> > > mm increases possibility of preventing some OOM victim thread from terminating
-> > > (e.g. one of them cannot leave __alloc_pages_slowpath() with mmap_sem held for
-> > > write due to waiting for the TIF_MEMDIE thread to call exit_oom_victim() when
-> > > the TIF_MEMDIE thread is waiting for the thread with mmap_sem held for write).
+
+
+On Fri, 30 Jun 2017, Andreas Dilger wrote:
+
+> On Jun 29, 2017, at 8:25 PM, Mikulas Patocka <mpatocka@redhat.com> wrote:
 > > 
-> > I agree, that CONFIG_MMU=n is a special case, and the proposed approach can't
-> > be used directly. But can you, please, why do you find the first  chunk wrong?
+> > The __vmalloc function has a parameter gfp_mask with the allocation flags,
+> > however it doesn't fully respect the GFP_NOIO and GFP_NOFS flags. The
+> > pages are allocated with the specified gfp flags, but the pagetables are
+> > always allocated with GFP_KERNEL. This allocation can cause unexpected
+> > recursion into the filesystem or I/O subsystem.
+> > 
+> > It is not practical to extend page table allocation routines with gfp
+> > flags because it would require modification of architecture-specific code
+> > in all architecturs. However, the process can temporarily request that all
+> > allocations are done with GFP_NOFS or GFP_NOIO with with the functions
+> > memalloc_nofs_save and memalloc_noio_save.
+> > 
+> > This patch makes the vmalloc code use memalloc_nofs_save or
+> > memalloc_noio_save if the supplied gfp flags do not contain __GFP_FS or
+> > __GFP_IO. It fixes some possible deadlocks in drivers/mtd/ubi/io.c,
+> > fs/gfs2/, fs/btrfs/free-space-tree.c, fs/ubifs/,
+> > fs/nfs/blocklayout/extent_tree.c where __vmalloc is used with the GFP_NOFS
+> > flag.
+> > 
+> > The patch also simplifies code in dm-bufio.c, dm-ioctl.c and fs/xfs/kmem.c
+> > by removing explicit calls to memalloc_nofs_save and memalloc_noio_save
+> > before the call to __vmalloc.
+> > 
+> > Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> > 
+> > ---
+> > drivers/md/dm-bufio.c |   24 +-----------------------
+> > drivers/md/dm-ioctl.c |    6 +-----
+> > fs/xfs/kmem.c         |   14 --------------
+> > mm/util.c             |    6 +++---
+> > mm/vmalloc.c          |   18 +++++++++++++++++-
+> > 5 files changed, 22 insertions(+), 46 deletions(-)
+> > 
+> > Index: linux-2.6/mm/vmalloc.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/vmalloc.c
+> > +++ linux-2.6/mm/vmalloc.c
+> > @@ -31,6 +31,7 @@
+> > #include <linux/compiler.h>
+> > #include <linux/llist.h>
+> > #include <linux/bitops.h>
+> > +#include <linux/sched/mm.h>
+> > 
+> > #include <linux/uaccess.h>
+> > #include <asm/tlbflush.h>
+> > @@ -1670,6 +1671,8 @@ static void *__vmalloc_area_node(struct
+> > 	unsigned int nr_pages, array_size, i;
+> > 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+> > 	const gfp_t alloc_mask = gfp_mask | __GFP_HIGHMEM | __GFP_NOWARN;
+> > +	unsigned noio_flag;
+> > +	int r;
+> > 
+> > 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
+> > 	array_size = (nr_pages * sizeof(struct page *));
+> > @@ -1712,8 +1715,21 @@ static void *__vmalloc_area_node(struct
+> > 			cond_resched();
+> > 	}
+> > 
+> > -	if (map_vm_area(area, prot, pages))
+> > +	if (unlikely(!(gfp_mask & __GFP_IO)))
+> > +		noio_flag = memalloc_noio_save();
+> > +	else if (unlikely(!(gfp_mask & __GFP_FS)))
+> > +		noio_flag = memalloc_nofs_save();
+> > +
+> > +	r = map_vm_area(area, prot, pages);
+> > +
+> > +	if (unlikely(!(gfp_mask & __GFP_IO)))
+> > +		memalloc_noio_restore(noio_flag);
+> > +	else if (unlikely(!(gfp_mask & __GFP_FS)))
+> > +		memalloc_nofs_restore(noio_flag);
 > 
-> Since you are checking oom_victims before checking task_will_free_mem(current),
-> only one thread can get TIF_MEMDIE. This is where a multithreaded OOM victim without
-> the OOM reaper can get stuck forever.
+> Is this really an "else if"?  I think it should just a separate "if".
+> 
+> Cheers, Andreas
 
-Oops, I misinterpreted. This is where a multithreaded OOM victim with or without
-the OOM reaper can get stuck forever. Think about a process with two threads is
-selected by the OOM killer and only one of these two threads can get TIF_MEMDIE.
+It is meant to be "else if". memalloc_noio_save() implies 
+memalloc_nofs_save(). If we call memalloc_noio_save(), there's no need to 
+call memalloc_nofs_save().
 
-  Thread-1                 Thread-2                 The OOM killer           The OOM reaper
+Mikulas
 
-                           Calls down_write(&current->mm->mmap_sem).
-  Enters __alloc_pages_slowpath().
-                           Enters __alloc_pages_slowpath().
-  Takes oom_lock.
-  Calls out_of_memory().
-                                                    Selects Thread-1 as an OOM victim.
-  Gets SIGKILL.            Gets SIGKILL.
-  Gets TIF_MEMDIE.
-  Releases oom_lock.
-  Leaves __alloc_pages_slowpath() because Thread-1 has TIF_MEMDIE.
-                                                                             Takes oom_lock.
-                                                                             Will do nothing because down_read_trylock() fails.
-                                                                             Releases oom_lock.
-                                                                             Gives up and sets MMF_OOM_SKIP after one second.
-                           Takes oom_lock.
-                           Calls out_of_memory().
-                           Will not check MMF_OOM_SKIP because Thread-1 still has TIF_MEMDIE. // <= get stuck waiting for Thread-1.
-                           Releases oom_lock.
-                           Will not leave __alloc_pages_slowpath() because Thread-2 does not have TIF_MEMDIE.
-                           Will not call up_write(&current->mm->mmap_sem).
-  Reaches do_exit().
-  Calls down_read(&current->mm->mmap_sem) in exit_mm() in do_exit(). // <= get stuck waiting for Thread-2.
-  Will not call up_read(&current->mm->mmap_sem) in exit_mm() in do_exit().
-  Will not clear TIF_MEMDIE in exit_oom_victim() in exit_mm() in do_exit().
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
