@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 590FB2802FE
-	for <linux-mm@kvack.org>; Sat,  1 Jul 2017 02:14:03 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 76so143896501pgh.11
-        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 23:14:03 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTP id q23si7228565pgc.114.2017.06.30.23.14.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07622280301
+	for <linux-mm@kvack.org>; Sat,  1 Jul 2017 02:27:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d62so138402445pfb.13
+        for <linux-mm@kvack.org>; Fri, 30 Jun 2017 23:27:53 -0700 (PDT)
+Received: from out30-40.freemail.mail.aliyun.com (out30-40.freemail.mail.aliyun.com. [115.124.30.40])
+        by mx.google.com with ESMTP id i9si8152200plk.574.2017.06.30.23.27.52
         for <linux-mm@kvack.org>;
-        Fri, 30 Jun 2017 23:14:02 -0700 (PDT)
+        Fri, 30 Jun 2017 23:27:53 -0700 (PDT)
 From: zbestahu@aliyun.com
 Subject: [PATCH] mm: vmpressure: simplify pressure ratio calculation
-Date: Sat,  1 Jul 2017 14:13:39 +0800
-Message-Id: <1498889619-3933-1-git-send-email-zbestahu@aliyun.com>
+Date: Sat,  1 Jul 2017 14:27:39 +0800
+Message-Id: <1498890459-3983-1-git-send-email-zbestahu@aliyun.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, minchan@kernel.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yue Hu <huyue2@coolpad.com>
+Cc: linux-mm@kvack.org, Yue Hu <huyue2@coolpad.com>
 
 From: Yue Hu <huyue2@coolpad.com>
 
