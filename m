@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C55C06B0292
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 09:50:10 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q38so41699821qtq.4
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 06:50:10 -0700 (PDT)
-Received: from mail-qt0-x236.google.com (mail-qt0-x236.google.com. [2607:f8b0:400d:c0d::236])
-        by mx.google.com with ESMTPS id m4si14956007qke.80.2017.07.03.06.50.09
+	by kanga.kvack.org (Postfix) with ESMTP id C509A6B02B4
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 09:52:39 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id h47so86877665qta.12
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 06:52:39 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id 12si3472207qtf.152.2017.07.03.06.52.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jul 2017 06:50:09 -0700 (PDT)
-Received: by mail-qt0-x236.google.com with SMTP id 32so143639811qtv.1
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 06:50:09 -0700 (PDT)
-Date: Mon, 3 Jul 2017 09:50:07 -0400
+        Mon, 03 Jul 2017 06:52:38 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id v143so11225614qkb.3
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 06:52:38 -0700 (PDT)
+Date: Mon, 3 Jul 2017 09:52:37 -0400
 From: Josef Bacik <josef@toxicpanda.com>
 Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
  calculation
-Message-ID: <20170703135006.GC27097@destiny>
+Message-ID: <20170703135236.GD27097@destiny>
 References: <1496949546-2223-1-git-send-email-jbacik@fb.com>
  <20170613052802.GA16061@bbox>
  <20170613120156.GA16003@destiny>
@@ -25,18 +25,19 @@ References: <1496949546-2223-1-git-send-email-jbacik@fb.com>
  <20170627135931.GA14097@destiny>
  <20170630021713.GB24520@bbox>
  <20170630150322.GB9743@destiny>
- <20170703013303.GA2567@bbox>
+ <20170702015843.GA17762@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170703013303.GA2567@bbox>
+In-Reply-To: <20170702015843.GA17762@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, mhocko@kernel.org, cl@linux.com, david@fromorbit.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: Josef Bacik <josef@toxicpanda.com>, Minchan Kim <minchan@kernel.org>, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, mhocko@kernel.org, cl@linux.com
 
-On Mon, Jul 03, 2017 at 10:33:03AM +0900, Minchan Kim wrote:
-> Hello,
+On Sun, Jul 02, 2017 at 11:58:43AM +1000, Dave Chinner wrote:
+> [I don't have the full context, haven't seen the proposed patches,
+> etc so I'm only commenting on small bits of what I was cc'd on]
 > 
 > On Fri, Jun 30, 2017 at 11:03:24AM -0400, Josef Bacik wrote:
 > > On Fri, Jun 30, 2017 at 11:17:13AM +0900, Minchan Kim wrote:
@@ -63,116 +64,79 @@ On Mon, Jul 03, 2017 at 10:33:03AM +0900, Minchan Kim wrote:
 > > memory reclaim, so we get into this shitty situation of aging+reclaiming at the
 > > same time.
 > 
-> What's different with normal page cache problem?
+> To me, this sounds like the problem that needs fixing. i.e.
+> threshold detection to trigger demand-based aging of shrinkable
+> caches at allocation time rather than waiting for memory pressure to
+> trigger aging.
 > 
-
-What's different is reclaiming a page from pagecache gives you a page,
-reclaiming 10k objects from slab may only give you one page if you are super
-unlucky.  I'm nothing in life if I'm not unlucky.
-
-> It has the same problem you mentioned so need to peek what VM does to
-> address it.
-> 
-> It has two LRU list, active and inactive and maintain the size ratio 1:1.
-> New page is on inactive and if they are two-touched, the page will be
-> promoted into active list which is same problem.
-> However, once reclaim is triggered, VM will can move quickly them from
-> active to inactive with remove referenced flag untill the ratio is matched.
-> So, VM can reclaim pages from inactive list, easily.
-> 
-> Can we apply similar mechanism into the problematical slab?
-> How about adding shrink_slab(xxx, ACTIVE|INACTIVE) in somewhere of VM
-> for demotion of objects from active list and adding the logic to move
-> inactive object to active list when the cache hit happens to the FS?
-> 
-
-I did this too!  This worked out ok, but was a bit complex and the problem was
-solved just as well by dropping the INUSE first approach.  I think that Dave's
-approach to having a separate aging mechanism is a good compliment to these
-patches.
-
-> > 
-> > > > scan some of it, then some more, then some more, then finally we get priority
-> > > > down enough that we scan a huge swatch of the list enough to start reclaiming
-> > > > objects.
-> > > > 
-> > > > With the usage ratio in place it's based on actual system usage, so we waste
-> > > > less time dropping the priority and spend more time actively trying to free
-> > > > objects.
-> > > 
-> > > However, I think your idea is too much agressive.
-> > > 
-> > >         100M LRU, 1000M SLAB
-> > > 
-> > > With your idea, it scans 10 times of all objects in shrinker which ends up
-> > > reclaim every slab pages, I guess.
-> > > 
-> > 
-> > No, we have limits in do_shrink_slab, so in this case we will limit the scan
-> > count to twice the LRU size, which accounts for this INUSE design pattern
-> 
-> Aha, it sounds logical. Twice of the LRU size is enough to sweep out all
-> objects. First round, remove INUSE flag, second round, free objects?
-> IOW, If LRU size is half of slab in your logic, it could reclaim all slab
-> objects.
-> 
-> > everybody loves.  Plus we have the early bailout logic so when we reclaim enough
-> > we are done, we don't just reclaim the whole thing.
-> 
-> I cannot see what bailout logic you are saying.
-> Once shrink_slab with big gap of #slab/#LRU in your logic is called,
-> it could reclaim every objects in every shrinkers.
-> 
-> > 
-> > > I think your idea comes from some of slab shrinker as you mentioned.
 > > > I guess at the first time, all of objects in shrinker could be INUSE state
 > > > as you said, however, on steady state, they would work like real LRU
 > > > to reflect recency, otherwise, I want to call it broken and we shouldn't
 > > > design general slab aging model for those specific one.
-> > > 
 > > 
 > > Yeah that's totally a valid argument to make, but the idea of coming up with
 > > something completely different hurts my head, and I'm trying to fix this problem
 > > right now, not in 6 cycles when we all finally agree on the new mechanism.
-> > 
-> > > > 
-> > > > And keep in mind this is the first patch, that sets the baseline.  The next
-> > > > patch makes it so we don't even really use this ratio that often, we use the
-> > > > ratio of changed slab pages to changed inactive pages, so that can be even more
-> > > > agressive.
-> > > 
-> > > Intentionally, I didn't read your next patch because without clear understanding
-> > > of prior patch, it's hard to digest second one so wanted to discuss this one
-> > > first. However, if second patch makes the situation better, I will read but
-> > > doubt because you said it would make more aggressive which is my concern.
-> > > 
-> > 
-> > Right so it adjusts the aggressiveness on the change in slab vs inactive lru
-> > size, so if we're generating a lot of slab pages and no inactive pages then
-> > it'll look just as agressive.
-> > 
-> > I think you're getting too scared of the scale of aggressiveness these numbers
-> > generate.  We have a bunch of logic to trim down these numbers to reasonable
-> > scan targets and to bail out when we've hit our reclaim target.  We end up with
-> > bonkers numbers in bonkers situations, and these numbers are curtailed to
-> > reasonable things later on, so the initial pass isn't that important.  What _is_
-> > important is that we are actually agressive enough, because right now we aren't
-> > and it hurts badly.  We can be overly agressive because we have checks in place
-> > to back off.
 > 
-> Sorry but I cannot see what kinds of bailout logics you are saying.
-> Please elaborate it a bit. I hope it would be in general VM logic,
-> not FS sepecic.
+> Add a shrinker callback to the slab allocation code that checks the
+> rate of growth of the cache. If the cache is growing fast and
+> getting large, run the shrinker every so often to slow down the rate
+> of growth. The larger the cache, the slower the allowed rate of
+> growth. It's the feedback loop that we are missing between slab
+> allocation and slab reclaim that prevents use from controlling slab
+> cache growthi and aging cleanly.
+> 
+> This would also allow us to cap the size of caching slabs easily
+> - something people have been asking us to do for years....
+> 
+> Note: we need to make a clear distinction between slabs used as
+> "heap" memory and slabs used for allocating large numbers of objects
+> that are cached for performance reasons. The problem here is cache
+> management - the fact we are using slabs to allocate the memory for
+> the objects is largely irrelevant...
+> 
+> > > > I expanded on this above, but I'll give a more concrete example.  Consider xfs
+> > > > metadata, we allocate a slab object and read in our page, use it, and then free
+> > > > the buffer which put's it on the lru list.  XFS marks this with a INUSE flag,
+> > > > which must be cleared before it is free'd from the LRU.  We scan through the
+> > > > LRU, clearing the INUSE flag and moving the object to the back of the LRU, but
+> > > > not actually free'ing it.  This happens for all (well most) objects that end up
+> > > > on the LRU, and this design pattern is used _everywhere_.  Until recently it was
+> > > > used for the super shrinkers, but I changed that so thankfully the bulk of the
+> > > > problem is gone.  However if you do a find / -exec stat {} \;, and then do it
+> > > > again, you'll end up with the same scenario for the super shrinker.   There's no
+> > > > aging except via pressure on the slabs, so worst case we always have to scan the
+> > > > entire slab object lru once before we start reclaiming anything.  Being
+> > > > agressive here I think is ok, we have things in place to make sure we don't over
+> > > > reclaim.
+> > > 
+> > > Thanks for the detail example. Now I understood but the question is it is
+> > > always true? I mean at the first stage(ie, first population of objects), it
+> > > seems to be but at the steady stage, I guess some of objects have INUSE,
+> > > others not by access pattern so it emulates LRU model. No?
+> > > 
+> > 
+> > Sort of.  Lets take icache/dcache.  We open a file and close a file, this get's
+> > added to the LRU.  We open the file and close the file again, it's already on
+> > the LRU so it stays where it was and gets the INUSE flag set.  Once an object is
+> > on the LRU it doesn't move unless we hit it via the shrinker.  Even if we open
+> > and close the file, and then open and keep it open, the file stays on the LRU,
+> > and is only removed once the shrinker hits it, sees it's refcount is > 1, and
+> > removes it from the list.
+> 
+> Yes, but  the lazy LRU removal is a performance feature - the cost
+> in terms of lock contention of removing dentries inodes from the LRU
+> on first reference is prohibitive, especially for short term usage
+> like 'find / -exec stat {} \;' workloads. Git does this sort of
+> traverse/stat a lot, so making this path any slower would make lots
+> of people unhappy...
 >
 
-Jesus I'm sorry Minchan, I've done so many different things trying to solve this
-problem I've bled together what the code looks like and other things I've done.
-I had at some point in the past moved the bailout code to do_shrink_slab to keep
-us from over-reclaiming slab, but I dropped them at some point but just went on
-thinking thats how it all worked.  I'll respin these patches and add the early
-bailout conditions as well to address this problem.  Sorry again,
+Sure we want it when it's useful, but often times it ends up in latencies due to
+reclaim.  I like your aging thing, it would definitely help in our worst case,
+I'll give that a whirl after my vacation.  Thanks,
 
-Josef
+Josef 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
