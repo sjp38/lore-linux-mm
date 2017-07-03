@@ -1,300 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6074F6B02B4
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 10:15:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j79so201216651pfj.9
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 07:15:10 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id q67si12196584pfi.204.2017.07.03.07.15.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFE26B0292
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 10:18:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 130so14792045wmq.4
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 07:18:05 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r41si11998747wrb.298.2017.07.03.07.18.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jul 2017 07:15:09 -0700 (PDT)
-From: Matthew Auld <matthew.auld@intel.com>
-Subject: [PATCH 02/21] drm/i915: introduce simple gemfs
-Date: Mon,  3 Jul 2017 15:14:44 +0100
-Message-Id: <20170703141503.12609-3-matthew.auld@intel.com>
-In-Reply-To: <20170703141503.12609-1-matthew.auld@intel.com>
-References: <20170703141503.12609-1-matthew.auld@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Jul 2017 07:18:03 -0700 (PDT)
+Subject: Re: "mm: use early_pfn_to_nid in page_ext_init" broken on some
+ configurations?
+From: Vlastimil Babka <vbabka@suse.cz>
+References: <20170630141847.GN22917@dhcp22.suse.cz>
+ <54336b9a-6dc7-890f-1900-c4188fb6cf1a@suse.cz>
+Message-ID: <bfec3bba-8e15-8156-9ae2-01b1c6319a16@suse.cz>
+Date: Mon, 3 Jul 2017 16:18:01 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <54336b9a-6dc7-890f-1900-c4188fb6cf1a@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Yang Shi <yang.shi@linaro.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Not a fully blown gemfs, just our very own tmpfs kernel mount. Doing so
-moves us away from the shmemfs shm_mnt, and gives us the much needed
-flexibility to do things like set our own mount options, namely huge=
-which should allow us to enable the use of transparent-huge-pages for
-our shmem backed objects.
+On 07/03/2017 01:48 PM, Vlastimil Babka wrote:
+> On 06/30/2017 04:18 PM, Michal Hocko wrote:
+>> fe53ca54270a ("mm: use early_pfn_to_nid in page_ext_init") seem
+>> to silently depend on CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID resp.
+>> CONFIG_HAVE_MEMBLOCK_NODE_MAP. early_pfn_to_nid is returning zero with
+>> !defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) && !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
+>> I am not sure how widely is this used but such a code is tricky. I see
+>> how catching early allocations during defered initialization might be
+>> useful but a subtly broken code sounds like a problem to me.  So is
+>> fe53ca54270a worth this or we should revert it?
+> 
+> There might be more issues with fe53ca54270a, I think. This I've
+> observed on our 4.4-based kernel, which has deferred page struct init,
+> but doesn't have b8f1a75d61d8 ("mm: call page_ext_init() after all
+> struct pages are initialized") nor aforementioned fe53ca54270a:
+> 
+> [    0.000000] allocated 421003264 bytes of page_ext
+> [    0.000000] Node 0, zone      DMA: page owner found early allocated 0 pages
+> [    0.000000] Node 0, zone    DMA32: page owner found early allocated 33 pages
+> [    0.000000] Node 0, zone   Normal: page owner found early allocated 2842622 pages
+> [    0.000000] BUG: unable to handle kernel NULL pointer dereference at           (null)
+> [    0.000000] IP: [<ffffffff811f090a>] init_page_owner+0x12a/0x240
+> [    0.000000] PGD 0 
+> [    0.000000] Oops: 0000 [#1] SMP 
+> [    0.000000] Modules linked in:
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.4.74+ #7
+> [    0.000000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
+> [    0.000000] task: ffffffff81e104c0 ti: ffffffff81e00000 task.ti: ffffffff81e00000
+> [    0.000000] RIP: 0010:[<ffffffff811f090a>]  [<ffffffff811f090a>] init_page_owner+0x12a/0x240
+> [    0.000000] RSP: 0000:ffffffff81e03ed0  EFLAGS: 00010046
+> [    0.000000] RAX: 0000000000000000 RBX: ffff88083ffe0210 RCX: ffffea0013000000
+> [    0.000000] RDX: 0000000000000300 RSI: ffffffff81f57437 RDI: 00000000004c0000
+> [    0.000000] RBP: ffffffff81e03f20 R08: ffffffff81e03e90 R09: 0000000000000000
+> [    0.000000] R10: 00000000004c0200 R11: 0000000000000000 R12: ffffea0000000000
+> [    0.000000] R13: 00000000004c0200 R14: 00000000004c0000 R15: 0000000000840000
+> [    0.000000] FS:  0000000000000000(0000) GS:ffff88042fc00000(0000) knlGS:0000000000000000
+> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [    0.000000] CR2: 0000000000000000 CR3: 0000000001e0b000 CR4: 00000000000406b0
+> [    0.000000] Stack:
+> [    0.000000]  0000000000000206 ffff88083ffe0f90 ffff88083ffdf000 0000000000003181
+> [    0.000000]  ffffea0013000000 0000000000000040 ffffea0000000000 0000000000840000
+> [    0.000000]  0000000000840000 000000008e000010 ffffffff81e03f50 ffffffff81f84145
+> [    0.000000] Call Trace:
+> [    0.000000]  [<ffffffff81f84145>] page_ext_init+0x15e/0x167
+> [    0.000000]  [<ffffffff81f57e6a>] start_kernel+0x351/0x418
+> [    0.000000]  [<ffffffff81f57120>] ? early_idt_handler_array+0x120/0x120
+> [    0.000000]  [<ffffffff81f57309>] x86_64_start_reservations+0x2a/0x2c
+> [    0.000000]  [<ffffffff81f57437>] x86_64_start_kernel+0x12c/0x13b
+> [    0.000000] Code: 81 e2 00 fe ff ff 4d 39 fa 4d 0f 47 d7 4d 39 f2 4d 89 d5 77 34 eb 5e 48 8b 01 f6 c4 04 75 21 48 89 cf 48 89 4d d0 e8 b6 35 00 00 <48> 8b 00 a8 04 75 0e 48 8b 4d d0 e9 c2 00 00 00 48 83 45 c8 01 
+> [    0.000000] RIP  [<ffffffff811f090a>] init_page_owner+0x12a/0x240
+> [    0.000000]  RSP <ffffffff81e03ed0>
+> [    0.000000] CR2: 0000000000000000
+> [    0.000000] ---[ end trace 19e05592f03a690f ]---
+> 
+> Note that this is different backtrace than in b8f1a75d61d8 log.
+> 
+> Still, backporting b8f1a75d61d8 fixes this:
+> 
+> [    1.538379] allocated 738197504 bytes of page_ext
+> [    1.539340] Node 0, zone      DMA: page owner found early allocated 0 pages
+> [    1.540179] Node 0, zone    DMA32: page owner found early allocated 33 pages
+> [    1.611173] Node 0, zone   Normal: page owner found early allocated 96755 pages
+> [    1.683167] Node 1, zone   Normal: page owner found early allocated 96575 pages
+> 
+> No panic, notice how it allocated more for page_ext, and found smaller number of
+> early allocated pages.
+> 
+> Now backporting fe53ca54270a on top:
+> 
+> [    0.000000] allocated 738197504 bytes of page_ext
+> [    0.000000] Node 0, zone      DMA: page owner found early allocated 0 pages
+> [    0.000000] Node 0, zone    DMA32: page owner found early allocated 33 pages
+> [    0.000000] Node 0, zone   Normal: page owner found early allocated 2842622 pages
+> [    0.000000] Node 1, zone   Normal: page owner found early allocated 3694362 pages
+> 
+> Again no panic, and same amount of page_ext usage. But the "early allocated" numbers
+> seem bogus to me. I think it's because init_pages_in_zone() is running and inspecting
+> struct pages that have not been yet initialized. It doesn't end up crashing, but
+> still doesn't seem correct?
 
-v2: various improvements suggested by Joonas
+Hmm, and for the record, this is recent mainline. Wonder why the "early
+allocated" looks much more sane there. But there's a warning nevertheless.
 
-v3: move gemfs instance to i915.mm and simplify now that we have
-file_setup_with_mnt
+[    0.001000] allocated 201326592 bytes of page_ext
+[    0.001000] ------------[ cut here ]------------
+[    0.001000] WARNING: CPU: 0 PID: 0 at mm/page_alloc.c:2467 drain_all_pages+0x1a9/0x1d0
+[    0.001000] Modules linked in:
+[    0.001000] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.12.0-rc7+ #179
+[    0.001000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.0.0-prebuilt.qemu-project.org 04/01/2014
+[    0.001000] task: ffffffff8200f4c0 task.stack: ffffffff82000000
+[    0.001000] RIP: 0010:drain_all_pages+0x1a9/0x1d0
+[    0.001000] RSP: 0000:ffffffff82003e18 EFLAGS: 00010246
+[    0.001000] RAX: ffffffff8200f4c0 RBX: 0000000000000040 RCX: 0000000000000000
+[    0.001000] RDX: ffffffff8200f4c0 RSI: 0000000000000000 RDI: 0000000000000000
+[    0.001000] RBP: ffffffff82003e80 R08: 0000000000000040 R09: 0000000000000001
+[    0.001000] R10: 0000000000000080 R11: ffffffff81086356 R12: 0000000000840000
+[    0.001000] R13: 0000000000000040 R14: 0000000000840000 R15: 000000008e000010
+[    0.001000] FS:  0000000000000000(0000) GS:ffff88042fc00000(0000) knlGS:0000000000000000
+[    0.001000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    0.001000] CR2: 00000000ffffffff CR3: 000000000200a000 CR4: 00000000000406b0
+[    0.001000] Call Trace:
+[    0.001000]  ? init_page_owner+0x39/0x250
+[    0.001000]  ? printk+0x3e/0x46
+[    0.001000]  page_ext_init+0x195/0x19e
+[    0.001000]  start_kernel+0x31a/0x3dc
+[    0.001000]  ? early_idt_handler_array+0x120/0x120
+[    0.001000]  x86_64_start_reservations+0x2a/0x2c
+[    0.001000]  x86_64_start_kernel+0x12d/0x13c
+[    0.001000]  secondary_startup_64+0x9f/0x9f
+[    0.001000] Code: 52 82 48 63 d2 e8 a8 09 26 00 3b 05 d6 fb fa 00 89 c3 7c cd 48 c7 c7 c0 02 06 82 e8 b2 05 87 00 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> ff c3 4d 85 e4 74 ed 48 c7 c7 c0 02 06 82 e8 83 0b 87 00 e9 
+[    0.001000] ---[ end trace 392dd6a55122ccf6 ]---
+[    0.001000] Node 0, zone      DMA: page owner found early allocated 0 pages
+[    0.001000] Node 0, zone    DMA32: page owner found early allocated 33 pages
+[    0.001000] Node 0, zone   Normal: page owner found early allocated 24732 pages
+[    0.001000] Node 1, zone   Normal: page owner found early allocated 24577 pages
 
-Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
----
- drivers/gpu/drm/i915/Makefile                    |  1 +
- drivers/gpu/drm/i915/i915_drv.h                  |  3 ++
- drivers/gpu/drm/i915/i915_gem.c                  | 34 +++++++++++++++-
- drivers/gpu/drm/i915/i915_gemfs.c                | 52 ++++++++++++++++++++++++
- drivers/gpu/drm/i915/i915_gemfs.h                | 34 ++++++++++++++++
- drivers/gpu/drm/i915/selftests/mock_gem_device.c | 10 ++++-
- 6 files changed, 131 insertions(+), 3 deletions(-)
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.c
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.h
 
-diff --git a/drivers/gpu/drm/i915/Makefile b/drivers/gpu/drm/i915/Makefile
-index f8227318dcaf..29e3cfdf56ce 100644
---- a/drivers/gpu/drm/i915/Makefile
-+++ b/drivers/gpu/drm/i915/Makefile
-@@ -46,6 +46,7 @@ i915-y += i915_cmd_parser.o \
- 	  i915_gem_tiling.o \
- 	  i915_gem_timeline.o \
- 	  i915_gem_userptr.o \
-+	  i915_gemfs.o \
- 	  i915_trace_points.o \
- 	  i915_vma.o \
- 	  intel_breadcrumbs.o \
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index 0029bb949e90..f36ebd2e1e5a 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -1442,6 +1442,9 @@ struct i915_gem_mm {
- 	/** Usable portion of the GTT for GEM */
- 	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
- 
-+	/** tmpfs instance used for shmem backed objects */
-+	struct vfsmount *gemfs;
-+
- 	/** PPGTT used for aliasing the PPGTT with the GTT */
- 	struct i915_hw_ppgtt *aliasing_ppgtt;
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 1b2dfa8bdeef..509e5fc4af56 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -35,6 +35,7 @@
- #include "intel_drv.h"
- #include "intel_frontbuffer.h"
- #include "intel_mocs.h"
-+#include "i915_gemfs.h"
- #include <linux/dma-fence-array.h>
- #include <linux/kthread.h>
- #include <linux/reservation.h>
-@@ -4289,6 +4290,25 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
- 	.pwrite = i915_gem_object_pwrite_gtt,
- };
- 
-+static int i915_gem_object_create_shmem(struct drm_device *dev,
-+					struct drm_gem_object *obj,
-+					size_t size)
-+{
-+	struct drm_i915_private *i915 = to_i915(dev);
-+	struct file *filp;
-+
-+	drm_gem_private_object_init(dev, obj, size);
-+
-+	filp = shmem_file_setup_with_mnt(i915->mm.gemfs, "i915", size,
-+					 VM_NORESERVE);
-+	if (IS_ERR(filp))
-+		return PTR_ERR(filp);
-+
-+	obj->filp = filp;
-+
-+	return 0;
-+}
-+
- struct drm_i915_gem_object *
- i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- {
-@@ -4312,7 +4332,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- 	if (obj == NULL)
- 		return ERR_PTR(-ENOMEM);
- 
--	ret = drm_gem_object_init(&dev_priv->drm, &obj->base, size);
-+	ret = i915_gem_object_create_shmem(&dev_priv->drm, &obj->base, size);
- 	if (ret)
- 		goto fail;
- 
-@@ -4888,7 +4908,13 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
- int
- i915_gem_load_init(struct drm_i915_private *dev_priv)
- {
--	int err = -ENOMEM;
-+	int err;
-+
-+	err = i915_gemfs_init(dev_priv);
-+	if (err)
-+		return err;
-+
-+	err = -ENOMEM;
- 
- 	dev_priv->objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
- 	if (!dev_priv->objects)
-@@ -4954,6 +4980,8 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
- err_objects:
- 	kmem_cache_destroy(dev_priv->objects);
- err_out:
-+	i915_gemfs_fini(dev_priv);
-+
- 	return err;
- }
- 
-@@ -4976,6 +5004,8 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
- 
- 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
- 	rcu_barrier();
-+
-+	i915_gemfs_fini(dev_priv);
- }
- 
- int i915_gem_freeze(struct drm_i915_private *dev_priv)
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.c b/drivers/gpu/drm/i915/i915_gemfs.c
-new file mode 100644
-index 000000000000..168d0bd98f60
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.c
-@@ -0,0 +1,52 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#include <linux/fs.h>
-+#include <linux/mount.h>
-+
-+#include "i915_drv.h"
-+#include "i915_gemfs.h"
-+
-+int i915_gemfs_init(struct drm_i915_private *i915)
-+{
-+	struct file_system_type *type;
-+	struct vfsmount *gemfs;
-+
-+	type = get_fs_type("tmpfs");
-+	if (!type)
-+		return -ENODEV;
-+
-+	gemfs = kern_mount(type);
-+	if (IS_ERR(gemfs))
-+		return PTR_ERR(gemfs);
-+
-+	i915->mm.gemfs = gemfs;
-+
-+	return 0;
-+}
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915)
-+{
-+	kern_unmount(i915->mm.gemfs);
-+}
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.h b/drivers/gpu/drm/i915/i915_gemfs.h
-new file mode 100644
-index 000000000000..cca8bdc5b93e
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.h
-@@ -0,0 +1,34 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#ifndef __I915_GEMFS_H__
-+#define __I915_GEMFS_H__
-+
-+struct drm_i915_private;
-+
-+int i915_gemfs_init(struct drm_i915_private *i915);
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915);
-+
-+#endif
-diff --git a/drivers/gpu/drm/i915/selftests/mock_gem_device.c b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-index 47613d20bba8..0ac4efd5c7a2 100644
---- a/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-+++ b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-@@ -81,6 +81,8 @@ static void mock_device_release(struct drm_device *dev)
- 	kmem_cache_destroy(i915->vmas);
- 	kmem_cache_destroy(i915->objects);
- 
-+	i915_gemfs_fini(i915);
-+
- 	drm_dev_fini(&i915->drm);
- 	put_device(&i915->drm.pdev->dev);
- }
-@@ -168,9 +170,13 @@ struct drm_i915_private *mock_gem_device(void)
- 
- 	i915->gt.awake = true;
- 
-+	err = i915_gemfs_init(i915);
-+	if (err)
-+		goto err_wq;
-+
- 	i915->objects = KMEM_CACHE(mock_object, SLAB_HWCACHE_ALIGN);
- 	if (!i915->objects)
--		goto err_wq;
-+		goto err_gemfs;
- 
- 	i915->vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
- 	if (!i915->vmas)
-@@ -228,6 +234,8 @@ struct drm_i915_private *mock_gem_device(void)
- 	kmem_cache_destroy(i915->vmas);
- err_objects:
- 	kmem_cache_destroy(i915->objects);
-+err_gemfs:
-+	i915_gemfs_fini(i915);
- err_wq:
- 	destroy_workqueue(i915->wq);
- put_device:
--- 
-2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
