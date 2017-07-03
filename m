@@ -1,70 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 616F16B0292
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 15:57:26 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id f49so44009781wrf.5
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 12:57:26 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id r13si2726950wmd.92.2017.07.03.12.57.23
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 29A326B02C3
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 17:14:25 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d78so95632008qkb.0
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 14:14:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c77si15294067qkb.328.2017.07.03.14.14.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Jul 2017 12:57:23 -0700 (PDT)
-Date: Mon, 3 Jul 2017 21:57:18 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-In-Reply-To: <20170703163204.GE11848@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1707032156320.2993@nanos>
-References: <alpine.DEB.2.20.1706291803380.1861@nanos> <20170630092747.GD22917@dhcp22.suse.cz> <alpine.DEB.2.20.1706301210210.1748@nanos> <20170703163204.GE11848@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jul 2017 14:14:24 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [PATCH 0/5] Cache coherent device memory (CDM) with HMM v3
+Date: Mon,  3 Jul 2017 17:14:10 -0400
+Message-Id: <20170703211415.11283-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Mon, 3 Jul 2017, Michal Hocko wrote:
-> On Fri 30-06-17 12:15:21, Thomas Gleixner wrote:
-> [...]
-> > Sure. Just to make you to mull over more stuff, find below the patch which
-> > moves all of this to use the cpuhotplug lock.
-> > 
-> > Thanks,
-> > 
-> > 	tglx
-> > 
-> > 8<--------------------
-> > Subject: mm/memory-hotplug: Use cpu hotplug lock
-> > From: Thomas Gleixner <tglx@linutronix.de>
-> > Date: Thu, 29 Jun 2017 16:30:00 +0200
-> > 
-> > Most place which take the memory hotplug lock take the cpu hotplug lock as
-> > well. Avoid the double locking and use the cpu hotplug lock for both.
-> 
-> Hmm, I am usually not a fan of locks conflating because it is then less
-> clear what the lock actually protects. Memory and cpu hotplugs should
-> be largely independent so I am not sure this patch simplify things a
-> lot. It is nice to see few lines go away but I am little bit worried
-> that we will enventually develop a separate locking again in future for
-> some weird memory hotplug usecases.
+Only Kconfig and comments changes since since v2, git tree:
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v3
 
-Fair enough.
 
->  
-> > Not-Yet-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> [...]
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> [...]
-> > @@ -2138,7 +2114,7 @@ void __ref remove_memory(int nid, u64 st
-> >  
-> >  	try_offline_node(nid);
-> >  
-> > -	mem_hotplug_done();
-> > +	cpus_write_lock();
-> 
-> unlock you meant here, right?
+Cache coherent device memory apply to architecture with system bus
+like CAPI or CCIX. Device connected to such system bus can expose
+their memory to the system and allow cache coherent access to it
+from the CPU.
 
-Doh, -ENOQUILTREFRESH
+Even if for all intent and purposes device memory behave like regular
+memory, we still want to manage it in isolation from regular memory.
+Several reasons for that, first and foremost this memory is less
+reliable than regular memory if the device hangs because of invalid
+commands we can loose access to device memory. Second CPU access to
+this memory is expected to be slower than to regular memory. Third
+having random memory into device means that some of the bus bandwith
+wouldn't be available to the device but would be use by CPU access.
+
+This is why we want to manage such memory in isolation from regular
+memory. Kernel should not try to use this memory as last resort
+when running out of memory, at least for now.
+
+This patchset add a new type of ZONE_DEVICE memory (DEVICE_PUBLIC)
+that is use to represent CDM memory. This patchset build on top of
+the HMM patchset that already introduce a new type of ZONE_DEVICE
+memory for private device memory (see HMM patchset).
+
+The end result is that with this patch if a device is in use in
+a process you might have private anonymous memory or file back
+page memory using ZONE_DEVICE (MEMORY_PUBLIC). Thus care must be
+taken to not overwritte lru fields of such pages.
+
+Hence all core mm changes are done to address assumption that any
+process memory is back by a regular struct page that is part of
+the lru. ZONE_DEVICE page are not on the lru and the lru pointer
+of struct page are use to store device specific informations.
+
+Thus this patch update all code path that would make assumptions
+about lruness of a process page.
+
+patch 01 - consolidate naming of different device memory type
+patch 02 - deals with all the core mm functions
+patch 03 - add an helper to HMM for hotplug of CDM memory
+patch 04 - preparatory patch for memory controller changes
+patch 05 - update memory controller to properly handle
+           ZONE_DEVICE pages when uncharging
+
+Previous posting:
+v1 https://lkml.org/lkml/2017/4/7/638
+v2 https://lwn.net/Articles/725412/
+
+JA(C)rA'me Glisse (5):
+  mm/persistent-memory: match IORES_DESC name and enum memory_type one
+  mm/device-public-memory: device memory cache coherent with CPU v2
+  mm/hmm: add new helper to hotplug CDM memory region
+  mm/memcontrol: allow to uncharge page without using page->lru field
+  mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC
+
+ fs/proc/task_mmu.c       |   2 +-
+ include/linux/hmm.h      |   7 +-
+ include/linux/ioport.h   |   1 +
+ include/linux/memremap.h |  25 +++++-
+ include/linux/mm.h       |  16 ++--
+ kernel/memremap.c        |  15 +++-
+ mm/Kconfig               |  11 +++
+ mm/gup.c                 |   7 ++
+ mm/hmm.c                 |  89 +++++++++++++++++--
+ mm/madvise.c             |   2 +-
+ mm/memcontrol.c          | 226 ++++++++++++++++++++++++++++++-----------------
+ mm/memory.c              |  46 ++++++++--
+ mm/migrate.c             |  60 ++++++++-----
+ mm/swap.c                |  11 +++
+ 14 files changed, 389 insertions(+), 129 deletions(-)
+
+-- 
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
