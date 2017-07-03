@@ -1,94 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B66166B0279
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 02:31:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u23so9200015wma.14
-        for <linux-mm@kvack.org>; Sun, 02 Jul 2017 23:31:23 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AEAD6B0279
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 03:44:22 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id j85so17938840wmj.2
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 00:44:22 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t18si10868324wrb.195.2017.07.02.23.31.21
+        by mx.google.com with ESMTPS id k34si11465234wre.244.2017.07.03.00.44.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 02 Jul 2017 23:31:22 -0700 (PDT)
-Date: Mon, 3 Jul 2017 08:31:18 +0200
+        Mon, 03 Jul 2017 00:44:21 -0700 (PDT)
+Date: Mon, 3 Jul 2017 09:44:17 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
-Message-ID: <20170703062905.GB3217@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
- <20170630081245.GA22917@dhcp22.suse.cz>
- <alpine.LRH.2.02.1706301410160.8272@file01.intranet.prod.int.rdu2.redhat.com>
- <20170630204059.GA17255@dhcp22.suse.cz>
- <alpine.LRH.2.02.1706302033230.13879@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
+Message-ID: <20170703074417.GC3217@dhcp22.suse.cz>
+References: <1498890459-3983-1-git-send-email-zbestahu@aliyun.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1706302033230.13879@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <1498890459-3983-1-git-send-email-zbestahu@aliyun.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: zbestahu@aliyun.com
+Cc: akpm@linux-foundation.org, minchan@kernel.org, linux-mm@kvack.org, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-On Fri 30-06-17 20:36:12, Mikulas Patocka wrote:
-> 
-> 
-> On Fri, 30 Jun 2017, Michal Hocko wrote:
-> 
-> > On Fri 30-06-17 14:11:57, Mikulas Patocka wrote:
-> > > 
-> > > 
-> > > On Fri, 30 Jun 2017, Michal Hocko wrote:
-> > > 
-> > > > On Thu 29-06-17 22:25:09, Mikulas Patocka wrote:
-> > > > > The __vmalloc function has a parameter gfp_mask with the allocation flags,
-> > > > > however it doesn't fully respect the GFP_NOIO and GFP_NOFS flags. The
-> > > > > pages are allocated with the specified gfp flags, but the pagetables are
-> > > > > always allocated with GFP_KERNEL. This allocation can cause unexpected
-> > > > > recursion into the filesystem or I/O subsystem.
-> > > > > 
-> > > > > It is not practical to extend page table allocation routines with gfp
-> > > > > flags because it would require modification of architecture-specific code
-> > > > > in all architecturs. However, the process can temporarily request that all
-> > > > > allocations are done with GFP_NOFS or GFP_NOIO with with the functions
-> > > > > memalloc_nofs_save and memalloc_noio_save.
-> > > > > 
-> > > > > This patch makes the vmalloc code use memalloc_nofs_save or
-> > > > > memalloc_noio_save if the supplied gfp flags do not contain __GFP_FS or
-> > > > > __GFP_IO. It fixes some possible deadlocks in drivers/mtd/ubi/io.c,
-> > > > > fs/gfs2/, fs/btrfs/free-space-tree.c, fs/ubifs/,
-> > > > > fs/nfs/blocklayout/extent_tree.c where __vmalloc is used with the GFP_NOFS
-> > > > > flag.
-> > > > 
-> > > > I strongly believe this is a step in the _wrong_ direction. Why? Because
-> > > 
-> > > What do you think __vmalloc with GFP_NOIO should do? Print a warning? 
-> > > Silently ignore the GFP_NOIO flag?
-> > 
-> > I think noio users are not that much different from nofs users. Simply
-> > use the scope API at the place where the scope starts and document why
-> > it is needed. vmalloc calls do not have to be any special then and they
-> > do not even have to think about proper gfp flags and they can use
-> > whatever is the default.
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
-> 
-> But you didn't answer the question - what should __vmalloc with GFP_NOIO 
-> (or GFP_NOFS) do? Silently drop the flag? Print a warning? Or respect the 
-> flag?
+[CC Anton]
 
-We can add a warning (or move it from kvmalloc) and hope that the
-respective maintainers will fix those places properly. The reason I
-didn't add the warning to vmalloc and kept it in kvmalloc was to catch
-only new users rather than suddenly splat on existing ones. Note that
-there are users with panic_on_warn enabled.
+On Sat 01-07-17 14:27:39, zbestahu@aliyun.com wrote:
+> From: Yue Hu <huyue2@coolpad.com>
+> 
+> The patch removes the needless scale in existing caluation, it
+> makes the calculation more simple and more effective.
 
-Considering how many NOFS users we have in tree I would rather work with
-maintainers to fix them.
- 
-> Currently, it silently drops the GFP_NOIO or GFP_NOFS flag, but some 
-> programmers don't know it and use these flags. You can't blame those 
-> programmers for not knowing it.
+I suspect the construct is deliberate and done this way because of the
+rounding. Your code will behave slightly differently. If that is
+intentional then it should be described in the changedlog.
 
-At least __vmalloc_node is documented to not support all gfp flags.
+> Signed-off-by: Yue Hu <huyue2@coolpad.com>
+> ---
+>  mm/vmpressure.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> index 6063581..174b2f0 100644
+> --- a/mm/vmpressure.c
+> +++ b/mm/vmpressure.c
+> @@ -111,7 +111,6 @@ static enum vmpressure_levels vmpressure_level(unsigned long pressure)
+>  static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+>  						    unsigned long reclaimed)
+>  {
+> -	unsigned long scale = scanned + reclaimed;
+>  	unsigned long pressure = 0;
+>  
+>  	/*
+> @@ -128,8 +127,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+>  	 * scanned. This makes it possible to set desired reaction time
+>  	 * and serves as a ratelimit.
+>  	 */
+> -	pressure = scale - (reclaimed * scale / scanned);
+> -	pressure = pressure * 100 / scale;
+> +	pressure = (scanned - reclaimed) * 100 / scanned;
+>  
+>  out:
+>  	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
+> -- 
+> 1.9.1
+> 
 
 -- 
 Michal Hocko
