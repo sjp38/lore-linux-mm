@@ -1,67 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 262ED6B0292
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 12:32:09 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b11so20120929wmh.0
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 09:32:09 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 16F386B0292
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 12:38:07 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p204so20127606wmg.3
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 09:38:07 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w28si11971043wra.157.2017.07.03.09.32.07
+        by mx.google.com with ESMTPS id j6si12096465wrj.258.2017.07.03.09.38.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Jul 2017 09:32:07 -0700 (PDT)
-Date: Mon, 3 Jul 2017 18:32:04 +0200
+        Mon, 03 Jul 2017 09:38:05 -0700 (PDT)
+Date: Mon, 3 Jul 2017 18:38:02 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-Message-ID: <20170703163204.GE11848@dhcp22.suse.cz>
+Message-ID: <20170703163802.GF11848@dhcp22.suse.cz>
 References: <alpine.DEB.2.20.1706291803380.1861@nanos>
- <20170630092747.GD22917@dhcp22.suse.cz>
- <alpine.DEB.2.20.1706301210210.1748@nanos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1706301210210.1748@nanos>
+In-Reply-To: <alpine.DEB.2.20.1706291803380.1861@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri 30-06-17 12:15:21, Thomas Gleixner wrote:
-[...]
-> Sure. Just to make you to mull over more stuff, find below the patch which
-> moves all of this to use the cpuhotplug lock.
+On Thu 29-06-17 18:11:15, Thomas Gleixner wrote:
+> Andrey reported a potential deadlock with the memory hotplug lock and the
+> cpu hotplug lock.
 > 
-> Thanks,
+> The reason is that memory hotplug takes the memory hotplug lock and then
+> calls stop_machine() which calls get_online_cpus(). That's the reverse lock
+> order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
 > 
-> 	tglx
+> The problem has been there forever. The reason why this was never reported
+> is that the cpu hotplug locking had this homebrewn recursive reader writer
+> semaphore construct which due to the recursion evaded the full lock dep
+> coverage. The memory hotplug code copied that construct verbatim and
+> therefor has similar issues.
 > 
-> 8<--------------------
-> Subject: mm/memory-hotplug: Use cpu hotplug lock
-> From: Thomas Gleixner <tglx@linutronix.de>
-> Date: Thu, 29 Jun 2017 16:30:00 +0200
+> Two steps to fix this:
 > 
-> Most place which take the memory hotplug lock take the cpu hotplug lock as
-> well. Avoid the double locking and use the cpu hotplug lock for both.
+> 1) Convert the memory hotplug locking to a per cpu rwsem so the potential
+>    issues get reported proper by lockdep.
+> 
+> 2) Lock the online cpus in mem_hotplug_begin() before taking the memory
+>    hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
+>    to avoid recursive locking.
+> 
+> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
 
-Hmm, I am usually not a fan of locks conflating because it is then less
-clear what the lock actually protects. Memory and cpu hotplugs should
-be largely independent so I am not sure this patch simplify things a
-lot. It is nice to see few lines go away but I am little bit worried
-that we will enventually develop a separate locking again in future for
-some weird memory hotplug usecases.
- 
-> Not-Yet-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-[...]
+With the full patch for the lockdep splat
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+> 
+> Note 1:
+>  Applies against -next or
+>      
+>    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/hotplug
+> 
+>  which contains the hotplug locking rework including stop_machine_cpuslocked()
+> 
+> Note 2:
+> 
+>  Most of the call sites of get_online_mems() are also calling get_online_cpus().
+> 
+>  So we could switch the whole machinery to use the CPU hotplug locking for
+>  protecting both memory and CPU hotplug. That actually works and removes
+>  another 40 lines of code.
+> 
+> ---
+>  mm/memory_hotplug.c |   85 +++++++---------------------------------------------
+>  mm/page_alloc.c     |    2 -
+>  2 files changed, 14 insertions(+), 73 deletions(-)
+> 
 > --- a/mm/memory_hotplug.c
 > +++ b/mm/memory_hotplug.c
-[...]
-> @@ -2138,7 +2114,7 @@ void __ref remove_memory(int nid, u64 st
+> @@ -52,32 +52,17 @@ static void generic_online_page(struct p
+>  static online_page_callback_t online_page_callback = generic_online_page;
+>  static DEFINE_MUTEX(online_page_callback_lock);
 >  
->  	try_offline_node(nid);
+> -/* The same as the cpu_hotplug lock, but for memory hotplug. */
+> -static struct {
+> -	struct task_struct *active_writer;
+> -	struct mutex lock; /* Synchronizes accesses to refcount, */
+> -	/*
+> -	 * Also blocks the new readers during
+> -	 * an ongoing mem hotplug operation.
+> -	 */
+> -	int refcount;
+> +DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
 >  
-> -	mem_hotplug_done();
-> +	cpus_write_lock();
-
-unlock you meant here, right?
+> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
+> -	struct lockdep_map dep_map;
+> -#endif
+> -} mem_hotplug = {
+> -	.active_writer = NULL,
+> -	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
+> -	.refcount = 0,
+> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
+> -	.dep_map = {.name = "mem_hotplug.lock" },
+> -#endif
+> -};
+> +void get_online_mems(void)
+> +{
+> +	percpu_down_read(&mem_hotplug_lock);
+> +}
+>  
+> -/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
+> -#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
+> -#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
+> -#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+> +void put_online_mems(void)
+> +{
+> +	percpu_up_read(&mem_hotplug_lock);
+> +}
+>  
+>  #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
+>  bool memhp_auto_online;
+> @@ -97,60 +82,16 @@ static int __init setup_memhp_default_st
+>  }
+>  __setup("memhp_default_state=", setup_memhp_default_state);
+>  
+> -void get_online_mems(void)
+> -{
+> -	might_sleep();
+> -	if (mem_hotplug.active_writer == current)
+> -		return;
+> -	memhp_lock_acquire_read();
+> -	mutex_lock(&mem_hotplug.lock);
+> -	mem_hotplug.refcount++;
+> -	mutex_unlock(&mem_hotplug.lock);
+> -
+> -}
+> -
+> -void put_online_mems(void)
+> -{
+> -	if (mem_hotplug.active_writer == current)
+> -		return;
+> -	mutex_lock(&mem_hotplug.lock);
+> -
+> -	if (WARN_ON(!mem_hotplug.refcount))
+> -		mem_hotplug.refcount++; /* try to fix things up */
+> -
+> -	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
+> -		wake_up_process(mem_hotplug.active_writer);
+> -	mutex_unlock(&mem_hotplug.lock);
+> -	memhp_lock_release();
+> -
+> -}
+> -
+> -/* Serializes write accesses to mem_hotplug.active_writer. */
+> -static DEFINE_MUTEX(memory_add_remove_lock);
+> -
+>  void mem_hotplug_begin(void)
+>  {
+> -	mutex_lock(&memory_add_remove_lock);
+> -
+> -	mem_hotplug.active_writer = current;
+> -
+> -	memhp_lock_acquire();
+> -	for (;;) {
+> -		mutex_lock(&mem_hotplug.lock);
+> -		if (likely(!mem_hotplug.refcount))
+> -			break;
+> -		__set_current_state(TASK_UNINTERRUPTIBLE);
+> -		mutex_unlock(&mem_hotplug.lock);
+> -		schedule();
+> -	}
+> +	cpus_read_lock();
+> +	percpu_down_write(&mem_hotplug_lock);
+>  }
+>  
+>  void mem_hotplug_done(void)
+>  {
+> -	mem_hotplug.active_writer = NULL;
+> -	mutex_unlock(&mem_hotplug.lock);
+> -	memhp_lock_release();
+> -	mutex_unlock(&memory_add_remove_lock);
+> +	percpu_up_write(&mem_hotplug_lock);
+> +	cpus_read_unlock();
+>  }
+>  
+>  /* add this memory to iomem resource */
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5216,7 +5216,7 @@ void __ref build_all_zonelists(pg_data_t
+>  #endif
+>  		/* we have to stop all cpus to guarantee there is no user
+>  		   of zonelist */
+> -		stop_machine(__build_all_zonelists, pgdat, NULL);
+> +		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
+>  		/* cpuset refresh routine should be here */
+>  	}
+>  	vm_total_pages = nr_free_pagecache_pages();
 
 -- 
 Michal Hocko
