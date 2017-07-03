@@ -1,44 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7796B0292
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 11:37:21 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id j85so19876370wmj.2
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 08:37:21 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 262ED6B0292
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 12:32:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b11so20120929wmh.0
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 09:32:09 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m184si10858718wmm.190.2017.07.03.08.37.19
+        by mx.google.com with ESMTPS id w28si11971043wra.157.2017.07.03.09.32.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Jul 2017 08:37:19 -0700 (PDT)
-Date: Mon, 3 Jul 2017 17:37:16 +0200
+        Mon, 03 Jul 2017 09:32:07 -0700 (PDT)
+Date: Mon, 3 Jul 2017 18:32:04 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?5Zue5aSN77yaW1BBVENI?= =?utf-8?Q?=5D?= mm: vmpressure:
- simplify pressure ratio calculation
-Message-ID: <20170703153716.GC11848@dhcp22.suse.cz>
-References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
- <00146e00-d941-4311-8494-3e4220b04103.zbestahu@aliyun.com>
+Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
+Message-ID: <20170703163204.GE11848@dhcp22.suse.cz>
+References: <alpine.DEB.2.20.1706291803380.1861@nanos>
+ <20170630092747.GD22917@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1706301210210.1748@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <00146e00-d941-4311-8494-3e4220b04103.zbestahu@aliyun.com>
+In-Reply-To: <alpine.DEB.2.20.1706301210210.1748@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zbestahu <zbestahu@aliyun.com>
-Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-Please do not top post.
+On Fri 30-06-17 12:15:21, Thomas Gleixner wrote:
+[...]
+> Sure. Just to make you to mull over more stuff, find below the patch which
+> moves all of this to use the cpuhotplug lock.
+> 
+> Thanks,
+> 
+> 	tglx
+> 
+> 8<--------------------
+> Subject: mm/memory-hotplug: Use cpu hotplug lock
+> From: Thomas Gleixner <tglx@linutronix.de>
+> Date: Thu, 29 Jun 2017 16:30:00 +0200
+> 
+> Most place which take the memory hotplug lock take the cpu hotplug lock as
+> well. Avoid the double locking and use the cpu hotplug lock for both.
 
-On Mon 03-07-17 22:19:02, zbestahu wrote:
-> Yes, the original code using scale should be about rounding to
-> integer. I am trying to improve the calculation because i think the
-> rounding seems to be useless, we can calculate pressure directly just
-> like original code of "pressure = pressure * 100 / scale", no
-> floating number issue.From the view of disassembly, the patch is also
-> better than original.  If original code using scale is more powerful
-> than the patch, please ignore the submit.
+Hmm, I am usually not a fan of locks conflating because it is then less
+clear what the lock actually protects. Memory and cpu hotplugs should
+be largely independent so I am not sure this patch simplify things a
+lot. It is nice to see few lines go away but I am little bit worried
+that we will enventually develop a separate locking again in future for
+some weird memory hotplug usecases.
+ 
+> Not-Yet-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+[...]
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+[...]
+> @@ -2138,7 +2114,7 @@ void __ref remove_memory(int nid, u64 st
+>  
+>  	try_offline_node(nid);
+>  
+> -	mem_hotplug_done();
+> +	cpus_write_lock();
 
-Make sure you describe all that in the changelog because your original
-patch description wasn't all that clear about your intention.
+unlock you meant here, right?
+
 -- 
 Michal Hocko
 SUSE Labs
