@@ -1,104 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D4F926B0279
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 06:24:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b20so18554658wmd.6
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 03:24:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 20si4985902wma.1.2017.07.03.03.23.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 581A76B0279
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 06:56:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z75so6255501wmc.5
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 03:56:57 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id p62si17528632wmp.45.2017.07.03.03.56.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Jul 2017 03:23:59 -0700 (PDT)
-Date: Mon, 3 Jul 2017 12:23:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
-Message-ID: <20170703102354.GG3217@dhcp22.suse.cz>
-References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Jul 2017 03:56:55 -0700 (PDT)
+Date: Mon, 3 Jul 2017 12:56:45 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using
+ PCID
+In-Reply-To: <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
+Message-ID: <alpine.DEB.2.20.1707031255520.2188@nanos>
+References: <cover.1498751203.git.luto@kernel.org> <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
+Content-Type: multipart/mixed; BOUNDARY="8323329-1251026268-1499079405=:2188"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "zbestahu@aliyun.com" <zbestahu@aliyun.com>
-Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Mon 03-07-17 17:45:25, zbestahu@aliyun.com wrote:
-> Hi Michal
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--8323329-1251026268-1499079405=:2188
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+
+On Thu, 29 Jun 2017, Andy Lutomirski wrote:
+> ping-pong between two mms on the same CPU using eventfd:
+>   patched:         1.22Aus
+>   patched, nopcid: 1.33Aus
+>   unpatched:       1.34Aus
 > 
-> We can think the some of scanned pages is reclaimed as reclaimed pages
-> and the rest of pages is just unsuccessful reclaimed pages. vmpressure
-> is tend to unsuccessful reclaimed pages, so obviously the pressure
-> percent is the ratio of unsuccessful reclaimed pages to scanned pages.
-
-Yes this is correct and this is what the current code does as well.
-The difference is in the rounding when the integer arithmetic is used.
-
-Btw. are you trying to fix any existing problem or you merely checked
-the code and considered this part too hard to understand and so you sent
-a patch to make it simpler? Have you considered the original intention
-of the code? Note that I am not saying your patch is incorrect I would
-just like to uderstand your motivation and the original intention in the
-code.
-
-> -------- a??a??e?(R)a>>? --------
-> a??a>>?aooi 1/4 ?Michal Hocko <mhocko@kernel.org>
-> ae??e?'i 1/4 ?a??a,? 7ae??3ae?JPY 15:44
-> ae??a>>?aooi 1/4 ?zbestahu <zbestahu@aliyun.com>
-> ae??e??i 1/4 ?akpm <akpm@linux-foundation.org>,minchan <minchan@kernel.org>,linux-mm <linux-mm@kvack.org>,Yue Hu <huyue2@coolpad.com>,Anton Vorontsov <anton.vorontsov@linaro.org>
-> a,>>ec?i 1/4 ?Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
+> Same ping-pong, but now touch 512 pages (all zero-page to minimize
+> cache misses) each iteration.  dTLB misses are measured by
+> dtlb_load_misses.miss_causes_a_walk:
+>   patched:         1.8Aus  11M  dTLB misses
+>   patched, nopcid: 6.2Aus, 207M dTLB misses
+>   unpatched:       6.1Aus, 190M dTLB misses
 > 
-> >[CC Anton]
-> >
-> >On Sat 01-07-17 14:27:39, zbestahu@aliyun.com wrote:
-> >> From: Yue Hu <huyue2@coolpad.com>
-> >> 
-> >> The patch removes the needless scale in existing caluation, it
-> >> makes the calculation more simple and more effective.
-> >
-> >I suspect the construct is deliberate and done this way because of the
-> >rounding. Your code will behave slightly differently. If that is
-> >intentional then it should be described in the changedlog.
-> >
-> >> Signed-off-by: Yue Hu <huyue2@coolpad.com>
-> >> ---
-> >>A  mm/vmpressure.c | 4 +---
-> >>A  1 file changed, 1 insertion(+), 3 deletions(-)
-> >> 
-> >> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> >> index 6063581..174b2f0 100644
-> >> --- a/mm/vmpressure.c
-> >> +++ b/mm/vmpressure.c
-> >> @@ -111,7 +111,6 @@ static enum vmpressure_levels vmpressure_level(unsigned long pressure)
-> >>A  static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
-> >>A  						A A A  unsigned long reclaimed)
-> >>A  {
-> >> -	unsigned long scale = scanned + reclaimed;
-> >>A  	unsigned long pressure = 0;
-> >>A  
-> >>A  	/*
-> >> @@ -128,8 +127,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
-> >>A  	 * scanned. This makes it possible to set desired reaction time
-> >>A  	 * and serves as a ratelimit.
-> >>A  	 */
-> >> -	pressure = scale - (reclaimed * scale / scanned);
-> >> -	pressure = pressure * 100 / scale;
-> >> +	pressure = (scanned - reclaimed) * 100 / scanned;
-> >>A  
-> >>A  out:
-> >>A  	pr_debug("%s: %3luA  (s: %luA  r: %lu)\n", __func__, pressure,
-> >> -- 
-> >> 1.9.1
-> >> 
-> >
-> >-- 
-> >Michal Hocko
-> >SUSE Labs
+> Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
 
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+--8323329-1251026268-1499079405=:2188--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
