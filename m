@@ -1,209 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 16F386B0292
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 12:38:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p204so20127606wmg.3
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 09:38:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j6si12096465wrj.258.2017.07.03.09.38.04
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D82A6B0292
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 13:33:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z10so206092575pff.1
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 10:33:08 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q79si7048566pfq.132.2017.07.03.10.33.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Jul 2017 09:38:05 -0700 (PDT)
-Date: Mon, 3 Jul 2017 18:38:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memory-hotplug: Switch locking to a percpu rwsem
-Message-ID: <20170703163802.GF11848@dhcp22.suse.cz>
-References: <alpine.DEB.2.20.1706291803380.1861@nanos>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jul 2017 10:33:06 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v63HSipC099129
+	for <linux-mm@kvack.org>; Mon, 3 Jul 2017 13:33:06 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bf27bb35s-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 03 Jul 2017 13:33:06 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 3 Jul 2017 18:33:03 +0100
+Subject: Re: [RFC v5 00/11] Speculative page faults
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+Date: Mon, 3 Jul 2017 19:32:57 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1706291803380.1861@nanos>
+In-Reply-To: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <b9988c09-265a-022a-266d-e51250fe3f2c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Thu 29-06-17 18:11:15, Thomas Gleixner wrote:
-> Andrey reported a potential deadlock with the memory hotplug lock and the
-> cpu hotplug lock.
+On 16/06/2017 19:52, Laurent Dufour wrote:
+> This is a port on kernel 4.12 of the work done by Peter Zijlstra to
+> handle page fault without holding the mm semaphore [1].
 > 
-> The reason is that memory hotplug takes the memory hotplug lock and then
-> calls stop_machine() which calls get_online_cpus(). That's the reverse lock
-> order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
+> The idea is to try to handle user space page faults without holding the
+> mmap_sem. This should allow better concurrency for massively threaded
+> process since the page fault handler will not wait for other threads memory
+> layout change to be done, assuming that this change is done in another part
+> of the process's memory space. This type page fault is named speculative
+> page fault. If the speculative page fault fails because of a concurrency is
+> detected or because underlying PMD or PTE tables are not yet allocating, it
+> is failing its processing and a classic page fault is then tried.
 > 
-> The problem has been there forever. The reason why this was never reported
-> is that the cpu hotplug locking had this homebrewn recursive reader writer
-> semaphore construct which due to the recursion evaded the full lock dep
-> coverage. The memory hotplug code copied that construct verbatim and
-> therefor has similar issues.
+> The speculative page fault (SPF) has to look for the VMA matching the fault
+> address without holding the mmap_sem, so the VMA list is now managed using
+> SRCU allowing lockless walking. The only impact would be the deferred file
+> derefencing in the case of a file mapping, since the file pointer is
+> released once the SRCU cleaning is done.  This patch relies on the change
+> done recently by Paul McKenney in SRCU which now runs a callback per CPU
+> instead of per SRCU structure [1].
 > 
-> Two steps to fix this:
+> The VMA's attributes checked during the speculative page fault processing
+> have to be protected against parallel changes. This is done by using a per
+> VMA sequence lock. This sequence lock allows the speculative page fault
+> handler to fast check for parallel changes in progress and to abort the
+> speculative page fault in that case.
 > 
-> 1) Convert the memory hotplug locking to a per cpu rwsem so the potential
->    issues get reported proper by lockdep.
+> Once the VMA is found, the speculative page fault handler would check for
+> the VMA's attributes to verify that the page fault has to be handled
+> correctly or not. Thus the VMA is protected through a sequence lock which
+> allows fast detection of concurrent VMA changes. If such a change is
+> detected, the speculative page fault is aborted and a *classic* page fault
+> is tried.  VMA sequence lockings are added when VMA attributes which are
+> checked during the page fault are modified.
 > 
-> 2) Lock the online cpus in mem_hotplug_begin() before taking the memory
->    hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
->    to avoid recursive locking.
+> When the PTE is fetched, the VMA is checked to see if it has been changed,
+> so once the page table is locked, the VMA is valid, so any other changes
+> leading to touching this PTE will need to lock the page table, so no
+> parallel change is possible at this time.
+> .
+> Compared to the Peter's initial work, this series introduces a spin_trylock
+> when dealing with speculative page fault. This is required to avoid dead
+> lock when handling a page fault while a TLB invalidate is requested by an
+> other CPU holding the PTE. Another change due to a lock dependency issue
+> with mapping->i_mmap_rwsem.
 > 
-> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
+> This series builds on top of v4.12-rc5 and is functional on x86 and
+> PowerPC.
+> 
+> Tests have been made using a large commercial in-memory database on a
+> PowerPC system with 752 CPUs. The results are very encouraging since the
+> loading of the 2TB database was faster by 14% with the speculative page
+> fault.
+> 
+> However tests done using multi-fault [3] or kernbench [4], on smaller
+> systems didn't show performance improvements, I saw a little degradation but
+> running the tests again shows that this is in the noise. So nothing
+> significant enough on the both sides.
+> 
+> Since benchmarks are encouraging and running test suites didn't raise any
+> issue, I'd like this request for comment series to move to a patch series
+> soon. So please comment.
 
-With the full patch for the lockdep splat
-Acked-by: Michal Hocko <mhocko@suse.com>
+Hi all,
 
-Thanks!
+I didn't get any feedback for the moment on this series...
 
-> ---
-> 
-> Note 1:
->  Applies against -next or
->      
->    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/hotplug
-> 
->  which contains the hotplug locking rework including stop_machine_cpuslocked()
-> 
-> Note 2:
-> 
->  Most of the call sites of get_online_mems() are also calling get_online_cpus().
-> 
->  So we could switch the whole machinery to use the CPU hotplug locking for
->  protecting both memory and CPU hotplug. That actually works and removes
->  another 40 lines of code.
-> 
-> ---
->  mm/memory_hotplug.c |   85 +++++++---------------------------------------------
->  mm/page_alloc.c     |    2 -
->  2 files changed, 14 insertions(+), 73 deletions(-)
-> 
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -52,32 +52,17 @@ static void generic_online_page(struct p
->  static online_page_callback_t online_page_callback = generic_online_page;
->  static DEFINE_MUTEX(online_page_callback_lock);
->  
-> -/* The same as the cpu_hotplug lock, but for memory hotplug. */
-> -static struct {
-> -	struct task_struct *active_writer;
-> -	struct mutex lock; /* Synchronizes accesses to refcount, */
-> -	/*
-> -	 * Also blocks the new readers during
-> -	 * an ongoing mem hotplug operation.
-> -	 */
-> -	int refcount;
-> +DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
->  
-> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
-> -	struct lockdep_map dep_map;
-> -#endif
-> -} mem_hotplug = {
-> -	.active_writer = NULL,
-> -	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
-> -	.refcount = 0,
-> -#ifdef CONFIG_DEBUG_LOCK_ALLOC
-> -	.dep_map = {.name = "mem_hotplug.lock" },
-> -#endif
-> -};
-> +void get_online_mems(void)
-> +{
-> +	percpu_down_read(&mem_hotplug_lock);
-> +}
->  
-> -/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
-> -#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
-> -#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
-> -#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
-> +void put_online_mems(void)
-> +{
-> +	percpu_up_read(&mem_hotplug_lock);
-> +}
->  
->  #ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
->  bool memhp_auto_online;
-> @@ -97,60 +82,16 @@ static int __init setup_memhp_default_st
->  }
->  __setup("memhp_default_state=", setup_memhp_default_state);
->  
-> -void get_online_mems(void)
-> -{
-> -	might_sleep();
-> -	if (mem_hotplug.active_writer == current)
-> -		return;
-> -	memhp_lock_acquire_read();
-> -	mutex_lock(&mem_hotplug.lock);
-> -	mem_hotplug.refcount++;
-> -	mutex_unlock(&mem_hotplug.lock);
-> -
-> -}
-> -
-> -void put_online_mems(void)
-> -{
-> -	if (mem_hotplug.active_writer == current)
-> -		return;
-> -	mutex_lock(&mem_hotplug.lock);
-> -
-> -	if (WARN_ON(!mem_hotplug.refcount))
-> -		mem_hotplug.refcount++; /* try to fix things up */
-> -
-> -	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
-> -		wake_up_process(mem_hotplug.active_writer);
-> -	mutex_unlock(&mem_hotplug.lock);
-> -	memhp_lock_release();
-> -
-> -}
-> -
-> -/* Serializes write accesses to mem_hotplug.active_writer. */
-> -static DEFINE_MUTEX(memory_add_remove_lock);
-> -
->  void mem_hotplug_begin(void)
->  {
-> -	mutex_lock(&memory_add_remove_lock);
-> -
-> -	mem_hotplug.active_writer = current;
-> -
-> -	memhp_lock_acquire();
-> -	for (;;) {
-> -		mutex_lock(&mem_hotplug.lock);
-> -		if (likely(!mem_hotplug.refcount))
-> -			break;
-> -		__set_current_state(TASK_UNINTERRUPTIBLE);
-> -		mutex_unlock(&mem_hotplug.lock);
-> -		schedule();
-> -	}
-> +	cpus_read_lock();
-> +	percpu_down_write(&mem_hotplug_lock);
->  }
->  
->  void mem_hotplug_done(void)
->  {
-> -	mem_hotplug.active_writer = NULL;
-> -	mutex_unlock(&mem_hotplug.lock);
-> -	memhp_lock_release();
-> -	mutex_unlock(&memory_add_remove_lock);
-> +	percpu_up_write(&mem_hotplug_lock);
-> +	cpus_read_unlock();
->  }
->  
->  /* add this memory to iomem resource */
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5216,7 +5216,7 @@ void __ref build_all_zonelists(pg_data_t
->  #endif
->  		/* we have to stop all cpus to guarantee there is no user
->  		   of zonelist */
-> -		stop_machine(__build_all_zonelists, pgdat, NULL);
-> +		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
->  		/* cpuset refresh routine should be here */
->  	}
->  	vm_total_pages = nr_free_pagecache_pages();
+In addition to the previous benchmark results, here are some additional
+metrics I captured using the ebizzy benchmark [A]. It is stressing the
+mmap/munmap calls in an interesting way.
 
--- 
-Michal Hocko
-SUSE Labs
+The test is counting the number of records per second it can manage, the
+higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
+result I repeat the test 100 times and measure the average result, mean
+deviation and max. I run the test on top of 4.12 on 2 nodes, one with 80
+CPUs, and the other one with 1024 CPUs:
+
+* 80 CPUs Power 8 node:
+Records/s	4.12		4.12-SPF
+Average		38941,62	64235,82
+Mean deviation	620,93		1718,95
+Max		41988		69623
+
+* 1024 CPUs Power 8 node:
+Records/s	4.12		4.12-SPF
+Average		39516,64	80689,27
+Mean deviation	1387,66		1319,98
+Max		43281		90441
+
+So with that patch series, we got about 2x increase and the gap is growing
+when the number of CPUs is higher.
+
+Please comment as I'm about to drop the final patch rebased on 4.12.
+
+Thanks,
+Laurent.
+[A] http://ebizzy.sourceforge.net/
+
+> ------------------
+> Benchmarks results
+> 
+> Here are the results on a 8 CPUs X86 guest using kernbench on a 4.12-r5
+> kernel (kernel is build 5 times):
+> 
+> Average Half load -j 4 Run (std deviation):
+> 		 4.12.0-rc5		4.12.0-rc5-spf
+> 		 Run (std deviation)
+> Elapsed Time     48.42 (0.334515)       48.638 (0.344848)
+> User Time        124.322 (0.964324)     124.478 (0.659902)
+> System Time      58.008 (0.300865)      58.664 (0.590999)
+> Percent CPU 	 376.2 (1.09545)        376.4 (1.51658)
+> Context Switches 7409.6 (215.18)        11022.8 (281.093)
+> Sleeps           15255.8 (63.0254)      15250.8 (43.4592)
+> 
+> Average Optimal load -j 8
+>  		 4.12.0-rc5		4.12.0-rc5-spf
+>                  Run (std deviation)
+> Elapsed Time     24.268 (0.151723)      24.514 (0.143805)
+> User Time        112.092 (12.9135)      112.04 (13.1257)
+> System Time      49.03 (9.46999)        49.721 (9.44455)
+> Percent CPU      476 (105.205)          474.3 (103.209)
+> Context Switches 10268.7 (3020.16)      14069.2 (3219.98)
+> Sleeps           15790.8 (568.885)      15829.4 (615.371)
+> 
+> Average Maximal load -j
+>  		 4.12.0-rc5		4.12.0-rc5-spf
+>                  Run (std deviation)
+> Elapsed Time     25.042 (0.237844)      25.216 (0.201941)
+> User Time        110.19 (10.7245)       110.312 (10.8245)
+> System Time      45.9113 (8.86119)      46.48 (8.93778)
+> Percent CPU      511.533 (99.1376)      510.133 (97.9897)
+> Context Switches 19521.1 (13759.8)      22354.1 (12400)
+> Sleeps           15514.7 (609.76)       15521.2 (670.054)
+> 
+> The elapsed time is in the same order, a bit larger in the case of the spf
+> release, but that seems to be in the error margin.
+> 
+> Here are the kerbench results on a 572 CPUs Power8 system :
+> 
+> Average Half load -j 376
+>  		 4.12.0-rc5		4.12.0-rc5-spf
+>                  Run (std deviation)
+> Elapsed Time     3.384 (0.0680441)      3.344 (0.0634823)
+> User Time        203.998 (8.41125)      193.476 (8.23406)
+> System Time      13.064 (0.624444)      12.028 (0.495954)
+> Percent CPU      6407 (285.422)         6136.2 (198.173)
+> Context Switches 7319.2 (517.785)       8960 (221.735)
+> Sleeps           24287.8 (861.132)      22902.4 (728.475)
+> 
+> Average Optimal load -j 752
+>  		 4.12.0-rc5		4.12.0-rc5-spf
+>                  Run (std deviation)
+> Elapsed Time     3.414 (0.136858)       3.432 (0.0506952)
+> User Time        200.985 (8.71172)      197.747 (8.9511)
+> System Time      12.903 (0.638262)      12.472 (0.684865)
+> Percent CPU      6287.9 (322.208)       6194.8 (192.116)
+> Context Switches 7173.5 (479.038)       9355.7 (712.3)
+> Sleeps           24241.6 (1003.66)      22867.5 (1242.49)
+> 
+> Average Maximal load -j
+>  		 4.12.0-rc5		4.12.0-rc5-spf
+>                  Run (std deviation)
+> Elapsed Time     3.422 (0.0791833)      3.312 (0.109864)
+> User Time        202.096 (7.45845)      197.541 (9.42758)
+> System Time      12.8733 (0.57327)      12.4567 (0.568465)
+> Percent CPU      6304.87 (278.195)      6234.67 (204.769)
+> Context Switches 7166 (412.524)         9398.73 (639.917)
+> Sleeps           24065.6 (1132.3)       22822.8 (1176.71)
+> 
+> Here the elapsed time is a bit shorter using the spf release, but again we
+> stay in the error margin.
+> 
+> Here are results using multi-fault :
+> 
+> --- x86 8 CPUs
+>                 Page faults in 60s
+> 4.12.0-rc5      23,014,776
+> 4.12-0-rc5-spf  23,224,435
+> 
+> --- ppc64le 752 CPUs
+>                 Page faults in 60s
+> 4.12.0-rc5      28,087,752
+> 4.12-0-rc5-spf  32,272,610
+> 
+> Results is a bit higher on ppc64le with the SPF patch, but I'm not convince
+> about this test on Power8 since the page table are managed differently on
+> this architecture, I'm wondering if we are not hitting the PTE lock.
+> I run the test multiple times, the number are varying a bit but remain in
+> the same order.
+> 
+> ------------------
+> Changes since V4:
+>  - merge several patches to reduce the series as requested by Jan Kara
+>  - check any comment warning in the code and remove each of them
+>  - reword some patch description
+> 
+> Changes since V3:
+>  - support for the 5-level paging.
+>  - abort speculative path before entering userfault code
+>  - support for PowerPC architecture
+>  - reorder the patch to fix build test errors.
+> 
+> [1] http://linux-kernel.2935.n7.nabble.com/RFC-PATCH-0-6-Another-go-at-speculative-page-faults-tt965642.html#none
+> [2] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=da915ad5cf25b5f5d358dd3670c3378d8ae8c03e
+> [3] https://lkml.org/lkml/2010/1/6/28
+> [4] http://ck.kolivas.org/apps/kernbench/kernbench-0.50/
+> 
+> Laurent Dufour (5):
+>   mm: Introduce pte_spinlock for FAULT_FLAG_SPECULATIVE
+>   mm: fix lock dependency against mapping->i_mmap_rwsem
+>   mm: Protect VMA modifications using VMA sequence count
+>   mm: Try spin lock in speculative path
+>   powerpc/mm: Add speculative page fault
+> 
+> Peter Zijlstra (6):
+>   mm: Dont assume page-table invariance during faults
+>   mm: Prepare for FAULT_FLAG_SPECULATIVE
+>   mm: VMA sequence count
+>   mm: RCU free VMAs
+>   mm: Provide speculative fault infrastructure
+>   x86/mm: Add speculative pagefault handling
+> 
+>  arch/powerpc/mm/fault.c  |  25 ++++-
+>  arch/x86/mm/fault.c      |  14 +++
+>  fs/proc/task_mmu.c       |   2 +
+>  include/linux/mm.h       |   4 +
+>  include/linux/mm_types.h |   3 +
+>  kernel/fork.c            |   1 +
+>  mm/init-mm.c             |   1 +
+>  mm/internal.h            |  20 ++++
+>  mm/madvise.c             |   4 +
+>  mm/memory.c              | 286 +++++++++++++++++++++++++++++++++++++++--------
+>  mm/mempolicy.c           |  10 +-
+>  mm/mlock.c               |   9 +-
+>  mm/mmap.c                | 123 +++++++++++++++-----
+>  mm/mprotect.c            |   2 +
+>  mm/mremap.c              |   7 ++
+>  15 files changed, 430 insertions(+), 81 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
