@@ -1,265 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1696B02B4
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 10:19:21 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u36so207683845pgn.5
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 07:19:21 -0700 (PDT)
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTP id g64si12116400pfj.270.2017.07.03.07.19.19
-        for <linux-mm@kvack.org>;
-        Mon, 03 Jul 2017 07:19:20 -0700 (PDT)
-Date: Mon, 03 Jul 2017 22:19:02 +0800
-From: "zbestahu" <zbestahu@aliyun.com>
-Reply-To: "zbestahu" <zbestahu@aliyun.com>
-Message-ID: <00146e00-d941-4311-8494-3e4220b04103.zbestahu@aliyun.com>
-Subject: =?UTF-8?B?5Zue5aSN77yaW1BBVENIXSBtbTogdm1wcmVzc3VyZTogc2ltcGxpZnkgcHJlc3N1cmUgcmF0?=
-  =?UTF-8?B?aW8gY2FsY3VsYXRpb24=?=
-MIME-Version: 1.0
-References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>,20170703102354.GG3217@dhcp22.suse.cz
-In-Reply-To: 20170703102354.GG3217@dhcp22.suse.cz
-Content-Type: multipart/alternative;
-  boundary="----=ALIBOUNDARY_14945_58105940_595a5256_1865e"
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AEE0F6B0292
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 11:33:07 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id h15so96295174qte.0
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 08:33:07 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id p22si14997001qtg.225.2017.07.03.08.33.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jul 2017 08:33:06 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id 91so24367898qkq.1
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 08:33:06 -0700 (PDT)
+From: josef@toxicpanda.com
+Subject: [PATCH 1/4] vmscan: push reclaim_state down to shrink_node()
+Date: Mon,  3 Jul 2017 11:33:01 -0400
+Message-Id: <1499095984-1942-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: linux-mm@kvack.org, riel@redhat.com, hannes@cmpxchg.org, kernel-team@fb.com, akpm@linux-foundation.org, minchan@kernel.org
+Cc: Josef Bacik <jbacik@fb.com>
 
-------=ALIBOUNDARY_14945_58105940_595a5256_1865e
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: base64
+From: Josef Bacik <jbacik@fb.com>
 
-WWVzLCB0aGUgb3JpZ2luYWwgY29kZSB1c2luZyBzY2FsZSBzaG91bGQgYmUgYWJvdXQgcm91bmRp
-bmcgdG8gaW50ZWdlci4gSSBhbSB0cnlpbmcgdG8gaW1wcm92ZSB0aGUgY2FsY3VsYXRpb24gYmVj
-YXVzZSBpIHRoaW5rIHRoZSByb3VuZGluZyBzZWVtcyB0byBiZSB1c2VsZXNzLCB3ZSBjYW4gY2Fs
-Y3VsYXRlIHByZXNzdXJlIGRpcmVjdGx5IGp1c3QgbGlrZSBvcmlnaW5hbCBjb2RlIG9mICJwcmVz
-c3VyZcKgPcKgcHJlc3N1cmXCoCrCoDEwMMKgL8Kgc2NhbGUiLCBubyBmbG9hdGluZyBudW1iZXIg
-aXNzdWUuRnJvbSB0aGUgdmlldyBvZiBkaXNhc3NlbWJseSwgdGhlIHBhdGNoIGlzIGFsc28gYmV0
-dGVyIHRoYW4gb3JpZ2luYWwuCklmIG9yaWdpbmFsIGNvZGUgdXNpbmcgc2NhbGUgaXMgbW9yZSBw
-b3dlcmZ1bCB0aGFuIHRoZSBwYXRjaCwgcGxlYXNlIGlnbm9yZSB0aGUgc3VibWl0LgpUaGFua3Mu
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0t5Y+R5Lu25Lq677yaTWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9yZz7lj5Hp
-gIHml7bpl7TvvJoyMDE35bm0N+aciDPml6Uo5pif5pyf5LiAKSAxODoyNOaUtuS7tuS6uu+8mnpi
-ZXN0YWh1QGFsaXl1bi5jb20gPHpiZXN0YWh1QGFsaXl1bi5jb20+5oqE44CA6YCB77yaYWtwbSA8
-YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz47IG1pbmNoYW4gPG1pbmNoYW5Aa2VybmVsLm9yZz47
-IGxpbnV4LW1tIDxsaW51eC1tbUBrdmFjay5vcmc+OyBZdWUgSHUgPGh1eXVlMkBjb29scGFkLmNv
-bT47IEFudG9uIFZvcm9udHNvdiA8YW50b24udm9yb250c292QGxpbmFyby5vcmc+5Li744CA6aKY
-77yaUmU6IFtQQVRDSF0gbW06IHZtcHJlc3N1cmU6IHNpbXBsaWZ5IHByZXNzdXJlIHJhdGlvIGNh
-bGN1bGF0aW9uCk9uwqBNb27CoDAzLTA3LTE3wqAxNzo0NToyNSzCoHpiZXN0YWh1QGFsaXl1bi5j
-b23CoHdyb3RlOgo+wqBIacKgTWljaGFsCj7CoAo+wqBXZcKgY2FuwqB0aGlua8KgdGhlwqBzb21l
-wqBvZsKgc2Nhbm5lZMKgcGFnZXPCoGlzwqByZWNsYWltZWTCoGFzwqByZWNsYWltZWTCoHBhZ2Vz
-Cj7CoGFuZMKgdGhlwqByZXN0wqBvZsKgcGFnZXPCoGlzwqBqdXN0wqB1bnN1Y2Nlc3NmdWzCoHJl
-Y2xhaW1lZMKgcGFnZXMuwqB2bXByZXNzdXJlCj7CoGlzwqB0ZW5kwqB0b8KgdW5zdWNjZXNzZnVs
-wqByZWNsYWltZWTCoHBhZ2VzLMKgc2/CoG9idmlvdXNsecKgdGhlwqBwcmVzc3VyZQo+wqBwZXJj
-ZW50wqBpc8KgdGhlwqByYXRpb8Kgb2bCoHVuc3VjY2Vzc2Z1bMKgcmVjbGFpbWVkwqBwYWdlc8Kg
-dG/CoHNjYW5uZWTCoHBhZ2VzLgoKWWVzwqB0aGlzwqBpc8KgY29ycmVjdMKgYW5kwqB0aGlzwqBp
-c8Kgd2hhdMKgdGhlwqBjdXJyZW50wqBjb2RlwqBkb2VzwqBhc8Kgd2VsbC4KVGhlwqBkaWZmZXJl
-bmNlwqBpc8KgaW7CoHRoZcKgcm91bmRpbmfCoHdoZW7CoHRoZcKgaW50ZWdlcsKgYXJpdGhtZXRp
-Y8KgaXPCoHVzZWQuCgpCdHcuwqBhcmXCoHlvdcKgdHJ5aW5nwqB0b8KgZml4wqBhbnnCoGV4aXN0
-aW5nwqBwcm9ibGVtwqBvcsKgeW91wqBtZXJlbHnCoGNoZWNrZWQKdGhlwqBjb2RlwqBhbmTCoGNv
-bnNpZGVyZWTCoHRoaXPCoHBhcnTCoHRvb8KgaGFyZMKgdG/CoHVuZGVyc3RhbmTCoGFuZMKgc2/C
-oHlvdcKgc2VudAphwqBwYXRjaMKgdG/CoG1ha2XCoGl0wqBzaW1wbGVyP8KgSGF2ZcKgeW91wqBj
-b25zaWRlcmVkwqB0aGXCoG9yaWdpbmFswqBpbnRlbnRpb24Kb2bCoHRoZcKgY29kZT/CoE5vdGXC
-oHRoYXTCoEnCoGFtwqBub3TCoHNheWluZ8KgeW91csKgcGF0Y2jCoGlzwqBpbmNvcnJlY3TCoEnC
-oHdvdWxkCmp1c3TCoGxpa2XCoHRvwqB1ZGVyc3RhbmTCoHlvdXLCoG1vdGl2YXRpb27CoGFuZMKg
-dGhlwqBvcmlnaW5hbMKgaW50ZW50aW9uwqBpbsKgdGhlCmNvZGUuCgo+wqAtLS0tLS0tLcKg5Y6f
-5aeL6YKu5Lu2wqAtLS0tLS0tLQo+wqDlj5Hku7bkurrvvJpNaWNoYWzCoEhvY2tvwqA8bWhvY2tv
-QGtlcm5lbC5vcmc+Cj7CoOaXtumXtO+8muWRqOS4gMKgN+aciDPml6XCoDE1OjQ0Cj7CoOaUtuS7
-tuS6uu+8mnpiZXN0YWh1wqA8emJlc3RhaHVAYWxpeXVuLmNvbT4KPsKg5oqE6YCB77yaYWtwbcKg
-PGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+LG1pbmNoYW7CoDxtaW5jaGFuQGtlcm5lbC5vcmc+
-LGxpbnV4LW1twqA8bGludXgtbW1Aa3ZhY2sub3JnPixZdWXCoEh1wqA8aHV5dWUyQGNvb2xwYWQu
-Y29tPixBbnRvbsKgVm9yb250c292wqA8YW50b24udm9yb250c292QGxpbmFyby5vcmc+Cj7CoOS4
-u+mimO+8mlJlOsKgW1BBVENIXcKgbW06wqB2bXByZXNzdXJlOsKgc2ltcGxpZnnCoHByZXNzdXJl
-wqByYXRpb8KgY2FsY3VsYXRpb24KPsKgCj7CoD5bQ0PCoEFudG9uXQo+wqA+Cj7CoD5PbsKgU2F0
-wqAwMS0wNy0xN8KgMTQ6Mjc6MzkswqB6YmVzdGFodUBhbGl5dW4uY29twqB3cm90ZToKPsKgPj7C
-oEZyb206wqBZdWXCoEh1wqA8aHV5dWUyQGNvb2xwYWQuY29tPgo+wqA+PsKgCj7CoD4+wqBUaGXC
-oHBhdGNowqByZW1vdmVzwqB0aGXCoG5lZWRsZXNzwqBzY2FsZcKgaW7CoGV4aXN0aW5nwqBjYWx1
-YXRpb24swqBpdAo+wqA+PsKgbWFrZXPCoHRoZcKgY2FsY3VsYXRpb27CoG1vcmXCoHNpbXBsZcKg
-YW5kwqBtb3JlwqBlZmZlY3RpdmUuCj7CoD4KPsKgPknCoHN1c3BlY3TCoHRoZcKgY29uc3RydWN0
-wqBpc8KgZGVsaWJlcmF0ZcKgYW5kwqBkb25lwqB0aGlzwqB3YXnCoGJlY2F1c2XCoG9mwqB0aGUK
-PsKgPnJvdW5kaW5nLsKgWW91csKgY29kZcKgd2lsbMKgYmVoYXZlwqBzbGlnaHRsecKgZGlmZmVy
-ZW50bHkuwqBJZsKgdGhhdMKgaXMKPsKgPmludGVudGlvbmFswqB0aGVuwqBpdMKgc2hvdWxkwqBi
-ZcKgZGVzY3JpYmVkwqBpbsKgdGhlwqBjaGFuZ2VkbG9nLgo+wqA+Cj7CoD4+wqBTaWduZWQtb2Zm
-LWJ5OsKgWXVlwqBIdcKgPGh1eXVlMkBjb29scGFkLmNvbT4KPsKgPj7CoC0tLQo+wqA+PsKgwqBt
-bS92bXByZXNzdXJlLmPCoHzCoDTCoCstLS0KPsKgPj7CoMKgMcKgZmlsZcKgY2hhbmdlZCzCoDHC
-oGluc2VydGlvbigrKSzCoDPCoGRlbGV0aW9ucygtKQo+wqA+PsKgCj7CoD4+wqBkaWZmwqAtLWdp
-dMKgYS9tbS92bXByZXNzdXJlLmPCoGIvbW0vdm1wcmVzc3VyZS5jCj7CoD4+wqBpbmRleMKgNjA2
-MzU4MS4uMTc0YjJmMMKgMTAwNjQ0Cj7CoD4+wqAtLS3CoGEvbW0vdm1wcmVzc3VyZS5jCj7CoD4+
-wqArKyvCoGIvbW0vdm1wcmVzc3VyZS5jCj7CoD4+wqBAQMKgLTExMSw3wqArMTExLDbCoEBAwqBz
-dGF0aWPCoGVudW3CoHZtcHJlc3N1cmVfbGV2ZWxzwqB2bXByZXNzdXJlX2xldmVsKHVuc2lnbmVk
-wqBsb25nwqBwcmVzc3VyZSkKPsKgPj7CoMKgc3RhdGljwqBlbnVtwqB2bXByZXNzdXJlX2xldmVs
-c8Kgdm1wcmVzc3VyZV9jYWxjX2xldmVsKHVuc2lnbmVkwqBsb25nwqBzY2FubmVkLAo+wqA+PsKg
-wqDCoMKgwqDCoMKgwqDCoMKgwqDCoHVuc2lnbmVkwqBsb25nwqByZWNsYWltZWQpCj7CoD4+wqDC
-oHsKPsKgPj7CoC3CoHVuc2lnbmVkwqBsb25nwqBzY2FsZcKgPcKgc2Nhbm5lZMKgK8KgcmVjbGFp
-bWVkOwo+wqA+PsKgwqDCoHVuc2lnbmVkwqBsb25nwqBwcmVzc3VyZcKgPcKgMDsKPsKgPj7CoMKg
-Cj7CoD4+wqDCoMKgLyoKPsKgPj7CoEBAwqAtMTI4LDjCoCsxMjcsN8KgQEDCoHN0YXRpY8KgZW51
-bcKgdm1wcmVzc3VyZV9sZXZlbHPCoHZtcHJlc3N1cmVfY2FsY19sZXZlbCh1bnNpZ25lZMKgbG9u
-Z8Kgc2Nhbm5lZCwKPsKgPj7CoMKgwqDCoCrCoHNjYW5uZWQuwqBUaGlzwqBtYWtlc8KgaXTCoHBv
-c3NpYmxlwqB0b8Kgc2V0wqBkZXNpcmVkwqByZWFjdGlvbsKgdGltZQo+wqA+PsKgwqDCoMKgKsKg
-YW5kwqBzZXJ2ZXPCoGFzwqBhwqByYXRlbGltaXQuCj7CoD4+wqDCoMKgwqAqLwo+wqA+PsKgLcKg
-cHJlc3N1cmXCoD3CoHNjYWxlwqAtwqAocmVjbGFpbWVkwqAqwqBzY2FsZcKgL8Kgc2Nhbm5lZCk7
-Cj7CoD4+wqAtwqBwcmVzc3VyZcKgPcKgcHJlc3N1cmXCoCrCoDEwMMKgL8Kgc2NhbGU7Cj7CoD4+
-wqArwqBwcmVzc3VyZcKgPcKgKHNjYW5uZWTCoC3CoHJlY2xhaW1lZCnCoCrCoDEwMMKgL8Kgc2Nh
-bm5lZDsKPsKgPj7CoMKgCj7CoD4+wqDCoG91dDoKPsKgPj7CoMKgwqBwcl9kZWJ1ZygiJXM6wqAl
-M2x1wqDCoChzOsKgJWx1wqDCoHI6wqAlbHUpXG4iLMKgX19mdW5jX18swqBwcmVzc3VyZSwKPsKg
-Pj7CoC0twqAKPsKgPj7CoDEuOS4xCj7CoD4+wqAKPsKgPgo+wqA+LS3CoAo+wqA+TWljaGFswqBI
-b2Nrbwo+wqA+U1VTRcKgTGFicwoKLS3CoApNaWNoYWzCoEhvY2tvClNVU0XCoExhYnMK
-------=ALIBOUNDARY_14945_58105940_595a5256_1865e
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: base64
+We care about this for slab reclaim, and only some of the paths set this
+and way higher up than we care about.  Fix this by pushing it into
+shrink_node() so we always have the slab reclaim information, regardless
+of how we are doing the reclaim.
 
-PGRpdiBjbGFzcz0iX19hbGl5dW5fZW1haWxfYm9keV9ibG9jayI+PGRpdiAgc3R5bGU9ImNsZWFy
-OmJvdGg7Ij48c3BhbiAgc3R5bGU9ImZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNp
-bVN1bjtmb250LXNpemU6MTQuMHB4O2NvbG9yOiMwMDAwMDA7Ij5ZZXMsIHRoZSBvcmlnaW5hbCBj
-b2RlIHVzaW5nIHNjYWxlIHNob3VsZCBiZSBhYm91dCByb3VuZGluZyB0byBpbnRlZ2VyLiA8L3Nw
-YW4+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48c3BhbiAgc3R5bGU9ImZvbnQtZmFt
-aWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2NvbG9yOiMw
-MDAwMDA7Ij5JIGFtIHRyeWluZyB0byBpbXByb3ZlIHRoZSBjYWxjdWxhdGlvbiBiZWNhdXNlIGkg
-dGhpbmsgdGhlIHJvdW5kaW5nIHNlZW1zIHRvIGJlIHVzZWxlc3MsIHdlIGNhbiBjYWxjdWxhdGUg
-cHJlc3N1cmUgZGlyZWN0bHkganVzdCBsaWtlIG9yaWdpbmFsIGNvZGUgb2YgIjxzcGFuICBzdHls
-ZT0iY29sb3I6IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47
-Zm9udC1zaXplOjE0LjBweDtmb250LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQ6bm9ybWFsO2Zv
-bnQtd2VpZ2h0Om5vcm1hbDtsaW5lLWhlaWdodDoyMy4zcHg7dGV4dC1hbGlnbjpzdGFydDt0ZXh0
-LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2lkb3dzOjE7ZmxvYXQ6bm9uZTtkaXNw
-bGF5OmlubGluZTtiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmY7Ij5wcmVzc3VyZSZuYnNwOz0mbmJz
-cDtwcmVzc3VyZSZuYnNwOyombmJzcDsxMDAmbmJzcDsvJm5ic3A7c2NhbGU8L3NwYW4+Iiwgbm8g
-ZmxvYXRpbmcgbnVtYmVyIGlzc3VlLjwvc3Bhbj48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90
-aDsiPkZyb20gdGhlIHZpZXcgb2YgZGlzYXNzZW1ibHksIHRoZSBwYXRjaCBpcyBhbHNvIGJldHRl
-ciB0aGFuIG9yaWdpbmFsLjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PGJyID48L2Rp
-dj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPklmIG9yaWdpbmFsIGNvZGUgdXNpbmcgc2NhbGUg
-aXMgbW9yZSBwb3dlcmZ1bCB0aGFuIHRoZSBwYXRjaCwgcGxlYXNlIGlnbm9yZSB0aGUgc3VibWl0
-LjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PGJyID48L2Rpdj48ZGl2ICBzdHlsZT0i
-Y2xlYXI6Ym90aDsiPlRoYW5rcy48L2Rpdj48YmxvY2txdW90ZSAgc3R5bGU9Im1hcmdpbi1yaWdo
-dDouMHB4O21hcmdpbi10b3A6LjBweDttYXJnaW4tYm90dG9tOi4wcHg7Ij48ZGl2ICBzdHlsZT0i
-Y2xlYXI6Ym90aDsiPjxzcGFuICBzdHlsZT0iZm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVp
-dGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Y29sb3I6IzAwMDAwMDsiPi0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLTwvc3Bh
-bj48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBzdHlsZT0iZm9udC1mYW1p
-bHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Y29sb3I6IzAw
-MDAwMDsiPuWPkeS7tuS6uu+8mk1pY2hhbCBIb2NrbyAmbHQ7bWhvY2tvQGtlcm5lbC5vcmcmZ3Q7
-PC9zcGFuPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PHNwYW4gIHN0eWxlPSJmb250
-LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47Zm9udC1zaXplOjE0LjBweDtjb2xv
-cjojMDAwMDAwOyI+5Y+R6YCB5pe26Ze077yaMjAxN+W5tDfmnIgz5pelKOaYn+acn+S4gCkgMTg6
-MjQ8L3NwYW4+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48c3BhbiAgc3R5bGU9ImZv
-bnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2Nv
-bG9yOiMwMDAwMDA7Ij7mlLbku7bkurrvvJp6YmVzdGFodUBhbGl5dW4uY29tICZsdDt6YmVzdGFo
-dUBhbGl5dW4uY29tJmd0Ozwvc3Bhbj48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxz
-cGFuICBzdHlsZT0iZm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQt
-c2l6ZToxNC4wcHg7Y29sb3I6IzAwMDAwMDsiPuaKhOOAgOmAge+8mmFrcG0gJmx0O2FrcG1AbGlu
-dXgtZm91bmRhdGlvbi5vcmcmZ3Q7OyBtaW5jaGFuICZsdDttaW5jaGFuQGtlcm5lbC5vcmcmZ3Q7
-OyBsaW51eC1tbSAmbHQ7bGludXgtbW1Aa3ZhY2sub3JnJmd0OzsgWXVlIEh1ICZsdDtodXl1ZTJA
-Y29vbHBhZC5jb20mZ3Q7OyBBbnRvbiBWb3JvbnRzb3YgJmx0O2FudG9uLnZvcm9udHNvdkBsaW5h
-cm8ub3JnJmd0Ozwvc3Bhbj48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBz
-dHlsZT0iZm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZTox
-NC4wcHg7Y29sb3I6IzAwMDAwMDsiPuS4u+OAgOmimO+8mlJlOiBbUEFUQ0hdIG1tOiB2bXByZXNz
-dXJlOiBzaW1wbGlmeSBwcmVzc3VyZSByYXRpbyBjYWxjdWxhdGlvbjwvc3Bhbj48L2Rpdj48ZGl2
-ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBzdHlsZT0iZm9udC1mYW1pbHk6VGFob21hLEFy
-aWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Y29sb3I6IzAwMDAwMDsiPjxiciA+
-PC9zcGFuPjwvZGl2Pk9uJm5ic3A7TW9uJm5ic3A7MDMtMDctMTcmbmJzcDsxNzo0NToyNSwmbmJz
-cDt6YmVzdGFodUBhbGl5dW4uY29tJm5ic3A7d3JvdGU6PGJyID4mZ3Q7Jm5ic3A7SGkmbmJzcDtN
-aWNoYWw8YnIgPiZndDsmbmJzcDs8YnIgPiZndDsmbmJzcDtXZSZuYnNwO2NhbiZuYnNwO3RoaW5r
-Jm5ic3A7dGhlJm5ic3A7c29tZSZuYnNwO29mJm5ic3A7c2Nhbm5lZCZuYnNwO3BhZ2VzJm5ic3A7
-aXMmbmJzcDtyZWNsYWltZWQmbmJzcDthcyZuYnNwO3JlY2xhaW1lZCZuYnNwO3BhZ2VzPGJyID4m
-Z3Q7Jm5ic3A7YW5kJm5ic3A7dGhlJm5ic3A7cmVzdCZuYnNwO29mJm5ic3A7cGFnZXMmbmJzcDtp
-cyZuYnNwO2p1c3QmbmJzcDt1bnN1Y2Nlc3NmdWwmbmJzcDtyZWNsYWltZWQmbmJzcDtwYWdlcy4m
-bmJzcDt2bXByZXNzdXJlPGJyID4mZ3Q7Jm5ic3A7aXMmbmJzcDt0ZW5kJm5ic3A7dG8mbmJzcDt1
-bnN1Y2Nlc3NmdWwmbmJzcDtyZWNsYWltZWQmbmJzcDtwYWdlcywmbmJzcDtzbyZuYnNwO29idmlv
-dXNseSZuYnNwO3RoZSZuYnNwO3ByZXNzdXJlPGJyID4mZ3Q7Jm5ic3A7cGVyY2VudCZuYnNwO2lz
-Jm5ic3A7dGhlJm5ic3A7cmF0aW8mbmJzcDtvZiZuYnNwO3Vuc3VjY2Vzc2Z1bCZuYnNwO3JlY2xh
-aW1lZCZuYnNwO3BhZ2VzJm5ic3A7dG8mbmJzcDtzY2FubmVkJm5ic3A7cGFnZXMuPGJyID48YnIg
-PlllcyZuYnNwO3RoaXMmbmJzcDtpcyZuYnNwO2NvcnJlY3QmbmJzcDthbmQmbmJzcDt0aGlzJm5i
-c3A7aXMmbmJzcDt3aGF0Jm5ic3A7dGhlJm5ic3A7Y3VycmVudCZuYnNwO2NvZGUmbmJzcDtkb2Vz
-Jm5ic3A7YXMmbmJzcDt3ZWxsLjxiciA+VGhlJm5ic3A7ZGlmZmVyZW5jZSZuYnNwO2lzJm5ic3A7
-aW4mbmJzcDt0aGUmbmJzcDtyb3VuZGluZyZuYnNwO3doZW4mbmJzcDt0aGUmbmJzcDtpbnRlZ2Vy
-Jm5ic3A7YXJpdGhtZXRpYyZuYnNwO2lzJm5ic3A7dXNlZC48YnIgPjxiciA+QnR3LiZuYnNwO2Fy
-ZSZuYnNwO3lvdSZuYnNwO3RyeWluZyZuYnNwO3RvJm5ic3A7Zml4Jm5ic3A7YW55Jm5ic3A7ZXhp
-c3RpbmcmbmJzcDtwcm9ibGVtJm5ic3A7b3ImbmJzcDt5b3UmbmJzcDttZXJlbHkmbmJzcDtjaGVj
-a2VkPGJyID50aGUmbmJzcDtjb2RlJm5ic3A7YW5kJm5ic3A7Y29uc2lkZXJlZCZuYnNwO3RoaXMm
-bmJzcDtwYXJ0Jm5ic3A7dG9vJm5ic3A7aGFyZCZuYnNwO3RvJm5ic3A7dW5kZXJzdGFuZCZuYnNw
-O2FuZCZuYnNwO3NvJm5ic3A7eW91Jm5ic3A7c2VudDxiciA+YSZuYnNwO3BhdGNoJm5ic3A7dG8m
-bmJzcDttYWtlJm5ic3A7aXQmbmJzcDtzaW1wbGVyPyZuYnNwO0hhdmUmbmJzcDt5b3UmbmJzcDtj
-b25zaWRlcmVkJm5ic3A7dGhlJm5ic3A7b3JpZ2luYWwmbmJzcDtpbnRlbnRpb248YnIgPm9mJm5i
-c3A7dGhlJm5ic3A7Y29kZT8mbmJzcDtOb3RlJm5ic3A7dGhhdCZuYnNwO0kmbmJzcDthbSZuYnNw
-O25vdCZuYnNwO3NheWluZyZuYnNwO3lvdXImbmJzcDtwYXRjaCZuYnNwO2lzJm5ic3A7aW5jb3Jy
-ZWN0Jm5ic3A7SSZuYnNwO3dvdWxkPGJyID5qdXN0Jm5ic3A7bGlrZSZuYnNwO3RvJm5ic3A7dWRl
-cnN0YW5kJm5ic3A7eW91ciZuYnNwO21vdGl2YXRpb24mbmJzcDthbmQmbmJzcDt0aGUmbmJzcDtv
-cmlnaW5hbCZuYnNwO2ludGVudGlvbiZuYnNwO2luJm5ic3A7dGhlPGJyID5jb2RlLjxiciA+PGJy
-ID4mZ3Q7Jm5ic3A7LS0tLS0tLS0mbmJzcDvljp/lp4vpgq7ku7YmbmJzcDstLS0tLS0tLTxiciA+
-Jmd0OyZuYnNwO+WPkeS7tuS6uu+8mk1pY2hhbCZuYnNwO0hvY2tvJm5ic3A7Jmx0O21ob2Nrb0Br
-ZXJuZWwub3JnJmd0OzxiciA+Jmd0OyZuYnNwO+aXtumXtO+8muWRqOS4gCZuYnNwOzfmnIgz5pel
-Jm5ic3A7MTU6NDQ8YnIgPiZndDsmbmJzcDvmlLbku7bkurrvvJp6YmVzdGFodSZuYnNwOyZsdDt6
-YmVzdGFodUBhbGl5dW4uY29tJmd0OzxiciA+Jmd0OyZuYnNwO+aKhOmAge+8mmFrcG0mbmJzcDsm
-bHQ7YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZyZndDssbWluY2hhbiZuYnNwOyZsdDttaW5jaGFu
-QGtlcm5lbC5vcmcmZ3Q7LGxpbnV4LW1tJm5ic3A7Jmx0O2xpbnV4LW1tQGt2YWNrLm9yZyZndDss
-WXVlJm5ic3A7SHUmbmJzcDsmbHQ7aHV5dWUyQGNvb2xwYWQuY29tJmd0OyxBbnRvbiZuYnNwO1Zv
-cm9udHNvdiZuYnNwOyZsdDthbnRvbi52b3JvbnRzb3ZAbGluYXJvLm9yZyZndDs8YnIgPiZndDsm
-bmJzcDvkuLvpopjvvJpSZTombmJzcDtbUEFUQ0hdJm5ic3A7bW06Jm5ic3A7dm1wcmVzc3VyZTom
-bmJzcDtzaW1wbGlmeSZuYnNwO3ByZXNzdXJlJm5ic3A7cmF0aW8mbmJzcDtjYWxjdWxhdGlvbjxi
-ciA+Jmd0OyZuYnNwOzxiciA+Jmd0OyZuYnNwOyZndDtbQ0MmbmJzcDtBbnRvbl08YnIgPiZndDsm
-bmJzcDsmZ3Q7PGJyID4mZ3Q7Jm5ic3A7Jmd0O09uJm5ic3A7U2F0Jm5ic3A7MDEtMDctMTcmbmJz
-cDsxNDoyNzozOSwmbmJzcDt6YmVzdGFodUBhbGl5dW4uY29tJm5ic3A7d3JvdGU6PGJyID4mZ3Q7
-Jm5ic3A7Jmd0OyZndDsmbmJzcDtGcm9tOiZuYnNwO1l1ZSZuYnNwO0h1Jm5ic3A7Jmx0O2h1eXVl
-MkBjb29scGFkLmNvbSZndDs8YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOzxiciA+Jmd0OyZu
-YnNwOyZndDsmZ3Q7Jm5ic3A7VGhlJm5ic3A7cGF0Y2gmbmJzcDtyZW1vdmVzJm5ic3A7dGhlJm5i
-c3A7bmVlZGxlc3MmbmJzcDtzY2FsZSZuYnNwO2luJm5ic3A7ZXhpc3RpbmcmbmJzcDtjYWx1YXRp
-b24sJm5ic3A7aXQ8YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwO21ha2VzJm5ic3A7dGhlJm5i
-c3A7Y2FsY3VsYXRpb24mbmJzcDttb3JlJm5ic3A7c2ltcGxlJm5ic3A7YW5kJm5ic3A7bW9yZSZu
-YnNwO2VmZmVjdGl2ZS48YnIgPiZndDsmbmJzcDsmZ3Q7PGJyID4mZ3Q7Jm5ic3A7Jmd0O0kmbmJz
-cDtzdXNwZWN0Jm5ic3A7dGhlJm5ic3A7Y29uc3RydWN0Jm5ic3A7aXMmbmJzcDtkZWxpYmVyYXRl
-Jm5ic3A7YW5kJm5ic3A7ZG9uZSZuYnNwO3RoaXMmbmJzcDt3YXkmbmJzcDtiZWNhdXNlJm5ic3A7
-b2YmbmJzcDt0aGU8YnIgPiZndDsmbmJzcDsmZ3Q7cm91bmRpbmcuJm5ic3A7WW91ciZuYnNwO2Nv
-ZGUmbmJzcDt3aWxsJm5ic3A7YmVoYXZlJm5ic3A7c2xpZ2h0bHkmbmJzcDtkaWZmZXJlbnRseS4m
-bmJzcDtJZiZuYnNwO3RoYXQmbmJzcDtpczxiciA+Jmd0OyZuYnNwOyZndDtpbnRlbnRpb25hbCZu
-YnNwO3RoZW4mbmJzcDtpdCZuYnNwO3Nob3VsZCZuYnNwO2JlJm5ic3A7ZGVzY3JpYmVkJm5ic3A7
-aW4mbmJzcDt0aGUmbmJzcDtjaGFuZ2VkbG9nLjxiciA+Jmd0OyZuYnNwOyZndDs8YnIgPiZndDsm
-bmJzcDsmZ3Q7Jmd0OyZuYnNwO1NpZ25lZC1vZmYtYnk6Jm5ic3A7WXVlJm5ic3A7SHUmbmJzcDsm
-bHQ7aHV5dWUyQGNvb2xwYWQuY29tJmd0OzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7LS0t
-PGJyID4mZ3Q7Jm5ic3A7Jmd0OyZndDsmbmJzcDsmbmJzcDttbS92bXByZXNzdXJlLmMmbmJzcDt8
-Jm5ic3A7NCZuYnNwOystLS08YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOyZuYnNwOzEmbmJz
-cDtmaWxlJm5ic3A7Y2hhbmdlZCwmbmJzcDsxJm5ic3A7aW5zZXJ0aW9uKCspLCZuYnNwOzMmbmJz
-cDtkZWxldGlvbnMoLSk8YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOzxiciA+Jmd0OyZuYnNw
-OyZndDsmZ3Q7Jm5ic3A7ZGlmZiZuYnNwOy0tZ2l0Jm5ic3A7YS9tbS92bXByZXNzdXJlLmMmbmJz
-cDtiL21tL3ZtcHJlc3N1cmUuYzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7aW5kZXgmbmJz
-cDs2MDYzNTgxLi4xNzRiMmYwJm5ic3A7MTAwNjQ0PGJyID4mZ3Q7Jm5ic3A7Jmd0OyZndDsmbmJz
-cDstLS0mbmJzcDthL21tL3ZtcHJlc3N1cmUuYzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7
-KysrJm5ic3A7Yi9tbS92bXByZXNzdXJlLmM8YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwO0BA
-Jm5ic3A7LTExMSw3Jm5ic3A7KzExMSw2Jm5ic3A7QEAmbmJzcDtzdGF0aWMmbmJzcDtlbnVtJm5i
-c3A7dm1wcmVzc3VyZV9sZXZlbHMmbmJzcDt2bXByZXNzdXJlX2xldmVsKHVuc2lnbmVkJm5ic3A7
-bG9uZyZuYnNwO3ByZXNzdXJlKTxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7Jm5ic3A7c3Rh
-dGljJm5ic3A7ZW51bSZuYnNwO3ZtcHJlc3N1cmVfbGV2ZWxzJm5ic3A7dm1wcmVzc3VyZV9jYWxj
-X2xldmVsKHVuc2lnbmVkJm5ic3A7bG9uZyZuYnNwO3NjYW5uZWQsPGJyID4mZ3Q7Jm5ic3A7Jmd0
-OyZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDsmbmJzcDsmbmJzcDsmbmJzcDt1bnNpZ25lZCZuYnNwO2xvbmcmbmJzcDtyZWNsYWltZWQpPGJy
-ID4mZ3Q7Jm5ic3A7Jmd0OyZndDsmbmJzcDsmbmJzcDt7PGJyID4mZ3Q7Jm5ic3A7Jmd0OyZndDsm
-bmJzcDstJm5ic3A7dW5zaWduZWQmbmJzcDtsb25nJm5ic3A7c2NhbGUmbmJzcDs9Jm5ic3A7c2Nh
-bm5lZCZuYnNwOysmbmJzcDtyZWNsYWltZWQ7PGJyID4mZ3Q7Jm5ic3A7Jmd0OyZndDsmbmJzcDsm
-bmJzcDsmbmJzcDt1bnNpZ25lZCZuYnNwO2xvbmcmbmJzcDtwcmVzc3VyZSZuYnNwOz0mbmJzcDsw
-OzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7Jm5ic3A7PGJyID4mZ3Q7Jm5ic3A7Jmd0OyZn
-dDsmbmJzcDsmbmJzcDsmbmJzcDsvKjxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7QEAmbmJz
-cDstMTI4LDgmbmJzcDsrMTI3LDcmbmJzcDtAQCZuYnNwO3N0YXRpYyZuYnNwO2VudW0mbmJzcDt2
-bXByZXNzdXJlX2xldmVscyZuYnNwO3ZtcHJlc3N1cmVfY2FsY19sZXZlbCh1bnNpZ25lZCZuYnNw
-O2xvbmcmbmJzcDtzY2FubmVkLDxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7KiZuYnNwO3NjYW5uZWQuJm5ic3A7VGhpcyZuYnNwO21ha2VzJm5ic3A7aXQmbmJz
-cDtwb3NzaWJsZSZuYnNwO3RvJm5ic3A7c2V0Jm5ic3A7ZGVzaXJlZCZuYnNwO3JlYWN0aW9uJm5i
-c3A7dGltZTxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7KiZu
-YnNwO2FuZCZuYnNwO3NlcnZlcyZuYnNwO2FzJm5ic3A7YSZuYnNwO3JhdGVsaW1pdC48YnIgPiZn
-dDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyovPGJyID4mZ3Q7Jm5ic3A7
-Jmd0OyZndDsmbmJzcDstJm5ic3A7cHJlc3N1cmUmbmJzcDs9Jm5ic3A7c2NhbGUmbmJzcDstJm5i
-c3A7KHJlY2xhaW1lZCZuYnNwOyombmJzcDtzY2FsZSZuYnNwOy8mbmJzcDtzY2FubmVkKTs8YnIg
-PiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOy0mbmJzcDtwcmVzc3VyZSZuYnNwOz0mbmJzcDtwcmVz
-c3VyZSZuYnNwOyombmJzcDsxMDAmbmJzcDsvJm5ic3A7c2NhbGU7PGJyID4mZ3Q7Jm5ic3A7Jmd0
-OyZndDsmbmJzcDsrJm5ic3A7cHJlc3N1cmUmbmJzcDs9Jm5ic3A7KHNjYW5uZWQmbmJzcDstJm5i
-c3A7cmVjbGFpbWVkKSZuYnNwOyombmJzcDsxMDAmbmJzcDsvJm5ic3A7c2Nhbm5lZDs8YnIgPiZn
-dDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOyZuYnNwOzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7
-Jm5ic3A7b3V0OjxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7cHJfZGVi
-dWcoIiVzOiZuYnNwOyUzbHUmbmJzcDsmbmJzcDsoczombmJzcDslbHUmbmJzcDsmbmJzcDtyOiZu
-YnNwOyVsdSlcbiIsJm5ic3A7X19mdW5jX18sJm5ic3A7cHJlc3N1cmUsPGJyID4mZ3Q7Jm5ic3A7
-Jmd0OyZndDsmbmJzcDstLSZuYnNwOzxiciA+Jmd0OyZuYnNwOyZndDsmZ3Q7Jm5ic3A7MS45LjE8
-YnIgPiZndDsmbmJzcDsmZ3Q7Jmd0OyZuYnNwOzxiciA+Jmd0OyZuYnNwOyZndDs8YnIgPiZndDsm
-bmJzcDsmZ3Q7LS0mbmJzcDs8YnIgPiZndDsmbmJzcDsmZ3Q7TWljaGFsJm5ic3A7SG9ja288YnIg
-PiZndDsmbmJzcDsmZ3Q7U1VTRSZuYnNwO0xhYnM8YnIgPjxiciA+LS0mbmJzcDs8YnIgPk1pY2hh
-bCZuYnNwO0hvY2tvPGJyID5TVVNFJm5ic3A7TGFiczwvYmxvY2txdW90ZT48ZGl2ID48YnIgPjwv
-ZGl2PjwvZGl2Pg==
-------=ALIBOUNDARY_14945_58105940_595a5256_1865e--
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+ mm/page_alloc.c |  4 ----
+ mm/vmscan.c     | 26 +++++++-------------------
+ 2 files changed, 7 insertions(+), 23 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b896897..2d5b79c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3484,7 +3484,6 @@ static int
+ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 					const struct alloc_context *ac)
+ {
+-	struct reclaim_state reclaim_state;
+ 	int progress;
+ 	unsigned int noreclaim_flag;
+ 
+@@ -3494,13 +3493,10 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	cpuset_memory_pressure_bump();
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	lockdep_set_current_reclaim_state(gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	current->reclaim_state = &reclaim_state;
+ 
+ 	progress = try_to_free_pages(ac->zonelist, order, gfp_mask,
+ 								ac->nodemask);
+ 
+-	current->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f84cdd3..cf23de9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2560,10 +2560,13 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 
+ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ {
+-	struct reclaim_state *reclaim_state = current->reclaim_state;
++	struct reclaim_state reclaim_state = {
++		.reclaimed_slab = 0,
++	};
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 	bool reclaimable = false;
+ 
++	current->reclaim_state = &reclaim_state;
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+@@ -2644,10 +2647,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+ 
+-		if (reclaim_state) {
+-			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+-			reclaim_state->reclaimed_slab = 0;
+-		}
++		sc->nr_reclaimed += reclaim_state.reclaimed_slab;
++		reclaim_state.reclaimed_slab = 0;
+ 
+ 		if (sc->nr_reclaimed - nr_reclaimed)
+ 			reclaimable = true;
+@@ -2664,6 +2665,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 	if (reclaimable)
+ 		pgdat->kswapd_failures = 0;
+ 
++	current->reclaim_state = NULL;
+ 	return reclaimable;
+ }
+ 
+@@ -3527,16 +3529,12 @@ static int kswapd(void *p)
+ 	pg_data_t *pgdat = (pg_data_t*)p;
+ 	struct task_struct *tsk = current;
+ 
+-	struct reclaim_state reclaim_state = {
+-		.reclaimed_slab = 0,
+-	};
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+ 
+ 	lockdep_set_current_reclaim_state(GFP_KERNEL);
+ 
+ 	if (!cpumask_empty(cpumask))
+ 		set_cpus_allowed_ptr(tsk, cpumask);
+-	current->reclaim_state = &reclaim_state;
+ 
+ 	/*
+ 	 * Tell the memory management that we're a "memory allocator",
+@@ -3598,7 +3596,6 @@ static int kswapd(void *p)
+ 	}
+ 
+ 	tsk->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD);
+-	current->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 
+ 	return 0;
+@@ -3645,7 +3642,6 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+  */
+ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ {
+-	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = nr_to_reclaim,
+ 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+@@ -3657,18 +3653,14 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 		.hibernation_mode = 1,
+ 	};
+ 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+-	struct task_struct *p = current;
+ 	unsigned long nr_reclaimed;
+ 	unsigned int noreclaim_flag;
+ 
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	lockdep_set_current_reclaim_state(sc.gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	p->reclaim_state = &reclaim_state;
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+-	p->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+@@ -3833,7 +3825,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	/* Minimum pages needed in order to stay on node */
+ 	const unsigned long nr_pages = 1 << order;
+ 	struct task_struct *p = current;
+-	struct reclaim_state reclaim_state;
+ 	unsigned int noreclaim_flag;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+@@ -3855,8 +3846,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	p->flags |= PF_SWAPWRITE;
+ 	lockdep_set_current_reclaim_state(sc.gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	p->reclaim_state = &reclaim_state;
+ 
+ 	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
+ 		/*
+@@ -3868,7 +3857,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+ 	}
+ 
+-	p->reclaim_state = NULL;
+ 	current->flags &= ~PF_SWAPWRITE;
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 	lockdep_clear_current_reclaim_state();
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
