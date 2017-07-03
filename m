@@ -1,122 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D1F06B0279
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 05:45:29 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 76so203395349pgh.11
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 02:45:29 -0700 (PDT)
-Received: from out30-16.freemail.mail.aliyun.com (out30-16.freemail.mail.aliyun.com. [115.124.30.16])
-        by mx.google.com with ESMTP id g1si12853422plk.577.2017.07.03.02.45.26
-        for <linux-mm@kvack.org>;
-        Mon, 03 Jul 2017 02:45:27 -0700 (PDT)
-Date: Mon, 03 Jul 2017 17:45:25 +0800
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D4F926B0279
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 06:24:00 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b20so18554658wmd.6
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 03:24:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 20si4985902wma.1.2017.07.03.03.23.59
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Jul 2017 03:23:59 -0700 (PDT)
+Date: Mon, 3 Jul 2017 12:23:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
-Message-ID: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
-From: "zbestahu@aliyun.com" <zbestahu@aliyun.com>
+Message-ID: <20170703102354.GG3217@dhcp22.suse.cz>
+References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="--_com.android.email_102372919589170"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: "zbestahu@aliyun.com" <zbestahu@aliyun.com>
 Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-----_com.android.email_102372919589170
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: base64
+On Mon 03-07-17 17:45:25, zbestahu@aliyun.com wrote:
+> Hi Michal
+> 
+> We can think the some of scanned pages is reclaimed as reclaimed pages
+> and the rest of pages is just unsuccessful reclaimed pages. vmpressure
+> is tend to unsuccessful reclaimed pages, so obviously the pressure
+> percent is the ratio of unsuccessful reclaimed pages to scanned pages.
 
-PGRpdj5IaSBNaWNoYWw8L2Rpdj48YnI+PGRpdj5XZSBjYW4gdGhpbmsgdGhlIHNvbWUgb2Ygc2Nh
-bm5lZCBwYWdlcyBpcyZuYnNwOyByZWNsYWltZWQgYXMgcmVjbGFpbWVkIHBhZ2VzIGFuZCB0aGUg
-cmVzdCBvZiBwYWdlcyBpcyBqdXN0IHVuc3VjY2Vzc2Z1bCByZWNsYWltZWQgcGFnZXMuIHZtcHJl
-c3N1cmUgaXMgdGVuZCB0byB1bnN1Y2Nlc3NmdWwgcmVjbGFpbWVkIHBhZ2VzLCBzbyBvYnZpb3Vz
-bHkgdGhlIHByZXNzdXJlIHBlcmNlbnQgaXMgdGhlIHJhdGlvIG9mIHVuc3VjY2Vzc2Z1bCByZWNs
-YWltZWQgcGFnZXMgdG8gc2Nhbm5lZCBwYWdlcy48L2Rpdj48YnI+PGRpdj5JZiBteSB1bmRlcnN0
-YW5kaW5nIGlzIHdyb25nLCBwbGVhc2UgY29ycmVjdCZuYnNwOyBpdC48L2Rpdj48YnI+PGRpdj5U
-aGFua3MuPC9kaXY+PGJyIGlkPSJtekRpdmlkZXIiPjxicj48YnI+LS0tLS0tLS0g5Y6f5aeL6YKu
-5Lu2IC0tLS0tLS0tPGJyPuWPkeS7tuS6uu+8mk1pY2hhbCBIb2NrbyAmbHQ7bWhvY2tvQGtlcm5l
-bC5vcmcmZ3Q7PGJyPuaXtumXtO+8muWRqOS4gCA35pyIM+aXpSAxNTo0NDxicj7mlLbku7bkurrv
-vJp6YmVzdGFodSAmbHQ7emJlc3RhaHVAYWxpeXVuLmNvbSZndDs8YnI+5oqE6YCB77yaYWtwbSAm
-bHQ7YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZyZndDssbWluY2hhbiAmbHQ7bWluY2hhbkBrZXJu
-ZWwub3JnJmd0OyxsaW51eC1tbSAmbHQ7bGludXgtbW1Aa3ZhY2sub3JnJmd0OyxZdWUgSHUgJmx0
-O2h1eXVlMkBjb29scGFkLmNvbSZndDssQW50b24gVm9yb250c292ICZsdDthbnRvbi52b3JvbnRz
-b3ZAbGluYXJvLm9yZyZndDs8YnI+5Li76aKY77yaUmU6IFtQQVRDSF0gbW06IHZtcHJlc3N1cmU6
-IHNpbXBsaWZ5IHByZXNzdXJlIHJhdGlvIGNhbGN1bGF0aW9uPGJyPjxicj5bQ0MgQW50b25dPGJy
-Pjxicj5PbiBTYXQgMDEtMDctMTcgMTQ6Mjc6MzksIHpiZXN0YWh1QGFsaXl1bi5jb20gd3JvdGU6
-PGJyPiZndDsgRnJvbTogWXVlIEh1ICZsdDtodXl1ZTJAY29vbHBhZC5jb20mZ3Q7PGJyPiZndDsg
-PGJyPiZndDsgVGhlIHBhdGNoIHJlbW92ZXMgdGhlIG5lZWRsZXNzIHNjYWxlIGluIGV4aXN0aW5n
-IGNhbHVhdGlvbiwgaXQ8YnI+Jmd0OyBtYWtlcyB0aGUgY2FsY3VsYXRpb24gbW9yZSBzaW1wbGUg
-YW5kIG1vcmUgZWZmZWN0aXZlLjxicj48YnI+SSBzdXNwZWN0IHRoZSBjb25zdHJ1Y3QgaXMgZGVs
-aWJlcmF0ZSBhbmQgZG9uZSB0aGlzIHdheSBiZWNhdXNlIG9mIHRoZTxicj5yb3VuZGluZy4gWW91
-ciBjb2RlIHdpbGwgYmVoYXZlIHNsaWdodGx5IGRpZmZlcmVudGx5LiBJZiB0aGF0IGlzPGJyPmlu
-dGVudGlvbmFsIHRoZW4gaXQgc2hvdWxkIGJlIGRlc2NyaWJlZCBpbiB0aGUgY2hhbmdlZGxvZy48
-YnI+PGJyPiZndDsgU2lnbmVkLW9mZi1ieTogWXVlIEh1ICZsdDtodXl1ZTJAY29vbHBhZC5jb20m
-Z3Q7PGJyPiZndDsgLS0tPGJyPiZndDsmbmJzcDsgbW0vdm1wcmVzc3VyZS5jIHwgNCArLS0tPGJy
-PiZndDsmbmJzcDsgMSBmaWxlIGNoYW5nZWQsIDEgaW5zZXJ0aW9uKCspLCAzIGRlbGV0aW9ucygt
-KTxicj4mZ3Q7IDxicj4mZ3Q7IGRpZmYgLS1naXQgYS9tbS92bXByZXNzdXJlLmMgYi9tbS92bXBy
-ZXNzdXJlLmM8YnI+Jmd0OyBpbmRleCA2MDYzNTgxLi4xNzRiMmYwIDEwMDY0NDxicj4mZ3Q7IC0t
-LSBhL21tL3ZtcHJlc3N1cmUuYzxicj4mZ3Q7ICsrKyBiL21tL3ZtcHJlc3N1cmUuYzxicj4mZ3Q7
-IEBAIC0xMTEsNyArMTExLDYgQEAgc3RhdGljIGVudW0gdm1wcmVzc3VyZV9sZXZlbHMgdm1wcmVz
-c3VyZV9sZXZlbCh1bnNpZ25lZCBsb25nIHByZXNzdXJlKTxicj4mZ3Q7Jm5ic3A7IHN0YXRpYyBl
-bnVtIHZtcHJlc3N1cmVfbGV2ZWxzIHZtcHJlc3N1cmVfY2FsY19sZXZlbCh1bnNpZ25lZCBsb25n
-IHNjYW5uZWQsPGJyPiZndDsmbmJzcDsgCQkJCQkJJm5ic3A7Jm5ic3A7Jm5ic3A7IHVuc2lnbmVk
-IGxvbmcgcmVjbGFpbWVkKTxicj4mZ3Q7Jm5ic3A7IHs8YnI+Jmd0OyAtCXVuc2lnbmVkIGxvbmcg
-c2NhbGUgPSBzY2FubmVkICsgcmVjbGFpbWVkOzxicj4mZ3Q7Jm5ic3A7IAl1bnNpZ25lZCBsb25n
-IHByZXNzdXJlID0gMDs8YnI+Jmd0OyZuYnNwOyA8YnI+Jmd0OyZuYnNwOyAJLyo8YnI+Jmd0OyBA
-QCAtMTI4LDggKzEyNyw3IEBAIHN0YXRpYyBlbnVtIHZtcHJlc3N1cmVfbGV2ZWxzIHZtcHJlc3N1
-cmVfY2FsY19sZXZlbCh1bnNpZ25lZCBsb25nIHNjYW5uZWQsPGJyPiZndDsmbmJzcDsgCSAqIHNj
-YW5uZWQuIFRoaXMgbWFrZXMgaXQgcG9zc2libGUgdG8gc2V0IGRlc2lyZWQgcmVhY3Rpb24gdGlt
-ZTxicj4mZ3Q7Jm5ic3A7IAkgKiBhbmQgc2VydmVzIGFzIGEgcmF0ZWxpbWl0Ljxicj4mZ3Q7Jm5i
-c3A7IAkgKi88YnI+Jmd0OyAtCXByZXNzdXJlID0gc2NhbGUgLSAocmVjbGFpbWVkICogc2NhbGUg
-LyBzY2FubmVkKTs8YnI+Jmd0OyAtCXByZXNzdXJlID0gcHJlc3N1cmUgKiAxMDAgLyBzY2FsZTs8
-YnI+Jmd0OyArCXByZXNzdXJlID0gKHNjYW5uZWQgLSByZWNsYWltZWQpICogMTAwIC8gc2Nhbm5l
-ZDs8YnI+Jmd0OyZuYnNwOyA8YnI+Jmd0OyZuYnNwOyBvdXQ6PGJyPiZndDsmbmJzcDsgCXByX2Rl
-YnVnKCIlczogJTNsdSZuYnNwOyAoczogJWx1Jm5ic3A7IHI6ICVsdSlcbiIsIF9fZnVuY19fLCBw
-cmVzc3VyZSw8YnI+Jmd0OyAtLSA8YnI+Jmd0OyAxLjkuMTxicj4mZ3Q7IDxicj48YnI+LS0gPGJy
-Pk1pY2hhbCBIb2Nrbzxicj5TVVNFIExhYnM8YnI+
-----_com.android.email_102372919589170
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: base64
+Yes this is correct and this is what the current code does as well.
+The difference is in the rounding when the integer arithmetic is used.
 
-SGkgTWljaGFsCgpXZSBjYW4gdGhpbmsgdGhlIHNvbWUgb2Ygc2Nhbm5lZCBwYWdlcyBpcyAgcmVj
-bGFpbWVkIGFzIHJlY2xhaW1lZCBwYWdlcyBhbmQgdGhlIHJlc3Qgb2YgcGFnZXMgaXMganVzdCB1
-bnN1Y2Nlc3NmdWwgcmVjbGFpbWVkIHBhZ2VzLiB2bXByZXNzdXJlIGlzIHRlbmQgdG8gdW5zdWNj
-ZXNzZnVsIHJlY2xhaW1lZCBwYWdlcywgc28gb2J2aW91c2x5IHRoZSBwcmVzc3VyZSBwZXJjZW50
-IGlzIHRoZSByYXRpbyBvZiB1bnN1Y2Nlc3NmdWwgcmVjbGFpbWVkIHBhZ2VzIHRvIHNjYW5uZWQg
-cGFnZXMuCgpJZiBteSB1bmRlcnN0YW5kaW5nIGlzIHdyb25nLCBwbGVhc2UgY29ycmVjdCAgaXQu
-CgpUaGFua3MuCgoKCgotLS0tLS0tLSDljp/lp4vpgq7ku7YgLS0tLS0tLS0K5Y+R5Lu25Lq677ya
-TWljaGFsIEhvY2tvIDxtaG9ja29Aa2VybmVsLm9yZz4K5pe26Ze077ya5ZGo5LiAIDfmnIgz5pel
-IDE1OjQ0CuaUtuS7tuS6uu+8mnpiZXN0YWh1IDx6YmVzdGFodUBhbGl5dW4uY29tPgrmioTpgIHv
-vJpha3BtIDxha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnPixtaW5jaGFuIDxtaW5jaGFuQGtlcm5l
-bC5vcmc+LGxpbnV4LW1tIDxsaW51eC1tbUBrdmFjay5vcmc+LFl1ZSBIdSA8aHV5dWUyQGNvb2xw
-YWQuY29tPixBbnRvbiBWb3JvbnRzb3YgPGFudG9uLnZvcm9udHNvdkBsaW5hcm8ub3JnPgrkuLvp
-opjvvJpSZTogW1BBVENIXSBtbTogdm1wcmVzc3VyZTogc2ltcGxpZnkgcHJlc3N1cmUgcmF0aW8g
-Y2FsY3VsYXRpb24KCj5bQ0MgQW50b25dCj4KPk9uIFNhdCAwMS0wNy0xNyAxNDoyNzozOSwgemJl
-c3RhaHVAYWxpeXVuLmNvbSB3cm90ZToKPj4gRnJvbTogWXVlIEh1IDxodXl1ZTJAY29vbHBhZC5j
-b20+Cj4+IAo+PiBUaGUgcGF0Y2ggcmVtb3ZlcyB0aGUgbmVlZGxlc3Mgc2NhbGUgaW4gZXhpc3Rp
-bmcgY2FsdWF0aW9uLCBpdAo+PiBtYWtlcyB0aGUgY2FsY3VsYXRpb24gbW9yZSBzaW1wbGUgYW5k
-IG1vcmUgZWZmZWN0aXZlLgo+Cj5JIHN1c3BlY3QgdGhlIGNvbnN0cnVjdCBpcyBkZWxpYmVyYXRl
-IGFuZCBkb25lIHRoaXMgd2F5IGJlY2F1c2Ugb2YgdGhlCj5yb3VuZGluZy4gWW91ciBjb2RlIHdp
-bGwgYmVoYXZlIHNsaWdodGx5IGRpZmZlcmVudGx5LiBJZiB0aGF0IGlzCj5pbnRlbnRpb25hbCB0
-aGVuIGl0IHNob3VsZCBiZSBkZXNjcmliZWQgaW4gdGhlIGNoYW5nZWRsb2cuCj4KPj4gU2lnbmVk
-LW9mZi1ieTogWXVlIEh1IDxodXl1ZTJAY29vbHBhZC5jb20+Cj4+IC0tLQo+PsKgIG1tL3ZtcHJl
-c3N1cmUuYyB8IDQgKy0tLQo+PsKgIDEgZmlsZSBjaGFuZ2VkLCAxIGluc2VydGlvbigrKSwgMyBk
-ZWxldGlvbnMoLSkKPj4gCj4+IGRpZmYgLS1naXQgYS9tbS92bXByZXNzdXJlLmMgYi9tbS92bXBy
-ZXNzdXJlLmMKPj4gaW5kZXggNjA2MzU4MS4uMTc0YjJmMCAxMDA2NDQKPj4gLS0tIGEvbW0vdm1w
-cmVzc3VyZS5jCj4+ICsrKyBiL21tL3ZtcHJlc3N1cmUuYwo+PiBAQCAtMTExLDcgKzExMSw2IEBA
-IHN0YXRpYyBlbnVtIHZtcHJlc3N1cmVfbGV2ZWxzIHZtcHJlc3N1cmVfbGV2ZWwodW5zaWduZWQg
-bG9uZyBwcmVzc3VyZSkKPj7CoCBzdGF0aWMgZW51bSB2bXByZXNzdXJlX2xldmVscyB2bXByZXNz
-dXJlX2NhbGNfbGV2ZWwodW5zaWduZWQgbG9uZyBzY2FubmVkLAo+PsKgIAkJCQkJCcKgwqDCoCB1
-bnNpZ25lZCBsb25nIHJlY2xhaW1lZCkKPj7CoCB7Cj4+IC0JdW5zaWduZWQgbG9uZyBzY2FsZSA9
-IHNjYW5uZWQgKyByZWNsYWltZWQ7Cj4+wqAgCXVuc2lnbmVkIGxvbmcgcHJlc3N1cmUgPSAwOwo+
-PsKgIAo+PsKgIAkvKgo+PiBAQCAtMTI4LDggKzEyNyw3IEBAIHN0YXRpYyBlbnVtIHZtcHJlc3N1
-cmVfbGV2ZWxzIHZtcHJlc3N1cmVfY2FsY19sZXZlbCh1bnNpZ25lZCBsb25nIHNjYW5uZWQsCj4+
-wqAgCSAqIHNjYW5uZWQuIFRoaXMgbWFrZXMgaXQgcG9zc2libGUgdG8gc2V0IGRlc2lyZWQgcmVh
-Y3Rpb24gdGltZQo+PsKgIAkgKiBhbmQgc2VydmVzIGFzIGEgcmF0ZWxpbWl0Lgo+PsKgIAkgKi8K
-Pj4gLQlwcmVzc3VyZSA9IHNjYWxlIC0gKHJlY2xhaW1lZCAqIHNjYWxlIC8gc2Nhbm5lZCk7Cj4+
-IC0JcHJlc3N1cmUgPSBwcmVzc3VyZSAqIDEwMCAvIHNjYWxlOwo+PiArCXByZXNzdXJlID0gKHNj
-YW5uZWQgLSByZWNsYWltZWQpICogMTAwIC8gc2Nhbm5lZDsKPj7CoCAKPj7CoCBvdXQ6Cj4+wqAg
-CXByX2RlYnVnKCIlczogJTNsdcKgIChzOiAlbHXCoCByOiAlbHUpXG4iLCBfX2Z1bmNfXywgcHJl
-c3N1cmUsCj4+IC0tIAo+PiAxLjkuMQo+PiAKPgo+LS0gCj5NaWNoYWwgSG9ja28KPlNVU0UgTGFi
-cwo=
-----_com.android.email_102372919589170--
+Btw. are you trying to fix any existing problem or you merely checked
+the code and considered this part too hard to understand and so you sent
+a patch to make it simpler? Have you considered the original intention
+of the code? Note that I am not saying your patch is incorrect I would
+just like to uderstand your motivation and the original intention in the
+code.
+
+> -------- a??a??e?(R)a>>? --------
+> a??a>>?aooi 1/4 ?Michal Hocko <mhocko@kernel.org>
+> ae??e?'i 1/4 ?a??a,? 7ae??3ae?JPY 15:44
+> ae??a>>?aooi 1/4 ?zbestahu <zbestahu@aliyun.com>
+> ae??e??i 1/4 ?akpm <akpm@linux-foundation.org>,minchan <minchan@kernel.org>,linux-mm <linux-mm@kvack.org>,Yue Hu <huyue2@coolpad.com>,Anton Vorontsov <anton.vorontsov@linaro.org>
+> a,>>ec?i 1/4 ?Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
+> 
+> >[CC Anton]
+> >
+> >On Sat 01-07-17 14:27:39, zbestahu@aliyun.com wrote:
+> >> From: Yue Hu <huyue2@coolpad.com>
+> >> 
+> >> The patch removes the needless scale in existing caluation, it
+> >> makes the calculation more simple and more effective.
+> >
+> >I suspect the construct is deliberate and done this way because of the
+> >rounding. Your code will behave slightly differently. If that is
+> >intentional then it should be described in the changedlog.
+> >
+> >> Signed-off-by: Yue Hu <huyue2@coolpad.com>
+> >> ---
+> >>A  mm/vmpressure.c | 4 +---
+> >>A  1 file changed, 1 insertion(+), 3 deletions(-)
+> >> 
+> >> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> >> index 6063581..174b2f0 100644
+> >> --- a/mm/vmpressure.c
+> >> +++ b/mm/vmpressure.c
+> >> @@ -111,7 +111,6 @@ static enum vmpressure_levels vmpressure_level(unsigned long pressure)
+> >>A  static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+> >>A  						A A A  unsigned long reclaimed)
+> >>A  {
+> >> -	unsigned long scale = scanned + reclaimed;
+> >>A  	unsigned long pressure = 0;
+> >>A  
+> >>A  	/*
+> >> @@ -128,8 +127,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+> >>A  	 * scanned. This makes it possible to set desired reaction time
+> >>A  	 * and serves as a ratelimit.
+> >>A  	 */
+> >> -	pressure = scale - (reclaimed * scale / scanned);
+> >> -	pressure = pressure * 100 / scale;
+> >> +	pressure = (scanned - reclaimed) * 100 / scanned;
+> >>A  
+> >>A  out:
+> >>A  	pr_debug("%s: %3luA  (s: %luA  r: %lu)\n", __func__, pressure,
+> >> -- 
+> >> 1.9.1
+> >> 
+> >
+> >-- 
+> >Michal Hocko
+> >SUSE Labs
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
