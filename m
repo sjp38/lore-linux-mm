@@ -1,120 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0233D6B0279
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 00:02:07 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s4so226685086pgr.3
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 21:02:06 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w33si14453232plb.501.2017.07.03.21.02.05
-        for <linux-mm@kvack.org>;
-        Mon, 03 Jul 2017 21:02:05 -0700 (PDT)
-Date: Tue, 4 Jul 2017 13:02:04 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/4] vmscan: bailout of slab reclaim once we reach our
- target
-Message-ID: <20170704040204.GB16432@bbox>
-References: <1499095984-1942-1-git-send-email-jbacik@fb.com>
- <1499095984-1942-2-git-send-email-jbacik@fb.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CAEB6B0279
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 01:11:51 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j79so218937142pfj.9
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 22:11:51 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id g9si9820665plk.482.2017.07.03.22.11.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jul 2017 22:11:50 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id u36so25138405pgn.3
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 22:11:50 -0700 (PDT)
+Date: Tue, 4 Jul 2017 14:11:41 +0900
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: Re: "mm: use early_pfn_to_nid in page_ext_init" broken on some
+ configurations?
+Message-ID: <20170704051138.GA28589@js1304-desktop>
+References: <20170630141847.GN22917@dhcp22.suse.cz>
+ <20170630154224.GA9714@dhcp22.suse.cz>
+ <20170630154416.GB9714@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1499095984-1942-2-git-send-email-jbacik@fb.com>
+In-Reply-To: <20170630154416.GB9714@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: josef@toxicpanda.com
-Cc: linux-mm@kvack.org, riel@redhat.com, hannes@cmpxchg.org, kernel-team@fb.com, akpm@linux-foundation.org, Josef Bacik <jbacik@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Yang Shi <yang.shi@linaro.org>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 03, 2017 at 11:33:02AM -0400, josef@toxicpanda.com wrote:
-> From: Josef Bacik <jbacik@fb.com>
+On Fri, Jun 30, 2017 at 05:44:16PM +0200, Michal Hocko wrote:
+> On Fri 30-06-17 17:42:24, Michal Hocko wrote:
+> [...]
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 16532fa0bb64..894697c1e6f5 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -1055,6 +1055,7 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+> >  	!defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
+> >  static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+> >  {
+> > +	BUILD_BUG_ON(!IS_ENABLED(CONFIG_NUMA));
 > 
-> Following patches will greatly increase our aggressiveness in slab
-> reclaim, so we need checks in place to make sure we stop trying to
-> reclaim slab once we've hit our reclaim target.
-> 
-> Signed-off-by: Josef Bacik <jbacik@fb.com>
-> ---
->  mm/vmscan.c | 35 ++++++++++++++++++++++++-----------
->  1 file changed, 24 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index cf23de9..77a887a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -305,11 +305,13 @@ EXPORT_SYMBOL(unregister_shrinker);
->  
->  #define SHRINK_BATCH 128
->  
-> -static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> +static unsigned long do_shrink_slab(struct scan_control *sc,
-> +				    struct shrink_control *shrinkctl,
->  				    struct shrinker *shrinker,
->  				    unsigned long nr_scanned,
->  				    unsigned long nr_eligible)
->  {
-> +	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	unsigned long freed = 0;
->  	unsigned long long delta;
->  	long total_scan;
-> @@ -394,14 +396,18 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  
->  		shrinkctl->nr_to_scan = nr_to_scan;
->  		ret = shrinker->scan_objects(shrinker, shrinkctl);
-> +		if (reclaim_state) {
-> +			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> +			reclaim_state->reclaimed_slab = 0;
-> +		}
->  		if (ret == SHRINK_STOP)
->  			break;
->  		freed += ret;
-> -
->  		count_vm_events(SLABS_SCANNED, nr_to_scan);
->  		total_scan -= nr_to_scan;
->  		scanned += nr_to_scan;
-> -
-> +		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-> +			break;
->  		cond_resched();
->  	}
->  
-> @@ -452,7 +458,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->   *
->   * Returns the number of reclaimed slab objects.
->   */
-> -static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
-> +static unsigned long shrink_slab(struct scan_control *sc, int nid,
->  				 struct mem_cgroup *memcg,
->  				 unsigned long nr_scanned,
->  				 unsigned long nr_eligible)
-> @@ -478,8 +484,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	}
->  
->  	list_for_each_entry(shrinker, &shrinker_list, list) {
-> -		struct shrink_control sc = {
-> -			.gfp_mask = gfp_mask,
-> +		struct shrink_control shrinkctl = {
-> +			.gfp_mask = sc->gfp_mask,
->  			.nid = nid,
->  			.memcg = memcg,
->  		};
-> @@ -494,9 +500,12 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			continue;
->  
->  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
-> -			sc.nid = 0;
-> +			shrinkctl.nid = 0;
->  
-> -		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
-> +		freed += do_shrink_slab(sc, &shrinkctl, shrinker, nr_scanned,
-> +					nr_eligible);
-> +		if (sc->nr_to_reclaim <= sc->nr_reclaimed)
-> +			break;
->  	}
->  
+> Err, this should read BUILD_BUG_ON(IS_ENABLED(CONFIG_NUMA)) of course
 
-Such bailout ruins fair aging so that a specific shrinker in head of the list
-will be exhausted. Also, without fair aging, it's hard to reclaim a slab page
-mixed several type objects. I don't think it's a good idea to bail out after
-passing huge aggressive scan number.
+Agreed.
+
+However, AFAIK, ARM can set CONFIG_NUMA but it doesn't have
+CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID and CONFIG_HAVE_MEMBLOCK_NODE_MAP.
+
+If page_ext uses early_pfn_to_nid(), it will cause build error in ARM.
+
+Therefore, I suggest following change.
+CONFIG_DEFERRED_STRUCT_PAGE_INIT depends on proper early_pfn_to_nid().
+So, following code will always work as long as
+CONFIG_DEFERRED_STRUCT_PAGE_INIT works.
+
+Thanks.
+
+----------->8---------------
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 88ccc044..e3db259 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -384,6 +384,7 @@ void __init page_ext_init(void)
+ 
+        for_each_node_state(nid, N_MEMORY) {
+                unsigned long start_pfn, end_pfn;
++               int page_nid;
+ 
+                start_pfn = node_start_pfn(nid);
+                end_pfn = node_end_pfn(nid);
+@@ -405,8 +406,15 @@ void __init page_ext_init(void)
+                         *
+                         * Take into account DEFERRED_STRUCT_PAGE_INIT.
+                         */
+-                       if (early_pfn_to_nid(pfn) != nid)
++#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++                       page_nid = early_pfn_to_nid(pfn);
++#else
++                       page_nid = pfn_to_nid(pfn);
++#endif
++
++                       if (page_nid != nid)
+                                continue;
++
+                        if (init_section_page_ext(pfn, nid))
+                                goto oom;
+                }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
