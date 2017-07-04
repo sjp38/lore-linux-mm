@@ -1,75 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A7B9B6B0279
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 07:46:30 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r103so45234029wrb.0
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 04:46:30 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B0D1F6B0279
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:07:04 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u110so45314864wrb.14
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:07:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i6si14973016wra.141.2017.07.04.04.46.29
+        by mx.google.com with ESMTPS id o84si19918693wmb.180.2017.07.04.05.07.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 04:46:29 -0700 (PDT)
-Date: Tue, 4 Jul 2017 12:46:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH mm] introduce reverse buddy concept to reduce buddy
- fragment
-Message-ID: <20170704114623.uc4w57n35yk5bqv2@suse.de>
-References: <1498821941-55771-1-git-send-email-zhouxianrong@huawei.com>
- <20170703074829.GD3217@dhcp22.suse.cz>
- <bfb807bf-92ce-27aa-d848-a6cab055447f@huawei.com>
- <20170703153307.GA11848@dhcp22.suse.cz>
- <5c9cf499-6f71-6dda-6378-7e9f27e6cd70@huawei.com>
- <20170704065215.GB12068@dhcp22.suse.cz>
- <d6eaccf6-dbc0-2d4e-2c51-0c9a40b79aa8@huawei.com>
- <20170704112414.GA14727@dhcp22.suse.cz>
+        Tue, 04 Jul 2017 05:07:03 -0700 (PDT)
+Subject: Re: [patch V2 1/2] mm: swap: Provide lru_add_drain_all_cpuslocked()
+References: <20170704093232.995040438@linutronix.de>
+ <20170704093421.419329357@linutronix.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b2522a26-334b-c66e-4cca-c9eeb4aa6f93@suse.cz>
+Date: Tue, 4 Jul 2017 14:07:01 +0200
 MIME-Version: 1.0
+In-Reply-To: <20170704093421.419329357@linutronix.de>
 Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170704112414.GA14727@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: zhouxianrong <zhouxianrong@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, alexander.h.duyck@intel.com, l.stach@pengutronix.de, vdavydov.dev@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, npiggin@gmail.com, kirill.shutemov@linux.intel.com, gi-oh.kim@profitbricks.com, luto@kernel.org, keescook@chromium.org, mark.rutland@arm.com, mingo@kernel.org, heiko.carstens@de.ibm.com, iamjoonsoo.kim@lge.com, rientjes@google.com, ming.ling@spreadtrum.com, jack@suse.cz, ebru.akagunduz@gmail.com, bigeasy@linutronix.de, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, won.ho.park@huawei.com
+To: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue, Jul 04, 2017 at 01:24:14PM +0200, Michal Hocko wrote:
-> On Tue 04-07-17 16:04:52, zhouxianrong wrote:
-> > every 2s i sample /proc/buddyinfo in the whole test process.
-> > 
-> > the last about 90 samples were sampled after the test was done.
+On 07/04/2017 11:32 AM, Thomas Gleixner wrote:
+> The rework of the cpu hotplug locking unearthed potential deadlocks with
+> the memory hotplug locking code.
 > 
-> I've tried to explain to you that numbers without a proper testing
-> metodology and highlevel metrics you are interested in and comparision
-> to the base kernel are meaningless. I cannot draw any conclusion from
-> looking at numbers you have posted. Are high order allocations cheaper
-> to do with this patch? What about an averge order-0 allocation request?
+> The solution for these is to rework the memory hotplug locking code as well
+> and take the cpu hotplug lock before the memory hotplug lock in
+> mem_hotplug_begin(), but this will cause a recursive locking of the cpu
+> hotplug lock when the memory hotplug code calls lru_add_drain_all().
 > 
+> Split out the inner workings of lru_add_drain_all() into
+> lru_add_drain_all_cpuslocked() so this function can be invoked from the
+> memory hotplug code with the cpu hotplug lock held.
+> 
+> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: linux-mm@kvack.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-I have to agree. The patch is extremely complex for what it does which
-is working around a limitation of the buddy allocator in general
-(buddy's must be naturally aligned). There would have to be *strong*
-justification that allocations fail even with compaction or a reclaim
-cycle or that the latency is severely reduced -- neither which is
-evident from the data presented. It would also have to be proven that
-there is no overhead added in the general case to justify this so
-without extensive justification for the complexity;
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Naked-by: Mel Gorman <mgorman@suse.de>
+A question below.
 
-> You are touching memory allocator hot paths and those are really
-> sensitive to changes. It takes a lot of testing with different workloads
-> to prove that no new regressions are introduced. That being said, I
-> completely agree that reducing the memory fragmentation is an important
-> objective but touching the page allocator and adding new branches there
-> sounds like a problematic approach which would have to show _huge_
-> benefits to be mergeable. Is it possible to improve khugepaged to
-> accomplish the same thing?
+> ---
+>  include/linux/swap.h |    1 +
+>  mm/swap.c            |   11 ++++++++---
+>  2 files changed, 9 insertions(+), 3 deletions(-)
+> 
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -277,6 +277,7 @@ extern void mark_page_accessed(struct pa
+>  extern void lru_add_drain(void);
+>  extern void lru_add_drain_cpu(int cpu);
+>  extern void lru_add_drain_all(void);
+> +extern void lru_add_drain_all_cpuslocked(void);
+>  extern void rotate_reclaimable_page(struct page *page);
+>  extern void deactivate_file_page(struct page *page);
+>  extern void mark_page_lazyfree(struct page *page);
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -687,7 +687,7 @@ static void lru_add_drain_per_cpu(struct
+>  
+>  static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+>  
+> -void lru_add_drain_all(void)
+> +void lru_add_drain_all_cpuslocked(void)
+>  {
+>  	static DEFINE_MUTEX(lock);
+>  	static struct cpumask has_work;
+> @@ -701,7 +701,6 @@ void lru_add_drain_all(void)
+>  		return;
+>  
+>  	mutex_lock(&lock);
+> -	get_online_cpus();
 
-Or if this is CMA related, a justification why alloc_contig_range cannot do
-the same thing with a linear walk when the initial allocation attempt fails.
+Is there a an assertion check that we are locked, that could be put in
+e.g. VM_WARN_ON_ONCE()?
 
--- 
-Mel Gorman
-SUSE Labs
+>  	cpumask_clear(&has_work);
+>  
+>  	for_each_online_cpu(cpu) {
+> @@ -721,10 +720,16 @@ void lru_add_drain_all(void)
+>  	for_each_cpu(cpu, &has_work)
+>  		flush_work(&per_cpu(lru_add_drain_work, cpu));
+>  
+> -	put_online_cpus();
+>  	mutex_unlock(&lock);
+>  }
+>  
+> +void lru_add_drain_all(void)
+> +{
+> +	get_online_cpus();
+> +	lru_add_drain_all_cpuslocked();
+> +	put_online_cpus();
+> +}
+> +
+>  /**
+>   * release_pages - batched put_page()
+>   * @pages: array of pages to release
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
