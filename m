@@ -1,149 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5991D6B0279
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 14:28:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 13so246082329pgg.8
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 11:28:18 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id w1si17017359plk.360.2017.07.04.11.28.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jul 2017 11:28:17 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v64INcHG008377
-	for <linux-mm@kvack.org>; Tue, 4 Jul 2017 14:28:16 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bg4yht0eg-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Jul 2017 14:28:16 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 4 Jul 2017 19:28:13 +0100
-Date: Tue, 4 Jul 2017 21:28:07 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH v2] userfaultfd: Add feature to request for a signal
- delivery
-References: <ff16daf5-7ba0-3dc2-7f73-eb7db8336df7@oracle.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D68BA6B0292
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 18:58:03 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 76so252330750pgh.11
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 15:58:03 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id h7si1542190pgr.234.2017.07.04.15.58.01
+        for <linux-mm@kvack.org>;
+        Tue, 04 Jul 2017 15:58:02 -0700 (PDT)
+Date: Wed, 5 Jul 2017 08:57:58 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
+ calculation
+Message-ID: <20170704225758.GT17542@dastard>
+References: <20170614064045.GA19843@bbox>
+ <20170619151120.GA11245@destiny>
+ <20170620024645.GA27702@bbox>
+ <20170627135931.GA14097@destiny>
+ <20170630021713.GB24520@bbox>
+ <20170630150322.GB9743@destiny>
+ <20170703013303.GA2567@bbox>
+ <20170703135006.GC27097@destiny>
+ <20170704030100.GA16432@bbox>
+ <20170704132136.GB6807@destiny>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ff16daf5-7ba0-3dc2-7f73-eb7db8336df7@oracle.com>
-Message-Id: <20170704182806.GB4070@rapoport-lnx>
+In-Reply-To: <20170704132136.GB6807@destiny>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Minchan Kim <minchan@kernel.org>, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, mhocko@kernel.org, cl@linux.com
 
-On Tue, Jun 27, 2017 at 09:08:40AM -0700, Prakash Sangappa wrote:
-> Applications like the database use hugetlbfs for performance reason.
-> Files on hugetlbfs filesystem are created and huge pages allocated
-> using fallocate() API. Pages are deallocated/freed using fallocate() hole
-> punching support. These files are mmap'ed and accessed by many
-> single threaded processes as shared memory.  The database keeps
-> track of which offsets in the hugetlbfs file have pages allocated.
+On Tue, Jul 04, 2017 at 09:21:37AM -0400, Josef Bacik wrote:
+> On Tue, Jul 04, 2017 at 12:01:00PM +0900, Minchan Kim wrote:
+> > 1. slab *page* reclaim
+> > 
+> > Your claim is that it's hard to reclaim a page by slab fragmentation so need to
+> > reclaim objects more aggressively.
+> > 
+> > Basically, aggressive scanning doesn't guarantee to reclaim a page but it just
+> > increases the possibility. Even, if we think slab works with merging feature(i.e.,
+> > it mixes same size several type objects in a slab), the possibility will be huge
+> > dropped if you try to bail out on a certain shrinker. So for working well,
+> > we should increase aggressiveness too much to sweep every objects from all shrinker.
+> > I guess that's why your patch makes the logic very aggressive.
+> > In here, my concern with that aggressive is to reclaim all objects too early
+> > and it ends up making void caching scheme. I'm not sure it's gain in the end.
+> >
 > 
-> Any access to mapped address over holes in the file, which can occur due
-> to bugs in the application, is considered invalid and expect the process
-> to simply receive a SIGBUS.  However, currently when a hole in the file is
-> accessed via the mmap'ed address, kernel/mm attempts to automatically
-> allocate a page at page fault time, resulting in implicitly filling the
-> hole in the file. This may not be the desired behavior for applications
-> like the database that want to explicitly manage page allocations of
-> hugetlbfs files. The requirement here is for a way to prevent the kernel
-> from implicitly allocating a page  to fill holes in hugetbfs file.
+> Well the fact is what we have doesn't work, and I've been staring at this
+> problem for a few months and I don't have a better solution.
 > 
-> This can be achieved using userfaultfd mechanism to intercept page-fault
-> events when mmap'ed address over holes in the file are accessed, and
-> prevent kernel from implicitly filling the hole. However, currently using
-> userfaultfd would require each of the database processes to use a monitor
-> thread and the setup cost associated with it,  is considered an overhead.
-> 
-> It would be better if userfaultd mechanism could have a way to request
-> simply sending a signal,for the robustness use case described above.
-> This would not require the use of a monitor thread.
-> 
-> This patch adds the feature to userfaultfd mechanism to request for a
-> SIGBUS signal delivery to the faulting process, instead of the
-> page-fault event.
-> 
-> See following for previous discussion about a different solution
-> to the above database requirement, leading to this proposal to enhance
-> userfaultfd, as suggested by Andrea.
-> 
-> http://www.spinics.net/lists/linux-mm/msg129224.html
-> 
-> Signed-off-by: Prakash <prakash.sangappa@oracle.com>
-> ---
->  fs/userfaultfd.c                 |  5 +++++
->  include/uapi/linux/userfaultfd.h | 10 +++++++++-
->  2 files changed, 14 insertions(+), 1 deletion(-)
+> And keep in mind we're talking about a purely slab workload, something that
+> isn't likely to be a common case.  And even if our scan target is 2x, we aren't
+> going to reclaim the entire cache before we bail out.  We only scan in
+> 'batch_size' chunks, which generally is 1024.  In the worst case that we have
+> one in use object on every slab page we own then yes we're fucked, but we're
+> still fucked with the current code, only with the current code it'll take us 20
+> minutes of looping in the vm vs. seconds scanning the whole list twice.
 
-Apparently your mail client clobbered the white space, can you please
-resend with proper formatting?
- 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 1d622f2..5686d6d2 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -371,6 +371,11 @@ int handle_userfault(struct vm_fault *vmf, unsigned
-> long reason)
->      VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
->      VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+Right - this is where growth/allocation rate based aging scans
+come into play, rather than waiting for the VM to hit some unknown
+ceiling and do an unpredictable amount of scanning.
+
+> > 2. stream-workload
+> > 
+> > Your claim is that every objects can have INUSE flag in that workload so they
+> > need to scan full-cycle with removing the flag and finally, next cycle,
+> > objects can be reclaimed. On the situation, static incremental scanning would
+> > make deep prorioty drop which causes unncessary CPU cycle waste.
+> > 
+> > Actually, there isn't nice solution for that at the moment. Page cache try
+> > to solve it with multi-level LRU and as you said, it would solve the
+> > problem. However, it would be too complicated so you could be okay with
+> > Dave's suggestion which periodic aging(i.e., LFU) but it's not free so that
+> > it could increase runtime latency.
+> > 
+> > The point is that such workload is hard to solve in general and just
+> > general agreessive scanning is not a good solution because it can sweep
+> > other shrinkers which don't have such problem so I hope it should be
+> > solved by a specific shrinker itself rather than general VM level.
 > 
-> +    if (ctx->features & UFFD_FEATURE_SIGBUS) {
-> +        goto out;
-> +    }
+> The only problem I see here is our shrinker list is just a list, there's no
+> order or anything and we just walk through one at a time.
 
-Please remove the curly braces.
+That's because we don't really need an ordered list - all shrinkable
+caches needed to have the same amount of work done on them for a
+given memory pressure. That's how we maintain balance between
+caches.
 
-> +
->      /*
->       * If it's already released don't get it. This avoids to loop
->       * in __get_user_pages if userfaultfd_release waits on the
-> diff --git a/include/uapi/linux/userfaultfd.h
-> b/include/uapi/linux/userfaultfd.h
-> index 3b05953..d39d5db 100644
-> --- a/include/uapi/linux/userfaultfd.h
-> +++ b/include/uapi/linux/userfaultfd.h
-> @@ -23,7 +23,8 @@
->                 UFFD_FEATURE_EVENT_REMOVE |    \
->                 UFFD_FEATURE_EVENT_UNMAP |        \
->                 UFFD_FEATURE_MISSING_HUGETLBFS |    \
-> -               UFFD_FEATURE_MISSING_SHMEM)
-> +               UFFD_FEATURE_MISSING_SHMEM |        \
-> +               UFFD_FEATURE_SIGBUS)
->  #define UFFD_API_IOCTLS                \
->      ((__u64)1 << _UFFDIO_REGISTER |        \
->       (__u64)1 << _UFFDIO_UNREGISTER |    \
-> @@ -153,6 +154,12 @@ struct uffdio_api {
->       * UFFD_FEATURE_MISSING_SHMEM works the same as
->       * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
->       * (i.e. tmpfs and other shmem based APIs).
-> +     *
-> +     * UFFD_FEATURE_SIGBUS feature means no page-fault
-> +     * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
-> +     * a SIGBUS signal will be sent to the faulting process.
-> +     * The application process can enable this behavior by adding
-> +     * it to uffdio_api.features.
+> We could mitigate
+> this problem by ordering the list based on objects, but this isn't necessarily a
+> good indication of overall size.
 
-I think that it maybe worth making UFFD_FEATURE_SIGBUS mutually exclusive
-with the non-cooperative events. There is no point of having monitor if the
-page fault handler will anyway just kill the faulting process.
+shrinkers don't just run on caches, and some of the this they run
+against have variable object size. Some of them report reclaimable
+memory in bytes rather than object counts to the shrinker
+infrastructure.  i.e. the shrinker infrastrcture is abstracted
+sufficiently that the accounting of memory used/reclaimed is defined
+by the individual subsystems, not the shrinker infrastructure....
 
->       */
->  #define UFFD_FEATURE_PAGEFAULT_FLAG_WP (1<<0)
->  #define UFFD_FEATURE_EVENT_FORK            (1<<1)
-> @@ -161,6 +168,7 @@ struct uffdio_api {
->  #define UFFD_FEATURE_MISSING_HUGETLBFS (1<<4)
->  #define UFFD_FEATURE_MISSING_SHMEM        (1<<5)
->  #define UFFD_FEATURE_EVENT_UNMAP        (1<<6)
-> +#define UFFD_FEATURE_SIGBUS            (1<<7)
->      __u64 features;
-> 
->      __u64 ioctls;
-> -- 
-> 2.7.4
+> Consider xfs_buf, where each slab object is also hiding 1 page, so
+> for every slab object we free we also free 1 page.
+
+Well, that's a very simplistic view - there are objects that hold a
+page, but it's a variable size object cache. an xfs-buf can point to
+heap memory or multiple pages.
+
+IOWs, the xfs-buf is not a *slab cache*. It's a *buffer cache*, but
+we control it's size via a shrinker because that's the only
+mechanism we have that provides subsystems with memory pressure
+callbacks. This is a clear example of what I said above about
+shrinkers being much more than just a mechanism to control the size
+of a slab...
+
+> This may
+> appear to be a smaller slab by object measures, but may actually
+> be larger.
+
+Right, but that's for the subsystem to sort out the working set
+balance against all the other caches - the shrinker infrastructure
+cannot determine how important different subsystems are relative to
+each other, so memory reclaim must try to do the same percentage of
+reclaim work across all of them so that everything remains globally
+balanced.
+
+My original plan years ago was to make the shrinker infrastructure
+API work on "bytes" rather than "subsystem defined objects", but
+there were so many broken shrinkers I burnt out before I got that
+far....
+
+My suggestion of allocation based aging callbacks is something for
+specific caches to be able to run based on their own or the users
+size/growth/performance constraints. It's independent of memory
+reclaim behaviour and so can be a strongly biased as the user wants.
+Memory reclaim will just maintain whatever balance that exists
+between the different caches as a result of the subsystem specific
+aging callbacks.
+
+> We could definitely make this aspect of the shrinker
+> smarter, but these patches here need to still be in place in
+> general to solve the problem of us not being aggressive enough
+> currently.  Thanks,
+
+Remember that the shrinker callback into a subsystem is just a
+mechanism for scanning a subsystem's reclaim list and performing
+reclaim. We're not limited to only calling them from
+do_shrink_slab() - a historic name that doesn't reflect the reality
+of shrinkers these days - if we have a superblock, we can call the
+shrinker....
+
+FWIW, we have per-object init callbacks in the slab infrastructure -
+ever thought of maybe using them for controlling cache aging
+behaviour? e.g. accounting to trigger background aging scans...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
