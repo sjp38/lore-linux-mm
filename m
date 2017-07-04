@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8AA6B0292
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 09:13:49 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 4so45593997wrc.15
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 06:13:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a3si12960563wmc.142.2017.07.04.06.13.47
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AE4E6B0292
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 09:15:29 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 6so33550521oik.11
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 06:15:29 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x186si13814881oix.139.2017.07.04.06.15.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 06:13:47 -0700 (PDT)
-Date: Tue, 4 Jul 2017 15:13:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?5Zue5aSN77yaW1BBVENI?= =?utf-8?Q?=5D?= mm: vmpressure:
- simplify pressure ratio calculation
-Message-ID: <20170704131345.GR14722@dhcp22.suse.cz>
-References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com>
- <00146e00-d941-4311-8494-3e4220b04103.zbestahu@aliyun.com>
- <2da6833d-4c6b-4df0-9dd3-ff8ce605865f.zbestahu@aliyun.com>
-MIME-Version: 1.0
+        Tue, 04 Jul 2017 06:15:28 -0700 (PDT)
+Subject: Re: mm/slab: What is cache_reap work for?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201706271935.DJJ18719.OMFLFFHJSOVtQO@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.20.1706300856530.3291@east.gentwo.org>
+In-Reply-To: <alpine.DEB.2.20.1706300856530.3291@east.gentwo.org>
+Message-Id: <201707042215.ICG90672.FStFMFQOHLOOJV@I-love.SAKURA.ne.jp>
+Date: Tue, 4 Jul 2017 22:15:21 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2da6833d-4c6b-4df0-9dd3-ff8ce605865f.zbestahu@aliyun.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zbestahu <zbestahu@aliyun.com>
-Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: cl@linux.com
+Cc: linux-mm@kvack.org
 
-On Tue 04-07-17 21:08:15, zbestahu wrote:
-> Michal wrote: 
-> > Make sure you describe all that in the changelog because your original
-> > patch description wasn't all that clear about your intention.
+Christoph Lameter wrote:
+> On Tue, 27 Jun 2017, Tetsuo Handa wrote:
 > 
-> The patch's description is updated as following:
+> > I hit an unable to invoke the OOM killer lockup shown below. According to
+> > "cpus=2 node=0 flags=0x0 nice=0" part, it seems that cache_reap (in mm/slab.c)
+> > work stuck waiting for disk_events_workfn (in block/genhd.c) work to complete.
 > 
-> The patch does not change the function,
+> Cache reaping in SLAB is the expiration of objects since they are deemed
+> to be cache cold after while. Reaping is a tick driven worker thread that
+> calls other functions that are used during regular slab allocation and
+> freeing. Maybe someone added code that can cause deadlocks if invoked from
+> the tick?
 
-yes it pretty much changes the result.
+Thank you for explanation. What I observed is that it seems that
+cache_reap work was not able to run because it used system_wq when
+the system was unable to allocate memory for new worker thread due to
+infinite too_many_isolated() loop in shrink_inactive_list().
 
-> the existing percent
-> calculation using scale should be about rounding to intege, it
-> seems to be redundant, we can calculate it directly just like
-> "pressure = not_relaimed * 100 / scanned", no rounding issue. And
-> it's also better because of saving several arithmetic operations.
-
-and you haven't explained why that change is so much better to change
-the behavior.
--- 
-Michal Hocko
-SUSE Labs
+I wondered whether cache_reap work qualifies as an mm_percpu_wq user
+if cache_reap work does something like what vmstat_work work does (e.g.
+update statistic counters which affect progress of memory allocation).
+But "calls other functions that are used during regular slab allocation"
+means cache_reap work cannot qualify as an mm_percpu_wq user...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
