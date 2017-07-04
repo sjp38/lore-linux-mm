@@ -1,77 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BAC946B0292
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:10:51 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 79so2809928wmg.4
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:10:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k35si13916266wrc.368.2017.07.04.05.10.50
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D2CD46B0279
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:33:43 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id o8so107346883qtc.1
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:33:43 -0700 (PDT)
+Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
+        by mx.google.com with ESMTPS id 91si4471732qta.132.2017.07.04.05.33.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 05:10:50 -0700 (PDT)
-Subject: Re: [patch V2 2/2] mm/memory-hotplug: Switch locking to a percpu
- rwsem
-References: <20170704093232.995040438@linutronix.de>
- <20170704093421.506836322@linutronix.de>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cec30e21-c407-9ffa-c10b-0aa2ea64de2a@suse.cz>
-Date: Tue, 4 Jul 2017 14:10:49 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170704093421.506836322@linutronix.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Jul 2017 05:33:42 -0700 (PDT)
+Received: by mail-qk0-x241.google.com with SMTP id v143so14635591qkb.3
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:33:42 -0700 (PDT)
+From: josef@toxicpanda.com
+Subject: [PATCH 1/4] vmscan: push reclaim_state down to shrink_node()
+Date: Tue,  4 Jul 2017 08:33:37 -0400
+Message-Id: <1499171620-6746-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+To: minchan@kernel.org, akpm@linux-foundation.org, kernel-team@fb.com, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com
+Cc: Josef Bacik <jbacik@fb.com>
 
-On 07/04/2017 11:32 AM, Thomas Gleixner wrote:
-> Andrey reported a potential deadlock with the memory hotplug lock and the
-> cpu hotplug lock.
-> 
-> The reason is that memory hotplug takes the memory hotplug lock and then
-> calls stop_machine() which calls get_online_cpus(). That's the reverse lock
-> order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
-> 
-> The problem has been there forever. The reason why this was never reported
-> is that the cpu hotplug locking had this homebrewn recursive reader writer
-> semaphore construct which due to the recursion evaded the full lock dep
-> coverage. The memory hotplug code copied that construct verbatim and
-> therefor has similar issues.
-> 
-> Three steps to fix this:
-> 
-> 1) Convert the memory hotplug locking to a per cpu rwsem so the potential
->    issues get reported proper by lockdep.
-> 
-> 2) Lock the online cpus in mem_hotplug_begin() before taking the memory
->    hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
->    and use to avoid recursive locking.
+From: Josef Bacik <jbacik@fb.com>
 
-     ^ s/and use // ?
+We care about this for slab reclaim, and only some of the paths set this
+and way higher up than we care about.  Fix this by pushing it into
+shrink_node() so we always have the slab reclaim information, regardless
+of how we are doing the reclaim.
 
-> 
-> 3) The cpu hotpluck locking in #2 causes a recursive locking of the cpu
->    hotplug lock via __offline_pages() -> lru_add_drain_all(). Solve this by
->    invoking lru_add_drain_all_cpuslocked() instead.
-> 
-> Reported-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: linux-mm@kvack.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+ mm/page_alloc.c |  4 ----
+ mm/vmscan.c     | 26 +++++++-------------------
+ 2 files changed, 7 insertions(+), 23 deletions(-)
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/memory_hotplug.c |   89 ++++++++--------------------------------------------
->  mm/page_alloc.c     |    2 -
->  2 files changed, 16 insertions(+), 75 deletions(-)
-
-Nice! Glad to see the crazy code go.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b896897..2d5b79c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3484,7 +3484,6 @@ static int
+ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 					const struct alloc_context *ac)
+ {
+-	struct reclaim_state reclaim_state;
+ 	int progress;
+ 	unsigned int noreclaim_flag;
+ 
+@@ -3494,13 +3493,10 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	cpuset_memory_pressure_bump();
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	lockdep_set_current_reclaim_state(gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	current->reclaim_state = &reclaim_state;
+ 
+ 	progress = try_to_free_pages(ac->zonelist, order, gfp_mask,
+ 								ac->nodemask);
+ 
+-	current->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f84cdd3..cf23de9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2560,10 +2560,13 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 
+ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ {
+-	struct reclaim_state *reclaim_state = current->reclaim_state;
++	struct reclaim_state reclaim_state = {
++		.reclaimed_slab = 0,
++	};
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 	bool reclaimable = false;
+ 
++	current->reclaim_state = &reclaim_state;
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+@@ -2644,10 +2647,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			   sc->nr_scanned - nr_scanned,
+ 			   sc->nr_reclaimed - nr_reclaimed);
+ 
+-		if (reclaim_state) {
+-			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+-			reclaim_state->reclaimed_slab = 0;
+-		}
++		sc->nr_reclaimed += reclaim_state.reclaimed_slab;
++		reclaim_state.reclaimed_slab = 0;
+ 
+ 		if (sc->nr_reclaimed - nr_reclaimed)
+ 			reclaimable = true;
+@@ -2664,6 +2665,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 	if (reclaimable)
+ 		pgdat->kswapd_failures = 0;
+ 
++	current->reclaim_state = NULL;
+ 	return reclaimable;
+ }
+ 
+@@ -3527,16 +3529,12 @@ static int kswapd(void *p)
+ 	pg_data_t *pgdat = (pg_data_t*)p;
+ 	struct task_struct *tsk = current;
+ 
+-	struct reclaim_state reclaim_state = {
+-		.reclaimed_slab = 0,
+-	};
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+ 
+ 	lockdep_set_current_reclaim_state(GFP_KERNEL);
+ 
+ 	if (!cpumask_empty(cpumask))
+ 		set_cpus_allowed_ptr(tsk, cpumask);
+-	current->reclaim_state = &reclaim_state;
+ 
+ 	/*
+ 	 * Tell the memory management that we're a "memory allocator",
+@@ -3598,7 +3596,6 @@ static int kswapd(void *p)
+ 	}
+ 
+ 	tsk->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD);
+-	current->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 
+ 	return 0;
+@@ -3645,7 +3642,6 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+  */
+ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ {
+-	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = nr_to_reclaim,
+ 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+@@ -3657,18 +3653,14 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ 		.hibernation_mode = 1,
+ 	};
+ 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+-	struct task_struct *p = current;
+ 	unsigned long nr_reclaimed;
+ 	unsigned int noreclaim_flag;
+ 
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	lockdep_set_current_reclaim_state(sc.gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	p->reclaim_state = &reclaim_state;
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+ 
+-	p->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+@@ -3833,7 +3825,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	/* Minimum pages needed in order to stay on node */
+ 	const unsigned long nr_pages = 1 << order;
+ 	struct task_struct *p = current;
+-	struct reclaim_state reclaim_state;
+ 	unsigned int noreclaim_flag;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+@@ -3855,8 +3846,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	noreclaim_flag = memalloc_noreclaim_save();
+ 	p->flags |= PF_SWAPWRITE;
+ 	lockdep_set_current_reclaim_state(sc.gfp_mask);
+-	reclaim_state.reclaimed_slab = 0;
+-	p->reclaim_state = &reclaim_state;
+ 
+ 	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
+ 		/*
+@@ -3868,7 +3857,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+ 	}
+ 
+-	p->reclaim_state = NULL;
+ 	current->flags &= ~PF_SWAPWRITE;
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 	lockdep_clear_current_reclaim_state();
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
