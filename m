@@ -1,60 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E1FD86B0311
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:52:29 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z1so45410468wrz.10
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:52:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u10si19392997wmg.100.2017.07.04.05.52.28
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 05:52:28 -0700 (PDT)
-Date: Tue, 4 Jul 2017 14:52:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch V2 1/2] mm: swap: Provide lru_add_drain_all_cpuslocked()
-Message-ID: <20170704125226.GP14722@dhcp22.suse.cz>
-References: <20170704093232.995040438@linutronix.de>
- <20170704093421.419329357@linutronix.de>
- <20170704105803.GK14722@dhcp22.suse.cz>
- <alpine.DEB.2.20.1707041445350.9000@nanos>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E9496B0314
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:59:53 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id 191so33695700oii.4
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:59:53 -0700 (PDT)
+Received: from out30-14.freemail.mail.aliyun.com (out30-14.freemail.mail.aliyun.com. [115.124.30.14])
+        by mx.google.com with ESMTP id c84si14280698oif.179.2017.07.04.05.59.51
+        for <linux-mm@kvack.org>;
+        Tue, 04 Jul 2017 05:59:52 -0700 (PDT)
+Date: Tue, 04 Jul 2017 20:59:25 +0800
+From: "zbestahu" <zbestahu@aliyun.com>
+Reply-To: "zbestahu" <zbestahu@aliyun.com>
+Message-ID: <a68ebcb3-d087-49fe-9717-490ccfa1ff6a.zbestahu@aliyun.com>
+Subject: =?UTF-8?B?UmU6IFJl77yaW1BBVENIXSBtbTogdm1wcmVzc3VyZTogc2ltcGxpZnkgcHJlc3N1cmUgcmF0?=
+  =?UTF-8?B?aW8gY2FsY3VsYXRpb24=?=
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1707041445350.9000@nanos>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-On Tue 04-07-17 14:48:56, Thomas Gleixner wrote:
-> On Tue, 4 Jul 2017, Michal Hocko wrote:
-> > On Tue 04-07-17 11:32:33, Thomas Gleixner wrote:
-> > > The rework of the cpu hotplug locking unearthed potential deadlocks with
-> > > the memory hotplug locking code.
-> > > 
-> > > The solution for these is to rework the memory hotplug locking code as well
-> > > and take the cpu hotplug lock before the memory hotplug lock in
-> > > mem_hotplug_begin(), but this will cause a recursive locking of the cpu
-> > > hotplug lock when the memory hotplug code calls lru_add_drain_all().
-> > > 
-> > > Split out the inner workings of lru_add_drain_all() into
-> > > lru_add_drain_all_cpuslocked() so this function can be invoked from the
-> > > memory hotplug code with the cpu hotplug lock held.
-> > 
-> > You have added callers in the later patch in the series AFAICS which
-> > is OK but I think it would be better to have them in this patch
-> > already. Nothing earth shattering (maybe a rebase artifact).
-> 
-> The requirement for changing that comes with the extra hotplug locking in
-> mem_hotplug_begin(). That is required to establish the proper lock order
-> and then causes the recursive locking in the next patch. Adding the caller
-> here would be wrong, because then lru_add_drain_all_cpuslocked() would be
-> called unprotected. Hens and eggs as usual :)
-
-Yeah, you are right. My bad I should have noticed that.
--- 
-Michal Hocko
-SUSE Labs
+VGhlIHBhdGNoIGRvZXMgbm90IGNoYW5nZSB0aGUgZnVuY3Rpb24sIHRoZSBleGlzdGluZyBwZXJj
+ZW50CmNhbGN1bGF0aW9uIHVzaW5nIHNjYWxlIHNob3VsZCBiZSBhYm91dCByb3VuZGluZyB0byBp
+bnRlZ2VyLCBpdApzZWVtcyB0byBiZSByZWR1bmRhbnQsIHdlIGNhbiBjYWxjdWxhdGUgaXQgZGly
+ZWN0bHkganVzdCBsaWtlCiJwcmVzc3VyZSA9IG5vdF9yZWxhaW1lZCAqIDEwMCAvIHNjYW5uZWQi
+LCBubyByb3VuZGluZyBpc3N1ZS4KSXQncyBhbHNvIGJldHRlciBiZWNhdXNlIG9mIHNhdmluZyBz
+ZXZlcmFsIGFyaXRobWV0aWMgb3BlcmF0aW9ucy4KClNpZ25lZC1vZmYtYnk6IFl1ZSBIdSA8aHV5
+dWUyQGNvb2xwYWQuY29tPgotLS0KIG1tL3ZtcHJlc3N1cmUuYyB8IDggKysrLS0tLS0KIDEgZmls
+ZSBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDUgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEv
+bW0vdm1wcmVzc3VyZS5jIGIvbW0vdm1wcmVzc3VyZS5jCmluZGV4IDYwNjM1ODEuLmFhZDFmYjIg
+MTAwNjQ0Ci0tLSBhL21tL3ZtcHJlc3N1cmUuYworKysgYi9tbS92bXByZXNzdXJlLmMKQEAgLTEx
+MSw3ICsxMTEsNiBAQCBzdGF0aWMgZW51bSB2bXByZXNzdXJlX2xldmVscyB2bXByZXNzdXJlX2xl
+dmVsKHVuc2lnbmVkIGxvbmcgcHJlc3N1cmUpCiBzdGF0aWMgZW51bSB2bXByZXNzdXJlX2xldmVs
+cyB2bXByZXNzdXJlX2NhbGNfbGV2ZWwodW5zaWduZWQgbG9uZyBzY2FubmVkLAogCQkJCQkJICAg
+IHVuc2lnbmVkIGxvbmcgcmVjbGFpbWVkKQogewotCXVuc2lnbmVkIGxvbmcgc2NhbGUgPSBzY2Fu
+bmVkICsgcmVjbGFpbWVkOwogCXVuc2lnbmVkIGxvbmcgcHJlc3N1cmUgPSAwOwogCiAJLyoKQEAg
+LTEyMywxMyArMTIyLDEyIEBAIHN0YXRpYyBlbnVtIHZtcHJlc3N1cmVfbGV2ZWxzIHZtcHJlc3N1
+cmVfY2FsY19sZXZlbCh1bnNpZ25lZCBsb25nIHNjYW5uZWQsCiAJCWdvdG8gb3V0OwogCS8qCiAJ
+ICogV2UgY2FsY3VsYXRlIHRoZSByYXRpbyAoaW4gcGVyY2VudHMpIG9mIGhvdyBtYW55IHBhZ2Vz
+IHdlcmUKLQkgKiBzY2FubmVkIHZzLiByZWNsYWltZWQgaW4gYSBnaXZlbiB0aW1lIGZyYW1lICh3
+aW5kb3cpLiBOb3RlIHRoYXQKLQkgKiB0aW1lIGlzIGluIFZNIHJlY2xhaW1lcidzICJ0aWNrcyIs
+IGkuZS4gbnVtYmVyIG9mIHBhZ2VzCisJICogdW5zdWNjZXNzZnVsIHJlY2xhaW1lZCB0byBzY2Fu
+bmVkIGluIGEgZ2l2ZW4gdGltZSBmcmFtZSAod2luZG93KS4KKwkgKiBOb3RlIHRoYXQgdGltZSBp
+cyBpbiBWTSByZWNsYWltZXIncyAidGlja3MiLCBpLmUuIG51bWJlciBvZiBwYWdlcwogCSAqIHNj
+YW5uZWQuIFRoaXMgbWFrZXMgaXQgcG9zc2libGUgdG8gc2V0IGRlc2lyZWQgcmVhY3Rpb24gdGlt
+ZQogCSAqIGFuZCBzZXJ2ZXMgYXMgYSByYXRlbGltaXQuCiAJICovCi0JcHJlc3N1cmUgPSBzY2Fs
+ZSAtIChyZWNsYWltZWQgKiBzY2FsZSAvIHNjYW5uZWQpOwotCXByZXNzdXJlID0gcHJlc3N1cmUg
+KiAxMDAgLyBzY2FsZTsKKwlwcmVzc3VyZSA9IChzY2FubmVkIC0gcmVjbGFpbWVkKSAqIDEwMCAv
+IHNjYW5uZWQ7CiAKIG91dDoKIAlwcl9kZWJ1ZygiJXM6ICUzbHUgIChzOiAlbHUgIHI6ICVsdSlc
+biIsIF9fZnVuY19fLCBwcmVzc3VyZSwKLS0gCjEuOS4x
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
