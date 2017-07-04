@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D4C196B02C3
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:49:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 62so23847121wmw.13
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:49:00 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AEE16B02F4
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:49:50 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id r103so45385298wrb.0
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:49:50 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o78si14605767wrb.89.2017.07.04.05.48.59
+        by mx.google.com with ESMTPS id d67si13507608wmi.79.2017.07.04.05.49.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 05:48:59 -0700 (PDT)
-Date: Tue, 4 Jul 2017 14:48:56 +0200 (CEST)
+        Tue, 04 Jul 2017 05:49:49 -0700 (PDT)
+Date: Tue, 4 Jul 2017 14:49:47 +0200 (CEST)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch V2 1/2] mm: swap: Provide
- lru_add_drain_all_cpuslocked()
-In-Reply-To: <20170704105803.GK14722@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1707041445350.9000@nanos>
-References: <20170704093232.995040438@linutronix.de> <20170704093421.419329357@linutronix.de> <20170704105803.GK14722@dhcp22.suse.cz>
+Subject: Re: [patch V2 2/2] mm/memory-hotplug: Switch locking to a percpu
+ rwsem
+In-Reply-To: <cec30e21-c407-9ffa-c10b-0aa2ea64de2a@suse.cz>
+Message-ID: <alpine.DEB.2.20.1707041449220.9000@nanos>
+References: <20170704093232.995040438@linutronix.de> <20170704093421.506836322@linutronix.de> <cec30e21-c407-9ffa-c10b-0aa2ea64de2a@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue, 4 Jul 2017, Michal Hocko wrote:
-> On Tue 04-07-17 11:32:33, Thomas Gleixner wrote:
-> > The rework of the cpu hotplug locking unearthed potential deadlocks with
-> > the memory hotplug locking code.
+On Tue, 4 Jul 2017, Vlastimil Babka wrote:
+
+> On 07/04/2017 11:32 AM, Thomas Gleixner wrote:
+> > Andrey reported a potential deadlock with the memory hotplug lock and the
+> > cpu hotplug lock.
 > > 
-> > The solution for these is to rework the memory hotplug locking code as well
-> > and take the cpu hotplug lock before the memory hotplug lock in
-> > mem_hotplug_begin(), but this will cause a recursive locking of the cpu
-> > hotplug lock when the memory hotplug code calls lru_add_drain_all().
+> > The reason is that memory hotplug takes the memory hotplug lock and then
+> > calls stop_machine() which calls get_online_cpus(). That's the reverse lock
+> > order to get_online_cpus(); get_online_mems(); in mm/slub_common.c
 > > 
-> > Split out the inner workings of lru_add_drain_all() into
-> > lru_add_drain_all_cpuslocked() so this function can be invoked from the
-> > memory hotplug code with the cpu hotplug lock held.
+> > The problem has been there forever. The reason why this was never reported
+> > is that the cpu hotplug locking had this homebrewn recursive reader writer
+> > semaphore construct which due to the recursion evaded the full lock dep
+> > coverage. The memory hotplug code copied that construct verbatim and
+> > therefor has similar issues.
+> > 
+> > Three steps to fix this:
+> > 
+> > 1) Convert the memory hotplug locking to a per cpu rwsem so the potential
+> >    issues get reported proper by lockdep.
+> > 
+> > 2) Lock the online cpus in mem_hotplug_begin() before taking the memory
+> >    hotplug rwsem and use stop_machine_cpuslocked() in the page_alloc code
+> >    and use to avoid recursive locking.
 > 
-> You have added callers in the later patch in the series AFAICS which
-> is OK but I think it would be better to have them in this patch
-> already. Nothing earth shattering (maybe a rebase artifact).
+>      ^ s/and use // ?
 
-The requirement for changing that comes with the extra hotplug locking in
-mem_hotplug_begin(). That is required to establish the proper lock order
-and then causes the recursive locking in the next patch. Adding the caller
-here would be wrong, because then lru_add_drain_all_cpuslocked() would be
-called unprotected. Hens and eggs as usual :)
+Ooops, yes.
 
 Thanks,
 
