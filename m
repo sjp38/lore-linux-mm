@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6DA6B0279
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 03:03:23 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s4so229816073pgr.3
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 00:03:23 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id c11si13982157pgt.257.2017.07.04.00.03.19
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 035D36B0279
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 03:58:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 23so38600312wry.4
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 00:58:10 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id 64si13601824wra.123.2017.07.04.00.58.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 00:03:22 -0700 (PDT)
-Subject: Re: [PATCH mm] introduce reverse buddy concept to reduce buddy
- fragment
-References: <1498821941-55771-1-git-send-email-zhouxianrong@huawei.com>
- <20170703074829.GD3217@dhcp22.suse.cz>
- <bfb807bf-92ce-27aa-d848-a6cab055447f@huawei.com>
- <20170703153307.GA11848@dhcp22.suse.cz>
- <5c9cf499-6f71-6dda-6378-7e9f27e6cd70@huawei.com>
- <20170704065215.GB12068@dhcp22.suse.cz>
-From: zhouxianrong <zhouxianrong@huawei.com>
-Message-ID: <b7ae6f54-5a67-8580-9ced-3ddbe5bd16af@huawei.com>
-Date: Tue, 4 Jul 2017 15:00:08 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170704065215.GB12068@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Jul 2017 00:58:09 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id u23so24533732wma.2
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 00:58:09 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm: disallow early_pfn_to_nid on configurations which do not implement it
+Date: Tue,  4 Jul 2017 09:58:03 +0200
+Message-Id: <20170704075803.15979-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, alexander.h.duyck@intel.com, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, npiggin@gmail.com, kirill.shutemov@linux.intel.com, gi-oh.kim@profitbricks.com, luto@kernel.org, keescook@chromium.org, mark.rutland@arm.com, mingo@kernel.org, heiko.carstens@de.ibm.com, iamjoonsoo.kim@lge.com, rientjes@google.com, ming.ling@spreadtrum.com, jack@suse.cz, ebru.akagunduz@gmail.com, bigeasy@linutronix.de, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, won.ho.park@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Yang Shi <yang.shi@linaro.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-i do the test again. after minutes i tell you the result.
+From: Michal Hocko <mhocko@suse.com>
 
-On 2017/7/4 14:52, Michal Hocko wrote:
-> On Tue 04-07-17 09:21:00, zhouxianrong wrote:
->> the test was done as follows:
->>
->> 1. the environment is android 7.0 and kernel is 4.1 and managed memory is 3.5GB
->
-> There have been many changes in the compaction proper since than. Do you
-> see the same problem with the current upstream kernel?
->
->> 2. every 4s startup one apk, total 100 more apks need to startup
->> 3. after finishing step 2, sample buddyinfo once and get the result
->
-> How stable are those results?
->
+early_pfn_to_nid will return node 0 if both HAVE_ARCH_EARLY_PFN_TO_NID
+and HAVE_MEMBLOCK_NODE_MAP are disabled. It seems we are safe now
+because all architectures which support NUMA define one of them (with an
+exception of alpha which however has CONFIG_NUMA marked as broken) so
+this works as expected. It can get silently and subtly broken too
+easily, though. Make sure we fail the compilation if NUMA is enabled and
+there is no proper implementation for this function. If that ever
+happens we know that either the specific configuration is invalid
+and the fix should either disable NUMA or enable one of the above
+configs.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+I have brought this up earlier [1] because I thought the deferred
+initialization might be broken but then found out that this is not the
+case right now. This is an attempt to prevent any subtly broken users in
+future.
+
+[1] http://lkml.kernel.org/r/20170630141847.GN22917@dhcp22.suse.cz
+
+ include/linux/mmzone.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 16532fa0bb64..fc14b8b3f6ce 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1055,6 +1055,7 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ 	!defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
+ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+ {
++	BUILD_BUG_ON(IS_ENABLED(CONFIG_NUMA));
+ 	return 0;
+ }
+ #endif
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
