@@ -1,96 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8B76B0279
-	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 19:49:20 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id f36so43128199ybj.11
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 16:49:20 -0700 (PDT)
-Received: from mail-yb0-x235.google.com (mail-yb0-x235.google.com. [2607:f8b0:4002:c09::235])
-        by mx.google.com with ESMTPS id b5si4889059ywa.116.2017.07.03.16.49.19
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 56B946B0279
+	for <linux-mm@kvack.org>; Mon,  3 Jul 2017 21:23:06 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s4so224142636pgr.3
+        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 18:23:06 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id p19si13549784pgk.10.2017.07.03.18.23.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jul 2017 16:49:19 -0700 (PDT)
-Received: by mail-yb0-x235.google.com with SMTP id f194so148929yba.3
-        for <linux-mm@kvack.org>; Mon, 03 Jul 2017 16:49:19 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 03 Jul 2017 18:23:05 -0700 (PDT)
+Subject: Re: [PATCH mm] introduce reverse buddy concept to reduce buddy
+ fragment
+References: <1498821941-55771-1-git-send-email-zhouxianrong@huawei.com>
+ <20170703074829.GD3217@dhcp22.suse.cz>
+ <bfb807bf-92ce-27aa-d848-a6cab055447f@huawei.com>
+ <20170703153307.GA11848@dhcp22.suse.cz>
+From: zhouxianrong <zhouxianrong@huawei.com>
+Message-ID: <5c9cf499-6f71-6dda-6378-7e9f27e6cd70@huawei.com>
+Date: Tue, 4 Jul 2017 09:21:00 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170703211415.11283-2-jglisse@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com> <20170703211415.11283-2-jglisse@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 3 Jul 2017 16:49:18 -0700
-Message-ID: <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com>
-Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
- memory_type one
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170703153307.GA11848@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, alexander.h.duyck@intel.com, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, npiggin@gmail.com, kirill.shutemov@linux.intel.com, gi-oh.kim@profitbricks.com, luto@kernel.org, keescook@chromium.org, mark.rutland@arm.com, mingo@kernel.org, heiko.carstens@de.ibm.com, iamjoonsoo.kim@lge.com, rientjes@google.com, ming.ling@spreadtrum.com, jack@suse.cz, ebru.akagunduz@gmail.com, bigeasy@linutronix.de, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, won.ho.park@huawei.com
 
-On Mon, Jul 3, 2017 at 2:14 PM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com=
-> wrote:
-> Use consistent name between IORES_DESC and enum memory_type, rename
-> MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
-> the public name for CDM (cache coherent device memory) for which the
-> term public is a better match.
->
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  include/linux/memremap.h | 4 ++--
->  kernel/memremap.c        | 2 +-
->  2 files changed, 3 insertions(+), 3 deletions(-)
->
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index 57546a07a558..2299cc2d387d 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsign=
-ed long memmap_start)
->   * Specialize ZONE_DEVICE memory into multiple types each having differe=
-nts
->   * usage.
->   *
-> - * MEMORY_DEVICE_PUBLIC:
-> + * MEMORY_DEVICE_PERSISTENT:
->   * Persistent device memory (pmem): struct page might be allocated in di=
-fferent
->   * memory and architecture might want to perform special actions. It is =
-similar
->   * to regular memory, in that the CPU can access it transparently. Howev=
-er,
-> @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsign=
-ed long memmap_start)
->   * include/linux/hmm.h and Documentation/vm/hmm.txt.
->   */
->  enum memory_type {
-> -       MEMORY_DEVICE_PUBLIC =3D 0,
-> +       MEMORY_DEVICE_PERSISTENT =3D 0,
->         MEMORY_DEVICE_PRIVATE,
->  };
->
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index b9baa6c07918..e82456c39a6a 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, struct =
-resource *res,
->         }
->         pgmap->ref =3D ref;
->         pgmap->res =3D &page_map->res;
-> -       pgmap->type =3D MEMORY_DEVICE_PUBLIC;
-> +       pgmap->type =3D MEMORY_DEVICE_PERSISTENT;
->         pgmap->page_fault =3D NULL;
->         pgmap->page_free =3D NULL;
->         pgmap->data =3D NULL;
+the test was done as follows:
 
-I think we need a different name. There's nothing "persistent" about
-the devm_memremap_pages() path. Why can't they share name, is the only
-difference coherence? I'm thinking something like:
+1. the environment is android 7.0 and kernel is 4.1 and managed memory is 3.5GB
+2. every 4s startup one apk, total 100 more apks need to startup
+3. after finishing step 2, sample buddyinfo once and get the result
 
-MEMORY_DEVICE_PRIVATE
-MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
-MEMORY_DEVICE_IO /* "public", but not coherent */
+On 2017/7/3 23:33, Michal Hocko wrote:
+> On Mon 03-07-17 20:02:16, zhouxianrong wrote:
+> [...]
+>> from above i think after applying the patch the result is better.
+>
+> You haven't described your testing methodology, nor the workload that was
+> tested. As such this data is completely meaningless.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
