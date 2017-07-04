@@ -1,67 +1,1701 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F066B02C3
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 04:10:12 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v88so44828715wrb.1
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 01:10:12 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 61si13025252wri.179.2017.07.04.01.10.10
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C91A96B02C3
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 04:20:25 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id k192so116824304ith.0
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 01:20:25 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id 5si17717794iov.60.2017.07.04.01.20.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Jul 2017 01:10:10 -0700 (PDT)
-Date: Tue, 4 Jul 2017 10:10:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmalloc: respect the GFP_NOIO and GFP_NOFS flags
-Message-ID: <20170704081007.GA14722@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1706292221250.21823@file01.intranet.prod.int.rdu2.redhat.com>
- <20170630081245.GA22917@dhcp22.suse.cz>
- <alpine.LRH.2.02.1706301410160.8272@file01.intranet.prod.int.rdu2.redhat.com>
- <20170630204059.GA17255@dhcp22.suse.cz>
- <alpine.LRH.2.02.1706302033230.13879@file01.intranet.prod.int.rdu2.redhat.com>
- <20170703062905.GB3217@dhcp22.suse.cz>
- <alpine.LRH.2.02.1707031703590.20792@file01.intranet.prod.int.rdu2.redhat.com>
+        Tue, 04 Jul 2017 01:20:18 -0700 (PDT)
+Subject: Re: [PATCH mm] introduce reverse buddy concept to reduce buddy
+ fragment
+References: <1498821941-55771-1-git-send-email-zhouxianrong@huawei.com>
+ <20170703074829.GD3217@dhcp22.suse.cz>
+ <bfb807bf-92ce-27aa-d848-a6cab055447f@huawei.com>
+ <20170703153307.GA11848@dhcp22.suse.cz>
+ <5c9cf499-6f71-6dda-6378-7e9f27e6cd70@huawei.com>
+ <20170704065215.GB12068@dhcp22.suse.cz>
+From: zhouxianrong <zhouxianrong@huawei.com>
+Message-ID: <d6eaccf6-dbc0-2d4e-2c51-0c9a40b79aa8@huawei.com>
+Date: Tue, 4 Jul 2017 16:04:52 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1707031703590.20792@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20170704065215.GB12068@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Andreas Dilger <adilger@dilger.ca>, John Hubbard <jhubbard@nvidia.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, alexander.h.duyck@intel.com, mgorman@suse.de, l.stach@pengutronix.de, vdavydov.dev@gmail.com, hannes@cmpxchg.org, minchan@kernel.org, npiggin@gmail.com, kirill.shutemov@linux.intel.com, gi-oh.kim@profitbricks.com, luto@kernel.org, keescook@chromium.org, mark.rutland@arm.com, mingo@kernel.org, heiko.carstens@de.ibm.com, iamjoonsoo.kim@lge.com, rientjes@google.com, ming.ling@spreadtrum.com, jack@suse.cz, ebru.akagunduz@gmail.com, bigeasy@linutronix.de, Mi.Sophia.Wang@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, won.ho.park@huawei.com
 
-On Mon 03-07-17 18:57:14, Mikulas Patocka wrote:
-> 
-> 
-> On Mon, 3 Jul 2017, Michal Hocko wrote:
-> 
-> > We can add a warning (or move it from kvmalloc) and hope that the
-> > respective maintainers will fix those places properly. The reason I
-> > didn't add the warning to vmalloc and kept it in kvmalloc was to catch
-> > only new users rather than suddenly splat on existing ones. Note that
-> > there are users with panic_on_warn enabled.
-> > 
-> > Considering how many NOFS users we have in tree I would rather work with
-> > maintainers to fix them.
-> 
-> So - do you want this patch?
+every 2s i sample /proc/buddyinfo in the whole test process.
 
-no, see below
- 
-> I still believe that the previous patch that pushes 
-> memalloc_noio/nofs_save into __vmalloc is better than this.
+the last about 90 samples were sampled after the test was done.
 
-It is, but both of them are actually wrong. Why? Because that would be
-just a mindless application of the scope where the scope doesn't match
-the actual reclaim recursion restricted scope. Really, the right way to
-go is to simply talk to the respective maintainers. Find out whether
-NOFS context is really needed and if so find the scope (e.g. a lock
-which would be needed in the reclaim context) and document it. This is
-not a trivial work to do but a) we do not seem to have any bug reports
-complaining about these call sites so there is no need to hurry and b)
-this will result in a cleaner and easier to maintain code.
--- 
-Michal Hocko
-SUSE Labs
+Node 0, zone      DMA
+   4706   2099    838    266     50      5      3      2      1      2     38
+      0    395   1261    211     57      6      1      0      0      0      0
+Node 0, zone      DMA
+   4691   2107    833    265     50      5      3      2      1      2     38
+      0    395   1260    211     57      6      1      0      0      0      0
+Node 0, zone      DMA
+   1815   1437    791    266     51      6      2      2      1      2     38
+      0    244   1275    211     57      6      1      0      0      0      0
+Node 0, zone      DMA
+   1465   1030    796    267     51      6      2      2      1      2     38
+      0    246   1279    211     57      6      1      0      0      0      0
+Node 0, zone      DMA
+   1378   1114    791    260     51      6      2      2      1      2     38
+      0    183   1282    216     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   2605   2021    619    260     51      6      2      2      1      2     38
+      0    307   1330    220     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   2465   2026    618    260     51      6      2      2      1      2     38
+      0    312   1330    220     54      3      1      0      0      0      0
+Node 0, zone      DMA
+    758    766    462    224     43      6      2      2      1      2     38
+      0    148   1082    194     50      3      1      0      0      0      0
+Node 0, zone      DMA
+    912    939    472    224     43      6      2      2      1      2     38
+      0    174   1086    194     50      3      1      0      0      0      0
+Node 0, zone      DMA
+    502   1049    428    226     44      6      2      2      1      2     38
+      0    187   1092    198     50      3      1      0      0      0      0
+Node 0, zone      DMA
+    747   1338    671    228     46      6      2      2      1      2     38
+      0    222   1180    204     51      3      1      0      0      0      0
+Node 0, zone      DMA
+    675   1351    667    226     46      6      2      2      1      2     38
+      0    220   1180    204     52      3      1      0      0      0      0
+Node 0, zone      DMA
+    865    787    266    220     45      6      2      2      1      2     38
+      0    116    984    203     51      3      1      0      0      0      0
+Node 0, zone      DMA
+   1915   1233    351    261     47      6      2      2      1      2     38
+      0    179   1191    230     53      3      1      0      0      0      0
+Node 0, zone      DMA
+   2078   1348    402    258     46      6      2      2      1      2     38
+      0    183   1233    228     53      3      1      0      0      0      0
+Node 0, zone      DMA
+   2940   1129    457    259     46      6      2      2      1      2     38
+      0    209   1239    229     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   2906   1127    457    259     46      6      2      2      1      2     38
+      0    222   1240    230     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   1540   1093    475    256     46      6      2      2      1      2     38
+      0    293   1234    227     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   1060   1071    487    257     46      6      2      2      1      2     38
+      0    297   1238    227     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   1693    869    405    267     46      6      2      2      1      2     38
+      0    243   1480    230     54      3      1      0      0      0      0
+Node 0, zone      DMA
+   1720    928    426    269     46      6      2      2      1      2     38
+      0    260   1485    230     54      3      1      0      0      0      0
+Node 0, zone      DMA
+    546    601    393    269     46      6      2      2      1      2     38
+      0    193   1314    230     54      3      1      0      0      0      0
+Node 0, zone      DMA
+    583    336     28     42     20      3      2      2      2      2     36
+      0     15     43      5     20      1      1      0      0      0      0
+Node 0, zone      DMA
+    592    382     27     39     21      3      2      2      2      2     36
+      0     17     27      5     21      1      1      0      0      0      0
+Node 0, zone      DMA
+   3534   1510    212     78     35      6      3      3      1      2     32
+      0    122    333     66     28      2      1      0      0      0      0
+Node 0, zone      DMA
+   3411   1521    212     78     35      6      3      3      1      2     32
+      0    123    334     67     28      2      1      0      0      0      0
+Node 0, zone      DMA
+   1521   1521    211     79     35      6      3      3      1      2     32
+      0    118    336     68     28      2      1      0      0      0      0
+Node 0, zone      DMA
+      3      1      2      0      3      3      1      1      1      3     18
+      0      2      0      3      0      0      0      0      0      0      0
+Node 0, zone      DMA
+      1      3      0     29      7      4      1      1      7      5      4
+      0      0    162     70     19      0      1      0      0      0      0
+Node 0, zone      DMA
+    388    113    162    128     22      3      2      2     14      6      2
+      0     32   1189    192     19      2      0      0      0      0      0
+Node 0, zone      DMA
+    468    541    176    171     35      3      2      3      6      5      2
+      0    122    959    275     46      1      0      0      0      0      0
+Node 0, zone      DMA
+   1251   1625    421    160     27     12      3      2      3      1      0
+      0    211   1160    234     30      9      1      0      0      0      0
+Node 0, zone      DMA
+     19    107     36     24     86     20      4      1      0      0      0
+      0     14    137    460    118     21      1      0      0      0      0
+Node 0, zone      DMA
+    452    217     69    141     91     22      8      0      8      0      0
+      0     39    632    267    149     23      1      0      0      0      0
+Node 0, zone      DMA
+   1073    581    321    116     16     29      8      0      9      3      1
+      0    124    782    218     73     26      2      0      0      0      0
+Node 0, zone      DMA
+    146    218     75     44      9      5      3      1      9      2      0
+      0     34    412    105     15      3      2      0      0      0      0
+Node 0, zone      DMA
+   1766   1850    555    157      4      1      0      0      0      0      0
+      0    331   1575    212      8      2      0      0      0      0      0
+Node 0, zone      DMA
+    635    303     97    241     18      0      0      0      6      0      0
+      0     59    736    341     17      5      0      0      0      0      0
+Node 0, zone      DMA
+    270     75     25     68     42      3      1      0      9      1      0
+      0      9    315    246     50      7      0      0      0      0      0
+Node 0, zone      DMA
+    564    133     36     72      2      0      4      1     11      1      0
+      0     25    334    146      5      6      0      0      0      0      0
+Node 0, zone      DMA
+    704    120     31     73      2      1      0      0     12      0      0
+      0     31    338    155      7      6      0      0      0      0      0
+Node 0, zone      DMA
+    840    159    137    109      7      1      1      0     10      0      0
+      0     47    674    189     13      6      0      0      0      0      0
+Node 0, zone      DMA
+    368     89    160    117     21      0      0      0      1      0      0
+      0     23   1242    481     45      3      0      0      0      0      0
+Node 0, zone      DMA
+    725    255     87     33     25      1      0      0      2      0      1
+      0     39    491    450     54      3      0      0      0      0      0
+Node 0, zone      DMA
+   2054    586    125     98     10      2      1      1      3      1      1
+      0    138    425    267     50      3      0      0      0      0      0
+Node 0, zone      DMA
+   1789    669     84     29      3      3      2      1      2      1      1
+      0    165    315    178     11      0      0      0      0      0      0
+Node 0, zone      DMA
+   2216   2117    797    152     29      1      0      0      0      1      0
+      0    251   1111    320     15      0      0      0      0      0      0
+Node 0, zone      DMA
+     52    361     80     62      4      0      0      0      0      0      0
+      0    306   2840    270     22      0      0      0      0      0      0
+Node 0, zone      DMA
+    776    282     77     32      0      0      0      0      0      0      0
+      0    326   2839    288     22      0      0      0      0      0      0
+Node 0, zone      DMA
+    416    511    182     35      7      0      0      0      0      0      0
+      0    340   2821    328     37      0      0      0      0      0      0
+Node 0, zone      DMA
+   1037    578    187     39      1      0      0      0      0      0      0
+      0    343   2834    331     38      1      0      0      0      0      0
+Node 0, zone      DMA
+     24      0      0      0      0      0      0      0      0      0      0
+      0    280   2884    332     38      1      0      0      0      0      0
+Node 0, zone      DMA
+    130    132      0      0      0      0      0      0      0      0      0
+      0    237   2573    561     39      1      0      0      0      0      0
+Node 0, zone      DMA
+     50      3      1      1      1      1      1      1      0      0      0
+      0     47   2580    561     39      1      0      0      0      0      0
+Node 0, zone      DMA
+   1526     70      7     18      1      1      1      1      0      0      0
+      0     25   2152    568     39      1      0      0      0      0      0
+Node 0, zone      DMA
+   1615    119      8     17      1      0      1      1      0      0      0
+      0     40   2144    568     39      1      0      0      0      0      0
+Node 0, zone      DMA
+      4      5      1     18      1      0      0      1      0      0      0
+      0     11   1714    568     39      1      0      0      0      0      0
+Node 0, zone      DMA
+    154     86     14    103     85      0      0      1      0      0      1
+      0     28     48    834     93      3      0      1      0      1      0
+Node 0, zone      DMA
+     18     62     19    103     85      0      0      1      0      0      1
+      0     26     59    834     93      3      0      1      0      1      0
+Node 0, zone      DMA
+   1366    484     66     65     86      0      0      1      0      0      1
+      0    108    155    703     94      3      0      1      0      1      0
+Node 0, zone      DMA
+    882    771    101     69     86      0      0      1      0      0      1
+      0    101    242    706     94      3      0      1      0      1      0
+Node 0, zone      DMA
+    396    797    108     70     85      0      0      1      0      0      1
+      0    112    245    706     94      3      0      1      0      1      0
+Node 0, zone      DMA
+   1261    365     53      9     41      0      0      0      0      0      1
+      0     41     49    481     94      3      0      0      0      1      0
+Node 0, zone      DMA
+    943    437     62     10     35      0      0      0      0      0      1
+      0     40     38    501     94      3      0      0      0      1      0
+Node 0, zone      DMA
+   2367    864    113     33     36      0      0      0      1      0      1
+      0    109    123    499    100      3      0      0      0      1      0
+Node 0, zone      DMA
+   2598    969    121     32     37      0      0      0      1      0      1
+      0    105    117    501    100      3      0      0      0      1      0
+Node 0, zone      DMA
+   1849    903    120     32     36      0      0      0      1      0      1
+      0     86    124    502    100      3      0      0      0      1      0
+Node 0, zone      DMA
+    226    127     54     19     20      8      1      1      3      1      1
+      0     18    161    333    131      6      0      0      0      0      0
+Node 0, zone      DMA
+    130    337    234     32     20      7      2      2      2      1      1
+      0     70    399    352    131      6      0      0      0      0      0
+Node 0, zone      DMA
+    688    414    347     38     23      7      2      2      2      1      1
+      0    130    652    328    133      6      0      0      0      0      0
+Node 0, zone      DMA
+   1212    131    348     38     23      7      2      2      2      1      1
+      0    133    660    328    133      6      0      0      0      0      0
+Node 0, zone      DMA
+    846    123    348     38     23      7      2      2      2      1      1
+      0    138    660    328    133      6      0      0      0      0      0
+Node 0, zone      DMA
+    216    285     73     17     32      7      2      1      1      1      1
+      0     91     95    292    153      8      0      0      0      0      0
+Node 0, zone      DMA
+     41    253     76     17     32      7      2      1      1      1      1
+      0     75     89    308    153      8      0      0      0      0      0
+Node 0, zone      DMA
+   1837    600    174     13     33      7      2      1      1      1      1
+      0    103    184    273    155      8      0      0      0      0      0
+Node 0, zone      DMA
+   1570    883    184     22     33      7      2      1      1      1      1
+      0    112    219    274    155      8      0      0      0      0      0
+Node 0, zone      DMA
+     90     54     32     21     33      7      2      1      1      1      1
+      0     19    114    276    155      8      0      0      0      0      0
+Node 0, zone      DMA
+   1029     43      3      3      0      0      0      0      0      0      0
+      0     87    610    343    158      8      0      0      0      0      0
+Node 0, zone      DMA
+    153    142      2      3      0      0      0      0      0      0      0
+      0    103    680    350    158      8      0      0      0      0      0
+Node 0, zone      DMA
+   1555    797    157     46     15      2      0      0      0      0      0
+      0     70    744    434    177      8      0      0      0      0      0
+Node 0, zone      DMA
+   1538    824    187     49     13      2      0      0      0      0      0
+      0     68    712    434    174      8      0      0      0      0      0
+Node 0, zone      DMA
+    808     19      4     54      3      1      0      0      0      0      0
+      0     15    586    440    174      8      0      0      0      0      0
+Node 0, zone      DMA
+    934    702     48      3      1      1      0      0      0      0      0
+      0    170    392    469    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1012    729     36      3      1      1      0      0      0      0      0
+      0    169    416    470    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1204    891    188     39      1      1      0      0      1      0      0
+      0    180    484    512    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   1712    951    195     38      1      1      0      0      1      0      0
+      0    192    487    512    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   1679    951    205     11      1      1      0      0      1      0      0
+      0    194    505    517    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    193     34      1      8      1      1      1      1      0      0      0
+      0     12    205    525    177      8      0      0      0      0      0
+Node 0, zone      DMA
+    974     25      1      2      0      0      0      0      0      0      0
+      0     19    152    525    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1500   1279     94      2      0      0      0      0      2      0      0
+      0    209    209    500    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1092   1375    106      3      0      0      0      0      2      0      0
+      0    244    216    500    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    609   1376    109      6      2      1      2      0      1      0      0
+      0    240    216    491    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    280   1906    396      8      2      1      2      0      2      0      0
+      0    303    396    499    179      8      0      0      0      0      0
+Node 0, zone      DMA
+     52   1833    388      9      2      1      2      0      2      0      0
+      0    300    393    489    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    512   1889    349      9      0      1      2      0      2      0      0
+      0    293    408    491    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    559   1891    348      9      0      1      2      0      2      0      0
+      0    304    409    491    179      8      0      0      0      0      0
+Node 0, zone      DMA
+     18   1088    365     10      0      1      2      0      2      0      0
+      0    314    419    491    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1153   1850    411     10      1      1      2      0      2      0      0
+      0    317    439    492    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    695   1849    401     10      1      1      2      0      2      0      0
+      0    317    440    492    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    266   1924    351     12      1      1      2      0      2      0      0
+      0    307    458    492    178      8      0      0      0      0      0
+Node 0, zone      DMA
+     88   1842    347     10      1      1      2      0      2      0      0
+      0    301    444    493    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    414   1856    348     10      0      1      2      0      2      0      0
+      0    300    454    492    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    202   1774    335     12      1      1      2      0      2      0      0
+      0    303    486    496    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1800   1905    334     12      1      1      2      0      2      0      0
+      0    319    479    496    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1560   1802    361     13      1      1      2      0      2      0      0
+      0    319    485    496    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1011   1822    366     15      1      1      2      0      2      0      0
+      0    319    489    495    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    589   1814    364     14      1      1      2      0      2      0      0
+      0    315    492    495    179      8      0      0      0      0      0
+Node 0, zone      DMA
+     63   1789    313     14      1      1      2      0      2      0      0
+      0    320    499    495    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    417   1818    306     14      1      1      2      0      2      0      0
+      0    314    499    495    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    372   1861    292     14      1      1      2      0      2      0      0
+      0    315    510    495    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   1902   1931    295     13      1      1      2      0      2      0      0
+      0    325    503    496    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    354   1934    306     11      1      1      2      0      2      0      0
+      0    322    510    496    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    786   1858    350     12      2      1      2      0      2      0      0
+      0    326    514    496    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    660   1843    345     12      2      1      2      0      2      0      0
+      0    321    514    496    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    461   1893    295     12      2      1      2      0      2      0      0
+      0    321    516    498    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    261   1811    323     12      2      1      2      0      2      0      0
+      0    323    516    498    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    254   1819    318     11      2      1      2      0      2      0      0
+      0    317    514    498    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   1731   1813    352     11      2      1      2      0      2      0      0
+      0    318    518    498    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   3197   1901    364     11      2      1      2      0      2      0      0
+      0    354    528    498    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   2877   1885    374     10      1      1      2      0      2      0      0
+      0    350    527    494    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   2790   1851    378     10      0      1      2      0      2      0      0
+      0    335    523    494    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1736   2165    419     13      2      0      2      0      2      0      0
+      0    450    551    494    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    134    401    219      7      1      0      1      0      1      0      0
+      0    165    722    507    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    390    425    245      7      1      0      1      0      1      0      0
+      0    162    739    507    179      8      0      0      0      0      0
+Node 0, zone      DMA
+   1052    658    290     23      3      0      1      0      2      0      0
+      0    214    929    510    179      8      0      0      0      0      0
+Node 0, zone      DMA
+    751    640    297     23      3      0      1      0      2      0      0
+      0    226    990    509    179      8      0      0      0      0      0
+Node 0, zone      DMA
+     17     17    360     15      1      1      1      0      1      0      0
+      0     31   1014    511    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    121    436     10      0      1      1      1      1      0      0      0
+      0     53    973    516    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1388    343     12      1      0      1      1      1      0      0      0
+      0     87    989    516    178      8      0      0      0      0      0
+Node 0, zone      DMA
+   1496    342      5      1      0      1      1      1      0      0      0
+      0     93    924    519    178      8      0      0      0      0      0
+Node 0, zone      DMA
+    844    362     10      1      0      1      1      1      0      0      0
+      0     87    905    519    178      8      0      0      0      0      0
+Node 0, zone      DMA
+     20    435    218     60      0      0      0      0      2      0      0
+      0    102    419    629    180      8      0      0      0      0      0
+Node 0, zone      DMA
+    288    161     80     23      2      0      0      0      0      0      0
+      0     65   1449    674    216      9      0      0      0      0      0
+Node 0, zone      DMA
+   2164    217     77     23     37     22      6      2      0      0      0
+      0     60    241     23    139     16     10      2      0      0      0
+Node 0, zone      DMA
+    402   1001    202     80     48     24      8      2      0      0      0
+      0    187    653     72     69     16     11      2      0      0      0
+Node 0, zone      DMA
+   3832    807    240     80     48     24      8      2      0      0      0
+      0    256    704     86     69     16     11      2      0      0      0
+Node 0, zone      DMA
+   3819    786    246     80     48     24      8      2      0      0      0
+      0    256    706     86     69     16     11      2      0      0      0
+Node 0, zone      DMA
+    987    964    469    193      9      6      3      0      0      0      0
+      0    197   1378    157     52     10      2      2      0      0      0
+Node 0, zone      DMA
+    477   1113    475    193      9      6      3      0      0      0      0
+      0    218   1363    160     52     10      2      2      0      0      0
+Node 0, zone      DMA
+   1087   1208    399    193      9      6      3      0      0      0      0
+      0    242   1448    161     52     10      2      2      0      0      0
+Node 0, zone      DMA
+   1856   1211    416    194      9      6      3      0      0      0      0
+      0    261   1438    161     52     10      2      2      0      0      0
+Node 0, zone      DMA
+    105   1171    410    197      9      6      3      0      0      0      0
+      0    257   1426    162     52     10      2      2      0      0      0
+Node 0, zone      DMA
+     59     39     32    202     16      7      3      0      0      0      0
+      0     17    958    137     69     10      2      2      0      0      0
+Node 0, zone      DMA
+    210    462     29    133      5      3      0      0      0      0      0
+      0     17    539    327     58      9      2      1      0      0      0
+Node 0, zone      DMA
+   2190   1104    420    193     33      6      2      1      0      0      0
+      0    119    881    469     67      9      2      1      1      0      0
+Node 0, zone      DMA
+   2163   1132    434    199     33      6      2      1      0      0      0
+      0    121    910    474     69      9      2      1      1      0      0
+Node 0, zone      DMA
+   3762   2049    452    199     33      6      2      1      0      0      0
+      0    168    919    475     69      9      2      1      1      0      0
+Node 0, zone      DMA
+   3102   1990    459    200     33      6      2      1      0      0      0
+      0    163    926    475     69      9      2      1      1      0      0
+Node 0, zone      DMA
+   1168    116     56      2      1      0      1      0      0      0      0
+      0     20    945    474     69      9      1      1      1      0      0
+Node 0, zone      DMA
+   1732    375    194     23      2      0      0      1      0      0      0
+      0     50    896    503     69      9      2      1      1      0      0
+Node 0, zone      DMA
+    754    399    203    107     14     10      5      1      0      0      0
+      0     91    827    599    102     10      2      1      1      0      0
+Node 0, zone      DMA
+   1842    248    194    109     14     10      5      1      0      0      0
+      0     33    786    603    102     10      2      1      1      0      0
+Node 0, zone      DMA
+   1992    251    209    109     14     10      5      1      0      0      0
+      0     38    811    604    102     10      2      1      1      0      0
+Node 0, zone      DMA
+   2252   2082    544    178     15      2      1      1      0      0      0
+      0    473   1138    667    101     10      2      1      1      0      0
+Node 0, zone      DMA
+   2248   2154    551    182     15      2      1      1      0      0      0
+      0    490   1103    667    101     10      2      1      1      0      0
+Node 0, zone      DMA
+    338   2035    536    183     15      2      1      1      0      0      0
+      0    492   1107    667    101     10      2      1      1      0      0
+Node 0, zone      DMA
+    140   1612    537    183     15      2      1      1      0      0      0
+      0    490   1120    667    101     10      2      1      1      0      0
+Node 0, zone      DMA
+     79    119     86    178     14      2      1      1      0      0      0
+      0     51    934    663    101     11      2      1      1      0      0
+Node 0, zone      DMA
+    278    345    117    178     14      2      1      1      0      0      0
+      0     44    768    665    101     11      2      1      1      0      0
+Node 0, zone      DMA
+    299    529    160    154     14      2      1      1      0      0      0
+      0    106    762    632    101     11      2      1      1      0      0
+Node 0, zone      DMA
+   3364    823    180    154     14      2      1      1      0      0      0
+      0    199    788    633    101     11      2      1      1      0      0
+Node 0, zone      DMA
+   1181   1351    153    155     14      2      1      1      0      0      0
+      0    235    804    645    101     11      2      1      1      0      0
+Node 0, zone      DMA
+   2759    780    157    155     14      2      1      1      0      0      0
+      0    157    802    646    101     11      2      1      1      0      0
+Node 0, zone      DMA
+    641    174     83     20     13      2      0      0      0      0      0
+      0     68   1057    674    106     12      4      1      0      0      0
+Node 0, zone      DMA
+    267    237    142     34     13      2      0      0      0      0      0
+      0     68    926    647    108     12      4      1      0      0      0
+Node 0, zone      DMA
+   2591    569     40     27     13      2      0      0      0      0      0
+      0    143    227    637    108     12      4      1      0      0      0
+Node 0, zone      DMA
+   2211    591     72     39     13      2      0      0      0      0      0
+      0    152    251    638    108     12      4      1      0      0      0
+Node 0, zone      DMA
+   1701    728    329     96      4      3      0      0      0      0      0
+      0    217    568    631    110     12      3      1      0      0      0
+Node 0, zone      DMA
+   3590   1438    498    104     57     15      1      1      1      0      0
+      0    159    726    191    148     14      5      1      0      0      0
+Node 0, zone      DMA
+   3670   1307    501    104     57     15      1      1      1      0      0
+      0    162    735    192    148     14      5      1      0      0      0
+Node 0, zone      DMA
+   3675   1615    523    105     57     15      1      1      1      0      0
+      0    191   1021    192    148     14      5      1      0      0      0
+Node 0, zone      DMA
+   3644   1615    523    105     57     15      1      1      1      0      0
+      0    191   1021    192    148     14      5      1      0      0      0
+Node 0, zone      DMA
+   2210   1592    521    106     36      1      1      1      1      0      0
+      0    189   1022    192    145     12      4      1      0      0      0
+Node 0, zone      DMA
+    120      7      2      0      1      1      1      1      0      0      0
+      0     58    974    249    148     12      3      1      0      0      0
+Node 0, zone      DMA
+   2222   1079    259     31     30      5      1      1      0      0      0
+      0    182   1182    265    151     12      3      1      0      0      0
+Node 0, zone      DMA
+     53    832    249     37     30      5      1      1      0      0      0
+      0    177   1200    267    151     12      3      1      0      0      0
+Node 0, zone      DMA
+    482    313     97     22     21      8      3      0      0      0      0
+      0    107    377    306    159     12      3      1      0      0      0
+Node 0, zone      DMA
+     44    776    265     26      6      1      0      0      0      0      0
+      0    201    551    308    152     12      3      1      0      0      0
+Node 0, zone      DMA
+      2      2     16     27     17      4      1      0      0      0      0
+      0      9    602    364    162     17      3      1      0      0      0
+Node 0, zone      DMA
+     15    144    332     73      2      1      1      0      0      0      0
+      0    139    776    564    159     17      3      1      0      0      0
+Node 0, zone      DMA
+   1620   1255    275      3      2      1      1      0      0      0      0
+      0    161    883    568    159     17      3      1      0      0      0
+Node 0, zone      DMA
+      8      4      0      1      1      1      1      0      0      0      0
+      0     18    956    570    159     17      3      1      0      0      0
+Node 0, zone      DMA
+     54    437    242      2      0      1      1      0      0      0      0
+      0    258    961    571    159     17      3      1      0      0      0
+Node 0, zone      DMA
+   2358    524     65      9      4      0      0      0      0      0      0
+      0     62    415    564    160     16      3      1      0      0      0
+Node 0, zone      DMA
+    333      1      3      0      0      0      0      0      0      0      0
+      0    135    464    569    160     16      3      1      0      0      0
+Node 0, zone      DMA
+    655    170      0      0      0      0      0      0      0      0      0
+      0    141    351    569    160     16      3      1      0      0      0
+Node 0, zone      DMA
+   1683    674    147     28      8      8      0      0      0      0      0
+      0    138    396    591    139     15      0      0      0      0      0
+Node 0, zone      DMA
+   1908    931    186     19      4      3      0      0      0      0      0
+      0    142    580    649    135     16      0      0      0      0      0
+Node 0, zone      DMA
+    133    134      4      1      0      0      0      0      0      0      0
+      0    245    621    651    135     16      0      0      0      0      0
+Node 0, zone      DMA
+   1355   1200    131      0      0      0      0      0      0      0      0
+      0    188    438    706    165     16      0      0      0      0      0
+Node 0, zone      DMA
+   1603   1236    111      0      0      0      0      0      0      0      0
+      0    184    492    705    165     16      0      0      0      0      0
+Node 0, zone      DMA
+   3420   1831    178      8      0      0      0      0      0      0      0
+      0    452    683    722    165     16      0      0      0      0      0
+Node 0, zone      DMA
+   2824   1752    200     11      0      0      0      0      0      0      0
+      0    455    688    723    165     16      0      0      0      0      0
+Node 0, zone      DMA
+    606   1807    167      0      0      0      0      0      0      0      0
+      0    467    697    725    165     16      0      0      0      0      0
+Node 0, zone      DMA
+   1062   1052    211     17      4      1      0      0      0      0      0
+      0    151    362    743    170     16      0      0      0      0      0
+Node 0, zone      DMA
+    147    174      6      9      0      0      0      0      0      0      0
+      0     19    620    761    180     16      0      0      0      0      0
+Node 0, zone      DMA
+    306    147    595     30      3      0      0      0      0      0      0
+      0    223    224    531    207     16      0      0      0      0      0
+Node 0, zone      DMA
+   3944   1292    552     30      3      0      0      0      0      0      0
+      0    227    234    531    207     16      0      0      0      0      0
+Node 0, zone      DMA
+   4716   1368    561     29      3      0      0      0      0      0      0
+      0    251    250    538    207     16      0      0      0      0      0
+Node 0, zone      DMA
+    359    375     33      5      0      0      0      0      0      0      0
+      0     10    723   1087    229     20      0      0      0      0      0
+Node 0, zone      DMA
+      2      6      9     32      5      2      0      0      0      0      0
+      0      0      1    626    236     20      1      0      0      0      0
+Node 0, zone      DMA
+   1673    744    114     20     18      4      0      0      0      0      0
+      0    125    280    528    241     21      2      0      0      0      0
+Node 0, zone      DMA
+    643    649    119     22     19      3      0      0      0      0      0
+      0    228    317    528    238     21      2      0      0      0      0
+Node 0, zone      DMA
+    167     98     12      6     18      2      0      0      0      0      0
+      0     15     49    329    238     21      1      0      0      0      0
+Node 0, zone      DMA
+   1180   1246    275     42     34      9      0      0      0      0      0
+      0    346    277    304    241     22      1      0      0      0      0
+Node 0, zone      DMA
+    228   1400    400     57      7      4      0      0      0      0      0
+      0    477    425    328    241     21      1      0      0      0      0
+Node 0, zone      DMA
+    294   1391    252      0      3      4      0      0      0      0      0
+      0    470    485    345    241     21      1      0      0      0      0
+Node 0, zone      DMA
+   1993   1741     76      0      3      4      0      0      0      0      0
+      0    492   1015    354    241     21      1      0      0      0      0
+Node 0, zone      DMA
+    236   1638      7      1      2      4      0      0      0      0      0
+      0    505   1033    353    241     21      1      0      0      0      0
+Node 0, zone      DMA
+    424    657    152     15     11      6      2      0      0      0      0
+      0     85    221    354    242     21      2      0      0      0      0
+Node 0, zone      DMA
+   4117   2228    130      7      0      0      0      0      0      0      0
+      0    251    773    447    258     20      0      0      0      0      0
+Node 0, zone      DMA
+   3751   2398    137      8      0      0      0      0      0      0      0
+      0    243    790    448    258     20      0      0      0      0      0
+Node 0, zone      DMA
+   7539   2788    210     13      0      0      0      0      0      0      0
+      0    332    848    453    258     20      0      0      0      0      0
+Node 0, zone      DMA
+   1763   2306     71      0      0      0      0      0      0      0      0
+      0    295   1122    481    258     20      0      0      0      0      0
+Node 0, zone      DMA
+   7409   3990    596     80      2      0      0      0      0      0      0
+      0    767   1860    541    270     20      0      0      0      0      0
+Node 0, zone      DMA
+    779    245     56     30     10      1      1      0      0      0      0
+      0     52   1052    601    279     20      0      0      0      0      0
+Node 0, zone      DMA
+   3568   1160    181     68     33      5      1      0      0      0      0
+      0    158   1122    633    294     20      0      0      0      0      0
+Node 0, zone      DMA
+   4162   1591    246     72     34      5      1      0      0      0      0
+      0    228   2234    643    295     20      0      0      0      0      0
+Node 0, zone      DMA
+   4050   1672    246     73     34      5      1      0      0      0      0
+      0    230   2235    641    295     20      0      0      0      0      0
+Node 0, zone      DMA
+   6457   2781    466    168     22      5      0      0      0      0      0
+      0    406   2468    646    290     20      0      0      0      0      0
+Node 0, zone      DMA
+   4861   2198     15      2      1      0      0      0      0      0      0
+      0    661   2843    649    290     20      0      0      0      0      0
+Node 0, zone      DMA
+   4422   2059     14      0      0      0      0      0      0      0      0
+      0    665   2840    648    290     20      0      0      0      0      0
+Node 0, zone      DMA
+   2223   2098     31      0      0      0      0      0      0      0      0
+      0    666   2838    648    290     20      0      0      0      0      0
+Node 0, zone      DMA
+   4363   2189     31      0      0      0      0      0      0      0      0
+      0    686   2901    648    290     20      0      0      0      0      0
+Node 0, zone      DMA
+   6288   3092     38      3      0      0      0      0      0      0      0
+      0    836   3738    659    289     20      0      0      0      0      0
+Node 0, zone      DMA
+    926    633    381    115     11      0      0      0      0      0      0
+      0    201   1127    717    293     20      0      0      0      0      0
+Node 0, zone      DMA
+   2692   1122    276     48     15      4      0      0      0      0      0
+      0    301   1404    768    299     20      0      0      0      0      0
+Node 0, zone      DMA
+   3074    489    288     48     11      1      0      0      0      0      0
+      0    318   1427    771    298     20      0      0      0      0      0
+Node 0, zone      DMA
+   6803   1700    320     50     11      1      0      0      0      0      0
+      0    462   1454    770    298     20      0      0      0      0      0
+Node 0, zone      DMA
+  25092   8052    125     11      1      0      0      0      0      0      0
+      0   1994   2786    811    308     20      0      0      0      0      0
+Node 0, zone      DMA
+  21794   7145     98     12      1      0      0      0      0      0      0
+      0   2105   2861    814    308     20      0      0      0      0      0
+Node 0, zone      DMA
+    938   1262     89     17      0      0      0      0      0      0      0
+      0   1752   4445   1048    358     22      0      0      0      0      0
+Node 0, zone      DMA
+    981   1293    103     15      0      0      0      0      0      0      0
+      0   1758   4455   1051    358     22      0      0      0      0      0
+Node 0, zone      DMA
+   2970   1700    109      0      0      0      0      0      0      0      0
+      0   1846   4892   1051    358     22      0      0      0      0      0
+Node 0, zone      DMA
+   3175   1647    104      3      0      0      0      0      0      0      0
+      0   1868   4895   1053    358     22      0      0      0      0      0
+Node 0, zone      DMA
+   4980   2340     87      2      0      0      0      0      0      0      0
+      0   1900   5040   1060    358     22      0      0      0      0      0
+Node 0, zone      DMA
+  10308   1612    378     69      1      0      0      0      0      0      0
+      0    565   5269   1180    373     23      0      0      0      0      0
+Node 0, zone      DMA
+   1453    981    222      6      1      0      0      0      0      0      0
+      0    224   5906   1275    399     23      0      0      0      0      0
+Node 0, zone      DMA
+   1687    246      9      0      0      0      0      0      0      0      0
+      0    200   5977   1264    399     23      0      0      0      0      0
+Node 0, zone      DMA
+   1141    579     22      2      0      0      0      0      0      0      0
+      0    220   5766   1291    399     23      0      0      0      0      0
+Node 0, zone      DMA
+   1047    104      0      0      0      0      0      0      0      0      0
+      0    192   5788   1284    400     23      0      0      0      0      0
+Node 0, zone      DMA
+   7550   2234     94      2      0      0      0      0      0      0      0
+      0   2167   6245   1314    413     23      0      0      0      0      0
+Node 0, zone      DMA
+   7592   2252    100      2      0      0      0      0      0      0      0
+      0   2125   6285   1314    413     23      0      0      0      0      0
+Node 0, zone      DMA
+   6614   2308     99      2      0      0      0      0      0      0      0
+      0   2132   6290   1314    413     23      0      0      0      0      0
+Node 0, zone      DMA
+   4722   2650     70      1      0      0      0      0      0      0      0
+      0   2086   6526   1339    418     23      0      0      0      0      0
+Node 0, zone      DMA
+   3132   2283    115      3      0      0      0      0      0      0      0
+      0   2066   6850   1347    425     24      0      0      0      0      0
+Node 0, zone      DMA
+   1076   1485     45      1      0      0      0      0      0      0      0
+      0   2053   7389   1357    434     24      0      0      0      0      0
+Node 0, zone      DMA
+    836   1087      4      0      0      0      0      0      0      0      0
+      0   1762   7435   1354    434     24      0      0      0      0      0
+Node 0, zone      DMA
+    409   1045      1      1      0      0      0      0      0      0      0
+      0   1760   7469   1349    434     24      0      0      0      0      0
+Node 0, zone      DMA
+    337    877     14      0      1      0      0      0      0      0      0
+      0   1672   7476   1347    434     24      0      0      0      0      0
+Node 0, zone      DMA
+     15      0      0      0      0      0      0      0      0      0      0
+      0    581   7479   1343    440     24      0      0      0      0      0
+Node 0, zone      DMA
+      1      0      8      0      0      0      0      0      0      0      0
+      0     20   5288   1390    457     27      0      0      0      0      0
+Node 0, zone      DMA
+     16     38      6      0      0      0      0      0      0      0      0
+      0     26   4500   1394    457     27      0      0      0      0      0
+Node 0, zone      DMA
+     33     27     13      0      0      0      0      0      0      0      0
+      0     20   3573   1397    457     27      0      0      0      0      0
+Node 0, zone      DMA
+   5177    758     27      0      0      0      0      0      0      0      0
+      0    180   4137   1397    457     27      0      0      0      0      0
+Node 0, zone      DMA
+   7670   1207     87      3      1      0      0      0      0      0      0
+      0    294   4705   1407    457     27      0      0      0      0      0
+Node 0, zone      DMA
+   5767    740     32      6      0      0      0      0      0      0      0
+      0    277   4714   1399    457     27      0      0      0      0      0
+Node 0, zone      DMA
+   9843   1966     25      0      0      0      0      0      0      0      0
+      0   1447   5696   1390    442     27      0      0      0      0      0
+Node 0, zone      DMA
+  10032   1829     25      0      0      0      0      0      0      0      0
+      0   1473   5709   1388    442     27      0      0      0      0      0
+Node 0, zone      DMA
+   9687   2626     60      4      0      0      0      0      0      0      0
+      0   1537   5782   1385    442     25      0      0      0      0      0
+Node 0, zone      DMA
+   8866   2495    101      1      0      0      0      0      0      0      0
+      0   1585   5798   1384    442     25      0      0      0      0      0
+Node 0, zone      DMA
+   8830   2450     21      0      0      0      0      0      0      0      0
+      0   1577   5802   1384    442     25      0      0      0      0      0
+Node 0, zone      DMA
+  11145   2800     69      3      0      0      0      0      0      0      0
+      0   1655   5923   1389    443     25      0      0      0      0      0
+Node 0, zone      DMA
+  12822   3004     52      3      0      0      0      0      0      0      0
+      0   1708   5936   1391    443     25      0      0      0      0      0
+Node 0, zone      DMA
+  11282   3108    115      7      0      0      0      0      0      0      0
+      0   1693   5941   1386    443     25      0      0      0      0      0
+Node 0, zone      DMA
+  10508   3040    111      6      2      0      0      0      0      0      0
+      0   1722   5940   1388    443     25      0      0      0      0      0
+Node 0, zone      DMA
+   9796   3265    147     10      2      0      0      0      0      0      0
+      0   1721   5942   1387    443     25      0      0      0      0      0
+Node 0, zone      DMA
+  11928   3940    118     16     20      1      0      0      0      0      0
+      0   1913   6228   1413    453     25      0      0      0      0      0
+Node 0, zone      DMA
+  13113   4003     92     16     20      1      0      0      0      0      0
+      0   1969   6257   1412    453     25      0      0      0      0      0
+Node 0, zone      DMA
+  11343   4020     61     16     20      1      0      0      0      0      0
+      0   1959   6279   1414    453     25      0      0      0      0      0
+Node 0, zone      DMA
+  10528   3426     99     20     20      1      0      0      0      0      0
+      0   1949   6299   1412    453     25      0      0      0      0      0
+Node 0, zone      DMA
+    113    321     85      7      0      0      0      0      0      0      0
+      0     27   6326   1540    465     26      0      0      0      0      0
+Node 0, zone      DMA
+   2879    305    136      3      0      0      0      0      0      0      0
+      0     54   6350   1540    465     26      0      0      0      0      0
+Node 0, zone      DMA
+   1872    393     95      0      0      0      0      0      0      0      0
+      0     85   6322   1541    465     26      0      0      0      0      0
+Node 0, zone      DMA
+   2674    606    121      4      0      0      0      0      0      0      0
+      0    132   6258   1542    465     26      0      0      0      0      0
+Node 0, zone      DMA
+    986    921     94      4      0      0      0      0      0      0      0
+      0    153   6326   1546    465     26      0      0      0      0      0
+Node 0, zone      DMA
+   2609   2148     27      6      1      0      0      0      0      0      0
+      0   1235   5574   1607    480     26      0      0      0      0      0
+Node 0, zone      DMA
+     68     61      5      0      0      0      0      0      0      0      0
+      0    508   5825   1591    473     26      0      0      0      0      0
+Node 0, zone      DMA
+    213    265     13      0      0      0      0      0      0      0      0
+      0    208   5306   1589    473     26      0      0      0      0      0
+Node 0, zone      DMA
+   2143    238     18      0      0      0      0      0      0      0      0
+      0    101   5096   1594    473     26      0      0      0      0      0
+Node 0, zone      DMA
+   1192    236     34      0      0      0      0      0      0      0      0
+      0     99   5145   1594    473     26      0      0      0      0      0
+Node 0, zone      DMA
+    400    244     17      4      0      0      0      0      0      0      0
+      0     33   2064   1637    473     26      0      0      0      0      0
+Node 0, zone      DMA
+      0      0      0      0      0      0      0      0      0      0      0
+      0      0   1667   1666    474     26      0      0      0      0      0
+Node 0, zone      DMA
+      8      5     14      0      0      0      0      0      0      0      0
+      0     35   1759   1665    474     26      0      0      0      0      0
+Node 0, zone      DMA
+     36     14      9      1      0      0      0      0      0      0      0
+      0     17     24    905    474     26      0      0      0      0      0
+Node 0, zone      DMA
+    375    196     40      4      0      0      0      0      0      0      0
+      0    203    331    939    478     26      0      0      0      0      0
+Node 0, zone      DMA
+   1128   2184    771      0      0      0      0      0      0      0      0
+      0    667   3345   1265    496     26      0      0      0      0      0
+Node 0, zone      DMA
+  17493   3123     94     12      3      0      0      0      0      0      0
+      0   1258   2740   1057    509     26      0      0      0      0      0
+Node 0, zone      DMA
+  17494   2939     81     10      3      0      0      0      0      0      0
+      0   1276   2758   1056    509     26      0      0      0      0      0
+Node 0, zone      DMA
+  15407   3682    415     29      3      0      0      0      0      0      0
+      0   1384   2849   1075    510     26      0      0      0      0      0
+Node 0, zone      DMA
+  13485   3961    498     37      4      0      0      0      0      0      0
+      0   1429   2913   1135    510     26      0      0      0      0      0
+Node 0, zone      DMA
+  15665   4486    599     44      4      0      0      0      0      0      0
+      0   1562   3038   1152    511     26      0      0      0      0      0
+Node 0, zone      DMA
+    410   1364    168      0      0      0      0      0      0      0      0
+      0   1200   4979   1360    525     26      0      0      0      0      0
+Node 0, zone      DMA
+     77     30    164      0      0      0      0      0      0      0      0
+      0    246   4976   1360    525     26      0      0      0      0      0
+Node 0, zone      DMA
+   1492    281    230      7      0      0      0      0      0      0      0
+      0    152   4621   1377    525     26      0      0      0      0      0
+Node 0, zone      DMA
+   2780    727    267      6      2      0      0      0      0      0      0
+      0    591   4680   1382    525     26      0      0      0      0      0
+Node 0, zone      DMA
+  12995   2974    169      2      2      0      0      0      0      0      0
+      0   1351   4884   1390    528     26      0      0      0      0      0
+Node 0, zone      DMA
+  11002   4237    325     34      2      2      0      0      0      0      0
+      0   1784   5068   1449    530     26      0      0      0      0      0
+Node 0, zone      DMA
+  10062   4278    348     31      2      2      0      0      0      0      0
+      0   1789   5064   1450    530     26      0      0      0      0      0
+Node 0, zone      DMA
+  10558   4405    374     32      1      2      0      0      0      0      0
+      0   1908   5080   1453    530     26      0      0      0      0      0
+Node 0, zone      DMA
+  17822   6827    288     24      1      0      0      0      0      0      0
+      0   2676   5638   1455    528     26      0      0      0      0      0
+Node 0, zone      DMA
+  16082   6534    277     24      1      0      0      0      0      0      0
+      0   2685   5644   1456    528     26      0      0      0      0      0
+Node 0, zone      DMA
+   1179   2890    926    201     34      1      0      0      0      0      0
+      0   2751   7098   1587    567     26      0      0      0      0      0
+Node 0, zone      DMA
+   2032   2723    575     21      5      1      0      0      0      0      0
+      0   2745   7147   1604    567     26      0      0      0      0      0
+Node 0, zone      DMA
+   1149   2808    613     18      6      1      0      0      0      0      0
+      0   2731   7061   1609    567     26      0      0      0      0      0
+Node 0, zone      DMA
+  11101   5306    307     24      6      1      0      0      0      0      0
+      0   2801   7798   1588    567     26      0      0      0      0      0
+Node 0, zone      DMA
+  10648   5227    307     27      6      1      0      0      0      0      0
+      0   2805   7811   1588    567     26      0      0      0      0      0
+Node 0, zone      DMA
+   2740   2243     71    109     36      3      0      0      0      0      0
+      0   2280   8503   1643    589     26      0      0      0      0      0
+Node 0, zone      DMA
+   1634   2034      1    105     35      3      0      0      0      0      0
+      0   2272   8406   1645    589     26      0      0      0      0      0
+Node 0, zone      DMA
+   1549   1957     87    112     17      3      0      0      0      0      0
+      0   2273   8297   1617    575     26      0      0      0      0      0
+Node 0, zone      DMA
+   7128   3535    134     96     22      3      0      0      0      0      0
+      0   2705   8907   1618    577     26      0      0      0      0      0
+Node 0, zone      DMA
+   7125   3511    137     96     22      3      0      0      0      0      0
+      0   2707   8913   1618    577     26      0      0      0      0      0
+Node 0, zone      DMA
+    557   1049     10    109     41      5      0      0      0      0      0
+      0   2434   9464   1637    592     27      0      0      0      0      0
+Node 0, zone      DMA
+    379     52     11      8     20      5      0      0      0      0      0
+      0     20   6219   1545    592     27      0      0      0      0      0
+Node 0, zone      DMA
+    112    214     81     27      7      0      0      0      0      0      0
+      0     20   5716   1569    567     26      0      0      0      0      0
+Node 0, zone      DMA
+   5735    719     58     16      0      0      0      0      0      0      0
+      0    245   5661   1563    552     26      0      0      0      0      0
+Node 0, zone      DMA
+   5351    798     60     16      0      0      0      0      0      0      0
+      0    279   5685   1563    552     26      0      0      0      0      0
+Node 0, zone      DMA
+    889    800     76     19      0      0      0      0      0      0      0
+      0    256   5820   1566    552     26      0      0      0      0      0
+Node 0, zone      DMA
+    334    253     56     16      0      0      0      0      0      0      0
+      0    271   5808   1566    555     26      0      0      0      0      0
+Node 0, zone      DMA
+     98    170     53     16      0      0      0      0      0      0      0
+      0    272   5835   1567    554     26      0      0      0      0      0
+Node 0, zone      DMA
+   7129   1753    288     67      4      0      0      0      0      0      0
+      0   1401   6568   1602    561     26      0      0      0      0      0
+Node 0, zone      DMA
+   6498   1832    311     70      5      0      0      0      0      0      0
+      0   1434   6590   1608    561     26      0      0      0      0      0
+Node 0, zone      DMA
+   6582   1801    320     71      5      0      0      0      0      0      0
+      0   1446   6598   1608    561     26      0      0      0      0      0
+Node 0, zone      DMA
+   6849   1466    311     72      5      0      0      0      0      0      0
+      0   1451   6591   1610    562     26      0      0      0      0      0
+Node 0, zone      DMA
+   5618   1252    252     66      6      2      0      0      0      0      0
+      0   1357   6651   1618    566     26      0      0      0      0      0
+Node 0, zone      DMA
+  10321   2108    290     70      7      2      0      0      0      0      0
+      0   1645   7612   1642    571     26      0      0      0      0      0
+Node 0, zone      DMA
+   9897   2177    253     59      7      2      0      0      0      0      0
+      0   1649   7642   1643    571     26      0      0      0      0      0
+Node 0, zone      DMA
+   1013   1234    190     57      7      2      0      0      0      0      0
+      0   1083   8175   1682    578     26      0      0      0      0      0
+Node 0, zone      DMA
+   1546    535      2     54      6      2      0      0      0      0      0
+      0   1093   8055   1682    578     26      0      0      0      0      0
+Node 0, zone      DMA
+   1127    428      2      0      0      0      0      0      0      0      0
+      0   1095   7313   1613    566     26      0      0      0      0      0
+Node 0, zone      DMA
+   5391   1599     27     49      1      0      0      0      0      0      0
+      0   1153   8400   1667    568     26      0      0      0      0      0
+Node 0, zone      DMA
+  11053   2284     44     49      1      0      0      0      0      0      0
+      0   1389   8534   1663    573     26      0      0      0      0      0
+Node 0, zone      DMA
+   2632    858    214    112     25      1      0      0      0      0      0
+      0   1433   9339   1735    584     27      0      0      0      0      0
+Node 0, zone      DMA
+   1104    857    218    116     29      1      0      0      0      0      0
+      0   1433   9420   1739    585     28      0      0      0      0      0
+Node 0, zone      DMA
+    710    770    158    123     27      5      1      0      0      0      0
+      0   1448   9414   1752    589     29      1      0      0      0      0
+Node 0, zone      DMA
+   5530   1253    162    120     28      5      1      0      0      0      0
+      0   1478   9414   1754    589     29      1      0      0      0      0
+Node 0, zone      DMA
+  16582   5138    174    120     28      5      1      0      0      0      0
+      0   2021   9810   1761    589     29      1      0      0      0      0
+Node 0, zone      DMA
+  14834   5126    145    121     28      6      1      0      0      0      0
+      0   2037   9791   1767    591     29      1      0      0      0      0
+Node 0, zone      DMA
+  16874   5157    143    121     28      6      1      0      0      0      0
+      0   2145   9838   1766    591     29      1      0      0      0      0
+Node 0, zone      DMA
+  17034   4974    169    124     34      6      1      0      0      0      0
+      0   2167   9690   1772    594     29      1      0      0      0      0
+Node 0, zone      DMA
+  19112   5082    174    124     34      6      1      0      0      0      0
+      0   2190   9721   1774    594     30      1      0      0      0      0
+Node 0, zone      DMA
+  17870   5110    182    130     34      6      1      0      0      0      0
+      0   2205   9733   1776    594     30      1      0      0      0      0
+Node 0, zone      DMA
+  16621   4997    154    123     35      6      1      0      0      0      0
+      0   2207   9739   1780    596     30      1      0      0      0      0
+Node 0, zone      DMA
+  16130   4641    142    123     35      6      1      0      0      0      0
+      0   2206   9732   1780    596     30      1      0      0      0      0
+Node 0, zone      DMA
+  15672   4607    146    122     36      6      1      0      0      0      0
+      0   2204   9607   1794    598     32      1      0      0      0      0
+Node 0, zone      DMA
+  15425   4509    148    122     36      6      1      0      0      0      0
+      0   2204   9611   1794    598     32      1      0      0      0      0
+Node 0, zone      DMA
+  15540   4603    168    124     36      6      1      0      0      0      0
+      0   2212   9641   1796    598     32      1      0      0      0      0
+Node 0, zone      DMA
+  15140   4583    157    126     37      6      1      0      0      0      0
+      0   2189   9537   1803    598     32      1      0      0      0      0
+Node 0, zone      DMA
+  16955   5021    175    126     36      6      1      0      0      0      0
+      0   2210   9554   1805    601     33      1      0      0      0      0
+Node 0, zone      DMA
+  14956   4909    168    126     36      6      1      0      0      0      0
+      0   2209   9552   1805    601     33      1      0      0      0      0
+Node 0, zone      DMA
+  14765   4270    165    128     38      6      1      0      0      0      0
+      0   2204   9466   1814    602     33      1      0      0      0      0
+Node 0, zone      DMA
+  14432   3975    168    128     38      6      1      0      0      0      0
+      0   2171   9467   1814    602     33      1      0      0      0      0
+Node 0, zone      DMA
+  14115   4137    153    135     38      6      1      0      0      0      0
+      0   2107   9337   1817    603     33      1      0      0      0      0
+Node 0, zone      DMA
+  14808   4471    161    136     37      7      1      0      0      0      0
+      0   2152   9368   1821    603     33      1      0      0      0      0
+Node 0, zone      DMA
+  13415   4459    176    144     38      7      1      0      0      0      0
+      0   2146   9237   1828    607     33      1      0      0      0      0
+Node 0, zone      DMA
+  13162   4247    161    144     38      7      1      0      0      0      0
+      0   2144   9225   1828    608     33      1      0      0      0      0
+Node 0, zone      DMA
+  12873   4222     45    145     38      7      1      0      0      0      0
+      0   1919   9238   1828    608     33      1      0      0      0      0
+Node 0, zone      DMA
+     19    215    283    267     75      9      1      0      0      0      0
+      0   2125  10674   1889    643     35      1      0      0      0      0
+Node 0, zone      DMA
+     30     22      4    140     60      9      1      0      0      0      0
+      0    191  10715   1915    643     35      1      0      0      0      0
+Node 0, zone      DMA
+   1325    343     34    139     60      9      1      0      0      0      0
+      0     61  10194   1914    643     35      1      0      0      0      0
+Node 0, zone      DMA
+   3849    353    108    163     61      9      1      0      0      0      0
+      0    169   9901   1945    645     35      1      0      0      0      0
+Node 0, zone      DMA
+   2046   1362    225    139     58     10      1      0      0      0      0
+      0    305   9988   1960    647     35      1      0      0      0      0
+Node 0, zone      DMA
+    388    146     62     15     65     10      1      0      0      0      0
+      0     17   8387   1890    665     36      1      0      0      0      0
+Node 0, zone      DMA
+      8      6      3      0     62     10      1      0      0      0      0
+      0     12   8376   1771    665     36      1      0      0      0      0
+Node 0, zone      DMA
+   1337    426    158     59     28      0      0      0      0      0      0
+      0     16   8438   1733    607     27      0      0      0      0      0
+Node 0, zone      DMA
+    737    359    151     34      0      0      0      0      0      0      0
+      0     84   8370   1702    581     26      0      0      0      0      0
+Node 0, zone      DMA
+    377    333    155     35      0      0      0      0      0      0      0
+      0     82   8390   1702    581     26      0      0      0      0      0
+Node 0, zone      DMA
+     91     21      3      0      0      0      0      0      0      0      0
+      0     12   5769   1705    581     26      0      0      0      0      0
+Node 0, zone      DMA
+     14     58    106     47     20      0      0      0      0      0      0
+      0    269   5846   1789    608     26      0      0      0      0      0
+Node 0, zone      DMA
+     89     19      5      0      0      0      0      0      0      0      0
+      0      3   2768   1715    582     26      0      0      0      0      0
+Node 0, zone      DMA
+    143     51      6      0      0      0      0      0      0      0      0
+      0     17    833   1045    582     26      0      0      0      0      0
+Node 0, zone      DMA
+   1890    449     27      0      0      0      0      0      0      0      0
+      0     44    694   1058    582     26      0      0      0      0      0
+Node 0, zone      DMA
+    141      5      3      1      0      1      0      0      0      0      0
+      0    178   1192    986    582     26      0      0      0      0      0
+Node 0, zone      DMA
+    377    136     30     24      2      0      0      0      0      0      0
+      0   1538   4183   1208    586     26      0      0      0      0      0
+Node 0, zone      DMA
+    935    223     45      9      1      0      0      0      0      0      0
+      0   1427   4076   1184    586     26      0      0      0      0      0
+Node 0, zone      DMA
+     70     33     13     10      0      0      0      0      0      0      0
+      0     18   3979   1147    586     26      0      0      0      0      0
+Node 0, zone      DMA
+   1611    146     18     11      0      0      0      0      0      0      0
+      0     35   3741   1147    586     26      0      0      0      0      0
+Node 0, zone      DMA
+    361    538    209     44      0      0      0      0      0      0      0
+      0    145   3952   1190    590     26      0      0      0      0      0
+Node 0, zone      DMA
+    240    203     45      0      0      0      0      0      0      0      0
+      0     70   3382   1186    590     26      0      0      0      0      0
+Node 0, zone      DMA
+    239    376    101      3      0      0      0      0      0      0      0
+      0     39   2726   1193    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   2554    306     84      9      0      0      0      0      0      0      0
+      0     85   3010   1199    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   9614    746     88      0      0      0      0      0      0      0      0
+      0    416   2874   1197    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   8997    676     92      0      0      0      0      0      0      0      0
+      0    413   2877   1195    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   9492   1566    190      2      0      0      0      0      0      0      0
+      0    658   3019   1292    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   2397   1548    543     58      1      0      0      0      0      0      0
+      0    738   3935   1344    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   2639   1572    493     28      0      0      0      0      0      0      0
+      0    755   3955   1339    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   9199   3716    334      5      1      0      0      0      0      0      0
+      0   1013   4452   1334    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   8788   3731    324      6      1      0      0      0      0      0      0
+      0   1018   4422   1335    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   6503   3490    225      5      1      0      0      0      0      0      0
+      0    964   4511   1335    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   7197   3569    229      6      0      0      0      0      0      0      0
+      0    978   4522   1327    590     26      0      0      0      0      0
+Node 0, zone      DMA
+  10472   3961    212     11      0      0      0      0      0      0      0
+      0   1052   4626   1332    590     26      0      0      0      0      0
+Node 0, zone      DMA
+  10116   4065    238     15      0      0      0      0      0      0      0
+      0   1103   4677   1334    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   9264   4014    241     18      0      0      0      0      0      0      0
+      0   1118   4685   1335    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   9041   4004    248     18      0      0      0      0      0      0      0
+      0   1121   4685   1335    590     26      0      0      0      0      0
+Node 0, zone      DMA
+   1060   2320    288     77     33      1      0      0      0      0      0
+      0    977   5342   1465    622     27      0      0      0      0      0
+Node 0, zone      DMA
+   7086   2573    195     41     23      1      0      0      0      0      0
+      0    750   4912   1475    623     27      0      0      0      0      0
+Node 0, zone      DMA
+    807   1412    174     41     21      2      0      0      0      0      0
+      0    787   4938   1478    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   1935   1590    180     42     21      2      0      0      0      0      0
+      0    806   4739   1500    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   1069   1600    183     41     21      2      0      0      0      0      0
+      0    804   4739   1499    625     27      0      0      0      0      0
+Node 0, zone      DMA
+    985   1646    192     50     21      2      0      0      0      0      0
+      0    803   4607   1511    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   4765   2289    288     57     21      2      0      0      0      0      0
+      0    902   4793   1520    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   4452   2217    279     58     21      2      0      0      0      0      0
+      0    904   4790   1520    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   3921   2207    265     59     21      2      0      0      0      0      0
+      0    850   4819   1522    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   3596   2224    269     59     21      2      0      0      0      0      0
+      0    850   4820   1522    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   3457   2202    229     59     21      2      0      0      0      0      0
+      0    893   4828   1523    625     27      0      0      0      0      0
+Node 0, zone      DMA
+   9412   2771    233     57     20      2      0      0      0      0      0
+      0   1067   5023   1529    627     27      0      0      0      0      0
+Node 0, zone      DMA
+   9357   2752    232     57     20      2      0      0      0      0      0
+      0   1067   5024   1529    627     27      0      0      0      0      0
+Node 0, zone      DMA
+   9114   2729    240     57     20      2      0      0      0      0      0
+      0   1059   5036   1530    627     27      0      0      0      0      0
+Node 0, zone      DMA
+   8924   2731    243     57     20      2      0      0      0      0      0
+      0   1059   5036   1530    627     27      0      0      0      0      0
+Node 0, zone      DMA
+   9110   2780    249     57     20      2      0      0      0      0      0
+      0    976   5045   1531    627     27      0      0      0      0      0
+Node 0, zone      DMA
+  11652   3785    253     58     20      2      0      0      0      0      0
+      0   1236   5360   1554    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  11410   3785    249     58     20      2      0      0      0      0      0
+      0   1237   5362   1554    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  11243   3696    241     59     20      2      0      0      0      0      0
+      0   1272   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  10801   3700    242     59     20      2      0      0      0      0      0
+      0   1272   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  10642   3728    239     59     20      2      0      0      0      0      0
+      0   1190   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  10399   3708    239     59     20      2      0      0      0      0      0
+      0   1190   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+  10186   3674    239     59     20      2      0      0      0      0      0
+      0   1193   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   8006   3646    240     59     20      2      0      0      0      0      0
+      0   1255   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   6483   3648    238     59     20      2      0      0      0      0      0
+      0   1255   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   6647   3662    237     59     20      2      0      0      0      0      0
+      0   1159   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   6516   3670    237     59     20      2      0      0      0      0      0
+      0   1170   5365   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   6227   3688    242     59     20      2      0      0      0      0      0
+      0   1174   5366   1555    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   7248   3728    262     59     20      2      0      0      0      0      0
+      0   1178   5370   1556    630     27      0      0      0      0      0
+Node 0, zone      DMA
+   6810   3730    263     59     19      1      0      0      0      0      0
+      0   1178   5370   1556    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   8588   4498    412     77     20      1      0      0      0      0      0
+      0   1299   5554   1554    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   8430   4605    424     78     20      1      0      0      0      0      0
+      0   1324   5550   1554    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   8165   4649    416     78     20      1      0      0      0      0      0
+      0   1333   5557   1554    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   8806   4655    423     79     20      1      0      0      0      0      0
+      0   1365   5557   1555    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   7289   4644    432     80     20      1      0      0      0      0      0
+      0   1363   5555   1554    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   5796   4524    382     80     20      1      0      0      0      0      0
+      0   1350   5543   1554    629     27      0      0      0      0      0
+Node 0, zone      DMA
+   5478   1047    253     64     21      1      0      0      0      0      0
+      0   1375   5730   1573    631     27      0      0      0      0      0
+Node 0, zone      DMA
+   4837    745    253     63     21      1      0      0      0      0      0
+      0   1327   5730   1572    632     27      0      0      0      0      0
+Node 0, zone      DMA
+   7629    898    250     46     21      1      0      0      0      0      0
+      0   1272   5536   1589    634     27      0      0      0      0      0
+Node 0, zone      DMA
+   7813   1100    253     47     21      1      0      0      0      0      0
+      0   1330   5540   1590    634     27      0      0      0      0      0
+Node 0, zone      DMA
+   7892   1099    210     53     21      1      0      0      0      0      0
+      0   1355   5571   1591    635     27      0      0      0      0      0
+Node 0, zone      DMA
+   7746   1104    214     53     21      1      0      0      0      0      0
+      0   1357   5571   1591    635     27      0      0      0      0      0
+Node 0, zone      DMA
+   7800   1138    213     54     21      1      0      0      0      0      0
+      0   1365   5582   1591    635     27      0      0      0      0      0
+Node 0, zone      DMA
+   7488   1112    206     55     21      1      0      0      0      0      0
+      0   1363   5586   1591    635     27      0      0      0      0      0
+Node 0, zone      DMA
+   7382   1127    206     55     21      1      0      0      0      0      0
+      0   1366   5587   1591    635     27      0      0      0      0      0
+Node 0, zone      DMA
+   2044   1234    248    111     41      2      0      0      0      0      0
+      0   1350   6021   1638    650     27      0      0      0      0      0
+Node 0, zone      DMA
+    481    574    261     92     38      2      0      0      0      0      0
+      0   1130   6033   1639    650     28      0      0      0      0      0
+Node 0, zone      DMA
+    913     52      0      0      0      2      0      0      0      0      0
+      0     19   3946   1365    642     28      0      0      0      0      0
+Node 0, zone      DMA
+   1122    478     35     14      1      0      0      0      0      0      0
+      0     29   3836   1384    611     26      0      0      0      0      0
+Node 0, zone      DMA
+   1555    788     68     31      1      0      0      0      0      0      0
+      0     80   3941   1393    611     26      0      0      0      0      0
+Node 0, zone      DMA
+   5886    736     79     26      0      0      0      0      0      0      0
+      0    396   3993   1385    600     26      0      0      0      0      0
+Node 0, zone      DMA
+   5616    642     77     27      0      0      0      0      0      0      0
+      0    430   3999   1386    600     26      0      0      0      0      0
+Node 0, zone      DMA
+   2286     98      1      2      1      0      0      0      0      0      0
+      0    291   3927   1368    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   4572    640     76     26      2      0      0      0      0      0      0
+      0    447   4007   1380    597     26      0      0      0      0      0
+Node 0, zone      DMA
+   4492    653     76     25      3      0      0      0      0      0      0
+      0    446   4012   1380    598     26      0      0      0      0      0
+Node 0, zone      DMA
+   2751   1371    161     28      0      0      0      0      0      0      0
+      0    522   4051   1376    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   3288    791     85     17      0      0      0      0      0      0      0
+      0    537   4055   1375    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   3193    791     85     17      0      0      0      0      0      0      0
+      0    538   4055   1375    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   3082   1143    148     14      0      0      0      0      0      0      0
+      0    634   4080   1371    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   2880   1159    146     14      0      0      0      0      0      0      0
+      0    634   4081   1370    594     26      0      0      0      0      0
+Node 0, zone      DMA
+   8221   2231    393     99     13      0      0      0      0      0      0
+      0   1173   4888   1492    609     26      0      0      0      0      0
+Node 0, zone      DMA
+   7803   2070    391    100     13      0      0      0      0      0      0
+      0   1172   4895   1497    609     26      0      0      0      0      0
+Node 0, zone      DMA
+   4451   1940    393     99     12      0      0      0      0      0      0
+      0   1174   4897   1497    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   6630   1786    396     99     13      0      0      0      0      0      0
+      0   1181   4904   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   6126   1789    397     99     13      0      0      0      0      0      0
+      0   1180   4904   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   5940   1699    401    100     13      0      0      0      0      0      0
+      0   1191   4906   1497    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   6303   2471    501    101     13      0      0      0      0      0      0
+      0   1519   4913   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   6100   2477    504    102     13      0      0      0      0      0      0
+      0   1524   4915   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   6199   2458    508    101     13      0      0      0      0      0      0
+      0   1530   4916   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4400   2447    507    101     13      0      0      0      0      0      0
+      0   1530   4916   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4862   2392    508    100     14      0      0      0      0      0      0
+      0   1535   4917   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4689   2401    508    100     14      0      0      0      0      0      0
+      0   1535   4917   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4532   2402    508    100     14      0      0      0      0      0      0
+      0   1535   4917   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4459   2416    508    100     14      0      0      0      0      0      0
+      0   1536   4920   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4306   2440    509    100     14      0      0      0      0      0      0
+      0   1538   4921   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   4114   2376    509    100     14      0      0      0      0      0      0
+      0   1541   4921   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   3653   2374    509    100     14      0      0      0      0      0      0
+      0   1541   4921   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+    150    948    508    100     14      0      0      0      0      0      0
+      0   1541   4921   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   2950   1372    508    100     14      0      0      0      0      0      0
+      0   1094   4919   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   2602   1388    509    100     14      0      0      0      0      0      0
+      0   1097   4919   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   2380   1342    486    101     14      0      0      0      0      0      0
+      0    769   4920   1498    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   2489   1382    486    101     14      0      0      0      0      0      0
+      0    782   4920   1499    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   3438   1453    486    105     16      0      0      0      0      0      0
+      0    788   4933   1504    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   3373   1443    489    106     16      0      0      0      0      0      0
+      0    797   4936   1506    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   3153   1553    423    110     18      0      0      0      0      0      0
+      0    655   4875   1519    609     27      0      0      0      0      0
+Node 0, zone      DMA
+   3009   1500    422    110     18      0      0      0      0      0      0
+      0    661   4877   1519    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   2834   1528    420    110     18      0      0      0      0      0      0
+      0    665   4878   1519    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   3823   1574    244     53     14      0      0      0      0      0      0
+      0    710   4884   1519    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   3746   1628    228     53     14      0      0      0      0      0      0
+      0    712   4885   1520    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   3737   1623    230     53     14      0      0      0      0      0      0
+      0    715   4884   1520    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   3835   1534    234     53     14      0      0      0      0      0      0
+      0    717   4885   1520    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   5601   2503    324     53     14      0      0      0      0      0      0
+      0    728   4898   1520    610     27      0      0      0      0      0
+Node 0, zone      DMA
+   9443   3281    236     53     14      0      0      0      0      0      0
+      0    767   4911   1520    610     27      0      0      0      0      0
+Node 0, zone      DMA
+  19296   6049    296     65     15      0      0      0      0      0      0
+      0   2782   5776   1540    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19233   6137    302     66     15      0      0      0      0      0      0
+      0   2795   5790   1540    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19462   6070    310     66     15      0      0      0      0      0      0
+      0   2801   5801   1540    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19934   6316    322     70     15      0      0      0      0      0      0
+      0   2833   5803   1539    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19668   6327    309     66     15      0      0      0      0      0      0
+      0   2831   5803   1539    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19677   6280    319     66     15      0      0      0      0      0      0
+      0   2834   5804   1539    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  19520   6280    319     66     15      0      0      0      0      0      0
+      0   2835   5804   1539    613     27      0      0      0      0      0
+Node 0, zone      DMA
+  20794   6354    330     65     15      0      0      0      0      0      0
+      0   2840   5800   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  20329   6377    342     65     15      0      0      0      0      0      0
+      0   2841   5799   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  20755   6397    344     65     15      0      0      0      0      0      0
+      0   2850   5800   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  20732   6345    352     65     15      0      0      0      0      0      0
+      0   2853   5799   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  20418   6352    356     65     15      0      0      0      0      0      0
+      0   2853   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19902   6298    355     65     15      0      0      0      0      0      0
+      0   2855   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19652   6299    355     65     15      0      0      0      0      0      0
+      0   2855   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19373   6299    356     65     15      0      0      0      0      0      0
+      0   2855   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19136   6214    356     65     15      0      0      0      0      0      0
+      0   2857   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19101   6217    352     65     15      0      0      0      0      0      0
+      0   2857   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  19001   6141    352     65     15      0      0      0      0      0      0
+      0   2860   5798   1539    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16538   6116    333     66     15      0      0      0      0      0      0
+      0   2861   5798   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16213   6107    338     65     15      0      0      0      0      0      0
+      0   2861   5798   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15179   6124    337     65     15      0      0      0      0      0      0
+      0   2769   5798   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15505   6148    335     65     15      0      0      0      0      0      0
+      0   2829   5798   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15282   6138    331     65     15      0      0      0      0      0      0
+      0   2732   5791   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16524   6299    327     65     15      0      0      0      0      0      0
+      0   2729   5789   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15431   6303    326     65     15      0      0      0      0      0      0
+      0   2729   5789   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16640   6251    327     65     15      0      0      0      0      0      0
+      0   2804   5793   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16320   6255    330     65     15      0      0      0      0      0      0
+      0   2805   5793   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16299   6171    330     65     15      0      0      0      0      0      0
+      0   2805   5787   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  16014   6170    330     65     15      0      0      0      0      0      0
+      0   2805   5789   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15826   6171    333     65     15      0      0      0      0      0      0
+      0   2805   5790   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15850   6202    334     65     15      0      0      0      0      0      0
+      0   2723   5793   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15247   6203    335     65     15      0      0      0      0      0      0
+      0   2725   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  15267   6207    332     65     15      0      0      0      0      0      0
+      0   2680   5793   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  14567   6208    333     65     15      0      0      0      0      0      0
+      0   2688   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  14323   6206    333     65     15      0      0      0      0      0      0
+      0   2688   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  13627   6208    334     65     15      0      0      0      0      0      0
+      0   2600   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  13482   6204    335     65     15      0      0      0      0      0      0
+      0   2599   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  13526   6214    292     65     15      0      0      0      0      0      0
+      0   2602   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11299   6221    294     65     15      0      0      0      0      0      0
+      0   2604   5794   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11526   6228    245     65     15      0      0      0      0      0      0
+      0   2626   5826   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11328   6230    244     65     15      0      0      0      0      0      0
+      0   2630   5825   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12256   6355    264     65     15      0      0      0      0      0      0
+      0   2774   5827   1537    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12121   6349    276     66     15      0      0      0      0      0      0
+      0   2709   5828   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12892   6423    285     65     15      0      0      0      0      0      0
+      0   2708   5831   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12514   6348    286     66     15      0      0      0      0      0      0
+      0   2765   5825   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12295   6349    286     66     15      0      0      0      0      0      0
+      0   2765   5825   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12167   6351    285     66     15      0      0      0      0      0      0
+      0   2765   5826   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  12041   6310    286     66     15      0      0      0      0      0      0
+      0   2776   5826   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11564   6313    286     66     15      0      0      0      0      0      0
+      0   2777   5827   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11268   6340    287     66     15      0      0      0      0      0      0
+      0   2650   5827   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11020   6340    287     66     15      0      0      0      0      0      0
+      0   2650   5827   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11182   6349    287     65     15      0      0      0      0      0      0
+      0   2653   5827   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10961   6354    283     65     15      0      0      0      0      0      0
+      0   2615   5830   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10620   6354    284     65     15      0      0      0      0      0      0
+      0   2615   5830   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10462   6359    235     65     15      0      0      0      0      0      0
+      0   2659   5832   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10349   6353    242     65     15      0      0      0      0      0      0
+      0   2661   5832   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10076   6350    242     65     15      0      0      0      0      0      0
+      0   2661   5830   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10482   6364    213     65     15      0      0      0      0      0      0
+      0   2655   5832   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10325   6364    213     65     15      0      0      0      0      0      0
+      0   2656   5832   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11014   6422    234     65     15      0      0      0      0      0      0
+      0   2742   5837   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  11201   6346    263     65     15      0      0      0      0      0      0
+      0   2765   5841   1536    614     27      0      0      0      0      0
+Node 0, zone      DMA
+  10974   6351    263     65     15      0      0      0      0      0      0
+      0   2765   5841   1536    614     27      0      0      0      0      0
+
+
+On 2017/7/4 14:52, Michal Hocko wrote:
+> On Tue 04-07-17 09:21:00, zhouxianrong wrote:
+>> the test was done as follows:
+>>
+>> 1. the environment is android 7.0 and kernel is 4.1 and managed memory is 3.5GB
+>
+> There have been many changes in the compaction proper since than. Do you
+> see the same problem with the current upstream kernel?
+>
+>> 2. every 4s startup one apk, total 100 more apks need to startup
+>> 3. after finishing step 2, sample buddyinfo once and get the result
+>
+> How stable are those results?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
