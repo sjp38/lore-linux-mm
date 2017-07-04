@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E9496B0314
-	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 08:59:53 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id 191so33695700oii.4
-        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 05:59:53 -0700 (PDT)
-Received: from out30-14.freemail.mail.aliyun.com (out30-14.freemail.mail.aliyun.com. [115.124.30.14])
-        by mx.google.com with ESMTP id c84si14280698oif.179.2017.07.04.05.59.51
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EBDD66B0279
+	for <linux-mm@kvack.org>; Tue,  4 Jul 2017 09:08:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z1so86788358pgs.10
+        for <linux-mm@kvack.org>; Tue, 04 Jul 2017 06:08:30 -0700 (PDT)
+Received: from out4438.biz.mail.alibaba.com (out4438.biz.mail.alibaba.com. [47.88.44.38])
+        by mx.google.com with ESMTP id 191si10987105pfu.378.2017.07.04.06.08.29
         for <linux-mm@kvack.org>;
-        Tue, 04 Jul 2017 05:59:52 -0700 (PDT)
-Date: Tue, 04 Jul 2017 20:59:25 +0800
+        Tue, 04 Jul 2017 06:08:30 -0700 (PDT)
+Date: Tue, 04 Jul 2017 21:08:15 +0800
 From: "zbestahu" <zbestahu@aliyun.com>
 Reply-To: "zbestahu" <zbestahu@aliyun.com>
-Message-ID: <a68ebcb3-d087-49fe-9717-490ccfa1ff6a.zbestahu@aliyun.com>
-Subject: =?UTF-8?B?UmU6IFJl77yaW1BBVENIXSBtbTogdm1wcmVzc3VyZTogc2ltcGxpZnkgcHJlc3N1cmUgcmF0?=
-  =?UTF-8?B?aW8gY2FsY3VsYXRpb24=?=
+Message-ID: <2da6833d-4c6b-4df0-9dd3-ff8ce605865f.zbestahu@aliyun.com>
+Subject: =?UTF-8?B?UmU6IOWbnuWkje+8mltQQVRDSF0gbW06IHZtcHJlc3N1cmU6IHNpbXBsaWZ5IHByZXNzdXJl?=
+  =?UTF-8?B?IHJhdGlvIGNhbGN1bGF0aW9u?=
 MIME-Version: 1.0
+References: <b7riv0v73isdtxyi4coi6g7b.1499072995215@email.android.com> <00146e00-d941-4311-8494-3e4220b04103.zbestahu@aliyun.com>,20170703153716.GC11848@dhcp22.suse.cz
+In-Reply-To: 20170703153716.GC11848@dhcp22.suse.cz
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
@@ -22,35 +24,16 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: akpm <akpm@linux-foundation.org>, minchan <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>, Yue Hu <huyue2@coolpad.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
 
-VGhlIHBhdGNoIGRvZXMgbm90IGNoYW5nZSB0aGUgZnVuY3Rpb24sIHRoZSBleGlzdGluZyBwZXJj
-ZW50CmNhbGN1bGF0aW9uIHVzaW5nIHNjYWxlIHNob3VsZCBiZSBhYm91dCByb3VuZGluZyB0byBp
-bnRlZ2VyLCBpdApzZWVtcyB0byBiZSByZWR1bmRhbnQsIHdlIGNhbiBjYWxjdWxhdGUgaXQgZGly
-ZWN0bHkganVzdCBsaWtlCiJwcmVzc3VyZSA9IG5vdF9yZWxhaW1lZCAqIDEwMCAvIHNjYW5uZWQi
-LCBubyByb3VuZGluZyBpc3N1ZS4KSXQncyBhbHNvIGJldHRlciBiZWNhdXNlIG9mIHNhdmluZyBz
-ZXZlcmFsIGFyaXRobWV0aWMgb3BlcmF0aW9ucy4KClNpZ25lZC1vZmYtYnk6IFl1ZSBIdSA8aHV5
-dWUyQGNvb2xwYWQuY29tPgotLS0KIG1tL3ZtcHJlc3N1cmUuYyB8IDggKysrLS0tLS0KIDEgZmls
-ZSBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDUgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEv
-bW0vdm1wcmVzc3VyZS5jIGIvbW0vdm1wcmVzc3VyZS5jCmluZGV4IDYwNjM1ODEuLmFhZDFmYjIg
-MTAwNjQ0Ci0tLSBhL21tL3ZtcHJlc3N1cmUuYworKysgYi9tbS92bXByZXNzdXJlLmMKQEAgLTEx
-MSw3ICsxMTEsNiBAQCBzdGF0aWMgZW51bSB2bXByZXNzdXJlX2xldmVscyB2bXByZXNzdXJlX2xl
-dmVsKHVuc2lnbmVkIGxvbmcgcHJlc3N1cmUpCiBzdGF0aWMgZW51bSB2bXByZXNzdXJlX2xldmVs
-cyB2bXByZXNzdXJlX2NhbGNfbGV2ZWwodW5zaWduZWQgbG9uZyBzY2FubmVkLAogCQkJCQkJICAg
-IHVuc2lnbmVkIGxvbmcgcmVjbGFpbWVkKQogewotCXVuc2lnbmVkIGxvbmcgc2NhbGUgPSBzY2Fu
-bmVkICsgcmVjbGFpbWVkOwogCXVuc2lnbmVkIGxvbmcgcHJlc3N1cmUgPSAwOwogCiAJLyoKQEAg
-LTEyMywxMyArMTIyLDEyIEBAIHN0YXRpYyBlbnVtIHZtcHJlc3N1cmVfbGV2ZWxzIHZtcHJlc3N1
-cmVfY2FsY19sZXZlbCh1bnNpZ25lZCBsb25nIHNjYW5uZWQsCiAJCWdvdG8gb3V0OwogCS8qCiAJ
-ICogV2UgY2FsY3VsYXRlIHRoZSByYXRpbyAoaW4gcGVyY2VudHMpIG9mIGhvdyBtYW55IHBhZ2Vz
-IHdlcmUKLQkgKiBzY2FubmVkIHZzLiByZWNsYWltZWQgaW4gYSBnaXZlbiB0aW1lIGZyYW1lICh3
-aW5kb3cpLiBOb3RlIHRoYXQKLQkgKiB0aW1lIGlzIGluIFZNIHJlY2xhaW1lcidzICJ0aWNrcyIs
-IGkuZS4gbnVtYmVyIG9mIHBhZ2VzCisJICogdW5zdWNjZXNzZnVsIHJlY2xhaW1lZCB0byBzY2Fu
-bmVkIGluIGEgZ2l2ZW4gdGltZSBmcmFtZSAod2luZG93KS4KKwkgKiBOb3RlIHRoYXQgdGltZSBp
-cyBpbiBWTSByZWNsYWltZXIncyAidGlja3MiLCBpLmUuIG51bWJlciBvZiBwYWdlcwogCSAqIHNj
-YW5uZWQuIFRoaXMgbWFrZXMgaXQgcG9zc2libGUgdG8gc2V0IGRlc2lyZWQgcmVhY3Rpb24gdGlt
-ZQogCSAqIGFuZCBzZXJ2ZXMgYXMgYSByYXRlbGltaXQuCiAJICovCi0JcHJlc3N1cmUgPSBzY2Fs
-ZSAtIChyZWNsYWltZWQgKiBzY2FsZSAvIHNjYW5uZWQpOwotCXByZXNzdXJlID0gcHJlc3N1cmUg
-KiAxMDAgLyBzY2FsZTsKKwlwcmVzc3VyZSA9IChzY2FubmVkIC0gcmVjbGFpbWVkKSAqIDEwMCAv
-IHNjYW5uZWQ7CiAKIG91dDoKIAlwcl9kZWJ1ZygiJXM6ICUzbHUgIChzOiAlbHUgIHI6ICVsdSlc
-biIsIF9fZnVuY19fLCBwcmVzc3VyZSwKLS0gCjEuOS4x
+TWljaGFsIHdyb3RlOiAKPiBNYWtlIHN1cmUgeW91IGRlc2NyaWJlIGFsbCB0aGF0IGluIHRoZSBj
+aGFuZ2Vsb2cgYmVjYXVzZSB5b3VyIG9yaWdpbmFsCj4gcGF0Y2ggZGVzY3JpcHRpb24gd2Fzbid0
+IGFsbCB0aGF0IGNsZWFyIGFib3V0IHlvdXIgaW50ZW50aW9uLgoKVGhlIHBhdGNoJ3MgZGVzY3Jp
+cHRpb24gaXMgdXBkYXRlZCBhcyBmb2xsb3dpbmc6CgpUaGUgcGF0Y2ggZG9lcyBub3QgY2hhbmdl
+IHRoZSBmdW5jdGlvbiwgdGhlIGV4aXN0aW5nIHBlcmNlbnQKY2FsY3VsYXRpb24gdXNpbmcgc2Nh
+bGUgc2hvdWxkIGJlIGFib3V0IHJvdW5kaW5nIHRvIGludGVnZSwgaXQKc2VlbXMgdG8gYmUgcmVk
+dW5kYW50LCB3ZSBjYW4gY2FsY3VsYXRlIGl0IGRpcmVjdGx5IGp1c3QgbGlrZQoicHJlc3N1cmUg
+PSBub3RfcmVsYWltZWQgKiAxMDAgLyBzY2FubmVkIiwgbm8gcm91bmRpbmcgaXNzdWUuIEFuZApp
+dCdzIGFsc28gYmV0dGVyIGJlY2F1c2Ugb2Ygc2F2aW5nIHNldmVyYWwgYXJpdGhtZXRpYyBvcGVy
+YXRpb25zLgoKVGhhbmtzLg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
