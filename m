@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 67888680FBC
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 14:28:55 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b189so30493717wmb.12
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:28:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j83si17164216wma.149.2017.07.05.11.28.53
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CB9F6B03A0
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 14:35:53 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d77so29073664oig.7
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:35:53 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id u189si18225830oig.113.2017.07.05.11.35.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Jul 2017 11:28:53 -0700 (PDT)
-Date: Wed, 5 Jul 2017 20:28:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: mm, mmap: do not blow on PROT_NONE MAP_FIXED holes
- in the stack
-Message-ID: <20170705182849.GA18027@dhcp22.suse.cz>
-References: <20170705165602.15005-1-mhocko@kernel.org>
- <CA+55aFxxeCtZ-PBqrZK5K2nDjCFBWRMKE09Bz650ZiR2h=b8dg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jul 2017 11:35:52 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id n2so21417885oig.3
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:35:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxxeCtZ-PBqrZK5K2nDjCFBWRMKE09Bz650ZiR2h=b8dg@mail.gmail.com>
+In-Reply-To: <20170705182849.GA18027@dhcp22.suse.cz>
+References: <20170705165602.15005-1-mhocko@kernel.org> <CA+55aFxxeCtZ-PBqrZK5K2nDjCFBWRMKE09Bz650ZiR2h=b8dg@mail.gmail.com>
+ <20170705182849.GA18027@dhcp22.suse.cz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 5 Jul 2017 11:35:51 -0700
+Message-ID: <CA+55aFz74mtKc7FqH6WttqNbJinV199zzM1BGFPG+Y9aN445OA@mail.gmail.com>
+Subject: Re: [PATCH] mm: mm, mmap: do not blow on PROT_NONE MAP_FIXED holes in
+ the stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed 05-07-17 10:43:27, Linus Torvalds wrote:
-> On Wed, Jul 5, 2017 at 9:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > "mm: enlarge stack guard gap" has introduced a regression in some rust
-> > and Java environments which are trying to implement their own stack
-> > guard page.  They are punching a new MAP_FIXED mapping inside the
-> > existing stack Vma.
-> 
-> Hmm. What version is this patch against? It doesn't seem to match my 4.12 tree.
+On Wed, Jul 5, 2017 at 11:28 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>
+> Dohh, that was on mmotm which has a clean up by Oleg which reorganizes
+> the code a bit. This is on top of the current master
 
-Dohh, that was on mmotm which has a clean up by Oleg which reorganizes
-the code a bit. This is on top of the current master
----
+Oh, ok. I think I know which patch from Oleg you're talking about.
+
+Since I do want that patch too, and since I'd hate to cause
+unnecessary merge conflicts in this area, how about we just plan on
+letting your original patch (on top of Oleg's) go through Andrew and
+the -mm tree? I'll get it that way, and it's not like this is
+timing-critical.
+
+Having to fix up conflicts in this area would just be annoying, and
+would be nasty for back-porting too.
+
+                Linus
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
