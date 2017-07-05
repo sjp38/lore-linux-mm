@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7A06B02F3
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 04:20:23 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i127so21859882wma.15
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 01:20:23 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 126si15189840wmz.192.2017.07.05.01.20.21
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 168216B02FD
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 04:57:02 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x23so47245679wrb.6
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 01:57:02 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id e191si16787344wmf.77.2017.07.05.01.57.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 05 Jul 2017 01:20:21 -0700 (PDT)
-Date: Wed, 5 Jul 2017 10:20:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Message-ID: <20170705082018.GB14538@dhcp22.suse.cz>
-References: <201703102044.DBJ04626.FLVMFOQOJtOFHS@I-love.SAKURA.ne.jp>
- <201706300914.CEH95859.FMQOLVFHJFtOOS@I-love.SAKURA.ne.jp>
- <20170630133236.GM22917@dhcp22.suse.cz>
- <201707010059.EAE43714.FOVOMOSLFHJFQt@I-love.SAKURA.ne.jp>
- <20170630161907.GC9714@dhcp22.suse.cz>
- <201707012043.BBE32181.JOFtOFVHQMLOFS@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jul 2017 01:57:00 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id u23so31012985wma.2
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 01:57:00 -0700 (PDT)
+Date: Wed, 5 Jul 2017 10:56:57 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v4 00/10] PCID and improved laziness
+Message-ID: <20170705085657.eghd4xbv7g7shf5v@gmail.com>
+References: <cover.1498751203.git.luto@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707012043.BBE32181.JOFtOFVHQMLOFS@I-love.SAKURA.ne.jp>
+In-Reply-To: <cover.1498751203.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Sat 01-07-17 20:43:56, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > It is really hard to pursue this half solution when there is no clear
-> > indication it helps in your testing. So could you try to test with only
-> > this patch on top of the current linux-next tree (or Linus tree) and see
-> > if you can reproduce the problem?
-> 
-> With this patch on top of next-20170630, I no longer hit this problem.
-> (Of course, this is because this patch eliminates the infinite loop.)
 
-I assume you haven't seen other negative side effects, like unexpected
-OOMs etc... Are you willing to give your Tested-by?
--- 
-Michal Hocko
-SUSE Labs
+* Andy Lutomirski <luto@kernel.org> wrote:
+
+> *** Ingo, even if this misses 4.13, please apply the first patch before
+> *** the merge window.
+
+> Andy Lutomirski (10):
+>   x86/mm: Don't reenter flush_tlb_func_common()
+>   x86/mm: Delete a big outdated comment about TLB flushing
+>   x86/mm: Give each mm TLB flush generation a unique ID
+>   x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
+>   x86/mm: Rework lazy TLB mode and TLB freshness tracking
+>   x86/mm: Stop calling leave_mm() in idle code
+>   x86/mm: Disable PCID on 32-bit kernels
+>   x86/mm: Add nopcid to turn off PCID
+>   x86/mm: Enable CR4.PCIDE on supported systems
+>   x86/mm: Try to preserve old TLB entries using PCID
+
+So this series is really nice, and the first two patches are already upstream, and 
+I've just applied all but the final patch to tip:x86/mm (out of caution - I'm a wimp).
+
+That should already offer some improvements and enables the CR4 bit - but doesn't 
+actually use the PCID hardware yet.
+
+I'll push it all out when it passes testing.
+
+If it's all super stable I plan to tempt Linus with a late merge window pull 
+request for all these preparatory patches. (Unless he objects that is. Hint, hint.)
+
+Any objections?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
