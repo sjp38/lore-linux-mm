@@ -1,78 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1068C6B03A7
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:10:24 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 6so36534098oik.11
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:10:24 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j28si12963608oiy.154.2017.07.05.09.10.23
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0CD6B03AC
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:15:38 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id 185so75645794ybu.1
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:15:38 -0700 (PDT)
+Received: from mail-yb0-x235.google.com (mail-yb0-x235.google.com. [2607:f8b0:4002:c09::235])
+        by mx.google.com with ESMTPS id h189si6092805ybh.36.2017.07.05.09.15.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 09:10:23 -0700 (PDT)
-Received: from mail-vk0-f47.google.com (mail-vk0-f47.google.com [209.85.213.47])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7C5AB22C7D
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 16:10:22 +0000 (UTC)
-Received: by mail-vk0-f47.google.com with SMTP id y70so127235448vky.3
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:10:22 -0700 (PDT)
+        Wed, 05 Jul 2017 09:15:37 -0700 (PDT)
+Received: by mail-yb0-x235.google.com with SMTP id f194so14429433yba.3
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:15:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170705122506.GG4941@worktop>
-References: <cover.1498751203.git.luto@kernel.org> <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
- <20170705122506.GG4941@worktop>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 5 Jul 2017 09:10:00 -0700
-Message-ID: <CALCETrXYQHQm2qQ_4dLx8K2rFfapFUb-eqFdG8bk2377eFnNGg@mail.gmail.com>
-Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using PCID
+In-Reply-To: <20170705142516.GA3305@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com> <20170703211415.11283-2-jglisse@redhat.com>
+ <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com> <20170705142516.GA3305@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 5 Jul 2017 09:15:35 -0700
+Message-ID: <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
+Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
+ memory_type one
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Wed, Jul 5, 2017 at 5:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Thu, Jun 29, 2017 at 08:53:22AM -0700, Andy Lutomirski wrote:
->> +static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
->> +                         u16 *new_asid, bool *need_flush)
->> +{
->> +     u16 asid;
->> +
->> +     if (!static_cpu_has(X86_FEATURE_PCID)) {
->> +             *new_asid = 0;
->> +             *need_flush = true;
->> +             return;
->> +     }
->> +
->> +     for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
->> +             if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
->> +                 next->context.ctx_id)
->> +                     continue;
->> +
->> +             *new_asid = asid;
->> +             *need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
->> +                            next_tlb_gen);
->> +             return;
->> +     }
->> +
->> +     /*
->> +      * We don't currently own an ASID slot on this CPU.
->> +      * Allocate a slot.
->> +      */
->> +     *new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
+On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote:
+>> On Mon, Jul 3, 2017 at 2:14 PM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.=
+com> wrote:
+>> > Use consistent name between IORES_DESC and enum memory_type, rename
+>> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
+>> > the public name for CDM (cache coherent device memory) for which the
+>> > term public is a better match.
+>> >
+>> > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>> > Cc: Dan Williams <dan.j.williams@intel.com>
+>> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+>> > ---
+>> >  include/linux/memremap.h | 4 ++--
+>> >  kernel/memremap.c        | 2 +-
+>> >  2 files changed, 3 insertions(+), 3 deletions(-)
+>> >
+>> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+>> > index 57546a07a558..2299cc2d387d 100644
+>> > --- a/include/linux/memremap.h
+>> > +++ b/include/linux/memremap.h
+>> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(uns=
+igned long memmap_start)
+>> >   * Specialize ZONE_DEVICE memory into multiple types each having diff=
+erents
+>> >   * usage.
+>> >   *
+>> > - * MEMORY_DEVICE_PUBLIC:
+>> > + * MEMORY_DEVICE_PERSISTENT:
+>> >   * Persistent device memory (pmem): struct page might be allocated in=
+ different
+>> >   * memory and architecture might want to perform special actions. It =
+is similar
+>> >   * to regular memory, in that the CPU can access it transparently. Ho=
+wever,
+>> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(uns=
+igned long memmap_start)
+>> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
+>> >   */
+>> >  enum memory_type {
+>> > -       MEMORY_DEVICE_PUBLIC =3D 0,
+>> > +       MEMORY_DEVICE_PERSISTENT =3D 0,
+>> >         MEMORY_DEVICE_PRIVATE,
+>> >  };
+>> >
+>> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+>> > index b9baa6c07918..e82456c39a6a 100644
+>> > --- a/kernel/memremap.c
+>> > +++ b/kernel/memremap.c
+>> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, stru=
+ct resource *res,
+>> >         }
+>> >         pgmap->ref =3D ref;
+>> >         pgmap->res =3D &page_map->res;
+>> > -       pgmap->type =3D MEMORY_DEVICE_PUBLIC;
+>> > +       pgmap->type =3D MEMORY_DEVICE_PERSISTENT;
+>> >         pgmap->page_fault =3D NULL;
+>> >         pgmap->page_free =3D NULL;
+>> >         pgmap->data =3D NULL;
+>>
+>> I think we need a different name. There's nothing "persistent" about
+>> the devm_memremap_pages() path. Why can't they share name, is the only
+>> difference coherence? I'm thinking something like:
+>>
+>> MEMORY_DEVICE_PRIVATE
+>> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
+>> MEMORY_DEVICE_IO /* "public", but not coherent */
 >
-> So this basically RR the ASID slots. Have you tried slightly more
-> complex replacement policies like CLOCK ?
+> No that would not work. Device public (in the context of this patchset)
+> is like device private ie device public page can be anywhere inside a
+> process address space either as anonymous memory page or as file back
+> page of regular filesystem (ie vma->ops is not pointing to anything
+> specific to the device memory).
+>
+> As such device public is different from how persistent memory is use
+> and those the cache coherency being the same between the two kind of
+> memory is not a discerning factor. So i need to distinguish between
+> persistent memory and device public memory.
+>
+> I believe keeping enum memory_type close to IORES_DESC naming is the
+> cleanest way to do that but i am open to other name suggestion.
+>
 
-No, mainly because I'm lazy and because CLOCK requires scavenging a
-bit.  (Which we can certainly do, but it will further complicate the
-code.)  It could be worth playing with better replacement algorithms
-as a followup, though.
-
-I've also considered a slight elaboration of RR in which we make sure
-not to reuse the most recent ASID slot, which would guarantee that, if
-we switch from task A to B and back to A, we don't flush on the way
-back to A.  (Currently, if B is not in the cache, there's a 1/6 chance
-we'll flush on the way back.)
+The IORES_DESC has nothing to do with how the memory range is handled
+by the core mm. It sounds like the distinction this is trying to make
+is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
+Where a "host" memory range is one that does not need coordination
+with a specific device.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
