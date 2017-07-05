@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B3AA8680FED
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 19:30:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 1so4020589pfi.14
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 16:30:11 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id x2si226794pfa.400.2017.07.05.16.30.09
-        for <linux-mm@kvack.org>;
-        Wed, 05 Jul 2017 16:30:10 -0700 (PDT)
-Date: Thu, 6 Jul 2017 09:30:06 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
- calculation
-Message-ID: <20170705233006.GU17542@dastard>
-References: <20170620024645.GA27702@bbox>
- <20170627135931.GA14097@destiny>
- <20170630021713.GB24520@bbox>
- <20170630150322.GB9743@destiny>
- <20170703013303.GA2567@bbox>
- <20170703135006.GC27097@destiny>
- <20170704030100.GA16432@bbox>
- <20170704132136.GB6807@destiny>
- <20170704225758.GT17542@dastard>
- <20170705133344.GB16179@destiny>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9C0680FED
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 19:30:58 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id k192so164758466ith.0
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 16:30:58 -0700 (PDT)
+Received: from mail-it0-x230.google.com (mail-it0-x230.google.com. [2607:f8b0:4001:c0b::230])
+        by mx.google.com with ESMTPS id g7si18440547ite.10.2017.07.05.16.30.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jul 2017 16:30:57 -0700 (PDT)
+Received: by mail-it0-x230.google.com with SMTP id k192so101039393ith.1
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 16:30:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170705133344.GB16179@destiny>
+In-Reply-To: <20170629175647.pufnks75fqy627jv@smitten>
+References: <20170623015010.GA137429@beast> <CAGXu5jJEi_CS-CB=-4369TFRyeN4oQdmGS+HV-zoi4rSPpq3Jw@mail.gmail.com>
+ <alpine.DEB.2.20.1706291204460.17478@east.gentwo.org> <CAGXu5jLLFKnboaLJKGcGT-Ra80ZzAf3jZ=zex6vd8uDQamBJxg@mail.gmail.com>
+ <1498758853.6130.2.camel@redhat.com> <20170629175647.pufnks75fqy627jv@smitten>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 5 Jul 2017 16:30:56 -0700
+Message-ID: <CAGXu5j+6Bq1YW9EPWGxjbz4bWWf7PvoKi5pbp6sNz8fvkq9ncw@mail.gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH v2] mm: Add SLUB free list pointer obfuscation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: Minchan Kim <minchan@kernel.org>, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, mhocko@kernel.org, cl@linux.com
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+Cc: Rik van Riel <riel@redhat.com>, Tycho Andersen <tycho@docker.com>, Laura Abbott <labbott@redhat.com>, Daniel Micay <danielmicay@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Wed, Jul 05, 2017 at 09:33:45AM -0400, Josef Bacik wrote:
-> On Wed, Jul 05, 2017 at 08:57:58AM +1000, Dave Chinner wrote:
-> > My suggestion of allocation based aging callbacks is something for
-> > specific caches to be able to run based on their own or the users
-> > size/growth/performance constraints. It's independent of memory
-> > reclaim behaviour and so can be a strongly biased as the user wants.
-> > Memory reclaim will just maintain whatever balance that exists
-> > between the different caches as a result of the subsystem specific
-> > aging callbacks.
-> > 
-> 
-> Ok so how does a scheme like this look?  The shrinking stuff can be relatively
-> heavy because generally speaking it's always run asynchronously by kswapd, so
-> the only latency it induces to normal workloads is the CPU time it takes away
-> from processes we care about.
-> 
-> With an aging callback at allocation time we're inducing latency for the user at
-> allocation time.  So we want to do as little as possible here, but what do we
-> need to determine if there's something to do?  Do we just have a static "I'm
-> over limit X objects, start a worker thread to check if we need to reclaim"?  Or
-> do we have it be actually smart, checking the overall count and checking it
-> against some configurable growth rate?  That's going to be expensive on a per
-> allocation basis.
-> 
-> I'm having a hard time envisioning how this works that doesn't induce a bunch of
-> latency.
+On Thu, Jun 29, 2017 at 10:56 AM, Tycho Andersen <tycho@docker.com> wrote:
+> On Thu, Jun 29, 2017 at 01:54:13PM -0400, Rik van Riel wrote:
+>> On Thu, 2017-06-29 at 10:47 -0700, Kees Cook wrote:
+>> > On Thu, Jun 29, 2017 at 10:05 AM, Christoph Lameter <cl@linux.com>
+>> > wrote:
+>> > > On Sun, 25 Jun 2017, Kees Cook wrote:
+>> > >
+>> > > > The difference gets lost in the noise, but if the above is
+>> > > > sensible,
+>> > > > it's 0.07% slower. ;)
+>> > >
+>> > > Hmmm... These differences add up. Also in a repetative benchmark
+>> > > like that
+>> > > you do not see the impact that the additional cacheline use in the
+>> > > cpu
+>> > > cache has on larger workloads. Those may be pushed over the edge of
+>> > > l1 or
+>> > > l2 capacity at some point which then causes drastic regressions.
+>> >
+>> > Even if that is true, it may be worth it to some people to have the
+>> > protection. Given that is significantly hampers a large class of heap
+>> > overflow attacks[1], I think it's an important change to have. I'm
+>> > not
+>> > suggesting this be on by default, it's cleanly behind
+>> > CONFIG-controlled macros, and is very limited in scope. If you can
+>> > Ack
+>> > it we can let system builders decide if they want to risk a possible
+>> > performance hit. I'm pretty sure most distros would like to have this
+>> > protection.
+>>
+>> I could certainly see it being useful for all kinds of portable
+>> and network-connected systems where security is simply much
+>> more important than performance.
+>
+> Indeed, I believe we would enable this in our kernels.
 
-I was thinking the aging would also be async, like kswapd, and the
-only thing the allocation does is accounting. THe actual aging scans
-don't need to be done in the foreground and get the in way of the
-current allocation because aging doesn't need precise control or
-behaviour...
+Andrew and Christoph,
 
-Cheers,
+What do you think about carrying this for -mm, since people are
+interested in it and it's a very narrow change behind a config (with a
+large impact on reducing the expoitability of freelist pointer
+overwrites)?
 
-Dave.
+-Kees
+
 -- 
-Dave Chinner
-david@fromorbit.com
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
