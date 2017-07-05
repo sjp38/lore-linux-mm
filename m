@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F2DF6B03AE
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:56:16 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t3so30030772wme.9
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:56:16 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id e7si16363792wrd.354.2017.07.05.09.56.14
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C207C6B03B0
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 13:02:24 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v62so265323221pfd.10
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 10:02:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id d20si19047528plj.429.2017.07.05.10.02.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 09:56:15 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id j85so33734887wmj.0
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:56:14 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm: mm, mmap: do not blow on PROT_NONE MAP_FIXED holes in the stack
-Date: Wed,  5 Jul 2017 18:56:02 +0200
-Message-Id: <20170705165602.15005-1-mhocko@kernel.org>
+        Wed, 05 Jul 2017 10:02:22 -0700 (PDT)
+Date: Wed, 5 Jul 2017 19:02:19 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using
+ PCID
+Message-ID: <20170705170219.ogjnswef3ufgeklz@hirez.programming.kicks-ass.net>
+References: <cover.1498751203.git.luto@kernel.org>
+ <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
+ <20170705121807.GF4941@worktop>
+ <CALCETrWivSq=qSN6DMBLXVRCo-EBOx_xvnQYXHojYHuG7SaWnQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrWivSq=qSN6DMBLXVRCo-EBOx_xvnQYXHojYHuG7SaWnQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed, Jul 05, 2017 at 09:04:39AM -0700, Andy Lutomirski wrote:
+> On Wed, Jul 5, 2017 at 5:18 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > On Thu, Jun 29, 2017 at 08:53:22AM -0700, Andy Lutomirski wrote:
+> >> @@ -104,18 +140,20 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+> >>
+> >>               /* Resume remote flushes and then read tlb_gen. */
+> >>               cpumask_set_cpu(cpu, mm_cpumask(next));
+> >
+> > Barriers should have a comment... what is being ordered here against
+> > what?
+> 
+> How's this comment?
+> 
+>         /*
+>          * Resume remote flushes and then read tlb_gen.  We need to do
+>          * it in this order: any inc_mm_tlb_gen() caller that writes a
+>          * larger tlb_gen than we read here must see our cpu set in
+>          * mm_cpumask() so that it will know to flush us.  The barrier
+>          * here synchronizes with inc_mm_tlb_gen().
+>          */
 
-"mm: enlarge stack guard gap" has introduced a regression in some rust
-and Java environments which are trying to implement their own stack
-guard page.  They are punching a new MAP_FIXED mapping inside the
-existing stack Vma.
+Slightly confusing, you mean this, right?
 
-This will confuse expand_{downwards,upwards} into thinking that the stack
-expansion would in fact get us too close to an existing non-stack vma
-which is a correct behavior wrt. safety. It is a real regression on
-the other hand. Let's work around the problem by considering PROT_NONE
-mapping as a part of the stack. This is a gros hack but overflowing to
-such a mapping would trap anyway an we only can hope that usespace
-knows what it is doing and handle it propely.
 
-Fixes: d4d2d35e6ef9 ("mm: larger stack guard gap, between vmas")
-Debugged-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: stable
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-the original thread [1] has grown quite large and also a bit confusing.
-At least the rust part should be fixed by this patch. 32b java will
-probably need something more on top of this. Btw. JNI environments rely
-on MAP_FIXED PROT_NONE as well they were just lucky to not hit the issue
-yet I guess.
+	cpumask_set_cpu(cpu, mm_cpumask());			inc_mm_tlb_gen();
 
-[1] http://lkml.kernel.org/r/1499126133.2707.20.camel@decadent.org.uk
- mm/mmap.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+	MB							MB
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f60a8bc2869c..2e996cbf4ff3 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2244,7 +2244,8 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 		gap_addr = TASK_SIZE;
- 
- 	next = vma->vm_next;
--	if (next && next->vm_start < gap_addr) {
-+	if (next && next->vm_start < gap_addr &&
-+			(next->vm_flags & (VM_WRITE|VM_READ|VM_EXEC))) {
- 		if (!(next->vm_flags & VM_GROWSUP))
- 			return -ENOMEM;
- 		/* Check that both stack segments have the same anon_vma? */
-@@ -2325,7 +2326,8 @@ int expand_downwards(struct vm_area_struct *vma,
- 	/* Enforce stack_guard_gap */
- 	prev = vma->vm_prev;
- 	/* Check that both stack segments have the same anon_vma? */
--	if (prev && !(prev->vm_flags & VM_GROWSDOWN)) {
-+	if (prev && !(prev->vm_flags & VM_GROWSDOWN) &&
-+			(prev->vm_flags & (VM_WRITE|VM_READ|VM_EXEC))) {
- 		if (address - prev->vm_end < stack_guard_gap)
- 			return -ENOMEM;
- 	}
--- 
-2.11.0
+	next_tlb_gen = atomic64_read(&next->context.tlb_gen);	flush_tlb_others(mm_cpumask());
+
+
+which seems to make sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
