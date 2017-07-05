@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B26676B03DF
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 17:23:06 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id g53so636611qtc.6
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 14:23:06 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id v65si21464qkb.91.2017.07.05.14.23.05
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 343D96B03E1
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 17:23:09 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n42so599273qtn.10
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 14:23:09 -0700 (PDT)
+Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
+        by mx.google.com with ESMTPS id d27si97973qtd.341.2017.07.05.14.23.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 14:23:05 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id v143so180681qkb.3
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 14:23:05 -0700 (PDT)
+        Wed, 05 Jul 2017 14:23:08 -0700 (PDT)
+Received: by mail-qk0-x241.google.com with SMTP id 91so191059qkq.1
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 14:23:08 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v5 15/38] powerpc: helper function to read,write AMR,IAMR,UAMOR registers
-Date: Wed,  5 Jul 2017 14:21:52 -0700
-Message-Id: <1499289735-14220-16-git-send-email-linuxram@us.ibm.com>
+Subject: [RFC v5 16/38] powerpc: implementation for arch_set_user_pkey_access()
+Date: Wed,  5 Jul 2017 14:21:53 -0700
+Message-Id: <1499289735-14220-17-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
 References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,89 +22,131 @@ List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-Implements helper functions to read and write the key related
-registers; AMR, IAMR, UAMOR.
+This patch provides the detailed implementation for
+a user to allocate a key and enable it in the hardware.
 
-AMR register tracks the read,write permission of a key
-IAMR register tracks the execute permission of a key
-UAMOR register enables and disables a key
+It provides the plumbing, but it  cannot be  used  yet
+till the  system  call  is implemented. The next patch
+will do so.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/pgtable.h |   60 ++++++++++++++++++++++++++
- 1 files changed, 60 insertions(+), 0 deletions(-)
+ arch/powerpc/include/asm/pkeys.h |    8 ++++-
+ arch/powerpc/mm/Makefile         |    1 +
+ arch/powerpc/mm/pkeys.c          |   66 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 1 deletions(-)
+ create mode 100644 arch/powerpc/mm/pkeys.c
 
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 85bc987..435d6a7 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -428,6 +428,66 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
- 		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
+diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+index 9345767..1495342 100644
+--- a/arch/powerpc/include/asm/pkeys.h
++++ b/arch/powerpc/include/asm/pkeys.h
+@@ -2,6 +2,10 @@
+ #define _ASM_PPC64_PKEYS_H
+ 
+ #define arch_max_pkey()  32
++#define AMR_AD_BIT 0x1UL
++#define AMR_WD_BIT 0x2UL
++#define IAMR_EX_BIT 0x1UL
++#define AMR_BITS_PER_PKEY 2
+ #define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | \
+ 				VM_PKEY_BIT3 | VM_PKEY_BIT4)
+ /*
+@@ -93,10 +97,12 @@ static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
+ 	return 0;
  }
  
-+#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
++extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val);
+ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+ 		unsigned long init_val)
+ {
+-	return 0;
++	return __arch_set_user_pkey_access(tsk, pkey, init_val);
+ }
+ 
+ static inline void pkey_mm_init(struct mm_struct *mm)
+diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+index 7414034..8cc2ff1 100644
+--- a/arch/powerpc/mm/Makefile
++++ b/arch/powerpc/mm/Makefile
+@@ -45,3 +45,4 @@ obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
+ obj-$(CONFIG_SPAPR_TCE_IOMMU)	+= mmu_context_iommu.o
+ obj-$(CONFIG_PPC_PTDUMP)	+= dump_linuxpagetables.o
+ obj-$(CONFIG_PPC_HTDUMP)	+= dump_hashpagetable.o
++obj-$(CONFIG_PPC64_MEMORY_PROTECTION_KEYS)	+= pkeys.o
+diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
+new file mode 100644
+index 0000000..d3ba167
+--- /dev/null
++++ b/arch/powerpc/mm/pkeys.c
+@@ -0,0 +1,66 @@
++/*
++ * PowerPC Memory Protection Keys management
++ * Copyright (c) 2015, Intel Corporation.
++ * Copyright (c) 2017, IBM Corporation.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++#include <linux/pkeys.h>                /* PKEY_*                       */
++#include <uapi/asm-generic/mman-common.h>
 +
-+#include <asm/reg.h>
-+static inline u64 read_amr(void)
++/*
++ * set the access right in AMR IAMR and UAMOR register
++ * for @pkey to that specified in @init_val.
++ */
++int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
++		unsigned long init_val)
 +{
-+	return mfspr(SPRN_AMR);
-+}
-+static inline void write_amr(u64 value)
-+{
-+	mtspr(SPRN_AMR, value);
-+}
-+static inline u64 read_iamr(void)
-+{
-+	return mfspr(SPRN_IAMR);
-+}
-+static inline void write_iamr(u64 value)
-+{
-+	mtspr(SPRN_IAMR, value);
-+}
-+static inline u64 read_uamor(void)
-+{
-+	return mfspr(SPRN_UAMOR);
-+}
-+static inline void write_uamor(u64 value)
-+{
-+	mtspr(SPRN_UAMOR, value);
-+}
++	u64 old_amr, old_uamor, old_iamr;
++	int pkey_shift = (arch_max_pkey()-pkey-1) * AMR_BITS_PER_PKEY;
++	u64 new_amr_bits = 0x0ul;
++	u64 new_iamr_bits = 0x0ul;
++	u64 new_uamor_bits = 0x3ul;
 +
-+#else /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
++	/* Set the bits we need in AMR:  */
++	if (init_val & PKEY_DISABLE_ACCESS)
++		new_amr_bits |= AMR_AD_BIT | AMR_WD_BIT;
++	if (init_val & PKEY_DISABLE_WRITE)
++		new_amr_bits |= AMR_WD_BIT;
 +
-+static inline u64 read_amr(void)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+	return -1;
-+}
-+static inline void write_amr(u64 value)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+}
-+static inline u64 read_uamor(void)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+	return -1;
-+}
-+static inline void write_uamor(u64 value)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+}
-+static inline u64 read_iamr(void)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+	return -1;
-+}
-+static inline void write_iamr(u64 value)
-+{
-+	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-+}
++	/*
++	 * By default execute is disabled.
++	 * To enable execute, PKEY_ENABLE_EXECUTE
++	 * needs to be specified.
++	 */
++	if ((init_val & PKEY_DISABLE_EXECUTE))
++		new_iamr_bits |= IAMR_EX_BIT;
 +
-+#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
++	/* Shift the bits in to the correct place in AMR for pkey: */
++	new_amr_bits	<<= pkey_shift;
++	new_iamr_bits	<<= pkey_shift;
++	new_uamor_bits	<<= pkey_shift;
 +
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
- static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
- 				       unsigned long addr, pte_t *ptep)
++	/* Get old AMR and mask off any old bits in place: */
++	old_amr	= read_amr();
++	old_amr	&= ~((u64)(AMR_AD_BIT|AMR_WD_BIT) << pkey_shift);
++
++	old_iamr = read_iamr();
++	old_iamr &= ~(0x3ul << pkey_shift);
++
++	old_uamor = read_uamor();
++	old_uamor &= ~(0x3ul << pkey_shift);
++
++	/* Write old part along with new part: */
++	write_amr(old_amr | new_amr_bits);
++	write_iamr(old_iamr | new_iamr_bits);
++	write_uamor(old_uamor | new_uamor_bits);
++
++	return 0;
++}
 -- 
 1.7.1
 
