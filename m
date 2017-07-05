@@ -1,99 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6F86B03A1
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 14:41:30 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id n42so17700051qtn.10
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:41:30 -0700 (PDT)
-Received: from mail-qt0-x22a.google.com (mail-qt0-x22a.google.com. [2607:f8b0:400d:c0d::22a])
-        by mx.google.com with ESMTPS id v14si21382615qta.33.2017.07.05.11.41.29
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EC57F6B03A8
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 14:49:37 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id p25so14124876qtp.4
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:49:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n2si21558468qkf.105.2017.07.05.11.49.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 11:41:29 -0700 (PDT)
-Received: by mail-qt0-x22a.google.com with SMTP id i2so193843702qta.3
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 11:41:29 -0700 (PDT)
+        Wed, 05 Jul 2017 11:49:37 -0700 (PDT)
+Date: Wed, 5 Jul 2017 14:49:33 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
+ memory_type one
+Message-ID: <20170705184933.GD3305@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-2-jglisse@redhat.com>
+ <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com>
+ <20170705142516.GA3305@redhat.com>
+ <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170630094718.GE22917@dhcp22.suse.cz>
-References: <9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com>
- <20170627070643.GA28078@dhcp22.suse.cz> <20170627153557.GB10091@rapoport-lnx>
- <51508e99-d2dd-894f-8d8a-678e3747c1ee@oracle.com> <20170628131806.GD10091@rapoport-lnx>
- <3a8e0042-4c49-3ec8-c59f-9036f8e54621@oracle.com> <20170629080910.GC31603@dhcp22.suse.cz>
- <936bde7b-1913-5589-22f4-9bbfdb6a8dd5@oracle.com> <20170630094718.GE22917@dhcp22.suse.cz>
-From: John Stultz <john.stultz@linaro.org>
-Date: Wed, 5 Jul 2017 11:41:28 -0700
-Message-ID: <CALAqxLVO-7XwLFbKhm+WQh=LNzTr8W-+oeeqGAFuKRpEH99zDw@mail.gmail.com>
-Subject: Re: [RFC PATCH] userfaultfd: Add feature to request for a signal delivery
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "prakash.sangappa" <prakash.sangappa@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, Christoph Hellwig <hch@infradead.org>, Linux API <linux-api@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Fri, Jun 30, 2017 at 2:47 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> [CC John, the thread started
-> http://lkml.kernel.org/r/9363561f-a9cd-7ab6-9c11-ab9a99dc89f1@oracle.com]
->
-> On Thu 29-06-17 14:41:22, prakash.sangappa wrote:
->>
->>
->> On 06/29/2017 01:09 AM, Michal Hocko wrote:
->> >On Wed 28-06-17 11:23:32, Prakash Sangappa wrote:
->> >>
->> >>On 6/28/17 6:18 AM, Mike Rapoport wrote:
->> >[...]
->> >>>I've just been thinking that maybe it would be possible to use
->> >>>UFFD_EVENT_REMOVE for this case. We anyway need to implement the generation
->> >>>of UFFD_EVENT_REMOVE for the case of hole punching in hugetlbfs for
->> >>>non-cooperative userfaultfd. It could be that it will solve your issue as
->> >>>well.
->> >>>
->> >>Will this result in a signal delivery?
->> >>
->> >>In the use case described, the database application does not need any event
->> >>for  hole punching. Basically, just a signal for any invalid access to
->> >>mapped area over holes in the file.
->> >OK, but it would be better to think that through for other potential
->> >usecases so that this doesn't end up as a single hugetlb feature. E.g.
->> >what should happen if a regular anonymous memory gets swapped out?
->> >Should we deliver signal as well? How does userspace tell whether this
->> >was a no backing page from unavailable backing page?
->>
->> This may not be useful in all cases. Potential, it could be used
->> with use of mlock() on anonymous memory to ensure any access
->> to memory that is not locked is caught, again for robustness
->> purpose.
->
-> The thing I wanted to point out is that not only this should be a single
-> usecase thing (I believe others will pop out as well - see below) but it
-> should also be well defined as this is a user visible API. Please try to
-> write a patch to the userfaultfd man page to clarify the exact semantic.
-> This should help the further discussion.
->
-> As an aside, I rememeber that prior to MADV_FREE there was long
-> discussion about lazy freeing of memory from userspace. Some users
-> wanted to be signalled when their memory was freed by the system so that
-> they could rebuild the original content (e.g. uncompressed images in
-> memory). It seems like MADV_FREE + this signalling could be used for
-> that usecase. John would surely know more about those usecases.
+On Wed, Jul 05, 2017 at 09:15:35AM -0700, Dan Williams wrote:
+> On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote:
+> >> On Mon, Jul 3, 2017 at 2:14 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+> >> > Use consistent name between IORES_DESC and enum memory_type, rename
+> >> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
+> >> > the public name for CDM (cache coherent device memory) for which the
+> >> > term public is a better match.
+> >> >
+> >> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> >> > Cc: Dan Williams <dan.j.williams@intel.com>
+> >> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> >> > ---
+> >> >  include/linux/memremap.h | 4 ++--
+> >> >  kernel/memremap.c        | 2 +-
+> >> >  2 files changed, 3 insertions(+), 3 deletions(-)
+> >> >
+> >> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+> >> > index 57546a07a558..2299cc2d387d 100644
+> >> > --- a/include/linux/memremap.h
+> >> > +++ b/include/linux/memremap.h
+> >> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+> >> >   * Specialize ZONE_DEVICE memory into multiple types each having differents
+> >> >   * usage.
+> >> >   *
+> >> > - * MEMORY_DEVICE_PUBLIC:
+> >> > + * MEMORY_DEVICE_PERSISTENT:
+> >> >   * Persistent device memory (pmem): struct page might be allocated in different
+> >> >   * memory and architecture might want to perform special actions. It is similar
+> >> >   * to regular memory, in that the CPU can access it transparently. However,
+> >> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+> >> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
+> >> >   */
+> >> >  enum memory_type {
+> >> > -       MEMORY_DEVICE_PUBLIC = 0,
+> >> > +       MEMORY_DEVICE_PERSISTENT = 0,
+> >> >         MEMORY_DEVICE_PRIVATE,
+> >> >  };
+> >> >
+> >> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+> >> > index b9baa6c07918..e82456c39a6a 100644
+> >> > --- a/kernel/memremap.c
+> >> > +++ b/kernel/memremap.c
+> >> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+> >> >         }
+> >> >         pgmap->ref = ref;
+> >> >         pgmap->res = &page_map->res;
+> >> > -       pgmap->type = MEMORY_DEVICE_PUBLIC;
+> >> > +       pgmap->type = MEMORY_DEVICE_PERSISTENT;
+> >> >         pgmap->page_fault = NULL;
+> >> >         pgmap->page_free = NULL;
+> >> >         pgmap->data = NULL;
+> >>
+> >> I think we need a different name. There's nothing "persistent" about
+> >> the devm_memremap_pages() path. Why can't they share name, is the only
+> >> difference coherence? I'm thinking something like:
+> >>
+> >> MEMORY_DEVICE_PRIVATE
+> >> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
+> >> MEMORY_DEVICE_IO /* "public", but not coherent */
+> >
+> > No that would not work. Device public (in the context of this patchset)
+> > is like device private ie device public page can be anywhere inside a
+> > process address space either as anonymous memory page or as file back
+> > page of regular filesystem (ie vma->ops is not pointing to anything
+> > specific to the device memory).
+> >
+> > As such device public is different from how persistent memory is use
+> > and those the cache coherency being the same between the two kind of
+> > memory is not a discerning factor. So i need to distinguish between
+> > persistent memory and device public memory.
+> >
+> > I believe keeping enum memory_type close to IORES_DESC naming is the
+> > cleanest way to do that but i am open to other name suggestion.
+> >
+> 
+> The IORES_DESC has nothing to do with how the memory range is handled
+> by the core mm. It sounds like the distinction this is trying to make
+> is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
+> Where a "host" memory range is one that does not need coordination
+> with a specific device.
 
-Sorry for being slow to reply here. The main usecase for Android is
-explicit marking and unmarking of volatile pages, where the userspace
-is notified if any pages were purged when it sets a page range
-non-volatile, and no access of volatile pages are made before they are
-marked non-volatile.
+I want to distinguish between:
+  - device memory that is not accessible by the CPU
+  - device memory that is accessible by the CPU just like regular
+    memory
+  - existing user of devm_memremap_pages() which is persistent memory
+    (only pmem seems to call devm_memremap_pages()) that is use like a
+    filesystem or block device and thus isn't use like generic page in
+    a process address space
 
-As part of my generalization for the API, there were other users
-interested in the marking pages volatile, and then optimistically
-using the pages w/o marking them non-volatile. Then only when the user
-touched a purged volatile page they would then get a signal they could
-handle to mark the pages non-volatile and re-generate the data.
+So if existing user of devm_memremap_pages() are only persistent memory
+then it made sense to match the IORES_DESC we are expecting to see on
+see such memory.
 
-This second use case seems like it would be potentially doable with
-the userfaultfd interface, but I'm not sure I see how we could fit the
-first use case (which Android's ashmem provides) with it (at least in
-an efficient way).
+For public device memory (in the sense introduced by this patchset) i
+do not know how it will be described by IORES_DESC. i think first folks
+with it are IBM with CAPI and i am not sure they defined something for
+that already.
 
-thanks
--john
+I am open to any name beside public (well any reasonable name :)) but
+i do need to be able to distinguish persistent memory as use today from
+this device memory.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
