@@ -1,120 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF0CD6B03AC
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:15:38 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id 185so75645794ybu.1
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:15:38 -0700 (PDT)
-Received: from mail-yb0-x235.google.com (mail-yb0-x235.google.com. [2607:f8b0:4002:c09::235])
-        by mx.google.com with ESMTPS id h189si6092805ybh.36.2017.07.05.09.15.37
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E6D6B03AB
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:53:56 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id e69so18226478oic.2
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:53:56 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id p11si4385634oif.277.2017.07.05.09.53.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 09:15:37 -0700 (PDT)
-Received: by mail-yb0-x235.google.com with SMTP id f194so14429433yba.3
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:15:37 -0700 (PDT)
+        Wed, 05 Jul 2017 09:53:55 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id n2so21039620oig.3
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:53:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170705142516.GA3305@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com> <20170703211415.11283-2-jglisse@redhat.com>
- <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com> <20170705142516.GA3305@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 5 Jul 2017 09:15:35 -0700
-Message-ID: <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
-Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
- memory_type one
+In-Reply-To: <20170705085657.eghd4xbv7g7shf5v@gmail.com>
+References: <cover.1498751203.git.luto@kernel.org> <20170705085657.eghd4xbv7g7shf5v@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 5 Jul 2017 09:53:55 -0700
+Message-ID: <CA+55aFyXuKacpuzPhNtnUkOtXKmKAF3vEyVtCtFXpWTH7LZDoQ@mail.gmail.com>
+Subject: Re: [PATCH v4 00/10] PCID and improved laziness
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote:
->> On Mon, Jul 3, 2017 at 2:14 PM, J=C3=A9r=C3=B4me Glisse <jglisse@redhat.=
-com> wrote:
->> > Use consistent name between IORES_DESC and enum memory_type, rename
->> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
->> > the public name for CDM (cache coherent device memory) for which the
->> > term public is a better match.
->> >
->> > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->> > Cc: Dan Williams <dan.j.williams@intel.com>
->> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->> > ---
->> >  include/linux/memremap.h | 4 ++--
->> >  kernel/memremap.c        | 2 +-
->> >  2 files changed, 3 insertions(+), 3 deletions(-)
->> >
->> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
->> > index 57546a07a558..2299cc2d387d 100644
->> > --- a/include/linux/memremap.h
->> > +++ b/include/linux/memremap.h
->> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(uns=
-igned long memmap_start)
->> >   * Specialize ZONE_DEVICE memory into multiple types each having diff=
-erents
->> >   * usage.
->> >   *
->> > - * MEMORY_DEVICE_PUBLIC:
->> > + * MEMORY_DEVICE_PERSISTENT:
->> >   * Persistent device memory (pmem): struct page might be allocated in=
- different
->> >   * memory and architecture might want to perform special actions. It =
-is similar
->> >   * to regular memory, in that the CPU can access it transparently. Ho=
-wever,
->> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(uns=
-igned long memmap_start)
->> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
->> >   */
->> >  enum memory_type {
->> > -       MEMORY_DEVICE_PUBLIC =3D 0,
->> > +       MEMORY_DEVICE_PERSISTENT =3D 0,
->> >         MEMORY_DEVICE_PRIVATE,
->> >  };
->> >
->> > diff --git a/kernel/memremap.c b/kernel/memremap.c
->> > index b9baa6c07918..e82456c39a6a 100644
->> > --- a/kernel/memremap.c
->> > +++ b/kernel/memremap.c
->> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, stru=
-ct resource *res,
->> >         }
->> >         pgmap->ref =3D ref;
->> >         pgmap->res =3D &page_map->res;
->> > -       pgmap->type =3D MEMORY_DEVICE_PUBLIC;
->> > +       pgmap->type =3D MEMORY_DEVICE_PERSISTENT;
->> >         pgmap->page_fault =3D NULL;
->> >         pgmap->page_free =3D NULL;
->> >         pgmap->data =3D NULL;
->>
->> I think we need a different name. There's nothing "persistent" about
->> the devm_memremap_pages() path. Why can't they share name, is the only
->> difference coherence? I'm thinking something like:
->>
->> MEMORY_DEVICE_PRIVATE
->> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
->> MEMORY_DEVICE_IO /* "public", but not coherent */
+On Wed, Jul 5, 2017 at 1:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
-> No that would not work. Device public (in the context of this patchset)
-> is like device private ie device public page can be anywhere inside a
-> process address space either as anonymous memory page or as file back
-> page of regular filesystem (ie vma->ops is not pointing to anything
-> specific to the device memory).
->
-> As such device public is different from how persistent memory is use
-> and those the cache coherency being the same between the two kind of
-> memory is not a discerning factor. So i need to distinguish between
-> persistent memory and device public memory.
->
-> I believe keeping enum memory_type close to IORES_DESC naming is the
-> cleanest way to do that but i am open to other name suggestion.
->
+> If it's all super stable I plan to tempt Linus with a late merge window pull
+> request for all these preparatory patches. (Unless he objects that is. Hint, hint.)
 
-The IORES_DESC has nothing to do with how the memory range is handled
-by the core mm. It sounds like the distinction this is trying to make
-is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
-Where a "host" memory range is one that does not need coordination
-with a specific device.
+I don't think I'll object. At some point the best testing is "lots of users".
+
+TLB issues are a bitch to debug, but at the same time this is clearly
+a "..but at some point we need to bite the bullet" case. I doubt the
+series is going to get a lot better.
+
+But yes, please do give it as much testing as humanly possible even
+without the wider coverage by random people.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
