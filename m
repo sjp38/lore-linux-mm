@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 168216B02FD
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 04:57:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x23so47245679wrb.6
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 01:57:02 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id e191si16787344wmf.77.2017.07.05.01.57.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4401E6B0313
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 06:00:39 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q87so119156553pfk.15
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 03:00:39 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 64si18615392plk.286.2017.07.05.03.00.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 01:57:00 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id u23so31012985wma.2
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 01:57:00 -0700 (PDT)
-Date: Wed, 5 Jul 2017 10:56:57 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v4 00/10] PCID and improved laziness
-Message-ID: <20170705085657.eghd4xbv7g7shf5v@gmail.com>
-References: <cover.1498751203.git.luto@kernel.org>
+        Wed, 05 Jul 2017 03:00:38 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v659x0uU132113
+	for <linux-mm@kvack.org>; Wed, 5 Jul 2017 06:00:37 -0400
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bgvyatj7g-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 05 Jul 2017 06:00:36 -0400
+Received: from localhost
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 5 Jul 2017 20:00:34 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v65A0WnX62783512
+	for <linux-mm@kvack.org>; Wed, 5 Jul 2017 20:00:32 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v65A0USL006675
+	for <linux-mm@kvack.org>; Wed, 5 Jul 2017 20:00:31 +1000
+Subject: Re: [PATCH] mm: vmpressure: simplify pressure ratio calculation
+References: <1498889619-3933-1-git-send-email-zbestahu@aliyun.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 5 Jul 2017 15:30:26 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1498751203.git.luto@kernel.org>
+In-Reply-To: <1498889619-3933-1-git-send-email-zbestahu@aliyun.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <7e3f0d4c-b211-791c-d9e2-760f6f05757e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: zbestahu@aliyun.com, akpm@linux-foundation.org, minchan@kernel.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yue Hu <huyue2@coolpad.com>
 
+On 07/01/2017 11:43 AM, zbestahu@aliyun.com wrote:
+> From: Yue Hu <huyue2@coolpad.com>
+> 
+> The patch removes the needless scale in existing caluation, it
+> makes the calculation more simple and more effective.
+> 
 
-* Andy Lutomirski <luto@kernel.org> wrote:
-
-> *** Ingo, even if this misses 4.13, please apply the first patch before
-> *** the merge window.
-
-> Andy Lutomirski (10):
->   x86/mm: Don't reenter flush_tlb_func_common()
->   x86/mm: Delete a big outdated comment about TLB flushing
->   x86/mm: Give each mm TLB flush generation a unique ID
->   x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
->   x86/mm: Rework lazy TLB mode and TLB freshness tracking
->   x86/mm: Stop calling leave_mm() in idle code
->   x86/mm: Disable PCID on 32-bit kernels
->   x86/mm: Add nopcid to turn off PCID
->   x86/mm: Enable CR4.PCIDE on supported systems
->   x86/mm: Try to preserve old TLB entries using PCID
-
-So this series is really nice, and the first two patches are already upstream, and 
-I've just applied all but the final patch to tip:x86/mm (out of caution - I'm a wimp).
-
-That should already offer some improvements and enables the CR4 bit - but doesn't 
-actually use the PCID hardware yet.
-
-I'll push it all out when it passes testing.
-
-If it's all super stable I plan to tempt Linus with a late merge window pull 
-request for all these preparatory patches. (Unless he objects that is. Hint, hint.)
-
-Any objections?
-
-Thanks,
-
-	Ingo
+Could you please explain how the new calculation is better
+than the old one ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
