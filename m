@@ -1,64 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D011680FBC
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 13:28:27 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j186so272699815pge.12
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 10:28:27 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id n65si17644591pfh.410.2017.07.05.10.28.26
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF34680FBC
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 13:43:28 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t188so16360274oih.15
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 10:43:28 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id w10si10445894oib.31.2017.07.05.10.43.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 10:28:26 -0700 (PDT)
-From: Krzysztof Opasiak <k.opasiak@samsung.com>
-Subject: [PATCH 4/4] mm: Use dedicated helper to access rlimit value
-Date: Wed, 05 Jul 2017 19:28:11 +0200
-Message-id: <20170705172811.8027-1-k.opasiak@samsung.com>
-References: <CGME20170705172822epcas5p285c1e58690388b8cb4453d37e968911b@epcas5p2.samsung.com>
+        Wed, 05 Jul 2017 10:43:27 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id f134so21369017oig.0
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 10:43:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170705165602.15005-1-mhocko@kernel.org>
+References: <20170705165602.15005-1-mhocko@kernel.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 5 Jul 2017 10:43:27 -0700
+Message-ID: <CA+55aFxxeCtZ-PBqrZK5K2nDjCFBWRMKE09Bz650ZiR2h=b8dg@mail.gmail.com>
+Subject: Re: [PATCH] mm: mm, mmap: do not blow on PROT_NONE MAP_FIXED holes in
+ the stack
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Krzysztof Opasiak <k.opasiak@samsung.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>
 
-Use rlimit() helper instead of manually writing whole
-chain from current task to rlim_cur
+On Wed, Jul 5, 2017 at 9:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>
+> "mm: enlarge stack guard gap" has introduced a regression in some rust
+> and Java environments which are trying to implement their own stack
+> guard page.  They are punching a new MAP_FIXED mapping inside the
+> existing stack Vma.
 
-Signed-off-by: Krzysztof Opasiak <k.opasiak@samsung.com>
----
- mm/mmap.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+Hmm. What version is this patch against? It doesn't seem to match my 4.12 tree.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index a5e3dcd75e79..8d268b3983c9 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2177,7 +2177,6 @@ static int acct_stack_growth(struct vm_area_struct *vma,
- 			     unsigned long size, unsigned long grow)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	struct rlimit *rlim = current->signal->rlim;
- 	unsigned long new_start;
- 
- 	/* address space limit tests */
-@@ -2185,7 +2184,7 @@ static int acct_stack_growth(struct vm_area_struct *vma,
- 		return -ENOMEM;
- 
- 	/* Stack limit test */
--	if (size > READ_ONCE(rlim[RLIMIT_STACK].rlim_cur))
-+	if (size > rlimit(RLIMIT_STACK))
- 		return -ENOMEM;
- 
- 	/* mlock limit tests */
-@@ -2193,7 +2192,7 @@ static int acct_stack_growth(struct vm_area_struct *vma,
- 		unsigned long locked;
- 		unsigned long limit;
- 		locked = mm->locked_vm + grow;
--		limit = READ_ONCE(rlim[RLIMIT_MEMLOCK].rlim_cur);
-+		limit = rlimit(RLIMIT_MEMLOCK);
- 		limit >>= PAGE_SHIFT;
- 		if (locked > limit && !capable(CAP_IPC_LOCK))
- 			return -ENOMEM;
--- 
-2.9.3
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
