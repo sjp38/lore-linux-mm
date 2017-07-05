@@ -1,78 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F3AF76B039F
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 10:35:35 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id 134so118508457qkh.1
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 07:35:35 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f3si21349940qkh.102.2017.07.05.07.35.34
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D716B03A6
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 12:05:02 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id n2so36625731oig.12
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:05:02 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c134si17022364oig.88.2017.07.05.09.05.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 07:35:35 -0700 (PDT)
-Date: Wed, 5 Jul 2017 10:35:29 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
- page->lru field
-Message-ID: <20170705143528.GB3305@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com>
- <20170703211415.11283-5-jglisse@redhat.com>
- <20170704125113.GC14727@dhcp22.suse.cz>
+        Wed, 05 Jul 2017 09:05:01 -0700 (PDT)
+Received: from mail-vk0-f53.google.com (mail-vk0-f53.google.com [209.85.213.53])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D40AD22BD4
+	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 16:05:00 +0000 (UTC)
+Received: by mail-vk0-f53.google.com with SMTP id 191so127297497vko.2
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 09:05:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170704125113.GC14727@dhcp22.suse.cz>
+In-Reply-To: <20170705121807.GF4941@worktop>
+References: <cover.1498751203.git.luto@kernel.org> <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
+ <20170705121807.GF4941@worktop>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 5 Jul 2017 09:04:39 -0700
+Message-ID: <CALCETrWivSq=qSN6DMBLXVRCo-EBOx_xvnQYXHojYHuG7SaWnQ@mail.gmail.com>
+Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using PCID
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Tue, Jul 04, 2017 at 02:51:13PM +0200, Michal Hocko wrote:
-> On Mon 03-07-17 17:14:14, Jerome Glisse wrote:
-> > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > thus you can not use page->lru fields of those pages. This patch
-> > re-arrange the uncharge to allow single page to be uncharge without
-> > modifying the lru field of the struct page.
-> > 
-> > There is no change to memcontrol logic, it is the same as it was
-> > before this patch.
-> 
-> What is the memcg semantic of the memory? Why is it even charged? AFAIR
-> this is not a reclaimable memory. If yes how are we going to deal with
-> memory limits? What should happen if go OOM? Does killing an process
-> actually help to release that memory? Isn't it pinned by a device?
-> 
-> For the patch itself. It is quite ugly but I haven't spotted anything
-> obviously wrong with it. It is the memcg semantic with this class of
-> memory which makes me worried.
+On Wed, Jul 5, 2017 at 5:18 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Thu, Jun 29, 2017 at 08:53:22AM -0700, Andy Lutomirski wrote:
+>> @@ -104,18 +140,20 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>>
+>>               /* Resume remote flushes and then read tlb_gen. */
+>>               cpumask_set_cpu(cpu, mm_cpumask(next));
+>
+> Barriers should have a comment... what is being ordered here against
+> what?
 
-So i am facing 3 choices. First one not account device memory at all.
-Second one is account device memory like any other memory inside a
-process. Third one is account device memory as something entirely new.
+How's this comment?
 
-I pick the second one for two reasons. First because when migrating
-back from device memory it means that migration can not fail because
-of memory cgroup limit, this simplify an already complex migration
-code. Second because i assume that device memory usage is a transient
-state ie once device is done with its computation the most likely
-outcome is memory is migrated back. From this assumption it means
-that you do not want to allow a process to overuse regular memory
-while it is using un-accounted device memory. It sounds safer to
-account device memory and to keep the process within its memcg
-boundary.
-
-Admittedly here i am making an assumption and i can be wrong. Thing
-is we do not have enough real data of how this will be use and how
-much of an impact device memory will have. That is why for now i
-would rather restrict myself to either not account it or account it
-as usual.
-
-If you prefer not accounting it until we have more experience on how
-it is use and how it impacts memory resource management i am fine with
-that too. It will make the migration code slightly more complex.
-
-Cheers,
-Jerome
+        /*
+         * Resume remote flushes and then read tlb_gen.  We need to do
+         * it in this order: any inc_mm_tlb_gen() caller that writes a
+         * larger tlb_gen than we read here must see our cpu set in
+         * mm_cpumask() so that it will know to flush us.  The barrier
+         * here synchronizes with inc_mm_tlb_gen().
+         */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
