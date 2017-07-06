@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DEECC6B02F4
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 06:49:00 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id b130so1290555oii.9
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 03:49:00 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id w8si1112973oib.158.2017.07.06.03.48.59
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 452396B02FD
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 07:56:26 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z1so19104074pgs.10
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 04:56:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i3si81616pld.582.2017.07.06.04.56.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Jul 2017 03:48:59 -0700 (PDT)
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170630133236.GM22917@dhcp22.suse.cz>
-	<201707010059.EAE43714.FOVOMOSLFHJFQt@I-love.SAKURA.ne.jp>
-	<20170630161907.GC9714@dhcp22.suse.cz>
-	<201707012043.BBE32181.JOFtOFVHQMLOFS@I-love.SAKURA.ne.jp>
-	<20170705082018.GB14538@dhcp22.suse.cz>
-In-Reply-To: <20170705082018.GB14538@dhcp22.suse.cz>
-Message-Id: <201707061948.ICJ18763.tVFOQFOHMJFSLO@I-love.SAKURA.ne.jp>
-Date: Thu, 6 Jul 2017 19:48:51 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jul 2017 04:56:25 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v66BsNqa101410
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 07:56:25 -0400
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bhm96s98e-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Jul 2017 07:56:24 -0400
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zohar@linux.vnet.ibm.com>;
+	Thu, 6 Jul 2017 21:56:21 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v66Bu9TX5243242
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 21:56:17 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v66Btibd031931
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 21:55:45 +1000
+Subject: Re: [PATCH v2 05/10] tmpfs: define integrity_read method
+From: Mimi Zohar <zohar@linux.vnet.ibm.com>
+Date: Thu, 06 Jul 2017 07:55:20 -0400
+In-Reply-To: <20170628143858.GD2359@lst.de>
+References: <1498069110-10009-1-git-send-email-zohar@linux.vnet.ibm.com>
+	 <1498069110-10009-6-git-send-email-zohar@linux.vnet.ibm.com>
+	 <20170628143858.GD2359@lst.de>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
+Message-Id: <1499342120.5500.3.camel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, James Morris <jmorris@namei.org>, linux-fsdevel@vger.kernel.org, linux-ima-devel@lists.sourceforge.net, linux-security-module@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Sat 01-07-17 20:43:56, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> [...]
-> > > It is really hard to pursue this half solution when there is no clear
-> > > indication it helps in your testing. So could you try to test with only
-> > > this patch on top of the current linux-next tree (or Linus tree) and see
-> > > if you can reproduce the problem?
-> > 
-> > With this patch on top of next-20170630, I no longer hit this problem.
-> > (Of course, this is because this patch eliminates the infinite loop.)
+On Wed, 2017-06-28 at 16:38 +0200, Christoph Hellwig wrote:
+> On Wed, Jun 21, 2017 at 02:18:25PM -0400, Mimi Zohar wrote:
+> > Define an ->integrity_read file operation method to read data for
+> > integrity hash collection.
 > 
-> I assume you haven't seen other negative side effects, like unexpected
-> OOMs etc... Are you willing to give your Tested-by?
+> should be folded into patch 2.
 
-I didn't see other negative side effects.
+I was hoping to get some Acks/sign-off's from the individual
+filesystem maintainers before squashing them. A The next version will
+be squashed.
 
-Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-We need long time for testing this patch at linux-next.git (and I give up
-this handy bug for finding other bugs under almost OOM situation).
+Mimi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
