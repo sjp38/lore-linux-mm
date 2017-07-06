@@ -1,135 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 388426B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 13:17:01 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p64so2241213wrc.8
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 10:17:01 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id z1si677215edd.127.2017.07.06.10.16.59
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C486B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 13:53:30 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id p21so3826080qke.14
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 10:53:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k5si732780qtd.309.2017.07.06.10.53.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 10:16:59 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id DDE951C255F
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 18:16:58 +0100 (IST)
-Date: Thu, 6 Jul 2017 18:16:58 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: make allocation counters per-order
-Message-ID: <20170706171658.mohgkjcefql4wekz@techsingularity.net>
-References: <1499346271-15653-1-git-send-email-guro@fb.com>
- <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
- <20170706144634.GB14840@castle>
- <20170706154704.owxsnyizel6bcgku@techsingularity.net>
- <20170706164304.GA23662@castle>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170706164304.GA23662@castle>
+        Thu, 06 Jul 2017 10:53:29 -0700 (PDT)
+Message-ID: <1499363602.26846.3.camel@redhat.com>
+Subject: Re: [PATCH v3] mm: Add SLUB free list pointer obfuscation
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 06 Jul 2017 13:53:22 -0400
+In-Reply-To: <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
+References: <20170706002718.GA102852@beast>
+	 <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
+	 <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
+	 <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-TTPbMwPKrIF57ub/jS5Z"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Thu, Jul 06, 2017 at 05:43:04PM +0100, Roman Gushchin wrote:
-> > At the time I used a page allocator microbenchmark from mmtests to call
-> > the allocator directly without zeroing pages. Triggering allocations from
-> > userspace generally mask the overhead by the zeroing costs. It's just a few
-> > cycles but given the budget for the page allocator in some circumstances
-> > is tiny, it was noticable. perf was used to examine the cost.
-> 
-> I'll try to measure the difference with mmtests.
-> 
-> I agree, that it's not a feature that worth significant performance penalty,
-> but if it's small even in a special benchmark, I'd say, it's acceptable.
-> 
 
-Note that even if you keep the cycle overhead down, the CPU cache footprint
-for such a large increase remains. That will be permanent and unfixable which
-is why I would like a Kconfig option at the very least for the vast majority
-of people that have no intention or ability to debug such a situation.
+--=-TTPbMwPKrIF57ub/jS5Z
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> > > As new counters replace an old one, and both are per-cpu counters, I believe,
-> > > that the difference should be really small.
-> > > 
-> > 
-> > Minimally you add a new branch and a small number of computations. It's
-> > small but it's there. The cache footprint of the counters is also increased.
-> > That is hard to take given that it's overhead for everybody on the off-chance
-> > it can debug something.
-> > 
-> > It's not a strong objection and I won't nak it on this basis but given
-> > that the same information can be easily obtained using tracepoints
-> > (optionally lower overhead with systemtap), the information is rarely
-> > going to be useful (no latency information for example) and there is an
-> > increased maintenance cost then it does not seem to be that useful.
-> 
-> Tracepoints are good for investigations on one machine, not so convenient
-> if we are talking about gathering stats from the fleet with production load.
-> Unfortunately, some memory fragmentation issues are hard to reproduce on
-> a single dev machine.
-> 
+On Thu, 2017-07-06 at 10:55 -0500, Christoph Lameter wrote:
+> On Thu, 6 Jul 2017, Kees Cook wrote:
+>=20
+> > On Thu, Jul 6, 2017 at 6:43 AM, Christoph Lameter <cl@linux.com>
+> > wrote:
+> > > On Wed, 5 Jul 2017, Kees Cook wrote:
+> > >=20
+> > > > @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct
+> > > > kmem_cache *s, unsigned long flags)
+> > > > =C2=A0{
+> > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0s->flags =3D kmem_cache_flags(s=
+->size, flags, s->name, s-
+> > > > >ctor);
+> > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0s->reserved =3D 0;
+> > > > +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+> > > > +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0s->random =3D get_random_long();
+> > > > +#endif
+> > > >=20
+> > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0if (need_reserve_slab_rcu && (s=
+->flags &
+> > > > SLAB_TYPESAFE_BY_RCU))
+> > > > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0s->reserved =3D sizeof(struct rcu_head);
+> > > >=20
+> > >=20
+> > > So if an attacker knows the internal structure of data then he
+> > > can simply
+> > > dereference page->kmem_cache->random to decode the freepointer.
+> >=20
+> > That requires a series of arbitrary reads. This is protecting
+> > against
+> > attacks that use an adjacent slab object write overflow to write
+> > the
+> > freelist pointer. This internal structure is very reliable, and has
+> > been the basis of freelist attacks against the kernel for a decade.
+>=20
+> These reads are not arbitrary. You can usually calculate the page
+> struct
+> address easily from the address and then do a couple of loads to get
+> there.
+>=20
+> Ok so you get rid of the old attacks because we did not have that
+> hardening in effect when they designed their approaches?
 
-Sure, but just knowing that some high-order allocations occurred in the
-past doesn't help either.
+The hardening protects against situations where
+people do not have arbitrary code execution and
+memory read access in the kernel, with the goal
+of protecting people from acquiring those abilities.
 
-> > Maybe it would be slightly more convincing if there was an example of
-> > real problems in the field that can be debugged with this. For high-order
-> > allocations, I previously found that it was the latency that was of the
-> > most concern and not the absolute count that happened since the system
-> > started.
-> 
-> We met an issue with compaction consuming too much CPU under some specific
-> conditions, and one of the suspicions was a significant number of high-order
-> allocations, requested by some third-party device drivers.
-> 
+> > It is a probabilistic defense, but then so is the stack protector.
+> > This is a similar defense; while not perfect it makes the class of
+> > attack much more difficult to mount.
+>=20
+> Na I am not convinced of the "much more difficult". Maybe they will
+> just
+> have to upgrade their approaches to fetch the proper values to
+> decode.
 
-Even if this was the suspicion, you would have to activate monitoring on
-the machine under load at the time the problem is occurring to determine if
-the high-order allocations are currently happening or happened in the past.
-If you are continually logging this data then logging allocation stalls for
-high-order allocations would give you similar information. If you have to
-activate a monitor anyway (or an agent that monitors for high CPU usage),
-then it might as well be ftrace based as well as anything else. Even a
-basic systemtap script would be able to capture only stack traces for
-allocation requests that take longer than a threshold to limit the amount
-of data recorded. Even *if* you had these counters running on your grid,
-they will tell you nothing about how long those allocations are or whether
-compaction is involved and that is what is key to begin debugging the issue.
+Easier said than done. Most of the time there is an
+unpatched vulnerability outstanding, there is only
+one known issue, before the kernel is updated by the
+user, to a version that does not have that issue.
 
-A basic monitor of /proc/vmstat for the compact_* can be used an indication
-of excessive time spent in compaction although you're back to ftrace to
-quantify how much of a problem it is in terms of time. For example,
-rapidly increasing compact_fail combined with rapidly increasing
-compact_migrate_scanned and compact_free_scanned will tell you that
-compaction is active and failing with a comparison of the ratio of
-compact_fail to compact_success telling you if it's persistent or slow
-progress. You'd need top information to see if it's the compaction daemon
-that is consuming all the CPU or processes. If it's the daemon then that
-points you in the direction of what potentially needs fixing. If it's
-processes then there is a greater problem and ftrace needs to be used to
-establish *what* is doing the high-allocation requests and whether they
-can be reduced somehow or whether it's a general fragmentation problem
-(in which case your day takes a turn for the worse).
+Bypassing kernel hardening typically requires the
+use of multiple vulnerabilities, and the absence of
+roadblocks (like hardening) that make a type of
+vulnerability exploitable.
 
-What I'm trying to say is that in themselves, an high-order allocation
-count doesn't help debug this class of problem as much as you'd think.
-Hopefully the above information is more useful to you in helping debug
-what's actually wrong.
+Between usercopy hardening, and these slub freelist
+canaries (which is what they effectively are), several
+classes of exploits are no longer usable.
 
-> Knowing the number of allocations is especially helpful for comparing
-> different kernel versions in a such case, as it's hard to distinguish changes
-> in mm, changes in these drivers or just workload/environment changes,
-> leaded to an increased or decreased fragmentation.
-> 
+--=20
+All rights reversed
+--=-TTPbMwPKrIF57ub/jS5Z
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-I'm still struggling to see how counters help when an agent that monitors
-for high CPU usage could be activated that captures tracing to see if it's
-allocation and compaction stalls that are contributing to the overall load
-or "something else".
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
--- 
-Mel Gorman
-SUSE Labs
+iQEcBAABCAAGBQJZXnkSAAoJEM553pKExN6DoJ8H/246qByk+IS3lx3yY9XFbZ8m
+l6ze5e2Dwfa+bYeXu7Q4zgJGr3OGknoZKyBFkVouKI6Fxn3/sZFj8IwfyYOmbH2k
+oKDd0CclXQ7Y7FDTVjAgD6cLgfvvpw74aFAcbzVzGWns60t1IIAuf3mSD65DIDsx
+uzOdAmm61xuEANV3WU0K6EEy+Va6NOQ6RnBzL+2ne4KKHKkaD7rqWKo001dPHQrQ
+HlOufRwLzQIHXO+mtU0hdfqMTcbpHm/Ayx9FEZOtHzHWnwPHCqbX3uE5m47Y8ruW
+MybozDSl47riIwVN+58SvcQsBC9qzEwMFxXbd2qLUxvLyg/SGs/yOgwFWAhCF3g=
+=cVCF
+-----END PGP SIGNATURE-----
+
+--=-TTPbMwPKrIF57ub/jS5Z--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
