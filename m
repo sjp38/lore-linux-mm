@@ -1,87 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B37A56B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:47:07 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u110so1541799wrb.14
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:47:07 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id j79si665818wmf.14.2017.07.06.08.47.05
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 126476B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:48:46 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o7so8583447ite.13
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:48:46 -0700 (PDT)
+Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
+        by mx.google.com with ESMTPS id w65si746702ita.22.2017.07.06.08.48.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Jul 2017 08:47:06 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 9CBC899800
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 15:47:05 +0000 (UTC)
-Date: Thu, 6 Jul 2017 16:47:05 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: make allocation counters per-order
-Message-ID: <20170706154704.owxsnyizel6bcgku@techsingularity.net>
-References: <1499346271-15653-1-git-send-email-guro@fb.com>
- <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
- <20170706144634.GB14840@castle>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jul 2017 08:48:45 -0700 (PDT)
+Received: by mail-it0-x229.google.com with SMTP id m68so6450084ith.1
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:48:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170706144634.GB14840@castle>
+In-Reply-To: <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
+References: <20170706002718.GA102852@beast> <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 6 Jul 2017 08:48:43 -0700
+Message-ID: <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
+Subject: Re: [PATCH v3] mm: Add SLUB free list pointer obfuscation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Thu, Jul 06, 2017 at 03:46:34PM +0100, Roman Gushchin wrote:
-> > The alloc counter updates are themselves a surprisingly heavy cost to
-> > the allocation path and this makes it worse for a debugging case that is
-> > relatively rare. I'm extremely reluctant for such a patch to be added
-> > given that the tracepoints can be used to assemble such a monitor even
-> > if it means running a userspace daemon to keep track of it. Would such a
-> > solution be suitable? Failing that if this is a severe issue, would it be
-> > possible to at least make this a compile-time or static tracepoint option?
-> > That way, only people that really need it have to take the penalty.
-> 
-> I've tried to measure the difference with my patch applied and without
-> any accounting at all (__count_alloc_event() redefined to an empty function),
-> and I wasn't able to find any measurable difference.
-> Can you, please, provide more details, how your scenario looked like,
-> when alloc coutners were costly?
-> 
+On Thu, Jul 6, 2017 at 6:43 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Wed, 5 Jul 2017, Kees Cook wrote:
+>
+>> @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+>>  {
+>>       s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
+>>       s->reserved = 0;
+>> +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+>> +     s->random = get_random_long();
+>> +#endif
+>>
+>>       if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
+>>               s->reserved = sizeof(struct rcu_head);
+>>
+>
+> So if an attacker knows the internal structure of data then he can simply
+> dereference page->kmem_cache->random to decode the freepointer.
 
-At the time I used a page allocator microbenchmark from mmtests to call
-the allocator directly without zeroing pages. Triggering allocations from
-userspace generally mask the overhead by the zeroing costs. It's just a few
-cycles but given the budget for the page allocator in some circumstances
-is tiny, it was noticable. perf was used to examine the cost.
+That requires a series of arbitrary reads. This is protecting against
+attacks that use an adjacent slab object write overflow to write the
+freelist pointer. This internal structure is very reliable, and has
+been the basis of freelist attacks against the kernel for a decade.
 
-> As new counters replace an old one, and both are per-cpu counters, I believe,
-> that the difference should be really small.
-> 
+> Assuming someone is already targeting a freelist pointer (which indicates
+> detailed knowledge of the internal structure) then I would think that
+> someone like that will also figure out how to follow the pointer links to
+> get to the random value.
 
-Minimally you add a new branch and a small number of computations. It's
-small but it's there. The cache footprint of the counters is also increased.
-That is hard to take given that it's overhead for everybody on the off-chance
-it can debug something.
+The kind of hardening this provides is to frustrate the expansion of
+an attacker's capabilities. Most attacks are a chain of exploits that
+slowly builds up the ability to perform arbitrary writes. For example,
+a slab object overflow isn't an arbitrary write on its own, but when
+combined with heap allocation layout control and an adjacent free
+object, this can be upgraded to an arbitrary write.
 
-It's not a strong objection and I won't nak it on this basis but given
-that the same information can be easily obtained using tracepoints
-(optionally lower overhead with systemtap), the information is rarely
-going to be useful (no latency information for example) and there is an
-increased maintenance cost then it does not seem to be that useful.
+> Not seeing the point of all of this.
 
-Maybe it would be slightly more convincing if there was an example of
-real problems in the field that can be debugged with this. For high-order
-allocations, I previously found that it was the latency that was of the
-most concern and not the absolute count that happened since the system
-started. Granted, the same criticism could be leveled at the existing
-alloc counters but at least by correlating that value with allocstall,
-you can determine what percentage of allocations stalled recently and
-optionally ftrace at that point to figure out why. The same steps would
-indicate then if it's only high-order allocations that stall, add stack
-tracing to figure out where they are coming from and go from there. Even if
-the per-order counters exist, all the other debugging steps are necessary
-so I'm struggling to see how I would use them properly.
+It is a probabilistic defense, but then so is the stack protector.
+This is a similar defense; while not perfect it makes the class of
+attack much more difficult to mount.
+
+-Kees
 
 -- 
-Mel Gorman
-SUSE Labs
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
