@@ -1,94 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C5D536B0311
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:29:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 23so1487007wry.4
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:29:37 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j1si209133wrb.194.2017.07.06.08.29.35
+	by kanga.kvack.org (Postfix) with ESMTP id B37A56B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:47:07 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u110so1541799wrb.14
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:47:07 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id j79si665818wmf.14.2017.07.06.08.47.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 08:29:36 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v66FSgf2054232
-	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 11:29:34 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bhqu705x1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Jul 2017 11:29:34 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 6 Jul 2017 16:29:32 +0100
-Subject: Re: [RFC v5 09/11] mm: Try spin lock in speculative path
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-10-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170705185023.xlqko7wgepwsny5g@hirez.programming.kicks-ass.net>
- <3af22f3b-03ab-1d37-b2b1-b616adde7eb6@linux.vnet.ibm.com>
- <20170706144852.fwtuygj4ikcjmqat@hirez.programming.kicks-ass.net>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 6 Jul 2017 17:29:26 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Jul 2017 08:47:06 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 9CBC899800
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 15:47:05 +0000 (UTC)
+Date: Thu, 6 Jul 2017 16:47:05 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: make allocation counters per-order
+Message-ID: <20170706154704.owxsnyizel6bcgku@techsingularity.net>
+References: <1499346271-15653-1-git-send-email-guro@fb.com>
+ <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
+ <20170706144634.GB14840@castle>
 MIME-Version: 1.0
-In-Reply-To: <20170706144852.fwtuygj4ikcjmqat@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <ce7a039a-2697-f16e-b0b3-f6ae41391682@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170706144634.GB14840@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On 06/07/2017 16:48, Peter Zijlstra wrote:
-> On Thu, Jul 06, 2017 at 03:46:59PM +0200, Laurent Dufour wrote:
->> On 05/07/2017 20:50, Peter Zijlstra wrote:
->>> On Fri, Jun 16, 2017 at 07:52:33PM +0200, Laurent Dufour wrote:
->>>> @@ -2294,8 +2295,19 @@ static bool pte_map_lock(struct vm_fault *vmf)
->>>>  	if (vma_has_changed(vmf->vma, vmf->sequence))
->>>>  		goto out;
->>>>  
->>>> -	pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
->>>> -				  vmf->address, &ptl);
+On Thu, Jul 06, 2017 at 03:46:34PM +0100, Roman Gushchin wrote:
+> > The alloc counter updates are themselves a surprisingly heavy cost to
+> > the allocation path and this makes it worse for a debugging case that is
+> > relatively rare. I'm extremely reluctant for such a patch to be added
+> > given that the tracepoints can be used to assemble such a monitor even
+> > if it means running a userspace daemon to keep track of it. Would such a
+> > solution be suitable? Failing that if this is a severe issue, would it be
+> > possible to at least make this a compile-time or static tracepoint option?
+> > That way, only people that really need it have to take the penalty.
 > 
->>>> +	ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
->>>> +	pte = pte_offset_map(vmf->pmd, vmf->address);
->>>> +	if (unlikely(!spin_trylock(ptl))) {
->>>> +		pte_unmap(pte);
->>>> +		goto out;
->>>> +	}
->>>> +
->>>>  	if (vma_has_changed(vmf->vma, vmf->sequence)) {
->>>>  		pte_unmap_unlock(pte, ptl);
->>>>  		goto out;
->>>
->>> Right, so if you look at my earlier patches you'll see I did something
->>> quite disgusting here.
->>>
->>> Not sure that wants repeating, but I cannot remember why I thought this
->>> deadlock didn't exist anymore.
->>
->> Regarding the deadlock I did face it on my Power victim node, so I guess it
->> is still there, and the stack traces are quiet explicit.
->> Am I missing something here ?
+> I've tried to measure the difference with my patch applied and without
+> any accounting at all (__count_alloc_event() redefined to an empty function),
+> and I wasn't able to find any measurable difference.
+> Can you, please, provide more details, how your scenario looked like,
+> when alloc coutners were costly?
 > 
-> No, you are right in that the deadlock is quite real. What I cannot
-> remember is what made me think to remove the really 'wonderful' code I
-> had to deal with it.
+
+At the time I used a page allocator microbenchmark from mmtests to call
+the allocator directly without zeroing pages. Triggering allocations from
+userspace generally mask the overhead by the zeroing costs. It's just a few
+cycles but given the budget for the page allocator in some circumstances
+is tiny, it was noticable. perf was used to examine the cost.
+
+> As new counters replace an old one, and both are per-cpu counters, I believe,
+> that the difference should be really small.
 > 
-> That said, you might want to look at how often you terminate the
-> speculation because of your trylock failing. If that shows up at all we
-> might need to do something about it.
 
-Based on the benchmarks I run, it doesn't fail so much often, but I was
-thinking about adding some counters here. The system is accounting for
-major page faults and minor ones, respectively current->maj_flt and
-current->min_flt. I was wondering if an additional type like async_flt will
-be welcome or if there is another smarter way to get that metric.
+Minimally you add a new branch and a small number of computations. It's
+small but it's there. The cache footprint of the counters is also increased.
+That is hard to take given that it's overhead for everybody on the off-chance
+it can debug something.
 
-Feel free to advise.
+It's not a strong objection and I won't nak it on this basis but given
+that the same information can be easily obtained using tracepoints
+(optionally lower overhead with systemtap), the information is rarely
+going to be useful (no latency information for example) and there is an
+increased maintenance cost then it does not seem to be that useful.
 
-Thanks
-Laurent.
+Maybe it would be slightly more convincing if there was an example of
+real problems in the field that can be debugged with this. For high-order
+allocations, I previously found that it was the latency that was of the
+most concern and not the absolute count that happened since the system
+started. Granted, the same criticism could be leveled at the existing
+alloc counters but at least by correlating that value with allocstall,
+you can determine what percentage of allocations stalled recently and
+optionally ftrace at that point to figure out why. The same steps would
+indicate then if it's only high-order allocations that stall, add stack
+tracing to figure out where they are coming from and go from there. Even if
+the per-order counters exist, all the other debugging steps are necessary
+so I'm struggling to see how I would use them properly.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
