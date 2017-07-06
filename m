@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9066B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 01:19:52 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v26so10912875pfa.0
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 22:19:52 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id s12si757808pgo.318.2017.07.05.22.19.51
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12CF66B03E0
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 02:09:34 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id l34so2277834wrc.12
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 23:09:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d20si802152wrc.300.2017.07.05.23.09.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 22:19:51 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id c24so1566097pfe.1
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 22:19:51 -0700 (PDT)
-Date: Thu, 6 Jul 2017 14:19:59 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v2] zswap: Zero-filled pages handling
-Message-ID: <20170706051959.GD7195@jagdpanzerIV.localdomain>
-References: <CGME20170702141959epcms5p32119c772b960e942da3a92e5a79d8c41@epcms5p3>
- <20170702141959epcms5p32119c772b960e942da3a92e5a79d8c41@epcms5p3>
- <CAC8qmcBa3ZBpw12AjbZ8bWuK5DW=wiXcURzomqXZXLrQhUWDhg@mail.gmail.com>
+        Wed, 05 Jul 2017 23:09:31 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v66698mq100066
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 02:09:30 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bgvqknj26-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 06 Jul 2017 02:09:30 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 6 Jul 2017 16:09:27 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6668ADU7537026
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 16:08:10 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v66689iY013778
+	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 16:08:09 +1000
+Subject: Re: [patch v2 -mm] mm, hugetlb: schedule when potentially allocating
+ many hugepages
+References: <alpine.DEB.2.10.1706072102560.29060@chino.kir.corp.google.com>
+ <52ee0233-c3cd-d33a-a33b-50d49e050d5c@oracle.com>
+ <alpine.DEB.2.10.1706091534580.66176@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 6 Jul 2017 11:38:02 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAC8qmcBa3ZBpw12AjbZ8bWuK5DW=wiXcURzomqXZXLrQhUWDhg@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <3ceb6744-025d-86b9-4a71-beca86efa9e6@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@redhat.com>
-Cc: srividya.dr@samsung.com, "ddstreet@ieee.org" <ddstreet@ieee.org>, "penberg@kernel.org" <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On (07/02/17 20:28), Seth Jennings wrote:
-> On Sun, Jul 2, 2017 at 9:19 AM, Srividya Desireddy
-> > Zswap is a cache which compresses the pages that are being swapped out
-> > and stores them into a dynamically allocated RAM-based memory pool.
-> > Experiments have shown that around 10-20% of pages stored in zswap
-> > are zero-filled pages (i.e. contents of the page are all zeros), but
-> > these pages are handled as normal pages by compressing and allocating
-> > memory in the pool.
+On 06/10/2017 04:06 AM, David Rientjes wrote:
+> A few hugetlb allocators loop while calling the page allocator and can
+> potentially prevent rescheduling if the page allocator slowpath is not
+> utilized.
 > 
-> I am somewhat surprised that this many anon pages are zero filled.
+> Conditionally schedule when large numbers of hugepages can be allocated.
 > 
-> If this is true, then maybe we should consider solving this at the
-> swap level in general, as we can de-dup zero pages in all swap
-> devices, not just zswap.
-> 
-> That being said, this is a fair small change and I don't see anything
-> objectionable.  However, I do think the better solution would be to do
-> this at a higher level.
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-zero-filled pages are just 1 case. in general, it's better
-to handle pages that are memset-ed with the same value (e.g.
-memset(page, 0x01, page_size)). which includes, but not
-limited to, 0x00. zram does it.
+Fixes a task which was getting hung while writing like 10000
+hugepages (16MB on POWER8) into /proc/sys/vm/nr_hugepages.
 
-	-ss
+Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
