@@ -1,153 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E826B0423
-	for <linux-mm@kvack.org>; Wed,  5 Jul 2017 23:57:00 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s4so9804302pgr.3
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 20:57:00 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id d27si748262plj.167.2017.07.05.20.56.58
-        for <linux-mm@kvack.org>;
-        Wed, 05 Jul 2017 20:56:59 -0700 (PDT)
-Date: Thu, 6 Jul 2017 12:56:56 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] mm: use slab size in the slab shrinking ratio
- calculation
-Message-ID: <20170706035656.GA24077@bbox>
-References: <20170627135931.GA14097@destiny>
- <20170630021713.GB24520@bbox>
- <20170630150322.GB9743@destiny>
- <20170703013303.GA2567@bbox>
- <20170703135006.GC27097@destiny>
- <20170704030100.GA16432@bbox>
- <20170704132136.GB6807@destiny>
- <20170704225758.GT17542@dastard>
- <20170705045912.GC20079@bbox>
- <20170705235823.GV17542@dastard>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9066B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 01:19:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v26so10912875pfa.0
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 22:19:52 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id s12si757808pgo.318.2017.07.05.22.19.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jul 2017 22:19:51 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id c24so1566097pfe.1
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 22:19:51 -0700 (PDT)
+Date: Thu, 6 Jul 2017 14:19:59 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v2] zswap: Zero-filled pages handling
+Message-ID: <20170706051959.GD7195@jagdpanzerIV.localdomain>
+References: <CGME20170702141959epcms5p32119c772b960e942da3a92e5a79d8c41@epcms5p3>
+ <20170702141959epcms5p32119c772b960e942da3a92e5a79d8c41@epcms5p3>
+ <CAC8qmcBa3ZBpw12AjbZ8bWuK5DW=wiXcURzomqXZXLrQhUWDhg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170705235823.GV17542@dastard>
+In-Reply-To: <CAC8qmcBa3ZBpw12AjbZ8bWuK5DW=wiXcURzomqXZXLrQhUWDhg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>, mhocko@kernel.org, cl@linux.com
+To: Seth Jennings <sjenning@redhat.com>
+Cc: srividya.dr@samsung.com, "ddstreet@ieee.org" <ddstreet@ieee.org>, "penberg@kernel.org" <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, SUNEEL KUMAR SURIMANI <suneel@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-On Thu, Jul 06, 2017 at 09:58:23AM +1000, Dave Chinner wrote:
-> On Wed, Jul 05, 2017 at 01:59:12PM +0900, Minchan Kim wrote:
-> > Hi Dave,
-> > 
-> > On Wed, Jul 05, 2017 at 08:57:58AM +1000, Dave Chinner wrote:
-> > > On Tue, Jul 04, 2017 at 09:21:37AM -0400, Josef Bacik wrote:
-> > > > On Tue, Jul 04, 2017 at 12:01:00PM +0900, Minchan Kim wrote:
-> > > > > 1. slab *page* reclaim
-> > > > > 
-> > > > > Your claim is that it's hard to reclaim a page by slab fragmentation so need to
-> > > > > reclaim objects more aggressively.
-> > > > > 
-> > > > > Basically, aggressive scanning doesn't guarantee to reclaim a page but it just
-> > > > > increases the possibility. Even, if we think slab works with merging feature(i.e.,
-> > > > > it mixes same size several type objects in a slab), the possibility will be huge
-> > > > > dropped if you try to bail out on a certain shrinker. So for working well,
-> > > > > we should increase aggressiveness too much to sweep every objects from all shrinker.
-> > > > > I guess that's why your patch makes the logic very aggressive.
-> > > > > In here, my concern with that aggressive is to reclaim all objects too early
-> > > > > and it ends up making void caching scheme. I'm not sure it's gain in the end.
-> > > > >
-> > > > 
-> > > > Well the fact is what we have doesn't work, and I've been staring at this
-> > > > problem for a few months and I don't have a better solution.
-> > > > 
-> > > > And keep in mind we're talking about a purely slab workload, something that
-> > > > isn't likely to be a common case.  And even if our scan target is 2x, we aren't
-> > > > going to reclaim the entire cache before we bail out.  We only scan in
-> > > > 'batch_size' chunks, which generally is 1024.  In the worst case that we have
-> > > > one in use object on every slab page we own then yes we're fucked, but we're
-> > > > still fucked with the current code, only with the current code it'll take us 20
-> > > > minutes of looping in the vm vs. seconds scanning the whole list twice.
-> > > 
-> > > Right - this is where growth/allocation rate based aging scans
-> > > come into play, rather than waiting for the VM to hit some unknown
-> > > ceiling and do an unpredictable amount of scanning.
-> > 
-> > http://www.spinics.net/lists/linux-mm/msg129470.html
-> > 
-> > I suggested static scanning increasement(1/12 + 2/12 + 3/12...) which is
-> > more aggressive compared to as-is. With this, in a reclaim cycle(priority
-> > 12..0), we guarantees that scanning of entire objects list four times
-> > while LRU is two times. Although I believe we don't need four times
-> > (i.e., it's enough with two times), it's just compromise solution with
-> > Josef's much too agressive slab reclaim.
-> > It would be more predictable and aggressive from VM point of view.
+On (07/02/17 20:28), Seth Jennings wrote:
+> On Sun, Jul 2, 2017 at 9:19 AM, Srividya Desireddy
+> > Zswap is a cache which compresses the pages that are being swapped out
+> > and stores them into a dynamically allocated RAM-based memory pool.
+> > Experiments have shown that around 10-20% of pages stored in zswap
+> > are zero-filled pages (i.e. contents of the page are all zeros), but
+> > these pages are handled as normal pages by compressing and allocating
+> > memory in the pool.
 > 
-> Yes, I read and understood that post, but you are talking about
-> changing reclaim behaviour when there is low memory, not dealing
-> with the aging problem. It's a brute force big hammer approach, yet
-
-The reason I mentioned reclaim behaviour that his patch changes it really
-aggressive and one of the reason he did is we cannot a full slab page
-by slab fragmentation. That's really I dislike. If slab fragmentation
-is really issue, it should be done by [anti|de]-fragmenation whatever,
-not increasing reclaim agressivess which is just band-aid, even it could be
-hurt system performance via heavy reclaiming.
-
-> we already know that increasingly aggressive reclaim of caches is a
-> problem for filesystems in that it drives us into OOM conditions
-> faster. i.e. agressive shrinker reclaim trashes the working set of
-> cached filesystem metadata and so increases the GFP_NOFS memory
-
-True. That is my point so please do not reclaim behaviour much too
-aggressive.
-
-> allocation demand required by the filesystem at times of critically
-> low memory....
-
-Indeed.
-
+> I am somewhat surprised that this many anon pages are zero filled.
 > 
-> > If some of shrinker cannot be happy with this policy, it would accelerate
-> > the scanning for only that shrinker under shrink_slab call although I don't
-> > like it because it's out of control from VM pov so I'm okay your per-shrinker
-> > aging callback regardless of shrink_slab. My point is if some of shrinker is
-> > painful to be reclaimed, it should have own model to solve it rather than
-> > making general slab reclaim strately very aggressive.
+> If this is true, then maybe we should consider solving this at the
+> swap level in general, as we can de-dup zero pages in all swap
+> devices, not just zswap.
 > 
-> We already do this in various filesystems. The issue is that we
-> don't know that we should reclaim caches until shrinker callbacks
-> start happening. i.e. there's *no feedback mechanism* that allows us
-> to age shrinker controlled caches over time. memory reclaim is a
-> feedback loop but if we never hit low memory, then it's never
-> invoked until we actually run out of memory and so it drowns in
-> aging rather than reclaim work when it does get run.
+> That being said, this is a fair small change and I don't see anything
+> objectionable.  However, I do think the better solution would be to do
+> this at a higher level.
 
-Yes, it's the problem page cache as well as slab cache.
-In case of page cache, as you know well, VM want to do best effort
-two level LRU promotion/demotion. Although it's not perfect, it would have worked.
+zero-filled pages are just 1 case. in general, it's better
+to handle pages that are memset-ed with the same value (e.g.
+memset(page, 0x01, page_size)). which includes, but not
+limited to, 0x00. zram does it.
 
-Cannot FS slab cache handle aging more smarter? The LFU you suggested
-would be better than as-is but would be hard to avoid latency.
-
-Anyway, I'm okay if each shrinker can have the aging method unless
-it doesn't increases slab reclaim behaviour too much aggressive
-without convincing reason.
-
-> 
-> Stop looking at the code and start thinking about the architecture -
-> how the subsystems connect and what control/feedback mechanisms are
-> required to allow them to work correctly together. We solve balance
-> and breakdown problems by identifying the missing/sub-optimal
-> feedback loops and fixing them. In this case, what we are missing is
-> the mechanism to detect and control "cache growth in single use
-> workloads when there is no memory pressure". Sustained cache
-> allocation should trigger some amount of aging regardless of how
-> much free memory we have, otherwise we simply fill up memory with
-> objects we're never going to use again.....
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
