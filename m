@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12CF66B03E0
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 02:09:34 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l34so2277834wrc.12
-        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 23:09:34 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d20si802152wrc.300.2017.07.05.23.09.31
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 791276B03E0
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 02:34:08 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 4so2388001wrc.15
+        for <linux-mm@kvack.org>; Wed, 05 Jul 2017 23:34:08 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id a13si7012961wma.62.2017.07.05.23.34.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jul 2017 23:09:31 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v66698mq100066
-	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 02:09:30 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bgvqknj26-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Jul 2017 02:09:30 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 6 Jul 2017 16:09:27 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6668ADU7537026
-	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 16:08:10 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v66689iY013778
-	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 16:08:09 +1000
-Subject: Re: [patch v2 -mm] mm, hugetlb: schedule when potentially allocating
- many hugepages
-References: <alpine.DEB.2.10.1706072102560.29060@chino.kir.corp.google.com>
- <52ee0233-c3cd-d33a-a33b-50d49e050d5c@oracle.com>
- <alpine.DEB.2.10.1706091534580.66176@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 6 Jul 2017 11:38:02 +0530
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 05 Jul 2017 23:34:07 -0700 (PDT)
+Date: Thu, 6 Jul 2017 08:34:00 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [patch V2 0/2] mm/memory_hotplug: Cure potential deadlocks vs.
+ cpu hotplug lock
+In-Reply-To: <20170705145334.d73a30dda944855349e522ed@linux-foundation.org>
+Message-ID: <alpine.DEB.2.20.1707060833130.1771@nanos>
+References: <20170704093232.995040438@linutronix.de> <20170705145334.d73a30dda944855349e522ed@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1706091535300.66176@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <3ceb6744-025d-86b9-4a71-beca86efa9e6@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Peter Zijlstra <peterz@infradead.org>
 
-On 06/10/2017 04:06 AM, David Rientjes wrote:
-> A few hugetlb allocators loop while calling the page allocator and can
-> potentially prevent rescheduling if the page allocator slowpath is not
-> utilized.
+On Wed, 5 Jul 2017, Andrew Morton wrote:
+> On Tue, 04 Jul 2017 11:32:32 +0200 Thomas Gleixner <tglx@linutronix.de> wrote:
 > 
-> Conditionally schedule when large numbers of hugepages can be allocated.
+> > Andrey reported a potential deadlock with the memory hotplug lock and the
+> > cpu hotplug lock.
+> > 
+> > The following series addresses this by reworking the memory hotplug locking
+> > and fixing up the potential deadlock scenarios.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Do you think we should squeeze this into 4.13-rc1, or can we afford to
+> take the more cautious route?
 
-Fixes a task which was getting hung while writing like 10000
-hugepages (16MB on POWER8) into /proc/sys/vm/nr_hugepages.
+The deadlocks are real and the lockdep splats are triggering on Linus head,
+so it should go into 4.13-rc1 if possible.
 
-Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
