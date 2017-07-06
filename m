@@ -1,87 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4563C6B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 09:47:10 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z1so613249wrz.10
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 06:47:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j1si35035wrb.194.2017.07.06.06.47.08
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 77F7F6B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 10:47:08 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id p123so3004403ybg.10
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 07:47:08 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 133si52775ybu.532.2017.07.06.07.47.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 06:47:08 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id v66DhlSf023088
-	for <linux-mm@kvack.org>; Thu, 6 Jul 2017 09:47:06 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bhk12skn3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:47:06 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 6 Jul 2017 14:47:04 +0100
-Subject: Re: [RFC v5 09/11] mm: Try spin lock in speculative path
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-10-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170705185023.xlqko7wgepwsny5g@hirez.programming.kicks-ass.net>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 6 Jul 2017 15:46:59 +0200
+        Thu, 06 Jul 2017 07:47:07 -0700 (PDT)
+Date: Thu, 6 Jul 2017 15:46:34 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH] mm: make allocation counters per-order
+Message-ID: <20170706144634.GB14840@castle>
+References: <1499346271-15653-1-git-send-email-guro@fb.com>
+ <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20170705185023.xlqko7wgepwsny5g@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <3af22f3b-03ab-1d37-b2b1-b616adde7eb6@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On 05/07/2017 20:50, Peter Zijlstra wrote:
-> On Fri, Jun 16, 2017 at 07:52:33PM +0200, Laurent Dufour wrote:
->> @@ -2294,8 +2295,19 @@ static bool pte_map_lock(struct vm_fault *vmf)
->>  	if (vma_has_changed(vmf->vma, vmf->sequence))
->>  		goto out;
->>  
->> -	pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
->> -				  vmf->address, &ptl);
->> +	/* Same as pte_offset_map_lock() except that we call
+On Thu, Jul 06, 2017 at 02:19:41PM +0100, Mel Gorman wrote:
+> On Thu, Jul 06, 2017 at 02:04:31PM +0100, Roman Gushchin wrote:
+> > High-order allocations are obviously more costly, and it's very useful
+> > to know how many of them happens, if there are any issues
+> > (or suspicions) with memory fragmentation.
+> > 
+> > This commit changes existing per-zone allocation counters to be
+> > per-zone per-order. These counters are displayed using a new
+> > procfs interface (similar to /proc/buddyinfo):
+> > 
+> > $ cat /proc/allocinfo
+> >      DMA          0          0          0          0          0 \
+> >        0          0          0          0          0          0
+> >    DMA32          3          0          1          0          0 \
+> >        0          0          0          0          0          0
+> >   Normal    4997056      23594      10902      23686        931 \
+> >       23        122        786         17          1          0
+> >  Movable          0          0          0          0          0 \
+> >        0          0          0          0          0          0
+> >   Device          0          0          0          0          0 \
+> >        0          0          0          0          0          0
+> > 
+> > The existing vmstat interface remains untouched*, and still shows
+> > the total number of single page allocations, so high-order allocations
+> > are represented as a corresponding number of order-0 allocations.
+> > 
+> > $ cat /proc/vmstat | grep alloc
+> > pgalloc_dma 0
+> > pgalloc_dma32 7
+> > pgalloc_normal 5461660
+> > pgalloc_movable 0
+> > pgalloc_device 0
+> > 
+> > * I've added device zone for consistency with other zones,
+> > and to avoid messy exclusion of this zone in the code.
+> > 
 > 
-> comment style..
+> The alloc counter updates are themselves a surprisingly heavy cost to
+> the allocation path and this makes it worse for a debugging case that is
+> relatively rare. I'm extremely reluctant for such a patch to be added
+> given that the tracepoints can be used to assemble such a monitor even
+> if it means running a userspace daemon to keep track of it. Would such a
+> solution be suitable? Failing that if this is a severe issue, would it be
+> possible to at least make this a compile-time or static tracepoint option?
+> That way, only people that really need it have to take the penalty.
 
-Hi Peter and thanks for your work and review.
+I've tried to measure the difference with my patch applied and without
+any accounting at all (__count_alloc_event() redefined to an empty function),
+and I wasn't able to find any measurable difference.
+Can you, please, provide more details, how your scenario looked like,
+when alloc coutners were costly?
 
-I'll fix this comment style.
+As new counters replace an old one, and both are per-cpu counters, I believe,
+that the difference should be really small.
 
-> 
->> +	 * spin_trylock() in place of spin_lock() to avoid race with
->> +	 * unmap path which may have the lock and wait for this CPU
->> +	 * to invalidate TLB but this CPU has irq disabled.
->> +	 * Since we are in a speculative patch, accept it could fail
->> +	 */
->> +	ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
->> +	pte = pte_offset_map(vmf->pmd, vmf->address);
->> +	if (unlikely(!spin_trylock(ptl))) {
->> +		pte_unmap(pte);
->> +		goto out;
->> +	}
->> +
->>  	if (vma_has_changed(vmf->vma, vmf->sequence)) {
->>  		pte_unmap_unlock(pte, ptl);
->>  		goto out;
-> 
-> Right, so if you look at my earlier patches you'll see I did something
-> quite disgusting here.
-> 
-> Not sure that wants repeating, but I cannot remember why I thought this
-> deadlock didn't exist anymore.
+If there is a case, when the difference is meaningful,
+I'll, of course, make the whole thing a compile-time option.
 
-Regarding the deadlock I did face it on my Power victim node, so I guess it
-is still there, and the stack traces are quiet explicit.
-Am I missing something here ?
-
-Thanks,
-Laurent.
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
