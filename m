@@ -1,142 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B42116B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:27:49 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id u126so2926821qka.9
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:27:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c2si589892qtd.114.2017.07.06.09.27.48
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 412256B02C3
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:43:15 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z81so1998778wrc.2
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:43:15 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id b27si335057wra.164.2017.07.06.09.43.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 09:27:48 -0700 (PDT)
-Date: Thu, 6 Jul 2017 12:27:43 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/3] Protectable memory support
-Message-ID: <20170706162742.GA2919@redhat.com>
-References: <20170705134628.3803-1-igor.stoppa@huawei.com>
- <20170705134628.3803-2-igor.stoppa@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Jul 2017 09:43:13 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 42DE1985D2
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 16:43:13 +0000 (UTC)
+Date: Thu, 6 Jul 2017 17:43:12 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: make allocation counters per-order
+Message-ID: <20170706164312.4nnjsrpzv5vbtbkm@techsingularity.net>
+References: <1499346271-15653-1-git-send-email-guro@fb.com>
+ <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
+ <CAATkVEyuqQhiL1G=UyOqwABbUGJn2XNvnYpiOp-F3Zb659uOdQ@mail.gmail.com>
+ <20170706155123.cyyjpvraifu5ptmr@techsingularity.net>
+ <CAATkVEzuFq5UWasE87Eo_F4aQxkuYWqSGJh5bBnieC=686NyqA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170705134628.3803-2-igor.stoppa@huawei.com>
+In-Reply-To: <CAATkVEzuFq5UWasE87Eo_F4aQxkuYWqSGJh5bBnieC=686NyqA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com, hch@infradead.org, penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Debabrata Banerjee <dbavatar@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 05, 2017 at 04:46:26PM +0300, Igor Stoppa wrote:
-> The MMU available in many systems running Linux can often provide R/O
-> protection to the memory pages it handles.
+On Thu, Jul 06, 2017 at 12:12:47PM -0400, Debabrata Banerjee wrote:
+> On Thu, Jul 6, 2017 at 11:51 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > These counters do not actually help you solve that particular problem.
+> > Knowing how many allocations happened since the system booted doesn't tell
+> > you much about how many failed or why they failed. You don't even know
+> > what frequency they occured at unless you monitor it constantly so you're
+> > back to square one whether this information is available from proc or not.
+> > There even is a tracepoint that can be used to track information related
+> > to events that degrade fragmentation (trace_mm_page_alloc_extfrag) although
+> > the primary thing it tells you is that "the probability that an allocation
+> > will fail due to fragmentation in the future is potentially higher".
 > 
-> However, the MMU-based protection works efficiently only when said pages
-> contain exclusively data that will not need further modifications.
-> 
-> Statically allocated variables can be segregated into a dedicated
-> section, but this does not sit very well with dynamically allocated ones.
-> 
-> Dynamic allocation does not provide, currently, any means for grouping
-> variables in memory pages that would contain exclusively data suitable
-> for conversion to read only access mode.
-> 
-> The allocator here provided (pmalloc - protectable memory allocator)
-> introduces the concept of pools of protectable memory.
-> 
-> A module can request a pool and then refer any allocation request to the
-> pool handler it has received.
-> 
-> Once all the chunks of memory associated to a specific pool are
-> initialized, the pool can be protected.
-> 
-> After this point, the pool can only be destroyed (it is up to the module
-> to avoid any further references to the memory from the pool, after
-> the destruction is invoked).
-> 
-> The latter case is mainly meant for releasing memory, when a module is
-> unloaded.
-> 
-> A module can have as many pools as needed, for example to support the
-> protection of data that is initialized in sufficiently distinct phases.
-> 
-> Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
-> ---
->  arch/Kconfig                   |   1 +
->  include/linux/page-flags.h     |   2 +
->  include/linux/pmalloc.h        | 127 +++++++++++++++
->  include/trace/events/mmflags.h |   1 +
->  lib/Kconfig                    |   1 +
->  mm/Makefile                    |   1 +
->  mm/pmalloc.c                   | 356 +++++++++++++++++++++++++++++++++++++++++
->  mm/usercopy.c                  |  24 +--
->  8 files changed, 504 insertions(+), 9 deletions(-)
->  create mode 100644 include/linux/pmalloc.h
->  create mode 100644 mm/pmalloc.c
-> 
-> diff --git a/arch/Kconfig b/arch/Kconfig
-> index 6c00e5b..9d16b51 100644
-> --- a/arch/Kconfig
-> +++ b/arch/Kconfig
-> @@ -228,6 +228,7 @@ config GENERIC_IDLE_POLL_SETUP
->  
->  # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
->  config ARCH_HAS_SET_MEMORY
-> +	select GENERIC_ALLOCATOR
->  	bool
->  
->  # Select if arch init_task initializer is different to init/init_task.c
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 6b5818d..acc0723 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -81,6 +81,7 @@ enum pageflags {
->  	PG_active,
->  	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
->  	PG_slab,
-> +	PG_pmalloc,
->  	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
->  	PG_arch_1,
->  	PG_reserved,
-> @@ -274,6 +275,7 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
->  	TESTCLEARFLAG(Active, active, PF_HEAD)
->  __PAGEFLAG(Slab, slab, PF_NO_TAIL)
->  __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
-> +__PAGEFLAG(Pmalloc, pmalloc, PF_NO_TAIL)
->  PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
->  
->  /* Xen */
+> I agree these counters don't have enough information, but there a
+> start to a first order approximation of the current state of memory.
 
+That incurs a universal cost on the off-chance of debugging and ultimately
+the debugging is only useful in combination with developing kernel patches
+in which case it could be behind a kconfig option.
 
-So i don't think we want to waste a page flag on this. The struct 
-page flags field is already full AFAIK (see page-flags-layout.h)
+> buddyinfo and pagetypeinfo basically show no information now, because
 
-Moreover there is easier way to tag such page. So my understanding
-is that pmalloc() is always suppose to be in vmalloc area. From
-the look of it all you do is check that there is a valid page behind
-the vmalloc vaddr and you check for the PG_malloc flag of that page.
+They can be used to calculate a fragmentation index at a given point in
+time. Admittedly, building a bigger picture requires a full scan of memory
+(and that's what was required when fragmentation avoidance was first
+being implemented).
 
-Why do you need to check the PG_malloc flag for the page ? Isn't the
-fact that there is a page behind the vmalloc vaddr enough ? If not
-enough wouldn't checking the pte flags of the page enough ? ie if
-the page is read only inside vmalloc than it would be for sure some
-pmalloc area.
+> they only involve the small amount of free memory under the watermark
+> and all our machines are in this state. As second order approximation,
+> it would be nice to be able to get answers like: "There are
+> reclaimable high order allocations of at least this order" and "None
+> of this order allocation can become available due to unmovable and
+> unreclaimable allocations"
 
-Other way to distinguish between regular vmalloc and pmalloc can be
-to carveout a region of vmalloc for pmalloc purpose. Issue is that
-it might be hard to find right size for such carveout.
+Which this patch doesn't provide as what you are looking for requires
+a full scan of memory to determine. I've done it in the past using a
+severe abuse of systemtap to load a module that scans all of memory with
+a variation of PAGE_OWNER to identify stack traces of pages that "don't
+belonw" within a pageblock.
 
-Yet another way is to use some of the free struct page fields ie
-when a page is allocated for vmalloc i think most of struct page
-fields are unuse (mapping, index, lru, ...). It would be better
-to use those rather than adding a page flag.
+Even *with* that information, your options for tuning an unmodified kernel
+are basically limited to increasing min_free_kbytes, altering THP's level
+of aggression when compacting or brute forcing with either drop_caches,
+compact_node or both. All other options after that require kernel patches
+-- altering annotations, altering fallback mechanisms, altering compaction,
+improving support for pages that can be migrated etc.
 
-
-Everything else looks good to me, thought i am unsure on how much
-useful such feature is but i am not familiar too much with security
-side of thing.
-
-
-Cheers,
-Jerome
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
