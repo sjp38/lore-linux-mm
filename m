@@ -1,79 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C74AE6B02F3
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 09:19:43 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z81so475300wrc.2
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 06:19:43 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id v4si220014wmb.178.2017.07.06.06.19.41
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4426B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 09:43:25 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 188so3187782itx.9
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 06:43:25 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id e78si199254ioe.169.2017.07.06.06.43.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Jul 2017 06:19:42 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 8E8D399827
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 13:19:41 +0000 (UTC)
-Date: Thu, 6 Jul 2017 14:19:41 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: make allocation counters per-order
-Message-ID: <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
-References: <1499346271-15653-1-git-send-email-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1499346271-15653-1-git-send-email-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jul 2017 06:43:24 -0700 (PDT)
+Date: Thu, 6 Jul 2017 08:43:19 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm: Add SLUB free list pointer obfuscation
+In-Reply-To: <20170706002718.GA102852@beast>
+Message-ID: <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
+References: <20170706002718.GA102852@beast>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Thu, Jul 06, 2017 at 02:04:31PM +0100, Roman Gushchin wrote:
-> High-order allocations are obviously more costly, and it's very useful
-> to know how many of them happens, if there are any issues
-> (or suspicions) with memory fragmentation.
-> 
-> This commit changes existing per-zone allocation counters to be
-> per-zone per-order. These counters are displayed using a new
-> procfs interface (similar to /proc/buddyinfo):
-> 
-> $ cat /proc/allocinfo
->      DMA          0          0          0          0          0 \
->        0          0          0          0          0          0
->    DMA32          3          0          1          0          0 \
->        0          0          0          0          0          0
->   Normal    4997056      23594      10902      23686        931 \
->       23        122        786         17          1          0
->  Movable          0          0          0          0          0 \
->        0          0          0          0          0          0
->   Device          0          0          0          0          0 \
->        0          0          0          0          0          0
-> 
-> The existing vmstat interface remains untouched*, and still shows
-> the total number of single page allocations, so high-order allocations
-> are represented as a corresponding number of order-0 allocations.
-> 
-> $ cat /proc/vmstat | grep alloc
-> pgalloc_dma 0
-> pgalloc_dma32 7
-> pgalloc_normal 5461660
-> pgalloc_movable 0
-> pgalloc_device 0
-> 
-> * I've added device zone for consistency with other zones,
-> and to avoid messy exclusion of this zone in the code.
-> 
+On Wed, 5 Jul 2017, Kees Cook wrote:
 
-The alloc counter updates are themselves a surprisingly heavy cost to
-the allocation path and this makes it worse for a debugging case that is
-relatively rare. I'm extremely reluctant for such a patch to be added
-given that the tracepoints can be used to assemble such a monitor even
-if it means running a userspace daemon to keep track of it. Would such a
-solution be suitable? Failing that if this is a severe issue, would it be
-possible to at least make this a compile-time or static tracepoint option?
-That way, only people that really need it have to take the penalty.
+> @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+>  {
+>  	s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
+>  	s->reserved = 0;
+> +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+> +	s->random = get_random_long();
+> +#endif
+>
+>  	if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
+>  		s->reserved = sizeof(struct rcu_head);
+>
 
--- 
-Mel Gorman
-SUSE Labs
+So if an attacker knows the internal structure of data then he can simply
+dereference page->kmem_cache->random to decode the freepointer.
+
+Assuming someone is already targeting a freelist pointer (which indicates
+detailed knowledge of the internal structure) then I would think that
+someone like that will also figure out how to follow the pointer links to
+get to the random value.
+
+Not seeing the point of all of this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
