@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C159F6B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:12:49 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id 191so2018506vko.1
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:12:49 -0700 (PDT)
-Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
-        by mx.google.com with ESMTPS id x15si285207uae.134.2017.07.06.09.12.48
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 445DB6B02C3
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:13:13 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id o202so9747209itc.14
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:13:13 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id r21si705331ita.99.2017.07.06.09.13.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 09:12:48 -0700 (PDT)
-Received: by mail-vk0-x241.google.com with SMTP id y70so483914vky.3
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:12:48 -0700 (PDT)
+        Thu, 06 Jul 2017 09:13:12 -0700 (PDT)
+Date: Thu, 6 Jul 2017 18:13:02 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC v5 09/11] mm: Try spin lock in speculative path
+Message-ID: <20170706161302.aupbhvld3yew3cjl@hirez.programming.kicks-ass.net>
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-10-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170705185023.xlqko7wgepwsny5g@hirez.programming.kicks-ass.net>
+ <3af22f3b-03ab-1d37-b2b1-b616adde7eb6@linux.vnet.ibm.com>
+ <20170706144852.fwtuygj4ikcjmqat@hirez.programming.kicks-ass.net>
+ <ce7a039a-2697-f16e-b0b3-f6ae41391682@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170706155123.cyyjpvraifu5ptmr@techsingularity.net>
-References: <1499346271-15653-1-git-send-email-guro@fb.com>
- <20170706131941.omod4zl4cyuscmjo@techsingularity.net> <CAATkVEyuqQhiL1G=UyOqwABbUGJn2XNvnYpiOp-F3Zb659uOdQ@mail.gmail.com>
- <20170706155123.cyyjpvraifu5ptmr@techsingularity.net>
-From: Debabrata Banerjee <dbavatar@gmail.com>
-Date: Thu, 6 Jul 2017 12:12:47 -0400
-Message-ID: <CAATkVEzuFq5UWasE87Eo_F4aQxkuYWqSGJh5bBnieC=686NyqA@mail.gmail.com>
-Subject: Re: [PATCH] mm: make allocation counters per-order
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ce7a039a-2697-f16e-b0b3-f6ae41391682@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Thu, Jul 6, 2017 at 11:51 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
->
-> These counters do not actually help you solve that particular problem.
-> Knowing how many allocations happened since the system booted doesn't tell
-> you much about how many failed or why they failed. You don't even know
-> what frequency they occured at unless you monitor it constantly so you're
-> back to square one whether this information is available from proc or not.
-> There even is a tracepoint that can be used to track information related
-> to events that degrade fragmentation (trace_mm_page_alloc_extfrag) although
-> the primary thing it tells you is that "the probability that an allocation
-> will fail due to fragmentation in the future is potentially higher".
+On Thu, Jul 06, 2017 at 05:29:26PM +0200, Laurent Dufour wrote:
+> Based on the benchmarks I run, it doesn't fail so much often, but I was
+> thinking about adding some counters here. The system is accounting for
+> major page faults and minor ones, respectively current->maj_flt and
+> current->min_flt. I was wondering if an additional type like async_flt will
+> be welcome or if there is another smarter way to get that metric.
+> 
+> Feel free to advise.
 
-I agree these counters don't have enough information, but there a
-start to a first order approximation of the current state of memory.
-buddyinfo and pagetypeinfo basically show no information now, because
-they only involve the small amount of free memory under the watermark
-and all our machines are in this state. As second order approximation,
-it would be nice to be able to get answers like: "There are
-reclaimable high order allocations of at least this order" and "None
-of this order allocation can become available due to unmovable and
-unreclaimable allocations"
+You could stick a tracepoint in, or extend PERF_COUNT_SW_PAGE_FAULTS*.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
