@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EAA36B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:51:25 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z81so1632877wrc.2
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:51:25 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id j63si493037edb.381.2017.07.06.08.51.23
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 460136B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 11:55:43 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o202so8766547itc.14
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 08:55:43 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id e90si479019iod.99.2017.07.06.08.55.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 08:51:24 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id A6AA51C1FA3
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 16:51:23 +0100 (IST)
-Date: Thu, 6 Jul 2017 16:51:23 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: make allocation counters per-order
-Message-ID: <20170706155123.cyyjpvraifu5ptmr@techsingularity.net>
-References: <1499346271-15653-1-git-send-email-guro@fb.com>
- <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
- <CAATkVEyuqQhiL1G=UyOqwABbUGJn2XNvnYpiOp-F3Zb659uOdQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CAATkVEyuqQhiL1G=UyOqwABbUGJn2XNvnYpiOp-F3Zb659uOdQ@mail.gmail.com>
+        Thu, 06 Jul 2017 08:55:42 -0700 (PDT)
+Date: Thu, 6 Jul 2017 10:55:39 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm: Add SLUB free list pointer obfuscation
+In-Reply-To: <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
+References: <20170706002718.GA102852@beast> <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org> <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Debabrata Banerjee <dbavatar@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Thu, Jul 06, 2017 at 10:54:24AM -0400, Debabrata Banerjee wrote:
-> On Thu, Jul 6, 2017 at 9:19 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > The alloc counter updates are themselves a surprisingly heavy cost to
-> > the allocation path and this makes it worse for a debugging case that is
-> > relatively rare. I'm extremely reluctant for such a patch to be added
-> > given that the tracepoints can be used to assemble such a monitor even
-> > if it means running a userspace daemon to keep track of it. Would such a
-> > solution be suitable? Failing that if this is a severe issue, would it be
-> > possible to at least make this a compile-time or static tracepoint option?
-> > That way, only people that really need it have to take the penalty.
+On Thu, 6 Jul 2017, Kees Cook wrote:
+
+> On Thu, Jul 6, 2017 at 6:43 AM, Christoph Lameter <cl@linux.com> wrote:
+> > On Wed, 5 Jul 2017, Kees Cook wrote:
 > >
-> > --
-> > Mel Gorman
-> 
-> We (Akamai) have been struggling with memory fragmentation issues for
-> years, and especially the inability to track positive or negative
-> changes to fragmentation between allocator changes and kernels without
-> simply looking for how many allocations are failing. We've had someone
-> toying with trying to report the same data via scanning all pages at
-> report time versus keeping running stats, although we don't have
-> working code yet. If it did work it would avoid the runtime overhead.
-> I don't believe tracepoints are a workable solution for us, since we
-> would have to be collecting the data from boot, as well as continually
-> processing the data in userspace at high cost. Ultimately the
-> locations and other properties (merge-ability) of the allocations in
-> the buddy groups are also important, which would be interesting to add
-> on-top of Roman's patch.
+> >> @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+> >>  {
+> >>       s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
+> >>       s->reserved = 0;
+> >> +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+> >> +     s->random = get_random_long();
+> >> +#endif
+> >>
+> >>       if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
+> >>               s->reserved = sizeof(struct rcu_head);
+> >>
+> >
+> > So if an attacker knows the internal structure of data then he can simply
+> > dereference page->kmem_cache->random to decode the freepointer.
+>
+> That requires a series of arbitrary reads. This is protecting against
+> attacks that use an adjacent slab object write overflow to write the
+> freelist pointer. This internal structure is very reliable, and has
+> been the basis of freelist attacks against the kernel for a decade.
 
-These counters do not actually help you solve that particular problem.
-Knowing how many allocations happened since the system booted doesn't tell
-you much about how many failed or why they failed. You don't even know
-what frequency they occured at unless you monitor it constantly so you're
-back to square one whether this information is available from proc or not.
-There even is a tracepoint that can be used to track information related
-to events that degrade fragmentation (trace_mm_page_alloc_extfrag) although
-the primary thing it tells you is that "the probability that an allocation
-will fail due to fragmentation in the future is potentially higher".
+These reads are not arbitrary. You can usually calculate the page struct
+address easily from the address and then do a couple of loads to get
+there.
 
--- 
-Mel Gorman
-SUSE Labs
+Ok so you get rid of the old attacks because we did not have that
+hardening in effect when they designed their approaches?
+
+> It is a probabilistic defense, but then so is the stack protector.
+> This is a similar defense; while not perfect it makes the class of
+> attack much more difficult to mount.
+
+Na I am not convinced of the "much more difficult". Maybe they will just
+have to upgrade their approaches to fetch the proper values to decode.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
