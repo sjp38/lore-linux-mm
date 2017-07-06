@@ -1,43 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 445DB6B02C3
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:13:13 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o202so9747209itc.14
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:13:13 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id r21si705331ita.99.2017.07.06.09.13.12
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E68D6B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:16:40 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r4so10076113ith.7
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:16:40 -0700 (PDT)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id m2si777439ite.9.2017.07.06.09.16.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 09:13:12 -0700 (PDT)
-Date: Thu, 6 Jul 2017 18:13:02 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC v5 09/11] mm: Try spin lock in speculative path
-Message-ID: <20170706161302.aupbhvld3yew3cjl@hirez.programming.kicks-ass.net>
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-10-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170705185023.xlqko7wgepwsny5g@hirez.programming.kicks-ass.net>
- <3af22f3b-03ab-1d37-b2b1-b616adde7eb6@linux.vnet.ibm.com>
- <20170706144852.fwtuygj4ikcjmqat@hirez.programming.kicks-ass.net>
- <ce7a039a-2697-f16e-b0b3-f6ae41391682@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ce7a039a-2697-f16e-b0b3-f6ae41391682@linux.vnet.ibm.com>
+        Thu, 06 Jul 2017 09:16:39 -0700 (PDT)
+Received: by mail-it0-x242.google.com with SMTP id k3so1161623ita.3
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:16:39 -0700 (PDT)
+Message-ID: <1499357796.1428.2.camel@gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH v3] mm: Add SLUB free list
+ pointer obfuscation
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Thu, 06 Jul 2017 12:16:36 -0400
+In-Reply-To: <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
+References: <20170706002718.GA102852@beast>
+	 <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
+	 <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
+	 <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Thu, Jul 06, 2017 at 05:29:26PM +0200, Laurent Dufour wrote:
-> Based on the benchmarks I run, it doesn't fail so much often, but I was
-> thinking about adding some counters here. The system is accounting for
-> major page faults and minor ones, respectively current->maj_flt and
-> current->min_flt. I was wondering if an additional type like async_flt will
-> be welcome or if there is another smarter way to get that metric.
+On Thu, 2017-07-06 at 10:55 -0500, Christoph Lameter wrote:
+> On Thu, 6 Jul 2017, Kees Cook wrote:
 > 
-> Feel free to advise.
+> > On Thu, Jul 6, 2017 at 6:43 AM, Christoph Lameter <cl@linux.com>
+> > wrote:
+> > > On Wed, 5 Jul 2017, Kees Cook wrote:
+> > > 
+> > > > @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct
+> > > > kmem_cache *s, unsigned long flags)
+> > > >  {
+> > > >       s->flags = kmem_cache_flags(s->size, flags, s->name, s-
+> > > > >ctor);
+> > > >       s->reserved = 0;
+> > > > +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+> > > > +     s->random = get_random_long();
+> > > > +#endif
+> > > > 
+> > > >       if (need_reserve_slab_rcu && (s->flags &
+> > > > SLAB_TYPESAFE_BY_RCU))
+> > > >               s->reserved = sizeof(struct rcu_head);
+> > > > 
+> > > 
+> > > So if an attacker knows the internal structure of data then he can
+> > > simply
+> > > dereference page->kmem_cache->random to decode the freepointer.
+> > 
+> > That requires a series of arbitrary reads. This is protecting
+> > against
+> > attacks that use an adjacent slab object write overflow to write the
+> > freelist pointer. This internal structure is very reliable, and has
+> > been the basis of freelist attacks against the kernel for a decade.
+> 
+> These reads are not arbitrary. You can usually calculate the page
+> struct
+> address easily from the address and then do a couple of loads to get
+> there.
 
-You could stick a tracepoint in, or extend PERF_COUNT_SW_PAGE_FAULTS*.
+You're describing an arbitrary read vulnerability: an attacker able to
+read the value of an address of their choosing. Requiring a powerful
+additional primitive rather than only a small fixed size overflow or a
+weak use-after-free vulnerability to use a common exploit vector is
+useful.
+
+A deterministic mitigation would be better, but I don't think an extra
+slab allocator for hardened kernels would be welcomed. Since there isn't
+a separate allocator for that niche, SLAB or SLUB are used. The ideal
+would be bitmaps in `struct page` but that implies another allocator,
+using single pages for the smallest size classes and potentially needing
+to bloat `struct page` even with that.
+
+There's definitely a limit to the hardening that can be done for SLUB,
+but unless forking it into a different allocator is welcome that's what
+will be suggested. Similarly, the slab freelist randomization feature is
+a much weaker mitigation than it could be without these constraints
+placed on it. This is much lower complexity than that and higher value
+though...
+
+> Ok so you get rid of the old attacks because we did not have that
+> hardening in effect when they designed their approaches?
+> 
+> > It is a probabilistic defense, but then so is the stack protector.
+> > This is a similar defense; while not perfect it makes the class of
+> > attack much more difficult to mount.
+> 
+> Na I am not convinced of the "much more difficult". Maybe they will
+> just
+> have to upgrade their approaches to fetch the proper values to decode.
+
+To fetch the values they would need an arbitrary read vulnerability or
+the ability to dump them via uninitialized slab allocations as an extra
+requirement.
+
+An attacker can similarly bypass the stack canary by reading them from
+stack frames via a stack buffer read overflow or uninitialized variable
+usage leaking stack data. On non-x86, at least with SMP, the stack
+canary is just a global variable that remains the same after
+initialization too. That doesn't make it useless, although the kernel
+doesn't have many linear overflows on the stack which is the real issue
+with it as a mitigation. Despite that, most people are using kernels
+with stack canaries, and that has a significant performance cost unlike
+these kinds of changes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
