@@ -1,94 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B4A26B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 14:50:10 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id o202so15863579itc.14
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 11:50:10 -0700 (PDT)
-Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
-        by mx.google.com with ESMTPS id l15si908698ioe.10.2017.07.06.11.50.08
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF9F6B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 16:02:48 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 23so3226290wry.4
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 13:02:48 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id x4si1036994wmg.27.2017.07.06.13.02.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 11:50:08 -0700 (PDT)
-Received: by mail-it0-x235.google.com with SMTP id m84so12939046ita.0
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 11:50:08 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Jul 2017 13:02:46 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 2899098D3E
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 20:02:46 +0000 (UTC)
+Date: Thu, 6 Jul 2017 21:02:45 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: make allocation counters per-order
+Message-ID: <20170706200245.epiyxhllgc3c4asn@techsingularity.net>
+References: <1499346271-15653-1-git-send-email-guro@fb.com>
+ <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
+ <20170706144634.GB14840@castle>
+ <20170706154704.owxsnyizel6bcgku@techsingularity.net>
+ <20170706164304.GA23662@castle>
+ <20170706171658.mohgkjcefql4wekz@techsingularity.net>
+ <CAATkVEw22YAfSH4GKY1Y9Qz9chCAz1cgcesz_xg3O2-0XxY_ng@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1499363602.26846.3.camel@redhat.com>
-References: <20170706002718.GA102852@beast> <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
- <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
- <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org> <1499363602.26846.3.camel@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 6 Jul 2017 11:50:07 -0700
-Message-ID: <CAGXu5jKQJ=9B-uXV-+BB7Y0EQJ_Xpr3OvUHr6c57TceFvNkxbw@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: Add SLUB free list pointer obfuscation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAATkVEw22YAfSH4GKY1Y9Qz9chCAz1cgcesz_xg3O2-0XxY_ng@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Debabrata Banerjee <dbavatar@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 6, 2017 at 10:53 AM, Rik van Riel <riel@redhat.com> wrote:
-> On Thu, 2017-07-06 at 10:55 -0500, Christoph Lameter wrote:
->> On Thu, 6 Jul 2017, Kees Cook wrote:
->> > That requires a series of arbitrary reads. This is protecting
->> > against
->> > attacks that use an adjacent slab object write overflow to write
->> > the
->> > freelist pointer. This internal structure is very reliable, and has
->> > been the basis of freelist attacks against the kernel for a decade.
->>
->> These reads are not arbitrary. You can usually calculate the page struct
->> address easily from the address and then do a couple of loads to get
->> there.
->>
->> Ok so you get rid of the old attacks because we did not have that
->> hardening in effect when they designed their approaches?
->
-> The hardening protects against situations where
-> people do not have arbitrary code execution and
-> memory read access in the kernel, with the goal
-> of protecting people from acquiring those abilities.
+On Thu, Jul 06, 2017 at 02:00:00PM -0400, Debabrata Banerjee wrote:
+> On Thu, Jul 6, 2017 at 1:16 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > I'm still struggling to see how counters help when an agent that monitors
+> > for high CPU usage could be activated
+> >
+> 
+> I suspect Roman has the same problem set as us, the CPU usage is
+> either always high, high and service critical likely when something
+> interesting is happening. We'd like to collect data on 200k machines,
+> and study the results statistically and with respect to time based on
+> kernel versions, build configs, hardware types, process types, load
+> patterns, etc, etc. Even finding good candidate machines and at the
+> right time of day to manually debug with ftrace is problematic.
+> Granted we could be utilizing existing counters like compact_fail
+> better. Ultimately the data either leads to dealing with certain bad
+> actors, different vm tunings, or patches to mm.
 
-Right. This is about blocking the escalation of attack capability. For
-slab object overflow flaws, there are mainly two exploitation methods:
-adjacent allocated object overwrite and adjacent freed object
-overwrite (i.e. a freelist pointer overwrite). The first attack
-depends heavily on which slab cache (and therefore which structures)
-has been exposed by the bug. It's a very narrow and specific attack
-method. The freelist attack is entirely general purpose since it
-provides a reliable way to gain arbitrary write capabilities.
-Protecting against that attack greatly narrows the options for an
-attacker which makes attacks more expensive to create and possibly
-less reliable (and reliability is crucial to successful attacks).
+Same issue as described in the other mail. The number of high-order
+allocations that happened in the past or even the recent past does not
+give you useful information for debugging high-order allocation stalls
+or fragmentation-related issues. If the high-order allocations are
+steady then two machines running similar workloads can both have similar
+allocation counts but only one of them may be experiencing high latency.
+Similarly, with high CPU usage, it may be due to compaction or a whole
+variety of other factors. Even doing a statistical analysis is not going
+to be enough unless all the relevant variables are accounted for and the
+raw allocation count in isolation is one of the weakest variables to
+draw conclusions from.
 
->> > It is a probabilistic defense, but then so is the stack protector.
->> > This is a similar defense; while not perfect it makes the class of
->> > attack much more difficult to mount.
->>
->> Na I am not convinced of the "much more difficult". Maybe they will just
->> have to upgrade their approaches to fetch the proper values to
->> decode.
->
-> Easier said than done. Most of the time there is an
-> unpatched vulnerability outstanding, there is only
-> one known issue, before the kernel is updated by the
-> user, to a version that does not have that issue.
->
-> Bypassing kernel hardening typically requires the
-> use of multiple vulnerabilities, and the absence of
-> roadblocks (like hardening) that make a type of
-> vulnerability exploitable.
->
-> Between usercopy hardening, and these slub freelist
-> canaries (which is what they effectively are), several
-> classes of exploits are no longer usable.
+Correlating allocstall with compaction activity from just /proc/vmstat gives
+a much better hint as to whether high CPU activity is due to high-order
+allocations. Combining it with top will indicate whether it's direct or
+indirect costs. If it really is high-order allocations then ftrace to
+identify the source of the high-order allocations becomes relevant and if
+it's due to fragmentation, it's a case of tracing the allocator itself to
+determine why the fragmentation occurred.
 
-Yup. I've been thinking of this patch kind of like glibc's PTR_MANGLE feature.
+The proc file with allocation counts is such a tiny part of debugging this
+class of problem that it's almost irrelevant which is why minimally I think
+it should be behind Kconfig at absolute minimum. If you want to activate
+it across production machines then by all means go ahead and if so, I'd
+be very interested in hearing what class of problem could be debugged and
+either tuned or fixed without needing ftrace to gather more information. I
+say "almost irrelevant" because technically, correlating high allocation
+counts with a kernel version change may be a relevant factor if a kernel
+introduced a new source of high-order allocations but I suspect that's
+the exception. It would be much more interesting to correlate increased
+latency with a kernel version because it's much more relevant. You may
+be able to correlate high allocation counts with particular hardware
+(particularly network hardware that cannot scatter/gather) *but* the
+same proc will will not tell you if those increased requests are
+actually a problem so the usefulness is diminished.
 
--Kees
+I'm not saying that fragmentation and high-order allocation stalls are not a
+problem because they can be, but the proc file is unlikely to help and even
+an extremely basic systemtap script would give you the same information,
+work on much older kernels and with a trivial amount of additional work
+it can gather latency information as well as counts.
 
 -- 
-Kees Cook
-Pixel Security
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
