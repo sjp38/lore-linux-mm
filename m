@@ -1,115 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E68D6B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:16:40 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r4so10076113ith.7
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:16:40 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id m2si777439ite.9.2017.07.06.09.16.39
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FDD96B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 12:17:45 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id c13so5020600ywa.13
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:17:45 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id k189si111016ybb.127.2017.07.06.09.17.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 09:16:39 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id k3so1161623ita.3
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 09:16:39 -0700 (PDT)
-Message-ID: <1499357796.1428.2.camel@gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH v3] mm: Add SLUB free list
- pointer obfuscation
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Thu, 06 Jul 2017 12:16:36 -0400
-In-Reply-To: <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
-References: <20170706002718.GA102852@beast>
-	 <alpine.DEB.2.20.1707060841170.23867@east.gentwo.org>
-	 <CAGXu5jKHkKgF90LXbFvrc3fa2PAaaaYHvCbiBM-9aN16TrHL=g@mail.gmail.com>
-	 <alpine.DEB.2.20.1707061052380.26079@east.gentwo.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 06 Jul 2017 09:17:44 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC PATCH 0/1] mm/mremap: add MREMAP_MIRROR flag
+Date: Thu,  6 Jul 2017 09:17:25 -0700
+Message-Id: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Thu, 2017-07-06 at 10:55 -0500, Christoph Lameter wrote:
-> On Thu, 6 Jul 2017, Kees Cook wrote:
-> 
-> > On Thu, Jul 6, 2017 at 6:43 AM, Christoph Lameter <cl@linux.com>
-> > wrote:
-> > > On Wed, 5 Jul 2017, Kees Cook wrote:
-> > > 
-> > > > @@ -3536,6 +3565,9 @@ static int kmem_cache_open(struct
-> > > > kmem_cache *s, unsigned long flags)
-> > > >  {
-> > > >       s->flags = kmem_cache_flags(s->size, flags, s->name, s-
-> > > > >ctor);
-> > > >       s->reserved = 0;
-> > > > +#ifdef CONFIG_SLAB_FREELIST_HARDENED
-> > > > +     s->random = get_random_long();
-> > > > +#endif
-> > > > 
-> > > >       if (need_reserve_slab_rcu && (s->flags &
-> > > > SLAB_TYPESAFE_BY_RCU))
-> > > >               s->reserved = sizeof(struct rcu_head);
-> > > > 
-> > > 
-> > > So if an attacker knows the internal structure of data then he can
-> > > simply
-> > > dereference page->kmem_cache->random to decode the freepointer.
-> > 
-> > That requires a series of arbitrary reads. This is protecting
-> > against
-> > attacks that use an adjacent slab object write overflow to write the
-> > freelist pointer. This internal structure is very reliable, and has
-> > been the basis of freelist attacks against the kernel for a decade.
-> 
-> These reads are not arbitrary. You can usually calculate the page
-> struct
-> address easily from the address and then do a couple of loads to get
-> there.
+The mremap system call has the ability to 'mirror' parts of an existing
+mapping.  To do so, it creates a new mapping that maps the same pages as
+the original mapping, just at a different virtual address.  This
+functionality has existed since at least the 2.6 kernel [1].  A comment
+was added to the code to help preserve this feature.
 
-You're describing an arbitrary read vulnerability: an attacker able to
-read the value of an address of their choosing. Requiring a powerful
-additional primitive rather than only a small fixed size overflow or a
-weak use-after-free vulnerability to use a common exploit vector is
-useful.
+The Oracle JVM team has discovered this feature and used it while
+prototyping a new garbage collection model.  This new model shows promise,
+and they are considering its use in a future release.  However, since
+the only mention of this functionality is a single comment in the kernel,
+they are concerned about its future.
 
-A deterministic mitigation would be better, but I don't think an extra
-slab allocator for hardened kernels would be welcomed. Since there isn't
-a separate allocator for that niche, SLAB or SLUB are used. The ideal
-would be bitmaps in `struct page` but that implies another allocator,
-using single pages for the smallest size classes and potentially needing
-to bloat `struct page` even with that.
+I propose the addition of a new MREMAP_MIRROR flag to explicitly request
+this functionality.  The flag simply provides the same functionality as
+the existing undocumented 'old_size == 0' interface.  As an alternative,
+we could simply document the 'old_size == 0' interface in the man page.
+In either case, man page modifications would be needed.
 
-There's definitely a limit to the hardening that can be done for SLUB,
-but unless forking it into a different allocator is welcome that's what
-will be suggested. Similarly, the slab freelist randomization feature is
-a much weaker mitigation than it could be without these constraints
-placed on it. This is much lower complexity than that and higher value
-though...
+Future Direction
 
-> Ok so you get rid of the old attacks because we did not have that
-> hardening in effect when they designed their approaches?
-> 
-> > It is a probabilistic defense, but then so is the stack protector.
-> > This is a similar defense; while not perfect it makes the class of
-> > attack much more difficult to mount.
-> 
-> Na I am not convinced of the "much more difficult". Maybe they will
-> just
-> have to upgrade their approaches to fetch the proper values to decode.
+After more formally adding this to the API (either new flag or documenting
+existing interface), the mremap code could be enhanced to optimize this
+case.  Currently, 'mirroring' only sets up the new mapping.  It does not
+create page table entries for new mapping.  This could be added as an
+enhancement.
 
-To fetch the values they would need an arbitrary read vulnerability or
-the ability to dump them via uninitialized slab allocations as an extra
-requirement.
+The JVM today has the option of using (static) huge pages.  The mremap
+system call does not fully support huge page mappings today.  You can
+use mremap to shrink the size of a huge page mapping, but it can not be
+used to expand or mirror a mapping.  Such support is fairly straight
+forward.
 
-An attacker can similarly bypass the stack canary by reading them from
-stack frames via a stack buffer read overflow or uninitialized variable
-usage leaking stack data. On non-x86, at least with SMP, the stack
-canary is just a global variable that remains the same after
-initialization too. That doesn't make it useless, although the kernel
-doesn't have many linear overflows on the stack which is the real issue
-with it as a mitigation. Despite that, most people are using kernels
-with stack canaries, and that has a significant performance cost unlike
-these kinds of changes.
+[1] https://lkml.org/lkml/2004/1/12/260
+
+Mike Kravetz (1):
+  mm/mremap: add MREMAP_MIRROR flag for existing mirroring functionality
+
+ include/uapi/linux/mman.h       |  5 +++--
+ mm/mremap.c                     | 23 ++++++++++++++++-------
+ tools/include/uapi/linux/mman.h |  5 +++--
+ 3 files changed, 22 insertions(+), 11 deletions(-)
+
+-- 
+2.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
