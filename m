@@ -1,45 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 677096B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 20:09:34 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j186so18028527pge.12
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 17:09:34 -0700 (PDT)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id 72si266448ple.107.2017.07.06.17.09.33
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 787216B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jul 2017 21:55:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c23so19634592pfe.11
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 18:55:20 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id v5si1240570pgb.328.2017.07.06.18.55.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jul 2017 17:09:33 -0700 (PDT)
-Received: by mail-pf0-x22e.google.com with SMTP id c73so8412583pfk.2
-        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 17:09:33 -0700 (PDT)
-Subject: Re: [PATCH 1/4] kasan: support alloca() poisoning
-References: <20170706220114.142438-1-ghackmann@google.com>
- <20170706220114.142438-2-ghackmann@google.com>
-From: Greg Hackmann <ghackmann@google.com>
-Message-ID: <504eb5d1-d505-46fe-86aa-5b2d01497c15@google.com>
-Date: Thu, 6 Jul 2017 17:09:31 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170706220114.142438-2-ghackmann@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+        Thu, 06 Jul 2017 18:55:19 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id u36so2202484pgn.3
+        for <linux-mm@kvack.org>; Thu, 06 Jul 2017 18:55:19 -0700 (PDT)
+Message-ID: <1499392447.23251.1.camel@gmail.com>
+Subject: Re: [RFC v5 00/11] Speculative page faults
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Fri, 07 Jul 2017 11:54:07 +1000
+In-Reply-To: <b9988c09-265a-022a-266d-e51250fe3f2c@linux.vnet.ibm.com>
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+	 <b9988c09-265a-022a-266d-e51250fe3f2c@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On 07/06/2017 03:01 PM, Greg Hackmann wrote:
-> @@ -101,6 +101,9 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
->   		break;
->   	case KASAN_USE_AFTER_SCOPE:
->   		bug_type = "use-after-scope";
-> +	case KASAN_ALLOCA_LEFT:
-> +	case KASAN_ALLOCA_RIGHT:
-> +		bug_type = "alloca-out-of-bounds";
->   		break;
->   	}
+On Mon, 2017-07-03 at 19:32 +0200, Laurent Dufour wrote:
+> The test is counting the number of records per second it can manage, the
+> higher is the best. I run it like this 'ebizzy -mTRp'. To get consistent
+> result I repeat the test 100 times and measure the average result, mean
+> deviation and max. I run the test on top of 4.12 on 2 nodes, one with 80
+> CPUs, and the other one with 1024 CPUs:
+> 
+> * 80 CPUs Power 8 node:
+> Records/s	4.12		4.12-SPF
+> Average		38941,62	64235,82
+> Mean deviation	620,93		1718,95
+> Max		41988		69623
+> 
+> * 1024 CPUs Power 8 node:
+> Records/s	4.12		4.12-SPF
+> Average		39516,64	80689,27
+> Mean deviation	1387,66		1319,98
+> Max		43281		90441
+>
 
-There needs to be a "break" above the new case statements.  I'll wait to 
-see if there's any other feedback, then send out a V2 patch that fixes this.
+This seems like a very interesting result
+
+Balbir Singh. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
