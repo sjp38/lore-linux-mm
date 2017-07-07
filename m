@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EED36B02FA
-	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:39:11 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u62so33867433pgb.13
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:39:11 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0052.outbound.protection.outlook.com. [104.47.40.52])
-        by mx.google.com with ESMTPS id x3si2358245pgq.126.2017.07.07.06.39.10
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7BD6B0311
+	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:39:24 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 1so32969095pfi.14
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:39:24 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0057.outbound.protection.outlook.com. [104.47.42.57])
+        by mx.google.com with ESMTPS id v65si2331861pgv.490.2017.07.07.06.39.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 07 Jul 2017 06:39:10 -0700 (PDT)
+        Fri, 07 Jul 2017 06:39:23 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v9 05/38] x86/CPU/AMD: Handle SME reduction in physical
- address size
-Date: Fri, 07 Jul 2017 08:39:00 -0500
-Message-ID: <20170707133900.29711.29533.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v9 06/38] x86/mm: Add Secure Memory Encryption (SME) support
+Date: Fri, 07 Jul 2017 08:39:13 -0500
+Message-ID: <20170707133913.29711.72455.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,43 +23,173 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-When System Memory Encryption (SME) is enabled, the physical address
-space is reduced. Adjust the x86_phys_bits value to reflect this
-reduction.
+Add support for Secure Memory Encryption (SME). This initial support
+provides a Kconfig entry to build the SME support into the kernel and
+defines the memory encryption mask that will be used in subsequent
+patches to mark pages as encrypted.
 
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/kernel/cpu/amd.c |   10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ arch/x86/Kconfig                   |   25 +++++++++++++++++++++++++
+ arch/x86/include/asm/mem_encrypt.h |   30 ++++++++++++++++++++++++++++++
+ arch/x86/mm/Makefile               |    1 +
+ arch/x86/mm/mem_encrypt.c          |   21 +++++++++++++++++++++
+ include/linux/mem_encrypt.h        |   35 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 112 insertions(+)
+ create mode 100644 arch/x86/include/asm/mem_encrypt.h
+ create mode 100644 arch/x86/mm/mem_encrypt.c
+ create mode 100644 include/linux/mem_encrypt.h
 
-diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
-index c47ceee..5bdcbd4 100644
---- a/arch/x86/kernel/cpu/amd.c
-+++ b/arch/x86/kernel/cpu/amd.c
-@@ -613,15 +613,19 @@ static void early_init_amd(struct cpuinfo_x86 *c)
- 		set_cpu_bug(c, X86_BUG_AMD_E400);
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e767ed2..0f2f8b3 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1410,6 +1410,31 @@ config X86_DIRECT_GBPAGES
+ 	  supports them), so don't confuse the user by printing
+ 	  that we have them enabled.
  
- 	/*
--	 * BIOS support is required for SME. If BIOS has not enabled SME
--	 * then don't advertise the feature (set in scattered.c)
-+	 * BIOS support is required for SME. If BIOS has enabld SME then
-+	 * adjust x86_phys_bits by the SME physical address space reduction
-+	 * value. If BIOS has not enabled SME then don't advertise the
-+	 * feature (set in scattered.c).
- 	 */
- 	if (cpu_has(c, X86_FEATURE_SME)) {
- 		u64 msr;
++config ARCH_HAS_MEM_ENCRYPT
++	def_bool y
++
++config AMD_MEM_ENCRYPT
++	bool "AMD Secure Memory Encryption (SME) support"
++	depends on X86_64 && CPU_SUP_AMD
++	---help---
++	  Say yes to enable support for the encryption of system memory.
++	  This requires an AMD processor that supports Secure Memory
++	  Encryption (SME).
++
++config AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT
++	bool "Activate AMD Secure Memory Encryption (SME) by default"
++	default y
++	depends on AMD_MEM_ENCRYPT
++	---help---
++	  Say yes to have system memory encrypted by default if running on
++	  an AMD processor that supports Secure Memory Encryption (SME).
++
++	  If set to Y, then the encryption of system memory can be
++	  deactivated with the mem_encrypt=off command line option.
++
++	  If set to N, then the encryption of system memory can be
++	  activated with the mem_encrypt=on command line option.
++
+ # Common NUMA Features
+ config NUMA
+ 	bool "Numa Memory Allocation and Scheduler Support"
+diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+new file mode 100644
+index 0000000..a105796
+--- /dev/null
++++ b/arch/x86/include/asm/mem_encrypt.h
+@@ -0,0 +1,30 @@
++/*
++ * AMD Memory Encryption Support
++ *
++ * Copyright (C) 2016 Advanced Micro Devices, Inc.
++ *
++ * Author: Tom Lendacky <thomas.lendacky@amd.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#ifndef __X86_MEM_ENCRYPT_H__
++#define __X86_MEM_ENCRYPT_H__
++
++#ifndef __ASSEMBLY__
++
++#ifdef CONFIG_AMD_MEM_ENCRYPT
++
++extern unsigned long sme_me_mask;
++
++#else	/* !CONFIG_AMD_MEM_ENCRYPT */
++
++#define sme_me_mask	0UL
++
++#endif	/* CONFIG_AMD_MEM_ENCRYPT */
++
++#endif	/* __ASSEMBLY__ */
++
++#endif	/* __X86_MEM_ENCRYPT_H__ */
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 0fbdcb6..a94a7b6 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -39,3 +39,4 @@ obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o
+ obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS) += pkeys.o
+ obj-$(CONFIG_RANDOMIZE_MEMORY) += kaslr.o
  
- 		/* Check if SME is enabled */
- 		rdmsrl(MSR_K8_SYSCFG, msr);
--		if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
-+		if (msr & MSR_K8_SYSCFG_MEM_ENCRYPT)
-+			c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
-+		else
- 			clear_cpu_cap(c, X86_FEATURE_SME);
- 	}
- }
++obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+new file mode 100644
+index 0000000..b99d469
+--- /dev/null
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -0,0 +1,21 @@
++/*
++ * AMD Memory Encryption Support
++ *
++ * Copyright (C) 2016 Advanced Micro Devices, Inc.
++ *
++ * Author: Tom Lendacky <thomas.lendacky@amd.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/linkage.h>
++
++/*
++ * Since SME related variables are set early in the boot process they must
++ * reside in the .data section so as not to be zeroed out when the .bss
++ * section is later cleared.
++ */
++unsigned long sme_me_mask __section(.data) = 0;
++EXPORT_SYMBOL_GPL(sme_me_mask);
+diff --git a/include/linux/mem_encrypt.h b/include/linux/mem_encrypt.h
+new file mode 100644
+index 0000000..59769f7
+--- /dev/null
++++ b/include/linux/mem_encrypt.h
+@@ -0,0 +1,35 @@
++/*
++ * AMD Memory Encryption Support
++ *
++ * Copyright (C) 2016 Advanced Micro Devices, Inc.
++ *
++ * Author: Tom Lendacky <thomas.lendacky@amd.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#ifndef __MEM_ENCRYPT_H__
++#define __MEM_ENCRYPT_H__
++
++#ifndef __ASSEMBLY__
++
++#ifdef CONFIG_ARCH_HAS_MEM_ENCRYPT
++
++#include <asm/mem_encrypt.h>
++
++#else	/* !CONFIG_ARCH_HAS_MEM_ENCRYPT */
++
++#define sme_me_mask	0UL
++
++#endif	/* CONFIG_ARCH_HAS_MEM_ENCRYPT */
++
++static inline bool sme_active(void)
++{
++	return !!sme_me_mask;
++}
++
++#endif	/* __ASSEMBLY__ */
++
++#endif	/* __MEM_ENCRYPT_H__ */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
