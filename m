@@ -1,236 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A9AFB6B0279
-	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 04:41:34 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id u123so39426317itu.5
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 01:41:34 -0700 (PDT)
-Received: from mail-it0-x22d.google.com (mail-it0-x22d.google.com. [2607:f8b0:4001:c0b::22d])
-        by mx.google.com with ESMTPS id n199si3053654ita.61.2017.07.07.01.41.32
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A92DC6B0279
+	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 04:43:30 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id i38so9339363uag.5
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 01:43:30 -0700 (PDT)
+Received: from mail-ua0-x234.google.com (mail-ua0-x234.google.com. [2607:f8b0:400c:c08::234])
+        by mx.google.com with ESMTPS id 79si7898vkn.246.2017.07.07.01.43.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jul 2017 01:41:32 -0700 (PDT)
-Received: by mail-it0-x22d.google.com with SMTP id m84so28921332ita.0
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 01:41:32 -0700 (PDT)
+        Fri, 07 Jul 2017 01:43:29 -0700 (PDT)
+Received: by mail-ua0-x234.google.com with SMTP id g40so16105364uaa.3
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 01:43:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170707023601.GA7478@jagdpanzerIV.localdomain>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp> <20170707023601.GA7478@jagdpanzerIV.localdomain>
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Date: Fri, 7 Jul 2017 10:41:31 +0200
-Message-ID: <CAKMK7uE_udhx0LtUmrDqbzDt2hSs6Qc7zDMiny5jKEzZUjS6RQ@mail.gmail.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
+In-Reply-To: <20170707083408.40410-1-glider@google.com>
+References: <20170707083408.40410-1-glider@google.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 7 Jul 2017 10:43:28 +0200
+Message-ID: <CAG_fn=UAksy-eSeCT=XbBJ9FNbEnM52ToZOsDpnktmO06PwV5A@mail.gmail.com>
+Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
+ before publication
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, pmladek@suse.com, Michal Hocko <mhocko@kernel.org>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Andreas Mohr <andi@lisas.de>, Jan Kara <jack@suse.cz>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>
+To: Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Jul 7, 2017 at 4:39 AM, Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com> wrote:
-> Hello,
->
-> (Cc Daniel)
+Hi all,
 
-Oh the fun :-/
-
-Imo it's complete misdesign of the console/printk stuff that it ends
-up calling down into drm/kms drivers. There's no way this will ever
-reliably work, and GFP_KERNEL is the least of your worries (there's an
-endless amounts of locks we need to grab even for fairly simple
-stuff). What we're doing now is trying to bail out when called from
-any kind of suspicious context. That means much reduced chances
-critical output shows up, but ime even when we managed to display
-something it all died later on and only made sure the first oops
-scrolled off the screen.
-
-Here's our bag of tricks:
-- We dropped the panic notifier.
-- All drm/kms callbacks for fbdev/fbcon have an oops_in_progress
-check, and bail out.
-- Lots of work items for things because fbdev/fbcon assume you can
-call gfx drivers from atomic context, which just isn't true anymore.
-
-That's it for context, no idea what to do here, but no longer allowing
-GFP_KERNEL in drm/kms drivers is definitely not an option. Like Sergey
-said, untangling the console semaphore might be what we need - if we
-can somehow get the console printing out from under the console lock,
-that would help a lot. At least for fbcon on top of drm drivers,
-simpler consoles probably don't want that.
-
-A quick hack might be a PF_HOLDING_CONSOLE thread flag, and if that's
-set we push all the fbdev operations into a worker thread which runs
-entirely asynchronously. A real bad hack would be to do a
-console_try_lock, but the console semaphore is highly contended, so
-might result in too many false positives for practical use.
-
-Cheers, Daniel
-
-> On (07/06/17 19:28), Tetsuo Handa wrote:
->> (...snipped...)
->> [  912.892027] kworker/3:3     D12120  3217      2 0x00000080
->> [  912.892041] Workqueue: events console_callback
->> [  912.892042] Call Trace:
->> [  912.892047]  __schedule+0x23f/0x5d0
->> [  912.892051]  schedule+0x31/0x80
->> [  912.892056]  schedule_preempt_disabled+0x9/0x10
->> [  912.892061]  __mutex_lock.isra.2+0x2ac/0x4d0
->> [  912.892068]  __mutex_lock_slowpath+0xe/0x10
->> [  912.892072]  ? __mutex_lock_slowpath+0xe/0x10
->> [  912.892077]  mutex_lock+0x2a/0x30
->> [  912.892105]  vmw_fb_pan_display+0x35/0x90 [vmwgfx]
->> [  912.892114]  fb_pan_display+0xca/0x160
->> [  912.892118]  bit_update_start+0x1b/0x40
->> [  912.892123]  fbcon_switch+0x4a6/0x630
->> [  912.892128]  redraw_screen+0x15a/0x240
->> [  912.892132]  ? update_attr.isra.3+0x90/0x90
->> [  912.892139]  complete_change_console+0x3d/0xd0
->> [  912.892143]  change_console+0x57/0x90
->> [  912.892147]  console_callback+0x116/0x190
->> [  912.892153]  process_one_work+0x1f5/0x390
->> [  912.892156]  worker_thread+0x46/0x410
->> [  912.892161]  ? __schedule+0x247/0x5d0
->> [  912.892165]  kthread+0xff/0x140
->> [  912.892170]  ? process_one_work+0x390/0x390
->> [  912.892174]  ? kthread_create_on_node+0x60/0x60
->> [  912.892178]  ? do_syscall_64+0x13a/0x140
->> [  912.892181]  ret_from_fork+0x25/0x30
->> (...snipped...)
->> [  912.934633] kworker/0:0     D12824  4263      2 0x00000080
->> [  912.934643] Workqueue: events vmw_fb_dirty_flush [vmwgfx]
->> [  912.934643] Call Trace:
->> [  912.934645]  __schedule+0x23f/0x5d0
->> [  912.934646]  schedule+0x31/0x80
->> [  912.934647]  schedule_timeout+0x189/0x290
->> [  912.934649]  ? del_timer_sync+0x40/0x40
->> [  912.934650]  io_schedule_timeout+0x19/0x40
->> [  912.934651]  ? io_schedule_timeout+0x19/0x40
->> [  912.934653]  congestion_wait+0x7d/0xd0
->> [  912.934654]  ? wait_woken+0x80/0x80
->> [  912.934654]  shrink_inactive_list+0x3e3/0x4d0
->> [  912.934656]  shrink_node_memcg+0x360/0x780
->> [  912.934657]  ? list_lru_count_one+0x65/0x70
->> [  912.934658]  shrink_node+0xdc/0x310
->> [  912.934658]  ? shrink_node+0xdc/0x310
->> [  912.934659]  do_try_to_free_pages+0xea/0x370
->> [  912.934660]  try_to_free_pages+0xc3/0x100
->> [  912.934661]  __alloc_pages_slowpath+0x441/0xd50
->> [  912.934663]  ? ___slab_alloc+0x1b6/0x590
->> [  912.934664]  __alloc_pages_nodemask+0x20c/0x250
->> [  912.934665]  alloc_pages_current+0x65/0xd0
->> [  912.934666]  new_slab+0x472/0x600
->> [  912.934668]  ___slab_alloc+0x41b/0x590
->> [  912.934685]  ? drm_modeset_lock_all+0x1b/0xa0 [drm]
->> [  912.934691]  ? drm_modeset_lock_all+0x1b/0xa0 [drm]
->> [  912.934692]  __slab_alloc+0x1b/0x30
->> [  912.934693]  ? __slab_alloc+0x1b/0x30
->> [  912.934694]  kmem_cache_alloc+0x16b/0x1c0
->> [  912.934699]  drm_modeset_lock_all+0x1b/0xa0 [drm]
->> [  912.934702]  vmw_framebuffer_dmabuf_dirty+0x47/0x1d0 [vmwgfx]
->> [  912.934706]  vmw_fb_dirty_flush+0x229/0x270 [vmwgfx]
->> [  912.934708]  process_one_work+0x1f5/0x390
->> [  912.934709]  worker_thread+0x46/0x410
->> [  912.934710]  ? __schedule+0x247/0x5d0
->> [  912.934711]  kthread+0xff/0x140
->> [  912.934712]  ? process_one_work+0x390/0x390
->> [  912.934713]  ? kthread_create_on_node+0x60/0x60
->> [  912.934714]  ret_from_fork+0x25/0x30
->>
->> Pressing SysRq-c caused all locks to be released (doesn't it ?), and console
+On Fri, Jul 7, 2017 at 10:34 AM, Alexander Potapenko <glider@google.com> wr=
+ote:
+> According to KMSAN (see the report below) it's possible that
+> unfreeze_partials() accesses &n->list_lock before it's being
+> initialized. The initialization normally happens in
+> init_kmem_cache_node() when it's called from init_kmem_cache_nodes(),
+> but only after the struct kmem_cache_node is published.
+> To avoid what appears to be a data race, we need to publish the struct
+> after it has been initialized.
+I was unsure whether we should use acquire/release primitives instead
+of direct accesses to s->node[node].
+If a data race here is really possible, then looks like we do.
+> KMSAN (https://github.com/google/kmsan) report is as follows:
 >
-> hm, I think what happened is a bit different thing. sysrq-c didn't
-> unlock any of the locks. I suspect that ->bo_mutex is never taken
-> on the direct path vprintk_emit()->console_unlock()->call_console_drivers(),
-> otherwise it would have made vprintk_emit() from atomic context impossible.
-> so ->bo_mutex does not directly affect printk. it affects it indirectly.
-> the root cause, however, I think, is actually console semaphore and
-> console_lock() in change_console(). printk() depends on it a lot, so do
-> drm/tty/etc. as long as the console semaphore is locked, printk can only
-> add new messages to the logbuf. and this is what happened here, under
-> console_sem we scheduled on ->bo_mutex, which was locked because of memory
-> allocation on another CPU, yes. you see lost messages in your report
-> because part of printk that is responsible for storing new messages was
-> working just fine; it's the output to consoles that was blocked by
-> console_sem -> bo_mutex chain.
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> BUG: KMSAN: use of uninitialized memory in
+> queued_spin_lock_slowpath+0xa55/0xaf0 kernel/locking/qspinlock.c:478
+> CPU: 1 PID: 5021 Comm: modprobe Not tainted 4.11.0-rc5+ #2876
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2=
+011
+> Call Trace:
+>  <IRQ>
+>  __dump_stack lib/dump_stack.c:16 [inline]
+>  dump_stack+0x172/0x1c0 lib/dump_stack.c:52
+>  kmsan_report+0x12a/0x180 mm/kmsan/kmsan.c:927
+>  __msan_warning_32+0x61/0xb0 mm/kmsan/kmsan_instr.c:469
+>  queued_spin_lock_slowpath+0xa55/0xaf0 kernel/locking/qspinlock.c:478
+>  queued_spin_lock include/asm-generic/qspinlock.h:103 [inline]
+>  do_raw_spin_lock include/linux/spinlock.h:148 [inline]
+>  __raw_spin_lock include/linux/spinlock_api_smp.h:143 [inline]
+>  _raw_spin_lock+0x73/0x80 kernel/locking/spinlock.c:151
+>  spin_lock include/linux/spinlock.h:299 [inline]
+>  unfreeze_partials+0x6d/0x210 mm/slub.c:2181
+>  put_cpu_partial mm/slub.c:2255 [inline]
+>  __slab_free mm/slub.c:2894 [inline]
+>  do_slab_free mm/slub.c:2990 [inline]
+>  slab_free mm/slub.c:3005 [inline]
+>  kmem_cache_free+0x39d/0x5b0 mm/slub.c:3020
+>  free_task_struct kernel/fork.c:158 [inline]
+>  free_task kernel/fork.c:370 [inline]
+>  __put_task_struct+0x7eb/0x880 kernel/fork.c:407
+>  put_task_struct include/linux/sched/task.h:94 [inline]
+>  delayed_put_task_struct+0x271/0x2b0 kernel/exit.c:181
+>  __rcu_reclaim kernel/rcu/rcu.h:118 [inline]
+>  rcu_do_batch kernel/rcu/tree.c:2879 [inline]
+>  invoke_rcu_callbacks kernel/rcu/tree.c:3142 [inline]
+>  __rcu_process_callbacks kernel/rcu/tree.c:3109 [inline]
+>  rcu_process_callbacks+0x1f10/0x2b50 kernel/rcu/tree.c:3126
+>  __do_softirq+0x485/0x942 kernel/softirq.c:284
+>  invoke_softirq kernel/softirq.c:364 [inline]
+>  irq_exit+0x1fa/0x230 kernel/softirq.c:405
+>  exiting_irq+0xe/0x10 arch/x86/include/asm/apic.h:657
+>  smp_apic_timer_interrupt+0x5a/0x80 arch/x86/kernel/apic/apic.c:966
+>  apic_timer_interrupt+0x86/0x90 arch/x86/entry/entry_64.S:489
+> RIP: 0010:native_restore_fl arch/x86/include/asm/irqflags.h:36 [inline]
+> RIP: 0010:arch_local_irq_restore arch/x86/include/asm/irqflags.h:77
+> [inline]
+> RIP: 0010:__msan_poison_alloca+0xed/0x120 mm/kmsan/kmsan_instr.c:440
+> RSP: 0018:ffff880023d6f7b8 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff10
+> RAX: 0000000000000246 RBX: ffff88001ebf8000 RCX: 0000000000000002
+> RDX: 0000000000000001 RSI: ffff880000000000 RDI: ffffea0000b332f0
+> RBP: ffff880023d6f838 R08: 0000000000000884 R09: 0000000000000004
+> R10: 0000160000000000 R11: 0000000000000000 R12: ffffffff85ab5df0
+> R13: ffff880023d6f885 R14: 0000000000000001 R15: ffffffff81ae424d
+>  </IRQ>
+>  page_remove_rmap+0x9d/0xd80 mm/rmap.c:1256
+>  zap_pte_range mm/memory.c:1237 [inline]
+>  zap_pmd_range mm/memory.c:1318 [inline]
+>  zap_pud_range mm/memory.c:1347 [inline]
+>  zap_p4d_range mm/memory.c:1368 [inline]
+>  unmap_page_range+0x28fd/0x34a0 mm/memory.c:1389
+>  unmap_single_vma+0x354/0x4b0 mm/memory.c:1434
+>  unmap_vmas+0x192/0x2a0 mm/memory.c:1464
+>  unmap_region+0x375/0x4c0 mm/mmap.c:2464
+>  do_munmap+0x1a39/0x2360 mm/mmap.c:2669
+>  vm_munmap mm/mmap.c:2688 [inline]
+>  SYSC_munmap+0x13d/0x1a0 mm/mmap.c:2698
+>  SyS_munmap+0x47/0x70 mm/mmap.c:2695
+>  entry_SYSCALL_64_fastpath+0x13/0x94
+> RIP: 0033:0x7fb3c34f0d37
+> RSP: 002b:00007ffd44afc268 EFLAGS: 00000206 ORIG_RAX: 000000000000000b
+> RAX: ffffffffffffffda RBX: 0000563670927260 RCX: 00007fb3c34f0d37
+> RDX: 0000000000000000 RSI: 0000000000001000 RDI: 00007fb3c3bd5000
+> RBP: 0000000000000000 R08: 00007fb3c3bd1700 R09: 00007ffd44afc3c8
+> R10: 0000000000000000 R11: 0000000000000206 R12: 00000000ffffffff
+> R13: 0000563670927110 R14: 0000563670927210 R15: 00007ffd44afc4f0
+> origin:
+>  save_stack_trace+0x37/0x40 arch/x86/kernel/stacktrace.c:59
+>  kmsan_save_stack_with_flags mm/kmsan/kmsan.c:302 [inline]
+>  kmsan_internal_poison_shadow+0xb1/0x1a0 mm/kmsan/kmsan.c:198
+>  kmsan_kmalloc+0x7f/0xe0 mm/kmsan/kmsan.c:337
+>  kmsan_post_alloc_hook+0x10/0x20 mm/kmsan/kmsan.c:350
+>  slab_post_alloc_hook mm/slab.h:459 [inline]
+>  slab_alloc_node mm/slub.c:2747 [inline]
+>  kmem_cache_alloc_node+0x150/0x210 mm/slub.c:2788
+>  init_kmem_cache_nodes mm/slub.c:3430 [inline]
+>  kmem_cache_open mm/slub.c:3649 [inline]
+>  __kmem_cache_create+0x13e/0x5f0 mm/slub.c:4290
+>  create_cache mm/slab_common.c:382 [inline]
+>  kmem_cache_create+0x186/0x220 mm/slab_common.c:467
+>  fork_init+0x7e/0x430 kernel/fork.c:451
+>  start_kernel+0x499/0x580 init/main.c:654
+>  x86_64_start_reservations arch/x86/kernel/head64.c:196 [inline]
+>  x86_64_start_kernel+0x6cc/0x700 arch/x86/kernel/head64.c:177
+>  verify_cpu+0x0/0xfc
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
 >
-> the reason why sysrq-c helped was because, sysrq-c did
+> Signed-off-by: Alexander Potapenko <glider@google.com>
+> ---
+>  mm/slub.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
->         panic_on_oops = 1
->         panic()
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 1d3f9835f4ea..481e523bb30d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3389,8 +3389,8 @@ static int init_kmem_cache_nodes(struct kmem_cache =
+*s)
+>                         return 0;
+>                 }
 >
-> and panic() called console_flush_on_panic(), which completely ignored the
-> state of console semaphore and just flushed all the pending logbuf
-> messages.
+> -               s->node[node] =3D n;
+>                 init_kmem_cache_node(n);
+> +               s->node[node] =3D n;
+>         }
+>         return 1;
+>  }
+> --
+> 2.13.2.725.g09c95d1e9-goog
 >
->         console_trylock();
->         console_unlock();
->
-> so, I believe, console_semaphore remained locked just like it was before
-> sysrq-c, and ->bo_mutex most likely remained locked as well. it's just we
-> ignored the state of console_sem and this let us to print the messages
-> (which also proves that ->bo_mutex is not taken by
-> console_unlock()->call_console_drivers()).
->
-> [..]
->> Since vmw_fb_dirty_flush was stalling for 130989 jiffies,
->> vmw_fb_dirty_flush started stalling at uptime = 782. And
->> drm_modeset_lock_all() from vmw_fb_dirty_flush work started
->> GFP_KERNEL memory allocation
->>
->> ----------
->> void drm_modeset_lock_all(struct drm_device *dev)
->> {
->>         struct drm_mode_config *config = &dev->mode_config;
->>         struct drm_modeset_acquire_ctx *ctx;
->>         int ret;
->>
->>         ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
->>         if (WARN_ON(!ctx))
->>                 return;
->
-> hm, this allocation, per se, looks ok to me. can't really blame it.
-> what you had is a combination of factors
->
->         CPU0                    CPU1                            CPU2
->                                                                 console_callback()
->                                                                  console_lock()
->                                                                  ^^^^^^^^^^^^^
->         vprintk_emit()          mutex_lock(&par->bo_mutex)
->                                  kzalloc(GFP_KERNEL)
->          console_trylock()        kmem_cache_alloc()              mutex_lock(&par->bo_mutex)
->          ^^^^^^^^^^^^^^^^          io_schedule_timeout
->
-> // but I haven't seen the logs that you have provided, yet.
->
-> [..]
->> As a result, console was not able to print SysRq-t output.
->>
->> So, how should we avoid this problem?
->
-> from the top of my head -- console_sem must be replaced with something
-> better. but that's a task for years.
->
-> hm...
->
->> But should fbcon, drm, tty and so on stop using __GFP_DIRECT_RECLAIM
->> memory allocations because consoles should be as responsive as printk() ?
->
-> may be, may be not. like I said, the allocation in question does not
-> participate in console output. it's rather hard to imagine how we would
-> enforce a !__GFP_DIRECT_RECLAIM requirement here. it's console semaphore
-> to blame, I think.
->
-> if we could unlock console for some of operations done under ->bo_mutex,
-> then may be we could make some printing progress, at least. but I have
-> zero knowledge of that part of the kernel.
->
->         -ss
 
 
 
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
