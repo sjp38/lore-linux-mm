@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3236B03AD
-	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:42:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id h15so15260492qte.0
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:42:09 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0083.outbound.protection.outlook.com. [104.47.33.83])
-        by mx.google.com with ESMTPS id x24si3284232qtb.1.2017.07.07.06.42.07
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4EA6B03AF
+	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:42:25 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id a2so34266245pgn.15
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:42:25 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0075.outbound.protection.outlook.com. [104.47.38.75])
+        by mx.google.com with ESMTPS id 65si2634886pla.449.2017.07.07.06.42.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 07 Jul 2017 06:42:07 -0700 (PDT)
+        Fri, 07 Jul 2017 06:42:24 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v9 21/38] x86/mm: Add support to access persistent memory in
- the clear
-Date: Fri, 07 Jul 2017 08:41:55 -0500
-Message-ID: <20170707134155.29711.19302.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v9 22/38] x86/mm: Add support for changing the memory
+ encryption attribute
+Date: Fri, 07 Jul 2017 08:42:09 -0500
+Message-ID: <20170707134209.29711.14421.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,70 +24,113 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Persistent memory is expected to persist across reboots. The encryption
-key used by SME will change across reboots which will result in corrupted
-persistent memory.  Persistent memory is handed out by block devices
-through memory remapping functions, so be sure not to map this memory as
-encrypted.
+Add support for changing the memory encryption attribute for one or more
+memory pages. This will be useful when we have to change the AP trampoline
+area to not be encrypted. Or when we need to change the SWIOTLB area to
+not be encrypted in support of devices that can't support the encryption
+mask range.
 
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/mm/ioremap.c |   31 ++++++++++++++++++++++++++++++-
- 1 file changed, 30 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/set_memory.h |    3 ++
+ arch/x86/mm/pageattr.c            |   62 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+)
 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index ee33838..effa529 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -420,17 +420,46 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
-  * Examine the physical address to determine if it is an area of memory
-  * that should be mapped decrypted.  If the memory is not part of the
-  * kernel usable area it was accessed and created decrypted, so these
-- * areas should be mapped decrypted.
-+ * areas should be mapped decrypted. And since the encryption key can
-+ * change across reboots, persistent memory should also be mapped
-+ * decrypted.
-  */
- static bool memremap_should_map_decrypted(resource_size_t phys_addr,
- 					  unsigned long size)
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index eaec6c3..cd71273 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -11,6 +11,7 @@
+  * Executability : eXeutable, NoteXecutable
+  * Read/Write    : ReadOnly, ReadWrite
+  * Presence      : NotPresent
++ * Encryption    : Encrypted, Decrypted
+  *
+  * Within a category, the attributes are mutually exclusive.
+  *
+@@ -42,6 +43,8 @@
+ int set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_np(unsigned long addr, int numpages);
+ int set_memory_4k(unsigned long addr, int numpages);
++int set_memory_encrypted(unsigned long addr, int numpages);
++int set_memory_decrypted(unsigned long addr, int numpages);
+ 
+ int set_memory_array_uc(unsigned long *addr, int addrinarray);
+ int set_memory_array_wc(unsigned long *addr, int addrinarray);
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index e7d3866..d9e09fb 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1769,6 +1769,68 @@ int set_memory_4k(unsigned long addr, int numpages)
+ 					__pgprot(0), 1, 0, NULL);
+ }
+ 
++static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
++{
++	struct cpa_data cpa;
++	unsigned long start;
++	int ret;
++
++	/* Nothing to do if the SME is not active */
++	if (!sme_active())
++		return 0;
++
++	/* Should not be working on unaligned addresses */
++	if (WARN_ONCE(addr & ~PAGE_MASK, "misaligned address: %#lx\n", addr))
++		addr &= PAGE_MASK;
++
++	start = addr;
++
++	memset(&cpa, 0, sizeof(cpa));
++	cpa.vaddr = &addr;
++	cpa.numpages = numpages;
++	cpa.mask_set = enc ? __pgprot(_PAGE_ENC) : __pgprot(0);
++	cpa.mask_clr = enc ? __pgprot(0) : __pgprot(_PAGE_ENC);
++	cpa.pgd = init_mm.pgd;
++
++	/* Must avoid aliasing mappings in the highmem code */
++	kmap_flush_unused();
++	vm_unmap_aliases();
++
++	/*
++	 * Before changing the encryption attribute, we need to flush caches.
++	 */
++	if (static_cpu_has(X86_FEATURE_CLFLUSH))
++		cpa_flush_range(start, numpages, 1);
++	else
++		cpa_flush_all(1);
++
++	ret = __change_page_attr_set_clr(&cpa, 1);
++
++	/*
++	 * After changing the encryption attribute, we need to flush TLBs
++	 * again in case any speculative TLB caching occurred (but no need
++	 * to flush caches again).  We could just use cpa_flush_all(), but
++	 * in case TLB flushing gets optimized in the cpa_flush_range()
++	 * path use the same logic as above.
++	 */
++	if (static_cpu_has(X86_FEATURE_CLFLUSH))
++		cpa_flush_range(start, numpages, 0);
++	else
++		cpa_flush_all(0);
++
++	return ret;
++}
++
++int set_memory_encrypted(unsigned long addr, int numpages)
++{
++	return __set_memory_enc_dec(addr, numpages, true);
++}
++
++int set_memory_decrypted(unsigned long addr, int numpages)
++{
++	return __set_memory_enc_dec(addr, numpages, false);
++}
++
+ int set_pages_uc(struct page *page, int numpages)
  {
-+	int is_pmem;
-+
-+	/*
-+	 * Check if the address is part of a persistent memory region.
-+	 * This check covers areas added by E820, EFI and ACPI.
-+	 */
-+	is_pmem = region_intersects(phys_addr, size, IORESOURCE_MEM,
-+				    IORES_DESC_PERSISTENT_MEMORY);
-+	if (is_pmem != REGION_DISJOINT)
-+		return true;
-+
-+	/*
-+	 * Check if the non-volatile attribute is set for an EFI
-+	 * reserved area.
-+	 */
-+	if (efi_enabled(EFI_BOOT)) {
-+		switch (efi_mem_type(phys_addr)) {
-+		case EFI_RESERVED_TYPE:
-+			if (efi_mem_attributes(phys_addr) & EFI_MEMORY_NV)
-+				return true;
-+			break;
-+		default:
-+			break;
-+		}
-+	}
-+
- 	/* Check if the address is outside kernel usable area */
- 	switch (e820__get_entry_type(phys_addr, phys_addr + size - 1)) {
- 	case E820_TYPE_RESERVED:
- 	case E820_TYPE_ACPI:
- 	case E820_TYPE_NVS:
- 	case E820_TYPE_UNUSABLE:
-+	case E820_TYPE_PRAM:
- 		return true;
- 	default:
- 		break;
+ 	unsigned long addr = (unsigned long)page_address(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
