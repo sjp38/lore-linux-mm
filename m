@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BF746B03BF
-	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:43:56 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id m84so50956307ita.15
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:43:56 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0042.outbound.protection.outlook.com. [104.47.36.42])
-        by mx.google.com with ESMTPS id h194si3376290ith.100.2017.07.07.06.43.54
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AD21A6B03C1
+	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 09:44:07 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j186so33859346pge.12
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 06:44:07 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0085.outbound.protection.outlook.com. [104.47.34.85])
+        by mx.google.com with ESMTPS id p17si2325604pgn.167.2017.07.07.06.44.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 07 Jul 2017 06:43:54 -0700 (PDT)
+        Fri, 07 Jul 2017 06:44:06 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v9 30/38] kvm: x86: svm: Support Secure Memory Encryption
- within KVM
-Date: Fri, 07 Jul 2017 08:43:47 -0500
-Message-ID: <20170707134346.29711.20203.stgit@tlendack-t1.amdoffice.net>
+Subject: [PATCH v9 31/38] x86/mm, kexec: Allow kexec to be used with SME
+Date: Fri, 07 Jul 2017 08:43:57 -0500
+Message-ID: <20170707134356.29711.66121.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -24,272 +23,262 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 Cc: Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-Update the KVM support to work with SME. The VMCB has a number of fields
-where physical addresses are used and these addresses must contain the
-memory encryption mask in order to properly access the encrypted memory.
-Also, use the memory encryption mask when creating and using the nested
-page tables.
+Provide support so that kexec can be used to boot a kernel when SME is
+enabled.
+
+Support is needed to allocate pages for kexec without encryption.  This
+is needed in order to be able to reboot in the kernel in the same manner
+as originally booted.
+
+Additionally, when shutting down all of the CPUs we need to be sure to
+flush the caches and then halt. This is needed when booting from a state
+where SME was not active into a state where SME is active (or vice-versa).
+Without these steps, it is possible for cache lines to exist for the same
+physical location but tagged both with and without the encryption bit. This
+can cause random memory corruption when caches are flushed depending on
+which cacheline is written last.
 
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/kvm_host.h |    2 +-
- arch/x86/kvm/mmu.c              |   12 ++++++++----
- arch/x86/kvm/mmu.h              |    2 +-
- arch/x86/kvm/svm.c              |   35 ++++++++++++++++++-----------------
- arch/x86/kvm/vmx.c              |    3 ++-
- arch/x86/kvm/x86.c              |    3 ++-
- 6 files changed, 32 insertions(+), 25 deletions(-)
+ arch/x86/include/asm/init.h          |    1 +
+ arch/x86/include/asm/kexec.h         |    8 ++++++++
+ arch/x86/include/asm/pgtable_types.h |    1 +
+ arch/x86/kernel/machine_kexec_64.c   |   22 +++++++++++++++++++++-
+ arch/x86/kernel/process.c            |   17 +++++++++++++++--
+ arch/x86/mm/ident_map.c              |   12 ++++++++----
+ include/linux/kexec.h                |    8 ++++++++
+ kernel/kexec_core.c                  |   12 +++++++++++-
+ 8 files changed, 73 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 695605e..6d1267f 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1069,7 +1069,7 @@ struct kvm_arch_async_pf {
- void kvm_mmu_uninit_vm(struct kvm *kvm);
- void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
--		u64 acc_track_mask);
-+		u64 acc_track_mask, u64 me_mask);
+diff --git a/arch/x86/include/asm/init.h b/arch/x86/include/asm/init.h
+index 474eb8c..05c4aa0 100644
+--- a/arch/x86/include/asm/init.h
++++ b/arch/x86/include/asm/init.h
+@@ -7,6 +7,7 @@ struct x86_mapping_info {
+ 	unsigned long page_flag;	 /* page flag for PMD or PUD entry */
+ 	unsigned long offset;		 /* ident mapping offset */
+ 	bool direct_gbpages;		 /* PUD level 1GB page support */
++	unsigned long kernpg_flag;	 /* kernel pagetable flag override */
+ };
  
- void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
- void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index cb82259..e85888c 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -107,7 +107,7 @@ enum {
- 	(((address) >> PT32_LEVEL_SHIFT(level)) & ((1 << PT32_LEVEL_BITS) - 1))
+ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+diff --git a/arch/x86/include/asm/kexec.h b/arch/x86/include/asm/kexec.h
+index 70ef205..e8183ac 100644
+--- a/arch/x86/include/asm/kexec.h
++++ b/arch/x86/include/asm/kexec.h
+@@ -207,6 +207,14 @@ struct kexec_entry64_regs {
+ 	uint64_t r15;
+ 	uint64_t rip;
+ };
++
++extern int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages,
++				       gfp_t gfp);
++#define arch_kexec_post_alloc_pages arch_kexec_post_alloc_pages
++
++extern void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages);
++#define arch_kexec_pre_free_pages arch_kexec_pre_free_pages
++
+ #endif
  
+ typedef void crash_vmclear_fn(void);
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 32095af..830992f 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -213,6 +213,7 @@ enum page_cache_mode {
+ #define PAGE_KERNEL		__pgprot(__PAGE_KERNEL | _PAGE_ENC)
+ #define PAGE_KERNEL_RO		__pgprot(__PAGE_KERNEL_RO | _PAGE_ENC)
+ #define PAGE_KERNEL_EXEC	__pgprot(__PAGE_KERNEL_EXEC | _PAGE_ENC)
++#define PAGE_KERNEL_EXEC_NOENC	__pgprot(__PAGE_KERNEL_EXEC)
+ #define PAGE_KERNEL_RX		__pgprot(__PAGE_KERNEL_RX | _PAGE_ENC)
+ #define PAGE_KERNEL_NOCACHE	__pgprot(__PAGE_KERNEL_NOCACHE | _PAGE_ENC)
+ #define PAGE_KERNEL_LARGE	__pgprot(__PAGE_KERNEL_LARGE | _PAGE_ENC)
+diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+index cb0a304..9cf8daa 100644
+--- a/arch/x86/kernel/machine_kexec_64.c
++++ b/arch/x86/kernel/machine_kexec_64.c
+@@ -87,7 +87,7 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+ 		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+ 	}
+ 	pte = pte_offset_kernel(pmd, vaddr);
+-	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
++	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC_NOENC));
+ 	return 0;
+ err:
+ 	free_transition_pgtable(image);
+@@ -115,6 +115,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
+ 		.alloc_pgt_page	= alloc_pgt_page,
+ 		.context	= image,
+ 		.page_flag	= __PAGE_KERNEL_LARGE_EXEC,
++		.kernpg_flag	= _KERNPG_TABLE_NOENC,
+ 	};
+ 	unsigned long mstart, mend;
+ 	pgd_t *level4p;
+@@ -602,3 +603,22 @@ void arch_kexec_unprotect_crashkres(void)
+ {
+ 	kexec_mark_crashkres(false);
+ }
++
++int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
++{
++	/*
++	 * If SME is active we need to be sure that kexec pages are
++	 * not encrypted because when we boot to the new kernel the
++	 * pages won't be accessed encrypted (initially).
++	 */
++	return set_memory_decrypted((unsigned long)vaddr, pages);
++}
++
++void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages)
++{
++	/*
++	 * If SME is active we need to reset the pages back to being
++	 * an encrypted mapping before freeing them.
++	 */
++	set_memory_encrypted((unsigned long)vaddr, pages);
++}
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index 3ca1980..bd6b85f 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -355,6 +355,7 @@ bool xen_set_default_idle(void)
+ 	return ret;
+ }
+ #endif
++
+ void stop_this_cpu(void *dummy)
+ {
+ 	local_irq_disable();
+@@ -365,8 +366,20 @@ void stop_this_cpu(void *dummy)
+ 	disable_local_APIC();
+ 	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
  
--#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
-+#define PT64_BASE_ADDR_MASK __sme_clr((((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1)))
- #define PT64_DIR_BASE_ADDR_MASK \
- 	(PT64_BASE_ADDR_MASK & ~((1ULL << (PAGE_SHIFT + PT64_LEVEL_BITS)) - 1))
- #define PT64_LVL_ADDR_MASK(level) \
-@@ -125,7 +125,7 @@ enum {
- 					    * PT32_LEVEL_BITS))) - 1))
- 
- #define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
--			| shadow_x_mask | shadow_nx_mask)
-+			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
- 
- #define ACC_EXEC_MASK    1
- #define ACC_WRITE_MASK   PT_WRITABLE_MASK
-@@ -184,6 +184,7 @@ struct kvm_shadow_walk_iterator {
- static u64 __read_mostly shadow_dirty_mask;
- static u64 __read_mostly shadow_mmio_mask;
- static u64 __read_mostly shadow_present_mask;
-+static u64 __read_mostly shadow_me_mask;
+-	for (;;)
+-		halt();
++	for (;;) {
++		/*
++		 * Use wbinvd followed by hlt to stop the processor. This
++		 * provides support for kexec on a processor that supports
++		 * SME. With kexec, going from SME inactive to SME active
++		 * requires clearing cache entries so that addresses without
++		 * the encryption bit set don't corrupt the same physical
++		 * address that has the encryption bit set when caches are
++		 * flushed. To achieve this a wbinvd is performed followed by
++		 * a hlt. Even if the processor is not in the kexec/SME
++		 * scenario this only adds a wbinvd to a halting processor.
++		 */
++		asm volatile("wbinvd; hlt" : : : "memory");
++	}
+ }
  
  /*
-  * The mask/value to distinguish a PTE that has been marked not-present for
-@@ -317,7 +318,7 @@ static bool check_mmio_spte(struct kvm_vcpu *vcpu, u64 spte)
- 
- void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
--		u64 acc_track_mask)
-+		u64 acc_track_mask, u64 me_mask)
- {
- 	if (acc_track_mask != 0)
- 		acc_track_mask |= SPTE_SPECIAL_MASK;
-@@ -330,6 +331,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
- 	shadow_present_mask = p_mask;
- 	shadow_acc_track_mask = acc_track_mask;
- 	WARN_ON(shadow_accessed_mask != 0 && shadow_acc_track_mask != 0);
-+	shadow_me_mask = me_mask;
- }
- EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
- 
-@@ -2398,7 +2400,8 @@ static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
- 	BUILD_BUG_ON(VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
- 
- 	spte = __pa(sp->spt) | shadow_present_mask | PT_WRITABLE_MASK |
--	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask;
-+	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask |
-+	       shadow_me_mask;
- 
- 	mmu_spte_set(sptep, spte);
- 
-@@ -2700,6 +2703,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
- 		pte_access &= ~ACC_WRITE_MASK;
- 
- 	spte |= (u64)pfn << PAGE_SHIFT;
-+	spte |= shadow_me_mask;
- 
- 	if (pte_access & ACC_WRITE_MASK) {
- 
-diff --git a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h
-index 330bf3a..08b779d 100644
---- a/arch/x86/kvm/mmu.h
-+++ b/arch/x86/kvm/mmu.h
-@@ -48,7 +48,7 @@
- 
- static inline u64 rsvd_bits(int s, int e)
- {
--	return ((1ULL << (e - s + 1)) - 1) << s;
-+	return __sme_clr(((1ULL << (e - s + 1)) - 1) << s);
- }
- 
- void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index 33460fc..c2fcd31 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -1139,9 +1139,9 @@ static void avic_init_vmcb(struct vcpu_svm *svm)
- {
- 	struct vmcb *vmcb = svm->vmcb;
- 	struct kvm_arch *vm_data = &svm->vcpu.kvm->arch;
--	phys_addr_t bpa = page_to_phys(svm->avic_backing_page);
--	phys_addr_t lpa = page_to_phys(vm_data->avic_logical_id_table_page);
--	phys_addr_t ppa = page_to_phys(vm_data->avic_physical_id_table_page);
-+	phys_addr_t bpa = __sme_set(page_to_phys(svm->avic_backing_page));
-+	phys_addr_t lpa = __sme_set(page_to_phys(vm_data->avic_logical_id_table_page));
-+	phys_addr_t ppa = __sme_set(page_to_phys(vm_data->avic_physical_id_table_page));
- 
- 	vmcb->control.avic_backing_page = bpa & AVIC_HPA_MASK;
- 	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
-@@ -1204,8 +1204,8 @@ static void init_vmcb(struct vcpu_svm *svm)
- 		set_intercept(svm, INTERCEPT_MWAIT);
+diff --git a/arch/x86/mm/ident_map.c b/arch/x86/mm/ident_map.c
+index adab159..31cea98 100644
+--- a/arch/x86/mm/ident_map.c
++++ b/arch/x86/mm/ident_map.c
+@@ -51,7 +51,7 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
+ 		if (!pmd)
+ 			return -ENOMEM;
+ 		ident_pmd_init(info, pmd, addr, next);
+-		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
++		set_pud(pud, __pud(__pa(pmd) | info->kernpg_flag));
  	}
- 
--	control->iopm_base_pa = iopm_base;
--	control->msrpm_base_pa = __pa(svm->msrpm);
-+	control->iopm_base_pa = __sme_set(iopm_base);
-+	control->msrpm_base_pa = __sme_set(__pa(svm->msrpm));
- 	control->int_ctl = V_INTR_MASKING_MASK;
- 
- 	init_seg(&save->es);
-@@ -1339,9 +1339,9 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
- 		return -EINVAL;
- 
- 	new_entry = READ_ONCE(*entry);
--	new_entry = (page_to_phys(svm->avic_backing_page) &
--		     AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK) |
--		     AVIC_PHYSICAL_ID_ENTRY_VALID_MASK;
-+	new_entry = __sme_set((page_to_phys(svm->avic_backing_page) &
-+			      AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK) |
-+			      AVIC_PHYSICAL_ID_ENTRY_VALID_MASK);
- 	WRITE_ONCE(*entry, new_entry);
- 
- 	svm->avic_physical_id_cache = entry;
-@@ -1609,7 +1609,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
- 
- 	svm->vmcb = page_address(page);
- 	clear_page(svm->vmcb);
--	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
-+	svm->vmcb_pa = __sme_set(page_to_pfn(page) << PAGE_SHIFT);
- 	svm->asid_generation = 0;
- 	init_vmcb(svm);
- 
-@@ -1637,7 +1637,7 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	__free_page(pfn_to_page(svm->vmcb_pa >> PAGE_SHIFT));
-+	__free_page(pfn_to_page(__sme_clr(svm->vmcb_pa) >> PAGE_SHIFT));
- 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
- 	__free_page(virt_to_page(svm->nested.hsave));
- 	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
-@@ -2304,7 +2304,7 @@ static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
- 	u64 pdpte;
- 	int ret;
- 
--	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(cr3), &pdpte,
-+	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(__sme_clr(cr3)), &pdpte,
- 				       offset_in_page(cr3) + index * 8, 8);
- 	if (ret)
- 		return 0;
-@@ -2316,7 +2316,7 @@ static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
- 
--	svm->vmcb->control.nested_cr3 = root;
-+	svm->vmcb->control.nested_cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_NPT);
- 	svm_flush_tlb(vcpu);
- }
-@@ -2804,7 +2804,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
- 		svm->nested.msrpm[p] = svm->msrpm[p] | value;
- 	}
- 
--	svm->vmcb->control.msrpm_base_pa = __pa(svm->nested.msrpm);
-+	svm->vmcb->control.msrpm_base_pa = __sme_set(__pa(svm->nested.msrpm));
- 
- 	return true;
- }
-@@ -4436,7 +4436,7 @@ static int svm_ir_list_add(struct vcpu_svm *svm, struct amd_iommu_pi_data *pi)
- 	pr_debug("SVM: %s: use GA mode for irq %u\n", __func__,
- 		 irq.vector);
- 	*svm = to_svm(vcpu);
--	vcpu_info->pi_desc_addr = page_to_phys((*svm)->avic_backing_page);
-+	vcpu_info->pi_desc_addr = __sme_set(page_to_phys((*svm)->avic_backing_page));
- 	vcpu_info->vector = irq.vector;
  
  	return 0;
-@@ -4487,7 +4487,8 @@ static int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
- 			struct amd_iommu_pi_data pi;
+@@ -79,7 +79,7 @@ static int ident_p4d_init(struct x86_mapping_info *info, p4d_t *p4d_page,
+ 		if (!pud)
+ 			return -ENOMEM;
+ 		ident_pud_init(info, pud, addr, next);
+-		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
++		set_p4d(p4d, __p4d(__pa(pud) | info->kernpg_flag));
+ 	}
  
- 			/* Try to enable guest_mode in IRTE */
--			pi.base = page_to_phys(svm->avic_backing_page) & AVIC_HPA_MASK;
-+			pi.base = __sme_set(page_to_phys(svm->avic_backing_page) &
-+					    AVIC_HPA_MASK);
- 			pi.ga_tag = AVIC_GATAG(kvm->arch.avic_vm_id,
- 						     svm->vcpu.vcpu_id);
- 			pi.is_guest_mode = true;
-@@ -4913,7 +4914,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
- {
- 	struct vcpu_svm *svm = to_svm(vcpu);
+ 	return 0;
+@@ -93,6 +93,10 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+ 	unsigned long next;
+ 	int result;
  
--	svm->vmcb->save.cr3 = root;
-+	svm->vmcb->save.cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_CR);
- 	svm_flush_tlb(vcpu);
++	/* Set the default pagetable flags if not supplied */
++	if (!info->kernpg_flag)
++		info->kernpg_flag = _KERNPG_TABLE;
++
+ 	for (; addr < end; addr = next) {
+ 		pgd_t *pgd = pgd_page + pgd_index(addr);
+ 		p4d_t *p4d;
+@@ -116,14 +120,14 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+ 		if (result)
+ 			return result;
+ 		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+-			set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
++			set_pgd(pgd, __pgd(__pa(p4d) | info->kernpg_flag));
+ 		} else {
+ 			/*
+ 			 * With p4d folded, pgd is equal to p4d.
+ 			 * The pgd entry has to point to the pud page table in this case.
+ 			 */
+ 			pud_t *pud = pud_offset(p4d, 0);
+-			set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
++			set_pgd(pgd, __pgd(__pa(pud) | info->kernpg_flag));
+ 		}
+ 	}
+ 
+diff --git a/include/linux/kexec.h b/include/linux/kexec.h
+index c9481eb..bd7af8b 100644
+--- a/include/linux/kexec.h
++++ b/include/linux/kexec.h
+@@ -334,6 +334,14 @@ static inline void *boot_phys_to_virt(unsigned long entry)
+ 	return phys_to_virt(boot_phys_to_phys(entry));
  }
-@@ -4922,7 +4923,7 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
+ 
++#ifndef arch_kexec_post_alloc_pages
++static inline int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp) { return 0; }
++#endif
++
++#ifndef arch_kexec_pre_free_pages
++static inline void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages) { }
++#endif
++
+ #else /* !CONFIG_KEXEC_CORE */
+ struct pt_regs;
+ struct task_struct;
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 154ffb4..857a715 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -301,7 +301,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
  {
- 	struct vcpu_svm *svm = to_svm(vcpu);
+ 	struct page *pages;
  
--	svm->vmcb->control.nested_cr3 = root;
-+	svm->vmcb->control.nested_cr3 = __sme_set(root);
- 	mark_dirty(svm->vmcb, VMCB_NPT);
+-	pages = alloc_pages(gfp_mask, order);
++	pages = alloc_pages(gfp_mask & ~__GFP_ZERO, order);
+ 	if (pages) {
+ 		unsigned int count, i;
  
- 	/* Also sync guest cr3 here in case we live migrate */
-diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
-index 6dcc487..a0db541 100644
---- a/arch/x86/kvm/vmx.c
-+++ b/arch/x86/kvm/vmx.c
-@@ -6453,7 +6453,8 @@ void vmx_enable_tdp(void)
- 		enable_ept_ad_bits ? VMX_EPT_DIRTY_BIT : 0ull,
- 		0ull, VMX_EPT_EXECUTABLE_MASK,
- 		cpu_has_vmx_ept_execute_only() ? 0ull : VMX_EPT_READABLE_MASK,
--		enable_ept_ad_bits ? 0ull : VMX_EPT_RWX_MASK);
-+		enable_ept_ad_bits ? 0ull : VMX_EPT_RWX_MASK,
-+		0ull);
+@@ -310,6 +310,13 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
+ 		count = 1 << order;
+ 		for (i = 0; i < count; i++)
+ 			SetPageReserved(pages + i);
++
++		arch_kexec_post_alloc_pages(page_address(pages), count,
++					    gfp_mask);
++
++		if (gfp_mask & __GFP_ZERO)
++			for (i = 0; i < count; i++)
++				clear_highpage(pages + i);
+ 	}
  
- 	ept_set_mmio_spte_mask();
- 	kvm_enable_tdp();
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 0e846f0..268fed5 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -54,6 +54,7 @@
- #include <linux/kvm_irqfd.h>
- #include <linux/irqbypass.h>
- #include <linux/sched/stat.h>
-+#include <linux/mem_encrypt.h>
+ 	return pages;
+@@ -321,6 +328,9 @@ static void kimage_free_pages(struct page *page)
  
- #include <trace/events/kvm.h>
- 
-@@ -6097,7 +6098,7 @@ int kvm_arch_init(void *opaque)
- 
- 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
- 			PT_DIRTY_MASK, PT64_NX_MASK, 0,
--			PT_PRESENT_MASK, 0);
-+			PT_PRESENT_MASK, 0, sme_me_mask);
- 	kvm_timer_init();
- 
- 	perf_register_guest_info_callbacks(&kvm_guest_cbs);
+ 	order = page_private(page);
+ 	count = 1 << order;
++
++	arch_kexec_pre_free_pages(page_address(page), count);
++
+ 	for (i = 0; i < count; i++)
+ 		ClearPageReserved(page + i);
+ 	__free_pages(page, order);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
