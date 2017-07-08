@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A84EB6B0292
-	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 19:18:35 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id z74so5424395ioz.3
-        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 16:18:35 -0700 (PDT)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id v2si668969itg.53.2017.07.07.16.18.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jul 2017 16:18:34 -0700 (PDT)
-Date: Fri, 7 Jul 2017 18:18:31 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
- before publication
-In-Reply-To: <20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org>
-Message-ID: <alpine.DEB.2.20.1707071816560.20454@east.gentwo.org>
-References: <20170707083408.40410-1-glider@google.com> <20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC9996B0292
+	for <linux-mm@kvack.org>; Fri,  7 Jul 2017 21:29:30 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id a142so3580379oii.5
+        for <linux-mm@kvack.org>; Fri, 07 Jul 2017 18:29:30 -0700 (PDT)
+Received: from out30-5.freemail.mail.aliyun.com (out30-5.freemail.mail.aliyun.com. [115.124.30.5])
+        by mx.google.com with ESMTP id 72si3151851oii.89.2017.07.07.18.29.28
+        for <linux-mm@kvack.org>;
+        Fri, 07 Jul 2017 18:29:29 -0700 (PDT)
+From: zbestahu@aliyun.com
+Subject: [PATCH] mm/page_alloc.c: improve allocation fast path
+Date: Sat,  8 Jul 2017 09:28:39 +0800
+Message-Id: <1499477319-1395-1-git-send-email-zbestahu@aliyun.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Potapenko <glider@google.com>, dvyukov@google.com, kcc@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, minchan@kernel.org
+Cc: linux-mm@kvack.org, Yue Hu <huyue2@coolpad.com>
 
-On Fri, 7 Jul 2017, Andrew Morton wrote:
+From: Yue Hu <huyue2@coolpad.com>
 
-> On Fri,  7 Jul 2017 10:34:08 +0200 Alexander Potapenko <glider@google.com> wrote:
->
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -3389,8 +3389,8 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
-> >  			return 0;
-> >  		}
-> >
-> > -		s->node[node] = n;
-> >  		init_kmem_cache_node(n);
-> > +		s->node[node] = n;
-> >  	}
-> >  	return 1;
-> >  }
->
-> If this matters then I have bad feelings about free_kmem_cache_nodes():
+We currently is taking time to check if the watermark is safe when
+alloc_flags is setting with ALLOC_NO_WATERMARK in slowpath, the check
+to alloc_flags is faster check which should be first check option
+compared to the slow check of watermark, it could benefit to urgency
+allocation request in slowpath, it also almost has no effect for
+allocation with successful watermark check.
 
-At creation time the kmem_cache structure is private and no one can run a
-free operation.
+Signed-off-by: Yue Hu <huyue2@coolpad.com>
+---
+ mm/page_alloc.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-> Inviting a use-after-free?  I guess not, as there should be no way
-> to look up these items at this stage.
-
-Right.
-
-> Could the slab maintainers please take a look at these and also have a
-> think about Alexander's READ_ONCE/WRITE_ONCE question?
-
-Was I cced on these?
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 07efbc3..f1ba0e37 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3014,16 +3014,16 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ 			}
+ 		}
+ 
++		/* Checked here to keep the fast path fast */
++		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
++		if (alloc_flags & ALLOC_NO_WATERMARKS)
++			goto try_this_zone;
++
+ 		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
+ 		if (!zone_watermark_fast(zone, order, mark,
+ 				       ac_classzone_idx(ac), alloc_flags)) {
+ 			int ret;
+ 
+-			/* Checked here to keep the fast path fast */
+-			BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+-			if (alloc_flags & ALLOC_NO_WATERMARKS)
+-				goto try_this_zone;
+-
+ 			if (node_reclaim_mode == 0 ||
+ 			    !zone_allows_reclaim(ac->preferred_zoneref->zone, zone))
+ 				continue;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
