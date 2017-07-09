@@ -1,107 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B857E440843
-	for <linux-mm@kvack.org>; Sun,  9 Jul 2017 03:32:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j186so81095580pge.12
-        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 00:32:15 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d34si2784656pld.416.2017.07.09.00.32.14
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE356B0292
+	for <linux-mm@kvack.org>; Sun,  9 Jul 2017 18:49:20 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id a2so98930564pgn.15
+        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 15:49:20 -0700 (PDT)
+Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
+        by mx.google.com with ESMTPS id 7si3350828ple.510.2017.07.09.15.49.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jul 2017 00:32:14 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v697TFMH131208
-	for <linux-mm@kvack.org>; Sun, 9 Jul 2017 03:32:14 -0400
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bjtpt4ar7-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 09 Jul 2017 03:32:14 -0400
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Sun, 9 Jul 2017 17:32:11 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v697W9Vm14680250
-	for <linux-mm@kvack.org>; Sun, 9 Jul 2017 17:32:09 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v697W8hS012667
-	for <linux-mm@kvack.org>; Sun, 9 Jul 2017 17:32:08 +1000
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
- <20170707102324.kfihkf72sjcrtn5b@node.shutemov.name>
- <e328ff6a-2c4b-ec26-cc28-e24b7b35a463@oracle.com>
- <20170707174534.wdfbciyfpovi52dy@node.shutemov.name>
- <79eca23d-9f1a-9713-3f6b-8f7598d53190@oracle.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Sun, 9 Jul 2017 13:02:02 +0530
-MIME-Version: 1.0
-In-Reply-To: <79eca23d-9f1a-9713-3f6b-8f7598d53190@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <662d372a-5737-5f0b-8ac1-c997f3a935eb@linux.vnet.ibm.com>
+        Sun, 09 Jul 2017 15:49:19 -0700 (PDT)
+Received: by mail-pg0-x236.google.com with SMTP id k14so40148761pgr.0
+        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 15:49:19 -0700 (PDT)
+From: Joel Fernandes <joelaf@google.com>
+Subject: [RFC v1 1/2] mm/page_alloc: Prevent OOM killer from triggering if requested
+Date: Sun,  9 Jul 2017 15:49:10 -0700
+Message-Id: <20170709224911.13030-1-joelaf@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: Joel Fernandes <joelaf@google.com>, Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org
 
-On 07/07/2017 11:39 PM, Mike Kravetz wrote:
-> On 07/07/2017 10:45 AM, Kirill A. Shutemov wrote:
->> On Fri, Jul 07, 2017 at 10:29:52AM -0700, Mike Kravetz wrote:
->>> On 07/07/2017 03:23 AM, Kirill A. Shutemov wrote:
->>>> On Thu, Jul 06, 2017 at 09:17:26AM -0700, Mike Kravetz wrote:
->>>>> The mremap system call has the ability to 'mirror' parts of an existing
->>>>> mapping.  To do so, it creates a new mapping that maps the same pages as
->>>>> the original mapping, just at a different virtual address.  This
->>>>> functionality has existed since at least the 2.6 kernel.
->>>>>
->>>>> This patch simply adds a new flag to mremap which will make this
->>>>> functionality part of the API.  It maintains backward compatibility with
->>>>> the existing way of requesting mirroring (old_size == 0).
->>>>>
->>>>> If this new MREMAP_MIRROR flag is specified, then new_size must equal
->>>>> old_size.  In addition, the MREMAP_MAYMOVE flag must be specified.
->>>>
->>>> The patch breaks important invariant that anon page can be mapped into a
->>>> process only once.
->>>
->>> Actually, the patch does not add any new functionality.  It only provides
->>> a new interface to existing functionality.
->>>
->>> Is it not possible to have an anon page mapped twice into the same process
->>> via system V shared memory?  shmget(anon), shmat(), shmat.  
->>> Of course, those are shared rather than private anon pages.
->>
->> By anon pages I mean, private anon or file pages. These are subject to CoW.
->>
->>>> What is going to happen to mirrored after CoW for instance?
->>>>
->>>> In my opinion, it shouldn't be allowed for anon/private mappings at least.
->>>> And with this limitation, I don't see much sense in the new interface --
->>>> just create mirror by mmap()ing the file again.
->>>
->>> The code today works for anon shared mappings.  See simple program below.
->>>
->>> You are correct in that it makes little or no sense for private mappings.
->>> When looking closer at existing code, mremap() creates a new private
->>> mapping in this case.  This is most likely a bug.
->>
->> IIRC, existing code doesn't create mirrors of private pages as it requires
->> old_len to be zero. There's no way to get private pages mapped twice this
->> way.
-> 
-> Correct.
-> As mentioned above, mremap does 'something' for private anon pages when
-> old_len == 0.  However, this may be considered a bug.  In this case, mremap
-> creates a new private anon mapping of length new_size.  Since old_len == 0,
-> it does not unmap any of the old mapping.  So, in this case mremap basically
-> creates a new private mapping (unrealted to the original) and does not
-> modify the old mapping.
-> 
+Certain allocation paths such as the ftrace ring buffer allocator
+want to try hard to allocate but not trigger OOM killer and de-stabilize
+the system. Currently the ring buffer uses __GFP_NO_RETRY to prevent
+the OOM killer from triggering situation however this has an issue.
+Its possible the system is in a state where:
+a) retrying can make the allocation succeed.
+b) there's plenty of memory available in the page cache to satisfy
+   the request and just retrying is needed. Even though direct reclaim
+   makes progress, it still couldn't find free page from the free list.
 
-Yeah, in my experiment, after the mremap() exists we have two different VMAs
-which can contain two different set of data. No page sharing is happening.
+This patch adds a new GFP flag (__GFP_DONTOOM) to handle the situation
+where we want the retry behavior but still want to bail out before going
+to OOM killer if retries couldn't satisfy the allocation.
+
+Cc: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hao Lee <haolee.swjtu@gmail.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Signed-off-by: Joel Fernandes <joelaf@google.com>
+---
+ include/linux/gfp.h | 6 +++++-
+ mm/page_alloc.c     | 7 +++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 4c6656f1fee7..beaabd110008 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -40,6 +40,7 @@ struct vm_area_struct;
+ #define ___GFP_DIRECT_RECLAIM	0x400000u
+ #define ___GFP_WRITE		0x800000u
+ #define ___GFP_KSWAPD_RECLAIM	0x1000000u
++#define ___GFP_DONTOOM		0x2000000u
+ #ifdef CONFIG_LOCKDEP
+ #define ___GFP_NOLOCKDEP	0x2000000u
+ #else
+@@ -149,6 +150,8 @@ struct vm_area_struct;
+  *   return NULL when direct reclaim and memory compaction have failed to allow
+  *   the allocation to succeed.  The OOM killer is not called with the current
+  *   implementation.
++ *
++ * __GFP_DONTOOM: The VM implementation must not OOM if retries have exhausted.
+  */
+ #define __GFP_IO	((__force gfp_t)___GFP_IO)
+ #define __GFP_FS	((__force gfp_t)___GFP_FS)
+@@ -158,6 +161,7 @@ struct vm_area_struct;
+ #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+ #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
+ #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
++#define __GFP_DONTOOM	((__force gfp_t)___GFP_DONTOOM)
+ 
+ /*
+  * Action modifiers
+@@ -188,7 +192,7 @@ struct vm_area_struct;
+ #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+ 
+ /* Room for N __GFP_FOO bits */
+-#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
++#define __GFP_BITS_SHIFT (26 + IS_ENABLED(CONFIG_LOCKDEP))
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bd65b60939b6..970a5c380bb6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3908,6 +3908,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (check_retry_cpuset(cpuset_mems_cookie, ac))
+ 		goto retry_cpuset;
+ 
++	/*
++	 * Its possible that retries failed but we still don't want OOM
++	 * killer to trigger and can just try again later.
++	 */
++	if (gfp_mask & __GFP_DONTOOM)
++		goto nopage;
++
+ 	/* Reclaim has failed us, start killing things */
+ 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+ 	if (page)
+-- 
+2.13.2.725.g09c95d1e9-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
