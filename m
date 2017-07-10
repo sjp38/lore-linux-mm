@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 163CB6B04A5
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:59:39 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id l34so23982153wrc.12
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:59:39 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BEC4B44084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 09:17:34 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id r103so24233744wrb.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 06:17:34 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y64si8015323wrc.160.2017.07.10.05.59.37
+        by mx.google.com with ESMTPS id v67si6486109wma.175.2017.07.10.06.17.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 05:59:37 -0700 (PDT)
-Date: Mon, 10 Jul 2017 14:59:35 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Message-ID: <20170710125935.GL23069@pathway.suse.cz>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain>
- <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
+        Mon, 10 Jul 2017 06:17:32 -0700 (PDT)
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+References: <20170710074842.23175-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <841988a5-d3a8-3e1c-5b41-cb07df8dae96@suse.cz>
+Date: Mon, 10 Jul 2017 15:16:44 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170710074842.23175-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: sergey.senozhatsky.work@gmail.com, sergey.senozhatsky@gmail.com, mhocko@kernel.org, pavel@ucw.cz, rostedt@goodmis.org, andi@lisas.de, jack@suse.cz, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, daniel.vetter@ffwll.ch
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Sat 2017-07-08 22:30:47, Tetsuo Handa wrote:
-> What I want to mention here is that messages which were sent to printk()
-> were not printed to not only /dev/tty0 but also /dev/ttyS0 (I'm passing
-> "console=ttyS0,115200n8 console=tty0" to kernel command line.) I don't care
-> if output to /dev/tty0 is delayed, but I expect that output to /dev/ttyS0
-> is not delayed, for I'm anayzing things using printk() output sent to serial
-> console (serial.log in my VMware configuration). Hitting this problem when we
-> cannot allocate memory results in failing to save printk() output. Oops, it
-> is sad.
+On 07/10/2017 09:48 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Tetsuo Handa has reported [1][2][3]that direct reclaimers might get stuck
+> in too_many_isolated loop basically for ever because the last few pages
+> on the LRU lists are isolated by the kswapd which is stuck on fs locks
+> when doing the pageout or slab reclaim. This in turn means that there is
+> nobody to actually trigger the oom killer and the system is basically
+> unusable.
+> 
+> too_many_isolated has been introduced by 35cd78156c49 ("vmscan: throttle
+> direct reclaim when too many pages are isolated already") to prevent
+> from pre-mature oom killer invocations because back then no reclaim
+> progress could indeed trigger the OOM killer too early. But since the
+> oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
+> the allocation/reclaim retry loop considers all the reclaimable pages
+> and throttles the allocation at that layer so we can loosen the direct
+> reclaim throttling.
+> 
+> Make shrink_inactive_list loop over too_many_isolated bounded and returns
+> immediately when the situation hasn't resolved after the first sleep.
+> Replace congestion_wait by a simple schedule_timeout_interruptible because
+> we are not really waiting on the IO congestion in this path.
+> 
+> Please note that this patch can theoretically cause the OOM killer to
+> trigger earlier while there are many pages isolated for the reclaim
+> which makes progress only very slowly. This would be obvious from the oom
+> report as the number of isolated pages are printed there. If we ever hit
+> this should_reclaim_retry should consider those numbers in the evaluation
+> in one way or another.
+> 
+> [1] http://lkml.kernel.org/r/201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp
+> [2] http://lkml.kernel.org/r/201702212335.DJB30777.JOFMHSFtVLQOOF@I-love.SAKURA.ne.jp
+> [3] http://lkml.kernel.org/r/201706300914.CEH95859.FMQOLVFHJFtOOS@I-love.SAKURA.ne.jp
+> 
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Would it be acceptable to remove "console=tty0" parameter and push
-the messages only to the serial console?
+Let's hope there won't be premature OOM's then.
 
-Also there is the patchset from Peter Zijlstra that allows to
-use early console all the time, see
-https://lkml.kernel.org/r/20161018170830.405990950@infradead.org
-
-
-The current code flushes each line to all enabled consoles one
-by one. If there is a deadlock in one console, everything
-gets blocked.
-
-We are trying to make printk() more robust. But it is much more
-complicated than we anticipated. Many changes open another can
-of worms. It seems to be a job for years.
-
-
-> Hmm... should we consider addressing console_sem problem before
-> introducing printing kernel thread and offloading to that kernel thread?
-
-As Sergey said, the console rework seems to be much bigger task
-than introducing the kthread.
-
-Also if we would want to handle each console separately (as a
-fallback) it would be helpful to have separate kthread for each
-enabled console or for the less reliable consoles at least.
-
-Best Regards,
-Petr
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
