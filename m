@@ -1,109 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E4E26B02FA
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 01:55:22 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p64so21656990wrc.8
-        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 22:55:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d9si7562015wrc.290.2017.07.09.22.55.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EE53A6B02FA
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:00:12 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u36so106347639pgn.5
+        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 23:00:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 75si7418463pge.426.2017.07.09.23.00.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jul 2017 22:55:21 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6A5sYIL042240
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 01:55:20 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bjujyqpmf-1
+        Sun, 09 Jul 2017 23:00:11 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6A5xYlH097970
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:00:11 -0400
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bjufq805v-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 01:55:20 -0400
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:00:11 -0400
 Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Sun, 9 Jul 2017 23:55:18 -0600
-Date: Sun, 9 Jul 2017 22:55:02 -0700
+	Mon, 10 Jul 2017 02:00:10 -0400
+Date: Sun, 9 Jul 2017 22:59:59 -0700
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 31/38] powerpc: introduce get_pte_pkey() helper
+Subject: Re: [RFC v5 38/38] Documentation: PowerPC specific updates to memory
+ protection keys
 Reply-To: Ram Pai <linuxram@us.ibm.com>
 References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-32-git-send-email-linuxram@us.ibm.com>
- <58e0d9ff-727f-c960-5c5f-16d19a89e181@linux.vnet.ibm.com>
+ <1499289735-14220-39-git-send-email-linuxram@us.ibm.com>
+ <d94ab2c1-8be5-f618-6f42-cac2813059a5@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <58e0d9ff-727f-c960-5c5f-16d19a89e181@linux.vnet.ibm.com>
-Message-Id: <20170710055502.GC5713@ram.oc3035372033.ibm.com>
+In-Reply-To: <d94ab2c1-8be5-f618-6f42-cac2813059a5@linux.vnet.ibm.com>
+Message-Id: <20170710055959.GD5713@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Mon, Jul 10, 2017 at 08:41:30AM +0530, Anshuman Khandual wrote:
+On Mon, Jul 10, 2017 at 08:37:04AM +0530, Anshuman Khandual wrote:
 > On 07/06/2017 02:52 AM, Ram Pai wrote:
-> > get_pte_pkey() helper returns the pkey associated with
-> > a address corresponding to a given mm_struct.
+> > Add documentation updates that capture PowerPC specific changes.
 > > 
 > > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 > > ---
-> >  arch/powerpc/include/asm/book3s/64/mmu-hash.h |    5 ++++
-> >  arch/powerpc/mm/hash_utils_64.c               |   28 +++++++++++++++++++++++++
-> >  2 files changed, 33 insertions(+), 0 deletions(-)
+> >  Documentation/vm/protection-keys.txt |   85 ++++++++++++++++++++++++++--------
+> >  1 files changed, 65 insertions(+), 20 deletions(-)
 > > 
-> > diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-> > index f7a6ed3..369f9ff 100644
-> > --- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-> > +++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-> > @@ -450,6 +450,11 @@ extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
-> >  int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
-> >  		     pte_t *ptep, unsigned long trap, unsigned long flags,
-> >  		     int ssize, unsigned int shift, unsigned int mmu_psize);
-> > +
-> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> > +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address);
-> > +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
-> > +
-> >  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >  extern int __hash_page_thp(unsigned long ea, unsigned long access,
-> >  			   unsigned long vsid, pmd_t *pmdp, unsigned long trap,
-> > diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-> > index 1e74529..591990c 100644
-> > --- a/arch/powerpc/mm/hash_utils_64.c
-> > +++ b/arch/powerpc/mm/hash_utils_64.c
-> > @@ -1573,6 +1573,34 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
-> >  	local_irq_restore(flags);
-> >  }
+> > diff --git a/Documentation/vm/protection-keys.txt b/Documentation/vm/protection-keys.txt
+> > index b643045..d50b6ab 100644
+> > --- a/Documentation/vm/protection-keys.txt
+> > +++ b/Documentation/vm/protection-keys.txt
+> > @@ -1,21 +1,46 @@
+> > -Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
+> > -which will be found on future Intel CPUs.
+> > +Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature found in
+> > +new generation of intel CPUs and on PowerPC 7 and higher CPUs.
 > >  
-> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> > +/*
-> > + * return the protection key associated with the given address
-> > + * and the mm_struct.
-> > + */
-> > +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address)
-> > +{
-> > +	pte_t *ptep;
-> > +	u16 pkey = 0;
-> > +	unsigned long flags;
+> >  Memory Protection Keys provides a mechanism for enforcing page-based
+> > -protections, but without requiring modification of the page tables
+> > -when an application changes protection domains.  It works by
+> > -dedicating 4 previously ignored bits in each page table entry to a
+> > -"protection key", giving 16 possible keys.
+> > -
+> > -There is also a new user-accessible register (PKRU) with two separate
+> > -bits (Access Disable and Write Disable) for each key.  Being a CPU
+> > -register, PKRU is inherently thread-local, potentially giving each
+> > -thread a different set of protections from every other thread.
+> > -
+> > -There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> > -to the new register.  The feature is only available in 64-bit mode,
+> > -even though there is theoretically space in the PAE PTEs.  These
+> > -permissions are enforced on data access only and have no effect on
+> > +protections, but without requiring modification of the page tables when an
+> > +application changes protection domains.
 > > +
-> > +	if (REGION_ID(address) == VMALLOC_REGION_ID)
-> > +		mm = &init_mm;
-> 
-> IIUC, protection keys are only applicable for user space. This
-> function is getting used to populate siginfo structure. Then how
-> can we ever request this for any address in VMALLOC region.
-
-make sense. this check is not needed.
-
-> 
 > > +
-> > +	if (!mm || !mm->pgd)
-> > +		return 0;
+> > +On Intel:
+> > +
+> > +	It works by dedicating 4 previously ignored bits in each page table
+> > +	entry to a "protection key", giving 16 possible keys.
+> > +
+> > +	There is also a new user-accessible register (PKRU) with two separate
+> > +	bits (Access Disable and Write Disable) for each key.  Being a CPU
+> > +	register, PKRU is inherently thread-local, potentially giving each
+> > +	thread a different set of protections from every other thread.
+> > +
+> > +	There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> > +	to the new register.  The feature is only available in 64-bit mode,
+> > +	even though there is theoretically space in the PAE PTEs.  These
+> > +	permissions are enforced on data access only and have no effect on
+> > +	instruction fetches.
+> > +
+> > +
+> > +On PowerPC:
+> > +
+> > +	It works by dedicating 5 page table entry bits to a "protection key",
+> > +	giving 32 possible keys.
+> > +
+> > +	There  is  a  user-accessible  register (AMR)  with  two separate bits;
+> > +	Access Disable and  Write  Disable, for  each key.  Being  a  CPU
+> > +	register,  AMR  is inherently  thread-local,  potentially  giving  each
+> > +	thread a different set of protections from every other thread.  NOTE:
+> > +	Disabling read permission does not disable write and vice-versa.
 > 
-> Is this really required at this stage ?
+> We can only enable/disable entire access or write. Then how
+> read permission can be changed with protection keys directly ?
 
-its a sanity check to gaurd against bad inputs. See a problem?
+Good catch. On powerpc there is a disable read and disable write. They
+both can be combined to disable access. Will fix the error. Read it
+as 'Access Read' . thanks.
+
 RP
-
--- 
-Ram Pai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
