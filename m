@@ -1,104 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7135B44084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:43:39 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t187so7880782oie.3
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:43:39 -0700 (PDT)
-Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
-        by mx.google.com with ESMTPS id m78si8457806oik.63.2017.07.10.05.43.38
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 163CB6B04A5
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:59:39 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l34so23982153wrc.12
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:59:39 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y64si8015323wrc.160.2017.07.10.05.59.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 05:43:38 -0700 (PDT)
-Received: by mail-oi0-x22f.google.com with SMTP id x187so73167900oig.3
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:43:38 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Jul 2017 05:59:37 -0700 (PDT)
+Date: Mon, 10 Jul 2017 14:59:35 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
+ memory allocations?
+Message-ID: <20170710125935.GL23069@pathway.suse.cz>
+References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
+ <20170707023601.GA7478@jagdpanzerIV.localdomain>
+ <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
-References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
- <20170525203334.867-8-kirill.shutemov@linux.intel.com> <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
- <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
- <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com> <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
- <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com> <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
- <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com> <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 10 Jul 2017 14:43:17 +0200
-Message-ID: <CACT4Y+aRbC7_wvDv8ahH_JwY6P6SFoLg-kdwWHJx5j1stX_P_w@mail.gmail.com>
-Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: sergey.senozhatsky.work@gmail.com, sergey.senozhatsky@gmail.com, mhocko@kernel.org, pavel@ucw.cz, rostedt@goodmis.org, andi@lisas.de, jack@suse.cz, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, daniel.vetter@ffwll.ch
 
-On Mon, Jul 10, 2017 at 2:33 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Thu, Jun 01, 2017 at 05:56:30PM +0300, Andrey Ryabinin wrote:
->> On 05/29/2017 03:46 PM, Andrey Ryabinin wrote:
->> > On 05/29/2017 02:45 PM, Andrey Ryabinin wrote:
->> >>>>>> Looks like KASAN will be a problem for boot-time paging mode switching.
->> >>>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
->> >>>>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
->> >>>>>>
->> >>>>>> I don't see how to solve it. Folks, any ideas?
->> >>>>>
->> >>>>> +kasan-dev
->> >>>>>
->> >>>>> I wonder if we can use the same offset for both modes. If we use
->> >>>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
->> >>>>> offset that we use for 4 levels (0xdffffc0000000000) will also work
->> >>>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
->> >>>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
->> >>>>> extends towards lower addresses. The current 5 level start of shadow
->> >>>>> is actually close -- 0xffd8000000000000 and it seems that the required
->> >>>>> space after it is unused at the moment (at least looking at mm.txt).
->> >>>>> So just try to move it to 0xFFDFFC0000000000?
->> >>>>>
->> >>>>
->> >>>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
->> >>>> assumes that kasan shadow stars and ends on the PGDIR aligned address.
->> >>>> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
->> >>>> of the shadow.
->> >>>
->> >>> I think we can extend the shadow backwards (to the current address),
->> >>> provided that it does not affect shadow offset that we pass to
->> >>> compiler.
->> >>
->> >> I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
->> >> round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
->> >> So we still need at least one more page to cover unaligned end.
->> >
->> > Actually, I'm wrong here. I assumed that we would need an additional page to store p4d entries,
->> > but in fact we don't need it, as such page should already exist. It's the same last pgd where kernel image
->> > is mapped.
->> >
->>
->>
->> Something like bellow might work. It's just a proposal to demonstrate the idea, so some code might look ugly.
->> And it's only build-tested.
->
-> [Sorry for loong delay.]
->
-> The patch works for me for legacy boot. But it breaks EFI boot with
-> 5-level paging. And I struggle to understand why.
->
-> What I see is many page faults at mm/kasan/kasan.c:758 --
-> "DEFINE_ASAN_LOAD_STORE(4)". Handling one of them I get double-fault at
-> arch/x86/kernel/head_64.S:298 -- "pushq %r14", which ends up with triple
-> fault.
->
-> Any ideas?
+On Sat 2017-07-08 22:30:47, Tetsuo Handa wrote:
+> What I want to mention here is that messages which were sent to printk()
+> were not printed to not only /dev/tty0 but also /dev/ttyS0 (I'm passing
+> "console=ttyS0,115200n8 console=tty0" to kernel command line.) I don't care
+> if output to /dev/tty0 is delayed, but I expect that output to /dev/ttyS0
+> is not delayed, for I'm anayzing things using printk() output sent to serial
+> console (serial.log in my VMware configuration). Hitting this problem when we
+> cannot allocate memory results in failing to save printk() output. Oops, it
+> is sad.
+
+Would it be acceptable to remove "console=tty0" parameter and push
+the messages only to the serial console?
+
+Also there is the patchset from Peter Zijlstra that allows to
+use early console all the time, see
+https://lkml.kernel.org/r/20161018170830.405990950@infradead.org
 
 
-Just playing the role of the rubber duck:
- - what is the fault address?
- - is it within the shadow range?
- - was the shadow mapped already?
+The current code flushes each line to all enabled consoles one
+by one. If there is a deadlock in one console, everything
+gets blocked.
+
+We are trying to make printk() more robust. But it is much more
+complicated than we anticipated. Many changes open another can
+of worms. It seems to be a job for years.
 
 
-> If you want to play with this by yourself, qemu supports la57 -- use
-> -cpu "qemu64,+la57".
->
-> --
->  Kirill A. Shutemov
+> Hmm... should we consider addressing console_sem problem before
+> introducing printing kernel thread and offloading to that kernel thread?
+
+As Sergey said, the console rework seems to be much bigger task
+than introducing the kthread.
+
+Also if we would want to handle each console separately (as a
+fallback) it would be helpful to have separate kthread for each
+enabled console or for the less reliable consoles at least.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
