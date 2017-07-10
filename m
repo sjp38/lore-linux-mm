@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B70A6B04B3
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:19:00 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v88so25169051wrb.1
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:19:00 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id 61si7977716wrs.352.2017.07.10.08.18.58
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4950744084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:32:25 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id o7so138734153ite.13
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:32:25 -0700 (PDT)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id u9si7094640itc.13.2017.07.10.08.32.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 08:18:59 -0700 (PDT)
-Subject: Re: [PATCH 1/3] Protectable memory support
-References: <20170705134628.3803-1-igor.stoppa@huawei.com>
- <20170705134628.3803-2-igor.stoppa@huawei.com>
- <20170706162742.GA2919@redhat.com>
- <1665fd00-5908-2399-577d-1972c7d1c63b@huawei.com>
- <20170707184843.GA3113@redhat.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <774d9fc1-4caf-a6c9-3693-a90b5b954645@huawei.com>
-Date: Mon, 10 Jul 2017 18:15:53 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170707184843.GA3113@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jul 2017 08:32:24 -0700 (PDT)
+Date: Mon, 10 Jul 2017 10:32:13 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
+ before publication
+In-Reply-To: <CAG_fn=XGns6jtiD253jMaTH8vLpuYNN=son-4+jDRRvc79ky4Q@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1707101023390.4065@east.gentwo.org>
+References: <20170707083408.40410-1-glider@google.com> <20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org> <alpine.DEB.2.20.1707071816560.20454@east.gentwo.org> <CAG_fn=XGns6jtiD253jMaTH8vLpuYNN=son-4+jDRRvc79ky4Q@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com, hch@infradead.org, penguin-kernel@I-love.SAKURA.ne.jp, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 07/07/17 21:48, Jerome Glisse wrote:
+On Mon, 10 Jul 2017, Alexander Potapenko wrote:
 
-> I believe there is enough unuse field that for vmalloc pages that
-> you should find one you can use. Just add some documentation in
-> mm_types.h so people are aware of alternate use for the field you
-> are using.
+> >> Could the slab maintainers please take a look at these and also have a
+> >> think about Alexander's READ_ONCE/WRITE_ONCE question?
+> >
+> > Was I cced on these?
+> I've asked Andrew about READ_ONCE privately.
 
+Please post to a mailing list and cc the maintainers?
 
-I ended up using page->private and the corresponding bit.
-Because page-private is an opaque field, specifically reserved for the
-allocator, I think it should not be necessary to modify mm_types.h
+> Since unfreeze_partials() sees uninitialized value of n->list_lock, I
+> was suspecting there's a data race between unfreeze_partials() and
+> init_kmem_cache_nodes().
 
-The reworked patch is here:
-https://marc.info/?l=linux-mm&m=149969928920772&w=2
+I have not seen the details but I would suspect that this is related to
+early boot issues? The list lock is initialized upon slab creation and at
+that time no one can get to the kmem_cache structure.
 
---
-thanks, igor
+There are a couple of boot time slabs that will temporarily be available.
+and released upon boot completion.
+
+> If so, reads and writes to s->node[node] must be acquire/release
+> atomics (not actually READ_ONCE/WRITE_ONCE, but
+> smp_load_acquire/smp_store_release).
+
+Can we figure the reason for these out before proposing fixes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
