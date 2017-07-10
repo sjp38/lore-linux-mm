@@ -1,58 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D296444084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:09:38 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z45so25843008wrb.13
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:09:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3si6934063wmd.89.2017.07.10.10.09.37
+	by kanga.kvack.org (Postfix) with ESMTP id 5550C44084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p64so25898753wrc.8
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:15:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 30si8526645wrd.171.2017.07.10.10.15.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 10:09:37 -0700 (PDT)
-Date: Mon, 10 Jul 2017 19:09:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Message-ID: <20170710170933.GE7071@dhcp22.suse.cz>
-References: <20170710074842.23175-1-mhocko@kernel.org>
- <1499695083.6130.38.camel@redhat.com>
- <20170710165859.GA12036@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jul 2017 10:15:55 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6AHE0OC022496
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:54 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bmb2ef8mu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:53 -0400
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Mon, 10 Jul 2017 11:15:53 -0600
+Date: Mon, 10 Jul 2017 10:15:36 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <d9030b2c-493b-94c4-8c97-8aaec3be34ba@linux.vnet.ibm.com>
+ <20170710060544.GF5713@ram.oc3035372033.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170710165859.GA12036@cmpxchg.org>
+In-Reply-To: <20170710060544.GF5713@ram.oc3035372033.ibm.com>
+Message-Id: <20170710171536.GA5716@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Mon 10-07-17 12:58:59, Johannes Weiner wrote:
-> On Mon, Jul 10, 2017 at 09:58:03AM -0400, Rik van Riel wrote:
-> > On Mon, 2017-07-10 at 09:48 +0200, Michal Hocko wrote:
-> > 
-> > > Johannes and Rik had some concerns that this could lead to premature
-> > > OOM kills. I agree with them that we need a better throttling
-> > > mechanism. Until now we didn't give the issue described above a high
-> > > priority because it usually required a really insane workload to
-> > > trigger. But it seems that the issue can be reproduced also without
-> > > having an insane number of competing threads [3].
-> > 
-> > My worries stand, but lets fix the real observed bug, and not worry
-> > too much about the theoretical bug for now.
-> > 
-> > Acked-by: Rik van Riel <riel@redhat.com>
+On Sun, Jul 09, 2017 at 11:05:44PM -0700, Ram Pai wrote:
+> On Mon, Jul 10, 2017 at 11:13:23AM +0530, Anshuman Khandual wrote:
+> > On 07/06/2017 02:51 AM, Ram Pai wrote:
+.....
 > 
-> I agree with this.
+> > do you have data points to show the difference in
+> > performance between this version and the last one where
+> > we skipped the bits from PTE and directly programmed the
+> > HPTE entries looking into VMA bits.
 > 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> No. I dont. I am hoping you can help me out with this.
+Anshuman,
+	The last version where we skipped the PTE bits is guaranteed
+	to be bad/horrible. For one it has a bug, since it accesses
+	the vma without a lock. And even if we did take a lock, it
+	will slow down the page-hash path un-acceptably. So there is
+	no point measuring the performance of that design.
 
-Thanks to both of you. Just to make it clear. I really do want to
-address the throttling problem longterm properly. I do not have any
-great ideas to be honest.  I am busy with other things so it might be
-quite some time before I come up with something.
+	I think the number we want to measure is -- the performance 
+	with the current design and comparing that to the performance
+	without memkey feature. We want to find if there is
+	any degradation by adding this feature.
 
--- 
-Michal Hocko
-SUSE Labs
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
