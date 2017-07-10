@@ -1,106 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EDB9D44084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:32:28 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v76so49904355qka.5
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:32:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o187si10903354qkf.157.2017.07.10.08.32.27
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B82A56B0311
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:56:41 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j79so116683709pfj.9
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:56:41 -0700 (PDT)
+Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
+        by mx.google.com with ESMTPS id m12si8257229pgt.449.2017.07.10.08.56.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 08:32:27 -0700 (PDT)
-Date: Mon, 10 Jul 2017 11:32:23 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
- page->lru field
-Message-ID: <20170710153222.GA4964@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com>
- <20170703211415.11283-5-jglisse@redhat.com>
- <20170704125113.GC14727@dhcp22.suse.cz>
- <20170705143528.GB3305@redhat.com>
- <20170710082805.GD19185@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170710082805.GD19185@dhcp22.suse.cz>
+        Mon, 10 Jul 2017 08:56:40 -0700 (PDT)
+Received: by mail-pg0-x22d.google.com with SMTP id u62so51550139pgb.3
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:56:40 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <20170710141713.7aox3edx6o7lrrie@node.shutemov.name>
+Date: Mon, 10 Jul 2017 08:56:37 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
+References: <20170525203334.867-8-kirill.shutemov@linux.intel.com> <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name> <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com> <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com> <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com> <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com> <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com> <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com> <20170710123346.7y3jnftqgpingim3@node.shutemov.name> <CACT4Y+aRbC7_wvDv8ahH_JwY6P6SFoLg-kdwWHJx5j1stX_P_w@mail.gmail.com> <20170710141713.7aox3edx6o7lrrie@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Mon, Jul 10, 2017 at 10:28:06AM +0200, Michal Hocko wrote:
-> On Wed 05-07-17 10:35:29, Jerome Glisse wrote:
-> > On Tue, Jul 04, 2017 at 02:51:13PM +0200, Michal Hocko wrote:
-> > > On Mon 03-07-17 17:14:14, Jerome Glisse wrote:
-> > > > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > > > thus you can not use page->lru fields of those pages. This patch
-> > > > re-arrange the uncharge to allow single page to be uncharge without
-> > > > modifying the lru field of the struct page.
-> > > > 
-> > > > There is no change to memcontrol logic, it is the same as it was
-> > > > before this patch.
-> > > 
-> > > What is the memcg semantic of the memory? Why is it even charged? AFAIR
-> > > this is not a reclaimable memory. If yes how are we going to deal with
-> > > memory limits? What should happen if go OOM? Does killing an process
-> > > actually help to release that memory? Isn't it pinned by a device?
-> > > 
-> > > For the patch itself. It is quite ugly but I haven't spotted anything
-> > > obviously wrong with it. It is the memcg semantic with this class of
-> > > memory which makes me worried.
-> > 
-> > So i am facing 3 choices. First one not account device memory at all.
-> > Second one is account device memory like any other memory inside a
-> > process. Third one is account device memory as something entirely new.
-> > 
-> > I pick the second one for two reasons. First because when migrating
-> > back from device memory it means that migration can not fail because
-> > of memory cgroup limit, this simplify an already complex migration
-> > code. Second because i assume that device memory usage is a transient
-> > state ie once device is done with its computation the most likely
-> > outcome is memory is migrated back. From this assumption it means
-> > that you do not want to allow a process to overuse regular memory
-> > while it is using un-accounted device memory. It sounds safer to
-> > account device memory and to keep the process within its memcg
-> > boundary.
-> > 
-> > Admittedly here i am making an assumption and i can be wrong. Thing
-> > is we do not have enough real data of how this will be use and how
-> > much of an impact device memory will have. That is why for now i
-> > would rather restrict myself to either not account it or account it
-> > as usual.
-> > 
-> > If you prefer not accounting it until we have more experience on how
-> > it is use and how it impacts memory resource management i am fine with
-> > that too. It will make the migration code slightly more complex.
-> 
-> I can see why you want to do this but the semantic _has_ to be clear.
-> And as such make sure that the exiting task will simply unpin and
-> invalidate all the device memory (assuming this memory is not shared
-> which I am not sure is even possible).
 
-So there is 2 differents path out of device memory:
-  - munmap/process exiting: memory will get uncharge from its memory
-    cgroup just like regular memory
-  - migration to non device memory, the memory cgroup charge get
-    transfer to the new page just like for any other page
 
-Do you want me to document all this in any specific place ? I will
-add a comment in memory_control.c and in HMM documentations for this
-but should i add it anywhere else ?
+> On Jul 10, 2017, at 7:17 AM, Kirill A. Shutemov <kirill@shutemov.name> wro=
+te:
+>=20
+>> On Mon, Jul 10, 2017 at 02:43:17PM +0200, Dmitry Vyukov wrote:
+>> On Mon, Jul 10, 2017 at 2:33 PM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>>> On Thu, Jun 01, 2017 at 05:56:30PM +0300, Andrey Ryabinin wrote:
+>>>>> On 05/29/2017 03:46 PM, Andrey Ryabinin wrote:
+>>>>> On 05/29/2017 02:45 PM, Andrey Ryabinin wrote:
+>>>>>>>>>> Looks like KASAN will be a problem for boot-time paging mode swit=
+ching.
+>>>>>>>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pa=
+ss to
+>>>>>>>>>> gcc -fasan-shadow-offset=3D. But this value varies between paging=
+ modes...
+>>>>>>>>>>=20
+>>>>>>>>>> I don't see how to solve it. Folks, any ideas?
+>>>>>>>>>=20
+>>>>>>>>> +kasan-dev
+>>>>>>>>>=20
+>>>>>>>>> I wonder if we can use the same offset for both modes. If we use
+>>>>>>>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+>>>>>>>>> offset that we use for 4 levels (0xdffffc0000000000) will also wor=
+k
+>>>>>>>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4=
 
-Note that the device memory is not pin. The whole point of HMM is to
-do away with any pining. Thought as device page are not on lru they
-are not reclaim like any other page. However we expect that device
-driver might implement something akin to device memory reclaim to
-make room for more important data base on statistic collected by the
-device driver. If there is enough commonality accross devices then
-we might implement a more generic mechanisms but at this point i
-rather grow as we learn.
+>>>>>>>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mappin=
+g
+>>>>>>>>> extends towards lower addresses. The current 5 level start of shad=
+ow
+>>>>>>>>> is actually close -- 0xffd8000000000000 and it seems that the requ=
+ired
+>>>>>>>>> space after it is unused at the moment (at least looking at mm.txt=
+).
+>>>>>>>>> So just try to move it to 0xFFDFFC0000000000?
+>>>>>>>>>=20
+>>>>>>>>=20
+>>>>>>>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGD=
+IR aligned address. Our init code
+>>>>>>>> assumes that kasan shadow stars and ends on the PGDIR aligned addre=
+ss.
+>>>>>>>> Fortunately this is fixable, we'd need two more pages for page tabl=
+es to map unaligned start/end
+>>>>>>>> of the shadow.
+>>>>>>>=20
+>>>>>>> I think we can extend the shadow backwards (to the current address),=
 
-Cheers,
-Jerome
+>>>>>>> provided that it does not affect shadow offset that we pass to
+>>>>>>> compiler.
+>>>>>>=20
+>>>>>> I thought about this. We can round down shadow start to 0xffdf0000000=
+00000, but we can't
+>>>>>> round up shadow end, because in that case shadow would end at 0xfffff=
+fffffffffff.
+>>>>>> So we still need at least one more page to cover unaligned end.
+>>>>>=20
+>>>>> Actually, I'm wrong here. I assumed that we would need an additional p=
+age to store p4d entries,
+>>>>> but in fact we don't need it, as such page should already exist. It's t=
+he same last pgd where kernel image
+>>>>> is mapped.
+>>>>>=20
+>>>>=20
+>>>>=20
+>>>> Something like bellow might work. It's just a proposal to demonstrate t=
+he idea, so some code might look ugly.
+>>>> And it's only build-tested.
+>>>=20
+>>> [Sorry for loong delay.]
+>>>=20
+>>> The patch works for me for legacy boot. But it breaks EFI boot with
+>>> 5-level paging. And I struggle to understand why.
+>>>=20
+>>> What I see is many page faults at mm/kasan/kasan.c:758 --
+>>> "DEFINE_ASAN_LOAD_STORE(4)". Handling one of them I get double-fault at
+>>> arch/x86/kernel/head_64.S:298 -- "pushq %r14", which ends up with triple=
+
+>>> fault.
+>>>=20
+>>> Any ideas?
+>>=20
+>>=20
+>> Just playing the role of the rubber duck:
+>> - what is the fault address?
+>> - is it within the shadow range?
+>> - was the shadow mapped already?
+>=20
+> I misread trace. The initial fault is at arch/x86/kernel/head_64.S:270,
+> which is ".endr" in definition of early_idt_handler_array.
+>=20
+> The fault address for all three faults is 0xffffffff7ffffff8, which is
+> outside shadow range. It's just before kernel text mapping.
+>=20
+> Codewise, it happens in load_ucode_bsp() -- after kasan_early_init(), but
+> before kasan_init().
+
+My theory is that, in 5 level mode, the early IDT code isn't all mapped in t=
+he page tables.  This could sometimes be papered over by lazy page table set=
+up, but lazy setup can't handle faults in the page fault code or data struct=
+ures.
+
+EFI sometimes uses separate page tables, which could contribute.
+
+>=20
+> --=20
+> Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
