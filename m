@@ -1,111 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1426B03BD
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 03:48:51 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 23so22242210wry.4
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 00:48:51 -0700 (PDT)
-Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com. [209.85.128.194])
-        by mx.google.com with ESMTPS id g51si8086085wra.242.2017.07.10.00.48.49
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ED7C6B0491
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 04:28:10 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u110so22382381wrb.14
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 01:28:10 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 27si7889973wry.54.2017.07.10.01.28.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 00:48:49 -0700 (PDT)
-Received: by mail-wr0-f194.google.com with SMTP id z45so23203926wrb.2
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 00:48:49 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Jul 2017 01:28:09 -0700 (PDT)
+Date: Mon, 10 Jul 2017 10:28:06 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Date: Mon, 10 Jul 2017 09:48:42 +0200
-Message-Id: <20170710074842.23175-1-mhocko@kernel.org>
+Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
+ page->lru field
+Message-ID: <20170710082805.GD19185@dhcp22.suse.cz>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-5-jglisse@redhat.com>
+ <20170704125113.GC14727@dhcp22.suse.cz>
+ <20170705143528.GB3305@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170705143528.GB3305@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 05-07-17 10:35:29, Jerome Glisse wrote:
+> On Tue, Jul 04, 2017 at 02:51:13PM +0200, Michal Hocko wrote:
+> > On Mon 03-07-17 17:14:14, Jerome Glisse wrote:
+> > > HMM pages (private or public device pages) are ZONE_DEVICE page and
+> > > thus you can not use page->lru fields of those pages. This patch
+> > > re-arrange the uncharge to allow single page to be uncharge without
+> > > modifying the lru field of the struct page.
+> > > 
+> > > There is no change to memcontrol logic, it is the same as it was
+> > > before this patch.
+> > 
+> > What is the memcg semantic of the memory? Why is it even charged? AFAIR
+> > this is not a reclaimable memory. If yes how are we going to deal with
+> > memory limits? What should happen if go OOM? Does killing an process
+> > actually help to release that memory? Isn't it pinned by a device?
+> > 
+> > For the patch itself. It is quite ugly but I haven't spotted anything
+> > obviously wrong with it. It is the memcg semantic with this class of
+> > memory which makes me worried.
+> 
+> So i am facing 3 choices. First one not account device memory at all.
+> Second one is account device memory like any other memory inside a
+> process. Third one is account device memory as something entirely new.
+> 
+> I pick the second one for two reasons. First because when migrating
+> back from device memory it means that migration can not fail because
+> of memory cgroup limit, this simplify an already complex migration
+> code. Second because i assume that device memory usage is a transient
+> state ie once device is done with its computation the most likely
+> outcome is memory is migrated back. From this assumption it means
+> that you do not want to allow a process to overuse regular memory
+> while it is using un-accounted device memory. It sounds safer to
+> account device memory and to keep the process within its memcg
+> boundary.
+> 
+> Admittedly here i am making an assumption and i can be wrong. Thing
+> is we do not have enough real data of how this will be use and how
+> much of an impact device memory will have. That is why for now i
+> would rather restrict myself to either not account it or account it
+> as usual.
+> 
+> If you prefer not accounting it until we have more experience on how
+> it is use and how it impacts memory resource management i am fine with
+> that too. It will make the migration code slightly more complex.
 
-Tetsuo Handa has reported [1][2][3]that direct reclaimers might get stuck
-in too_many_isolated loop basically for ever because the last few pages
-on the LRU lists are isolated by the kswapd which is stuck on fs locks
-when doing the pageout or slab reclaim. This in turn means that there is
-nobody to actually trigger the oom killer and the system is basically
-unusable.
-
-too_many_isolated has been introduced by 35cd78156c49 ("vmscan: throttle
-direct reclaim when too many pages are isolated already") to prevent
-from pre-mature oom killer invocations because back then no reclaim
-progress could indeed trigger the OOM killer too early. But since the
-oom detection rework 0a0337e0d1d1 ("mm, oom: rework oom detection")
-the allocation/reclaim retry loop considers all the reclaimable pages
-and throttles the allocation at that layer so we can loosen the direct
-reclaim throttling.
-
-Make shrink_inactive_list loop over too_many_isolated bounded and returns
-immediately when the situation hasn't resolved after the first sleep.
-Replace congestion_wait by a simple schedule_timeout_interruptible because
-we are not really waiting on the IO congestion in this path.
-
-Please note that this patch can theoretically cause the OOM killer to
-trigger earlier while there are many pages isolated for the reclaim
-which makes progress only very slowly. This would be obvious from the oom
-report as the number of isolated pages are printed there. If we ever hit
-this should_reclaim_retry should consider those numbers in the evaluation
-in one way or another.
-
-[1] http://lkml.kernel.org/r/201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp
-[2] http://lkml.kernel.org/r/201702212335.DJB30777.JOFMHSFtVLQOOF@I-love.SAKURA.ne.jp
-[3] http://lkml.kernel.org/r/201706300914.CEH95859.FMQOLVFHJFtOOS@I-love.SAKURA.ne.jp
-
-Acked-by: Mel Gorman <mgorman@suse.de>
-Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I am resubmitting this patch previously sent here
-http://lkml.kernel.org/r/20170307133057.26182-1-mhocko@kernel.org.
-
-Johannes and Rik had some concerns that this could lead to premature
-OOM kills. I agree with them that we need a better throttling
-mechanism. Until now we didn't give the issue described above a high
-priority because it usually required a really insane workload to
-trigger. But it seems that the issue can be reproduced also without
-having an insane number of competing threads [3].
-
-Moreover, the issue also triggers very often while testing heavy memory
-pressure and so prevents further development of hardening of that area
-(http://lkml.kernel.org/r/201707061948.ICJ18763.tVFOQFOHMJFSLO@I-love.SAKURA.ne.jp).
-Tetsuo hasn't seen any negative effect of this patch in his oom stress
-tests so I think we should go with this simple patch for now and think
-about something more robust long term.
-
-That being said I suggest merging this (after spending the full release
-cycle in linux-next) for the time being until we come up with a more
-clever solution.
-
- mm/vmscan.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c15b2e4c47ca..4ae069060ae5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1713,9 +1713,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	int file = is_file_lru(lru);
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-+	bool stalled = false;
- 
- 	while (unlikely(too_many_isolated(pgdat, file, sc))) {
--		congestion_wait(BLK_RW_ASYNC, HZ/10);
-+		if (stalled)
-+			return 0;
-+
-+		/* wait a bit for the reclaimer. */
-+		schedule_timeout_interruptible(HZ/10);
-+		stalled = true;
- 
- 		/* We are about to die and free our memory. Return now. */
- 		if (fatal_signal_pending(current))
+I can see why you want to do this but the semantic _has_ to be clear.
+And as such make sure that the exiting task will simply unpin and
+invalidate all the device memory (assuming this memory is not shared
+which I am not sure is even possible).
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
