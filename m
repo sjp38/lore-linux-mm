@@ -1,101 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 513E36B03A1
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:06:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d62so104544627pfb.13
-        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 23:06:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t1si7255491pfj.130.2017.07.09.23.06.01
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 278366B03B4
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:45:45 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g46so21925421wrd.3
+        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 23:45:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g145si5512901wmg.198.2017.07.09.23.45.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jul 2017 23:06:01 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6A6447q002654
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:06:01 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bjuj10bte-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 02:06:00 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Mon, 10 Jul 2017 02:05:59 -0400
-Date: Sun, 9 Jul 2017 23:05:44 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <d9030b2c-493b-94c4-8c97-8aaec3be34ba@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 09 Jul 2017 23:45:43 -0700 (PDT)
+Date: Mon, 10 Jul 2017 08:45:40 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
+Message-ID: <20170710064540.GA19185@dhcp22.suse.cz>
+References: <20170629073509.623-1-mhocko@kernel.org>
+ <20170629073509.623-3-mhocko@kernel.org>
+ <64e889ae-24ab-b845-5751-978a76dd0dd9@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d9030b2c-493b-94c4-8c97-8aaec3be34ba@linux.vnet.ibm.com>
-Message-Id: <20170710060544.GF5713@ram.oc3035372033.ibm.com>
+In-Reply-To: <64e889ae-24ab-b845-5751-978a76dd0dd9@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Jul 10, 2017 at 11:13:23AM +0530, Anshuman Khandual wrote:
-> On 07/06/2017 02:51 AM, Ram Pai wrote:
-> > Memory protection keys enable applications to protect its
-> > address space from inadvertent access or corruption from
-> > itself.
-> > 
-> > The overall idea:
-> > 
-> >  A process allocates a   key  and associates it with
-> >  an  address  range  within    its   address   space.
-> >  The process  then  can  dynamically  set read/write 
-> >  permissions on  the   key   without  involving  the 
-> >  kernel. Any  code that  violates   the  permissions
-> >  of  the address space; as defined by its associated
-> >  key, will receive a segmentation fault.
-> > 
-> > This patch series enables the feature on PPC64 HPTE
-> > platform.
-> > 
-> > ISA3.0 section 5.7.13 describes the detailed specifications.
-> > 
-> > 
-> > Testing:
-> > 	This patch series has passed all the protection key
-> > 	tests available in  the selftests directory.
-> > 	The tests are updated to work on both x86 and powerpc.
-> > 
-> > version v5:
-> > 	(1) reverted back to the old design -- store the 
-> > 	    key in the pte, instead of bypassing it.
-> > 	    The v4 design slowed down the hash page path.
-> > 	(2) detects key violation when kernel is told to 
-> > 		access user pages.
-> > 	(3) further refined the patches into smaller consumable
-> > 		units
-> > 	(4) page faults handlers captures the faulting key 
-> > 	    from the pte instead of the vma. This closes a
-> > 	    race between where the key update in the vma and
-> > 	    a key fault caused cause by the key programmed
-> > 	    in the pte.
-> > 	(5) a key created with access-denied should
-> > 	    also set it up to deny write. Fixed it.
-> > 	(6) protection-key number is displayed in smaps
-> > 		the x86 way.
+On Fri 07-07-17 17:02:59, Vlastimil Babka wrote:
+> [+CC linux-api]
 > 
-> Hello Ram,
+> On 06/29/2017 09:35 AM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
+> > to precede the Movable zone in the physical memory range. The purpose of
+> > the movable zone is, however, not bound to any physical memory restriction.
+> > It merely defines a class of migrateable and reclaimable memory.
+> > 
+> > There are users (e.g. CMA) who might want to reserve specific physical
+> > memory ranges for their own purpose. Moreover our pfn walkers have to be
+> > prepared for zones overlapping in the physical range already because we
+> > do support interleaving NUMA nodes and therefore zones can interleave as
+> > well. This means we can allow each memory block to be associated with a
+> > different zone.
+> > 
+> > Loosen the current onlining semantic and allow explicit onlining type on
+> > any memblock. That means that online_{kernel,movable} will be allowed
+> > regardless of the physical address of the memblock as long as it is
+> > offline of course. This might result in moveble zone overlapping with
+> > other kernel zones. Default onlining then becomes a bit tricky but still
+> > sensible. echo online > memoryXY/state will online the given block to
+> > 	1) the default zone if the given range is outside of any zone
+> > 	2) the enclosing zone if such a zone doesn't interleave with
+> > 	   any other zone
+> >         3) the default zone if more zones interleave for this range
+> > where default zone is movable zone only if movable_node is enabled
+> > otherwise it is a kernel zone.
+> > 
+> > Here is an example of the semantic with (movable_node is not present but
+> > it work in an analogous way). We start with following memblocks, all of
+> > them offline
+> > memory34/valid_zones:Normal Movable
+> > memory35/valid_zones:Normal Movable
+> > memory36/valid_zones:Normal Movable
+> > memory37/valid_zones:Normal Movable
+> > memory38/valid_zones:Normal Movable
+> > memory39/valid_zones:Normal Movable
+> > memory40/valid_zones:Normal Movable
+> > memory41/valid_zones:Normal Movable
+> > 
+> > Now, we online block 34 in default mode and block 37 as movable
+> > root@test1:/sys/devices/system/node/node1# echo online > memory34/state
+> > root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
+> > memory34/valid_zones:Normal
+> > memory35/valid_zones:Normal Movable
+> > memory36/valid_zones:Normal Movable
+> > memory37/valid_zones:Movable
+> > memory38/valid_zones:Normal Movable
+> > memory39/valid_zones:Normal Movable
+> > memory40/valid_zones:Normal Movable
+> > memory41/valid_zones:Normal Movable
 > 
-> This patch series has now grown a lot. Do you have this
-> hosted some where for us to pull and test it out ? BTW
+> Hm so previously, blocks 37-41 would only allow Movable at this point, right?
 
-https://github.com/rampai/memorykeys.git
-branch memkey.v5.3
+yes
 
-> do you have data points to show the difference in
-> performance between this version and the last one where
-> we skipped the bits from PTE and directly programmed the
-> HPTE entries looking into VMA bits.
+> Shouldn't we still default to Movable for them? We might be breaking some
+> existing userspace here.
 
-No. I dont. I am hoping you can help me out with this.
-RP
+I do not think so. Prior to this merge window f1dd2cd13c4b ("mm,
+memory_hotplug: do not associate hotadded memory to zones until online")
+we allowed only the last offline or the adjacent to existing movable
+memory block to be onlined movable. So the above wasn't possible. I
+doubt we have grown a new user since the rework has been merged but if
+you think we should make sure nothing like that happens then we should
+probably merge this patch in this release cycle.
+
+> IMHO onlining new memory past existing blocks is more common use case than
+> onlining memory between two blocks that are already online?
+
+I am not really sure. It is quite common to online and offline within an
+existing zones for the memory ballooning. I do not know what kind of
+online operation they use but using the default online operation has
+historically preserved the zone so I would be really reluctant to change
+that.
+
+> I also agree with Wei Yang that it's rather fuzzy that a zone that has been
+> completely offlined will affect the defaults for the next onlining just because
+> it has some spanned range, which is however empty of actual populated memory.
+
+I am sorry but I still do not see why. The zone is not empty. It has a
+range spanned. It just doesn't have any pages online. I really fail to
+see how that is different from zones with large offline holes.
+
+> Maybe it would simplest for everyone to just default to Normal, except
+> movable_node? That's if we decide that the potential breakage I
+> described above is a non-issue.
+
+This would break the usecase where the memory is onlined a certain type
+initially and the offline/online it later on demand for ballooning.
+
+I wish this could be more clear but the default onlining has been fuzzy
+since the movable online has been introduced and it is hard to buil
+something really clear since then. The proposed semantic is the most
+clean I could come up with but I am open to any suggestions that
+wouldn't break existing usage.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
