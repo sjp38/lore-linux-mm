@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 10B276B049F
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 06:29:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 123so112160298pgj.4
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 03:29:15 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0125.outbound.protection.outlook.com. [104.47.1.125])
-        by mx.google.com with ESMTPS id i62si1746535pli.511.2017.07.10.03.29.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1484E6B049E
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 06:32:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v62so109528694pfd.10
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 03:32:27 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00102.outbound.protection.outlook.com. [40.107.0.102])
+        by mx.google.com with ESMTPS id t3si8627536plj.365.2017.07.10.03.32.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 03:29:14 -0700 (PDT)
-Subject: Re: [PATCH 2/4] kasan: added functions for unpoisoning stack
- variables
+        Mon, 10 Jul 2017 03:32:26 -0700 (PDT)
+Subject: Re: [PATCH 4/4] kasan: add compiler support for clang
 References: <20170706220114.142438-1-ghackmann@google.com>
- <20170706220114.142438-3-ghackmann@google.com>
+ <20170706220114.142438-5-ghackmann@google.com>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <d3f1ab84-3fe2-f4ea-5481-82bc63b9d09c@virtuozzo.com>
-Date: Mon, 10 Jul 2017 13:31:05 +0300
+Message-ID: <34230d2e-c134-6cbc-2a59-c78c78782526@virtuozzo.com>
+Date: Mon, 10 Jul 2017 13:34:24 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170706220114.142438-3-ghackmann@google.com>
+In-Reply-To: <20170706220114.142438-5-ghackmann@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -26,56 +25,40 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Hackmann <ghackmann@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
 Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>
 
-
-
 On 07/07/2017 01:01 AM, Greg Hackmann wrote:
-> From: Alexander Potapenko <glider@google.com>
+> For now we can hard-code ASAN ABI level 5, since historical clang builds
+> can't build the kernel anyway.  We also need to emulate gcc's
+> __SANITIZE_ADDRESS__ flag, or memset() calls won't be instrumented.
 > 
-> As a code-size optimization, LLVM builds since r279383 may
-> bulk-manipulate the shadow region when (un)poisoning large memory
-> blocks.  This requires new callbacks that simply do an uninstrumented
-> memset().
-> 
-> This fixes linking the Clang-built kernel when using KASAN.
-> 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> [ghackmann@google.com: fix memset() parameters, and tweak
->  commit message to describe new callbacks]
 > Signed-off-by: Greg Hackmann <ghackmann@google.com>
 > ---
->  mm/kasan/kasan.c | 15 +++++++++++++++
->  1 file changed, 15 insertions(+)
+>  include/linux/compiler-clang.h | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
 > 
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 892b626f564b..89911e5c69f9 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -828,6 +828,21 @@ void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom)
->  }
->  EXPORT_SYMBOL(__asan_allocas_unpoison);
->  
-> +/* Emitted by the compiler to [un]poison local variables. */
-> +#define DEFINE_ASAN_SET_SHADOW(byte) \
-> +	void __asan_set_shadow_##byte(const void *addr, size_t size)	\
-> +	{								\
-> +		__memset((void *)addr, 0x##byte, size);			\
-> +	}								\
-> +	EXPORT_SYMBOL(__asan_set_shadow_##byte)
+> diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+> index d614c5ea1b5e..8153f793b22a 100644
+> --- a/include/linux/compiler-clang.h
+> +++ b/include/linux/compiler-clang.h
+> @@ -23,3 +23,13 @@
+>   */
+>  #undef inline
+>  #define inline inline __attribute__((unused)) notrace
 > +
-> +DEFINE_ASAN_SET_SHADOW(00);
-> +DEFINE_ASAN_SET_SHADOW(f1);
-> +DEFINE_ASAN_SET_SHADOW(f2);
-> +DEFINE_ASAN_SET_SHADOW(f3);
-> +DEFINE_ASAN_SET_SHADOW(f5);
-> +DEFINE_ASAN_SET_SHADOW(f8);
+> +/* all clang versions usable with the kernel support KASAN ABI version 5
+> + */
 
-I think we can remove f8 as it should be used only by use-after-return instrumentation.
-We don't use it in the kernel
+ Enclosing */ should be on the same line for single-line comments.
 
+> +#define KASAN_ABI_VERSION 5
 > +
->  #ifdef CONFIG_MEMORY_HOTPLUG
->  static int kasan_mem_notifier(struct notifier_block *nb,
->  			unsigned long action, void *data)
+> +/* emulate gcc's __SANITIZE_ADDRESS__ flag
+> + */
+
+Ditto.
+
+> +#if __has_feature(address_sanitizer)
+> +#define __SANITIZE_ADDRESS__
+> +#endif
 > 
 
 --
