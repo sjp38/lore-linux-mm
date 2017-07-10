@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4950744084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:32:25 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id o7so138734153ite.13
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:32:25 -0700 (PDT)
-Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
-        by mx.google.com with ESMTPS id u9si7094640itc.13.2017.07.10.08.32.23
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EDB9D44084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:32:28 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id v76so49904355qka.5
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:32:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o187si10903354qkf.157.2017.07.10.08.32.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 08:32:24 -0700 (PDT)
-Date: Mon, 10 Jul 2017 10:32:13 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
- before publication
-In-Reply-To: <CAG_fn=XGns6jtiD253jMaTH8vLpuYNN=son-4+jDRRvc79ky4Q@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1707101023390.4065@east.gentwo.org>
-References: <20170707083408.40410-1-glider@google.com> <20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org> <alpine.DEB.2.20.1707071816560.20454@east.gentwo.org> <CAG_fn=XGns6jtiD253jMaTH8vLpuYNN=son-4+jDRRvc79ky4Q@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 10 Jul 2017 08:32:27 -0700 (PDT)
+Date: Mon, 10 Jul 2017 11:32:23 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
+ page->lru field
+Message-ID: <20170710153222.GA4964@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-5-jglisse@redhat.com>
+ <20170704125113.GC14727@dhcp22.suse.cz>
+ <20170705143528.GB3305@redhat.com>
+ <20170710082805.GD19185@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170710082805.GD19185@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-On Mon, 10 Jul 2017, Alexander Potapenko wrote:
+On Mon, Jul 10, 2017 at 10:28:06AM +0200, Michal Hocko wrote:
+> On Wed 05-07-17 10:35:29, Jerome Glisse wrote:
+> > On Tue, Jul 04, 2017 at 02:51:13PM +0200, Michal Hocko wrote:
+> > > On Mon 03-07-17 17:14:14, Jerome Glisse wrote:
+> > > > HMM pages (private or public device pages) are ZONE_DEVICE page and
+> > > > thus you can not use page->lru fields of those pages. This patch
+> > > > re-arrange the uncharge to allow single page to be uncharge without
+> > > > modifying the lru field of the struct page.
+> > > > 
+> > > > There is no change to memcontrol logic, it is the same as it was
+> > > > before this patch.
+> > > 
+> > > What is the memcg semantic of the memory? Why is it even charged? AFAIR
+> > > this is not a reclaimable memory. If yes how are we going to deal with
+> > > memory limits? What should happen if go OOM? Does killing an process
+> > > actually help to release that memory? Isn't it pinned by a device?
+> > > 
+> > > For the patch itself. It is quite ugly but I haven't spotted anything
+> > > obviously wrong with it. It is the memcg semantic with this class of
+> > > memory which makes me worried.
+> > 
+> > So i am facing 3 choices. First one not account device memory at all.
+> > Second one is account device memory like any other memory inside a
+> > process. Third one is account device memory as something entirely new.
+> > 
+> > I pick the second one for two reasons. First because when migrating
+> > back from device memory it means that migration can not fail because
+> > of memory cgroup limit, this simplify an already complex migration
+> > code. Second because i assume that device memory usage is a transient
+> > state ie once device is done with its computation the most likely
+> > outcome is memory is migrated back. From this assumption it means
+> > that you do not want to allow a process to overuse regular memory
+> > while it is using un-accounted device memory. It sounds safer to
+> > account device memory and to keep the process within its memcg
+> > boundary.
+> > 
+> > Admittedly here i am making an assumption and i can be wrong. Thing
+> > is we do not have enough real data of how this will be use and how
+> > much of an impact device memory will have. That is why for now i
+> > would rather restrict myself to either not account it or account it
+> > as usual.
+> > 
+> > If you prefer not accounting it until we have more experience on how
+> > it is use and how it impacts memory resource management i am fine with
+> > that too. It will make the migration code slightly more complex.
+> 
+> I can see why you want to do this but the semantic _has_ to be clear.
+> And as such make sure that the exiting task will simply unpin and
+> invalidate all the device memory (assuming this memory is not shared
+> which I am not sure is even possible).
 
-> >> Could the slab maintainers please take a look at these and also have a
-> >> think about Alexander's READ_ONCE/WRITE_ONCE question?
-> >
-> > Was I cced on these?
-> I've asked Andrew about READ_ONCE privately.
+So there is 2 differents path out of device memory:
+  - munmap/process exiting: memory will get uncharge from its memory
+    cgroup just like regular memory
+  - migration to non device memory, the memory cgroup charge get
+    transfer to the new page just like for any other page
 
-Please post to a mailing list and cc the maintainers?
+Do you want me to document all this in any specific place ? I will
+add a comment in memory_control.c and in HMM documentations for this
+but should i add it anywhere else ?
 
-> Since unfreeze_partials() sees uninitialized value of n->list_lock, I
-> was suspecting there's a data race between unfreeze_partials() and
-> init_kmem_cache_nodes().
+Note that the device memory is not pin. The whole point of HMM is to
+do away with any pining. Thought as device page are not on lru they
+are not reclaim like any other page. However we expect that device
+driver might implement something akin to device memory reclaim to
+make room for more important data base on statistic collected by the
+device driver. If there is enough commonality accross devices then
+we might implement a more generic mechanisms but at this point i
+rather grow as we learn.
 
-I have not seen the details but I would suspect that this is related to
-early boot issues? The list lock is initialized upon slab creation and at
-that time no one can get to the kmem_cache structure.
-
-There are a couple of boot time slabs that will temporarily be available.
-and released upon boot completion.
-
-> If so, reads and writes to s->node[node] must be acquire/release
-> atomics (not actually READ_ONCE/WRITE_ONCE, but
-> smp_load_acquire/smp_store_release).
-
-Can we figure the reason for these out before proposing fixes?
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
