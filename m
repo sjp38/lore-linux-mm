@@ -1,86 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C268444084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:22:18 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id o19so41324135vkd.7
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:22:18 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 143si1555965vkn.160.2017.07.10.10.22.17
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED8B44084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:31:38 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id h47so54343235qta.12
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:31:38 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p22si11086924qtg.225.2017.07.10.10.31.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 10:22:17 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
- <20170707102324.kfihkf72sjcrtn5b@node.shutemov.name>
- <e328ff6a-2c4b-ec26-cc28-e24b7b35a463@oracle.com>
- <20170707174534.wdfbciyfpovi52dy@node.shutemov.name>
- <79eca23d-9f1a-9713-3f6b-8f7598d53190@oracle.com>
- <662d372a-5737-5f0b-8ac1-c997f3a935eb@linux.vnet.ibm.com>
- <223c0ede-1203-4ea6-0157-a4500fea8050@suse.cz>
+        Mon, 10 Jul 2017 10:31:37 -0700 (PDT)
+Subject: Re: [PATCH] mm/mremap: Document MREMAP_FIXED dependency on
+ MREMAP_MAYMOVE
+References: <20170710113211.31394-1-khandual@linux.vnet.ibm.com>
+ <20170710134130.GA19645@dhcp22.suse.cz>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <bfdeb8ea-0d8c-a652-39b5-e92e196e6c97@oracle.com>
-Date: Mon, 10 Jul 2017 10:22:09 -0700
+Message-ID: <40c61daf-da2c-bab9-99d0-a7d7147f4514@oracle.com>
+Date: Mon, 10 Jul 2017 10:31:29 -0700
 MIME-Version: 1.0
-In-Reply-To: <223c0ede-1203-4ea6-0157-a4500fea8050@suse.cz>
+In-Reply-To: <20170710134130.GA19645@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On 07/10/2017 09:22 AM, Vlastimil Babka wrote:
-> On 07/09/2017 09:32 AM, Anshuman Khandual wrote:
->> On 07/07/2017 11:39 PM, Mike Kravetz wrote:
->>> On 07/07/2017 10:45 AM, Kirill A. Shutemov wrote:
->>>> On Fri, Jul 07, 2017 at 10:29:52AM -0700, Mike Kravetz wrote:
->>>>> On 07/07/2017 03:23 AM, Kirill A. Shutemov wrote:
->>>>>> What is going to happen to mirrored after CoW for instance?
->>>>>>
->>>>>> In my opinion, it shouldn't be allowed for anon/private mappings at least.
->>>>>> And with this limitation, I don't see much sense in the new interface --
->>>>>> just create mirror by mmap()ing the file again.
->>>>>
->>>>> The code today works for anon shared mappings.  See simple program below.
->>>>>
->>>>> You are correct in that it makes little or no sense for private mappings.
->>>>> When looking closer at existing code, mremap() creates a new private
->>>>> mapping in this case.  This is most likely a bug.
->>>>
->>>> IIRC, existing code doesn't create mirrors of private pages as it requires
->>>> old_len to be zero. There's no way to get private pages mapped twice this
->>>> way.
->>>
->>> Correct.
->>> As mentioned above, mremap does 'something' for private anon pages when
->>> old_len == 0.  However, this may be considered a bug.  In this case, mremap
->>> creates a new private anon mapping of length new_size.  Since old_len == 0,
->>> it does not unmap any of the old mapping.  So, in this case mremap basically
->>> creates a new private mapping (unrealted to the original) and does not
->>> modify the old mapping.
->>>
->>
->> Yeah, in my experiment, after the mremap() exists we have two different VMAs
->> which can contain two different set of data. No page sharing is happening.
+On 07/10/2017 06:41 AM, Michal Hocko wrote:
+> On Mon 10-07-17 17:02:11, Anshuman Khandual wrote:
+>> In the header file, just specify the dependency of MREMAP_FIXED
+>> on MREMAP_MAYMOVE and make it explicit for the user space.
 > 
-> So how does this actually work for the JVM garbage collector use case?
-> Aren't the garbage collected objects private anon?
+> I really fail to see a point of this patch. The depency belongs to the
+> code and it seems that we already enforce it
+> 	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
+> 		return ret;
+> 
+> So what is the point here?
 
-Good point.
-The sample program the JVM team gave me uses a shared anon mapping.  As you
-mention one would expect these mappings to be private.  I have asked them
-for more details on their use case.
+Agree, I am not sure of your reasoning.
 
-> Anyway this should be documented.
+If to assist the programmer, there is no need as this is clearly specified
+in the man page:
 
-Yes, their prototype work seems to take advantage of this existing undocumented
-behavior.  It seems we have been carrying this functionality for at least 13
-years.  It may be time to document.
+"If  MREMAP_FIXED  is  specified,  then MREMAP_MAYMOVE must also be
+ specified."
 
 -- 
 Mike Kravetz
+
+> 
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>> ---
+>>  include/uapi/linux/mman.h | 6 ++++--
+>>  1 file changed, 4 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
+>> index ade4acd..8cae3f6 100644
+>> --- a/include/uapi/linux/mman.h
+>> +++ b/include/uapi/linux/mman.h
+>> @@ -3,8 +3,10 @@
+>>  
+>>  #include <asm/mman.h>
+>>  
+>> -#define MREMAP_MAYMOVE	1
+>> -#define MREMAP_FIXED	2
+>> +#define MREMAP_MAYMOVE	1 /* VMA can move after remap and resize */
+>> +#define MREMAP_FIXED	2 /* VMA can remap at particular address */
+>> +
+>> +/* NOTE: MREMAP_FIXED must be set with MREMAP_MAYMOVE, not alone */
+>>  
+>>  #define OVERCOMMIT_GUESS		0
+>>  #define OVERCOMMIT_ALWAYS		1
+>> -- 
+>> 1.8.5.2
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
