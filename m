@@ -1,121 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E470D6B04B5
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 12:04:50 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z81so25488468wrc.2
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 09:04:50 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C54B16B04B6
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 12:06:17 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r103so25528561wrb.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 09:06:17 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3si6803307wmd.89.2017.07.10.09.04.49
+        by mx.google.com with ESMTPS id w3si6856660wmb.191.2017.07.10.09.06.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 09:04:49 -0700 (PDT)
-Date: Mon, 10 Jul 2017 18:04:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
- page->lru field
-Message-ID: <20170710160444.GB7071@dhcp22.suse.cz>
-References: <20170703211415.11283-1-jglisse@redhat.com>
- <20170703211415.11283-5-jglisse@redhat.com>
- <20170704125113.GC14727@dhcp22.suse.cz>
- <20170705143528.GB3305@redhat.com>
- <20170710082805.GD19185@dhcp22.suse.cz>
- <20170710153222.GA4964@redhat.com>
+        Mon, 10 Jul 2017 09:06:16 -0700 (PDT)
+Subject: Re: [RFC v1 1/2] mm/page_alloc: Prevent OOM killer from triggering if
+ requested
+References: <20170709224911.13030-1-joelaf@google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <0e5503df-1b6b-67d3-1117-4da1eb21a862@suse.cz>
+Date: Mon, 10 Jul 2017 18:05:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170710153222.GA4964@redhat.com>
+In-Reply-To: <20170709224911.13030-1-joelaf@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: Joel Fernandes <joelaf@google.com>, linux-kernel@vger.kernel.org
+Cc: Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>
 
-On Mon 10-07-17 11:32:23, Jerome Glisse wrote:
-> On Mon, Jul 10, 2017 at 10:28:06AM +0200, Michal Hocko wrote:
-> > On Wed 05-07-17 10:35:29, Jerome Glisse wrote:
-> > > On Tue, Jul 04, 2017 at 02:51:13PM +0200, Michal Hocko wrote:
-> > > > On Mon 03-07-17 17:14:14, Jerome Glisse wrote:
-> > > > > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > > > > thus you can not use page->lru fields of those pages. This patch
-> > > > > re-arrange the uncharge to allow single page to be uncharge without
-> > > > > modifying the lru field of the struct page.
-> > > > > 
-> > > > > There is no change to memcontrol logic, it is the same as it was
-> > > > > before this patch.
-> > > > 
-> > > > What is the memcg semantic of the memory? Why is it even charged? AFAIR
-> > > > this is not a reclaimable memory. If yes how are we going to deal with
-> > > > memory limits? What should happen if go OOM? Does killing an process
-> > > > actually help to release that memory? Isn't it pinned by a device?
-> > > > 
-> > > > For the patch itself. It is quite ugly but I haven't spotted anything
-> > > > obviously wrong with it. It is the memcg semantic with this class of
-> > > > memory which makes me worried.
-> > > 
-> > > So i am facing 3 choices. First one not account device memory at all.
-> > > Second one is account device memory like any other memory inside a
-> > > process. Third one is account device memory as something entirely new.
-> > > 
-> > > I pick the second one for two reasons. First because when migrating
-> > > back from device memory it means that migration can not fail because
-> > > of memory cgroup limit, this simplify an already complex migration
-> > > code. Second because i assume that device memory usage is a transient
-> > > state ie once device is done with its computation the most likely
-> > > outcome is memory is migrated back. From this assumption it means
-> > > that you do not want to allow a process to overuse regular memory
-> > > while it is using un-accounted device memory. It sounds safer to
-> > > account device memory and to keep the process within its memcg
-> > > boundary.
-> > > 
-> > > Admittedly here i am making an assumption and i can be wrong. Thing
-> > > is we do not have enough real data of how this will be use and how
-> > > much of an impact device memory will have. That is why for now i
-> > > would rather restrict myself to either not account it or account it
-> > > as usual.
-> > > 
-> > > If you prefer not accounting it until we have more experience on how
-> > > it is use and how it impacts memory resource management i am fine with
-> > > that too. It will make the migration code slightly more complex.
-> > 
-> > I can see why you want to do this but the semantic _has_ to be clear.
-> > And as such make sure that the exiting task will simply unpin and
-> > invalidate all the device memory (assuming this memory is not shared
-> > which I am not sure is even possible).
+[+CC Michal Hocko]
+
+On 07/10/2017 12:49 AM, Joel Fernandes wrote:
+> Certain allocation paths such as the ftrace ring buffer allocator
+> want to try hard to allocate but not trigger OOM killer and de-stabilize
+> the system. Currently the ring buffer uses __GFP_NO_RETRY to prevent
+> the OOM killer from triggering situation however this has an issue.
+> Its possible the system is in a state where:
+> a) retrying can make the allocation succeed.
+> b) there's plenty of memory available in the page cache to satisfy
+>    the request and just retrying is needed. Even though direct reclaim
+>    makes progress, it still couldn't find free page from the free list.
 > 
-> So there is 2 differents path out of device memory:
->   - munmap/process exiting: memory will get uncharge from its memory
->     cgroup just like regular memory
+> This patch adds a new GFP flag (__GFP_DONTOOM) to handle the situation
+> where we want the retry behavior but still want to bail out before going
+> to OOM killer if retries couldn't satisfy the allocation.
 
-I might have missed that in your patch, I admit I only glanced through
-that, but the memcg uncharged when the last reference to the page is
-released. So if the device pins the page for some reason then the charge
-will be there even when the oom victim unmaps the memory.
+Michal recently turned __GFP_REPEAT into __GFP_RETRY_MAYFAIL [1][2]
+which I think does exactly what you want. Try hard as long as
+reclaim/compaction makes progress, but fail the allocation instead of
+triggering OOM killer. Can you check it out? It's in mmotm/linux-next.
 
->   - migration to non device memory, the memory cgroup charge get
->     transfer to the new page just like for any other page
+[1]
+http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-tree-wide-replace-__gfp_repeat-by-__gfp_retry_mayfail-with-more-useful-semantic.patch
+[2] http://lkml.kernel.org/r/20170623085345.11304-3-mhocko@kernel.org
+
+> Cc: Alexander Duyck <alexander.h.duyck@intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hao Lee <haolee.swjtu@gmail.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Signed-off-by: Joel Fernandes <joelaf@google.com>
+> ---
+>  include/linux/gfp.h | 6 +++++-
+>  mm/page_alloc.c     | 7 +++++++
+>  2 files changed, 12 insertions(+), 1 deletion(-)
 > 
-> Do you want me to document all this in any specific place ? I will
-> add a comment in memory_control.c and in HMM documentations for this
-> but should i add it anywhere else ?
-
-hmm documentation is sufficient and the uncharge path if it needs any
-special handling.
-
-> Note that the device memory is not pin. The whole point of HMM is to
-> do away with any pining. Thought as device page are not on lru they
-> are not reclaim like any other page. However we expect that device
-> driver might implement something akin to device memory reclaim to
-> make room for more important data base on statistic collected by the
-> device driver. If there is enough commonality accross devices then
-> we might implement a more generic mechanisms but at this point i
-> rather grow as we learn.
-
-Do we have any guarantee that devices will _never_ pin those pages? If
-no then we have to make sure we can forcefully tear them down.
-
--- 
-Michal Hocko
-SUSE Labs
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 4c6656f1fee7..beaabd110008 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -40,6 +40,7 @@ struct vm_area_struct;
+>  #define ___GFP_DIRECT_RECLAIM	0x400000u
+>  #define ___GFP_WRITE		0x800000u
+>  #define ___GFP_KSWAPD_RECLAIM	0x1000000u
+> +#define ___GFP_DONTOOM		0x2000000u
+>  #ifdef CONFIG_LOCKDEP
+>  #define ___GFP_NOLOCKDEP	0x2000000u
+>  #else
+> @@ -149,6 +150,8 @@ struct vm_area_struct;
+>   *   return NULL when direct reclaim and memory compaction have failed to allow
+>   *   the allocation to succeed.  The OOM killer is not called with the current
+>   *   implementation.
+> + *
+> + * __GFP_DONTOOM: The VM implementation must not OOM if retries have exhausted.
+>   */
+>  #define __GFP_IO	((__force gfp_t)___GFP_IO)
+>  #define __GFP_FS	((__force gfp_t)___GFP_FS)
+> @@ -158,6 +161,7 @@ struct vm_area_struct;
+>  #define __GFP_REPEAT	((__force gfp_t)___GFP_REPEAT)
+>  #define __GFP_NOFAIL	((__force gfp_t)___GFP_NOFAIL)
+>  #define __GFP_NORETRY	((__force gfp_t)___GFP_NORETRY)
+> +#define __GFP_DONTOOM	((__force gfp_t)___GFP_DONTOOM)
+>  
+>  /*
+>   * Action modifiers
+> @@ -188,7 +192,7 @@ struct vm_area_struct;
+>  #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+>  
+>  /* Room for N __GFP_FOO bits */
+> -#define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
+> +#define __GFP_BITS_SHIFT (26 + IS_ENABLED(CONFIG_LOCKDEP))
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+>  
+>  /*
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bd65b60939b6..970a5c380bb6 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3908,6 +3908,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (check_retry_cpuset(cpuset_mems_cookie, ac))
+>  		goto retry_cpuset;
+>  
+> +	/*
+> +	 * Its possible that retries failed but we still don't want OOM
+> +	 * killer to trigger and can just try again later.
+> +	 */
+> +	if (gfp_mask & __GFP_DONTOOM)
+> +		goto nopage;
+> +
+>  	/* Reclaim has failed us, start killing things */
+>  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+>  	if (page)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
