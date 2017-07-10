@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9706A44084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 09:33:18 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p64so24263793wrc.8
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 06:33:18 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D666744084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 09:41:32 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g46so24368038wrd.3
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 06:41:32 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t17si4141149wmd.148.2017.07.10.06.33.17
+        by mx.google.com with ESMTPS id e21si6722023wmc.198.2017.07.10.06.41.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 06:33:17 -0700 (PDT)
-Date: Mon, 10 Jul 2017 15:33:15 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Message-ID: <20170710133314.GK19185@dhcp22.suse.cz>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain>
+        Mon, 10 Jul 2017 06:41:31 -0700 (PDT)
+Date: Mon, 10 Jul 2017 15:41:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/mremap: Document MREMAP_FIXED dependency on
+ MREMAP_MAYMOVE
+Message-ID: <20170710134130.GA19645@dhcp22.suse.cz>
+References: <20170710113211.31394-1-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170707023601.GA7478@jagdpanzerIV.localdomain>
+In-Reply-To: <20170710113211.31394-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, sergey.senozhatsky@gmail.com, pmladek@suse.com, pavel@ucw.cz, rostedt@goodmis.org, andi@lisas.de, jack@suse.cz, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-On Fri 07-07-17 11:39:18, Sergey Senozhatsky wrote:
-[...]
-> > void drm_modeset_lock_all(struct drm_device *dev)
-> > {
-> >         struct drm_mode_config *config = &dev->mode_config;
-> >         struct drm_modeset_acquire_ctx *ctx;
-> >         int ret;
-> > 
-> >         ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-> >         if (WARN_ON(!ctx))
-> >                 return;
-> 
-> hm, this allocation, per se, looks ok to me. can't really blame it.
-> what you had is a combination of factors
-> 
-> 	CPU0			CPU1				CPU2
-> 								console_callback()
-> 								 console_lock()
-> 								 ^^^^^^^^^^^^^
-> 	vprintk_emit()		mutex_lock(&par->bo_mutex)
-> 				 kzalloc(GFP_KERNEL)
-> 	 console_trylock()	  kmem_cache_alloc()		  mutex_lock(&par->bo_mutex)
-> 	 ^^^^^^^^^^^^^^^^	   io_schedule_timeout
-> 
-> // but I haven't seen the logs that you have provided, yet.
-> 
-> [..]
-> > As a result, console was not able to print SysRq-t output.
-> > 
-> > So, how should we avoid this problem?
-> 
-> from the top of my head -- console_sem must be replaced with something
-> better.
+On Mon 10-07-17 17:02:11, Anshuman Khandual wrote:
+> In the header file, just specify the dependency of MREMAP_FIXED
+> on MREMAP_MAYMOVE and make it explicit for the user space.
 
-Yeah, absolutely. The current mess just allows basically arbitrary lock
-depencies which are not deadlocks because the printk part is careful but
-essentially we are deadlocked wrt. functionality.
+I really fail to see a point of this patch. The depency belongs to the
+code and it seems that we already enforce it
+	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
+		return ret;
 
-> but that's a task for years.
-> 
-> hm...
-> 
-> > But should fbcon, drm, tty and so on stop using __GFP_DIRECT_RECLAIM
-> > memory allocations because consoles should be as responsive as printk() ?
-> 
-> may be, may be not. like I said, the allocation in question does not
-> participate in console output. it's rather hard to imagine how we would
-> enforce a !__GFP_DIRECT_RECLAIM requirement here. it's console semaphore
-> to blame, I think.
+So what is the point here?
 
-Agreed! Looking at the problem just from the page allocator perspective
-is simply wrong. That is where you see your immediate problem because
-that is what you are testing I would bet my hat you can find other
-interesting scenarios if you try too hard...
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+>  include/uapi/linux/mman.h | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
+> index ade4acd..8cae3f6 100644
+> --- a/include/uapi/linux/mman.h
+> +++ b/include/uapi/linux/mman.h
+> @@ -3,8 +3,10 @@
+>  
+>  #include <asm/mman.h>
+>  
+> -#define MREMAP_MAYMOVE	1
+> -#define MREMAP_FIXED	2
+> +#define MREMAP_MAYMOVE	1 /* VMA can move after remap and resize */
+> +#define MREMAP_FIXED	2 /* VMA can remap at particular address */
+> +
+> +/* NOTE: MREMAP_FIXED must be set with MREMAP_MAYMOVE, not alone */
+>  
+>  #define OVERCOMMIT_GUESS		0
+>  #define OVERCOMMIT_ALWAYS		1
+> -- 
+> 1.8.5.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
