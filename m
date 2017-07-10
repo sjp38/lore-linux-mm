@@ -1,63 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC826B04AA
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 14:12:18 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id s20so20116970qki.12
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:12:18 -0700 (PDT)
-Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
-        by mx.google.com with ESMTPS id w40si11739809qth.8.2017.07.10.11.12.18
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E215E6B04D4
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 14:47:08 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d80so24853653lfg.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:47:08 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id s74si5259475lfs.128.2017.07.10.11.47.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 11:12:18 -0700 (PDT)
-Received: by mail-qk0-x22d.google.com with SMTP id p21so80894732qke.3
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:12:18 -0700 (PDT)
-Date: Mon, 10 Jul 2017 14:12:14 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: mm: Why WQ_MEM_RECLAIM workqueue remains pending?
-Message-ID: <20170710181214.GD1305447@devbig577.frc2.facebook.com>
-References: <201706291957.JGH39511.tQMOFSLOFJVHOF@I-love.SAKURA.ne.jp>
- <201707071927.IGG34813.tSQOMJFOHOFVLF@I-love.SAKURA.ne.jp>
+        Mon, 10 Jul 2017 11:47:07 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id z78so11857574lff.2
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:47:07 -0700 (PDT)
+Date: Mon, 10 Jul 2017 21:47:04 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+Message-ID: <20170710184704.realchrhzpblqqlk@node.shutemov.name>
+References: <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+ <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
+ <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
+ <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
+ <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
+ <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com>
+ <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
+ <CACT4Y+aRbC7_wvDv8ahH_JwY6P6SFoLg-kdwWHJx5j1stX_P_w@mail.gmail.com>
+ <20170710141713.7aox3edx6o7lrrie@node.shutemov.name>
+ <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707071927.IGG34813.tSQOMJFOHOFVLF@I-love.SAKURA.ne.jp>
+In-Reply-To: <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mgorman@techsingularity.net, vbabka@suse.cz, linux-mm@kvack.org, hillf.zj@alibaba-inc.com, brouer@redhat.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-Hello, Tetsuo.
-
-I went through the logs and it doesn't look like the mm workqueue
-actually stalled, it was just slow to make progress.  Please see
-below.
-
-On Fri, Jul 07, 2017 at 07:27:06PM +0900, Tetsuo Handa wrote:
-> Since drain_local_pages_wq work was stalling for 144 seconds as of uptime = 541,
-> drain_local_pages_wq work was queued around uptime = 397 (which is about 6 seconds
-> since the OOM killer/reaper reclaimed some memory for the last time). 
+On Mon, Jul 10, 2017 at 08:56:37AM -0700, Andy Lutomirski wrote:
 > 
-> But as far as I can see from traces, the mm_percpu_wq thread as of uptime = 444 was
-> idle, while drain_local_pages_wq work was pending from uptime = 541 to uptime = 605.
-> This means that the mm_percpu_wq thread did not start processing drain_local_pages_wq
-> work immediately. (I don't know what made drain_local_pages_wq work be processed.)
 > 
-> Why? Is this a workqueue implementation bug? Is this a workqueue usage bug?
+> > On Jul 10, 2017, at 7:17 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> >> On Mon, Jul 10, 2017 at 02:43:17PM +0200, Dmitry Vyukov wrote:
+> >> On Mon, Jul 10, 2017 at 2:33 PM, Kirill A. Shutemov
+> >> <kirill@shutemov.name> wrote:
+> >>> On Thu, Jun 01, 2017 at 05:56:30PM +0300, Andrey Ryabinin wrote:
+> >>>>> On 05/29/2017 03:46 PM, Andrey Ryabinin wrote:
+> >>>>> On 05/29/2017 02:45 PM, Andrey Ryabinin wrote:
+> >>>>>>>>>> Looks like KASAN will be a problem for boot-time paging mode switching.
+> >>>>>>>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
+> >>>>>>>>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
+> >>>>>>>>>> 
+> >>>>>>>>>> I don't see how to solve it. Folks, any ideas?
+> >>>>>>>>> 
+> >>>>>>>>> +kasan-dev
+> >>>>>>>>> 
+> >>>>>>>>> I wonder if we can use the same offset for both modes. If we use
+> >>>>>>>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+> >>>>>>>>> offset that we use for 4 levels (0xdffffc0000000000) will also work
+> >>>>>>>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
+> >>>>>>>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
+> >>>>>>>>> extends towards lower addresses. The current 5 level start of shadow
+> >>>>>>>>> is actually close -- 0xffd8000000000000 and it seems that the required
+> >>>>>>>>> space after it is unused at the moment (at least looking at mm.txt).
+> >>>>>>>>> So just try to move it to 0xFFDFFC0000000000?
+> >>>>>>>>> 
+> >>>>>>>> 
+> >>>>>>>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
+> >>>>>>>> assumes that kasan shadow stars and ends on the PGDIR aligned address.
+> >>>>>>>> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
+> >>>>>>>> of the shadow.
+> >>>>>>> 
+> >>>>>>> I think we can extend the shadow backwards (to the current address),
+> >>>>>>> provided that it does not affect shadow offset that we pass to
+> >>>>>>> compiler.
+> >>>>>> 
+> >>>>>> I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
+> >>>>>> round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
+> >>>>>> So we still need at least one more page to cover unaligned end.
+> >>>>> 
+> >>>>> Actually, I'm wrong here. I assumed that we would need an additional page to store p4d entries,
+> >>>>> but in fact we don't need it, as such page should already exist. It's the same last pgd where kernel image
+> >>>>> is mapped.
+> >>>>> 
+> >>>> 
+> >>>> 
+> >>>> Something like bellow might work. It's just a proposal to demonstrate the idea, so some code might look ugly.
+> >>>> And it's only build-tested.
+> >>> 
+> >>> [Sorry for loong delay.]
+> >>> 
+> >>> The patch works for me for legacy boot. But it breaks EFI boot with
+> >>> 5-level paging. And I struggle to understand why.
+> >>> 
+> >>> What I see is many page faults at mm/kasan/kasan.c:758 --
+> >>> "DEFINE_ASAN_LOAD_STORE(4)". Handling one of them I get double-fault at
+> >>> arch/x86/kernel/head_64.S:298 -- "pushq %r14", which ends up with triple
+> >>> fault.
+> >>> 
+> >>> Any ideas?
+> >> 
+> >> 
+> >> Just playing the role of the rubber duck:
+> >> - what is the fault address?
+> >> - is it within the shadow range?
+> >> - was the shadow mapped already?
+> > 
+> > I misread trace. The initial fault is at arch/x86/kernel/head_64.S:270,
+> > which is ".endr" in definition of early_idt_handler_array.
+> > 
+> > The fault address for all three faults is 0xffffffff7ffffff8, which is
+> > outside shadow range. It's just before kernel text mapping.
+> > 
+> > Codewise, it happens in load_ucode_bsp() -- after kasan_early_init(), but
+> > before kasan_init().
+> 
+> My theory is that, in 5 level mode, the early IDT code isn't all mapped
+> in the page tables.  This could sometimes be papered over by lazy page
+> table setup, but lazy setup can't handle faults in the page fault code
+> or data structures.
+> 
+> EFI sometimes uses separate page tables, which could contribute.
 
-So, rescuer doesn't kick as soon as the workqueue becomes slow.  It
-kicks in if the worker pool that the workqueue is associated with
-hangs.  That is, if you have other work items actively running, e.g.,
-for reclaim on the pool, the pool isn't stalled and rescuers won't be
-woken up.  IOW, having a rescuer prevents a workqueue from deadlocking
-due to resource starvation but it doesn't necessarily make it go
-faster.  It's a deadlock prevention mechanism, not a priority raising
-one.  If the work items need preferential execution, it should use
-WQ_HIGHPRI.
+As far as I can see all involved code is within the same page:
 
-Thanks.
+(gdb) p/x &x86_64_start_kernel
+$1 = 0xffffffff84bad2ae
+(gdb) p/x &early_idt_handler_array
+$2 = 0xffffffff84bad000
+(gdb) p/x &early_idt_handler_common
+$3 = 0xffffffff84bad120
+(gdb) p/x &early_make_pgtable
+$4 = 0xffffffff84bad3b4
 
 -- 
-tejun
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
