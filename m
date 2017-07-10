@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5D844084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:49:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v88so26168364wrb.1
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:49:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a4si7151948wmi.183.2017.07.10.10.49.01
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B18D6B04A3
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 14:04:24 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e3so120582134pfc.4
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:04:24 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0062.outbound.protection.outlook.com. [104.47.38.62])
+        by mx.google.com with ESMTPS id b4si8287211pfl.145.2017.07.10.11.04.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 10:49:01 -0700 (PDT)
-Date: Mon, 10 Jul 2017 19:48:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
- page->lru field
-Message-ID: <20170710174857.GF7071@dhcp22.suse.cz>
-References: <20170703211415.11283-1-jglisse@redhat.com>
- <20170703211415.11283-5-jglisse@redhat.com>
- <20170704125113.GC14727@dhcp22.suse.cz>
- <20170705143528.GB3305@redhat.com>
- <20170710082805.GD19185@dhcp22.suse.cz>
- <20170710153222.GA4964@redhat.com>
- <20170710160444.GB7071@dhcp22.suse.cz>
- <20170710162542.GB4964@redhat.com>
- <20170710163651.GD7071@dhcp22.suse.cz>
- <20170710165420.GC4964@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 10 Jul 2017 11:04:22 -0700 (PDT)
+Subject: Re: [PATCH v9 00/38] x86: Secure Memory Encryption (AMD)
+References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
+ <20170708092426.prf7xmmnv6xvdqx4@gmail.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <fce185d2-4420-7255-6331-6231c643c8c7@amd.com>
+Date: Mon, 10 Jul 2017 13:04:11 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170710165420.GC4964@redhat.com>
+In-Reply-To: <20170708092426.prf7xmmnv6xvdqx4@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Mon 10-07-17 12:54:21, Jerome Glisse wrote:
-> On Mon, Jul 10, 2017 at 06:36:52PM +0200, Michal Hocko wrote:
-> > On Mon 10-07-17 12:25:42, Jerome Glisse wrote:
-> > [...]
-> > > Bottom line is that we can always free and uncharge device memory
-> > > page just like any regular page.
-> > 
-> > OK, this answers my earlier question. Then it should be feasible to
-> > charge this memory. There are still some things to handle. E.g. how do
-> > we consider this memory during oom victim selection (this is not
-> > accounted as an anonymous memory in get_mm_counter, right?), maybe others.
-> > But the primary point is that nobody pins the memory outside of the
-> > mapping.
+
+
+On 7/8/2017 4:24 AM, Ingo Molnar wrote:
 > 
-> At this point it is accounted as a regular page would be (anonymous, file
-> or share memory). I wanted mm_counters to reflect memcg but i can untie
-> that.
+> * Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> 
+>> This patch series provides support for AMD's new Secure Memory Encryption (SME)
+>> feature.
+> 
+> I'm wondering, what's the typical performance hit to DRAM access latency when SME
+> is enabled?
 
-I am not sure I understand. If the device memory is accounted to the
-same mm counter as the original page then it is correct. I will try to
-double check the implementation (hopefully soon).
+It's about an extra 10 cycles of DRAM latency when performing an
+encryption or decryption operation.
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+> On that same note, if the performance hit is noticeable I'd expect SME to not be
+> enabled in native kernels typically - but still it looks like a useful hardware
+
+In some internal testing we've seen about 1.5% or less reduction in
+performance. Of course it all depends on the workload: the number of
+memory accesses, cache friendliness, etc.
+
+> feature. Since it's controlled at the page table level, have you considered
+> allowing SME-activated vmas via mmap(), even on kernels that are otherwise not
+> using encrypted DRAM?
+
+That is definitely something to consider as an additional SME-related
+feature and something I can look into after this.
+
+Thanks,
+Tom
+
+> 
+> One would think that putting encryption keys into such encrypted RAM regions would
+> generally improve robustness against various physical space attacks that want to
+> extract keys but don't have full control of the CPU.
+> 
+> Thanks,
+> 
+> 	Ingo
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
