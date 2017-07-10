@@ -1,79 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 67D1744084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:48:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v26so120263455pfa.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:48:52 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i1si8343483pfa.122.2017.07.10.10.48.51
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5D844084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:49:02 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v88so26168364wrb.1
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:49:02 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a4si7151948wmi.183.2017.07.10.10.49.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 10:48:51 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6AHmiNa097814
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:48:50 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bmb55r1m8-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:48:50 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 10 Jul 2017 18:48:48 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: Re: [RFC v5 01/11] mm: Dont assume page-table invariance during
- faults
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-2-git-send-email-ldufour@linux.vnet.ibm.com>
- <1499411222.23251.5.camel@gmail.com>
-Date: Mon, 10 Jul 2017 19:48:43 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Jul 2017 10:49:01 -0700 (PDT)
+Date: Mon, 10 Jul 2017 19:48:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
+ page->lru field
+Message-ID: <20170710174857.GF7071@dhcp22.suse.cz>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-5-jglisse@redhat.com>
+ <20170704125113.GC14727@dhcp22.suse.cz>
+ <20170705143528.GB3305@redhat.com>
+ <20170710082805.GD19185@dhcp22.suse.cz>
+ <20170710153222.GA4964@redhat.com>
+ <20170710160444.GB7071@dhcp22.suse.cz>
+ <20170710162542.GB4964@redhat.com>
+ <20170710163651.GD7071@dhcp22.suse.cz>
+ <20170710165420.GC4964@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1499411222.23251.5.camel@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <d719a861-d712-1876-b46c-7f9c1360196c@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170710165420.GC4964@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-On 07/07/2017 09:07, Balbir Singh wrote:
-> On Fri, 2017-06-16 at 19:52 +0200, Laurent Dufour wrote:
->> From: Peter Zijlstra <peterz@infradead.org>
->>
->> One of the side effects of speculating on faults (without holding
->> mmap_sem) is that we can race with free_pgtables() and therefore we
->> cannot assume the page-tables will stick around.
->>
->> Remove the relyance on the pte pointer.
->              ^^ reliance
+On Mon 10-07-17 12:54:21, Jerome Glisse wrote:
+> On Mon, Jul 10, 2017 at 06:36:52PM +0200, Michal Hocko wrote:
+> > On Mon 10-07-17 12:25:42, Jerome Glisse wrote:
+> > [...]
+> > > Bottom line is that we can always free and uncharge device memory
+> > > page just like any regular page.
+> > 
+> > OK, this answers my earlier question. Then it should be feasible to
+> > charge this memory. There are still some things to handle. E.g. how do
+> > we consider this memory during oom victim selection (this is not
+> > accounted as an anonymous memory in get_mm_counter, right?), maybe others.
+> > But the primary point is that nobody pins the memory outside of the
+> > mapping.
 > 
-> Looking at the changelog and the code the impact is not clear.
-> It looks like after this patch we always assume the pte is not
-> the same. What is the impact of this patch?
+> At this point it is accounted as a regular page would be (anonymous, file
+> or share memory). I wanted mm_counters to reflect memcg but i can untie
+> that.
 
-Hi Balbir,
+I am not sure I understand. If the device memory is accounted to the
+same mm counter as the original page then it is correct. I will try to
+double check the implementation (hopefully soon).
 
-In most of the case pte_unmap_same() was returning 1, which meaning that
-do_swap_page() should do its processing.
-
-So in most of the case there will be no impact.
-
-Now regarding the case where pte_unmap_safe() was returning 0, and thus
-do_swap_page return 0 too, this happens when the page has already been
-swapped back. This may happen before do_swap_page() get called or while in
-the call to do_swap_page(). In that later case, the check done when
-swapin_readahead() returns will detect that case.
-
-The worst case would be that a page fault is occuring on 2 threads at the
-same time on the same swapped out page. In that case one thread will take
-much time looping in __read_swap_cache_async(). But in the regular page
-fault path, this is even worse since the thread would wait for semaphore to
-be released before starting anything.
-
-Cheers,
-Laurent.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
