@@ -1,81 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3C96B02C3
-	for <linux-mm@kvack.org>; Sun,  9 Jul 2017 18:49:25 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id g14so98818587pgu.9
-        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 15:49:25 -0700 (PDT)
-Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
-        by mx.google.com with ESMTPS id s2si6627511pfd.455.2017.07.09.15.49.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0DE6B02F4
+	for <linux-mm@kvack.org>; Sun,  9 Jul 2017 23:07:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v88so21250826wrb.1
+        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 20:07:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l133si5494375wmg.133.2017.07.09.20.07.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jul 2017 15:49:24 -0700 (PDT)
-Received: by mail-pg0-x22e.google.com with SMTP id j186so39964280pge.2
-        for <linux-mm@kvack.org>; Sun, 09 Jul 2017 15:49:24 -0700 (PDT)
-From: Joel Fernandes <joelaf@google.com>
-Subject: [RFC v1 2/2] tracing/ring_buffer: Try harder to allocate
-Date: Sun,  9 Jul 2017 15:49:11 -0700
-Message-Id: <20170709224911.13030-2-joelaf@google.com>
-In-Reply-To: <20170709224911.13030-1-joelaf@google.com>
-References: <20170709224911.13030-1-joelaf@google.com>
+        Sun, 09 Jul 2017 20:07:22 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6A33YoP040489
+	for <linux-mm@kvack.org>; Sun, 9 Jul 2017 23:07:21 -0400
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bjsyjnj19-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 09 Jul 2017 23:07:20 -0400
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 10 Jul 2017 13:07:16 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6A37Dkx18087966
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:07:13 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6A373QS003769
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:07:04 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: Re: [RFC v5 38/38] Documentation: PowerPC specific updates to memory
+ protection keys
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-39-git-send-email-linuxram@us.ibm.com>
+Date: Mon, 10 Jul 2017 08:37:04 +0530
+MIME-Version: 1.0
+In-Reply-To: <1499289735-14220-39-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <d94ab2c1-8be5-f618-6f42-cac2813059a5@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Joel Fernandes <joelaf@google.com>, Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Steven Rostedt <rostedt@goodmis.org>, linux-mm@kvack.org
+To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-ftrace can fail to allocate per-CPU ring buffer on systems with a large
-number of CPUs coupled while large amounts of cache happening in the
-page cache. Currently the ring buffer allocation doesn't retry in the VM
-implementation even if direct-reclaim made some progress but still
-wasn't able to find a free page. On retrying I see that the allocations
-almost always succeed. The retry doesn't happen because __GFP_NORETRY is
-used in the tracer to prevent the case where we might OOM, however if we
-drop __GFP_NORETRY, we risk destabilizing the system if OOM killer is
-triggered. To prevent this situation, use the __GFP_DONTOOM flag
-introduced in earlier patches while droppping __GFP_NORETRY.
+On 07/06/2017 02:52 AM, Ram Pai wrote:
+> Add documentation updates that capture PowerPC specific changes.
+> 
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  Documentation/vm/protection-keys.txt |   85 ++++++++++++++++++++++++++--------
+>  1 files changed, 65 insertions(+), 20 deletions(-)
+> 
+> diff --git a/Documentation/vm/protection-keys.txt b/Documentation/vm/protection-keys.txt
+> index b643045..d50b6ab 100644
+> --- a/Documentation/vm/protection-keys.txt
+> +++ b/Documentation/vm/protection-keys.txt
+> @@ -1,21 +1,46 @@
+> -Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
+> -which will be found on future Intel CPUs.
+> +Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature found in
+> +new generation of intel CPUs and on PowerPC 7 and higher CPUs.
+>  
+>  Memory Protection Keys provides a mechanism for enforcing page-based
+> -protections, but without requiring modification of the page tables
+> -when an application changes protection domains.  It works by
+> -dedicating 4 previously ignored bits in each page table entry to a
+> -"protection key", giving 16 possible keys.
+> -
+> -There is also a new user-accessible register (PKRU) with two separate
+> -bits (Access Disable and Write Disable) for each key.  Being a CPU
+> -register, PKRU is inherently thread-local, potentially giving each
+> -thread a different set of protections from every other thread.
+> -
+> -There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> -to the new register.  The feature is only available in 64-bit mode,
+> -even though there is theoretically space in the PAE PTEs.  These
+> -permissions are enforced on data access only and have no effect on
+> +protections, but without requiring modification of the page tables when an
+> +application changes protection domains.
+> +
+> +
+> +On Intel:
+> +
+> +	It works by dedicating 4 previously ignored bits in each page table
+> +	entry to a "protection key", giving 16 possible keys.
+> +
+> +	There is also a new user-accessible register (PKRU) with two separate
+> +	bits (Access Disable and Write Disable) for each key.  Being a CPU
+> +	register, PKRU is inherently thread-local, potentially giving each
+> +	thread a different set of protections from every other thread.
+> +
+> +	There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> +	to the new register.  The feature is only available in 64-bit mode,
+> +	even though there is theoretically space in the PAE PTEs.  These
+> +	permissions are enforced on data access only and have no effect on
+> +	instruction fetches.
+> +
+> +
+> +On PowerPC:
+> +
+> +	It works by dedicating 5 page table entry bits to a "protection key",
+> +	giving 32 possible keys.
+> +
+> +	There  is  a  user-accessible  register (AMR)  with  two separate bits;
+> +	Access Disable and  Write  Disable, for  each key.  Being  a  CPU
+> +	register,  AMR  is inherently  thread-local,  potentially  giving  each
+> +	thread a different set of protections from every other thread.  NOTE:
+> +	Disabling read permission does not disable write and vice-versa.
 
-With this the following succeed without destabilizing a system with 8
-CPU cores and 4GB of memory:
-echo 100000 > /sys/kernel/debug/tracing/buffer_size_kb
-On an 8-core system, that would allocate ~800MB.
-
-Cc: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hao Lee <haolee.swjtu@gmail.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: Joel Fernandes <joelaf@google.com>
----
- kernel/trace/ring_buffer.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 4ae268e687fe..b1cdcac6ca89 100644
---- a/kernel/trace/ring_buffer.c
-+++ b/kernel/trace/ring_buffer.c
-@@ -1141,7 +1141,7 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
- 		 * not destabilized.
- 		 */
- 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
--				    GFP_KERNEL | __GFP_NORETRY,
-+				    GFP_KERNEL | __GFP_DONTOOM,
- 				    cpu_to_node(cpu));
- 		if (!bpage)
- 			goto free_pages;
-@@ -1149,7 +1149,7 @@ static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
- 		list_add(&bpage->list, pages);
- 
- 		page = alloc_pages_node(cpu_to_node(cpu),
--					GFP_KERNEL | __GFP_NORETRY, 0);
-+					GFP_KERNEL | __GFP_DONTOOM, 0);
- 		if (!page)
- 			goto free_pages;
- 		bpage->page = page_address(page);
--- 
-2.13.2.725.g09c95d1e9-goog
+We can only enable/disable entire access or write. Then how
+read permission can be changed with protection keys directly ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
