@@ -1,77 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 159716B049A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:30:32 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u30so23820118wrc.9
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:30:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s74si6430735wmb.51.2017.07.10.05.30.30
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CCCE6B049B
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 08:33:53 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id h29so22764812lfi.1
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:33:53 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id g68si4952601ljg.228.2017.07.10.05.33.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 05:30:31 -0700 (PDT)
-Date: Mon, 10 Jul 2017 14:30:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
-Message-ID: <20170710123028.GH19185@dhcp22.suse.cz>
-References: <20170629073509.623-1-mhocko@kernel.org>
- <20170629073509.623-3-mhocko@kernel.org>
- <64e889ae-24ab-b845-5751-978a76dd0dd9@suse.cz>
- <20170710064540.GA19185@dhcp22.suse.cz>
- <24c3606d-837a-266d-a294-7e100d1430f0@suse.cz>
- <20170710111750.GG19185@dhcp22.suse.cz>
- <cd2352fb-9831-d0f1-5cb8-b081b292eb38@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jul 2017 05:33:51 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id t72so10255807lff.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 05:33:51 -0700 (PDT)
+Date: Mon, 10 Jul 2017 15:33:46 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+Message-ID: <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
+References: <20170525203334.867-1-kirill.shutemov@linux.intel.com>
+ <20170525203334.867-8-kirill.shutemov@linux.intel.com>
+ <20170526221059.o4kyt3ijdweurz6j@node.shutemov.name>
+ <CACT4Y+YyFWg3fbj4ta3tSKoeBaw7hbL2YoBatAFiFB1_cMg9=Q@mail.gmail.com>
+ <71e11033-f95c-887f-4e4e-351bcc3df71e@virtuozzo.com>
+ <CACT4Y+bSTOeJtDDZVmkff=qqJFesA_b6uTG__EAn4AvDLw0jzQ@mail.gmail.com>
+ <c4f11000-6138-c6ab-d075-2c4bd6a14943@virtuozzo.com>
+ <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
+ <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cd2352fb-9831-d0f1-5cb8-b081b292eb38@suse.cz>
+In-Reply-To: <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Mon 10-07-17 14:12:09, Vlastimil Babka wrote:
-> On 07/10/2017 01:17 PM, Michal Hocko wrote:
-> > On Mon 10-07-17 13:11:29, Vlastimil Babka wrote:
-> >> On 07/10/2017 08:45 AM, Michal Hocko wrote:
-> >>> On Fri 07-07-17 17:02:59, Vlastimil Babka wrote:
-> >>>> [+CC linux-api]
+On Thu, Jun 01, 2017 at 05:56:30PM +0300, Andrey Ryabinin wrote:
+> On 05/29/2017 03:46 PM, Andrey Ryabinin wrote:
+> > On 05/29/2017 02:45 PM, Andrey Ryabinin wrote:
+> >>>>>> Looks like KASAN will be a problem for boot-time paging mode switching.
+> >>>>>> It wants to know CONFIG_KASAN_SHADOW_OFFSET at compile-time to pass to
+> >>>>>> gcc -fasan-shadow-offset=. But this value varies between paging modes...
+> >>>>>>
+> >>>>>> I don't see how to solve it. Folks, any ideas?
+> >>>>>
+> >>>>> +kasan-dev
+> >>>>>
+> >>>>> I wonder if we can use the same offset for both modes. If we use
+> >>>>> 0xFFDFFC0000000000 as start of shadow for 5 levels, then the same
+> >>>>> offset that we use for 4 levels (0xdffffc0000000000) will also work
+> >>>>> for 5 levels. Namely, ending of 5 level shadow will overlap with 4
+> >>>>> level mapping (both end at 0xfffffbffffffffff), but 5 level mapping
+> >>>>> extends towards lower addresses. The current 5 level start of shadow
+> >>>>> is actually close -- 0xffd8000000000000 and it seems that the required
+> >>>>> space after it is unused at the moment (at least looking at mm.txt).
+> >>>>> So just try to move it to 0xFFDFFC0000000000?
+> >>>>>
 > >>>>
-> >>>>
-> >>>> Hm so previously, blocks 37-41 would only allow Movable at this point, right?
+> >>>> Yeah, this should work, but note that 0xFFDFFC0000000000 is not PGDIR aligned address. Our init code
+> >>>> assumes that kasan shadow stars and ends on the PGDIR aligned address.
+> >>>> Fortunately this is fixable, we'd need two more pages for page tables to map unaligned start/end
+> >>>> of the shadow.
 > >>>
-> >>> yes
-> >>>
-> >>>> Shouldn't we still default to Movable for them? We might be breaking some
-> >>>> existing userspace here.
-> >>>
-> >>> I do not think so. Prior to this merge window f1dd2cd13c4b ("mm,
-> >>> memory_hotplug: do not associate hotadded memory to zones until online")
-> >>> we allowed only the last offline or the adjacent to existing movable
-> >>> memory block to be onlined movable. So the above wasn't possible.
+> >>> I think we can extend the shadow backwards (to the current address),
+> >>> provided that it does not affect shadow offset that we pass to
+> >>> compiler.
 > >>
-> >> Not exactly the above, but let's say 1-34 is onlined as Normal, 35-37 is
-> >> Movable. Then the only possible action before would be online 38 as
-> >> Movable? Now it defaults to Normal?
+> >> I thought about this. We can round down shadow start to 0xffdf000000000000, but we can't
+> >> round up shadow end, because in that case shadow would end at 0xffffffffffffffff.
+> >> So we still need at least one more page to cover unaligned end.
 > > 
-> > Yes. And let me repeat you couldn't onlne 35-37 as movable before. So no
-> > userspace could depend on that before the rework. Or do I still miss
-> > your point?
+> > Actually, I'm wrong here. I assumed that we would need an additional page to store p4d entries,
+> > but in fact we don't need it, as such page should already exist. It's the same last pgd where kernel image
+> > is mapped.
+> > 
 > 
-> Ah, I see. "the last offline or the adjacent to existing movable". OK then.
 > 
-> It would be indeed better to not change behavour twice then and merge
-> this to 4.13, but it's the middle of merge window, so it's not simple...
+> Something like bellow might work. It's just a proposal to demonstrate the idea, so some code might look ugly.
+> And it's only build-tested.
 
-yeah. I was thinking about about how to make the change reasonably
-incremental but failed to find a way. I also didn't want to bring too
-many changes at once (the code base is just too fragile already).
+[Sorry for loong delay.]
 
-If there is a general consensus about the semantic we might want to push
-the patch this week. I just do not want to rush it too much as this is a
-users visible change and it might kick us back in future.
+The patch works for me for legacy boot. But it breaks EFI boot with
+5-level paging. And I struggle to understand why.
+
+What I see is many page faults at mm/kasan/kasan.c:758 --
+"DEFINE_ASAN_LOAD_STORE(4)". Handling one of them I get double-fault at
+arch/x86/kernel/head_64.S:298 -- "pushq %r14", which ends up with triple
+fault.
+
+Any ideas?
+
+If you want to play with this by yourself, qemu supports la57 -- use
+-cpu "qemu64,+la57".
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
