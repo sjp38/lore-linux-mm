@@ -1,93 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 52EAA6B04A6
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 14:07:23 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id k192so144803951ith.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:07:23 -0700 (PDT)
-Received: from mail-it0-x230.google.com (mail-it0-x230.google.com. [2607:f8b0:4001:c0b::230])
-        by mx.google.com with ESMTPS id k101si11396707ioi.140.2017.07.10.11.07.22
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 202FE6B04A8
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 14:10:59 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 50so54702121qtz.3
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:10:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q7si11590441qtd.274.2017.07.10.11.10.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 11:07:22 -0700 (PDT)
-Received: by mail-it0-x230.google.com with SMTP id v202so41164179itb.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 11:07:22 -0700 (PDT)
+        Mon, 10 Jul 2017 11:10:58 -0700 (PDT)
+Date: Mon, 10 Jul 2017 14:10:53 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 4/5] mm/memcontrol: allow to uncharge page without using
+ page->lru field
+Message-ID: <20170710181053.GD4964@redhat.com>
+References: <20170703211415.11283-5-jglisse@redhat.com>
+ <20170704125113.GC14727@dhcp22.suse.cz>
+ <20170705143528.GB3305@redhat.com>
+ <20170710082805.GD19185@dhcp22.suse.cz>
+ <20170710153222.GA4964@redhat.com>
+ <20170710160444.GB7071@dhcp22.suse.cz>
+ <20170710162542.GB4964@redhat.com>
+ <20170710163651.GD7071@dhcp22.suse.cz>
+ <20170710165420.GC4964@redhat.com>
+ <20170710174857.GF7071@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170710125935.GL23069@pathway.suse.cz>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain> <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
- <20170710125935.GL23069@pathway.suse.cz>
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Date: Mon, 10 Jul 2017 20:07:21 +0200
-Message-ID: <CAKMK7uGQ9NgS3rTieqqop-2o7sWUv8QuG_DNkJn42iPyBkEeiw@mail.gmail.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170710174857.GF7071@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Michal Hocko <mhocko@kernel.org>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Andreas Mohr <andi@lisas.de>, Jan Kara <jack@suse.cz>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-On Mon, Jul 10, 2017 at 2:59 PM, Petr Mladek <pmladek@suse.com> wrote:
-> On Sat 2017-07-08 22:30:47, Tetsuo Handa wrote:
->> What I want to mention here is that messages which were sent to printk()
->> were not printed to not only /dev/tty0 but also /dev/ttyS0 (I'm passing
->> "console=ttyS0,115200n8 console=tty0" to kernel command line.) I don't care
->> if output to /dev/tty0 is delayed, but I expect that output to /dev/ttyS0
->> is not delayed, for I'm anayzing things using printk() output sent to serial
->> console (serial.log in my VMware configuration). Hitting this problem when we
->> cannot allocate memory results in failing to save printk() output. Oops, it
->> is sad.
->
-> Would it be acceptable to remove "console=tty0" parameter and push
-> the messages only to the serial console?
->
-> Also there is the patchset from Peter Zijlstra that allows to
-> use early console all the time, see
-> https://lkml.kernel.org/r/20161018170830.405990950@infradead.org
->
->
-> The current code flushes each line to all enabled consoles one
-> by one. If there is a deadlock in one console, everything
-> gets blocked.
->
-> We are trying to make printk() more robust. But it is much more
-> complicated than we anticipated. Many changes open another can
-> of worms. It seems to be a job for years.
->
->
->> Hmm... should we consider addressing console_sem problem before
->> introducing printing kernel thread and offloading to that kernel thread?
->
-> As Sergey said, the console rework seems to be much bigger task
-> than introducing the kthread.
->
-> Also if we would want to handle each console separately (as a
-> fallback) it would be helpful to have separate kthread for each
-> enabled console or for the less reliable consoles at least.
+On Mon, Jul 10, 2017 at 07:48:58PM +0200, Michal Hocko wrote:
+> On Mon 10-07-17 12:54:21, Jerome Glisse wrote:
+> > On Mon, Jul 10, 2017 at 06:36:52PM +0200, Michal Hocko wrote:
+> > > On Mon 10-07-17 12:25:42, Jerome Glisse wrote:
+> > > [...]
+> > > > Bottom line is that we can always free and uncharge device memory
+> > > > page just like any regular page.
+> > > 
+> > > OK, this answers my earlier question. Then it should be feasible to
+> > > charge this memory. There are still some things to handle. E.g. how do
+> > > we consider this memory during oom victim selection (this is not
+> > > accounted as an anonymous memory in get_mm_counter, right?), maybe others.
+> > > But the primary point is that nobody pins the memory outside of the
+> > > mapping.
+> > 
+> > At this point it is accounted as a regular page would be (anonymous, file
+> > or share memory). I wanted mm_counters to reflect memcg but i can untie
+> > that.
+> 
+> I am not sure I understand. If the device memory is accounted to the
+> same mm counter as the original page then it is correct. I will try to
+> double check the implementation (hopefully soon).
 
-Since the console-loggin-in-kthread comes up routinely, and equally
-often people say "but I dont want to make my serial console delayed":
-Should we make kthread-based printk a per-console opt-in? fbcon and
-other horror shows with deep nesting of entire subsystems and their
-locking hierarchy would do that. Truly simple console drivers like
-serial or maybe logging to some firmware/platform service for recovery
-after rebooting would not.
+It is accounted like the original page. By same as memcg i mean i made
+the same kind of choice for mm counter than i made for memcg. It is
+all in the migrate code (migrate.c) ie i don't touch any of the mm
+counter when migrating page.
 
-Of course we'd also need one kthread per console, and we'd need to
-have at least some per-console locking (plus an overall console lock
-on top for both registering/unregistering consoles and all the legacy
-users like fbdev that need much more work to untangle). We could even
-restrict the per-console locking (i.e. those which can go ahead while
-someone else is holding the main or other console_locks) just for
-those console drivers which do not use a kthread, to cut down the
-audit burden to something manageable.
-
-Just my 2 cents, thrown in from the sideline.
--Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
