@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5550C44084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:56 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p64so25898753wrc.8
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:15:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 30si8526645wrd.171.2017.07.10.10.15.54
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C268444084A
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:22:18 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id o19so41324135vkd.7
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 10:22:18 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 143si1555965vkn.160.2017.07.10.10.22.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 10:15:55 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6AHE0OC022496
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:54 -0400
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bmb2ef8mu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 13:15:53 -0400
-Received: from localhost
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Mon, 10 Jul 2017 11:15:53 -0600
-Date: Mon, 10 Jul 2017 10:15:36 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <d9030b2c-493b-94c4-8c97-8aaec3be34ba@linux.vnet.ibm.com>
- <20170710060544.GF5713@ram.oc3035372033.ibm.com>
+        Mon, 10 Jul 2017 10:22:17 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
+ mirroring functionality
+References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
+ <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+ <20170707102324.kfihkf72sjcrtn5b@node.shutemov.name>
+ <e328ff6a-2c4b-ec26-cc28-e24b7b35a463@oracle.com>
+ <20170707174534.wdfbciyfpovi52dy@node.shutemov.name>
+ <79eca23d-9f1a-9713-3f6b-8f7598d53190@oracle.com>
+ <662d372a-5737-5f0b-8ac1-c997f3a935eb@linux.vnet.ibm.com>
+ <223c0ede-1203-4ea6-0157-a4500fea8050@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <bfdeb8ea-0d8c-a652-39b5-e92e196e6c97@oracle.com>
+Date: Mon, 10 Jul 2017 10:22:09 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170710060544.GF5713@ram.oc3035372033.ibm.com>
-Message-Id: <20170710171536.GA5716@ram.oc3035372033.ibm.com>
+In-Reply-To: <223c0ede-1203-4ea6-0157-a4500fea8050@suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sun, Jul 09, 2017 at 11:05:44PM -0700, Ram Pai wrote:
-> On Mon, Jul 10, 2017 at 11:13:23AM +0530, Anshuman Khandual wrote:
-> > On 07/06/2017 02:51 AM, Ram Pai wrote:
-.....
+On 07/10/2017 09:22 AM, Vlastimil Babka wrote:
+> On 07/09/2017 09:32 AM, Anshuman Khandual wrote:
+>> On 07/07/2017 11:39 PM, Mike Kravetz wrote:
+>>> On 07/07/2017 10:45 AM, Kirill A. Shutemov wrote:
+>>>> On Fri, Jul 07, 2017 at 10:29:52AM -0700, Mike Kravetz wrote:
+>>>>> On 07/07/2017 03:23 AM, Kirill A. Shutemov wrote:
+>>>>>> What is going to happen to mirrored after CoW for instance?
+>>>>>>
+>>>>>> In my opinion, it shouldn't be allowed for anon/private mappings at least.
+>>>>>> And with this limitation, I don't see much sense in the new interface --
+>>>>>> just create mirror by mmap()ing the file again.
+>>>>>
+>>>>> The code today works for anon shared mappings.  See simple program below.
+>>>>>
+>>>>> You are correct in that it makes little or no sense for private mappings.
+>>>>> When looking closer at existing code, mremap() creates a new private
+>>>>> mapping in this case.  This is most likely a bug.
+>>>>
+>>>> IIRC, existing code doesn't create mirrors of private pages as it requires
+>>>> old_len to be zero. There's no way to get private pages mapped twice this
+>>>> way.
+>>>
+>>> Correct.
+>>> As mentioned above, mremap does 'something' for private anon pages when
+>>> old_len == 0.  However, this may be considered a bug.  In this case, mremap
+>>> creates a new private anon mapping of length new_size.  Since old_len == 0,
+>>> it does not unmap any of the old mapping.  So, in this case mremap basically
+>>> creates a new private mapping (unrealted to the original) and does not
+>>> modify the old mapping.
+>>>
+>>
+>> Yeah, in my experiment, after the mremap() exists we have two different VMAs
+>> which can contain two different set of data. No page sharing is happening.
 > 
-> > do you have data points to show the difference in
-> > performance between this version and the last one where
-> > we skipped the bits from PTE and directly programmed the
-> > HPTE entries looking into VMA bits.
-> 
-> No. I dont. I am hoping you can help me out with this.
-Anshuman,
-	The last version where we skipped the PTE bits is guaranteed
-	to be bad/horrible. For one it has a bug, since it accesses
-	the vma without a lock. And even if we did take a lock, it
-	will slow down the page-hash path un-acceptably. So there is
-	no point measuring the performance of that design.
+> So how does this actually work for the JVM garbage collector use case?
+> Aren't the garbage collected objects private anon?
 
-	I think the number we want to measure is -- the performance 
-	with the current design and comparing that to the performance
-	without memkey feature. We want to find if there is
-	any degradation by adding this feature.
+Good point.
+The sample program the JVM team gave me uses a shared anon mapping.  As you
+mention one would expect these mappings to be private.  I have asked them
+for more details on their use case.
 
-RP
+> Anyway this should be documented.
+
+Yes, their prototype work seems to take advantage of this existing undocumented
+behavior.  It seems we have been carrying this functionality for at least 13
+years.  It may be time to document.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
