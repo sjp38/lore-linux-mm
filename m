@@ -1,114 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2965E6B0517
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:02:19 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y62so2036440pfa.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:02:19 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0053.outbound.protection.outlook.com. [104.47.34.53])
-        by mx.google.com with ESMTPS id v80si106622pgb.578.2017.07.11.08.02.16
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5E16B0519
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:06:03 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v76so1886048qka.5
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:06:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c28si170211qtg.85.2017.07.11.08.06.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 08:02:17 -0700 (PDT)
-Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
-References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
- <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
- <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
- <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com>
- <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <81fbf5db-c42f-cfe6-5d31-d60adbd18f26@amd.com>
-Date: Tue, 11 Jul 2017 10:02:05 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 08:06:02 -0700 (PDT)
+Date: Tue, 11 Jul 2017 11:05:58 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
+ memory_type one
+Message-ID: <20170711150558.GB5347@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-2-jglisse@redhat.com>
+ <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com>
+ <20170705142516.GA3305@redhat.com>
+ <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
+ <20170705184933.GD3305@redhat.com>
+ <CAPcyv4g7DOCDrggZO=yVbkKp4He_5gGtMZQQTqwp_-XdidACqg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4g7DOCDrggZO=yVbkKp4He_5gGtMZQQTqwp_-XdidACqg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 7/10/2017 11:58 PM, Brian Gerst wrote:
-> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->> On 7/8/2017 7:57 AM, Brian Gerst wrote:
->>>
->>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
->>> wrote:
->>>>
->>>> Currently there is a check if the address being mapped is in the ISA
->>>> range (is_ISA_range()), and if it is, then phys_to_virt() is used to
->>>> perform the mapping. When SME is active, the default is to add pagetable
->>>> mappings with the encryption bit set unless specifically overridden. The
->>>> resulting pagetable mapping from phys_to_virt() will result in a mapping
->>>> that has the encryption bit set. With SME, the use of ioremap() is
->>>> intended to generate pagetable mappings that do not have the encryption
->>>> bit set through the use of the PAGE_KERNEL_IO protection value.
->>>>
->>>> Rather than special case the SME scenario, remove the ISA range check and
->>>> usage of phys_to_virt() and have ISA range mappings continue through the
->>>> remaining ioremap() path.
->>>>
->>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->>>> ---
->>>>    arch/x86/mm/ioremap.c |    7 +------
->>>>    1 file changed, 1 insertion(+), 6 deletions(-)
->>>>
->>>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
->>>> index 4c1b5fd..bfc3e2d 100644
->>>> --- a/arch/x86/mm/ioremap.c
->>>> +++ b/arch/x86/mm/ioremap.c
->>>> @@ -13,6 +13,7 @@
->>>>    #include <linux/slab.h>
->>>>    #include <linux/vmalloc.h>
->>>>    #include <linux/mmiotrace.h>
->>>> +#include <linux/mem_encrypt.h>
->>>>
->>>>    #include <asm/set_memory.h>
->>>>    #include <asm/e820/api.h>
->>>> @@ -106,12 +107,6 @@ static void __iomem
->>>> *__ioremap_caller(resource_size_t phys_addr,
->>>>           }
->>>>
->>>>           /*
->>>> -        * Don't remap the low PCI/ISA area, it's always mapped..
->>>> -        */
->>>> -       if (is_ISA_range(phys_addr, last_addr))
->>>> -               return (__force void __iomem *)phys_to_virt(phys_addr);
->>>> -
->>>> -       /*
->>>>            * Don't allow anybody to remap normal RAM that we're using..
->>>>            */
->>>>           pfn      = phys_addr >> PAGE_SHIFT;
->>>>
->>>
->>> Removing this also affects 32-bit, which is more likely to access
->>> legacy devices in this range.  Put in a check for SME instead
->>
->>
->> I originally had a check for SME here in a previous version of the
->> patch.  Thomas Gleixner recommended removing the check so that the code
->> path was always exercised regardless of the state of SME in order to
->> better detect issues:
->>
->> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
->>
->> Thanks,
->> Tom
+On Tue, Jul 11, 2017 at 12:31:22AM -0700, Dan Williams wrote:
+> On Wed, Jul 5, 2017 at 11:49 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Wed, Jul 05, 2017 at 09:15:35AM -0700, Dan Williams wrote:
+> >> On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrote:
+> >> > On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote:
+> >> >> On Mon, Jul 3, 2017 at 2:14 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+> >> >> > Use consistent name between IORES_DESC and enum memory_type, rename
+> >> >> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
+> >> >> > the public name for CDM (cache coherent device memory) for which the
+> >> >> > term public is a better match.
+> >> >> >
+> >> >> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> >> >> > Cc: Dan Williams <dan.j.williams@intel.com>
+> >> >> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> >> >> > ---
+> >> >> >  include/linux/memremap.h | 4 ++--
+> >> >> >  kernel/memremap.c        | 2 +-
+> >> >> >  2 files changed, 3 insertions(+), 3 deletions(-)
+> >> >> >
+> >> >> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+> >> >> > index 57546a07a558..2299cc2d387d 100644
+> >> >> > --- a/include/linux/memremap.h
+> >> >> > +++ b/include/linux/memremap.h
+> >> >> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+> >> >> >   * Specialize ZONE_DEVICE memory into multiple types each having differents
+> >> >> >   * usage.
+> >> >> >   *
+> >> >> > - * MEMORY_DEVICE_PUBLIC:
+> >> >> > + * MEMORY_DEVICE_PERSISTENT:
+> >> >> >   * Persistent device memory (pmem): struct page might be allocated in different
+> >> >> >   * memory and architecture might want to perform special actions. It is similar
+> >> >> >   * to regular memory, in that the CPU can access it transparently. However,
+> >> >> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+> >> >> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
+> >> >> >   */
+> >> >> >  enum memory_type {
+> >> >> > -       MEMORY_DEVICE_PUBLIC = 0,
+> >> >> > +       MEMORY_DEVICE_PERSISTENT = 0,
+> >> >> >         MEMORY_DEVICE_PRIVATE,
+> >> >> >  };
+> >> >> >
+> >> >> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+> >> >> > index b9baa6c07918..e82456c39a6a 100644
+> >> >> > --- a/kernel/memremap.c
+> >> >> > +++ b/kernel/memremap.c
+> >> >> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+> >> >> >         }
+> >> >> >         pgmap->ref = ref;
+> >> >> >         pgmap->res = &page_map->res;
+> >> >> > -       pgmap->type = MEMORY_DEVICE_PUBLIC;
+> >> >> > +       pgmap->type = MEMORY_DEVICE_PERSISTENT;
+> >> >> >         pgmap->page_fault = NULL;
+> >> >> >         pgmap->page_free = NULL;
+> >> >> >         pgmap->data = NULL;
+> >> >>
+> >> >> I think we need a different name. There's nothing "persistent" about
+> >> >> the devm_memremap_pages() path. Why can't they share name, is the only
+> >> >> difference coherence? I'm thinking something like:
+> >> >>
+> >> >> MEMORY_DEVICE_PRIVATE
+> >> >> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
+> >> >> MEMORY_DEVICE_IO /* "public", but not coherent */
+> >> >
+> >> > No that would not work. Device public (in the context of this patchset)
+> >> > is like device private ie device public page can be anywhere inside a
+> >> > process address space either as anonymous memory page or as file back
+> >> > page of regular filesystem (ie vma->ops is not pointing to anything
+> >> > specific to the device memory).
+> >> >
+> >> > As such device public is different from how persistent memory is use
+> >> > and those the cache coherency being the same between the two kind of
+> >> > memory is not a discerning factor. So i need to distinguish between
+> >> > persistent memory and device public memory.
+> >> >
+> >> > I believe keeping enum memory_type close to IORES_DESC naming is the
+> >> > cleanest way to do that but i am open to other name suggestion.
+> >> >
+> >>
+> >> The IORES_DESC has nothing to do with how the memory range is handled
+> >> by the core mm. It sounds like the distinction this is trying to make
+> >> is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
+> >> Where a "host" memory range is one that does not need coordination
+> >> with a specific device.
+> >
+> > I want to distinguish between:
+> >   - device memory that is not accessible by the CPU
+> >   - device memory that is accessible by the CPU just like regular
+> >     memory
+> >   - existing user of devm_memremap_pages() which is persistent memory
+> >     (only pmem seems to call devm_memremap_pages()) that is use like a
+> >     filesystem or block device and thus isn't use like generic page in
+> >     a process address space
+> >
+> > So if existing user of devm_memremap_pages() are only persistent memory
+> > then it made sense to match the IORES_DESC we are expecting to see on
+> > see such memory.
+> >
+> > For public device memory (in the sense introduced by this patchset) i
+> > do not know how it will be described by IORES_DESC. i think first folks
+> > with it are IBM with CAPI and i am not sure they defined something for
+> > that already.
+> >
+> > I am open to any name beside public (well any reasonable name :)) but
+> > i do need to be able to distinguish persistent memory as use today from
+> > this device memory.
 > 
-> Looking a bit closer, this shortcut doesn't set the caching
-> attributes.  So it's probably best to get rid of it anyways.  Also
-> note, there is a corresponding check in iounmap().
+> Right, so that's why I suggested MEMORY_DEVICE_HOST for memory that is
+> just normal host memory and does not have any device-entanglements
+> outside of the base ZONE_DEVICE registration.
 
-Good catch.  I'll update the patch to include the removal of the ISA
-checks in the iounmap() path as well.
+Well the memory considered for DEVICE_PUBLIC is device memory so it is
+very much entangled with a device. It is memory that is physically on
+the device. It is just that new system bus like CAPI or CCIX allows
+CPU to access such memory with same cache coherency as if they were
+accessing regular system DDR memory. It is expect that this memory
+will be manage by the device driver and not core memory management.
 
-Thanks,
-Tom
+But i am ok with MEMORY_DEVICE_HOST after all this just a name. But
+what you put behind that name is not the reality of the memory. I just
+want to be clear on that.
 
-> 
-> --
-> Brian Gerst
-> 
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
