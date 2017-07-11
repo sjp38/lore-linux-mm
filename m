@@ -1,100 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C7CBA6B0522
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:21:21 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id v143so2171238qkb.6
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:21:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w62si193516qkw.64.2017.07.11.08.21.20
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C34D16B0515
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:39:01 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id p193so991111vkd.15
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:39:01 -0700 (PDT)
+Received: from mail-vk0-x243.google.com (mail-vk0-x243.google.com. [2607:f8b0:400c:c05::243])
+        by mx.google.com with ESMTPS id d134si23314vkf.69.2017.07.11.08.39.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 08:21:21 -0700 (PDT)
-Date: Mon, 10 Jul 2017 12:05:20 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [patch 2/2] MM: allow per-cpu vmstat_threshold and vmstat_worker
- configuration
-Message-ID: <20170710150520.GA16692@amt.cnet>
-References: <alpine.DEB.2.20.1705121154240.23503@east.gentwo.org>
- <20170515191531.GA31483@amt.cnet>
- <alpine.DEB.2.20.1705160825480.32761@east.gentwo.org>
- <20170519143407.GA19282@amt.cnet>
- <alpine.DEB.2.20.1705191205580.19631@east.gentwo.org>
- <20170519134934.0c298882@redhat.com>
- <20170525193508.GA30252@amt.cnet>
- <alpine.DEB.2.20.1705252220130.7596@east.gentwo.org>
- <20170526190926.GA8974@amt.cnet>
- <alpine.DEB.2.20.1705301310100.7195@east.gentwo.org>
+        Tue, 11 Jul 2017 08:39:00 -0700 (PDT)
+Received: by mail-vk0-x243.google.com with SMTP id 191so251156vko.1
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:39:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1705301310100.7195@east.gentwo.org>
+In-Reply-To: <81fbf5db-c42f-cfe6-5d31-d60adbd18f26@amd.com>
+References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
+ <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
+ <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
+ <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com> <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
+ <81fbf5db-c42f-cfe6-5d31-d60adbd18f26@amd.com>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Tue, 11 Jul 2017 11:38:59 -0400
+Message-ID: <CAMzpN2i+sqqarshuYJBBNxwP25q_ERezOxRZ-d8+8Ztt=Qm_iw@mail.gmail.com>
+Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Linux RT Users <linux-rt-users@vger.kernel.org>, cmetcalf@mellanox.com
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, "open list:IOMMU DRIVERS" <iommu@lists.linux-foundation.org>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue, May 30, 2017 at 01:17:41PM -0500, Christoph Lameter wrote:
-> On Fri, 26 May 2017, Marcelo Tosatti wrote:
-> 
-> > > interrupts and scheduler ticks. But what does this have to do with vmstat?
-> > >
-> > > Show me your dpdk code running and trace the tick on / off events  as well
-> > > as the vmstat invocations. Also show all system calls occurring on the cpu
-> > > that runs dpdk. That is necessary to see what triggers vmstat and how the
-> > > system reacts to the changes to the differentials.
+On Tue, Jul 11, 2017 at 11:02 AM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> On 7/10/2017 11:58 PM, Brian Gerst wrote:
+>>
+>> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com>
+>> wrote:
+>>>
+>>> On 7/8/2017 7:57 AM, Brian Gerst wrote:
+>>>>
+>>>>
+>>>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
+>>>> wrote:
+>>>>>
+>>>>>
+>>>>> Currently there is a check if the address being mapped is in the ISA
+>>>>> range (is_ISA_range()), and if it is, then phys_to_virt() is used to
+>>>>> perform the mapping. When SME is active, the default is to add
+>>>>> pagetable
+>>>>> mappings with the encryption bit set unless specifically overridden.
+>>>>> The
+>>>>> resulting pagetable mapping from phys_to_virt() will result in a
+>>>>> mapping
+>>>>> that has the encryption bit set. With SME, the use of ioremap() is
+>>>>> intended to generate pagetable mappings that do not have the encryption
+>>>>> bit set through the use of the PAGE_KERNEL_IO protection value.
+>>>>>
+>>>>> Rather than special case the SME scenario, remove the ISA range check
+>>>>> and
+>>>>> usage of phys_to_virt() and have ISA range mappings continue through
+>>>>> the
+>>>>> remaining ioremap() path.
+>>>>>
+>>>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>>>>> ---
+>>>>>    arch/x86/mm/ioremap.c |    7 +------
+>>>>>    1 file changed, 1 insertion(+), 6 deletions(-)
+>>>>>
+>>>>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+>>>>> index 4c1b5fd..bfc3e2d 100644
+>>>>> --- a/arch/x86/mm/ioremap.c
+>>>>> +++ b/arch/x86/mm/ioremap.c
+>>>>> @@ -13,6 +13,7 @@
+>>>>>    #include <linux/slab.h>
+>>>>>    #include <linux/vmalloc.h>
+>>>>>    #include <linux/mmiotrace.h>
+>>>>> +#include <linux/mem_encrypt.h>
+>>>>>
+>>>>>    #include <asm/set_memory.h>
+>>>>>    #include <asm/e820/api.h>
+>>>>> @@ -106,12 +107,6 @@ static void __iomem
+>>>>> *__ioremap_caller(resource_size_t phys_addr,
+>>>>>           }
+>>>>>
+>>>>>           /*
+>>>>> -        * Don't remap the low PCI/ISA area, it's always mapped..
+>>>>> -        */
+>>>>> -       if (is_ISA_range(phys_addr, last_addr))
+>>>>> -               return (__force void __iomem *)phys_to_virt(phys_addr);
+>>>>> -
+>>>>> -       /*
+>>>>>            * Don't allow anybody to remap normal RAM that we're using..
+>>>>>            */
+>>>>>           pfn      = phys_addr >> PAGE_SHIFT;
+>>>>>
+>>>>
+>>>> Removing this also affects 32-bit, which is more likely to access
+>>>> legacy devices in this range.  Put in a check for SME instead
+>>>
+>>>
+>>>
+>>> I originally had a check for SME here in a previous version of the
+>>> patch.  Thomas Gleixner recommended removing the check so that the code
+>>> path was always exercised regardless of the state of SME in order to
+>>> better detect issues:
+>>>
+>>> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
+>>>
+>>> Thanks,
+>>> Tom
+>>
+>>
+>> Looking a bit closer, this shortcut doesn't set the caching
+>> attributes.  So it's probably best to get rid of it anyways.  Also
+>> note, there is a corresponding check in iounmap().
+>
+>
+> Good catch.  I'll update the patch to include the removal of the ISA
+> checks in the iounmap() path as well.
 
-This was in the host, while performing virtual machine migration... Which you can
-say "invalidates the argument" because virtual machine migration takes 
-MUCH longer time than what vmstat_update introduces.
+I now think it should be kept but also emit a warning, at least for
+the short term.  There is bad code out there (vga16fb for example)
+that calls iounmap() blindly without calling ioremap() first.  We
+don't want to actually follow through with the unmap on the linear
+mapping.
 
-> >
-> > Sure, i can get that to you. The question remains: Are you arguing
-> > its not valid for a realtime application to use any system call
-> > which changes a vmstat counter?
-> 
-> A true realtime app would be conscientious of its use of the OS services
-> because the use of the services may cause additional latencies and also
-> cause timers etc to fire later. A realtime app that is willing to use
-> these services is therefore willing to tolerate larger latencies. A
-> realtime app that is using OS service may cause the timer tick to be
-> enabled which also causes additional latencies.
-> 
-> I have seen completely OS noise free processing for extended time period
-> when not using OS services and using RDMA for I/O. This fits my use case
-> well.
-
-People might want to use O/S services.
-
-> If there are really these high latencies because of kworker processing for
-> vmstat then maybe we need a different mechanism there (bh? or other
-> triggers) and maybe we are using far too many counters so that the
-> processing becomes a heavy user of resources.
-> 
-> > Because if they are allowed, then its obvious something like
-> > this is needed.
-> 
-> I am still wondering what benefit there is. Lets get clear on the test
-> load and see if this actually makes sense.
-
-Ok, test load: 
-
-	* Any userspace app that causes a systemcall which triggers
-	vmstat_update is susceptible to vmstat_update running on that
-	CPU, which might be detrimental to latency.
-
-So either something which moves vmstat_update work to another CPU, 
-or that avoids vmstat_update (which is what the proposed patchset does),
-must be necessary.
-
-So if a customer comes to me and says: "i am using sys_XXX in my
-application, but my latency is high", i'll have to tell him: "ok, please
-don't use that system call since it triggers kernel activity on the CPU
-which does not allow you to achieve the latency you desire".
-
-But it seems the "no syscalls" rule seems to be a good idea for 
-CPU isolated, low latency stuff...
-
-So i give up on the use-case behind this patch.
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
