@@ -1,24 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A05A66810BE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:27:58 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u5so6026579pgq.14
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:27:58 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id h9si419604pln.160.2017.07.11.15.27.57
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8376810BE
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:33:15 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x23so1391748wrb.6
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:33:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k129si464331wmf.136.2017.07.11.15.33.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 15:27:57 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id y129so621953pgy.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:27:57 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 15:33:14 -0700 (PDT)
+Date: Tue, 11 Jul 2017 23:33:11 +0100
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: Potential race in TLB flush batching?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170711215240.tdpmwmgwcuerjj3o@suse.de>
-Date: Tue, 11 Jul 2017 15:27:55 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
+Message-ID: <20170711223311.iu7hxce5swmet6u3@suse.de>
 References: <20170711064149.bg63nvi54ycynxw4@suse.de>
  <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
  <20170711092935.bogdb4oja6v7kilq@suse.de>
@@ -28,97 +22,81 @@ References: <20170711064149.bg63nvi54ycynxw4@suse.de>
  <20170711155312.637eyzpqeghcgqzp@suse.de>
  <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
  <20170711191823.qthrmdgqcd3rygjk@suse.de>
- <20170711200923.gyaxfjzz3tpvreuq@suse.de>
- <20170711215240.tdpmwmgwcuerjj3o@suse.de>
+ <CALCETrXvkF3rxLijtou3ndSxG9vu62hrqh1ZXkaWgWbL-wd+cg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALCETrXvkF3rxLijtou3ndSxG9vu62hrqh1ZXkaWgWbL-wd+cg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Nadav Amit <nadav.amit@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Mel Gorman <mgorman@suse.de> wrote:
+On Tue, Jul 11, 2017 at 03:07:57PM -0700, Andrew Lutomirski wrote:
+> On Tue, Jul 11, 2017 at 12:18 PM, Mel Gorman <mgorman@suse.de> wrote:
+> 
+> I would change this slightly:
+> 
+> > +void flush_tlb_batched_pending(struct mm_struct *mm)
+> > +{
+> > +       if (mm->tlb_flush_batched) {
+> > +               flush_tlb_mm(mm);
+> 
+> How about making this a new helper arch_tlbbatch_flush_one_mm(mm);
+> The idea is that this could be implemented as flush_tlb_mm(mm), but
+> the actual semantics needed are weaker.  All that's really needed
+> AFAICS is to make sure that any arch_tlbbatch_add_mm() calls on this
+> mm that have already happened become effective by the time that
+> arch_tlbbatch_flush_one_mm() returns.
+> 
+> The initial implementation would be this:
+> 
+> struct flush_tlb_info info = {
+>   .mm = mm,
+>   .new_tlb_gen = atomic64_read(&mm->context.tlb_gen);
+>   .start = 0,
+>   .end = TLB_FLUSH_ALL,
+> };
+> 
+> and the rest is like flush_tlb_mm_range().  flush_tlb_func_common()
+> will already do the right thing, but the comments should probably be
+> updated, too. 
 
-> On Tue, Jul 11, 2017 at 09:09:23PM +0100, Mel Gorman wrote:
->> On Tue, Jul 11, 2017 at 08:18:23PM +0100, Mel Gorman wrote:
->>> I don't think we should be particularly clever about this and =
-instead just
->>> flush the full mm if there is a risk of a parallel batching of =
-flushing is
->>> in progress resulting in a stale TLB entry being used. I think =
-tracking mms
->>> that are currently batching would end up being costly in terms of =
-memory,
->>> fairly complex, or both. Something like this?
->>=20
->> mremap and madvise(DONTNEED) would also need to flush. Memory =
-policies are
->> fine as a move_pages call that hits the race will simply fail to =
-migrate
->> a page that is being freed and once migration starts, it'll be =
-flushed so
->> a stale access has no further risk. copy_page_range should also be ok =
-as
->> the old mm is flushed and the new mm cannot have entries yet.
->=20
-> Adding those results in
+Yes, from what I remember from your patches and a quick recheck, that should
+be fine. I'll be leaving it until the morning to actually do the work. It
+requires that your stuff be upstream first but last time I checked, they
+were expected in this merge window.
 
-You are way too fast for me.
+> The benefit would be that, if you just call this on an
+> mm when everything is already flushed, it will still do the IPIs but
+> it won't do the actual flush.
+> 
 
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -637,12 +637,34 @@ static bool should_defer_flush(struct mm_struct =
-*mm, enum ttu_flags flags)
-> 		return false;
->=20
-> 	/* If remote CPUs need to be flushed then defer batch the flush =
-*/
-> -	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids)
-> +	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids) {
-> 		should_defer =3D true;
-> +		mm->tlb_flush_batched =3D true;
-> +	}
+The benefit is somewhat marginal given that a process that has been
+partially reclaimed already has taken a hit on any latency requirements
+it has. However, it's a much better fit with your work in general.
 
-Since mm->tlb_flush_batched is set before the PTE is actually cleared, =
-it
-still seems to leave a short window for a race.
+> A better future implementation could iterate over each cpu in
+> mm_cpumask(), and, using either a new lock or very careful atomics,
+> check whether that CPU really needs flushing.  In -tip, all the
+> information needed to figure this out is already there in the percpu
+> state -- it's just not currently set up for remote access.
+> 
 
-CPU0				CPU1
----- 				----
-should_defer_flush
-=3D> mm->tlb_flush_batched=3Dtrue	=09
-				flush_tlb_batched_pending (another PT)
-				=3D> flush TLB
-				=3D> mm->tlb_flush_batched=3Dfalse
-ptep_get_and_clear
-...
+Potentially yes although I'm somewhat wary of adding too much complexity
+in that path. It'll either be very rare in which case the maintenance
+cost isn't worth it or the process is being continually thrashed by
+reclaim in which case saving a few TLB flushes isn't going to prevent
+performance falling through the floor.
 
-				flush_tlb_batched_pending (batched PT)
-				use the stale PTE
-...
-try_to_unmap_flush
+> For backports, it would just be flush_tlb_mm().
+> 
 
+Agreed.
 
-IOW it seems that mm->flush_flush_batched should be set after the PTE is
-cleared (and have some compiler barrier to be on the safe side).
-
-Just to clarify - I don=E2=80=99t try to annoy, but I considered =
-building and
-submitting a patch based on some artifacts of a study I conducted, and =
-this
-issue drove me crazy.
-
-One more question, please: how does elevated page count or even locking =
-the
-page help (as you mention in regard to uprobes and ksm)? Yes, the page =
-will
-not be reclaimed, but IIUC try_to_unmap is called before the reference =
-count
-is frozen, and the page lock is dropped on each iteration of the loop in
-shrink_page_list. In this case, it seems to me that uprobes or ksm may =
-still
-not flush the TLB.
-
-Thanks,
-Nadav=
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
