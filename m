@@ -1,191 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F426810B5
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:23:30 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id w19so119067uac.0
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:23:30 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e35si3479uah.154.2017.07.11.11.23.29
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C3FC86810B5
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:23:31 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id g14so171924pgu.9
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:23:31 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d194si428094pfd.433.2017.07.11.11.23.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 11:23:29 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
- <20170711123642.GC11936@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
-Date: Tue, 11 Jul 2017 11:23:19 -0700
+        Tue, 11 Jul 2017 11:23:30 -0700 (PDT)
+Subject: Re: [RFC v5 38/38] Documentation: PowerPC specific updates to memory
+ protection keys
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-39-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <d0f1dc9b-7e10-3692-3922-abdbe4706428@intel.com>
+Date: Tue, 11 Jul 2017 11:23:29 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170711123642.GC11936@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1499289735-14220-39-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On 07/11/2017 05:36 AM, Michal Hocko wrote:
-> On Thu 06-07-17 09:17:26, Mike Kravetz wrote:
->> The mremap system call has the ability to 'mirror' parts of an existing
->> mapping.  To do so, it creates a new mapping that maps the same pages as
->> the original mapping, just at a different virtual address.  This
->> functionality has existed since at least the 2.6 kernel.
->>
->> This patch simply adds a new flag to mremap which will make this
->> functionality part of the API.  It maintains backward compatibility with
->> the existing way of requesting mirroring (old_size == 0).
->>
->> If this new MREMAP_MIRROR flag is specified, then new_size must equal
->> old_size.  In addition, the MREMAP_MAYMOVE flag must be specified.
+On 07/05/2017 02:22 PM, Ram Pai wrote:
+> Add documentation updates that capture PowerPC specific changes.
 > 
-> I have to admit that this came as a suprise to me. There is no mention
-> about this special case in the man page and the mremap code is so
-> convoluted that I simply didn't see it there. I guess the only
-> reasonable usecase is when you do not have a fd for the shared memory.
-
-I was surprised as well when a JVM developer pointed this out.
-
->From the old e-mail thread, here is original use case:
-shmget(IPC_PRIVATE, 31498240, 0x1c0|0600) = 11337732
-shmat(11337732, 0, 0)                   = 0x40299000
-shmctl(11337732, IPC_RMID, 0)           = 0
-mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0) = 0
-mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0x100000) = 0x100000
-
-The JVM team wants to do something similar.  They are using
-mmap(MAP_ANONYMOUS|MAP_SHARED) to create the initial mapping instead
-of shmget/shmat.  As Vlastimil mentioned previously, one would not
-expect a shared mapping for parts of the JVM heap.  I am working
-to get clarification from the JVM team.
-
-> Anyway the patch should fail with -EINVAL on private mappings as Kirill
-> already pointed out
-
-Yes.  I think this should be a separate patch.  As mentioned earlier,
-mremap today creates a new/additional private mapping if called in this
-way with old_size == 0.  To me, this is a bug.
-
->                     and this should go along with an update to the
-> man page which describes also the historical behavior.
-
-Yes, man page updates are a must.
-
-One reason for the RFC was to determine if people thought we should:
-1) Just document the existing old_size == 0 functionality
-2) Create a more explicit interface such as a new mremap flag for this
-   functionality
-
-I am waiting to see what direction people prefer before making any
-man page updates.
-
->                                                        Make sure you
-> document that this is not really a mirroring (e.g. faulting page in one
-> address will automatically map it to the other mapping(s)) but merely a
-> copy of the range. Maybe MREMAP_COPY would be more appropriate name.
-
-Good point.  mirror is the first word that came to mind, but it does
-not exactly apply.
-
--- 
-Mike Kravetz
-
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  Documentation/vm/protection-keys.txt |   85 ++++++++++++++++++++++++++--------
+>  1 files changed, 65 insertions(+), 20 deletions(-)
 > 
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  include/uapi/linux/mman.h       |  5 +++--
->>  mm/mremap.c                     | 23 ++++++++++++++++-------
->>  tools/include/uapi/linux/mman.h |  5 +++--
->>  3 files changed, 22 insertions(+), 11 deletions(-)
->>
->> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
->> index ade4acd..6b3e0df 100644
->> --- a/include/uapi/linux/mman.h
->> +++ b/include/uapi/linux/mman.h
->> @@ -3,8 +3,9 @@
->>  
->>  #include <asm/mman.h>
->>  
->> -#define MREMAP_MAYMOVE	1
->> -#define MREMAP_FIXED	2
->> +#define MREMAP_MAYMOVE	0x01
->> +#define MREMAP_FIXED	0x02
->> +#define MREMAP_MIRROR	0x04
->>  
->>  #define OVERCOMMIT_GUESS		0
->>  #define OVERCOMMIT_ALWAYS		1
->> diff --git a/mm/mremap.c b/mm/mremap.c
->> index cd8a1b1..f18ab36 100644
->> --- a/mm/mremap.c
->> +++ b/mm/mremap.c
->> @@ -516,10 +516,11 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->>  	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
->>  	LIST_HEAD(uf_unmap);
->>  
->> -	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
->> +	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_MIRROR))
->>  		return ret;
->>  
->> -	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
->> +	if ((flags & MREMAP_FIXED || flags & MREMAP_MIRROR) &&
->> +	    !(flags & MREMAP_MAYMOVE))
->>  		return ret;
->>  
->>  	if (offset_in_page(addr))
->> @@ -528,14 +529,22 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->>  	old_len = PAGE_ALIGN(old_len);
->>  	new_len = PAGE_ALIGN(new_len);
->>  
->> -	/*
->> -	 * We allow a zero old-len as a special case
->> -	 * for DOS-emu "duplicate shm area" thing. But
->> -	 * a zero new-len is nonsensical.
->> -	 */
->> +	/* A zero new-len is nonsensical. */
->>  	if (!new_len)
->>  		return ret;
->>  
->> +	/*
->> +	 * For backward compatibility, we allow a zero old-len to imply
->> +	 * mirroring.  This was originally a special case for DOS-emu.
->> +	 */
->> +	if (!old_len)
->> +		flags |= MREMAP_MIRROR;
->> +	else if (flags & MREMAP_MIRROR) {
->> +		if (old_len != new_len)
->> +			return ret;
->> +		old_len = 0;
->> +	}
->> +
->>  	if (down_write_killable(&current->mm->mmap_sem))
->>  		return -EINTR;
->>  
->> diff --git a/tools/include/uapi/linux/mman.h b/tools/include/uapi/linux/mman.h
->> index 81d8edf..069f7a5 100644
->> --- a/tools/include/uapi/linux/mman.h
->> +++ b/tools/include/uapi/linux/mman.h
->> @@ -3,8 +3,9 @@
->>  
->>  #include <uapi/asm/mman.h>
->>  
->> -#define MREMAP_MAYMOVE	1
->> -#define MREMAP_FIXED	2
->> +#define MREMAP_MAYMOVE	0x01
->> +#define MREMAP_FIXED	0x02
->> +#define MREMAP_MIRROR	0x04
->>  
->>  #define OVERCOMMIT_GUESS		0
->>  #define OVERCOMMIT_ALWAYS		1
->> -- 
->> 2.7.5
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> diff --git a/Documentation/vm/protection-keys.txt b/Documentation/vm/protection-keys.txt
+> index b643045..d50b6ab 100644
+> --- a/Documentation/vm/protection-keys.txt
+> +++ b/Documentation/vm/protection-keys.txt
+> @@ -1,21 +1,46 @@
+> -Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature
+> -which will be found on future Intel CPUs.
+> +Memory Protection Keys for Userspace (PKU aka PKEYs) is a CPU feature found in
+> +new generation of intel CPUs and on PowerPC 7 and higher CPUs.
+
+Please try not to change the wording here.  I really did mean to
+literally put "future Intel CPUs."  Also, you broke my nice wrapping. :)
+
+I'm also thinking that this needs to be more generic.  The ppc _CPU_
+feature is *NOT* for userspace-only, right?
+
+>  Memory Protection Keys provides a mechanism for enforcing page-based
+> -protections, but without requiring modification of the page tables
+> -when an application changes protection domains.  It works by
+> -dedicating 4 previously ignored bits in each page table entry to a
+> -"protection key", giving 16 possible keys.
+> -
+> -There is also a new user-accessible register (PKRU) with two separate
+> -bits (Access Disable and Write Disable) for each key.  Being a CPU
+> -register, PKRU is inherently thread-local, potentially giving each
+> -thread a different set of protections from every other thread.
+> -
+> -There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> -to the new register.  The feature is only available in 64-bit mode,
+> -even though there is theoretically space in the PAE PTEs.  These
+> -permissions are enforced on data access only and have no effect on
+> +protections, but without requiring modification of the page tables when an
+> +application changes protection domains.
+> +
+> +
+> +On Intel:
+> +
+> +	It works by dedicating 4 previously ignored bits in each page table
+> +	entry to a "protection key", giving 16 possible keys.
+> +
+> +	There is also a new user-accessible register (PKRU) with two separate
+> +	bits (Access Disable and Write Disable) for each key.  Being a CPU
+> +	register, PKRU is inherently thread-local, potentially giving each
+> +	thread a different set of protections from every other thread.
+> +
+> +	There are two new instructions (RDPKRU/WRPKRU) for reading and writing
+> +	to the new register.  The feature is only available in 64-bit mode,
+> +	even though there is theoretically space in the PAE PTEs.  These
+> +	permissions are enforced on data access only and have no effect on
+> +	instruction fetches.
+> +
+> +
+> +On PowerPC:
+> +
+> +	It works by dedicating 5 page table entry bits to a "protection key",
+> +	giving 32 possible keys.
+> +
+> +	There  is  a  user-accessible  register (AMR)  with  two separate bits;
+> +	Access Disable and  Write  Disable, for  each key.  Being  a  CPU
+> +	register,  AMR  is inherently  thread-local,  potentially  giving  each
+> +	thread a different set of protections from every other thread.  NOTE:
+> +	Disabling read permission does not disable write and vice-versa.
+> +
+> +	The feature is available on 64-bit HPTE mode only.
+> +	'mtspr 0xd, mem' reads the AMR register
+> +	'mfspr mem, 0xd' writes into the AMR register.
+
+The whole "being a CPU register" bits seem pretty common.  Should it be
+in the leading paragraph that is shared?
+
+> +Permissions are enforced on data access only and have no effect on
+>  instruction fetches.
+
+Shouldn't we mention the ppc support for execute-disable here too?
+
+Also, *does* this apply to ppc?  You have it both in this common area
+and in the x86 portion.
+
+>  =========================== Syscalls ===========================
+> @@ -28,9 +53,9 @@ There are 3 system calls which directly interact with pkeys:
+>  			  unsigned long prot, int pkey);
+>  
+>  Before a pkey can be used, it must first be allocated with
+> -pkey_alloc().  An application calls the WRPKRU instruction
+> +pkey_alloc().  An application calls the WRPKRU/AMR instruction
+>  directly in order to change access permissions to memory covered
+> -with a key.  In this example WRPKRU is wrapped by a C function
+> +with a key.  In this example WRPKRU/AMR is wrapped by a C function
+>  called pkey_set().
+>  
+>  	int real_prot = PROT_READ|PROT_WRITE;
+> @@ -52,11 +77,11 @@ is no longer in use:
+>  	munmap(ptr, PAGE_SIZE);
+>  	pkey_free(pkey);
+>  
+> -(Note: pkey_set() is a wrapper for the RDPKRU and WRPKRU instructions.
+> +(Note: pkey_set() is a wrapper for the RDPKRU,WRPKRU or AMR instructions.
+>   An example implementation can be found in
+>   tools/testing/selftests/x86/protection_keys.c)
+>  
+> -=========================== Behavior ===========================
+> +=========================== Behavior =================================
+>  
+>  The kernel attempts to make protection keys consistent with the
+>  behavior of a plain mprotect().  For instance if you do this:
+> @@ -83,3 +108,23 @@ with a read():
+>  The kernel will send a SIGSEGV in both cases, but si_code will be set
+>  to SEGV_PKERR when violating protection keys versus SEGV_ACCERR when
+>  the plain mprotect() permissions are violated.
+> +
+> +
+> +====================================================================
+> +		Semantic differences
+> +
+> +The following semantic differences exist between x86 and power.
+> +
+> +a) powerpc allows creation of a key with execute-disabled.  The following
+> +	is allowed on powerpc.
+> +	pkey = pkey_alloc(0, PKEY_DISABLE_WRITE | PKEY_DISABLE_ACCESS |
+> +			PKEY_DISABLE_EXECUTE);
+> +   x86 disallows PKEY_DISABLE_EXECUTE during key creation.
+
+It isn't that powerpc supports *creation* of the key.  It doesn't
+support setting PKEY_DISABLE_EXECUTE, period, which implies that you
+can't set it at pkey_alloc().  That's a pretty important distinction, IMNHO.
+
+> +b) changing the permission bits of a key from a signal handler does not
+> +   persist on x86. The PKRU specific fpregs entry needs to be modified
+> +   for it to persist.  On powerpc the permission bits of the key can be
+> +   modified by programming the AMR register from the signal handler.
+> +   The changes persists across signal boundaries.
+
+^"changes persist", not "persists".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
