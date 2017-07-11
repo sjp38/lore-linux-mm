@@ -1,211 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EA6416B04B8
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:13:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c23so133745197pfe.11
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:13:22 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id 82si9183294pfn.127.2017.07.10.21.13.21
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BF656B04B3
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:26:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q87so133448178pfk.15
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:26:14 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id u18si9313671pfj.124.2017.07.10.21.26.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 21:13:22 -0700 (PDT)
-Date: Tue, 11 Jul 2017 12:12:33 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH 3/3] Make LSM Writable Hooks a command line option
-Message-ID: <201707111218.WdNdnvYN%fengguang.wu@intel.com>
+        Mon, 10 Jul 2017 21:26:13 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id e199so17177218pfh.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:26:13 -0700 (PDT)
+Date: Tue, 11 Jul 2017 14:26:01 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [RFC v5 01/11] mm: Dont assume page-table invariance during
+ faults
+Message-ID: <20170711142601.27b8fd32@firefly.ozlabs.ibm.com>
+In-Reply-To: <d719a861-d712-1876-b46c-7f9c1360196c@linux.vnet.ibm.com>
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+	<1497635555-25679-2-git-send-email-ldufour@linux.vnet.ibm.com>
+	<1499411222.23251.5.camel@gmail.com>
+	<d719a861-d712-1876-b46c-7f9c1360196c@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="cNdxnHkX5QqsyA0e"
-Content-Disposition: inline
-In-Reply-To: <20170710150603.387-4-igor.stoppa@huawei.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: kbuild-all@01.org, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, penguin-kernel@I-love.SAKURA.ne.jp, labbott@redhat.com, hch@infradead.org, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
+On Mon, 10 Jul 2017 19:48:43 +0200
+Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 
---cNdxnHkX5QqsyA0e
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> On 07/07/2017 09:07, Balbir Singh wrote:
+> > On Fri, 2017-06-16 at 19:52 +0200, Laurent Dufour wrote:  
+> >> From: Peter Zijlstra <peterz@infradead.org>
+> >>
+> >> One of the side effects of speculating on faults (without holding
+> >> mmap_sem) is that we can race with free_pgtables() and therefore we
+> >> cannot assume the page-tables will stick around.
+> >>
+> >> Remove the relyance on the pte pointer.  
+> >              ^^ reliance
+> > 
+> > Looking at the changelog and the code the impact is not clear.
+> > It looks like after this patch we always assume the pte is not
+> > the same. What is the impact of this patch?  
+> 
+> Hi Balbir,
+> 
+> In most of the case pte_unmap_same() was returning 1, which meaning that
+> do_swap_page() should do its processing.
+> 
+> So in most of the case there will be no impact.
+> 
+> Now regarding the case where pte_unmap_safe() was returning 0, and thus
+> do_swap_page return 0 too, this happens when the page has already been
+> swapped back. This may happen before do_swap_page() get called or while in
+> the call to do_swap_page(). In that later case, the check done when
+> swapin_readahead() returns will detect that case.
+> 
+> The worst case would be that a page fault is occuring on 2 threads at the
+> same time on the same swapped out page. In that case one thread will take
+> much time looping in __read_swap_cache_async(). But in the regular page
+> fault path, this is even worse since the thread would wait for semaphore to
+> be released before starting anything.
+> 
+>
 
-Hi Igor,
+Sounds good!
 
-[auto build test ERROR on linus/master]
-[cannot apply to v4.12]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-
-url:    https://github.com/0day-ci/linux/commits/Igor-Stoppa/mm-security-ro-protection-for-dynamic-data/20170711-084116
-config: score-spct6600_defconfig (attached as .config)
-compiler: score-elf-gcc (GCC) 4.9.1 20140622 (prerelease)
-reproduce:
-        wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        # save the attached .config to linux build tree
-        make.cross ARCH=score 
-
-All errors (new ones prefixed by >>):
-
-   security/security.o: In function `security_init':
->> security.c:(.init.text+0x68): undefined reference to `pmalloc_create_pool'
->> security.c:(.init.text+0x98): undefined reference to `pmalloc'
->> security.c:(.init.text+0x150): undefined reference to `pmalloc_protect_pool'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---cNdxnHkX5QqsyA0e
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---cNdxnHkX5QqsyA0e--
+Thanks,
+Balbir Singh 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
