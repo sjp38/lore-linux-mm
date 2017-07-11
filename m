@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D36E6B04CE
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 20:52:28 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u17so130208245pfa.6
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 17:52:28 -0700 (PDT)
-Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
-        by mx.google.com with ESMTPS id g128si9016111pgc.343.2017.07.10.17.52.27
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DAE96B04D1
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 20:54:13 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id 16so34964271qkg.15
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 17:54:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a27si6347784qka.139.2017.07.10.17.54.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 17:52:27 -0700 (PDT)
-Received: by mail-pg0-x236.google.com with SMTP id t186so57916128pgb.1
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 17:52:27 -0700 (PDT)
-From: Nadav Amit <nadav.amit@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Potential race in TLB flush batching?
-Message-Id: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
-Date: Mon, 10 Jul 2017 17:52:25 -0700
+        Mon, 10 Jul 2017 17:54:12 -0700 (PDT)
+Date: Mon, 10 Jul 2017 20:54:09 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+Message-ID: <20170711005408.GA15896@redhat.com>
+References: <20170522165206.6284-1-jglisse@redhat.com>
+ <20170522165206.6284-13-jglisse@redhat.com>
+ <fa402b70fa9d418ebf58a26a454abd06@HQMAIL103.nvidia.com>
+ <5f476e8c-8256-13a8-2228-a2b9e5650586@nvidia.com>
+ <20170701005749.GA7232@redhat.com>
+ <f04a007d-fc34-fe3a-d366-1363248a609f@nvidia.com>
+ <20170710234339.GA15226@redhat.com>
+ <57146eb3-43bc-6e8b-4c8e-0632aa8ed577@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <57146eb3-43bc-6e8b-4c8e-0632aa8ed577@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>
-Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-Something bothers me about the TLB flushes batching mechanism that Linux
-uses on x86 and I would appreciate your opinion regarding it.
+On Mon, Jul 10, 2017 at 05:17:23PM -0700, Evgeny Baskakov wrote:
+> On 7/10/17 4:43 PM, Jerome Glisse wrote:
+> 
+> > On Mon, Jul 10, 2017 at 03:59:37PM -0700, Evgeny Baskakov wrote:
+> > ...
+> > Horrible stupid bug in the code, most likely from cut and paste. Attached
+> > patch should fix it. I don't know how long it took for you to trigger it.
+> > 
+> > Jerome
+> Thanks, this indeed fixes the problem! Yes, it took a nightly run before it
+> triggered.
+> 
+> One a side note, should this "return NULL" be replaced with "return
+> ERR_PTR(-ENOMEM)"?
 
-As you know, try_to_unmap_one() can batch TLB invalidations. While doing =
-so,
-however, the page-table lock(s) are not held, and I see no indication of =
-the
-pending flush saved (and regarded) in the relevant mm-structs.
+Or -EBUSY but yes sure.
 
-So, my question: what prevents, at least in theory, the following =
-scenario:
-
-	CPU0 				CPU1
-	----				----
-					user accesses memory using RW =
-PTE=20
-					[PTE now cached in TLB]
-	try_to_unmap_one()
-	=3D=3D> ptep_get_and_clear()
-	=3D=3D> set_tlb_ubc_flush_pending()
-					mprotect(addr, PROT_READ)
-					=3D=3D> change_pte_range()
-					=3D=3D> [ PTE non-present - no =
-flush ]
-
-					user writes using cached RW PTE
-	...
-
-	try_to_unmap_flush()
-
-
-As you see CPU1 write should have failed, but may succeed.=20
-
-Now I don=E2=80=99t have a PoC since in practice it seems hard to create =
-such a
-scenario: try_to_unmap_one() is likely to find the PTE accessed and the =
-PTE
-would not be reclaimed.
-
-Yet, isn=E2=80=99t it a problem? Am I missing something?
-
-Thanks,
-Nadav=
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
