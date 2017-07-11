@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E61B06B04E7
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:11:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p10so145616820pgr.6
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:11:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 13si9966869pfm.355.2017.07.11.04.11.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 44DAE6B02F3
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:13:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q87so141250687pfk.15
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:13:02 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y34si11161937plb.336.2017.07.11.04.13.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 04:11:51 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6BB94f7107076
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:11:50 -0400
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bmb3f5v6x-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:11:50 -0400
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 11 Jul 2017 21:11:47 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6BBBjYF19464282
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:11:45 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6BBBhWR008066
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:11:43 +1000
-Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
-References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
- <20170710134917.GB19645@dhcp22.suse.cz>
- <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
- <20170711060354.GA24852@dhcp22.suse.cz>
- <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
- <20170711065030.GE24852@dhcp22.suse.cz>
- <337a8a4c-1f27-7371-409d-6a9f181b3871@suse.cz>
- <20170711071612.GG24852@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 11 Jul 2017 16:41:42 +0530
-MIME-Version: 1.0
-In-Reply-To: <20170711071612.GG24852@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <494b4e08-11d3-4c6c-e241-f94595619def@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 04:13:01 -0700 (PDT)
+Subject: Re: [PATCH v10 0/3] mm: security: ro protection for dynamic data
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170710150603.387-1-igor.stoppa@huawei.com>
+In-Reply-To: <20170710150603.387-1-igor.stoppa@huawei.com>
+Message-Id: <201707112012.GBC05774.QOtOSLJVFHFOFM@I-love.SAKURA.ne.jp>
+Date: Tue, 11 Jul 2017 20:12:14 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
+To: igor.stoppa@huawei.com, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com, hch@infradead.org
+Cc: paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On 07/11/2017 12:46 PM, Michal Hocko wrote:
-> On Tue 11-07-17 08:56:04, Vlastimil Babka wrote:
->> On 07/11/2017 08:50 AM, Michal Hocko wrote:
->>> On Tue 11-07-17 08:26:40, Vlastimil Babka wrote:
->>>> On 07/11/2017 08:03 AM, Michal Hocko wrote:
->>>>>
->>>>> Are you telling me that two if conditions cause more than a second
->>>>> difference? That sounds suspicious.
->>>>
->>>> It's removing also a call to get_unmapped_area(), AFAICS. That means a
->>>> vma search?
->>>
->>> Ohh, right. I have somehow missed that. Is this removal intentional?
->>
->> I think it is: "Checking for availability of virtual address range at
->> the end of the VMA for the incremental size is also reduntant at this
->> point."
-> 
-> I though this referred to this check
-> 	if (vma->vm_next && vma->vm_next->vm_start < end)
+Igor Stoppa wrote:
+> - I had to rebase Tetsuo Handa's patch because it didn't apply cleanly
+>   anymore, I would appreciate an ACK to that or a revised patch, whatever 
+>   comes easier.
 
-No, that check is still there in the code.
+Since we are getting several proposals of changing LSM hooks and both your proposal
+and Casey's "LSM: Security module blob management" proposal touch same files, I think
+we can break these changes into small pieces so that both you and Casey can make
+future versions smaller.
+
+If nobody has objections about direction of Igor's proposal and Casey's proposal,
+I think merging only "[PATCH 2/3] LSM: Convert security_hook_heads into explicit
+array of struct list_head" from Igor's proposal and ->security accessor wrappers (e.g.
+
+  #define selinux_security(obj) (obj->security)
+  #define smack_security(obj) (obj->security)
+  #define tomoyo_security(obj) (obj->security)
+  #define apparmor_security(obj) (obj->security)
+
+) from Casey's proposal now helps solving deadlocked situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
