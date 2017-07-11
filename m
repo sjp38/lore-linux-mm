@@ -1,141 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 670336B0526
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:44:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 123so3400078pgj.4
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:44:53 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0077.outbound.protection.outlook.com. [104.47.40.77])
-        by mx.google.com with ESMTPS id v22si189842pgn.308.2017.07.11.08.44.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 725126B0528
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:53:15 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z45so951210wrb.13
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:53:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r30si195700wra.315.2017.07.11.08.53.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 08:44:52 -0700 (PDT)
-Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
-References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
- <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
- <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
- <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com>
- <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
- <81fbf5db-c42f-cfe6-5d31-d60adbd18f26@amd.com>
- <CAMzpN2i+sqqarshuYJBBNxwP25q_ERezOxRZ-d8+8Ztt=Qm_iw@mail.gmail.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <4404cf23-3b9c-e712-f883-fa6dc4318214@amd.com>
-Date: Tue, 11 Jul 2017 10:44:34 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 08:53:14 -0700 (PDT)
+Date: Tue, 11 Jul 2017 16:53:12 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170711155312.637eyzpqeghcgqzp@suse.de>
+References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
+ <20170711064149.bg63nvi54ycynxw4@suse.de>
+ <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+ <20170711092935.bogdb4oja6v7kilq@suse.de>
+ <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+ <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMzpN2i+sqqarshuYJBBNxwP25q_ERezOxRZ-d8+8Ztt=Qm_iw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, "open list:IOMMU DRIVERS" <iommu@lists.linux-foundation.org>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Nadav Amit <nadav.amit@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 7/11/2017 10:38 AM, Brian Gerst wrote:
-> On Tue, Jul 11, 2017 at 11:02 AM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->> On 7/10/2017 11:58 PM, Brian Gerst wrote:
->>>
->>> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com>
->>> wrote:
->>>>
->>>> On 7/8/2017 7:57 AM, Brian Gerst wrote:
->>>>>
->>>>>
->>>>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
->>>>> wrote:
->>>>>>
->>>>>>
->>>>>> Currently there is a check if the address being mapped is in the ISA
->>>>>> range (is_ISA_range()), and if it is, then phys_to_virt() is used to
->>>>>> perform the mapping. When SME is active, the default is to add
->>>>>> pagetable
->>>>>> mappings with the encryption bit set unless specifically overridden.
->>>>>> The
->>>>>> resulting pagetable mapping from phys_to_virt() will result in a
->>>>>> mapping
->>>>>> that has the encryption bit set. With SME, the use of ioremap() is
->>>>>> intended to generate pagetable mappings that do not have the encryption
->>>>>> bit set through the use of the PAGE_KERNEL_IO protection value.
->>>>>>
->>>>>> Rather than special case the SME scenario, remove the ISA range check
->>>>>> and
->>>>>> usage of phys_to_virt() and have ISA range mappings continue through
->>>>>> the
->>>>>> remaining ioremap() path.
->>>>>>
->>>>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->>>>>> ---
->>>>>>     arch/x86/mm/ioremap.c |    7 +------
->>>>>>     1 file changed, 1 insertion(+), 6 deletions(-)
->>>>>>
->>>>>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
->>>>>> index 4c1b5fd..bfc3e2d 100644
->>>>>> --- a/arch/x86/mm/ioremap.c
->>>>>> +++ b/arch/x86/mm/ioremap.c
->>>>>> @@ -13,6 +13,7 @@
->>>>>>     #include <linux/slab.h>
->>>>>>     #include <linux/vmalloc.h>
->>>>>>     #include <linux/mmiotrace.h>
->>>>>> +#include <linux/mem_encrypt.h>
->>>>>>
->>>>>>     #include <asm/set_memory.h>
->>>>>>     #include <asm/e820/api.h>
->>>>>> @@ -106,12 +107,6 @@ static void __iomem
->>>>>> *__ioremap_caller(resource_size_t phys_addr,
->>>>>>            }
->>>>>>
->>>>>>            /*
->>>>>> -        * Don't remap the low PCI/ISA area, it's always mapped..
->>>>>> -        */
->>>>>> -       if (is_ISA_range(phys_addr, last_addr))
->>>>>> -               return (__force void __iomem *)phys_to_virt(phys_addr);
->>>>>> -
->>>>>> -       /*
->>>>>>             * Don't allow anybody to remap normal RAM that we're using..
->>>>>>             */
->>>>>>            pfn      = phys_addr >> PAGE_SHIFT;
->>>>>>
->>>>>
->>>>> Removing this also affects 32-bit, which is more likely to access
->>>>> legacy devices in this range.  Put in a check for SME instead
->>>>
->>>>
->>>>
->>>> I originally had a check for SME here in a previous version of the
->>>> patch.  Thomas Gleixner recommended removing the check so that the code
->>>> path was always exercised regardless of the state of SME in order to
->>>> better detect issues:
->>>>
->>>> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
->>>>
->>>> Thanks,
->>>> Tom
->>>
->>>
->>> Looking a bit closer, this shortcut doesn't set the caching
->>> attributes.  So it's probably best to get rid of it anyways.  Also
->>> note, there is a corresponding check in iounmap().
->>
->>
->> Good catch.  I'll update the patch to include the removal of the ISA
->> checks in the iounmap() path as well.
+On Tue, Jul 11, 2017 at 07:58:04AM -0700, Andrew Lutomirski wrote:
+> On Tue, Jul 11, 2017 at 6:20 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > +
+> > +/*
+> > + * This is called after an mprotect update that altered no pages. Batched
+> > + * unmap releases the PTL before a flush occurs leaving a window where
+> > + * an mprotect that reduces access rights can still access the page after
+> > + * mprotect returns via a stale TLB entry. Avoid this possibility by flushing
+> > + * the local TLB if mprotect updates no pages so that the the caller of
+> > + * mprotect always gets expected behaviour. It's overkill and unnecessary to
+> > + * flush all TLBs as a separate thread accessing the data that raced with
+> > + * both reclaim and mprotect as there is no risk of data corruption and
+> > + * the exact timing of a parallel thread seeing a protection update without
+> > + * any serialisation on the application side is always uncertain.
+> > + */
+> > +void batched_unmap_protection_update(void)
+> > +{
+> > +       count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+> > +       local_flush_tlb();
+> > +       trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+> > +}
+> > +
 > 
-> I now think it should be kept but also emit a warning, at least for
-> the short term.  There is bad code out there (vga16fb for example)
-> that calls iounmap() blindly without calling ioremap() first.  We
-> don't want to actually follow through with the unmap on the linear
-> mapping.
+> What about remote CPUs?  You could get migrated right after mprotect()
+> or the inconsistency could be observed on another CPU. 
 
-Yup, was just about to reply to the other email on this. That makes
-sense, keep the check but add a warning to it so that it will catch
-any misuses of iounmap() and those can then be addressed.
+If it's migrated then it has also context switched so the TLB entry will
+be read for the first time. If the entry is inconsistent for another CPU
+accessing the data then it'll potentially successfully access a page that
+was just mprotected but this is similar to simply racing with the call
+to mprotect itself. The timing isn't exact, nor does it need to be. One
+thread accessing data racing with another thread doing mprotect without
+any synchronisation in the application is always going to be unreliable.
+I'm less certain once PCID tracking is in place and whether it's possible for
+a process to be context switching fast enough to allow an access. If it's
+possible then batching would require an unconditional flush on mprotect
+even if no pages are updated if access is being limited by the mprotect
+which would be unfortunate.
 
-Thanks,
-Tom
-
+> I also really
+> don't like bypassing arch code like this.  The implementation of
+> flush_tlb_mm_range() in tip:x86/mm (and slated for this merge window!)
+> is *very* different from what's there now, and it is not written in
+> the expectation that some generic code might call local_tlb_flush()
+> and expect any kind of coherency at all.
 > 
-> --
-> Brian Gerst
+
+Assuming that gets merged first then the most straight-forward approach
+would be to setup a arch_tlbflush_unmap_batch with just the local CPU set
+in the mask or something similar.
+
+> I'm also still nervous about situations in which, while a batched
+> flush is active, a user calls mprotect() and then does something else
+> that gets confused by the fact that there's an RO PTE and doesn't
+> flush out the RW TLB entry.  COWing a page, perhaps?
 > 
+
+The race in question only applies if mprotect had no PTEs to update. If
+any page was updated then the TLB is flushed before mprotect returns.
+With the patch (or a variant on top of your work), at least the local TLB
+will be flushed even if no PTEs were updated. This might be more expensive
+than it has to be but I expect that mprotects on range with no PTEs to
+update are fairly rare.
+
+> Would a better fix perhaps be to find a way to figure out whether a
+> batched flush is pending on the mm in question and flush it out if you
+> do any optimizations based on assuming that the TLB is in any respect
+> consistent with the page tables?  With the changes in -tip, x86 could,
+> in principle, supply a function to sync up its TLB state.  That would
+> require cross-CPU poking at state or an inconditional IPI (that might
+> end up not flushing anything), but either is doable.
+
+It's potentially doable if a field like tlb_flush_pending was added
+to mm_struct that is set when batching starts. I don't think there is
+a logical place where it can be cleared as when the TLB gets flushed by
+reclaim, it can't rmap again to clear the flag. What would happen is that
+the first mprotect after any batching happened at any point in the past
+would have to unconditionally flush the TLB and then clear the flag. That
+would be a relatively minor hit and cover all the possibilities and should
+work unmodified with or without your series applied.
+
+Would that be preferable to you?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
