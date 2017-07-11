@@ -1,201 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6368440846
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 03:51:03 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b207so28029811lfg.7
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:51:03 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id o4si5827707lfo.219.2017.07.11.00.51.00
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18B506B04AC
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:35:19 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id z82so9816789oiz.6
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 01:35:19 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id u69si3311685oie.145.2017.07.11.01.35.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 00:51:00 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id f28so13190148lfi.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:51:00 -0700 (PDT)
-Date: Tue, 11 Jul 2017 09:50:54 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Message-ID: <20170711075054.vjmclcao4t5lzp3r@phenom.ffwll.local>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain>
- <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
- <20170710125935.GL23069@pathway.suse.cz>
- <CAKMK7uGQ9NgS3rTieqqop-2o7sWUv8QuG_DNkJn42iPyBkEeiw@mail.gmail.com>
- <20170711023150.GB4586@jagdpanzerIV.localdomain>
- <20170711045710.GC4586@jagdpanzerIV.localdomain>
+        Tue, 11 Jul 2017 01:35:18 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id l130so14777566oib.2
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 01:35:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170711045710.GC4586@jagdpanzerIV.localdomain>
+In-Reply-To: <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
+References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
+ <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
+ <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
+ <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com> <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Tue, 11 Jul 2017 10:35:17 +0200
+Message-ID: <CAK8P3a3oBgE8ggAjVX6mtWKWwBmw3gYzgTqF3fh9KsQyEgL31g@mail.gmail.com>
+Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Petr Mladek <pmladek@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Michal Hocko <mhocko@kernel.org>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Andreas Mohr <andi@lisas.de>, Jan Kara <jack@suse.cz>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>
+To: Brian Gerst <brgerst@gmail.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, "open list:IOMMU DRIVERS" <iommu@lists.linux-foundation.org>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Tue, Jul 11, 2017 at 01:57:10PM +0900, Sergey Senozhatsky wrote:
-> On (07/11/17 11:31), Sergey Senozhatsky wrote:
-> [..]
-> > (replying to both Petr and Daniel)
-> > 
-> > interesting direction, gents.
-> > 
-> > and this is what I thought about over the weekend; it's very sketchy and
-> > I didn't spend too much time on it. (I'm on a sick leave now, sorry).
-> > 
-> > it's quite close to what you guys have mentioned above.
-> > 
-> > a) keep console_sem only to protect console drivers list modification
-> > b) add a semaphore/mutex to struct console
-> > c) move global console_seq/etc to struct console
-> > e) use a single kthread for printing, but do console_unlock() multi passes,
-> >    printing unseen logbuf messages on per-console basis
-> > 
-> > 
-> > so console_lock()/console_unlock() will simply protect console drivers
-> > list from concurrent manipulation; it will not prevent us from printing.
-> > now, there are places where console_lock() serves a special purpose - it
-> > makes sure that no new lines are printed to the console while we scroll
-> > it/flip it/etc. IOW while we do "some things" to a particular console.
-> > the problem here, is that this also blocks printing to all of the registered
-> > console drivers, not just the one we are touching now. therefore, what I was
-> > thinking about is to disable/enable that particular console in all of the
-> > places where we really want to stop printing to this console for a bit.
-> > 
-> > IOW, something like
-> > 
-> > 
-> > 
-> > 	console_lock()
-> > 	:	down(console_sem);
-> > 
-> > 	console_disable(con)
-> > 	:	lock(con->lock);
-> > 	:	con->flags &= ~CON_ENABLED;
-> > 	:	unlock(con->lock)
-> > 
-> > 	console_unlock()
-> > 	:	for_each_console(con)
-> > 	:		while (con->console_seq != log_next_seq) {
-> > 	:			msg_print_text();
-> > 	:			con->console_seq++;
-> > 	:		
-> > 	:			call_console_drivers()
-> > 	:			:	if (con->flags & CON_ENABLED)
-> > 	:			:		con->write()
-> > 	:		}
-> > 	:	up(console_sem);
-> > 
-> > 
-> > 	// do "some things" to this console. it's disabled, so no
-> > 	// ->write() callback would be called in the meantime
-> > 
-> > 	console_lock()
-> > 	:	down(console_sem);
-> > 
-> > 	console_enable(con)
-> > 	:	lock(con->lock);
-> > 	:	con->flags |= CON_ENABLED;
-> > 	:	unlock(con->lock)
-> > 
-> > 
-> > 	// so now we enabled that console again. it's ->console_seq is
-> > 	// probably behind the rest of consoles, so console_unlock()
-> > 	// will ->write() all the unseen message to this console.
-> > 
-> > 	console_unlock()
-> > 	:	for_each_console(con)
-> > 	:		while (con->console_seq != log_next_seq) {
-> > 	:			msg_print_text();
-> > 	:			con->console_seq++;
-> > 	:		
-> > 	:			call_console_drivers()
-> > 	:			:	if (con->flags & CON_ENABLED)
-> > 	:			:		con->write()
-> > 	:		}
-> > 	:	up(console_sem);
-> > 
-> 
-> ok, obviously stupid.
-> 
-> I meant to hold con->lock between console_disable() and console_enable().
-> so no other CPU can unregister it, etc. printk->console_unlock(), thus,
-> can either have a racy con->flags check (no con->lock taken) or try
-> something like down_trylock(&con->lock): if it fails, continue.
+On Tue, Jul 11, 2017 at 6:58 AM, Brian Gerst <brgerst@gmail.com> wrote:
+> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+>> On 7/8/2017 7:57 AM, Brian Gerst wrote:
+>>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
+>>
+>> I originally had a check for SME here in a previous version of the
+>> patch.  Thomas Gleixner recommended removing the check so that the code
+>> path was always exercised regardless of the state of SME in order to
+>> better detect issues:
+>>
+>> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
+>
+> Looking a bit closer, this shortcut doesn't set the caching
+> attributes.  So it's probably best to get rid of it anyways.  Also
+> note, there is a corresponding check in iounmap().
 
-I don't think you need the CON_ENABLED flag, just holding the per-console
-lock should be enough (I hope). Or what exactly is the idea behind this.
-I'm also not sure whether dropping the main console_lock is a good idea.
+Could that cause regressions if a driver relies on (write-through)
+cacheable access to the VGA frame buffer RAM or an read-only
+cached access to an option ROM but now gets uncached access?
 
-What I had in mind for the printk look is to not even hold the main
-console_lock, but only grab the individual console_locks (plus the printk
-buffer spinlock ofc), so
+I also tried to find out whether we can stop mapping the ISA MMIO
+area into the linear mapping, but at least the VGA code uses
+VGA_MAP_MEM() to get access to the same pointers. I'm pretty
+sure this got copied incorrectly into most other architectures, but
+it is definitely still used on x86 with vga16fb/vgacon/mdacon.
 
-	for_each_console(con)
-		if (!mutex_trylock(con->mutex))
-			continue;
+On the plus side, I see that removing this code path will end up
+restoring MMIOTRACE support for the ISA MMIO range that was
+apparently removed by accident in commit d61fc44853f4
+("x86: mmiotrace, preview 2") in linux-2.6.27.
 
-		/* pseudo-code, whatever we need to check to make sure
-		 * this console is real and fully registered. */
-		if (!(con->flags & CON_ENABLED))
-			continue;
-
-		if (con_requires_kthread(con)) {
-			wake_up(con->printk_wq);
-
-			/* this is for consoles that grab massive amounts
-			 * of locks, like fbcon. We could repurpose klogd
-			 * for this perhaps. */
-
-			continue;
-		}
-
-		/* do the actual printing business */
-	}
-
-Very rough pseudo-code draft without looking at the details. The things
-we'd need to do to get there:
-
-- Audit _all_ the places that use console_lock to protect global data
-  structures. Excessively sprinkle lockdep_assert_held(&console_lock_map);
-  over them to make sure we don't break stuff. We'll probably want to
-  stuff that lockdep assert into for_each_console (and have a
-  special/open-coded one for the printk loop).
-
-- Add con->mutex. Make sure that lock properly serializes against
-  the last step in register_console and the first step in
-  unregister_console. CON_ENABLED seems like the critical flag.
-
-- Wrap all call to console callbacks in a mutex_lock(con->mutex) critical
-  sections.
-
-- Sprinkle lockdep_assert_held(con->mutex) into all the console callbacks
-  of a few common console backends (fbcon + serial should be enough), to
-  make sure that part is solid.
-
-- Do the above changes in the printk loop. It also needs to be extracted
-  from console_unlock so that we can replace the
-
-	if (console_try_lock())
-		console_unlock();
-
-  pattern for pushing out the printk buffer with maybe a new
-  printk_flush() function, which does _not_ try to acquire console_lock.
-
-- console_unlock() still needs to flush out the printk buffers, to make
-  sure we haven't lost any lines. Or we'll rely on klogd to ensure
-  everything gets printed, when the trylock path doesn't work out.
-
-I think this would give us a reasonable locking design, allows us to not
-stall on slow consoles when trying to dump emergency output to serial, and
-it would decouple printk entirely from the huge console_lock mess. And as
-long as we carefully audit for global stuff (everywhere, not just in
-printk.c) in the first step I think it should be a safe transition.
-
-Cheers, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+      Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
