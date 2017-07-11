@@ -1,128 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 834516B04DE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:57:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s70so134108252pfs.5
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:57:02 -0700 (PDT)
-Received: from mail-pg0-x22c.google.com (mail-pg0-x22c.google.com. [2607:f8b0:400e:c05::22c])
-        by mx.google.com with ESMTPS id l74si9276504pfb.386.2017.07.10.21.57.01
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C85606B04DE
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:58:24 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id 130so46702708vka.2
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:58:24 -0700 (PDT)
+Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
+        by mx.google.com with ESMTPS id q13si6441051uag.46.2017.07.10.21.58.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 21:57:01 -0700 (PDT)
-Received: by mail-pg0-x22c.google.com with SMTP id u62so60230992pgb.3
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:57:01 -0700 (PDT)
-Date: Tue, 11 Jul 2017 13:57:10 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Message-ID: <20170711045710.GC4586@jagdpanzerIV.localdomain>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain>
- <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
- <20170710125935.GL23069@pathway.suse.cz>
- <CAKMK7uGQ9NgS3rTieqqop-2o7sWUv8QuG_DNkJn42iPyBkEeiw@mail.gmail.com>
- <20170711023150.GB4586@jagdpanzerIV.localdomain>
+        Mon, 10 Jul 2017 21:58:24 -0700 (PDT)
+Received: by mail-ua0-x241.google.com with SMTP id w19so8607375uac.0
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:58:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170711023150.GB4586@jagdpanzerIV.localdomain>
+In-Reply-To: <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com>
+References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
+ <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
+ <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com> <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Tue, 11 Jul 2017 00:58:23 -0400
+Message-ID: <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
+Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, Petr Mladek <pmladek@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Michal Hocko <mhocko@kernel.org>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Andreas Mohr <andi@lisas.de>, Jan Kara <jack@suse.cz>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev@googlegroups.com, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
-On (07/11/17 11:31), Sergey Senozhatsky wrote:
-[..]
-> (replying to both Petr and Daniel)
-> 
-> interesting direction, gents.
-> 
-> and this is what I thought about over the weekend; it's very sketchy and
-> I didn't spend too much time on it. (I'm on a sick leave now, sorry).
-> 
-> it's quite close to what you guys have mentioned above.
-> 
-> a) keep console_sem only to protect console drivers list modification
-> b) add a semaphore/mutex to struct console
-> c) move global console_seq/etc to struct console
-> e) use a single kthread for printing, but do console_unlock() multi passes,
->    printing unseen logbuf messages on per-console basis
-> 
-> 
-> so console_lock()/console_unlock() will simply protect console drivers
-> list from concurrent manipulation; it will not prevent us from printing.
-> now, there are places where console_lock() serves a special purpose - it
-> makes sure that no new lines are printed to the console while we scroll
-> it/flip it/etc. IOW while we do "some things" to a particular console.
-> the problem here, is that this also blocks printing to all of the registered
-> console drivers, not just the one we are touching now. therefore, what I was
-> thinking about is to disable/enable that particular console in all of the
-> places where we really want to stop printing to this console for a bit.
-> 
-> IOW, something like
-> 
-> 
-> 
-> 	console_lock()
-> 	:	down(console_sem);
-> 
-> 	console_disable(con)
-> 	:	lock(con->lock);
-> 	:	con->flags &= ~CON_ENABLED;
-> 	:	unlock(con->lock)
-> 
-> 	console_unlock()
-> 	:	for_each_console(con)
-> 	:		while (con->console_seq != log_next_seq) {
-> 	:			msg_print_text();
-> 	:			con->console_seq++;
-> 	:		
-> 	:			call_console_drivers()
-> 	:			:	if (con->flags & CON_ENABLED)
-> 	:			:		con->write()
-> 	:		}
-> 	:	up(console_sem);
-> 
-> 
-> 	// do "some things" to this console. it's disabled, so no
-> 	// ->write() callback would be called in the meantime
-> 
-> 	console_lock()
-> 	:	down(console_sem);
-> 
-> 	console_enable(con)
-> 	:	lock(con->lock);
-> 	:	con->flags |= CON_ENABLED;
-> 	:	unlock(con->lock)
-> 
-> 
-> 	// so now we enabled that console again. it's ->console_seq is
-> 	// probably behind the rest of consoles, so console_unlock()
-> 	// will ->write() all the unseen message to this console.
-> 
-> 	console_unlock()
-> 	:	for_each_console(con)
-> 	:		while (con->console_seq != log_next_seq) {
-> 	:			msg_print_text();
-> 	:			con->console_seq++;
-> 	:		
-> 	:			call_console_drivers()
-> 	:			:	if (con->flags & CON_ENABLED)
-> 	:			:		con->write()
-> 	:		}
-> 	:	up(console_sem);
-> 
+On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> On 7/8/2017 7:57 AM, Brian Gerst wrote:
+>>
+>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
+>> wrote:
+>>>
+>>> Currently there is a check if the address being mapped is in the ISA
+>>> range (is_ISA_range()), and if it is, then phys_to_virt() is used to
+>>> perform the mapping. When SME is active, the default is to add pagetable
+>>> mappings with the encryption bit set unless specifically overridden. The
+>>> resulting pagetable mapping from phys_to_virt() will result in a mapping
+>>> that has the encryption bit set. With SME, the use of ioremap() is
+>>> intended to generate pagetable mappings that do not have the encryption
+>>> bit set through the use of the PAGE_KERNEL_IO protection value.
+>>>
+>>> Rather than special case the SME scenario, remove the ISA range check and
+>>> usage of phys_to_virt() and have ISA range mappings continue through the
+>>> remaining ioremap() path.
+>>>
+>>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>>> ---
+>>>   arch/x86/mm/ioremap.c |    7 +------
+>>>   1 file changed, 1 insertion(+), 6 deletions(-)
+>>>
+>>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+>>> index 4c1b5fd..bfc3e2d 100644
+>>> --- a/arch/x86/mm/ioremap.c
+>>> +++ b/arch/x86/mm/ioremap.c
+>>> @@ -13,6 +13,7 @@
+>>>   #include <linux/slab.h>
+>>>   #include <linux/vmalloc.h>
+>>>   #include <linux/mmiotrace.h>
+>>> +#include <linux/mem_encrypt.h>
+>>>
+>>>   #include <asm/set_memory.h>
+>>>   #include <asm/e820/api.h>
+>>> @@ -106,12 +107,6 @@ static void __iomem
+>>> *__ioremap_caller(resource_size_t phys_addr,
+>>>          }
+>>>
+>>>          /*
+>>> -        * Don't remap the low PCI/ISA area, it's always mapped..
+>>> -        */
+>>> -       if (is_ISA_range(phys_addr, last_addr))
+>>> -               return (__force void __iomem *)phys_to_virt(phys_addr);
+>>> -
+>>> -       /*
+>>>           * Don't allow anybody to remap normal RAM that we're using..
+>>>           */
+>>>          pfn      = phys_addr >> PAGE_SHIFT;
+>>>
+>>
+>> Removing this also affects 32-bit, which is more likely to access
+>> legacy devices in this range.  Put in a check for SME instead
+>
+>
+> I originally had a check for SME here in a previous version of the
+> patch.  Thomas Gleixner recommended removing the check so that the code
+> path was always exercised regardless of the state of SME in order to
+> better detect issues:
+>
+> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
+>
+> Thanks,
+> Tom
 
-ok, obviously stupid.
+Looking a bit closer, this shortcut doesn't set the caching
+attributes.  So it's probably best to get rid of it anyways.  Also
+note, there is a corresponding check in iounmap().
 
-I meant to hold con->lock between console_disable() and console_enable().
-so no other CPU can unregister it, etc. printk->console_unlock(), thus,
-can either have a racy con->flags check (no con->lock taken) or try
-something like down_trylock(&con->lock): if it fails, continue.
-
-but need to look more.
-
-	-ss
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
