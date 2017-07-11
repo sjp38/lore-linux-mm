@@ -1,162 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A596B04C6
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 16:56:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u17so3709483pfa.6
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 13:56:34 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id j10si271629pfc.13.2017.07.11.13.56.32
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17B806B04CA
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 17:03:00 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id g53so1854722qtc.6
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:03:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k1si393084qkd.166.2017.07.11.14.02.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 13:56:32 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id q85so1860953pfq.1
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 13:56:32 -0700 (PDT)
-Date: Tue, 11 Jul 2017 13:56:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v3 2/6] mm, oom: cgroup-aware OOM killer
-In-Reply-To: <20170711125124.GA12406@castle>
-Message-ID: <alpine.DEB.2.10.1707111342190.60183@chino.kir.corp.google.com>
-References: <1498079956-24467-1-git-send-email-guro@fb.com> <1498079956-24467-3-git-send-email-guro@fb.com> <alpine.DEB.2.10.1707101547010.116811@chino.kir.corp.google.com> <20170711125124.GA12406@castle>
+        Tue, 11 Jul 2017 14:02:59 -0700 (PDT)
+Date: Tue, 11 Jul 2017 23:02:56 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
+ mirroring functionality
+Message-ID: <20170711210256.GF22628@redhat.com>
+References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
+ <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+ <20170711123642.GC11936@dhcp22.suse.cz>
+ <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, 11 Jul 2017, Roman Gushchin wrote:
-
-> > Yes, the original motivation was to limit killing to a single process, if 
-> > possible.  To do that, we kill the process with the largest rss to free 
-> > the most memory and rely on the user to configure /proc/pid/oom_score_adj 
-> > if something else should be prioritized.
-> > 
-> > With containerization and overcommit of system memory, we concur that 
-> > killing the single largest process isn't always preferable and neglects 
-> > the priority of its memcg.  Your motivation seems to be to provide 
-> > fairness between one memcg with a large process and one memcg with a large 
-> > number of small processes; I'm curious if you are concerned about the 
-> > priority of a memcg hierarchy (how important that "job" is) or whether you 
-> > are strictly concerned with "largeness" of memcgs relative to each other.
+On Tue, Jul 11, 2017 at 11:23:19AM -0700, Mike Kravetz wrote:
+> I was surprised as well when a JVM developer pointed this out.
 > 
-> I'm pretty sure we should provide some way to prioritize some cgroups
-> over other (in terms of oom killer preferences), but I'm not 100% sure yet,
-> what's the best way to do it. I've suggested something similar to the existing
-> oom_score_adj for tasks, mostly to folow the existing design.
+> From the old e-mail thread, here is original use case:
+> shmget(IPC_PRIVATE, 31498240, 0x1c0|0600) = 11337732
+> shmat(11337732, 0, 0)                   = 0x40299000
+> shmctl(11337732, IPC_RMID, 0)           = 0
+> mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0) = 0
+> mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0x100000) = 0x100000
 > 
-> One of the questions to answer in priority-based model is
-> how to compare tasks in the root cgroup with cgroups?
+> The JVM team wants to do something similar.  They are using
+> mmap(MAP_ANONYMOUS|MAP_SHARED) to create the initial mapping instead
+> of shmget/shmat.  As Vlastimil mentioned previously, one would not
+> expect a shared mapping for parts of the JVM heap.  I am working
+> to get clarification from the JVM team.
+
+Why don't they use memfd_create instead? That's made so that the fd is
+born anon unlinked so when the last reference is dropped all memory
+associated with it is automatically freed. No need of IC_RMID and then
+they can use mmap instead of mremap(len=0) to get a double map of it.
+
+If they use mmap(MAP_ANONYMOUS|MAP_SHARED) it's not hugetlbfs, that
+would have been the only issue.
+
+Using hugetlbfs for JVM wouldn't be really flexible, better they try
+to leverage THP on SHM or the hugetlbfs reservation gets in the way of
+efficient use of the unused memory for memory allocations that don't
+have a definitive size (i.e. JVM forks or more JVM are run in
+parallel).
+
+> Yes.  I think this should be a separate patch.  As mentioned earlier,
+> mremap today creates a new/additional private mapping if called in this
+> way with old_size == 0.  To me, this is a bug.
+
+Kernel by sheer luck should stay stable, but the result is weird and
+it's unlikely intentional.
+
+memfd_create doesn't have such issue, the new mmap MAP_PRIVATE will
+get the file pages correctly after a new mmap (even if there were cows
+in the old MAP_PRIVATE mmap).
+
+> One reason for the RFC was to determine if people thought we should:
+> 1) Just document the existing old_size == 0 functionality
+> 2) Create a more explicit interface such as a new mremap flag for this
+>    functionality
 > 
+> I am waiting to see what direction people prefer before making any
+> man page updates.
 
-We do this with an alternate scoring mechanism, that is purely priority 
-based and tiebreaks based on largest rss.  An additional tunable is added 
-for each process, under /proc/pid, and also to the memcg hierarchy, and is 
-enabled via a system-wide sysctl.  I way to mesh the two scoring 
-mechanisms together would be helpful, but for our purposes we don't use 
-oom_score_adj at all, other than converting OOM_SCORE_ADJ_MIN to still be 
-oom disabled when written by third party apps.
+I guess old_size == 0 would better be dropped if possible, if
+memfd_create fits perfectly your needs as I supposed above. If it's
+not dropped then it's not very far from allowing mmap of /proc/self/mm
+again (removed around so far as 2.3.x?).
 
-For memcg oom conditions, iteration of the hierarchy begins at the oom 
-memcg.  For system oom conditions, this is the root memcg.
-
-All processes attached to the oom memcg have their priority based value 
-and this is compared to all child memcg's priority value at that level.  
-If a process has the lowest priority, it is killed and we're done; we 
-could implement a "kill all" mechanism for this memcg that is checked 
-before the process is killed.
-
-If a memcg has the lowest priority compared to attached processes, it is 
-iterated as well, and so on throughout the memcg hierarchy until we find 
-the lowest priority process in the lowest priority leaf memcg.  This way, 
-we can fully control which process is killed for both system and memcg oom 
-conditions.  I can easily post patches for this, we have used it for 
-years.
-
-> > These are two different things, right?  We can adjust how the system oom 
-> > killer chooses victims when memcg hierarchies overcommit the system to not 
-> > strictly prefer the single process with the largest rss without killing 
-> > everything attached to the memcg.
-> 
-> They are different, and I thought about providing two independent knobs.
-> But after all I haven't found enough real life examples, where it can be useful.
-> Can you provide something here?
-> 
-
-Yes, we have users who we chown their memcg hierarchy to and have full 
-control over setting up their hierarchy however we want.  Our "Activity 
-Manager", using Documentation/cgroup-v1/memory.txt terminology, only is 
-aware of the top level memcg that was chown'd to the user.  That user runs 
-a series of batch jobs that are submitted to it and each job is 
-represented as a subcontainer to enforce strict limits on the amount of 
-memory that job can use.  When it becomes oom, we have found that it is 
-preferable to oom kill the entire batch job rather than leave it in an 
-inconsistent state, so enabling such a knob here would be helpful.
-
-Other top-level jobs are fine with individual processes being oom killed.  
-It can be a low priority process for which they have full control over 
-defining the priority through the new per-process and per-memcg value 
-described above.  Easy example is scraping logs periodically or other 
-best-effort tasks like cleanup.  They can happily be oom killed and 
-rescheduled without taking down the entire first-class job.
-
-> Also, they are different only for non-leaf cgroups; leaf cgroups
-> are always treated as indivisible memory consumers during victim selection.
-> 
-> I assume, that containerized systems will always set oom_kill_all_tasks for
-> top-level container memory cgroups. By default it's turned off
-> to provide backward compatibility with current behavior and avoid
-> excessive kills and support oom_score_adj==-1000 (I've added this to v4,
-> will post soon).
-> 
-
-We certainly would not be enabling it for top-level memcgs, there would be 
-no way that we could because we have best-effort processes, but we would 
-like to enable it for small batch jobs that are run on behalf of a user in 
-their own subcontainer.  We have had this usecase for ~3 years and solely 
-because of the problem that you pointed out earlier: it is often much more 
-reliable for the kernel to do oom killing of multiple processes rather 
-than userspace.
-
-> > In our methodology, each memcg is assigned a priority value and the 
-> > iteration of the hierarchy simply compares and visits the memcg with the 
-> > lowest priority at each level and then selects the largest process to 
-> > kill.  This could also support a "kill-all" knob.
-> > 
-> > 	struct mem_cgroup *memcg = root_mem_cgroup;
-> > 	struct mem_cgroup *low_memcg;
-> > 	unsigned long low_priority;
-> > 
-> > next:
-> > 	low_memcg = NULL;
-> > 	low_priority = ULONG_MAX;
-> > 	for_each_child_of_memcg(memcg) {
-> > 		unsigned long prio = memcg_oom_priority(memcg);
-> > 
-> > 		if (prio < low_priority) {
-> > 			low_memcg = memcg;
-> > 			low_priority = prio;
-> > 		}		
-> > 	}
-> > 	if (low_memcg)
-> > 		goto next;
-> > 	oom_kill_process_from_memcg(memcg);
-> > 
-> > So this is a priority based model that is different than your aggregate 
-> > usage model but I think it allows userspace to define a more powerful 
-> > policy.  We certainly may want to kill from a memcg with a single large 
-> > process, or we may want to kill from a memcg with several small processes, 
-> > it depends on the importance of that job.
-> 
-> I believe, that both models have some advantages.
-> Priority-based model is more powerful, but requires support from the userspace
-> to set up these priorities (and, probably, adjust them dynamically).
-
-It's a no-op if nobody sets up priorities or the system-wide sysctl is 
-disabled.  Presumably, as in our model, the Activity Manager sets the 
-sysctl and is responsible for configuring the priorities if present.  All 
-memcgs at the sibling level or subcontainer level remain the default if 
-not defined by the chown'd user, so this falls back to an rss model for 
-backwards compatibility.
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
