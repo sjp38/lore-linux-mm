@@ -1,77 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BF656B04B3
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:26:14 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q87so133448178pfk.15
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:26:14 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id u18si9313671pfj.124.2017.07.10.21.26.13
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E846B04B3
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:29:01 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x23so28805402wrb.6
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:29:01 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t206si555423wmt.160.2017.07.10.21.28.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 21:26:13 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id e199so17177218pfh.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:26:13 -0700 (PDT)
-Date: Tue, 11 Jul 2017 14:26:01 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [RFC v5 01/11] mm: Dont assume page-table invariance during
- faults
-Message-ID: <20170711142601.27b8fd32@firefly.ozlabs.ibm.com>
-In-Reply-To: <d719a861-d712-1876-b46c-7f9c1360196c@linux.vnet.ibm.com>
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	<1497635555-25679-2-git-send-email-ldufour@linux.vnet.ibm.com>
-	<1499411222.23251.5.camel@gmail.com>
-	<d719a861-d712-1876-b46c-7f9c1360196c@linux.vnet.ibm.com>
+        Mon, 10 Jul 2017 21:29:00 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6B4SiTn017982
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:28:58 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bma0p4kt6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:28:58 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 11 Jul 2017 14:28:54 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6B4Sp5L13369576
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:28:51 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6B4Soha003047
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:28:50 +1000
+Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
+References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
+ <20170710134917.GB19645@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 11 Jul 2017 09:58:42 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20170710134917.GB19645@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-On Mon, 10 Jul 2017 19:48:43 +0200
-Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+On 07/10/2017 07:19 PM, Michal Hocko wrote:
+> On Mon 10-07-17 16:40:59, Anshuman Khandual wrote:
+>> As 'delta' is an unsigned long, 'end' (vma->vm_end + delta) cannot
+>> be less than 'vma->vm_end'.
+> 
+> This just doesn't make any sense. This is exactly what the overflow
+> check is for. Maybe vm_end + delta can never overflow because of
+> (old_len == vma->vm_end - addr) and guarantee old_len < new_len
+> in mremap but I haven't checked that too deeply.
 
-> On 07/07/2017 09:07, Balbir Singh wrote:
-> > On Fri, 2017-06-16 at 19:52 +0200, Laurent Dufour wrote:  
-> >> From: Peter Zijlstra <peterz@infradead.org>
-> >>
-> >> One of the side effects of speculating on faults (without holding
-> >> mmap_sem) is that we can race with free_pgtables() and therefore we
-> >> cannot assume the page-tables will stick around.
-> >>
-> >> Remove the relyance on the pte pointer.  
-> >              ^^ reliance
-> > 
-> > Looking at the changelog and the code the impact is not clear.
-> > It looks like after this patch we always assume the pte is not
-> > the same. What is the impact of this patch?  
-> 
-> Hi Balbir,
-> 
-> In most of the case pte_unmap_same() was returning 1, which meaning that
-> do_swap_page() should do its processing.
-> 
-> So in most of the case there will be no impact.
-> 
-> Now regarding the case where pte_unmap_safe() was returning 0, and thus
-> do_swap_page return 0 too, this happens when the page has already been
-> swapped back. This may happen before do_swap_page() get called or while in
-> the call to do_swap_page(). In that later case, the check done when
-> swapin_readahead() returns will detect that case.
-> 
-> The worst case would be that a page fault is occuring on 2 threads at the
-> same time on the same swapped out page. In that case one thread will take
-> much time looping in __read_swap_cache_async(). But in the regular page
-> fault path, this is even worse since the thread would wait for semaphore to
-> be released before starting anything.
-> 
->
+Irrespective of that, just looking at the variables inside this
+particular function where delta is an 'unsigned long', 'end' cannot
+be less than vma->vm_end. Is not that true ?
 
-Sounds good!
+> 
+>> Checking for availability of virtual
+>> address range at the end of the VMA for the incremental size is
+>> also reduntant at this point. Hence drop them both.
+> 
+> OK, this seems to be the case due the above (comment says "old_len
+> exactly to the end of the area..").
 
-Thanks,
-Balbir Singh 
+yeah but is the check necessary ?
+
+> 
+> But I am wondering what led you to the patch because you do not say so
+
+As can be seen in the test program, was trying to measure the speed
+of VMA expansion and contraction inside an address space and then
+figured out that dropping this check improves the speed prima facie.
+
+
+> here. This is hardly something that would save many cycles in a
+> relatively cold path.
+
+Though I have not done any detailed instruction level measurement,
+there is a reduction in real and system amount of time to execute
+the test with and without the patch.
+
+Without the patch
+
+real	0m2.100s
+user	0m0.162s
+sys	0m1.937s
+
+With this patch
+
+real	0m0.928s
+user	0m0.161s
+sys	0m0.756s
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
