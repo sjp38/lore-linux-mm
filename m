@@ -1,65 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DFCCB6B0534
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 13:03:35 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 24so1271343lfr.10
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:03:35 -0700 (PDT)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id s133si211342lja.223.2017.07.11.10.03.34
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A7FD6B0536
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 13:22:22 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g46so1652825wrd.3
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:22:22 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p52si1835627eda.61.2017.07.11.10.22.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 10:03:34 -0700 (PDT)
-Received: by mail-lf0-x229.google.com with SMTP id h22so5552064lfk.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:03:34 -0700 (PDT)
-Date: Tue, 11 Jul 2017 20:03:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
-Message-ID: <20170711170332.wlaudicepkg35dmm@node.shutemov.name>
-References: <20170710141713.7aox3edx6o7lrrie@node.shutemov.name>
- <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
- <20170710184704.realchrhzpblqqlk@node.shutemov.name>
- <CALCETrVJQ_u-agPm8fFHAW1UJY=VLowdbM+gXyjFCb586r0V3g@mail.gmail.com>
- <20170710212403.7ycczkhhki3vrgac@node.shutemov.name>
- <CALCETrW6pWzpdf1MVx_ytaYYuVGBsF7R+JowEsKqd3i=vCwJ_w@mail.gmail.com>
- <20170711103548.mkv5w7dd5gpdenne@node.shutemov.name>
- <CALCETrVpNUq3-zEu1Q1O77N8r4kv4kFdefXp7XEs3Hpf-JPAjg@mail.gmail.com>
- <d3caf8c4-4575-c1b5-6b0f-95527efaf2f9@virtuozzo.com>
- <f11d9e07-6b31-1add-7677-6a29d15ab608@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Jul 2017 10:22:20 -0700 (PDT)
+Date: Tue, 11 Jul 2017 13:22:04 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] tracing/ring_buffer: Try harder to allocate
+Message-ID: <20170711172204.GA961@cmpxchg.org>
+References: <20170711060500.17016-1-joelaf@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <f11d9e07-6b31-1add-7677-6a29d15ab608@virtuozzo.com>
+In-Reply-To: <20170711060500.17016-1-joelaf@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+To: Joel Fernandes <joelaf@google.com>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Tim Murray <timmurray@google.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, stable@vger.kernel.org
 
-On Tue, Jul 11, 2017 at 07:45:48PM +0300, Andrey Ryabinin wrote:
-> On 07/11/2017 06:15 PM, Andrey Ryabinin wrote:
-> > 
-> > I reproduced this, and this is kasan bug:
-> > 
-> >    a??0xffffffff84864897 <x86_early_init_platform_quirks+5>   mov    $0xffffffff83f1d0b8,%rdi 
-> >    a??0xffffffff8486489e <x86_early_init_platform_quirks+12>  movabs $0xdffffc0000000000,%rax 
-> >    a??0xffffffff848648a8 <x86_early_init_platform_quirks+22>  push   %rbp
-> >    a??0xffffffff848648a9 <x86_early_init_platform_quirks+23>  mov    %rdi,%rdx  
-> >    a??0xffffffff848648ac <x86_early_init_platform_quirks+26>  shr    $0x3,%rdx
-> >    a??0xffffffff848648b0 <x86_early_init_platform_quirks+30>  mov    %rsp,%rbp
-> >   >a??0xffffffff848648b3 <x86_early_init_platform_quirks+33>  mov    (%rdx,%rax,1),%al
-> > 
-> > we crash on the last move which is a read from shadow
+On Mon, Jul 10, 2017 at 11:05:00PM -0700, Joel Fernandes wrote:
+> ftrace can fail to allocate per-CPU ring buffer on systems with a large
+> number of CPUs coupled while large amounts of cache happening in the
+> page cache. Currently the ring buffer allocation doesn't retry in the VM
+> implementation even if direct-reclaim made some progress but still
+> wasn't able to find a free page. On retrying I see that the allocations
+> almost always succeed. The retry doesn't happen because __GFP_NORETRY is
+> used in the tracer to prevent the case where we might OOM, however if we
+> drop __GFP_NORETRY, we risk destabilizing the system if OOM killer is
+> triggered. To prevent this situation, use the __GFP_RETRY_MAYFAIL flag
+> introduced recently [1].
 > 
+> Tested the following still succeeds without destabilizing a system with
+> 1GB memory.
+> echo 300000 > /sys/kernel/debug/tracing/buffer_size_kb
 > 
-> Ughh, I forgot about phys_base.
+> [1] https://marc.info/?l=linux-mm&m=149820805124906&w=2
+> 
+> Cc: Alexander Duyck <alexander.h.duyck@intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hao Lee <haolee.swjtu@gmail.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Tim Murray <timmurray@google.com>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: stable@vger.kernel.org
+> Signed-off-by: Joel Fernandes <joelaf@google.com>
 
-Thanks! Works for me.
-
-Can use your Signed-off-by for a [cleaned up version of your] patch?
-
-
--- 
- Kirill A. Shutemov
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
