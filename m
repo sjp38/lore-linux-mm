@@ -1,562 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C27A6B04B7
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:12:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 1so133554019pfi.14
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:12:27 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id s87si9203445pfg.292.2017.07.10.21.12.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6416B04B8
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:13:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c23so133745197pfe.11
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:13:22 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 82si9183294pfn.127.2017.07.10.21.13.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 21:12:26 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id u62so15076158pgb.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:12:26 -0700 (PDT)
-Date: Tue, 11 Jul 2017 14:12:15 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 2/5] mm/device-public-memory: device memory cache
- coherent with CPU v2
-Message-ID: <20170711141215.4fd1a972@firefly.ozlabs.ibm.com>
-In-Reply-To: <20170703211415.11283-3-jglisse@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com>
-	<20170703211415.11283-3-jglisse@redhat.com>
+        Mon, 10 Jul 2017 21:13:22 -0700 (PDT)
+Date: Tue, 11 Jul 2017 12:12:33 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 3/3] Make LSM Writable Hooks a command line option
+Message-ID: <201707111218.WdNdnvYN%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/mixed; boundary="cNdxnHkX5QqsyA0e"
+Content-Disposition: inline
+In-Reply-To: <20170710150603.387-4-igor.stoppa@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: kbuild-all@01.org, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, penguin-kernel@I-love.SAKURA.ne.jp, labbott@redhat.com, hch@infradead.org, paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-On Mon,  3 Jul 2017 17:14:12 -0400
-J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
 
-> Platform with advance system bus (like CAPI or CCIX) allow device
-> memory to be accessible from CPU in a cache coherent fashion. Add
-> a new type of ZONE_DEVICE to represent such memory. The use case
-> are the same as for the un-addressable device memory but without
-> all the corners cases.
->
+--cNdxnHkX5QqsyA0e
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Looks good overall, some comments inline.
-=20
-> Changed since v1:
->   - Kconfig and #if/#else cleanup
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Balbir Singh <balbirs@au1.ibm.com>
-> Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  fs/proc/task_mmu.c       |  2 +-
->  include/linux/hmm.h      |  4 ++--
->  include/linux/ioport.h   |  1 +
->  include/linux/memremap.h | 21 +++++++++++++++++
->  include/linux/mm.h       | 16 ++++++++-----
->  kernel/memremap.c        | 11 ++++++---
->  mm/Kconfig               | 11 +++++++++
->  mm/gup.c                 |  7 ++++++
->  mm/hmm.c                 |  4 ++--
->  mm/madvise.c             |  2 +-
->  mm/memory.c              | 46 +++++++++++++++++++++++++++++++++----
->  mm/migrate.c             | 60 ++++++++++++++++++++++++++++++++----------=
-------
->  mm/swap.c                | 11 +++++++++
->  13 files changed, 156 insertions(+), 40 deletions(-)
->=20
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 957b6ea80d5f..1f38f2c7cc34 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1182,7 +1182,7 @@ static pagemap_entry_t pte_to_pagemap_entry(struct =
-pagemapread *pm,
->  		if (pm->show_pfn)
->  			frame =3D pte_pfn(pte);
->  		flags |=3D PM_PRESENT;
-> -		page =3D vm_normal_page(vma, addr, pte);
-> +		page =3D _vm_normal_page(vma, addr, pte, true);
->  		if (pte_soft_dirty(pte))
->  			flags |=3D PM_SOFT_DIRTY;
->  	} else if (is_swap_pte(pte)) {
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 458d0d6d82f3..a40288309fd2 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -327,7 +327,7 @@ int hmm_vma_fault(struct vm_area_struct *vma,
->  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-> =20
-> =20
-> -#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
-> +#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLI=
-C)
->  struct hmm_devmem;
-> =20
->  struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
-> @@ -443,7 +443,7 @@ struct hmm_device {
->   */
->  struct hmm_device *hmm_device_new(void *drvdata);
->  void hmm_device_put(struct hmm_device *hmm_device);
-> -#endif /* IS_ENABLED(CONFIG_DEVICE_PRIVATE) */
-> +#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-> =20
-> =20
->  /* Below are for HMM internal use only! Not to be used by device driver!=
- */
-> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-> index 3a4f69137bc2..f5cf32e80041 100644
-> --- a/include/linux/ioport.h
-> +++ b/include/linux/ioport.h
-> @@ -131,6 +131,7 @@ enum {
->  	IORES_DESC_PERSISTENT_MEMORY		=3D 4,
->  	IORES_DESC_PERSISTENT_MEMORY_LEGACY	=3D 5,
->  	IORES_DESC_DEVICE_PRIVATE_MEMORY	=3D 6,
-> +	IORES_DESC_DEVICE_PUBLIC_MEMORY		=3D 7,
->  };
-> =20
->  /* helpers to define resources */
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index 2299cc2d387d..916ca1653ced 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -57,10 +57,18 @@ static inline struct vmem_altmap *to_vmem_altmap(unsi=
-gned long memmap_start)
->   *
->   * A more complete discussion of unaddressable memory may be found in
->   * include/linux/hmm.h and Documentation/vm/hmm.txt.
-> + *
-> + * MEMORY_DEVICE_PUBLIC:
-> + * Device memory that is cache coherent from device and CPU point of vie=
-w. This
-> + * is use on platform that have an advance system bus (like CAPI or CCIX=
-). A
-> + * driver can hotplug the device memory using ZONE_DEVICE and with that =
-memory
-> + * type. Any page of a process can be migrated to such memory. However n=
-o one
-> + * should be allow to pin such memory so that it can always be evicted.
->   */
->  enum memory_type {
->  	MEMORY_DEVICE_PERSISTENT =3D 0,
->  	MEMORY_DEVICE_PRIVATE,
-> +	MEMORY_DEVICE_PUBLIC,
->  };
-> =20
->  /*
-> @@ -92,6 +100,8 @@ enum memory_type {
->   * The page_free() callback is called once the page refcount reaches 1
->   * (ZONE_DEVICE pages never reach 0 refcount unless there is a refcount =
-bug.
->   * This allows the device driver to implement its own memory management.)
-> + *
-> + * For MEMORY_DEVICE_CACHE_COHERENT only the page_free() callback matter.
+Hi Igor,
 
-Correct, but I wonder if we should in the long term allow for minor faults
-(due to coherency) via this interface?
+[auto build test ERROR on linus/master]
+[cannot apply to v4.12]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
->   */
->  typedef int (*dev_page_fault_t)(struct vm_area_struct *vma,
->  				unsigned long addr,
-> @@ -134,6 +144,12 @@ static inline bool is_device_private_page(const stru=
-ct page *page)
->  	return is_zone_device_page(page) &&
->  		page->pgmap->type =3D=3D MEMORY_DEVICE_PRIVATE;
->  }
-> +
-> +static inline bool is_device_public_page(const struct page *page)
-> +{
-> +	return is_zone_device_page(page) &&
-> +		page->pgmap->type =3D=3D MEMORY_DEVICE_PUBLIC;
-> +}
->  #else
->  static inline void *devm_memremap_pages(struct device *dev,
->  		struct resource *res, struct percpu_ref *ref,
-> @@ -157,6 +173,11 @@ static inline bool is_device_private_page(const stru=
-ct page *page)
->  {
->  	return false;
->  }
-> +
-> +static inline bool is_device_public_page(const struct page *page)
-> +{
-> +	return false;
-> +}
->  #endif
-> =20
->  /**
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 330a216ac315..8b72b122de93 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -797,14 +797,15 @@ static inline bool is_zone_device_page(const struct=
- page *page)
->  #endif
-> =20
->  #ifdef CONFIG_DEVICE_PRIVATE
-> -void put_zone_device_private_page(struct page *page);
-> +void put_zone_device_private_or_public_page(struct page *page);
->  #else
-> -static inline void put_zone_device_private_page(struct page *page)
-> +static inline void put_zone_device_private_or_public_page(struct page *p=
-age)
->  {
->  }
->  #endif
-> =20
->  static inline bool is_device_private_page(const struct page *page);
-> +static inline bool is_device_public_page(const struct page *page);
-> =20
->  DECLARE_STATIC_KEY_FALSE(device_private_key);
-> =20
-> @@ -830,8 +831,9 @@ static inline void put_page(struct page *page)
->  	 * include/linux/memremap.h and HMM for details.
->  	 */
->  	if (static_branch_unlikely(&device_private_key) &&
-> -	    unlikely(is_device_private_page(page))) {
-> -		put_zone_device_private_page(page);
-> +	    unlikely(is_device_private_page(page) ||
-> +		     is_device_public_page(page))) {
-> +		put_zone_device_private_or_public_page(page);
->  		return;
->  	}
-> =20
-> @@ -1220,8 +1222,10 @@ struct zap_details {
->  	pgoff_t last_index;			/* Highest page->index to unmap */
->  };
-> =20
-> -struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long ad=
-dr,
-> -		pte_t pte);
-> +struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long a=
-ddr,
-> +			     pte_t pte, bool with_public_device);
-> +#define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, f=
-alse)
-> +
->  struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned lon=
-g addr,
->  				pmd_t pmd);
-> =20
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index e82456c39a6a..da74775f2247 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -466,7 +466,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memm=
-ap_start)
-> =20
-> =20
->  #ifdef CONFIG_DEVICE_PRIVATE
+url:    https://github.com/0day-ci/linux/commits/Igor-Stoppa/mm-security-ro-protection-for-dynamic-data/20170711-084116
+config: score-spct6600_defconfig (attached as .config)
+compiler: score-elf-gcc (GCC) 4.9.1 20140622 (prerelease)
+reproduce:
+        wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=score 
 
-Does the #ifdef above need to go as well?
+All errors (new ones prefixed by >>):
 
-> -void put_zone_device_private_page(struct page *page)
-> +void put_zone_device_private_or_public_page(struct page *page)
->  {
->  	int count =3D page_ref_dec_return(page);
-> =20
-> @@ -474,10 +474,15 @@ void put_zone_device_private_page(struct page *page)
->  	 * If refcount is 1 then page is freed and refcount is stable as nobody
->  	 * holds a reference on the page.
->  	 */
-> -	if (count =3D=3D 1)
-> +	if (count =3D=3D 1) {
-> +		/* Clear Active bit in case of parallel mark_page_accessed */
-> +		__ClearPageActive(page);
-> +		__ClearPageWaiters(page);
-> +
->  		page->pgmap->page_free(page, page->pgmap->data);
-> +	}
->  	else if (!count)
->  		__put_page(page);
->  }
-> -EXPORT_SYMBOL(put_zone_device_private_page);
-> +EXPORT_SYMBOL(put_zone_device_private_or_public_page);
->  #endif /* CONFIG_DEVICE_PRIVATE */
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 3269ff1cc4cd..6002f1e40fcd 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -712,12 +712,23 @@ config ZONE_DEVICE
->  config DEVICE_PRIVATE
->  	bool "Unaddressable device memory (GPU memory, ...)"
->  	depends on ARCH_HAS_HMM
-> +	select HMM
-> =20
->  	help
->  	  Allows creation of struct pages to represent unaddressable device
->  	  memory; i.e., memory that is only accessible from the device (or
->  	  group of devices).
-> =20
-> +config DEVICE_PUBLIC
-> +	bool "Addressable device memory (like GPU memory)"
-> +	depends on ARCH_HAS_HMM
-> +	select HMM
-> +
-> +	help
-> +	  Allows creation of struct pages to represent addressable device
-> +	  memory; i.e., memory that is accessible from both the device and
-> +	  the CPU
-> +
->  config FRAME_VECTOR
->  	bool
-> =20
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 23f01c40c88f..2f8e8604ff80 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -438,6 +438,13 @@ static int get_gate_page(struct mm_struct *mm, unsig=
-ned long address,
->  		if ((gup_flags & FOLL_DUMP) || !is_zero_pfn(pte_pfn(*pte)))
->  			goto unmap;
->  		*page =3D pte_page(*pte);
-> +
-> +		/*
-> +		 * This should never happen (a device public page in the gate
-> +		 * area).
-> +		 */
-> +		if (is_device_public_page(*page))
-> +			goto unmap;
->  	}
->  	get_page(*page);
->  out:
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 4e01c9ba9cc1..eadf70829c34 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -747,7 +747,7 @@ EXPORT_SYMBOL(hmm_vma_fault);
->  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-> =20
-> =20
-> -#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
-> +#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLI=
-C)
->  struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
->  				       unsigned long addr)
->  {
-> @@ -1190,4 +1190,4 @@ static int __init hmm_init(void)
->  }
-> =20
->  device_initcall(hmm_init);
-> -#endif /* IS_ENABLED(CONFIG_DEVICE_PRIVATE) */
-> +#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 9976852f1e1c..197277156ce3 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -343,7 +343,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigne=
-d long addr,
->  			continue;
->  		}
-> =20
-> -		page =3D vm_normal_page(vma, addr, ptent);
-> +		page =3D _vm_normal_page(vma, addr, ptent, true);
->  		if (!page)
->  			continue;
-> =20
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 4fcdab3ec525..cee2bed01aa0 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -789,8 +789,8 @@ static void print_bad_pte(struct vm_area_struct *vma,=
- unsigned long addr,
->  #else
->  # define HAVE_PTE_SPECIAL 0
->  #endif
-> -struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long ad=
-dr,
-> -				pte_t pte)
-> +struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long a=
-ddr,
-> +			     pte_t pte, bool with_public_device)
->  {
->  	unsigned long pfn =3D pte_pfn(pte);
-> =20
-> @@ -801,8 +801,31 @@ struct page *vm_normal_page(struct vm_area_struct *v=
-ma, unsigned long addr,
->  			return vma->vm_ops->find_special_page(vma, addr);
->  		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
->  			return NULL;
-> -		if (!is_zero_pfn(pfn))
-> -			print_bad_pte(vma, addr, pte, NULL);
-> +		if (is_zero_pfn(pfn))
-> +			return NULL;
-> +
-> +		/*
-> +		 * Device public pages are special pages (they are ZONE_DEVICE
-> +		 * pages but different from persistent memory). They behave
-> +		 * allmost like normal pages. The difference is that they are
-> +		 * not on the lru and thus should never be involve with any-
-> +		 * thing that involve lru manipulation (mlock, numa balancing,
-> +		 * ...).
-> +		 *
-> +		 * This is why we still want to return NULL for such page from
-> +		 * vm_normal_page() so that we do not have to special case all
-> +		 * call site of vm_normal_page().
-> +		 */
-> +		if (likely(pfn < highest_memmap_pfn)) {
-> +			struct page *page =3D pfn_to_page(pfn);
-> +
-> +			if (is_device_public_page(page)) {
-> +				if (with_public_device)
-> +					return page;
-> +				return NULL;
-> +			}
-> +		}
-> +		print_bad_pte(vma, addr, pte, NULL);
->  		return NULL;
->  	}
-> =20
-> @@ -983,6 +1006,19 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_st=
-ruct *src_mm,
->  		get_page(page);
->  		page_dup_rmap(page, false);
->  		rss[mm_counter(page)]++;
-> +	} else if (pte_devmap(pte)) {
-> +		page =3D pte_page(pte);
-> +
-> +		/*
-> +		 * Cache coherent device memory behave like regular page and
-> +		 * not like persistent memory page. For more informations see
-> +		 * MEMORY_DEVICE_CACHE_COHERENT in memory_hotplug.h
-> +		 */
-> +		if (is_device_public_page(page)) {
-> +			get_page(page);
-> +			page_dup_rmap(page, false);
-> +			rss[mm_counter(page)]++;
-> +		}
->  	}
-> =20
->  out_set_pte:
-> @@ -1236,7 +1272,7 @@ static unsigned long zap_pte_range(struct mmu_gathe=
-r *tlb,
->  		if (pte_present(ptent)) {
->  			struct page *page;
-> =20
-> -			page =3D vm_normal_page(vma, addr, ptent);
-> +			page =3D _vm_normal_page(vma, addr, ptent, true);
->  			if (unlikely(details) && page) {
->  				/*
->  				 * unmap_shared_mapping_pages() wants to
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 643ea61ca9bb..f9ae57f0c7a1 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -229,12 +229,19 @@ static bool remove_migration_pte(struct page *page,=
- struct vm_area_struct *vma,
->  		if (is_write_migration_entry(entry))
->  			pte =3D maybe_mkwrite(pte, vma);
-> =20
-> -		if (unlikely(is_zone_device_page(new)) &&
-> -		    is_device_private_page(new)) {
-> -			entry =3D make_device_private_entry(new, pte_write(pte));
-> -			pte =3D swp_entry_to_pte(entry);
-> -			if (pte_swp_soft_dirty(*pvmw.pte))
-> -				pte =3D pte_mksoft_dirty(pte);
-> +		if (unlikely(is_zone_device_page(new))) {
-> +			if (is_device_private_page(new)) {
-> +				entry =3D make_device_private_entry(new, pte_write(pte));
-> +				pte =3D swp_entry_to_pte(entry);
-> +				if (pte_swp_soft_dirty(*pvmw.pte))
-> +					pte =3D pte_mksoft_dirty(pte);
-> +			}
-> +#if IS_ENABLED(CONFIG_DEVICE_PUBLIC)
-> +			else if (is_device_public_page(new)) {
-> +				pte =3D pte_mkdevmap(pte);
-> +				flush_dcache_page(new);
-> +			}
-> +#endif /* IS_ENABLED(CONFIG_DEVICE_PUBLIC) */
->  		} else
->  			flush_dcache_page(new);
-> =20
-> @@ -408,12 +415,11 @@ int migrate_page_move_mapping(struct address_space =
-*mapping,
->  	void **pslot;
-> =20
->  	/*
-> -	 * ZONE_DEVICE pages have 1 refcount always held by their device
-> -	 *
-> -	 * Note that DAX memory will never reach that point as it does not have
-> -	 * the MEMORY_DEVICE_ALLOW_MIGRATE flag set (see memory_hotplug.h).
-> +	 * Device public or private pages have an extra refcount as they are
-> +	 * ZONE_DEVICE pages.
->  	 */
-> -	expected_count +=3D is_zone_device_page(page);
-> +	expected_count +=3D is_device_private_page(page);
-> +	expected_count +=3D is_device_public_page(page);
-> =20
->  	if (!mapping) {
->  		/* Anonymous page without mapping */
-> @@ -2087,7 +2093,6 @@ int migrate_misplaced_transhuge_page(struct mm_stru=
-ct *mm,
-> =20
->  #endif /* CONFIG_NUMA */
-> =20
-> -
->  struct migrate_vma {
->  	struct vm_area_struct	*vma;
->  	unsigned long		*dst;
-> @@ -2186,7 +2191,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
->  			if (is_write_device_private_entry(entry))
->  				mpfn |=3D MIGRATE_PFN_WRITE;
->  		} else {
-> -			page =3D vm_normal_page(migrate->vma, addr, pte);
-> +			page =3D _vm_normal_page(migrate->vma, addr, pte, true);
->  			mpfn =3D migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
->  			mpfn |=3D pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
->  		}
-> @@ -2311,13 +2316,18 @@ static bool migrate_vma_check_page(struct page *p=
-age)
-> =20
->  	/* Page from ZONE_DEVICE have one extra reference */
->  	if (is_zone_device_page(page)) {
-> -		if (is_device_private_page(page)) {
-> +		if (is_device_private_page(page) ||
-> +		    is_device_public_page(page))
->  			extra++;
-> -		} else
-> +		else
->  			/* Other ZONE_DEVICE memory type are not supported */
->  			return false;
->  	}
-> =20
-> +	/* For file back page */
-> +	if (page_mapping(page))
-> +		extra +=3D 1 + page_has_private(page);
-> +
->  	if ((page_count(page) - extra) > page_mapcount(page))
->  		return false;
-> =20
-> @@ -2541,11 +2551,21 @@ static void migrate_vma_insert_page(struct migrat=
-e_vma *migrate,
->  	 */
->  	__SetPageUptodate(page);
-> =20
-> -	if (is_zone_device_page(page) && is_device_private_page(page)) {
-> -		swp_entry_t swp_entry;
-> +	if (is_zone_device_page(page)) {
-> +		if (is_device_private_page(page)) {
-> +			swp_entry_t swp_entry;
-> =20
-> -		swp_entry =3D make_device_private_entry(page, vma->vm_flags & VM_WRITE=
-);
-> -		entry =3D swp_entry_to_pte(swp_entry);
-> +			swp_entry =3D make_device_private_entry(page, vma->vm_flags & VM_WRIT=
-E);
-> +			entry =3D swp_entry_to_pte(swp_entry);
-> +		}
-> +#if IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+   security/security.o: In function `security_init':
+>> security.c:(.init.text+0x68): undefined reference to `pmalloc_create_pool'
+>> security.c:(.init.text+0x98): undefined reference to `pmalloc'
+>> security.c:(.init.text+0x150): undefined reference to `pmalloc_protect_pool'
 
-Do we need this #if check? is_device_public_page(page)
-will return false if the config is disabled
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-> +		else if (is_device_public_page(page)) {
-> +			entry =3D pte_mkold(mk_pte(page, READ_ONCE(vma->vm_page_prot)));
-> +			if (vma->vm_flags & VM_WRITE)
-> +				entry =3D pte_mkwrite(pte_mkdirty(entry));
-> +			entry =3D pte_mkdevmap(entry);
-> +		}
-> +#endif /* IS_ENABLED(CONFIG_DEVICE_PUBLIC) */
+--cNdxnHkX5QqsyA0e
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--cNdxnHkX5QqsyA0e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
