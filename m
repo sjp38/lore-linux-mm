@@ -1,79 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E826B050F
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:58:28 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t188so119801oih.15
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:58:27 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g7si109879oif.371.2017.07.11.07.58.27
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4706B0510
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:58:31 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z1so499255wrz.10
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:58:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a62si110160wrc.296.2017.07.11.07.58.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 07:58:27 -0700 (PDT)
-Received: from mail-ua0-f173.google.com (mail-ua0-f173.google.com [209.85.217.173])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 600DE22C99
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:58:26 +0000 (UTC)
-Received: by mail-ua0-f173.google.com with SMTP id g40so1530481uaa.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:58:26 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 07:58:30 -0700 (PDT)
+Date: Tue, 11 Jul 2017 16:58:28 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+Message-ID: <20170711145828.GB3393@pathway.suse.cz>
+References: <20170602071818.GA29840@dhcp22.suse.cz>
+ <201707081359.JCD39510.OSVOHMFOFtLFQJ@I-love.SAKURA.ne.jp>
+ <20170710132139.GJ19185@dhcp22.suse.cz>
+ <201707102254.ADA57090.SOFFOOMJFHQtVL@I-love.SAKURA.ne.jp>
+ <20170710141428.GL19185@dhcp22.suse.cz>
+ <201707112210.AEG17105.tFVOOLQFFMOHJS@I-love.SAKURA.ne.jp>
+ <20170711134900.GD11936@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
-References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
- <20170711064149.bg63nvi54ycynxw4@suse.de> <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
- <20170711092935.bogdb4oja6v7kilq@suse.de> <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
- <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 11 Jul 2017 07:58:04 -0700
-Message-ID: <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
-Subject: Re: Potential race in TLB flush batching?
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170711134900.GD11936@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky.work@gmail.com
 
-On Tue, Jul 11, 2017 at 6:20 AM, Mel Gorman <mgorman@suse.de> wrote:
-> +
-> +/*
-> + * This is called after an mprotect update that altered no pages. Batched
-> + * unmap releases the PTL before a flush occurs leaving a window where
-> + * an mprotect that reduces access rights can still access the page after
-> + * mprotect returns via a stale TLB entry. Avoid this possibility by flushing
-> + * the local TLB if mprotect updates no pages so that the the caller of
-> + * mprotect always gets expected behaviour. It's overkill and unnecessary to
-> + * flush all TLBs as a separate thread accessing the data that raced with
-> + * both reclaim and mprotect as there is no risk of data corruption and
-> + * the exact timing of a parallel thread seeing a protection update without
-> + * any serialisation on the application side is always uncertain.
-> + */
-> +void batched_unmap_protection_update(void)
-> +{
-> +       count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> +       local_flush_tlb();
-> +       trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-> +}
-> +
+On Tue 2017-07-11 15:49:00, Michal Hocko wrote:
+> On Tue 11-07-17 22:10:36, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Mon 10-07-17 22:54:37, Tetsuo Handa wrote:
+> > > > What makes this situation worse is, since warn_alloc() periodically appends to
+> > > > printk() buffer, the thread inside the OOM killer with oom_lock held can stall
+> > > > forever due to cond_resched() from console_unlock() from printk().
+> > > 
+> > > warn_alloc is just yet-another-user of printk. We might have many
+> > > others...
 
-What about remote CPUs?  You could get migrated right after mprotect()
-or the inconsistency could be observed on another CPU.  I also really
-don't like bypassing arch code like this.  The implementation of
-flush_tlb_mm_range() in tip:x86/mm (and slated for this merge window!)
-is *very* different from what's there now, and it is not written in
-the expectation that some generic code might call local_tlb_flush()
-and expect any kind of coherency at all.
+> because you are trying to address a problem at a wrong layer. If there
+> is absolutely no way around it and printk is unfixable then we really
+> need a printk variant which will make sure that no excessive waiting
+> will be involved. Then we can replace all printk in the oom path with
+> this special printk.
 
-I'm also still nervous about situations in which, while a batched
-flush is active, a user calls mprotect() and then does something else
-that gets confused by the fact that there's an RO PTE and doesn't
-flush out the RW TLB entry.  COWing a page, perhaps?
+The last theory about printk offloading suggests that printk() should
+always try to push some messages to the console when the console lock is
+available. Otherwise, the messages might not appear at all because
+the offloading is never 100% reliable, especially when the system is
+in troubles.
 
-Would a better fix perhaps be to find a way to figure out whether a
-batched flush is pending on the mm in question and flush it out if you
-do any optimizations based on assuming that the TLB is in any respect
-consistent with the page tables?  With the changes in -tip, x86 could,
-in principle, supply a function to sync up its TLB state.  That would
-require cross-CPU poking at state or an inconditional IPI (that might
-end up not flushing anything), but either is doable.
+In each case, this live-lock is another reason to risk the printk
+offload at some stage.
+
+Of course, we could make the throttling more aggressive. But it
+is another complex problem. Only printk() knows how much it is
+stressed and how much throttling is needed. On the other hand,
+it might be hard to know what information is repeating and
+who need to be throttled. It is a question if it should be
+solved by providing more printk_throttle() variants or
+by some magic inside normal printk().
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
