@@ -1,232 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3EF76B04DE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 06:40:06 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u5so144324752pgq.14
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 03:40:06 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id r21si9982142pgo.321.2017.07.11.03.40.05
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F516B04E0
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 06:51:22 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 188so21912192itx.9
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 03:51:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s198si1295822itb.61.2017.07.11.03.51.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 03:40:05 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id d193so16349546pgc.2
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 03:40:05 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: Potential race in TLB flush batching?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170711092935.bogdb4oja6v7kilq@suse.de>
-Date: Tue, 11 Jul 2017 03:40:02 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
-References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
- <20170711064149.bg63nvi54ycynxw4@suse.de>
- <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
- <20170711092935.bogdb4oja6v7kilq@suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 03:51:21 -0700 (PDT)
+Subject: Re: mm: Why WQ_MEM_RECLAIM workqueue remains pending?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201706291957.JGH39511.tQMOFSLOFJVHOF@I-love.SAKURA.ne.jp>
+	<201707071927.IGG34813.tSQOMJFOHOFVLF@I-love.SAKURA.ne.jp>
+	<20170710181214.GD1305447@devbig577.frc2.facebook.com>
+In-Reply-To: <20170710181214.GD1305447@devbig577.frc2.facebook.com>
+Message-Id: <201707111951.IHA98084.OHQtVOFJMLOSFF@I-love.SAKURA.ne.jp>
+Date: Tue, 11 Jul 2017 19:51:07 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: tj@kernel.org
+Cc: mgorman@techsingularity.net, vbabka@suse.cz, linux-mm@kvack.org, hillf.zj@alibaba-inc.com, brouer@redhat.com
 
-Mel Gorman <mgorman@suse.de> wrote:
+Tejun Heo wrote:
+> Hello, Tetsuo.
+> 
+> I went through the logs and it doesn't look like the mm workqueue
+> actually stalled, it was just slow to make progress.  Please see
+> below.
+> 
+> On Fri, Jul 07, 2017 at 07:27:06PM +0900, Tetsuo Handa wrote:
+> > Since drain_local_pages_wq work was stalling for 144 seconds as of uptime = 541,
+> > drain_local_pages_wq work was queued around uptime = 397 (which is about 6 seconds
+> > since the OOM killer/reaper reclaimed some memory for the last time). 
+> > 
+> > But as far as I can see from traces, the mm_percpu_wq thread as of uptime = 444 was
+> > idle, while drain_local_pages_wq work was pending from uptime = 541 to uptime = 605.
+> > This means that the mm_percpu_wq thread did not start processing drain_local_pages_wq
+> > work immediately. (I don't know what made drain_local_pages_wq work be processed.)
+> > 
+> > Why? Is this a workqueue implementation bug? Is this a workqueue usage bug?
+> 
+> So, rescuer doesn't kick as soon as the workqueue becomes slow.  It
+> kicks in if the worker pool that the workqueue is associated with
+> hangs.  That is, if you have other work items actively running, e.g.,
+> for reclaim on the pool, the pool isn't stalled and rescuers won't be
+> woken up.  IOW, having a rescuer prevents a workqueue from deadlocking
+> due to resource starvation but it doesn't necessarily make it go
+> faster.  It's a deadlock prevention mechanism, not a priority raising
+> one.  If the work items need preferential execution, it should use
+> WQ_HIGHPRI.
 
-> On Tue, Jul 11, 2017 at 12:30:28AM -0700, Nadav Amit wrote:
->> Mel Gorman <mgorman@suse.de> wrote:
->>=20
->>> On Mon, Jul 10, 2017 at 05:52:25PM -0700, Nadav Amit wrote:
->>>> Something bothers me about the TLB flushes batching mechanism that =
-Linux
->>>> uses on x86 and I would appreciate your opinion regarding it.
->>>>=20
->>>> As you know, try_to_unmap_one() can batch TLB invalidations. While =
-doing so,
->>>> however, the page-table lock(s) are not held, and I see no =
-indication of the
->>>> pending flush saved (and regarded) in the relevant mm-structs.
->>>>=20
->>>> So, my question: what prevents, at least in theory, the following =
-scenario:
->>>>=20
->>>> 	CPU0 				CPU1
->>>> 	----				----
->>>> 					user accesses memory using RW =
-PTE=20
->>>> 					[PTE now cached in TLB]
->>>> 	try_to_unmap_one()
->>>> 	=3D=3D> ptep_get_and_clear()
->>>> 	=3D=3D> set_tlb_ubc_flush_pending()
->>>> 					mprotect(addr, PROT_READ)
->>>> 					=3D=3D> change_pte_range()
->>>> 					=3D=3D> [ PTE non-present - no =
-flush ]
->>>>=20
->>>> 					user writes using cached RW PTE
->>>> 	...
->>>>=20
->>>> 	try_to_unmap_flush()
->>>>=20
->>>>=20
->>>> As you see CPU1 write should have failed, but may succeed.=20
->>>>=20
->>>> Now I don???t have a PoC since in practice it seems hard to create =
-such a
->>>> scenario: try_to_unmap_one() is likely to find the PTE accessed and =
-the PTE
->>>> would not be reclaimed.
->>>=20
->>> That is the same to a race whereby there is no batching mechanism =
-and the
->>> racing operation happens between a pte clear and a flush as =
-ptep_clear_flush
->>> is not atomic. All that differs is that the race window is a =
-different size.
->>> The application on CPU1 is buggy in that it may or may not succeed =
-the write
->>> but it is buggy regardless of whether a batching mechanism is used =
-or not.
->>=20
->> Thanks for your quick and detailed response, but I fail to see how it =
-can
->> happen without batching. Indeed, the PTE clear and flush are not =
-???atomic???,
->> but without batching they are both performed under the page table =
-lock
->> (which is acquired in page_vma_mapped_walk and released in
->> page_vma_mapped_walk_done). Since the lock is taken, other cores =
-should not
->> be able to inspect/modify the PTE. Relevant functions, e.g., =
-zap_pte_range
->> and change_pte_range, acquire the lock before accessing the PTEs.
->=20
-> I was primarily thinking in terms of memory corruption or data loss.
-> However, we are still protected although it's not particularly obvious =
-why.
->=20
-> On the reclaim side, we are either reclaiming clean pages (which =
-ignore
-> the accessed bit) or normal reclaim. If it's clean pages then any =
-parallel
-> write must update the dirty bit at minimum. If it's normal reclaim =
-then
-> the accessed bit is checked and if cleared in try_to_unmap_one, it =
-uses a
-> ptep_clear_flush_young_notify so the TLB gets flushed. We don't =
-reclaim
-> the page in either as part of page_referenced or try_to_unmap_one but
-> clearing the accessed bit flushes the TLB.
+Thank you for explanation.
 
-Wait. Are you looking at the x86 arch function? The TLB is not flushed =
-when
-the access bit is cleared:
+I tried below change. It indeed reduced delays, but even with WQ_HIGHPRI, up to a
+few seconds of delay is unavoidable? I wished it is processed within a few jiffies.
 
-int ptep_clear_flush_young(struct vm_area_struct *vma,
-                           unsigned long address, pte_t *ptep)
-{
-        /*
-         * On x86 CPUs, clearing the accessed bit without a TLB flush
-         * doesn't cause data corruption. [ It could cause incorrect
-         * page aging and the (mistaken) reclaim of hot pages, but the
-         * chance of that should be relatively low. ]
-         *                =20
-         * So as a performance optimization don't flush the TLB when
-         * clearing the accessed bit, it will eventually be flushed by
-         * a context switch or a VM operation anyway. [ In the rare
-         * event of it not getting flushed for a long time the delay
-         * shouldn't really matter because there's no real memory
-         * pressure for swapout to react to. ]
-         */
-        return ptep_test_and_clear_young(vma, address, ptep);
-}
+----------
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9a4441b..c099ebf 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1768,7 +1768,8 @@ void __init init_mm_internals(void)
+ {
+ 	int ret __maybe_unused;
+ 
+-	mm_percpu_wq = alloc_workqueue("mm_percpu_wq", WQ_MEM_RECLAIM, 0);
++	mm_percpu_wq = alloc_workqueue("mm_percpu_wq",
++				       WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+ 
+ #ifdef CONFIG_SMP
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
+----------
 
->=20
-> On the mprotect side then, as the page was first accessed, clearing =
-the
-> accessed bit incurs a TLB flush on the reclaim side before the second =
-write.
-> That means any TLB entry that exists cannot have the accessed bit set =
-so
-> a second write needs to update it.
->=20
-> While it's not clearly documented, I checked with hardware engineers
-> at the time that an update of the accessed or dirty bit even with a =
-TLB
-> entry will check the underlying page tables and trap if it's not =
-present
-> and the subsequent fault will then fail on sigsegv if the VMA =
-protections
-> no longer allow the write.
->=20
-> So, on one side if ignoring the accessed bit during reclaim, the pages
-> are clean so any access will set the dirty bit and trap if unmapped in
-> parallel. On the other side, the accessed bit if set cleared the TLB =
-and
-> if not set, then the hardware needs to update and again will trap if
-> unmapped in parallel.
+Before:
+----------
+[  906.781160] Showing busy workqueues and worker pools:
+[  906.789620] workqueue events: flags=0x0
+[  906.796439]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=7/256
+[  906.805291]     in-flight: 99:vmw_fb_dirty_flush [vmwgfx]{513504}
+[  906.809676]     pending: vmpressure_work_fn{571835}, e1000_watchdog [e1000]{571413}, vmstat_shepherd{571093}, vmw_fb_dirty_flush [vmwgfx]{513504}, free_work{50571}, free_obj_work{50546}
+[  906.821048] workqueue events_power_efficient: flags=0x80
+[  906.825113]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=3/256
+[  906.829567]     pending: fb_flashcursor{571684}, do_cache_clean{566868}, neigh_periodic_work{564836}
+[  906.835508] workqueue events_freezable_power_: flags=0x84
+[  906.838162]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  906.840906]     in-flight: 200:disk_events_workfn{571819}
+[  906.843485] workqueue mm_percpu_wq: flags=0x8
+[  906.845675]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
+[  906.848754]     pending: drain_local_pages_wq{50498} BAR(2104){50498}
+[  906.851717] workqueue writeback: flags=0x4e
+[  906.853841]   pwq 128: cpus=0-63 flags=0x4 nice=0 active=2/256
+[  906.856556]     in-flight: 354:wb_workfn{571030} wb_workfn{571030}
+[  906.859881] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=571s workers=2 manager: 33
+[  906.863663] pool 6: cpus=3 node=0 flags=0x0 nice=0 hung=7s workers=3 idle: 29 1548
+[  906.867153] pool 128: cpus=0-63 flags=0x4 nice=0 hung=43s workers=3 idle: 355 2115
+----------
 
+After:
+----------
+[  778.377896] Showing busy workqueues and worker pools:
+[  778.380129] workqueue events: flags=0x0
+[  778.381879]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=4/256
+[  778.384371]     pending: vmpressure_work_fn{117854}, free_work{117845}, e1000_watchdog [e1000]{117406}, e1000_watchdog [e1000]{117406}
+[  778.389198]   pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+[  778.391732]     in-flight: 1635:vmw_fb_dirty_flush [vmwgfx]{154837} vmw_fb_dirty_flush [vmwgfx]{154837}
+[  778.395522] workqueue events_power_efficient: flags=0x80
+[  778.397828]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  778.400385]     pending: do_cache_clean{96351}
+[  778.402395] workqueue events_freezable_power_: flags=0x84
+[  778.404734]   pwq 6: cpus=3 node=0 flags=0x0 nice=0 active=1/256
+[  778.407360]     in-flight: 185:disk_events_workfn{156895}
+[  778.409902] workqueue mm_percpu_wq: flags=0x18
+[  778.412035]   pwq 7: cpus=3 node=0 flags=0x0 nice=-20 active=1/256
+[  778.414675]     pending: vmstat_update{5644}
+[  778.416681] workqueue writeback: flags=0x4e
+[  778.418701]   pwq 128: cpus=0-63 flags=0x4 nice=0 active=2/256
+[  778.421210]     in-flight: 358:wb_workfn{546} wb_workfn{546}
+[  778.424101] workqueue xfs-eofblocks/sda1: flags=0xc
+[  778.426304]   pwq 4: cpus=2 node=0 flags=0x0 nice=0 active=1/256
+[  778.429112]     in-flight: 52:xfs_eofblocks_worker [xfs]{117964}
+[  778.431749] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=0s workers=2 manager: 231 idle: 3
+[  778.435105] pool 2: cpus=1 node=0 flags=0x0 nice=0 hung=0s workers=3 idle: 1606 49
+[  778.438235] pool 4: cpus=2 node=0 flags=0x0 nice=0 hung=117s workers=2 manager: 215
+[  778.441389] pool 6: cpus=3 node=0 flags=0x0 nice=0 hung=6s workers=3 idle: 63 29
+[  778.444882] pool 128: cpus=0-63 flags=0x4 nice=0 hung=0s workers=3 idle: 2449 360
+----------
 
-Yet, even regardless to the TLB flush it seems there is still a possible
-race:
-
-CPU0				CPU1
-----				----
-ptep_clear_flush_young_notify
-=3D=3D> PTE.A=3D=3D0
-				access PTE
-				=3D=3D> PTE.A=3D1
-prep_get_and_clear
-				change mapping (and PTE)
-				Use stale TLB entry
-
-
-> If this guarantee from hardware was every shown to be wrong or another
-> architecture wanted to add batching without the same guarantee then =
-mprotect
-> would need to do a local_flush_tlb if no pages were updated by the =
-mprotect
-> but right now, this should not be necessary.
->=20
->> Can you please explain why you consider the application to be buggy?
->=20
-> I considered it a bit dumb to mprotect for READ/NONE and then try =
-writing
-> the same mapping. However, it will behave as expected.
-
-I don=E2=80=99t think that this is the only scenario. For example, the =
-application
-may create a new memory mapping of a different file using mmap at the =
-same
-memory address that was used before, just as that memory is reclaimed. =
-The
-application can (inadvertently) cause such a scenario by using =
-MAP_FIXED.
-But even without MAP_FIXED, running mmap->munmap->mmap can reuse the =
-same
-virtual address.
-
->> AFAIU
->> an application can wish to trap certain memory accesses using =
-userfaultfd or
->> SIGSEGV. For example, it may do it for garbage collection or =
-sandboxing. To
->> do so, it can use mprotect with PROT_NONE and expect to be able to =
-trap
->> future accesses to that memory. This use-case is described in =
-usefaultfd
->> documentation.
->=20
-> Such applications are safe due to how the accessed bit is handled by =
-the
-> software (flushes TLB if clearing young) and hardware (traps if =
-updating
-> the accessed or dirty bit and the underlying PTE was unmapped even if
-> there is a TLB entry).
-
-I don=E2=80=99t think it is so. And I also think there are many =
-additional
-potentially problematic scenarios.
-
-Thanks for your patience,
-Nadav=
+By the way, I think it might be useful if delay of each work item is printed together...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
