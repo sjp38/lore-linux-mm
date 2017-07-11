@@ -1,58 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB6A6810BE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 17:30:07 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id o19so1720544vkd.7
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:30:07 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id r14si263552uai.125.2017.07.11.14.30.04
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CFFEF6810BE
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 17:45:51 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u110so1117713wrb.14
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:45:51 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 62si361960edc.60.2017.07.11.14.45.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 14:30:05 -0700 (PDT)
-Message-ID: <1499808577.2865.30.camel@kernel.crashing.org>
-Subject: Re: [RFC v5 12/38] mm: ability to disable execute permission on a
- key at creation
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 12 Jul 2017 07:29:37 +1000
-In-Reply-To: <3bd2ffd4-33ad-ce23-3db1-d1292e69ca9b@intel.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
-	 <1499289735-14220-13-git-send-email-linuxram@us.ibm.com>
-	 <3bd2ffd4-33ad-ce23-3db1-d1292e69ca9b@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Jul 2017 14:45:50 -0700 (PDT)
+Date: Tue, 11 Jul 2017 17:45:41 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] vmemmap, memory_hotplug: fallback to base pages for vmmap
+Message-ID: <20170711214541.GA11141@cmpxchg.org>
+References: <20170711134204.20545-1-mhocko@kernel.org>
+ <20170711142558.GE11936@dhcp22.suse.cz>
+ <20170711172623.GB961@cmpxchg.org>
+ <20170711212544.GA25122@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170711212544.GA25122@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
-Cc: paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cristopher Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2017-07-11 at 11:11 -0700, Dave Hansen wrote:
-> On 07/05/2017 02:21 PM, Ram Pai wrote:
-> > Currently sys_pkey_create() provides the ability to disable read
-> > and write permission on the key, at  creation. powerpc  has  the
-> > hardware support to disable execute on a pkey as well.This patch
-> > enhances the interface to let disable execute  at  key  creation
-> > time. x86 does  not  allow  this.  Hence the next patch will add
-> > ability  in  x86  to  return  error  if  PKEY_DISABLE_EXECUTE is
-> > specified.
+On Tue, Jul 11, 2017 at 11:25:45PM +0200, Michal Hocko wrote:
+> On Tue 11-07-17 13:26:23, Johannes Weiner wrote:
+> > Hi Michael,
+> > 
+> > On Tue, Jul 11, 2017 at 04:25:58PM +0200, Michal Hocko wrote:
+> > > Ohh, scratch that. The patch is bogus. I have completely missed that
+> > > vmemmap_populate_hugepages already falls back to
+> > > vmemmap_populate_basepages. I have to revisit the bug report I have
+> > > received to see what happened apart from the allocation warning. Maybe
+> > > we just want to silent that warning.
+> > 
+> > Yep, this should be fixed in 8e2cdbcb86b0 ("x86-64: fall back to
+> > regular page vmemmap on allocation failure").
+> > 
+> > I figure it's good to keep some sort of warning there, though, as it
+> > could have performance implications when we fall back to base pages.
+> 
+> Yeah, but I am not really sure the allocation warning is the right thing
+> here because it is just too verbose. If you consider that we will get
+> this warning for each memory section (128MB or 2GB)... I guess the
+> existing
+> pr_warn_once("vmemmap: falling back to regular page backing\n");
+> 
+> or maybe make it pr_warn should be enough. What do you think?
 
-That leads to the question... How do you tell userspace.
+It could be useful to dump the memory context at least once, to 1) let
+the user know we're falling back but also 2) to get the default report
+we split out anytime we fail in a low-memory situation - in case there
+is a problem with the MM subsystem.
 
-(apologies if I missed that in an existing patch in the series)
+Maybe something along the lines of this? (totally untested)
 
-How do we inform userspace of the key capabilities ? There are at least
-two things userspace may want to know already:
-
- - What protection bits are supported for a key
-
- - How many keys exist
-
- - Which keys are available for use by userspace. On PowerPC, the
-kernel can reserve some keys for itself, so can the hypervisor. In
-fact, they do.
-
-Cheers,
-Ben.
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 95651dc58e09..d03c8f244e5b 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1302,7 +1302,6 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+ 			vmemmap_verify((pte_t *)pmd, node, addr, next);
+ 			continue;
+ 		}
+-		pr_warn_once("vmemmap: falling back to regular page backing\n");
+ 		if (vmemmap_populate_basepages(addr, next, node))
+ 			return -ENOMEM;
+ 	}
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index a56c3989f773..efd3f48c667c 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -52,18 +52,24 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+ {
+ 	/* If the main allocator is up use that, fallback to bootmem. */
+ 	if (slab_is_available()) {
++		unsigned int order;
++		static int warned;
+ 		struct page *page;
++		gfp_t gfp_mask;
+ 
++		order = get_order(size);
++		gfp_mask = GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|__GFP_NOWARN;
+ 		if (node_state(node, N_HIGH_MEMORY))
+-			page = alloc_pages_node(
+-				node, GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+-				get_order(size));
++			page = alloc_pages_node(node, gfp_mask, size);
+ 		else
+-			page = alloc_pages(
+-				GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+-				get_order(size));
++			page = alloc_pages(gfp_mask, size);
+ 		if (page)
+ 			return page_address(page);
++		if (!warned) {
++			warn_alloc(gfp_mask, NULL,
++				   "vmemmap alloc failure: order:%u", order);
++			warned = 1;
++		}
+ 		return NULL;
+ 	} else
+ 		return __earlyonly_bootmem_alloc(node, size, size,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
