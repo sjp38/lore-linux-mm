@@ -1,381 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 517B66B052F
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 12:22:53 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 13so4388186pgg.8
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 09:22:53 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id j193si257220pge.239.2017.07.11.09.22.51
+	by kanga.kvack.org (Postfix) with ESMTP id 4E3496B0530
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 12:43:36 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j186so4750800pge.12
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 09:43:36 -0700 (PDT)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10115.outbound.protection.outlook.com. [40.107.1.115])
+        by mx.google.com with ESMTPS id l74si270459pfb.386.2017.07.11.09.43.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 09:22:52 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id d193so475111pgc.2
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 09:22:51 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 09:43:35 -0700 (PDT)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+References: <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
+ <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com>
+ <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
+ <CACT4Y+aRbC7_wvDv8ahH_JwY6P6SFoLg-kdwWHJx5j1stX_P_w@mail.gmail.com>
+ <20170710141713.7aox3edx6o7lrrie@node.shutemov.name>
+ <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
+ <20170710184704.realchrhzpblqqlk@node.shutemov.name>
+ <CALCETrVJQ_u-agPm8fFHAW1UJY=VLowdbM+gXyjFCb586r0V3g@mail.gmail.com>
+ <20170710212403.7ycczkhhki3vrgac@node.shutemov.name>
+ <CALCETrW6pWzpdf1MVx_ytaYYuVGBsF7R+JowEsKqd3i=vCwJ_w@mail.gmail.com>
+ <20170711103548.mkv5w7dd5gpdenne@node.shutemov.name>
+ <CALCETrVpNUq3-zEu1Q1O77N8r4kv4kFdefXp7XEs3Hpf-JPAjg@mail.gmail.com>
+ <d3caf8c4-4575-c1b5-6b0f-95527efaf2f9@virtuozzo.com>
+Message-ID: <f11d9e07-6b31-1add-7677-6a29d15ab608@virtuozzo.com>
+Date: Tue, 11 Jul 2017 19:45:48 +0300
+MIME-Version: 1.0
+In-Reply-To: <d3caf8c4-4575-c1b5-6b0f-95527efaf2f9@virtuozzo.com>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: Potential race in TLB flush batching?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
-Date: Tue, 11 Jul 2017 09:22:47 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D9CAACCF-F929-4894-AA81-EB612F51B49A@gmail.com>
-References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
- <20170711064149.bg63nvi54ycynxw4@suse.de>
- <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
- <20170711092935.bogdb4oja6v7kilq@suse.de>
- <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
- <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-Mel Gorman <mgorman@suse.de> wrote:
+On 07/11/2017 06:15 PM, Andrey Ryabinin wrote:
+> 
+> I reproduced this, and this is kasan bug:
+> 
+>    a??0xffffffff84864897 <x86_early_init_platform_quirks+5>   mov    $0xffffffff83f1d0b8,%rdi 
+>    a??0xffffffff8486489e <x86_early_init_platform_quirks+12>  movabs $0xdffffc0000000000,%rax 
+>    a??0xffffffff848648a8 <x86_early_init_platform_quirks+22>  push   %rbp
+>    a??0xffffffff848648a9 <x86_early_init_platform_quirks+23>  mov    %rdi,%rdx  
+>    a??0xffffffff848648ac <x86_early_init_platform_quirks+26>  shr    $0x3,%rdx
+>    a??0xffffffff848648b0 <x86_early_init_platform_quirks+30>  mov    %rsp,%rbp
+>   >a??0xffffffff848648b3 <x86_early_init_platform_quirks+33>  mov    (%rdx,%rax,1),%al
+> 
+> we crash on the last move which is a read from shadow
 
-> On Tue, Jul 11, 2017 at 03:40:02AM -0700, Nadav Amit wrote:
->> Mel Gorman <mgorman@suse.de> wrote:
->>=20
->>>>> That is the same to a race whereby there is no batching mechanism =
-and the
->>>>> racing operation happens between a pte clear and a flush as =
-ptep_clear_flush
->>>>> is not atomic. All that differs is that the race window is a =
-different size.
->>>>> The application on CPU1 is buggy in that it may or may not succeed =
-the write
->>>>> but it is buggy regardless of whether a batching mechanism is used =
-or not.
->>>>=20
->>>> Thanks for your quick and detailed response, but I fail to see how =
-it can
->>>> happen without batching. Indeed, the PTE clear and flush are not =
-???atomic???,
->>>> but without batching they are both performed under the page table =
-lock
->>>> (which is acquired in page_vma_mapped_walk and released in
->>>> page_vma_mapped_walk_done). Since the lock is taken, other cores =
-should not
->>>> be able to inspect/modify the PTE. Relevant functions, e.g., =
-zap_pte_range
->>>> and change_pte_range, acquire the lock before accessing the PTEs.
->>>=20
->>> I was primarily thinking in terms of memory corruption or data loss.
->>> However, we are still protected although it's not particularly =
-obvious why.
->>>=20
->>> On the reclaim side, we are either reclaiming clean pages (which =
-ignore
->>> the accessed bit) or normal reclaim. If it's clean pages then any =
-parallel
->>> write must update the dirty bit at minimum. If it's normal reclaim =
-then
->>> the accessed bit is checked and if cleared in try_to_unmap_one, it =
-uses a
->>> ptep_clear_flush_young_notify so the TLB gets flushed. We don't =
-reclaim
->>> the page in either as part of page_referenced or try_to_unmap_one =
-but
->>> clearing the accessed bit flushes the TLB.
->>=20
->> Wait. Are you looking at the x86 arch function? The TLB is not =
-flushed when
->> the access bit is cleared:
->>=20
->> int ptep_clear_flush_young(struct vm_area_struct *vma,
->>                           unsigned long address, pte_t *ptep)
->> {
->>        /*
->>         * On x86 CPUs, clearing the accessed bit without a TLB flush
->>         * doesn't cause data corruption. [ It could cause incorrect
->>         * page aging and the (mistaken) reclaim of hot pages, but the
->>         * chance of that should be relatively low. ]
->>         *                =20
->>         * So as a performance optimization don't flush the TLB when
->>         * clearing the accessed bit, it will eventually be flushed by
->>         * a context switch or a VM operation anyway. [ In the rare
->>         * event of it not getting flushed for a long time the delay
->>         * shouldn't really matter because there's no real memory
->>         * pressure for swapout to react to. ]
->>         */
->>        return ptep_test_and_clear_young(vma, address, ptep);
->> }
->=20
-> I forgot this detail, thanks for correcting me.
->=20
->>> On the mprotect side then, as the page was first accessed, clearing =
-the
->>> accessed bit incurs a TLB flush on the reclaim side before the =
-second write.
->>> That means any TLB entry that exists cannot have the accessed bit =
-set so
->>> a second write needs to update it.
->>>=20
->>> While it's not clearly documented, I checked with hardware engineers
->>> at the time that an update of the accessed or dirty bit even with a =
-TLB
->>> entry will check the underlying page tables and trap if it's not =
-present
->>> and the subsequent fault will then fail on sigsegv if the VMA =
-protections
->>> no longer allow the write.
->>>=20
->>> So, on one side if ignoring the accessed bit during reclaim, the =
-pages
->>> are clean so any access will set the dirty bit and trap if unmapped =
-in
->>> parallel. On the other side, the accessed bit if set cleared the TLB =
-and
->>> if not set, then the hardware needs to update and again will trap if
->>> unmapped in parallel.
->>=20
->>=20
->> Yet, even regardless to the TLB flush it seems there is still a =
-possible
->> race:
->>=20
->> CPU0				CPU1
->> ----				----
->> ptep_clear_flush_young_notify
->> =3D=3D> PTE.A=3D=3D0
->> 				access PTE
->> 				=3D=3D> PTE.A=3D1
->> prep_get_and_clear
->> 				change mapping (and PTE)
->> 				Use stale TLB entry
->=20
-> So I think you're right and this is a potential race. The first access =
-can
-> be a read or a write as it's a problem if the mprotect call restricts
-> access.
->=20
->>> If this guarantee from hardware was every shown to be wrong or =
-another
->>> architecture wanted to add batching without the same guarantee then =
-mprotect
->>> would need to do a local_flush_tlb if no pages were updated by the =
-mprotect
->>> but right now, this should not be necessary.
->>>=20
->>>> Can you please explain why you consider the application to be =
-buggy?
->>>=20
->>> I considered it a bit dumb to mprotect for READ/NONE and then try =
-writing
->>> the same mapping. However, it will behave as expected.
->>=20
->> I don???t think that this is the only scenario. For example, the =
-application
->> may create a new memory mapping of a different file using mmap at the =
-same
->> memory address that was used before, just as that memory is =
-reclaimed.
->=20
-> That requires the existing mapping to be unmapped which will flush the
-> TLB and parallel mmap/munmap serialises on mmap_sem. The race appears =
-to
-> be specific to mprotect which avoids the TLB flush if no pages were =
-updated.
 
-Why? As far as I see the chain of calls during munmap is somewhat like:
+Ughh, I forgot about phys_base.
+Plus, I added KASAN_SANITIZE_paravirt.o :=n because with PARAVIRTY=y set_pgd() calls native_set_pgd()
+from paravirt.c translation unit.
 
-do_munmap
-=3D>unmap_region
-=3D=3D>tlb_gather_mmu
-=3D=3D=3D>unmap_vmas
-=3D=3D=3D=3D>unmap_page_range
-...
-=3D=3D=3D=3D=3D>zap_pte_range 	- this one batches only present PTEs
-=3D=3D=3D>free_pgtables	- this one is only if page-tables are removed
-=3D=3D=3D>pte_free_tlb
-=3D=3D>tlb_finish_mmu
-=3D=3D=3D>tlb_flush_mmu
-=3D=3D=3D=3D>tlb_flush_mmu_tlbonly
 
-zap_pte_range will check if pte_none and can find it is - if a =
-concurrent
-try_to_unmap_one already cleared the PTE. In this case it will not =
-update
-the range of the mmu_gather and would not indicate that a flush of the =
-PTE
-is needed. Then, tlb_flush_mmu_tlbonly will find that no PTE was cleared
-(tlb->end =3D=3D 0) and avoid flush, or may just flush fewer PTEs than =
-actually
-needed.
 
-Due to this behavior, it raises a concern that in other cases as well, =
-when
-mmu_gather is used, a PTE flush may be missed.
+---
+ arch/x86/kernel/Makefile    | 1 +
+ arch/x86/mm/kasan_init_64.c | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
->> The
->> application can (inadvertently) cause such a scenario by using =
-MAP_FIXED.
->> But even without MAP_FIXED, running mmap->munmap->mmap can reuse the =
-same
->> virtual address.
->=20
-> With flushes in between.
->=20
->>> Such applications are safe due to how the accessed bit is handled by =
-the
->>> software (flushes TLB if clearing young) and hardware (traps if =
-updating
->>> the accessed or dirty bit and the underlying PTE was unmapped even =
-if
->>> there is a TLB entry).
->>=20
->> I don???t think it is so. And I also think there are many additional
->> potentially problematic scenarios.
->=20
-> I believe it's specific to mprotect but can be handled by flushing the
-> local TLB when mprotect updates no pages. Something like this;
->=20
-> ---8<---
-> mm, mprotect: Flush the local TLB if mprotect potentially raced with a =
-parallel reclaim
->=20
-> Nadav Amit identified a theoritical race between page reclaim and =
-mprotect
-> due to TLB flushes being batched outside of the PTL being held. He =
-described
-> the race as follows
->=20
->        CPU0                            CPU1
->        ----                            ----
->                                        user accesses memory using RW =
-PTE
->                                        [PTE now cached in TLB]
->        try_to_unmap_one()
->        =3D=3D> ptep_get_and_clear()
->        =3D=3D> set_tlb_ubc_flush_pending()
->                                        mprotect(addr, PROT_READ)
->                                        =3D=3D> change_pte_range()
->                                        =3D=3D> [ PTE non-present - no =
-flush ]
->=20
->                                        user writes using cached RW PTE
->        ...
->=20
->        try_to_unmap_flush()
->=20
-> The same type of race exists for reads when protecting for PROT_NONE.
-> This is not a data integrity issue as the TLB is always flushed before =
-any
-> IO is queued or a page is freed but it is a correctness issue as a =
-process
-> restricting access with mprotect() may still be able to access the =
-data
-> after the syscall returns due to a stale TLB entry. Handle this issue =
-by
-> flushing the local TLB if reclaim is potentially batching TLB flushes =
-and
-> mprotect altered no pages.
->=20
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Cc: stable@vger.kernel.org # v4.4+
-> ---
-> mm/internal.h |  5 ++++-
-> mm/mprotect.c | 12 ++++++++++--
-> mm/rmap.c     | 20 ++++++++++++++++++++
-> 3 files changed, 34 insertions(+), 3 deletions(-)
->=20
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 0e4f558412fb..9b7d1a597816 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -498,6 +498,7 @@ extern struct workqueue_struct *mm_percpu_wq;
-> #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
-> void try_to_unmap_flush(void);
-> void try_to_unmap_flush_dirty(void);
-> +void batched_unmap_protection_update(void);
-> #else
-> static inline void try_to_unmap_flush(void)
-> {
-> @@ -505,7 +506,9 @@ static inline void try_to_unmap_flush(void)
-> static inline void try_to_unmap_flush_dirty(void)
-> {
-> }
-> -
-> +static inline void batched_unmap_protection_update()
-> +{
-> +}
-> #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
->=20
-> extern const struct trace_print_flags pageflag_names[];
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 8edd0d576254..3de353d4b5fb 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -254,9 +254,17 @@ static unsigned long =
-change_protection_range(struct vm_area_struct *vma,
-> 				 dirty_accountable, prot_numa);
-> 	} while (pgd++, addr =3D next, addr !=3D end);
->=20
-> -	/* Only flush the TLB if we actually modified any entries: */
-> -	if (pages)
-> +	/*
-> +	 * Only flush all TLBs if we actually modified any entries. If =
-no
-> +	 * pages are modified, then call batched_unmap_protection_update
-> +	 * if the context is a mprotect() syscall.
-> +	 */
-> +	if (pages) {
-> 		flush_tlb_range(vma, start, end);
-> +	} else {
-> +		if (!prot_numa)
-> +			batched_unmap_protection_update();
-> +	}
-> 	clear_tlb_flush_pending(mm);
->=20
-> 	return pages;
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index d405f0e0ee96..02cb035e4ce6 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -643,6 +643,26 @@ static bool should_defer_flush(struct mm_struct =
-*mm, enum ttu_flags flags)
->=20
-> 	return should_defer;
-> }
-> +
-> +/*
-> + * This is called after an mprotect update that altered no pages. =
-Batched
-> + * unmap releases the PTL before a flush occurs leaving a window =
-where
-> + * an mprotect that reduces access rights can still access the page =
-after
-> + * mprotect returns via a stale TLB entry. Avoid this possibility by =
-flushing
-> + * the local TLB if mprotect updates no pages so that the the caller =
-of
-> + * mprotect always gets expected behaviour. It's overkill and =
-unnecessary to
-> + * flush all TLBs as a separate thread accessing the data that raced =
-with
-> + * both reclaim and mprotect as there is no risk of data corruption =
-and
-> + * the exact timing of a parallel thread seeing a protection update =
-without
-> + * any serialisation on the application side is always uncertain.
-> + */
-> +void batched_unmap_protection_update(void)
-> +{
-> +	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> +	local_flush_tlb();
-> +	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-> +}
-> +
-> #else
-> static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool =
-writable)
-> {
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 4b994232cb57..5a1f18b87fb2 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -24,6 +24,7 @@ KASAN_SANITIZE_head$(BITS).o				:= n
+ KASAN_SANITIZE_dumpstack.o				:= n
+ KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
+ KASAN_SANITIZE_stacktrace.o := n
++KASAN_SANITIZE_paravirt.o				:= n
+ 
+ OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+ OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index d79a7ea83d05..d5743fd37df9 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -72,7 +72,8 @@ static void __init kasan_early_p4d_populate(pgd_t *pgd,
+ 	 * TODO: we need helpers for this shit
+ 	 */
+ 	if (CONFIG_PGTABLE_LEVELS == 5)
+-		p4d = ((p4d_t*)((__pa_nodebug(pgd->pgd) & PTE_PFN_MASK) + __START_KERNEL_map))
++		p4d = ((p4d_t*)((__pa_nodebug(pgd->pgd) & PTE_PFN_MASK)
++					+ __START_KERNEL_map - phys_base))
+ 			+ p4d_index(addr);
+ 	else
+ 		p4d = (p4d_t*)pgd;
+-- 
+2.13.0
 
-I don=E2=80=99t think this solution is enough. I am sorry for not =
-providing a
-solution, but I don=E2=80=99t see an easy one.
-
-Thanks,
-Nadav
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
