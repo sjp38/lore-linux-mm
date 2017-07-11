@@ -1,159 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B5E16B0519
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:06:03 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v76so1886048qka.5
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:06:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c28si170211qtg.85.2017.07.11.08.06.01
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BF19D6B051B
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:07:20 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id 6so146357oik.11
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:07:20 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 71si173171oik.162.2017.07.11.08.07.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 08:06:02 -0700 (PDT)
-Date: Tue, 11 Jul 2017 11:05:58 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and enum
- memory_type one
-Message-ID: <20170711150558.GB5347@redhat.com>
-References: <20170703211415.11283-1-jglisse@redhat.com>
- <20170703211415.11283-2-jglisse@redhat.com>
- <CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com>
- <20170705142516.GA3305@redhat.com>
- <CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
- <20170705184933.GD3305@redhat.com>
- <CAPcyv4g7DOCDrggZO=yVbkKp4He_5gGtMZQQTqwp_-XdidACqg@mail.gmail.com>
+        Tue, 11 Jul 2017 08:07:20 -0700 (PDT)
+Received: from mail-vk0-f41.google.com (mail-vk0-f41.google.com [209.85.213.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4751A22C9B
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:07:19 +0000 (UTC)
+Received: by mail-vk0-f41.google.com with SMTP id r125so1580298vkf.1
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:07:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4g7DOCDrggZO=yVbkKp4He_5gGtMZQQTqwp_-XdidACqg@mail.gmail.com>
+In-Reply-To: <20170711103548.mkv5w7dd5gpdenne@node.shutemov.name>
+References: <75acbed7-6a08-692f-61b5-2b44f66ec0d8@virtuozzo.com>
+ <bc95be68-8c68-2a45-c530-acbc6c90a231@virtuozzo.com> <20170710123346.7y3jnftqgpingim3@node.shutemov.name>
+ <CACT4Y+aRbC7_wvDv8ahH_JwY6P6SFoLg-kdwWHJx5j1stX_P_w@mail.gmail.com>
+ <20170710141713.7aox3edx6o7lrrie@node.shutemov.name> <03A6D7ED-300C-4431-9EB5-67C7A3EA4A2E@amacapital.net>
+ <20170710184704.realchrhzpblqqlk@node.shutemov.name> <CALCETrVJQ_u-agPm8fFHAW1UJY=VLowdbM+gXyjFCb586r0V3g@mail.gmail.com>
+ <20170710212403.7ycczkhhki3vrgac@node.shutemov.name> <CALCETrW6pWzpdf1MVx_ytaYYuVGBsF7R+JowEsKqd3i=vCwJ_w@mail.gmail.com>
+ <20170711103548.mkv5w7dd5gpdenne@node.shutemov.name>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 11 Jul 2017 08:06:57 -0700
+Message-ID: <CALCETrVpNUq3-zEu1Q1O77N8r4kv4kFdefXp7XEs3Hpf-JPAjg@mail.gmail.com>
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andy Lutomirski <luto@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Tue, Jul 11, 2017 at 12:31:22AM -0700, Dan Williams wrote:
-> On Wed, Jul 5, 2017 at 11:49 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Wed, Jul 05, 2017 at 09:15:35AM -0700, Dan Williams wrote:
-> >> On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >> > On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote:
-> >> >> On Mon, Jul 3, 2017 at 2:14 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >> >> > Use consistent name between IORES_DESC and enum memory_type, rename
-> >> >> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free up
-> >> >> > the public name for CDM (cache coherent device memory) for which the
-> >> >> > term public is a better match.
-> >> >> >
-> >> >> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> >> >> > Cc: Dan Williams <dan.j.williams@intel.com>
-> >> >> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> >> >> > ---
-> >> >> >  include/linux/memremap.h | 4 ++--
-> >> >> >  kernel/memremap.c        | 2 +-
-> >> >> >  2 files changed, 3 insertions(+), 3 deletions(-)
-> >> >> >
-> >> >> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> >> >> > index 57546a07a558..2299cc2d387d 100644
-> >> >> > --- a/include/linux/memremap.h
-> >> >> > +++ b/include/linux/memremap.h
-> >> >> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-> >> >> >   * Specialize ZONE_DEVICE memory into multiple types each having differents
-> >> >> >   * usage.
-> >> >> >   *
-> >> >> > - * MEMORY_DEVICE_PUBLIC:
-> >> >> > + * MEMORY_DEVICE_PERSISTENT:
-> >> >> >   * Persistent device memory (pmem): struct page might be allocated in different
-> >> >> >   * memory and architecture might want to perform special actions. It is similar
-> >> >> >   * to regular memory, in that the CPU can access it transparently. However,
-> >> >> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-> >> >> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
-> >> >> >   */
-> >> >> >  enum memory_type {
-> >> >> > -       MEMORY_DEVICE_PUBLIC = 0,
-> >> >> > +       MEMORY_DEVICE_PERSISTENT = 0,
-> >> >> >         MEMORY_DEVICE_PRIVATE,
-> >> >> >  };
-> >> >> >
-> >> >> > diff --git a/kernel/memremap.c b/kernel/memremap.c
-> >> >> > index b9baa6c07918..e82456c39a6a 100644
-> >> >> > --- a/kernel/memremap.c
-> >> >> > +++ b/kernel/memremap.c
-> >> >> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
-> >> >> >         }
-> >> >> >         pgmap->ref = ref;
-> >> >> >         pgmap->res = &page_map->res;
-> >> >> > -       pgmap->type = MEMORY_DEVICE_PUBLIC;
-> >> >> > +       pgmap->type = MEMORY_DEVICE_PERSISTENT;
-> >> >> >         pgmap->page_fault = NULL;
-> >> >> >         pgmap->page_free = NULL;
-> >> >> >         pgmap->data = NULL;
-> >> >>
-> >> >> I think we need a different name. There's nothing "persistent" about
-> >> >> the devm_memremap_pages() path. Why can't they share name, is the only
-> >> >> difference coherence? I'm thinking something like:
-> >> >>
-> >> >> MEMORY_DEVICE_PRIVATE
-> >> >> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
-> >> >> MEMORY_DEVICE_IO /* "public", but not coherent */
-> >> >
-> >> > No that would not work. Device public (in the context of this patchset)
-> >> > is like device private ie device public page can be anywhere inside a
-> >> > process address space either as anonymous memory page or as file back
-> >> > page of regular filesystem (ie vma->ops is not pointing to anything
-> >> > specific to the device memory).
-> >> >
-> >> > As such device public is different from how persistent memory is use
-> >> > and those the cache coherency being the same between the two kind of
-> >> > memory is not a discerning factor. So i need to distinguish between
-> >> > persistent memory and device public memory.
-> >> >
-> >> > I believe keeping enum memory_type close to IORES_DESC naming is the
-> >> > cleanest way to do that but i am open to other name suggestion.
-> >> >
-> >>
-> >> The IORES_DESC has nothing to do with how the memory range is handled
-> >> by the core mm. It sounds like the distinction this is trying to make
-> >> is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
-> >> Where a "host" memory range is one that does not need coordination
-> >> with a specific device.
-> >
-> > I want to distinguish between:
-> >   - device memory that is not accessible by the CPU
-> >   - device memory that is accessible by the CPU just like regular
-> >     memory
-> >   - existing user of devm_memremap_pages() which is persistent memory
-> >     (only pmem seems to call devm_memremap_pages()) that is use like a
-> >     filesystem or block device and thus isn't use like generic page in
-> >     a process address space
-> >
-> > So if existing user of devm_memremap_pages() are only persistent memory
-> > then it made sense to match the IORES_DESC we are expecting to see on
-> > see such memory.
-> >
-> > For public device memory (in the sense introduced by this patchset) i
-> > do not know how it will be described by IORES_DESC. i think first folks
-> > with it are IBM with CAPI and i am not sure they defined something for
-> > that already.
-> >
-> > I am open to any name beside public (well any reasonable name :)) but
-> > i do need to be able to distinguish persistent memory as use today from
-> > this device memory.
-> 
-> Right, so that's why I suggested MEMORY_DEVICE_HOST for memory that is
-> just normal host memory and does not have any device-entanglements
-> outside of the base ZONE_DEVICE registration.
+On Tue, Jul 11, 2017 at 3:35 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Mon, Jul 10, 2017 at 05:30:38PM -0700, Andy Lutomirski wrote:
+>> On Mon, Jul 10, 2017 at 2:24 PM, Kirill A. Shutemov
+>> <kirill@shutemov.name> wrote:
+>> > On Mon, Jul 10, 2017 at 01:07:13PM -0700, Andy Lutomirski wrote:
+>> >> Can you give the disassembly of the backtrace lines?  Blaming the
+>> >> .endr doesn't make much sense to me.
+>> >
+>> > I don't have backtrace. It's before printk() is functional. I only see
+>> > triple fault and reboot.
+>> >
+>> > I had to rely on qemu tracing and gdb.
+>>
+>> Can you ask GDB or objtool to disassemble around those addresses?  Can
+>> you also attach the big dump that QEMU throws out that shows register
+>> state?  In particular, CR2, CR3, and CR4 could be useful.
+>
+> The last three execptions:
+>
+> check_exception old: 0xffffffff new 0xe, cr2: 0xffffffff7ffffff8, rip: 0xffffffff84bb3036
+> RAX=00000000ffffffff RBX=ffffffff800000d8 RCX=ffffffff84be4021 RDX=dffffc0000000000
+> RSI=0000000000000006 RDI=ffffffff84c57000 RBP=ffffffff800000c8 RSP=ffffffff80000000
 
-Well the memory considered for DEVICE_PUBLIC is device memory so it is
-very much entangled with a device. It is memory that is physically on
-the device. It is just that new system bus like CAPI or CCIX allows
-CPU to access such memory with same cache coherency as if they were
-accessing regular system DDR memory. It is expect that this memory
-will be manage by the device driver and not core memory management.
+So RSP was 0xffffffff80000000, a push happened, and we tried to write
+to 0xffffffff7ffffff8, which failed.
 
-But i am ok with MEMORY_DEVICE_HOST after all this just a name. But
-what you put behind that name is not the reality of the memory. I just
-want to be clear on that.
+> check_exception old: 0xe new 0xe, cr2: 0xffffffff7ffffff8, rip: 0xffffffff84bb3141
+> RAX=00000000ffffffff RBX=ffffffff800000d8 RCX=ffffffff84be4021 RDX=dffffc0000000000
+> RSI=0000000000000006 RDI=ffffffff84c57000 RBP=ffffffff800000c8 RSP=ffffffff80000000
 
-Cheers,
-Jerome
+And #PF doesn't use IST, so it double-faulted.
+
+Either the stack isn't mapped in the page tables, RSP is corrupt, or
+there's a genuine stack overflow here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
