@@ -1,55 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A1D26810B5
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:25:39 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e199so195686pfh.7
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:25:39 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id i196si2672pgd.419.2017.07.11.11.25.37
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AAAE6B04D2
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:29:27 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id k14so110061qkl.11
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:29:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g6si11012qkc.238.2017.07.11.11.29.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 11:25:38 -0700 (PDT)
-Subject: Re: [PATCH -mm -v2 2/6] mm, swap: Add swap readahead hit statistics
-References: <20170630014443.23983-1-ying.huang@intel.com>
- <20170630014443.23983-3-ying.huang@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <1152d4f5-fe8b-b46c-9d6b-3ecf69019172@intel.com>
-Date: Tue, 11 Jul 2017 11:25:36 -0700
+        Tue, 11 Jul 2017 11:29:26 -0700 (PDT)
+Date: Tue, 11 Jul 2017 14:29:22 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+Message-ID: <20170711182922.GC5347@redhat.com>
+References: <20170522165206.6284-1-jglisse@redhat.com>
+ <20170522165206.6284-13-jglisse@redhat.com>
+ <fa402b70fa9d418ebf58a26a454abd06@HQMAIL103.nvidia.com>
+ <5f476e8c-8256-13a8-2228-a2b9e5650586@nvidia.com>
+ <20170701005749.GA7232@redhat.com>
+ <ff6cb2b9-b930-afad-1a1f-1c437eced3cf@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20170630014443.23983-3-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="dDRMvlgZJXvWKvBx"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <ff6cb2b9-b930-afad-1a1f-1c437eced3cf@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
+To: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On 06/29/2017 06:44 PM, Huang, Ying wrote:
->  
->  static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
-> +static atomic_long_t swapin_readahead_hits_total = ATOMIC_INIT(0);
-> +static atomic_long_t swapin_readahead_total = ATOMIC_INIT(0);
->  
->  void show_swap_cache_info(void)
->  {
-> @@ -305,8 +307,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
->  
->  	if (page && likely(!PageTransCompound(page))) {
->  		INC_CACHE_INFO(find_success);
-> -		if (TestClearPageReadahead(page))
-> +		if (TestClearPageReadahead(page)) {
->  			atomic_inc(&swapin_readahead_hits);
-> +			atomic_long_inc(&swapin_readahead_hits_total);
-> +		}
->  	}
 
-Adding global atomics that we touch in hot paths seems like poor
-future-proofing.  Are we sure we want to do this and not use some of the
-nice, fancy, percpu counters that we have?
+--dDRMvlgZJXvWKvBx
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Mon, Jul 10, 2017 at 04:44:38PM -0700, Evgeny Baskakov wrote:
+> On 6/30/17 5:57 PM, Jerome Glisse wrote:
+> 
+> ...
+> 
+> Hi Jerome,
+> 
+> I am working on a sporadic data corruption seen in highly contented use
+> cases. So far, I've been able to re-create a sporadic hang that happens when
+> multiple threads compete to migrate the same page to and from device memory.
+> The reproducer uses only the dummy driver from hmm-next.
+> 
+> Please find attached. This is how it hangs on my 12-core Intel i7-5930K SMT
+> system:
+> 
+
+Can you test if attached patch helps ? I am having trouble reproducing this
+from inside a vm.
+
+My theory is that 2 concurrent CPU page fault happens. First one manage to
+start the migration back to system memory but second one see the migration
+special entry and call migration_entry_wait() which increase page refcount
+and this happen before first one check page refcount are ok for migration.
+
+For regular migration such scenario is ok as the migration bails out and
+because page is CPU accessible there is no need to kick again the migration
+for other thread that CPU fault to migrate.
+
+I am looking into how i can change migration_entry_wait() not to refcount
+pages. Let me know if the attached patch helps.
+
+Thank you
+Jerome
+
+--dDRMvlgZJXvWKvBx
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="0001-TEST-THEORY-ABOUT-MIGRATION-AND-DEVICE.patch"
+
+
+--dDRMvlgZJXvWKvBx--
