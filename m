@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 52ABC6B04F5
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:39:24 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g46so31129903wrd.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:39:24 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id y23si10221687wra.330.2017.07.11.04.39.23
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DCE66B04F7
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:00:35 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id s11so50784752uae.12
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:00:35 -0700 (PDT)
+Received: from mail-vk0-x243.google.com (mail-vk0-x243.google.com. [2607:f8b0:400c:c05::243])
+        by mx.google.com with ESMTPS id x18si6248361uai.199.2017.07.11.05.00.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 04:39:23 -0700 (PDT)
-Subject: Re: [PATCH v10 0/3] mm: security: ro protection for dynamic data
-References: <20170710150603.387-1-igor.stoppa@huawei.com>
- <201707112012.GBC05774.QOtOSLJVFHFOFM@I-love.SAKURA.ne.jp>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <4821f909-8885-654d-701e-3044c79d055f@huawei.com>
-Date: Tue, 11 Jul 2017 14:37:39 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 05:00:32 -0700 (PDT)
+Received: by mail-vk0-x243.google.com with SMTP id p193so8144750vkd.2
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:00:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <201707112012.GBC05774.QOtOSLJVFHFOFM@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAK8P3a3oBgE8ggAjVX6mtWKWwBmw3gYzgTqF3fh9KsQyEgL31g@mail.gmail.com>
+References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
+ <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
+ <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
+ <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com> <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
+ <CAK8P3a3oBgE8ggAjVX6mtWKWwBmw3gYzgTqF3fh9KsQyEgL31g@mail.gmail.com>
+From: Brian Gerst <brgerst@gmail.com>
+Date: Tue, 11 Jul 2017 08:00:32 -0400
+Message-ID: <CAMzpN2gZHis6_Y_B+DQmuY_ojBqoGBTCd2go+sM53pPaScTq+g@mail.gmail.com>
+Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com, hch@infradead.org, casey@schaufler-ca.com
-Cc: paul@paul-moore.com, sds@tycho.nsa.gov, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, "open list:IOMMU DRIVERS" <iommu@lists.linux-foundation.org>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
 
+On Tue, Jul 11, 2017 at 4:35 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Tue, Jul 11, 2017 at 6:58 AM, Brian Gerst <brgerst@gmail.com> wrote:
+>> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+>>> On 7/8/2017 7:57 AM, Brian Gerst wrote:
+>>>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
+>>>
+>>> I originally had a check for SME here in a previous version of the
+>>> patch.  Thomas Gleixner recommended removing the check so that the code
+>>> path was always exercised regardless of the state of SME in order to
+>>> better detect issues:
+>>>
+>>> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
+>>
+>> Looking a bit closer, this shortcut doesn't set the caching
+>> attributes.  So it's probably best to get rid of it anyways.  Also
+>> note, there is a corresponding check in iounmap().
 
-On 11/07/17 14:12, Tetsuo Handa wrote:
-> Igor Stoppa wrote:
->> - I had to rebase Tetsuo Handa's patch because it didn't apply cleanly
->>   anymore, I would appreciate an ACK to that or a revised patch, whatever 
->>   comes easier.
-> 
-> Since we are getting several proposals of changing LSM hooks and both your proposal
-> and Casey's "LSM: Security module blob management" proposal touch same files, I think
-> we can break these changes into small pieces so that both you and Casey can make
-> future versions smaller.
-> 
-> If nobody has objections about direction of Igor's proposal and Casey's proposal,
-> I think merging only "[PATCH 2/3] LSM: Convert security_hook_heads into explicit
-> array of struct list_head" from Igor's proposal and ->security accessor wrappers (e.g.
+Perhaps the iounmap() check should be kept for now for safety, since
+some drivers (vga16fb for example) call iounmap() blindly even if the
+mapping wasn't returned from ioremap().  Maybe add a warning when an
+ISA address is passed to iounmap().
 
-I would like to understand if there is still interest about:
+> Could that cause regressions if a driver relies on (write-through)
+> cacheable access to the VGA frame buffer RAM or an read-only
+> cached access to an option ROM but now gets uncached access?
 
-* "[PATCH 1/3] Protectable memory support"  which was my main interest
-* "[PATCH 3/3] Make LSM Writable Hooks a command line option"
-  which was the example of how to use [1/3]
+Yes there could be some surprises in drivers use the normal ioremap()
+call which is uncached but were expecting the default write-through
+mapping.
 
->   #define selinux_security(obj) (obj->security)
->   #define smack_security(obj) (obj->security)
->   #define tomoyo_security(obj) (obj->security)
->   #define apparmor_security(obj) (obj->security)
+> I also tried to find out whether we can stop mapping the ISA MMIO
+> area into the linear mapping, but at least the VGA code uses
+> VGA_MAP_MEM() to get access to the same pointers. I'm pretty
+> sure this got copied incorrectly into most other architectures, but
+> it is definitely still used on x86 with vga16fb/vgacon/mdacon.
 
-For example, I see that there are various kzalloc calls that might be
-useful to turn into pmalloc ones.
+Changing VGA_MAP_MEM() to use ioremap_wt() would take care of that.
+Although, looking at the mdacon/vgacon, they don't have support for
+unmapping the frame buffer if they are built modular.
 
-In general, I'd think that, after a transient is complete, where modules
-are loaded by allocating dynamic data structures, they could be locked
-down in read-only mode.
-
-I have the feeling that, now that I have polished up the pmalloc patch,
-the proposed use case is fading away.
-
-Can it be adjusted to the new situation or should I look elsewhere for
-an example that would justify merging pmalloc?
-
-
-thanks, igor
+--
+Brian Gerst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
