@@ -1,71 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 559316B04EC
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:22:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l34so30960372wrc.12
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:22:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f57si10403203wrf.145.2017.07.11.04.22.55
+	by kanga.kvack.org (Postfix) with ESMTP id EFD656B04EE
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:22 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v88so31095038wrb.1
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:25:22 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id u18si10409679wra.269.2017.07.11.04.25.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 04:22:55 -0700 (PDT)
-Date: Tue, 11 Jul 2017 13:22:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
-Message-ID: <20170711112253.GA11936@dhcp22.suse.cz>
-References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
- <20170710134917.GB19645@dhcp22.suse.cz>
- <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
- <20170711060354.GA24852@dhcp22.suse.cz>
- <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
- <20170711065030.GE24852@dhcp22.suse.cz>
- <337a8a4c-1f27-7371-409d-6a9f181b3871@suse.cz>
- <8bcc5908-7f0d-ba5c-a484-e0763f9b7664@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 04:25:21 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6BBO7Ww079242
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:20 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bmc7nk7gx-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:20 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 11 Jul 2017 21:25:17 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6BBNp4p21430510
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:23:59 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6BBN1Vp015768
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:23:03 +1000
+Subject: Re: [RFC v5 31/38] powerpc: introduce get_pte_pkey() helper
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-32-git-send-email-linuxram@us.ibm.com>
+ <58e0d9ff-727f-c960-5c5f-16d19a89e181@linux.vnet.ibm.com>
+ <20170710055502.GC5713@ram.oc3035372033.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 11 Jul 2017 16:52:40 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8bcc5908-7f0d-ba5c-a484-e0763f9b7664@linux.vnet.ibm.com>
+In-Reply-To: <20170710055502.GC5713@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <94b76f58-1002-b3a7-7269-67129c795f25@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
+To: Ram Pai <linuxram@us.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Tue 11-07-17 16:38:46, Anshuman Khandual wrote:
-> On 07/11/2017 12:26 PM, Vlastimil Babka wrote:
-> > On 07/11/2017 08:50 AM, Michal Hocko wrote:
-> >> On Tue 11-07-17 08:26:40, Vlastimil Babka wrote:
-> >>> On 07/11/2017 08:03 AM, Michal Hocko wrote:
-> >>>>
-> >>>> Are you telling me that two if conditions cause more than a second
-> >>>> difference? That sounds suspicious.
-> >>>
-> >>> It's removing also a call to get_unmapped_area(), AFAICS. That means a
-> >>> vma search?
-> >>
-> >> Ohh, right. I have somehow missed that. Is this removal intentional?
-> > 
-> > I think it is: "Checking for availability of virtual address range at
-> > the end of the VMA for the incremental size is also reduntant at this
-> > point."
-> > 
-> >> The
-> >> changelog is silent about it.
-> > 
-> > It doesn't explain why it's redundant, indeed. Unfortunately, the commit
-> > f106af4e90ea ("fix checks for expand-in-place mremap") which added this,
-> > also doesn't explain why it's needed.
+On 07/10/2017 11:25 AM, Ram Pai wrote:
+> On Mon, Jul 10, 2017 at 08:41:30AM +0530, Anshuman Khandual wrote:
+>> On 07/06/2017 02:52 AM, Ram Pai wrote:
+>>> get_pte_pkey() helper returns the pkey associated with
+>>> a address corresponding to a given mm_struct.
+>>>
+>>> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+>>> ---
+>>>  arch/powerpc/include/asm/book3s/64/mmu-hash.h |    5 ++++
+>>>  arch/powerpc/mm/hash_utils_64.c               |   28 +++++++++++++++++++++++++
+>>>  2 files changed, 33 insertions(+), 0 deletions(-)
+>>>
+>>> diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> index f7a6ed3..369f9ff 100644
+>>> --- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> +++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+>>> @@ -450,6 +450,11 @@ extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
+>>>  int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+>>>  		     pte_t *ptep, unsigned long trap, unsigned long flags,
+>>>  		     int ssize, unsigned int shift, unsigned int mmu_psize);
+>>> +
+>>> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+>>> +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address);
+>>> +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
+>>> +
+>>>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>>>  extern int __hash_page_thp(unsigned long ea, unsigned long access,
+>>>  			   unsigned long vsid, pmd_t *pmdp, unsigned long trap,
+>>> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+>>> index 1e74529..591990c 100644
+>>> --- a/arch/powerpc/mm/hash_utils_64.c
+>>> +++ b/arch/powerpc/mm/hash_utils_64.c
+>>> @@ -1573,6 +1573,34 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
+>>>  	local_irq_restore(flags);
+>>>  }
+>>>  
+>>> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+>>> +/*
+>>> + * return the protection key associated with the given address
+>>> + * and the mm_struct.
+>>> + */
+>>> +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address)
+>>> +{
+>>> +	pte_t *ptep;
+>>> +	u16 pkey = 0;
+>>> +	unsigned long flags;
+>>> +
+>>> +	if (REGION_ID(address) == VMALLOC_REGION_ID)
+>>> +		mm = &init_mm;
+>>
+>> IIUC, protection keys are only applicable for user space. This
+>> function is getting used to populate siginfo structure. Then how
+>> can we ever request this for any address in VMALLOC region.
 > 
-> Its redundant because there are calls to get_unmapped_area() down the
-> line in the function whose failure will anyway fail the expansion of
-> the VMA.
+> make sense. this check is not needed.
+> 
+>>
+>>> +
+>>> +	if (!mm || !mm->pgd)
+>>> +		return 0;
+>>
+>> Is this really required at this stage ?
+> 
+> its a sanity check to gaurd against bad inputs. See a problem?
 
-mremap code is quite complex and I am not sure you are right here.
-Anyway, please make sure you document why you believe those checks are
-not needed when resubmitting your patch.
 
--- 
-Michal Hocko
-SUSE Labs
+I mean its okay, thought it to be unnecessary. Your call.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
