@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BCE536B04B9
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:12:55 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r103so29237743wrb.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 23:12:55 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C01966B04BB
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:17:29 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u110so29163539wrb.14
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 23:17:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 198si8530625wmm.132.2017.07.10.23.12.50
+        by mx.google.com with ESMTPS id 69si8968264wra.135.2017.07.10.23.17.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 23:12:50 -0700 (PDT)
-Date: Tue, 11 Jul 2017 08:12:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Mon, 10 Jul 2017 23:17:28 -0700 (PDT)
 Subject: Re: [PATCH] tracing/ring_buffer: Try harder to allocate
-Message-ID: <20170711061245.GC24852@dhcp22.suse.cz>
 References: <20170711060500.17016-1-joelaf@google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <25f09117-dce2-fb33-f0ec-e2b1fd1c7afc@suse.cz>
+Date: Tue, 11 Jul 2017 08:17:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20170711060500.17016-1-joelaf@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joelaf@google.com>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com, linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tim Murray <timmurray@google.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, stable@vger.kernel.org
+To: Joel Fernandes <joelaf@google.com>, linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com, linux-mm@kvack.org, Alexander Duyck <alexander.h.duyck@intel.com>, Mel Gorman <mgorman@suse.de>, Hao Lee <haolee.swjtu@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Tim Murray <timmurray@google.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, stable@vger.kernel.org
 
-On Mon 10-07-17 23:05:00, Joel Fernandes wrote:
+On 07/11/2017 08:05 AM, Joel Fernandes wrote:
 > ftrace can fail to allocate per-CPU ring buffer on systems with a large
 > number of CPUs coupled while large amounts of cache happening in the
 > page cache. Currently the ring buffer allocation doesn't retry in the VM
@@ -40,9 +41,7 @@ On Mon 10-07-17 23:05:00, Joel Fernandes wrote:
 > echo 300000 > /sys/kernel/debug/tracing/buffer_size_kb
 > 
 > [1] https://marc.info/?l=linux-mm&m=149820805124906&w=2
-
-Yes this is the correct usage of the new flag.
-
+> 
 > Cc: Alexander Duyck <alexander.h.duyck@intel.com>
 > Cc: Mel Gorman <mgorman@suse.de>
 > Cc: Hao Lee <haolee.swjtu@gmail.com>
@@ -55,14 +54,11 @@ Yes this is the correct usage of the new flag.
 > Cc: Steven Rostedt <rostedt@goodmis.org>
 > Cc: stable@vger.kernel.org
 
-I do not think stable tag is appropriate. The new flag hasn't been
-merged yet and it is not a stable material.
+Not stable, as Michal mentioned.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > Signed-off-by: Joel Fernandes <joelaf@google.com>
-
-Feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > ---
 >  kernel/trace/ring_buffer.c | 10 +++++-----
 >  1 file changed, 5 insertions(+), 5 deletions(-)
@@ -97,12 +93,7 @@ Acked-by: Michal Hocko <mhocko@suse.com>
 >  		if (!page)
 >  			goto free_pages;
 >  		bpage->page = page_address(page);
-> -- 
-> 2.13.2.725.g09c95d1e9-goog
-
--- 
-Michal Hocko
-SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
