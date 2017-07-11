@@ -1,47 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DAE6B02F3
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:13:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q87so141250687pfk.15
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:13:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y34si11161937plb.336.2017.07.11.04.13.00
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CC126B04EB
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:19:18 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u30so30947187wrc.9
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:19:18 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id u9si8829572wme.191.2017.07.11.04.19.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 04:13:01 -0700 (PDT)
-Subject: Re: [PATCH v10 0/3] mm: security: ro protection for dynamic data
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170710150603.387-1-igor.stoppa@huawei.com>
-In-Reply-To: <20170710150603.387-1-igor.stoppa@huawei.com>
-Message-Id: <201707112012.GBC05774.QOtOSLJVFHFOFM@I-love.SAKURA.ne.jp>
-Date: Tue, 11 Jul 2017 20:12:14 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 04:19:17 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6BBESiB130937
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:19:16 -0400
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bma0phphu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:19:15 -0400
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 11 Jul 2017 21:19:13 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6BBJB2r23068766
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:19:11 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6BBJ2ex019389
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:19:02 +1000
+Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
+References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
+ <20170710134917.GB19645@dhcp22.suse.cz>
+ <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
+ <20170711060354.GA24852@dhcp22.suse.cz>
+ <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
+ <20170711065030.GE24852@dhcp22.suse.cz>
+ <337a8a4c-1f27-7371-409d-6a9f181b3871@suse.cz>
+ <20170711071612.GG24852@dhcp22.suse.cz>
+ <20170711072223.GH24852@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 11 Jul 2017 16:49:03 +0530
+MIME-Version: 1.0
+In-Reply-To: <20170711072223.GH24852@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <0fbc7a4a-9e3f-fb64-65cd-3259335bd07e@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: igor.stoppa@huawei.com, jglisse@redhat.com, keescook@chromium.org, mhocko@kernel.org, jmorris@namei.org, labbott@redhat.com, hch@infradead.org
-Cc: paul@paul-moore.com, sds@tycho.nsa.gov, casey@schaufler-ca.com, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-Igor Stoppa wrote:
-> - I had to rebase Tetsuo Handa's patch because it didn't apply cleanly
->   anymore, I would appreciate an ACK to that or a revised patch, whatever 
->   comes easier.
+On 07/11/2017 12:52 PM, Michal Hocko wrote:
+> On Tue 11-07-17 09:16:12, Michal Hocko wrote:
+>> On Tue 11-07-17 08:56:04, Vlastimil Babka wrote:
+> [...]
+>>> It doesn't explain why it's redundant, indeed. Unfortunately, the commit
+>>> f106af4e90ea ("fix checks for expand-in-place mremap") which added this,
+>>> also doesn't explain why it's needed.
+>>
+>> Because it doesn't do anything AFAICS.
+> 
+> Well, it does actually. I have missed security_mmap_addr hook.
 
-Since we are getting several proposals of changing LSM hooks and both your proposal
-and Casey's "LSM: Security module blob management" proposal touch same files, I think
-we can break these changes into small pieces so that both you and Casey can make
-future versions smaller.
-
-If nobody has objections about direction of Igor's proposal and Casey's proposal,
-I think merging only "[PATCH 2/3] LSM: Convert security_hook_heads into explicit
-array of struct list_head" from Igor's proposal and ->security accessor wrappers (e.g.
-
-  #define selinux_security(obj) (obj->security)
-  #define smack_security(obj) (obj->security)
-  #define tomoyo_security(obj) (obj->security)
-  #define apparmor_security(obj) (obj->security)
-
-) from Casey's proposal now helps solving deadlocked situation.
+But we any way call get_unmapped_area() down the line in the function,
+it should be covered then. Does the proposed change look good and be
+considered, or any changes required or can be dropped ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
