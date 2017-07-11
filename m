@@ -1,58 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 290606B04BE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:26:42 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z1so29236124wrz.10
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 23:26:42 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B8F36B04C0
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:41:52 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g46so29356922wrd.3
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 23:41:52 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d9si9889610wrc.290.2017.07.10.23.26.40
+        by mx.google.com with ESMTPS id a21si8448641wme.115.2017.07.10.23.41.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Jul 2017 23:26:41 -0700 (PDT)
-Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
-References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
- <20170710134917.GB19645@dhcp22.suse.cz>
- <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
- <20170711060354.GA24852@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
-Date: Tue, 11 Jul 2017 08:26:40 +0200
+        Mon, 10 Jul 2017 23:41:51 -0700 (PDT)
+Date: Tue, 11 Jul 2017 07:41:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170711064149.bg63nvi54ycynxw4@suse.de>
+References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170711060354.GA24852@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 07/11/2017 08:03 AM, Michal Hocko wrote:
-> On Tue 11-07-17 09:58:42, Anshuman Khandual wrote:
->>> here. This is hardly something that would save many cycles in a
->>> relatively cold path.
->>
->> Though I have not done any detailed instruction level measurement,
->> there is a reduction in real and system amount of time to execute
->> the test with and without the patch.
->>
->> Without the patch
->>
->> real	0m2.100s
->> user	0m0.162s
->> sys	0m1.937s
->>
->> With this patch
->>
->> real	0m0.928s
->> user	0m0.161s
->> sys	0m0.756s
+On Mon, Jul 10, 2017 at 05:52:25PM -0700, Nadav Amit wrote:
+> Something bothers me about the TLB flushes batching mechanism that Linux
+> uses on x86 and I would appreciate your opinion regarding it.
 > 
-> Are you telling me that two if conditions cause more than a second
-> difference? That sounds suspicious.
+> As you know, try_to_unmap_one() can batch TLB invalidations. While doing so,
+> however, the page-table lock(s) are not held, and I see no indication of the
+> pending flush saved (and regarded) in the relevant mm-structs.
+> 
+> So, my question: what prevents, at least in theory, the following scenario:
+> 
+> 	CPU0 				CPU1
+> 	----				----
+> 					user accesses memory using RW PTE 
+> 					[PTE now cached in TLB]
+> 	try_to_unmap_one()
+> 	==> ptep_get_and_clear()
+> 	==> set_tlb_ubc_flush_pending()
+> 					mprotect(addr, PROT_READ)
+> 					==> change_pte_range()
+> 					==> [ PTE non-present - no flush ]
+> 
+> 					user writes using cached RW PTE
+> 	...
+> 
+> 	try_to_unmap_flush()
+> 
+> 
+> As you see CPU1 write should have failed, but may succeed. 
+> 
+> Now I don???t have a PoC since in practice it seems hard to create such a
+> scenario: try_to_unmap_one() is likely to find the PTE accessed and the PTE
+> would not be reclaimed.
+> 
 
-It's removing also a call to get_unmapped_area(), AFAICS. That means a
-vma search?
+That is the same to a race whereby there is no batching mechanism and the
+racing operation happens between a pte clear and a flush as ptep_clear_flush
+is not atomic. All that differs is that the race window is a different size.
+The application on CPU1 is buggy in that it may or may not succeed the write
+but it is buggy regardless of whether a batching mechanism is used or not.
+
+The user accessed the PTE before the mprotect so, at the time of mprotect,
+the PTE is either clean or dirty. If it is clean then any subsequent write
+would transition the PTE from clean to dirty and an architecture enabling
+the batching mechanism must trap a clean->dirty transition for unmapped
+entries as commented upon in try_to_unmap_one (and was checked that this
+is true for x86 at least). This avoids data corruption due to a lost update.
+
+If the previous access was a write then the batching flushes the page if
+any IO is required to avoid any writes after the IO has been initiated
+using try_to_unmap_flush_dirty so again there is no data corruption. There
+is a window where the TLB entry exists after the unmapping but this exists
+regardless of whether we batch or not.
+
+In either case, before a page is freed and potentially allocated to another
+process, the TLB is flushed.
+
+> Yet, isn???t it a problem? Am I missing something?
+> 
+
+It's not a problem as such as it's basically a buggy application that
+can only hurt itself.  I cannot see a path whereby the cached PTE can be
+used to corrupt data by either accessing it after IO has been initiated
+(lost data update) or access a physical page that has been allocated to
+another process (arbitrary corruption).
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
