@@ -1,85 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1C76810BE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:19:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 77so1325192wrb.11
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:19:50 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 71si356798wrl.88.2017.07.11.15.19.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A05A66810BE
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:27:58 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u5so6026579pgq.14
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:27:58 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id h9si419604pln.160.2017.07.11.15.27.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 15:19:49 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6BMJTti023422
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:19:47 -0400
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bn0mw7de1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 18:19:47 -0400
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 11 Jul 2017 16:19:46 -0600
-Date: Tue, 11 Jul 2017 15:19:30 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 12/38] mm: ability to disable execute permission on a
- key at creation
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-13-git-send-email-linuxram@us.ibm.com>
- <3bd2ffd4-33ad-ce23-3db1-d1292e69ca9b@intel.com>
- <1499808577.2865.30.camel@kernel.crashing.org>
- <20170711215105.GA5542@ram.oc3035372033.ibm.com>
- <1499810936.2865.32.camel@kernel.crashing.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1499810936.2865.32.camel@kernel.crashing.org>
-Message-Id: <20170711221929.GC5542@ram.oc3035372033.ibm.com>
+        Tue, 11 Jul 2017 15:27:57 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id y129so621953pgy.3
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:27:57 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: Potential race in TLB flush batching?
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20170711215240.tdpmwmgwcuerjj3o@suse.de>
+Date: Tue, 11 Jul 2017 15:27:55 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
+References: <20170711064149.bg63nvi54ycynxw4@suse.de>
+ <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+ <20170711092935.bogdb4oja6v7kilq@suse.de>
+ <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+ <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
+ <20170711155312.637eyzpqeghcgqzp@suse.de>
+ <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <20170711200923.gyaxfjzz3tpvreuq@suse.de>
+ <20170711215240.tdpmwmgwcuerjj3o@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Wed, Jul 12, 2017 at 08:08:56AM +1000, Benjamin Herrenschmidt wrote:
-> On Tue, 2017-07-11 at 14:51 -0700, Ram Pai wrote:
-> > On Wed, Jul 12, 2017 at 07:29:37AM +1000, Benjamin Herrenschmidt wrote:
-> > > On Tue, 2017-07-11 at 11:11 -0700, Dave Hansen wrote:
-> > > > On 07/05/2017 02:21 PM, Ram Pai wrote:
-> > > > > Currently sys_pkey_create() provides the ability to disable read
-> > > > > and write permission on the key, at  creation. powerpc  has  the
-> > > > > hardware support to disable execute on a pkey as well.This patch
-> > > > > enhances the interface to let disable execute  at  key  creation
-> > > > > time. x86 does  not  allow  this.  Hence the next patch will add
-> > > > > ability  in  x86  to  return  error  if  PKEY_DISABLE_EXECUTE is
-> > > > > specified.
-> > > 
-> > > That leads to the question... How do you tell userspace.
-> > > 
-> > > (apologies if I missed that in an existing patch in the series)
-> > > 
-> > > How do we inform userspace of the key capabilities ? There are at least
-> > > two things userspace may want to know already:
-> > > 
-> > >  - What protection bits are supported for a key
-> > 
-> > the userspace is the one which allocates the keys and enables/disables the
-> > protection bits on the key. the kernel is just a facilitator. Now if the
-> > use space wants to know the current permissions on a given key, it can
-> > just read the AMR/PKRU register on powerpc/intel respectively.
-> 
-> You misunderstand. How does userspace knows on a given system whether
-> execute permission control is supported for keys ?
+Mel Gorman <mgorman@suse.de> wrote:
 
-Ah..sorry. did not catch that part.
+> On Tue, Jul 11, 2017 at 09:09:23PM +0100, Mel Gorman wrote:
+>> On Tue, Jul 11, 2017 at 08:18:23PM +0100, Mel Gorman wrote:
+>>> I don't think we should be particularly clever about this and =
+instead just
+>>> flush the full mm if there is a risk of a parallel batching of =
+flushing is
+>>> in progress resulting in a stale TLB entry being used. I think =
+tracking mms
+>>> that are currently batching would end up being costly in terms of =
+memory,
+>>> fairly complex, or both. Something like this?
+>>=20
+>> mremap and madvise(DONTNEED) would also need to flush. Memory =
+policies are
+>> fine as a move_pages call that hits the race will simply fail to =
+migrate
+>> a page that is being freed and once migration starts, it'll be =
+flushed so
+>> a stale access has no further risk. copy_page_range should also be ok =
+as
+>> the old mm is flushed and the new mm cannot have entries yet.
+>=20
+> Adding those results in
 
-Yes the current patch set does not make that information available. The
-indirect way of find this out is, to try to allocate a key with
-execute-disable permission and decide based on the pass/fail status.
+You are way too fast for me.
 
-we can expose that information through a procfs/sysfs interface.
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -637,12 +637,34 @@ static bool should_defer_flush(struct mm_struct =
+*mm, enum ttu_flags flags)
+> 		return false;
+>=20
+> 	/* If remote CPUs need to be flushed then defer batch the flush =
+*/
+> -	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids)
+> +	if (cpumask_any_but(mm_cpumask(mm), get_cpu()) < nr_cpu_ids) {
+> 		should_defer =3D true;
+> +		mm->tlb_flush_batched =3D true;
+> +	}
 
-RP
+Since mm->tlb_flush_batched is set before the PTE is actually cleared, =
+it
+still seems to leave a short window for a race.
+
+CPU0				CPU1
+---- 				----
+should_defer_flush
+=3D> mm->tlb_flush_batched=3Dtrue	=09
+				flush_tlb_batched_pending (another PT)
+				=3D> flush TLB
+				=3D> mm->tlb_flush_batched=3Dfalse
+ptep_get_and_clear
+...
+
+				flush_tlb_batched_pending (batched PT)
+				use the stale PTE
+...
+try_to_unmap_flush
+
+
+IOW it seems that mm->flush_flush_batched should be set after the PTE is
+cleared (and have some compiler barrier to be on the safe side).
+
+Just to clarify - I don=E2=80=99t try to annoy, but I considered =
+building and
+submitting a patch based on some artifacts of a study I conducted, and =
+this
+issue drove me crazy.
+
+One more question, please: how does elevated page count or even locking =
+the
+page help (as you mention in regard to uprobes and ksm)? Yes, the page =
+will
+not be reclaimed, but IIUC try_to_unmap is called before the reference =
+count
+is frozen, and the page lock is dropped on each iteration of the loop in
+shrink_page_list. In this case, it seems to me that uprobes or ksm may =
+still
+not flush the TLB.
+
+Thanks,
+Nadav=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
