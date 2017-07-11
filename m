@@ -1,64 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 18B506B04AC
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:35:19 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id z82so9816789oiz.6
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 01:35:19 -0700 (PDT)
-Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
-        by mx.google.com with ESMTPS id u69si3311685oie.145.2017.07.11.01.35.17
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E8AB6B04D7
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:29:38 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g46so30346987wrd.3
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:29:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h82si8780781wmh.91.2017.07.11.02.29.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 01:35:18 -0700 (PDT)
-Received: by mail-oi0-x244.google.com with SMTP id l130so14777566oib.2
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 01:35:17 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 02:29:37 -0700 (PDT)
+Date: Tue, 11 Jul 2017 10:29:35 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170711092935.bogdb4oja6v7kilq@suse.de>
+References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
+ <20170711064149.bg63nvi54ycynxw4@suse.de>
+ <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
-References: <20170707133804.29711.1616.stgit@tlendack-t1.amdoffice.net>
- <20170707133925.29711.39301.stgit@tlendack-t1.amdoffice.net>
- <CAMzpN2h=AAF6OVfeGJnf5va2Msmd_BPU5BrVENvs0zGQtRMdzQ@mail.gmail.com>
- <ca43df91-163e-82ce-1d40-c17cfc90e957@amd.com> <CAMzpN2gq0TZbgy-3PUixwvL+6ECX5bOdE0XZsLtGFXA+-Embeg@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Tue, 11 Jul 2017 10:35:17 +0200
-Message-ID: <CAK8P3a3oBgE8ggAjVX6mtWKWwBmw3gYzgTqF3fh9KsQyEgL31g@mail.gmail.com>
-Subject: Re: [PATCH v9 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch <linux-arch@vger.kernel.org>, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, the arch/x86 maintainers <x86@kernel.org>, kexec@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, xen-devel@lists.xen.org, Linux-MM <linux-mm@kvack.org>, "open list:IOMMU DRIVERS" <iommu@lists.linux-foundation.org>, Brijesh Singh <brijesh.singh@amd.com>, Toshimitsu Kani <toshi.kani@hpe.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Larry Woodman <lwoodman@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, "Michael S. Tsirkin" <mst@redhat.com>, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave Young <dyoung@redhat.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Juergen Gross <jgross@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Tue, Jul 11, 2017 at 6:58 AM, Brian Gerst <brgerst@gmail.com> wrote:
-> On Mon, Jul 10, 2017 at 3:50 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->> On 7/8/2017 7:57 AM, Brian Gerst wrote:
->>> On Fri, Jul 7, 2017 at 9:39 AM, Tom Lendacky <thomas.lendacky@amd.com>
->>
->> I originally had a check for SME here in a previous version of the
->> patch.  Thomas Gleixner recommended removing the check so that the code
->> path was always exercised regardless of the state of SME in order to
->> better detect issues:
->>
->> http://marc.info/?l=linux-kernel&m=149803067811436&w=2
->
-> Looking a bit closer, this shortcut doesn't set the caching
-> attributes.  So it's probably best to get rid of it anyways.  Also
-> note, there is a corresponding check in iounmap().
+On Tue, Jul 11, 2017 at 12:30:28AM -0700, Nadav Amit wrote:
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Mon, Jul 10, 2017 at 05:52:25PM -0700, Nadav Amit wrote:
+> >> Something bothers me about the TLB flushes batching mechanism that Linux
+> >> uses on x86 and I would appreciate your opinion regarding it.
+> >> 
+> >> As you know, try_to_unmap_one() can batch TLB invalidations. While doing so,
+> >> however, the page-table lock(s) are not held, and I see no indication of the
+> >> pending flush saved (and regarded) in the relevant mm-structs.
+> >> 
+> >> So, my question: what prevents, at least in theory, the following scenario:
+> >> 
+> >> 	CPU0 				CPU1
+> >> 	----				----
+> >> 					user accesses memory using RW PTE 
+> >> 					[PTE now cached in TLB]
+> >> 	try_to_unmap_one()
+> >> 	==> ptep_get_and_clear()
+> >> 	==> set_tlb_ubc_flush_pending()
+> >> 					mprotect(addr, PROT_READ)
+> >> 					==> change_pte_range()
+> >> 					==> [ PTE non-present - no flush ]
+> >> 
+> >> 					user writes using cached RW PTE
+> >> 	...
+> >> 
+> >> 	try_to_unmap_flush()
+> >> 
+> >> 
+> >> As you see CPU1 write should have failed, but may succeed. 
+> >> 
+> >> Now I don???t have a PoC since in practice it seems hard to create such a
+> >> scenario: try_to_unmap_one() is likely to find the PTE accessed and the PTE
+> >> would not be reclaimed.
+> > 
+> > That is the same to a race whereby there is no batching mechanism and the
+> > racing operation happens between a pte clear and a flush as ptep_clear_flush
+> > is not atomic. All that differs is that the race window is a different size.
+> > The application on CPU1 is buggy in that it may or may not succeed the write
+> > but it is buggy regardless of whether a batching mechanism is used or not.
+> 
+> Thanks for your quick and detailed response, but I fail to see how it can
+> happen without batching. Indeed, the PTE clear and flush are not ???atomic???,
+> but without batching they are both performed under the page table lock
+> (which is acquired in page_vma_mapped_walk and released in
+> page_vma_mapped_walk_done). Since the lock is taken, other cores should not
+> be able to inspect/modify the PTE. Relevant functions, e.g., zap_pte_range
+> and change_pte_range, acquire the lock before accessing the PTEs.
+> 
 
-Could that cause regressions if a driver relies on (write-through)
-cacheable access to the VGA frame buffer RAM or an read-only
-cached access to an option ROM but now gets uncached access?
+I was primarily thinking in terms of memory corruption or data loss.
+However, we are still protected although it's not particularly obvious why.
 
-I also tried to find out whether we can stop mapping the ISA MMIO
-area into the linear mapping, but at least the VGA code uses
-VGA_MAP_MEM() to get access to the same pointers. I'm pretty
-sure this got copied incorrectly into most other architectures, but
-it is definitely still used on x86 with vga16fb/vgacon/mdacon.
+On the reclaim side, we are either reclaiming clean pages (which ignore
+the accessed bit) or normal reclaim. If it's clean pages then any parallel
+write must update the dirty bit at minimum. If it's normal reclaim then
+the accessed bit is checked and if cleared in try_to_unmap_one, it uses a
+ptep_clear_flush_young_notify so the TLB gets flushed. We don't reclaim
+the page in either as part of page_referenced or try_to_unmap_one but
+clearing the accessed bit flushes the TLB.
 
-On the plus side, I see that removing this code path will end up
-restoring MMIOTRACE support for the ISA MMIO range that was
-apparently removed by accident in commit d61fc44853f4
-("x86: mmiotrace, preview 2") in linux-2.6.27.
+On the mprotect side then, as the page was first accessed, clearing the
+accessed bit incurs a TLB flush on the reclaim side before the second write.
+That means any TLB entry that exists cannot have the accessed bit set so
+a second write needs to update it.
 
-      Arnd
+While it's not clearly documented, I checked with hardware engineers
+at the time that an update of the accessed or dirty bit even with a TLB
+entry will check the underlying page tables and trap if it's not present
+and the subsequent fault will then fail on sigsegv if the VMA protections
+no longer allow the write.
+
+So, on one side if ignoring the accessed bit during reclaim, the pages
+are clean so any access will set the dirty bit and trap if unmapped in
+parallel. On the other side, the accessed bit if set cleared the TLB and
+if not set, then the hardware needs to update and again will trap if
+unmapped in parallel.
+
+If this guarantee from hardware was every shown to be wrong or another
+architecture wanted to add batching without the same guarantee then mprotect
+would need to do a local_flush_tlb if no pages were updated by the mprotect
+but right now, this should not be necessary.
+
+> Can you please explain why you consider the application to be buggy?
+
+I considered it a bit dumb to mprotect for READ/NONE and then try writing
+the same mapping. However, it will behave as expected.
+
+> AFAIU
+> an application can wish to trap certain memory accesses using userfaultfd or
+> SIGSEGV. For example, it may do it for garbage collection or sandboxing. To
+> do so, it can use mprotect with PROT_NONE and expect to be able to trap
+> future accesses to that memory. This use-case is described in usefaultfd
+> documentation.
+> 
+
+Such applications are safe due to how the accessed bit is handled by the
+software (flushes TLB if clearing young) and hardware (traps if updating
+the accessed or dirty bit and the underlying PTE was unmapped even if
+there is a TLB entry).
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
