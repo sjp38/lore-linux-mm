@@ -1,71 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 971316B050B
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:52:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v88so518254wrb.1
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:52:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a193si1962122wmd.151.2017.07.11.07.52.49
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 05D7E6B050D
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:57:50 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u71so1504714qkl.8
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:57:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d78si116670qkc.297.2017.07.11.07.57.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 07:52:49 -0700 (PDT)
-Date: Tue, 11 Jul 2017 16:52:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
-Message-ID: <20170711145246.GA11917@dhcp22.suse.cz>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 07:57:49 -0700 (PDT)
+Date: Tue, 11 Jul 2017 10:57:44 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 2/5] mm/device-public-memory: device memory cache
+ coherent with CPU v2
+Message-ID: <20170711145744.GA5347@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+ <20170703211415.11283-3-jglisse@redhat.com>
+ <20170711141215.4fd1a972@firefly.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170711141215.4fd1a972@firefly.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <balbirs@au1.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Wed 05-07-17 14:21:37, Ram Pai wrote:
-> Memory protection keys enable applications to protect its
-> address space from inadvertent access or corruption from
-> itself.
+On Tue, Jul 11, 2017 at 02:12:15PM +1000, Balbir Singh wrote:
+> On Mon,  3 Jul 2017 17:14:12 -0400
+> Jerome Glisse <jglisse@redhat.com> wrote:
 > 
-> The overall idea:
+> > Platform with advance system bus (like CAPI or CCIX) allow device
+> > memory to be accessible from CPU in a cache coherent fashion. Add
+> > a new type of ZONE_DEVICE to represent such memory. The use case
+> > are the same as for the un-addressable device memory but without
+> > all the corners cases.
+> >
 > 
->  A process allocates a   key  and associates it with
->  an  address  range  within    its   address   space.
->  The process  then  can  dynamically  set read/write 
->  permissions on  the   key   without  involving  the 
->  kernel. Any  code that  violates   the  permissions
->  of  the address space; as defined by its associated
->  key, will receive a segmentation fault.
-> 
-> This patch series enables the feature on PPC64 HPTE
-> platform.
-> 
-> ISA3.0 section 5.7.13 describes the detailed specifications.
+> Looks good overall, some comments inline.
+>  
 
-Could you describe the highlevel design of this feature in the cover
-letter. I have tried to get some idea from the patchset but it was
-really far from trivial. Patches are not very well split up (many
-helpers are added without their users etc..). 
+[...]
+
+> >  /*
+> > @@ -92,6 +100,8 @@ enum memory_type {
+> >   * The page_free() callback is called once the page refcount reaches 1
+> >   * (ZONE_DEVICE pages never reach 0 refcount unless there is a refcount bug.
+> >   * This allows the device driver to implement its own memory management.)
+> > + *
+> > + * For MEMORY_DEVICE_CACHE_COHERENT only the page_free() callback matter.
+> 
+> Correct, but I wonder if we should in the long term allow for minor faults
+> (due to coherency) via this interface?
+
+This is something we can explore latter on.
+
+[...]
+
+> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+> > index e82456c39a6a..da74775f2247 100644
+> > --- a/kernel/memremap.c
+> > +++ b/kernel/memremap.c
+> > @@ -466,7 +466,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+> >  
+> >  
+> >  #ifdef CONFIG_DEVICE_PRIVATE
+> 
+> Does the #ifdef above need to go as well?
+
+Good catch i should make that conditional on DEVICE_PUBLIC or whatever
+the name endup to be. I will make sure i test without DEVICE_PRIVATE
+config before posting again.
+
+[...]
+
+> > @@ -2541,11 +2551,21 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
+> >  	 */
+> >  	__SetPageUptodate(page);
+> >  
+> > -	if (is_zone_device_page(page) && is_device_private_page(page)) {
+> > -		swp_entry_t swp_entry;
+> > +	if (is_zone_device_page(page)) {
+> > +		if (is_device_private_page(page)) {
+> > +			swp_entry_t swp_entry;
+> >  
+> > -		swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
+> > -		entry = swp_entry_to_pte(swp_entry);
+> > +			swp_entry = make_device_private_entry(page, vma->vm_flags & VM_WRITE);
+> > +			entry = swp_entry_to_pte(swp_entry);
+> > +		}
+> > +#if IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+> 
+> Do we need this #if check? is_device_public_page(page)
+> will return false if the config is disabled
+
+pte_mkdevmap() is not define if ZONE_DEVICE is not enabled hence
+i had to protect this with #if/#endif to avoid build error.
 
 > 
-> Testing:
-> 	This patch series has passed all the protection key
-> 	tests available in  the selftests directory.
-> 	The tests are updated to work on both x86 and powerpc.
-> 
-> version v5:
-> 	(1) reverted back to the old design -- store the 
-> 	    key in the pte, instead of bypassing it.
-> 	    The v4 design slowed down the hash page path.
-
-This surprised me a lot but I couldn't find the respective code. Why do
-you need to store anything in the pte? My understanding of PKEYs is that
-the setup and teardown should be very cheap and so no page tables have
-to updated. Or do I just misunderstand what you wrote here?
--- 
-Michal Hocko
-SUSE Labs
+> > +		else if (is_device_public_page(page)) {
+> > +			entry = pte_mkold(mk_pte(page, READ_ONCE(vma->vm_page_prot)));
+> > +			if (vma->vm_flags & VM_WRITE)
+> > +				entry = pte_mkwrite(pte_mkdirty(entry));
+> > +			entry = pte_mkdevmap(entry);
+> > +		}
+> > +#endif /* IS_ENABLED(CONFIG_DEVICE_PUBLIC) */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
