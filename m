@@ -1,135 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8AB6B04D7
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:29:38 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g46so30346987wrd.3
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:29:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h82si8780781wmh.91.2017.07.11.02.29.37
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DE16B04D9
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:45:27 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id g14so143633899pgu.9
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 02:45:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a61si11031632pla.145.2017.07.11.02.45.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 02:29:37 -0700 (PDT)
-Date: Tue, 11 Jul 2017 10:29:35 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Potential race in TLB flush batching?
-Message-ID: <20170711092935.bogdb4oja6v7kilq@suse.de>
-References: <69BBEB97-1B10-4229-9AEF-DE19C26D8DFF@gmail.com>
- <20170711064149.bg63nvi54ycynxw4@suse.de>
- <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 02:45:26 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6B9ippD025963
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:45:26 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bmbyy0myu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:45:25 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 11 Jul 2017 19:45:21 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6B9jAkt12714096
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 19:45:18 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6B9ijbh031317
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 19:44:46 +1000
+Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
+References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
+ <20170710134917.GB19645@dhcp22.suse.cz>
+ <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
+ <20170711060354.GA24852@dhcp22.suse.cz>
+ <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 11 Jul 2017 15:14:27 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+In-Reply-To: <4c182da0-6c84-df67-b173-6960fac0544a@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <210533b7-3b29-b6bd-24db-03e0c756a882@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-On Tue, Jul 11, 2017 at 12:30:28AM -0700, Nadav Amit wrote:
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Mon, Jul 10, 2017 at 05:52:25PM -0700, Nadav Amit wrote:
-> >> Something bothers me about the TLB flushes batching mechanism that Linux
-> >> uses on x86 and I would appreciate your opinion regarding it.
-> >> 
-> >> As you know, try_to_unmap_one() can batch TLB invalidations. While doing so,
-> >> however, the page-table lock(s) are not held, and I see no indication of the
-> >> pending flush saved (and regarded) in the relevant mm-structs.
-> >> 
-> >> So, my question: what prevents, at least in theory, the following scenario:
-> >> 
-> >> 	CPU0 				CPU1
-> >> 	----				----
-> >> 					user accesses memory using RW PTE 
-> >> 					[PTE now cached in TLB]
-> >> 	try_to_unmap_one()
-> >> 	==> ptep_get_and_clear()
-> >> 	==> set_tlb_ubc_flush_pending()
-> >> 					mprotect(addr, PROT_READ)
-> >> 					==> change_pte_range()
-> >> 					==> [ PTE non-present - no flush ]
-> >> 
-> >> 					user writes using cached RW PTE
-> >> 	...
-> >> 
-> >> 	try_to_unmap_flush()
-> >> 
-> >> 
-> >> As you see CPU1 write should have failed, but may succeed. 
-> >> 
-> >> Now I don???t have a PoC since in practice it seems hard to create such a
-> >> scenario: try_to_unmap_one() is likely to find the PTE accessed and the PTE
-> >> would not be reclaimed.
-> > 
-> > That is the same to a race whereby there is no batching mechanism and the
-> > racing operation happens between a pte clear and a flush as ptep_clear_flush
-> > is not atomic. All that differs is that the race window is a different size.
-> > The application on CPU1 is buggy in that it may or may not succeed the write
-> > but it is buggy regardless of whether a batching mechanism is used or not.
-> 
-> Thanks for your quick and detailed response, but I fail to see how it can
-> happen without batching. Indeed, the PTE clear and flush are not ???atomic???,
-> but without batching they are both performed under the page table lock
-> (which is acquired in page_vma_mapped_walk and released in
-> page_vma_mapped_walk_done). Since the lock is taken, other cores should not
-> be able to inspect/modify the PTE. Relevant functions, e.g., zap_pte_range
-> and change_pte_range, acquire the lock before accessing the PTEs.
-> 
+On 07/11/2017 11:56 AM, Vlastimil Babka wrote:
+> On 07/11/2017 08:03 AM, Michal Hocko wrote:
+>> On Tue 11-07-17 09:58:42, Anshuman Khandual wrote:
+>>>> here. This is hardly something that would save many cycles in a
+>>>> relatively cold path.
+>>> Though I have not done any detailed instruction level measurement,
+>>> there is a reduction in real and system amount of time to execute
+>>> the test with and without the patch.
+>>>
+>>> Without the patch
+>>>
+>>> real	0m2.100s
+>>> user	0m0.162s
+>>> sys	0m1.937s
+>>>
+>>> With this patch
+>>>
+>>> real	0m0.928s
+>>> user	0m0.161s
+>>> sys	0m0.756s
+>> Are you telling me that two if conditions cause more than a second
+>> difference? That sounds suspicious.
+> It's removing also a call to get_unmapped_area(), AFAICS. That means a
+> vma search?
 
-I was primarily thinking in terms of memory corruption or data loss.
-However, we are still protected although it's not particularly obvious why.
-
-On the reclaim side, we are either reclaiming clean pages (which ignore
-the accessed bit) or normal reclaim. If it's clean pages then any parallel
-write must update the dirty bit at minimum. If it's normal reclaim then
-the accessed bit is checked and if cleared in try_to_unmap_one, it uses a
-ptep_clear_flush_young_notify so the TLB gets flushed. We don't reclaim
-the page in either as part of page_referenced or try_to_unmap_one but
-clearing the accessed bit flushes the TLB.
-
-On the mprotect side then, as the page was first accessed, clearing the
-accessed bit incurs a TLB flush on the reclaim side before the second write.
-That means any TLB entry that exists cannot have the accessed bit set so
-a second write needs to update it.
-
-While it's not clearly documented, I checked with hardware engineers
-at the time that an update of the accessed or dirty bit even with a TLB
-entry will check the underlying page tables and trap if it's not present
-and the subsequent fault will then fail on sigsegv if the VMA protections
-no longer allow the write.
-
-So, on one side if ignoring the accessed bit during reclaim, the pages
-are clean so any access will set the dirty bit and trap if unmapped in
-parallel. On the other side, the accessed bit if set cleared the TLB and
-if not set, then the hardware needs to update and again will trap if
-unmapped in parallel.
-
-If this guarantee from hardware was every shown to be wrong or another
-architecture wanted to add batching without the same guarantee then mprotect
-would need to do a local_flush_tlb if no pages were updated by the mprotect
-but right now, this should not be necessary.
-
-> Can you please explain why you consider the application to be buggy?
-
-I considered it a bit dumb to mprotect for READ/NONE and then try writing
-the same mapping. However, it will behave as expected.
-
-> AFAIU
-> an application can wish to trap certain memory accesses using userfaultfd or
-> SIGSEGV. For example, it may do it for garbage collection or sandboxing. To
-> do so, it can use mprotect with PROT_NONE and expect to be able to trap
-> future accesses to that memory. This use-case is described in usefaultfd
-> documentation.
-> 
-
-Such applications are safe due to how the accessed bit is handled by the
-software (flushes TLB if clearing young) and hardware (traps if updating
-the accessed or dirty bit and the underlying PTE was unmapped even if
-there is a TLB entry).
-
--- 
-Mel Gorman
-SUSE Labs
+I believe removing this function is responsible for the
+increase in speed of the test execution.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
