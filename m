@@ -1,88 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17B806B04CA
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 17:03:00 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g53so1854722qtc.6
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:03:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k1si393084qkd.166.2017.07.11.14.02.59
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E661D6B04D3
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 17:09:22 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u30so982594wrc.9
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:09:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p128si352333wmb.40.2017.07.11.14.09.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 14:02:59 -0700 (PDT)
-Date: Tue, 11 Jul 2017 23:02:56 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-Message-ID: <20170711210256.GF22628@redhat.com>
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
- <20170711123642.GC11936@dhcp22.suse.cz>
- <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Jul 2017 14:09:21 -0700 (PDT)
+Date: Tue, 11 Jul 2017 22:09:19 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170711210919.y4odiqtfeb4e3ulz@suse.de>
+References: <20170711064149.bg63nvi54ycynxw4@suse.de>
+ <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+ <20170711092935.bogdb4oja6v7kilq@suse.de>
+ <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+ <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
+ <20170711155312.637eyzpqeghcgqzp@suse.de>
+ <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <3373F577-F289-4028-B6F6-777D029A7B07@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
+In-Reply-To: <3373F577-F289-4028-B6F6-777D029A7B07@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Tue, Jul 11, 2017 at 11:23:19AM -0700, Mike Kravetz wrote:
-> I was surprised as well when a JVM developer pointed this out.
+On Tue, Jul 11, 2017 at 01:06:48PM -0700, Nadav Amit wrote:
+> > +/*
+> > + * Reclaim batches unmaps pages under the PTL but does not flush the TLB
+> > + * TLB prior to releasing the PTL. It's possible a parallel mprotect or
+> > + * munmap can race between reclaim unmapping the page and flushing the
+> > + * page. If this race occurs, it potentially allows access to data via
+> > + * a stale TLB entry. Tracking all mm's that have TLB batching pending
+> > + * would be expensive during reclaim so instead track whether TLB batching
+> > + * occured in the past and if so then do a full mm flush here. This will
+> > + * cost one additional flush per reclaim cycle paid by the first munmap or
+> > + * mprotect. This assumes it's called under the PTL to synchronise access
+> > + * to mm->tlb_flush_batched.
+> > + */
+> > +void flush_tlb_batched_pending(struct mm_struct *mm)
+> > +{
+> > +	if (mm->tlb_flush_batched) {
+> > +		flush_tlb_mm(mm);
+> > +		mm->tlb_flush_batched = false;
+> > +	}
+> > +}
+> > #else
+> > static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
+> > {
 > 
-> From the old e-mail thread, here is original use case:
-> shmget(IPC_PRIVATE, 31498240, 0x1c0|0600) = 11337732
-> shmat(11337732, 0, 0)                   = 0x40299000
-> shmctl(11337732, IPC_RMID, 0)           = 0
-> mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0) = 0
-> mremap(0x402a9000, 0, 65536, MREMAP_MAYMOVE|MREMAP_FIXED, 0x100000) = 0x100000
+> I don???t know what is exactly the invariant that is kept, so it is hard for
+> me to figure out all sort of questions:
 > 
-> The JVM team wants to do something similar.  They are using
-> mmap(MAP_ANONYMOUS|MAP_SHARED) to create the initial mapping instead
-> of shmget/shmat.  As Vlastimil mentioned previously, one would not
-> expect a shared mapping for parts of the JVM heap.  I am working
-> to get clarification from the JVM team.
-
-Why don't they use memfd_create instead? That's made so that the fd is
-born anon unlinked so when the last reference is dropped all memory
-associated with it is automatically freed. No need of IC_RMID and then
-they can use mmap instead of mremap(len=0) to get a double map of it.
-
-If they use mmap(MAP_ANONYMOUS|MAP_SHARED) it's not hugetlbfs, that
-would have been the only issue.
-
-Using hugetlbfs for JVM wouldn't be really flexible, better they try
-to leverage THP on SHM or the hugetlbfs reservation gets in the way of
-efficient use of the unused memory for memory allocations that don't
-have a definitive size (i.e. JVM forks or more JVM are run in
-parallel).
-
-> Yes.  I think this should be a separate patch.  As mentioned earlier,
-> mremap today creates a new/additional private mapping if called in this
-> way with old_size == 0.  To me, this is a bug.
-
-Kernel by sheer luck should stay stable, but the result is weird and
-it's unlikely intentional.
-
-memfd_create doesn't have such issue, the new mmap MAP_PRIVATE will
-get the file pages correctly after a new mmap (even if there were cows
-in the old MAP_PRIVATE mmap).
-
-> One reason for the RFC was to determine if people thought we should:
-> 1) Just document the existing old_size == 0 functionality
-> 2) Create a more explicit interface such as a new mremap flag for this
->    functionality
+> Should pte_accessible return true if mm->tlb_flush_batch==true ?
 > 
-> I am waiting to see what direction people prefer before making any
-> man page updates.
 
-I guess old_size == 0 would better be dropped if possible, if
-memfd_create fits perfectly your needs as I supposed above. If it's
-not dropped then it's not very far from allowing mmap of /proc/self/mm
-again (removed around so far as 2.3.x?).
+It shouldn't be necessary. The contexts where we hit the path are
 
-Thanks,
-Andrea
+uprobes: elevated page count so no parallel reclaim
+dax: PTEs are not mapping that would be reclaimed
+hugetlbfs: Not reclaimed
+ksm: holds page lock and elevates count so cannot race with reclaim
+cow: at the time of the flush, the page count is elevated so cannot race with reclaim
+page_mkclean: only concerned with marking existing ptes clean but in any
+	case, the batching flushes the TLB before issueing any IO so there
+	isn't space for a stable TLB entry to be used for something bad.
+
+> Does madvise_free_pte_range need to be modified as well?
+> 
+
+Yes, I noticed that out shortly after sending the first version and
+commented upon it.
+
+> How will future code not break anything?
+> 
+
+I can't really answer that without a crystal ball. Code dealing with page
+table updates would need to take some care if it can race with parallel
+reclaim.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
