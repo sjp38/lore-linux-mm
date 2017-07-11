@@ -1,115 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EFD656B04EE
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:22 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v88so31095038wrb.1
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:25:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id u18si10409679wra.269.2017.07.11.04.25.21
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C8F846B04F0
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:32:36 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v60so31062239wrc.7
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:32:36 -0700 (PDT)
+Received: from mail-wr0-x22c.google.com (mail-wr0-x22c.google.com. [2a00:1450:400c:c0c::22c])
+        by mx.google.com with ESMTPS id 60si9701366wrj.58.2017.07.11.04.32.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jul 2017 04:25:21 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6BBO7Ww079242
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:20 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bmc7nk7gx-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:25:20 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 11 Jul 2017 21:25:17 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6BBNp4p21430510
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:23:59 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6BBN1Vp015768
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 21:23:03 +1000
-Subject: Re: [RFC v5 31/38] powerpc: introduce get_pte_pkey() helper
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-32-git-send-email-linuxram@us.ibm.com>
- <58e0d9ff-727f-c960-5c5f-16d19a89e181@linux.vnet.ibm.com>
- <20170710055502.GC5713@ram.oc3035372033.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 11 Jul 2017 16:52:40 +0530
+        Tue, 11 Jul 2017 04:32:35 -0700 (PDT)
+Received: by mail-wr0-x22c.google.com with SMTP id c11so179407077wrc.3
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 04:32:35 -0700 (PDT)
+Date: Tue, 11 Jul 2017 12:32:33 +0100
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [PATCH v4 00/10] PCID and improved laziness
+Message-ID: <20170711113233.GA19177@codeblueprint.co.uk>
+References: <cover.1498751203.git.luto@kernel.org>
+ <20170630124422.GA12077@codeblueprint.co.uk>
 MIME-Version: 1.0
-In-Reply-To: <20170710055502.GC5713@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <94b76f58-1002-b3a7-7269-67129c795f25@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170630124422.GA12077@codeblueprint.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On 07/10/2017 11:25 AM, Ram Pai wrote:
-> On Mon, Jul 10, 2017 at 08:41:30AM +0530, Anshuman Khandual wrote:
->> On 07/06/2017 02:52 AM, Ram Pai wrote:
->>> get_pte_pkey() helper returns the pkey associated with
->>> a address corresponding to a given mm_struct.
->>>
->>> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->>> ---
->>>  arch/powerpc/include/asm/book3s/64/mmu-hash.h |    5 ++++
->>>  arch/powerpc/mm/hash_utils_64.c               |   28 +++++++++++++++++++++++++
->>>  2 files changed, 33 insertions(+), 0 deletions(-)
->>>
->>> diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
->>> index f7a6ed3..369f9ff 100644
->>> --- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
->>> +++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
->>> @@ -450,6 +450,11 @@ extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
->>>  int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
->>>  		     pte_t *ptep, unsigned long trap, unsigned long flags,
->>>  		     int ssize, unsigned int shift, unsigned int mmu_psize);
->>> +
->>> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->>> +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address);
->>> +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
->>> +
->>>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>>  extern int __hash_page_thp(unsigned long ea, unsigned long access,
->>>  			   unsigned long vsid, pmd_t *pmdp, unsigned long trap,
->>> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
->>> index 1e74529..591990c 100644
->>> --- a/arch/powerpc/mm/hash_utils_64.c
->>> +++ b/arch/powerpc/mm/hash_utils_64.c
->>> @@ -1573,6 +1573,34 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
->>>  	local_irq_restore(flags);
->>>  }
->>>  
->>> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->>> +/*
->>> + * return the protection key associated with the given address
->>> + * and the mm_struct.
->>> + */
->>> +u16 get_pte_pkey(struct mm_struct *mm, unsigned long address)
->>> +{
->>> +	pte_t *ptep;
->>> +	u16 pkey = 0;
->>> +	unsigned long flags;
->>> +
->>> +	if (REGION_ID(address) == VMALLOC_REGION_ID)
->>> +		mm = &init_mm;
->>
->> IIUC, protection keys are only applicable for user space. This
->> function is getting used to populate siginfo structure. Then how
->> can we ever request this for any address in VMALLOC region.
+On Fri, 30 Jun, at 01:44:22PM, Matt Fleming wrote:
+> On Thu, 29 Jun, at 08:53:12AM, Andy Lutomirski wrote:
+> > *** Ingo, even if this misses 4.13, please apply the first patch before
+> > *** the merge window.
+> > 
+> > There are three performance benefits here:
+> > 
+> > 1. TLB flushing is slow.  (I.e. the flush itself takes a while.)
+> >    This avoids many of them when switching tasks by using PCID.  In
+> >    a stupid little benchmark I did, it saves about 100ns on my laptop
+> >    per context switch.  I'll try to improve that benchmark.
+> > 
+> > 2. Mms that have been used recently on a given CPU might get to keep
+> >    their TLB entries alive across process switches with this patch
+> >    set.  TLB fills are pretty fast on modern CPUs, but they're even
+> >    faster when they don't happen.
+> > 
+> > 3. Lazy TLB is way better.  We used to do two stupid things when we
+> >    ran kernel threads: we'd send IPIs to flush user contexts on their
+> >    CPUs and then we'd write to CR3 for no particular reason as an excuse
+> >    to stop further IPIs.  With this patch, we do neither.
 > 
-> make sense. this check is not needed.
-> 
->>
->>> +
->>> +	if (!mm || !mm->pgd)
->>> +		return 0;
->>
->> Is this really required at this stage ?
-> 
-> its a sanity check to gaurd against bad inputs. See a problem?
+> Heads up, I'm gonna queue this for a run on SUSE's performance test
+> grid.
 
+FWIW, I didn't see any change in performance with this series on a
+PCID-capable machine. On the plus side, I didn't see any weird-looking
+bugs either.
 
-I mean its okay, thought it to be unnecessary. Your call.
+Are your benchmarks available anywhere?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
