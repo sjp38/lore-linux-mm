@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E846B04B3
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:29:01 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x23so28805402wrb.6
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:29:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t206si555423wmt.160.2017.07.10.21.28.59
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FD756B04B7
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:30:33 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e199so132361705pfh.7
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 21:30:33 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d14si10611351plj.436.2017.07.10.21.30.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 21:29:00 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6B4SiTn017982
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:28:58 -0400
+        Mon, 10 Jul 2017 21:30:32 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6B4SflL104911
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:30:31 -0400
 Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bma0p4kt6-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bmc3g6bk7-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:28:58 -0400
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 00:30:31 -0400
 Received: from localhost
 	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 11 Jul 2017 14:28:54 +1000
+	Tue, 11 Jul 2017 14:30:29 +1000
 Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6B4Sp5L13369576
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:28:51 +1000
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6B4TB8822282256
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:29:11 +1000
 Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6B4Soha003047
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:28:50 +1000
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6B4TB2b003492
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 14:29:11 +1000
 Subject: Re: [RFC] mm/mremap: Remove redundant checks inside vma_expandable()
 References: <20170710111059.30795-1-khandual@linux.vnet.ibm.com>
  <20170710134917.GB19645@dhcp22.suse.cz>
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 11 Jul 2017 09:58:42 +0530
+Date: Tue, 11 Jul 2017 09:59:08 +0530
 MIME-Version: 1.0
 In-Reply-To: <20170710134917.GB19645@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Message-Id: <d6f9ec12-4518-8f97-eca9-6592808b839d@linux.vnet.ibm.com>
+Message-Id: <046daffc-0a93-77ec-9e40-6577174236fc@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
