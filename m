@@ -1,152 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7186B04FB
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:36:46 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l34so31426554wrc.12
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:36:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z68si9354364wmz.6.2017.07.11.05.36.45
+	by kanga.kvack.org (Postfix) with ESMTP id 483806B04FC
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:52:00 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 77so31560721wrb.11
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 05:52:00 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id u10si8706460wmg.100.2017.07.11.05.51.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 05:36:45 -0700 (PDT)
-Date: Tue, 11 Jul 2017 14:36:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-Message-ID: <20170711123642.GC11936@dhcp22.suse.cz>
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 05:51:58 -0700 (PDT)
+Date: Tue, 11 Jul 2017 13:51:24 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v3 2/6] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170711125124.GA12406@castle>
+References: <1498079956-24467-1-git-send-email-guro@fb.com>
+ <1498079956-24467-3-git-send-email-guro@fb.com>
+ <alpine.DEB.2.10.1707101547010.116811@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <alpine.DEB.2.10.1707101547010.116811@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 06-07-17 09:17:26, Mike Kravetz wrote:
-> The mremap system call has the ability to 'mirror' parts of an existing
-> mapping.  To do so, it creates a new mapping that maps the same pages as
-> the original mapping, just at a different virtual address.  This
-> functionality has existed since at least the 2.6 kernel.
+On Mon, Jul 10, 2017 at 04:05:49PM -0700, David Rientjes wrote:
+> On Wed, 21 Jun 2017, Roman Gushchin wrote:
 > 
-> This patch simply adds a new flag to mremap which will make this
-> functionality part of the API.  It maintains backward compatibility with
-> the existing way of requesting mirroring (old_size == 0).
+> > Traditionally, the OOM killer is operating on a process level.
+> > Under oom conditions, it finds a process with the highest oom score
+> > and kills it.
+> > 
+> > This behavior doesn't suit well the system with many running
+> > containers. There are two main issues:
+> > 
+> > 1) There is no fairness between containers. A small container with
+> > few large processes will be chosen over a large one with huge
+> > number of small processes.
+> > 
 > 
-> If this new MREMAP_MIRROR flag is specified, then new_size must equal
-> old_size.  In addition, the MREMAP_MAYMOVE flag must be specified.
-
-I have to admit that this came as a suprise to me. There is no mention
-about this special case in the man page and the mremap code is so
-convoluted that I simply didn't see it there. I guess the only
-reasonable usecase is when you do not have a fd for the shared memory.
-
-Anyway the patch should fail with -EINVAL on private mappings as Kirill
-already pointed out and this should go along with an update to the
-man page which describes also the historical behavior. Make sure you
-document that this is not really a mirroring (e.g. faulting page in one
-address will automatically map it to the other mapping(s)) but merely a
-copy of the range. Maybe MREMAP_COPY would be more appropriate name.
-
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  include/uapi/linux/mman.h       |  5 +++--
->  mm/mremap.c                     | 23 ++++++++++++++++-------
->  tools/include/uapi/linux/mman.h |  5 +++--
->  3 files changed, 22 insertions(+), 11 deletions(-)
+> Yes, the original motivation was to limit killing to a single process, if 
+> possible.  To do that, we kill the process with the largest rss to free 
+> the most memory and rely on the user to configure /proc/pid/oom_score_adj 
+> if something else should be prioritized.
 > 
-> diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
-> index ade4acd..6b3e0df 100644
-> --- a/include/uapi/linux/mman.h
-> +++ b/include/uapi/linux/mman.h
-> @@ -3,8 +3,9 @@
->  
->  #include <asm/mman.h>
->  
-> -#define MREMAP_MAYMOVE	1
-> -#define MREMAP_FIXED	2
-> +#define MREMAP_MAYMOVE	0x01
-> +#define MREMAP_FIXED	0x02
-> +#define MREMAP_MIRROR	0x04
->  
->  #define OVERCOMMIT_GUESS		0
->  #define OVERCOMMIT_ALWAYS		1
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b1..f18ab36 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -516,10 +516,11 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
->  	LIST_HEAD(uf_unmap);
->  
-> -	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
-> +	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_MIRROR))
->  		return ret;
->  
-> -	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
-> +	if ((flags & MREMAP_FIXED || flags & MREMAP_MIRROR) &&
-> +	    !(flags & MREMAP_MAYMOVE))
->  		return ret;
->  
->  	if (offset_in_page(addr))
-> @@ -528,14 +529,22 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  	old_len = PAGE_ALIGN(old_len);
->  	new_len = PAGE_ALIGN(new_len);
->  
-> -	/*
-> -	 * We allow a zero old-len as a special case
-> -	 * for DOS-emu "duplicate shm area" thing. But
-> -	 * a zero new-len is nonsensical.
-> -	 */
-> +	/* A zero new-len is nonsensical. */
->  	if (!new_len)
->  		return ret;
->  
-> +	/*
-> +	 * For backward compatibility, we allow a zero old-len to imply
-> +	 * mirroring.  This was originally a special case for DOS-emu.
-> +	 */
-> +	if (!old_len)
-> +		flags |= MREMAP_MIRROR;
-> +	else if (flags & MREMAP_MIRROR) {
-> +		if (old_len != new_len)
-> +			return ret;
-> +		old_len = 0;
-> +	}
-> +
->  	if (down_write_killable(&current->mm->mmap_sem))
->  		return -EINTR;
->  
-> diff --git a/tools/include/uapi/linux/mman.h b/tools/include/uapi/linux/mman.h
-> index 81d8edf..069f7a5 100644
-> --- a/tools/include/uapi/linux/mman.h
-> +++ b/tools/include/uapi/linux/mman.h
-> @@ -3,8 +3,9 @@
->  
->  #include <uapi/asm/mman.h>
->  
-> -#define MREMAP_MAYMOVE	1
-> -#define MREMAP_FIXED	2
-> +#define MREMAP_MAYMOVE	0x01
-> +#define MREMAP_FIXED	0x02
-> +#define MREMAP_MIRROR	0x04
->  
->  #define OVERCOMMIT_GUESS		0
->  #define OVERCOMMIT_ALWAYS		1
-> -- 
-> 2.7.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> With containerization and overcommit of system memory, we concur that 
+> killing the single largest process isn't always preferable and neglects 
+> the priority of its memcg.  Your motivation seems to be to provide 
+> fairness between one memcg with a large process and one memcg with a large 
+> number of small processes; I'm curious if you are concerned about the 
+> priority of a memcg hierarchy (how important that "job" is) or whether you 
+> are strictly concerned with "largeness" of memcgs relative to each other.
 
--- 
-Michal Hocko
-SUSE Labs
+I'm pretty sure we should provide some way to prioritize some cgroups
+over other (in terms of oom killer preferences), but I'm not 100% sure yet,
+what's the best way to do it. I've suggested something similar to the existing
+oom_score_adj for tasks, mostly to folow the existing design.
+
+One of the questions to answer in priority-based model is
+how to compare tasks in the root cgroup with cgroups?
+
+> > ...
+> > By default, it will look for the biggest leaf cgroup, and kill
+> > the largest task inside.
+> > 
+> > But a user can change this behavior by enabling the per-cgroup
+> > oom_kill_all_tasks option. If set, it causes the OOM killer treat
+> > the whole cgroup as an indivisible memory consumer. In case if it's
+> > selected as on OOM victim, all belonging tasks will be killed.
+> > 
+> 
+> These are two different things, right?  We can adjust how the system oom 
+> killer chooses victims when memcg hierarchies overcommit the system to not 
+> strictly prefer the single process with the largest rss without killing 
+> everything attached to the memcg.
+
+They are different, and I thought about providing two independent knobs.
+But after all I haven't found enough real life examples, where it can be useful.
+Can you provide something here?
+
+Also, they are different only for non-leaf cgroups; leaf cgroups
+are always treated as indivisible memory consumers during victim selection.
+
+I assume, that containerized systems will always set oom_kill_all_tasks for
+top-level container memory cgroups. By default it's turned off
+to provide backward compatibility with current behavior and avoid
+excessive kills and support oom_score_adj==-1000 (I've added this to v4,
+will post soon).
+
+> Separately: do you not intend to support memcg priorities at all, but 
+> rather strictly consider the "largeness" of a memcg versus other memcgs?
+
+Answered upper.
+
+> In our methodology, each memcg is assigned a priority value and the 
+> iteration of the hierarchy simply compares and visits the memcg with the 
+> lowest priority at each level and then selects the largest process to 
+> kill.  This could also support a "kill-all" knob.
+> 
+> 	struct mem_cgroup *memcg = root_mem_cgroup;
+> 	struct mem_cgroup *low_memcg;
+> 	unsigned long low_priority;
+> 
+> next:
+> 	low_memcg = NULL;
+> 	low_priority = ULONG_MAX;
+> 	for_each_child_of_memcg(memcg) {
+> 		unsigned long prio = memcg_oom_priority(memcg);
+> 
+> 		if (prio < low_priority) {
+> 			low_memcg = memcg;
+> 			low_priority = prio;
+> 		}		
+> 	}
+> 	if (low_memcg)
+> 		goto next;
+> 	oom_kill_process_from_memcg(memcg);
+> 
+> So this is a priority based model that is different than your aggregate 
+> usage model but I think it allows userspace to define a more powerful 
+> policy.  We certainly may want to kill from a memcg with a single large 
+> process, or we may want to kill from a memcg with several small processes, 
+> it depends on the importance of that job.
+
+I believe, that both models have some advantages.
+Priority-based model is more powerful, but requires support from the userspace
+to set up these priorities (and, probably, adjust them dynamically).
+Size-based model is limited, but provides reasonable behavior
+without any additional configuration.
+
+I will agree here with Michal Hocko, that bpf like mechanism can be used
+here to provide an option for writing some custom oom policies. After we will
+have necessary infrastructure to iterate over cgroup tree, select a cgroup
+with largest oom score, and kill a biggest task/all the tasks there,
+we can add an ability to customize the cgroup (and maybe tasks) evaluation.
+
+Thanks!
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
