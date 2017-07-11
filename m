@@ -1,186 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 82ECA44084A
-	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 22:31:42 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t187so9342225oie.3
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 19:31:42 -0700 (PDT)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id a7si9751430oih.255.2017.07.10.19.31.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A056B04B3
+	for <linux-mm@kvack.org>; Mon, 10 Jul 2017 23:48:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e3so133237392pfc.4
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 20:48:37 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id v66si9117613pfb.416.2017.07.10.20.48.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jul 2017 19:31:41 -0700 (PDT)
-Received: by mail-pg0-x234.google.com with SMTP id k14so58889908pgr.0
-        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 19:31:41 -0700 (PDT)
-Date: Tue, 11 Jul 2017 11:31:50 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: printk: Should console related code avoid __GFP_DIRECT_RECLAIM
- memory allocations?
-Message-ID: <20170711023150.GB4586@jagdpanzerIV.localdomain>
-References: <201707061928.IJI87020.FMQLFOOOHVFSJt@I-love.SAKURA.ne.jp>
- <20170707023601.GA7478@jagdpanzerIV.localdomain>
- <201707082230.ECB51545.JtFFFVHOOSMLOQ@I-love.SAKURA.ne.jp>
- <20170710125935.GL23069@pathway.suse.cz>
- <CAKMK7uGQ9NgS3rTieqqop-2o7sWUv8QuG_DNkJn42iPyBkEeiw@mail.gmail.com>
+        Mon, 10 Jul 2017 20:48:36 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id z6so17098161pfk.3
+        for <linux-mm@kvack.org>; Mon, 10 Jul 2017 20:48:36 -0700 (PDT)
+Date: Tue, 11 Jul 2017 13:48:21 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 1/5] mm/persistent-memory: match IORES_DESC name and
+ enum memory_type one
+Message-ID: <20170711134821.433b88c1@firefly.ozlabs.ibm.com>
+In-Reply-To: <20170705184933.GD3305@redhat.com>
+References: <20170703211415.11283-1-jglisse@redhat.com>
+	<20170703211415.11283-2-jglisse@redhat.com>
+	<CAPcyv4gXso2W0gxaeTsc7g9nTQnkO3WFNZfsdS95NvfYJupnxg@mail.gmail.com>
+	<20170705142516.GA3305@redhat.com>
+	<CAPcyv4hr+p+Bo8dcPfnW+O2q0KWvoM5z9LPZWhXLFJgE5ySojA@mail.gmail.com>
+	<20170705184933.GD3305@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKMK7uGQ9NgS3rTieqqop-2o7sWUv8QuG_DNkJn42iPyBkEeiw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>, Petr Mladek <pmladek@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Michal Hocko <mhocko@kernel.org>, Pavel Machek <pavel@ucw.cz>, Steven Rostedt <rostedt@goodmis.org>, Andreas Mohr <andi@lisas.de>, Jan Kara <jack@suse.cz>, dri-devel <dri-devel@lists.freedesktop.org>, Linux MM <linux-mm@kvack.org>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Hello,
+On Wed, 5 Jul 2017 14:49:33 -0400
+Jerome Glisse <jglisse@redhat.com> wrote:
 
-On (07/10/17 20:07), Daniel Vetter wrote:
-[..]
-> > Would it be acceptable to remove "console=tty0" parameter and push
-> > the messages only to the serial console?
-> >
-> > Also there is the patchset from Peter Zijlstra that allows to
-> > use early console all the time, see
-> > https://lkml.kernel.org/r/20161018170830.405990950@infradead.org
-> >
-> >
-> > The current code flushes each line to all enabled consoles one
-> > by one. If there is a deadlock in one console, everything
-> > gets blocked.
-> >
-> > We are trying to make printk() more robust. But it is much more
-> > complicated than we anticipated. Many changes open another can
-> > of worms. It seems to be a job for years.
-> >
-> >
-> >> Hmm... should we consider addressing console_sem problem before
-> >> introducing printing kernel thread and offloading to that kernel thread?
-> >
-> > As Sergey said, the console rework seems to be much bigger task
-> > than introducing the kthread.
-> >
-> > Also if we would want to handle each console separately (as a
-> > fallback) it would be helpful to have separate kthread for each
-> > enabled console or for the less reliable consoles at least.
-> 
-> Since the console-loggin-in-kthread comes up routinely, and equally
-> often people say "but I dont want to make my serial console delayed":
-> Should we make kthread-based printk a per-console opt-in? fbcon and
-> other horror shows with deep nesting of entire subsystems and their
-> locking hierarchy would do that. Truly simple console drivers like
-> serial or maybe logging to some firmware/platform service for recovery
-> after rebooting would not.
-> 
-> Of course we'd also need one kthread per console, and we'd need to
-> have at least some per-console locking (plus an overall console lock
-> on top for both registering/unregistering consoles and all the legacy
-> users like fbdev that need much more work to untangle). We could even
-> restrict the per-console locking (i.e. those which can go ahead while
-> someone else is holding the main or other console_locks) just for
-> those console drivers which do not use a kthread, to cut down the
-> audit burden to something manageable.
-> 
-> Just my 2 cents, thrown in from the sideline.
-
-(replying to both Petr and Daniel)
-
-interesting direction, gents.
-
-and this is what I thought about over the weekend; it's very sketchy and
-I didn't spend too much time on it. (I'm on a sick leave now, sorry).
-
-it's quite close to what you guys have mentioned above.
-
-a) keep console_sem only to protect console drivers list modification
-b) add a semaphore/mutex to struct console
-c) move global console_seq/etc to struct console
-e) use a single kthread for printing, but do console_unlock() multi passes,
-   printing unseen logbuf messages on per-console basis
-
-
-so console_lock()/console_unlock() will simply protect console drivers
-list from concurrent manipulation; it will not prevent us from printing.
-now, there are places where console_lock() serves a special purpose - it
-makes sure that no new lines are printed to the console while we scroll
-it/flip it/etc. IOW while we do "some things" to a particular console.
-the problem here, is that this also blocks printing to all of the registered
-console drivers, not just the one we are touching now. therefore, what I was
-thinking about is to disable/enable that particular console in all of the
-places where we really want to stop printing to this console for a bit.
-
-IOW, something like
-
-
-
-	console_lock()
-	:	down(console_sem);
-
-	console_disable(con)
-	:	lock(con->lock);
-	:	con->flags &= ~CON_ENABLED;
-	:	unlock(con->lock)
-
-	console_unlock()
-	:	for_each_console(con)
-	:		while (con->console_seq != log_next_seq) {
-	:			msg_print_text();
-	:			con->console_seq++;
-	:		
-	:			call_console_drivers()
-	:			:	if (con->flags & CON_ENABLED)
-	:			:		con->write()
-	:		}
-	:	up(console_sem);
-
-
-	// do "some things" to this console. it's disabled, so no
-	// ->write() callback would be called in the meantime
-
-	console_lock()
-	:	down(console_sem);
-
-	console_enable(con)
-	:	lock(con->lock);
-	:	con->flags |= CON_ENABLED;
-	:	unlock(con->lock)
-
-
-	// so now we enabled that console again. it's ->console_seq is
-	// probably behind the rest of consoles, so console_unlock()
-	// will ->write() all the unseen message to this console.
-
-	console_unlock()
-	:	for_each_console(con)
-	:		while (con->console_seq != log_next_seq) {
-	:			msg_print_text();
-	:			con->console_seq++;
-	:		
-	:			call_console_drivers()
-	:			:	if (con->flags & CON_ENABLED)
-	:			:		con->write()
-	:		}
-	:	up(console_sem);
-
-
-so this does change the behavior. may be even a lot. consoles now will not
-look the same, in some cases: some consoles can be ahead, some can be behind
-(as long as CON_ENABLED bit is cleared for the "do some things" part).
-
-and this requires a number of changes in fb/tty/etc code. not just
-shuffling of console_lock()/console_unlock() calls, but also
-console_disable()/console_enable() calls... and we need to pass struct
-console to console_disable()/console_enable()...
-
-
-another thing is, ideally, only !CON_ENABLED consoles will now see
-"dropped messages". if some particular console is !CON_ENABLED for long
-time, then well, just like it happens now, logbuf may run out of space
-and we will drop potentially unseen messages. but with this change, we
-will drop messages only on !CON_ENABLED consoles. if there are CON_ENABLED
-console(-s), we will print logbuf messages to those consoles. so may be
-we have more chances saving the kernel logs now.
-
-just a sketch...
-
-	-ss
+> On Wed, Jul 05, 2017 at 09:15:35AM -0700, Dan Williams wrote:
+> > On Wed, Jul 5, 2017 at 7:25 AM, Jerome Glisse <jglisse@redhat.com> wrot=
+e: =20
+> > > On Mon, Jul 03, 2017 at 04:49:18PM -0700, Dan Williams wrote: =20
+> > >> On Mon, Jul 3, 2017 at 2:14 PM, J=C3=A9r=C3=B4me Glisse <jglisse@red=
+hat.com> wrote: =20
+> > >> > Use consistent name between IORES_DESC and enum memory_type, rename
+> > >> > MEMORY_DEVICE_PUBLIC to MEMORY_DEVICE_PERSISTENT. This is to free =
+up
+> > >> > the public name for CDM (cache coherent device memory) for which t=
+he
+> > >> > term public is a better match.
+> > >> >
+> > >> > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> > >> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > >> > Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > >> > ---
+> > >> >  include/linux/memremap.h | 4 ++--
+> > >> >  kernel/memremap.c        | 2 +-
+> > >> >  2 files changed, 3 insertions(+), 3 deletions(-)
+> > >> >
+> > >> > diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+> > >> > index 57546a07a558..2299cc2d387d 100644
+> > >> > --- a/include/linux/memremap.h
+> > >> > +++ b/include/linux/memremap.h
+> > >> > @@ -41,7 +41,7 @@ static inline struct vmem_altmap *to_vmem_altmap=
+(unsigned long memmap_start)
+> > >> >   * Specialize ZONE_DEVICE memory into multiple types each having =
+differents
+> > >> >   * usage.
+> > >> >   *
+> > >> > - * MEMORY_DEVICE_PUBLIC:
+> > >> > + * MEMORY_DEVICE_PERSISTENT:
+> > >> >   * Persistent device memory (pmem): struct page might be allocate=
+d in different
+> > >> >   * memory and architecture might want to perform special actions.=
+ It is similar
+> > >> >   * to regular memory, in that the CPU can access it transparently=
+. However,
+> > >> > @@ -59,7 +59,7 @@ static inline struct vmem_altmap *to_vmem_altmap=
+(unsigned long memmap_start)
+> > >> >   * include/linux/hmm.h and Documentation/vm/hmm.txt.
+> > >> >   */
+> > >> >  enum memory_type {
+> > >> > -       MEMORY_DEVICE_PUBLIC =3D 0,
+> > >> > +       MEMORY_DEVICE_PERSISTENT =3D 0,
+> > >> >         MEMORY_DEVICE_PRIVATE,
+> > >> >  };
+> > >> >
+> > >> > diff --git a/kernel/memremap.c b/kernel/memremap.c
+> > >> > index b9baa6c07918..e82456c39a6a 100644
+> > >> > --- a/kernel/memremap.c
+> > >> > +++ b/kernel/memremap.c
+> > >> > @@ -350,7 +350,7 @@ void *devm_memremap_pages(struct device *dev, =
+struct resource *res,
+> > >> >         }
+> > >> >         pgmap->ref =3D ref;
+> > >> >         pgmap->res =3D &page_map->res;
+> > >> > -       pgmap->type =3D MEMORY_DEVICE_PUBLIC;
+> > >> > +       pgmap->type =3D MEMORY_DEVICE_PERSISTENT;
+> > >> >         pgmap->page_fault =3D NULL;
+> > >> >         pgmap->page_free =3D NULL;
+> > >> >         pgmap->data =3D NULL; =20
+> > >>
+> > >> I think we need a different name. There's nothing "persistent" about
+> > >> the devm_memremap_pages() path. Why can't they share name, is the on=
+ly
+> > >> difference coherence? I'm thinking something like:
+> > >>
+> > >> MEMORY_DEVICE_PRIVATE
+> > >> MEMORY_DEVICE_COHERENT /* persistent memory and coherent devices */
+> > >> MEMORY_DEVICE_IO /* "public", but not coherent */ =20
+> > >
+> > > No that would not work. Device public (in the context of this patchse=
+t)
+> > > is like device private ie device public page can be anywhere inside a
+> > > process address space either as anonymous memory page or as file back
+> > > page of regular filesystem (ie vma->ops is not pointing to anything
+> > > specific to the device memory).
+> > >
+> > > As such device public is different from how persistent memory is use
+> > > and those the cache coherency being the same between the two kind of
+> > > memory is not a discerning factor. So i need to distinguish between
+> > > persistent memory and device public memory.
+> > >
+> > > I believe keeping enum memory_type close to IORES_DESC naming is the
+> > > cleanest way to do that but i am open to other name suggestion.
+> > > =20
+> >=20
+> > The IORES_DESC has nothing to do with how the memory range is handled
+> > by the core mm. It sounds like the distinction this is trying to make
+> > is between MEMORY_DEVICE_{PUBLIC,PRIVATE} and MEMORY_DEVICE_HOST.
+> > Where a "host" memory range is one that does not need coordination
+> > with a specific device. =20
+>=20
+> I want to distinguish between:
+>   - device memory that is not accessible by the CPU
+>   - device memory that is accessible by the CPU just like regular
+>     memory
+>   - existing user of devm_memremap_pages() which is persistent memory
+>     (only pmem seems to call devm_memremap_pages()) that is use like a
+>     filesystem or block device and thus isn't use like generic page in
+>     a process address space
+>=20
+> So if existing user of devm_memremap_pages() are only persistent memory
+> then it made sense to match the IORES_DESC we are expecting to see on
+> see such memory.
+>=20
+> For public device memory (in the sense introduced by this patchset) i
+> do not know how it will be described by IORES_DESC. i think first folks
+> with it are IBM with CAPI and i am not sure they defined something for
+> that already.
+>=20
+> I am open to any name beside public (well any reasonable name :)) but
+> i do need to be able to distinguish persistent memory as use today from
+> this device memory.
+>=20
+> Cheers,
+> J=C3=A9r=C3=B4me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
