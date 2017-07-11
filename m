@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4706B0510
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 10:58:31 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z1so499255wrz.10
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 07:58:31 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a62si110160wrc.296.2017.07.11.07.58.30
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C7C6B0513
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 11:01:14 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id q4so142416oif.2
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:01:14 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f137si127292oib.237.2017.07.11.08.01.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Jul 2017 07:58:30 -0700 (PDT)
-Date: Tue, 11 Jul 2017 16:58:28 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-Message-ID: <20170711145828.GB3393@pathway.suse.cz>
-References: <20170602071818.GA29840@dhcp22.suse.cz>
- <201707081359.JCD39510.OSVOHMFOFtLFQJ@I-love.SAKURA.ne.jp>
- <20170710132139.GJ19185@dhcp22.suse.cz>
- <201707102254.ADA57090.SOFFOOMJFHQtVL@I-love.SAKURA.ne.jp>
- <20170710141428.GL19185@dhcp22.suse.cz>
- <201707112210.AEG17105.tFVOOLQFFMOHJS@I-love.SAKURA.ne.jp>
- <20170711134900.GD11936@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 08:01:12 -0700 (PDT)
+Received: from mail-vk0-f45.google.com (mail-vk0-f45.google.com [209.85.213.45])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 680A822C97
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 15:01:11 +0000 (UTC)
+Received: by mail-vk0-f45.google.com with SMTP id 191so1396590vko.2
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 08:01:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170711134900.GD11936@dhcp22.suse.cz>
+In-Reply-To: <20170711113233.GA19177@codeblueprint.co.uk>
+References: <cover.1498751203.git.luto@kernel.org> <20170630124422.GA12077@codeblueprint.co.uk>
+ <20170711113233.GA19177@codeblueprint.co.uk>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 11 Jul 2017 08:00:47 -0700
+Message-ID: <CALCETrVf87m6CRG3-m=i3wP5DyD5gfcMVJA4KDXb8TarCps2iA@mail.gmail.com>
+Subject: Re: [PATCH v4 00/10] PCID and improved laziness
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky.work@gmail.com
+To: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue 2017-07-11 15:49:00, Michal Hocko wrote:
-> On Tue 11-07-17 22:10:36, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Mon 10-07-17 22:54:37, Tetsuo Handa wrote:
-> > > > What makes this situation worse is, since warn_alloc() periodically appends to
-> > > > printk() buffer, the thread inside the OOM killer with oom_lock held can stall
-> > > > forever due to cond_resched() from console_unlock() from printk().
-> > > 
-> > > warn_alloc is just yet-another-user of printk. We might have many
-> > > others...
+On Tue, Jul 11, 2017 at 4:32 AM, Matt Fleming <matt@codeblueprint.co.uk> wrote:
+> On Fri, 30 Jun, at 01:44:22PM, Matt Fleming wrote:
+>> On Thu, 29 Jun, at 08:53:12AM, Andy Lutomirski wrote:
+>> > *** Ingo, even if this misses 4.13, please apply the first patch before
+>> > *** the merge window.
+>> >
+>> > There are three performance benefits here:
+>> >
+>> > 1. TLB flushing is slow.  (I.e. the flush itself takes a while.)
+>> >    This avoids many of them when switching tasks by using PCID.  In
+>> >    a stupid little benchmark I did, it saves about 100ns on my laptop
+>> >    per context switch.  I'll try to improve that benchmark.
+>> >
+>> > 2. Mms that have been used recently on a given CPU might get to keep
+>> >    their TLB entries alive across process switches with this patch
+>> >    set.  TLB fills are pretty fast on modern CPUs, but they're even
+>> >    faster when they don't happen.
+>> >
+>> > 3. Lazy TLB is way better.  We used to do two stupid things when we
+>> >    ran kernel threads: we'd send IPIs to flush user contexts on their
+>> >    CPUs and then we'd write to CR3 for no particular reason as an excuse
+>> >    to stop further IPIs.  With this patch, we do neither.
+>>
+>> Heads up, I'm gonna queue this for a run on SUSE's performance test
+>> grid.
+>
+> FWIW, I didn't see any change in performance with this series on a
+> PCID-capable machine. On the plus side, I didn't see any weird-looking
+> bugs either.
+>
+> Are your benchmarks available anywhere?
 
-> because you are trying to address a problem at a wrong layer. If there
-> is absolutely no way around it and printk is unfixable then we really
-> need a printk variant which will make sure that no excessive waiting
-> will be involved. Then we can replace all printk in the oom path with
-> this special printk.
+https://git.kernel.org/pub/scm/linux/kernel/git/luto/misc-tests.git/
 
-The last theory about printk offloading suggests that printk() should
-always try to push some messages to the console when the console lock is
-available. Otherwise, the messages might not appear at all because
-the offloading is never 100% reliable, especially when the system is
-in troubles.
+I did:
 
-In each case, this live-lock is another reason to risk the printk
-offload at some stage.
+$ ./context_switch_latency_64 0 process same
 
-Of course, we could make the throttling more aggressive. But it
-is another complex problem. Only printk() knows how much it is
-stressed and how much throttling is needed. On the other hand,
-it might be hard to know what information is repeating and
-who need to be throttled. It is a question if it should be
-solved by providing more printk_throttle() variants or
-by some magic inside normal printk().
+and
 
-Best Regards,
-Petr
+$ ./madvise_bounce_64 10k [IIRC -- it might have been a different loop count]
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
