@@ -1,133 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 038C0440860
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:41:50 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 77so5297277wrb.11
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:41:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k44si1742635wrc.19.2017.07.12.05.41.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E06C06B0514
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:47:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s4so23694690pgr.3
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:47:24 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id j10si1876028pfc.13.2017.07.12.05.47.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Jul 2017 05:41:48 -0700 (PDT)
-Date: Wed, 12 Jul 2017 14:41:45 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
-Message-ID: <20170712124145.GI28912@dhcp22.suse.cz>
-References: <20170710141428.GL19185@dhcp22.suse.cz>
- <201707112210.AEG17105.tFVOOLQFFMOHJS@I-love.SAKURA.ne.jp>
- <20170711134900.GD11936@dhcp22.suse.cz>
- <201707120706.FHC86458.FLFOHtQVJSFMOO@I-love.SAKURA.ne.jp>
- <20170712085431.GD28912@dhcp22.suse.cz>
- <201707122123.CDD21817.FOQSFJtOHOVLFM@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201707122123.CDD21817.FOQSFJtOHOVLFM@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jul 2017 05:47:23 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v12 0/8] Virtio-balloon Enhancement
+Date: Wed, 12 Jul 2017 20:40:13 +0800
+Message-Id: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky.work@gmail.com, pmladek@suse.com
+To: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com
+Cc: virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Wed 12-07-17 21:23:05, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 12-07-17 07:06:11, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Tue 11-07-17 22:10:36, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > [...]
-> > > > > > warn_alloc is just yet-another-user of printk. We might have many
-> > > > > > others...
-> > > > >
-> > > > > warn_alloc() is different from other users of printk() that printk() is called
-> > > > > as long as oom_lock is already held by somebody else processing console_unlock().
-> > > >
-> > > > So what exactly prevents any other caller of printk interfering while
-> > > > the oom is ongoing?
-> > >
-> > > Other callers of printk() are not doing silly things like "while(1) printk();".
-> >
-> > They can still print a lot. There have been reports of one printk source
-> > pushing an unrelated context to print way too much.
-> 
-> Which source is that?
-> 
-> Legitimate printk() users might do
-> 
->   for (i = 0; i < 1000; i++)
->     printk();
-> 
-> but they do not do
-> 
->   while (1)
->     for (i = 0; i < 1000; i++)
->       printk();
-> 
-> .
-> 
-> >
-> > > They don't call printk() until something completes (e.g. some operation returned
-> > > an error code) or they do throttling. Only watchdog calls printk() without waiting
-> > > for something to complete (because watchdog is there in order to warn that something
-> > > might be wrong). But watchdog is calling printk() carefully not to cause flooding
-> > > (e.g. khungtaskd sleeps enough) and not to cause lockups (e.g. khungtaskd calls
-> > > rcu_lock_break()).
-> >
-> > Look at hard/soft lockup detector and how it can cause flood of printks.
-> 
-> Lockup detector is legitimate because it is there to warn that somebody is
-> continuously consuming CPU time. Lockup detector might do
+This patch series enhances the existing virtio-balloon with the following new
+features:
+1) fast ballooning: transfer ballooned pages between the guest and host in
+chunks using sgs, instead of one by one; and
+2) cmdq: a new virtqueue to send commands between the device and driver.
+Currently, it supports commands to report memory stats (replace the old statq
+mechanism) and report guest unused pages.
 
-Sigh. What I've tried to convey is that the lockup detector can print _a
-lot_ (just consider a large machine with hundreds of CPUs and trying to
-dump stack trace on each of them....) and that might mimic a herd of
-printks from allocation stalls...
-[...]
-> > warn_alloc prints a single line + dump_stack for each stalling allocation and
-> > show_mem once per second. That doesn't sound overly crazy to me.
-> > Sure we can have many stalling tasks under certain conditions (most of
-> > them quite unrealistic) and then we can print a lot. I do not see an
-> > easy way out of it without losing information about stalls and I guess
-> > we want to know about them otherwise we will have much harder time to
-> > debug stalls.
-> 
-> Printing just one line per every second can lead to lockup, for
-> the condition to escape the "for (;;)" loop in console_unlock() is
-> 
->                 if (console_seq == log_next_seq)
->                         break;
+Change Log:
 
-Then something is really broken in that condition, don't you think?
-Peter has already mentioned that offloading to a different context seems
-like the way to go here.
+v11->v12:
+1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
+2) virtio-ring: enable the driver to build up a desc chain using vring desc.
+3) virtio-ring: Add locking to the existing START_USE() and END_USE() macro
+to lock/unlock the vq when a vq operation starts/ends.
+4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
+5) virtio-balloon: describe chunks of ballooned pages and free pages blocks
+directly using one or more chains of desc from the vq.
 
-> when cond_resched() in that loop slept for more than one second due to
-> SCHED_IDLE priority.
-> 
-> Currently preempt_disable()/preempt_enable_no_resched() (or equivalent)
-> is the only available countermeasure for minimizing interference like
-> 
->     for (i = 0; i < 1000; i++)
->       printk();
-> 
-> . If prink() allows per printk context (shown below) flag which allows printk()
-> users to force printk() not to try to print immediately (i.e. declare that
-> use deferred printing (maybe offloaded to the printk-kthread)), lockups by
-> cond_resched() from console_unlock() from printk() from out_of_memory() will be
-> avoided.
+v10->v11:
+1) virtio_balloon: use vring_desc to describe a chunk;
+2) virtio_ring: support to add an indirect desc table to virtqueue;
+3)  virtio_balloon: use cmdq to report guest memory statistics.
 
-As I've said earlier, if there is no other way to make printk work without all
-these nasty side effected then I would be OK to add a printk context
-specific calls into the oom killer.
+v9->v10:
+1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
+2) virtio-balloon: add virtballoon_validate();
+3) virtio-balloon: msg format change;
+4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
+5) virtio-balloon: code cleanup.
 
-Removing the rest because this is again getting largely tangent. The
-primary problem you are seeing is that we stumble over printk here.
-Unless I can see a sound argument this is not the case it doesn't make
-any sense to discuss allocator changes.
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
 
-[...]
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
+
+Liang Li (1):
+  virtio-balloon: deflate via a page list
+
+Matthew Wilcox (1):
+  Introduce xbitmap
+
+Wei Wang (6):
+  virtio-balloon: coding format cleanup
+  xbitmap: add xb_find_next_bit() and xb_zero()
+  virtio-balloon: VIRTIO_BALLOON_F_SG
+  mm: support reporting free page blocks
+  mm: export symbol of next_zone and first_online_pgdat
+  virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
+
+ drivers/virtio/virtio_balloon.c     | 414 ++++++++++++++++++++++++++++++++----
+ drivers/virtio/virtio_ring.c        | 224 +++++++++++++++++--
+ include/linux/mm.h                  |   5 +
+ include/linux/radix-tree.h          |   2 +
+ include/linux/virtio.h              |  22 ++
+ include/linux/xbitmap.h             |  53 +++++
+ include/uapi/linux/virtio_balloon.h |  11 +
+ lib/radix-tree.c                    | 164 +++++++++++++-
+ mm/mmzone.c                         |   2 +
+ mm/page_alloc.c                     |  96 +++++++++
+ 10 files changed, 926 insertions(+), 67 deletions(-)
+ create mode 100644 include/linux/xbitmap.h
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
