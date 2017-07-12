@@ -1,105 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A626440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 14:06:25 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p25so10757084qtp.4
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 11:06:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g84si3052497qkh.127.2017.07.12.11.06.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 26CCC440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 15:21:59 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 79so655288wmg.4
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 12:21:59 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g7si3072289wme.130.2017.07.12.12.21.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 11:06:24 -0700 (PDT)
-From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 5/5] mm/hmm: documents how device memory is accounted in rss and memcg
-Date: Wed, 12 Jul 2017 14:06:07 -0400
-Message-Id: <20170712180607.2885-6-jglisse@redhat.com>
-In-Reply-To: <20170712180607.2885-1-jglisse@redhat.com>
-References: <20170712180607.2885-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        Wed, 12 Jul 2017 12:21:57 -0700 (PDT)
+Date: Wed, 12 Jul 2017 12:21:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
+ before publication
+Message-Id: <20170712122154.f6bafdc86ccfd189fefbb0a3@linux-foundation.org>
+In-Reply-To: <CAG_fn=WKtQhGfcTxvRgDYnAkOp1acGUmnLyoJRf6syvEL-Yysg@mail.gmail.com>
+References: <20170707083408.40410-1-glider@google.com>
+	<20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org>
+	<alpine.DEB.2.20.1707071816560.20454@east.gentwo.org>
+	<20170710133238.2afcda57ea28e020ca03c4f0@linux-foundation.org>
+	<CAG_fn=WKtQhGfcTxvRgDYnAkOp1acGUmnLyoJRf6syvEL-Yysg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-For now we account device memory exactly like a regular page in
-respect to rss counters and memory cgroup. We do this so that any
-existing application that starts using device memory without knowing
-about it will keep running unimpacted. This also simplify migration
-code.
+On Wed, 12 Jul 2017 16:11:28 +0200 Alexander Potapenko <glider@google.com> wrote:
 
-We will likely revisit this choice once we gain more experience with
-how device memory is use and how it impacts overall memory resource
-management. For now we believe this is a good enough choice.
+> >> At creation time the kmem_cache structure is private and no one can run a
+> >> free operation.
+> I've double-checked the code path and this turned out to be a false
+> positive caused by KMSAN not instrumenting the contents of mm/slub.c
+> (i.e. the initialization of the spinlock remained unnoticed).
+> Christoph is indeed right that kmem_cache_structure is private, so a
+> race is not possible here.
+> I am sorry for the false alarm.
+> >> > Inviting a use-after-free?  I guess not, as there should be no way
+> >> > to look up these items at this stage.
+> >>
+> >> Right.
+> >
+> > Still.   It looks bad, and other sites do these things in the other order.
+> If the maintainers agree the initialization order needs to be fixed,
+> we'll need to remove the (irrelevant) KMSAN report from the patch
+> description.
 
-Note that device memory can not be pin. Nor by device driver, nor
-by GUP thus device memory can always be free and unaccounted when
-a process exit.
+Yup.  I did this:
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
+From: Alexander Potapenko <glider@google.com>
+Subject: slub: tidy up initialization ordering
+
+- free_kmem_cache_nodes() frees the cache node before nulling out a
+  reference to it
+
+- init_kmem_cache_nodes() publishes the cache node before initializing it
+
+Neither of these matter at runtime because the cache nodes cannot be
+looked up by any other thread.  But it's neater and more consistent to
+reorder these.
+
+Link: http://lkml.kernel.org/r/20170707083408.40410-1-glider@google.com
+Signed-off-by: Alexander Potapenko <glider@google.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- Documentation/vm/hmm.txt | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
 
-diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
-index 192dcdb38bd1..4d3aac9f4a5d 100644
---- a/Documentation/vm/hmm.txt
-+++ b/Documentation/vm/hmm.txt
-@@ -15,6 +15,15 @@ section present the new migration helper that allow to leverage the device DMA
- engine.
+ mm/slub.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff -puN mm/slub.c~slub-make-sure-struct-kmem_cache_node-is-initialized-before-publication mm/slub.c
+--- a/mm/slub.c~slub-make-sure-struct-kmem_cache_node-is-initialized-before-publication
++++ a/mm/slub.c
+@@ -3358,8 +3358,8 @@ static void free_kmem_cache_nodes(struct
+ 	struct kmem_cache_node *n;
  
+ 	for_each_kmem_cache_node(s, node, n) {
+-		kmem_cache_free(kmem_cache_node, n);
+ 		s->node[node] = NULL;
++		kmem_cache_free(kmem_cache_node, n);
+ 	}
+ }
  
-+1) Problems of using device specific memory allocator:
-+2) System bus, device memory characteristics
-+3) Share address space and migration
-+4) Address space mirroring implementation and API
-+5) Represent and manage device memory from core kernel point of view
-+6) Migrate to and from device memory
-+7) Memory cgroup (memcg) and rss accounting
-+
-+
- -------------------------------------------------------------------------------
+@@ -3389,8 +3389,8 @@ static int init_kmem_cache_nodes(struct
+ 			return 0;
+ 		}
  
- 1) Problems of using device specific memory allocator:
-@@ -342,3 +351,34 @@ that happens then the finalize_and_map() can catch any pages that was not
- migrated. Note those page were still copied to new page and thus we wasted
- bandwidth but this is considered as a rare event and a price that we are
- willing to pay to keep all the code simpler.
-+
-+
-+-------------------------------------------------------------------------------
-+
-+7) Memory cgroup (memcg) and rss accounting
-+
-+For now device memory is accounted as any regular page in rss counters (either
-+anonymous if device page is use for anonymous, file if device page is use for
-+file back page or shmem if device page is use for share memory). This is a
-+deliberate choice to keep existing application that might start using device
-+memory without knowing about it to keep runing unimpacted.
-+
-+Drawbacks is that OOM killer might kill an application using a lot of device
-+memory and not a lot of regular system memory and thus not freeing much system
-+memory. We want to gather more real world experience on how application and
-+system react under memory pressure in the presence of device memory before
-+deciding to account device memory differently.
-+
-+
-+Same decision was made for memory cgroup. Device memory page are accounted
-+against same memory cgroup a regular page would be accounted to. This does
-+simplify migration to and from device memory. This also means that migration
-+back from device memory to regular memory can not fail because it would
-+go above memory cgroup limit. We might revisit this choice latter on once we
-+get more experience in how device memory is use and its impact on memory
-+resource control.
-+
-+
-+Note that device memory can never be pin nor by device driver nor through GUP
-+and thus such memory is always free upon process exit. Or when last reference
-+is drop in case of share memory or file back memory.
--- 
-2.13.0
+-		s->node[node] = n;
+ 		init_kmem_cache_node(n);
++		s->node[node] = n;
+ 	}
+ 	return 1;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
