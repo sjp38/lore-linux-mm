@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E19DB440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 16:32:02 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id j1so12450721uah.3
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 13:32:02 -0700 (PDT)
-Received: from mail-ua0-x235.google.com (mail-ua0-x235.google.com. [2607:f8b0:400c:c08::235])
-        by mx.google.com with ESMTPS id a6si1896543uac.220.2017.07.12.13.32.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BE8C0440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:57:47 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c81so1262562wmd.10
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 14:57:47 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t133si3393094wmd.68.2017.07.12.14.57.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 13:32:02 -0700 (PDT)
-Received: by mail-ua0-x235.google.com with SMTP id g13so2922202uaj.0
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 13:32:02 -0700 (PDT)
+        Wed, 12 Jul 2017 14:57:46 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6CLrdqS126323
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:57:45 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bnt3rc404-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:57:45 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 12 Jul 2017 17:57:44 -0400
+Date: Wed, 12 Jul 2017 14:57:29 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v5 36/38] selftest: PowerPC specific test updates to memory
+ protection keys
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-37-git-send-email-linuxram@us.ibm.com>
+ <c0e2eab4-a724-5155-4ae9-03b37e4b9f54@intel.com>
 MIME-Version: 1.0
-From: Vasilis Dimitsas <vdimitsas@gmail.com>
-Date: Wed, 12 Jul 2017 23:31:21 +0300
-Message-ID: <CAE=wTWYU8F5KDrC9VSxrtckVZ2xmvxy8owxCkZUcY4KXEiz0Og@mail.gmail.com>
-Subject: asynchronous readahead prefetcher operation
-Content-Type: multipart/alternative; boundary="94eb2c1915045a1f7e055424b5be"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c0e2eab4-a724-5155-4ae9-03b37e4b9f54@intel.com>
+Message-Id: <20170712215729.GC5525@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
---94eb2c1915045a1f7e055424b5be
-Content-Type: text/plain; charset="UTF-8"
+On Tue, Jul 11, 2017 at 10:33:09AM -0700, Dave Hansen wrote:
+> On 07/05/2017 02:22 PM, Ram Pai wrote:
+> > Abstracted out the arch specific code into the header file, and
+> > added powerpc specific changes.
+> > 
+> > a) added 4k-backed hpte, memory allocator, powerpc specific.
+> > b) added three test case where the key is associated after the page is
+> > 	accessed/allocated/mapped.
+> > c) cleaned up the code to make checkpatch.pl happy
+> 
+> There's a *lot* of churn here.  If it breaks, I'm going to have a heck
+> of a time figuring out which hunk broke.  Is there any way to break this
+> up into a series of things that we have a chance at bisecting?
 
-Good evening,
+Just finished breaking down the changes into 20 gradual increments.
+I have pushed it to my github tree at
 
-I am currently working on a project which is related to the operation of
-the linux readahead prefetcher. As a result, I am trying to understand its
-operation. Having read thoroughly the relevant part in the kernel code, I
-realize, from the comments, that part of the prefetching occurs
-asynchronously. The problem is that I can not verify this from the code.
+https://github.com/rampai/memorykeys.git
+branch is memkey.v6-rc3
 
-Even if you call page_cache_sync_readahead() or
-page_cache_async_readahead(), then both will end up in ra_submit(), in
-which, the operation is common for both cases.
+See if it works for you. I am sure I would have broken something on
+x86 since I dont have a x86 platform to test.
 
-So, please could you tell me at which point does the operation of
-prefetching occurs asynchronously?
-
-Thank you in advance,
-
-Vasilis Dimitsas
-
---94eb2c1915045a1f7e055424b5be
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Good evening,<div><br></div><div>I am currently working on=
- a project which is related to the operation of the linux readahead prefetc=
-her. As a result, I am trying to understand its operation. Having read thor=
-oughly the relevant part in the kernel code, I realize, from the comments, =
-that part of the prefetching occurs asynchronously. The problem is that I c=
-an not verify this from the code.</div><div><br></div><div>Even if you call=
- page_cache_sync_readahead() or page_cache_async_readahead(), then both wil=
-l end up in ra_submit(), in which, the operation is common for both cases.<=
-/div><div><br></div><div>So, please could you tell me at which point does t=
-he operation of prefetching occurs asynchronously?</div><div><br></div><div=
->Thank you in advance,</div><div><br></div><div>Vasilis Dimitsas =C2=A0</di=
-v></div>
-
---94eb2c1915045a1f7e055424b5be--
+Let me know, Thanks,
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
