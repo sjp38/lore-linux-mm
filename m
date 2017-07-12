@@ -1,76 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1D7440856
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 03:37:48 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i71so12348851itf.2
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:37:48 -0700 (PDT)
-Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
-        by mx.google.com with ESMTPS id m76si2426376iod.246.2017.07.12.00.37.47
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8B7440856
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 03:39:50 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x23so3514204wrb.6
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:39:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 62si1593489wmv.29.2017.07.12.00.39.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 00:37:47 -0700 (PDT)
-Received: by mail-it0-x243.google.com with SMTP id v193so1435905itc.2
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:37:47 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 12 Jul 2017 00:39:49 -0700 (PDT)
+Date: Wed, 12 Jul 2017 09:39:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
+Message-ID: <20170712073945.GC28912@dhcp22.suse.cz>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <20170711145246.GA11917@dhcp22.suse.cz>
+ <20170711193257.GB5525@ram.oc3035372033.ibm.com>
+ <20170712072337.GB28912@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAK8P3a3J8uyTW2_iDpOi2Y5ONf7z3TR0zk3igp2uBrL8xsQd8Q@mail.gmail.com>
-References: <1499842660-10665-1-git-send-email-geert@linux-m68k.org> <CAK8P3a3J8uyTW2_iDpOi2Y5ONf7z3TR0zk3igp2uBrL8xsQd8Q@mail.gmail.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Wed, 12 Jul 2017 09:37:45 +0200
-Message-ID: <CAMuHMdVDgLpK8r2D4rwmCXEYwdgf7=Tqspq=VgPHmuqcrY5bVA@mail.gmail.com>
-Subject: Re: [PATCH] mm: Mark create_huge_pmd() inline to prevent build failure
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170712072337.GB28912@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-Hi Arnd,
+On Wed 12-07-17 09:23:37, Michal Hocko wrote:
+> On Tue 11-07-17 12:32:57, Ram Pai wrote:
+[...]
+> > Ideally the MMU looks at the PTE for keys, in order to enforce
+> > protection. This is the case with x86 and is the case with power9 Radix
+> > page table. Hence the keys have to be programmed into the PTE.
+> 
+> But x86 doesn't update ptes for PKEYs, that would be just too expensive.
+> You could use standard mprotect to do the same...
 
-On Wed, Jul 12, 2017 at 9:22 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Wed, Jul 12, 2017 at 8:57 AM, Geert Uytterhoeven
-> <geert@linux-m68k.org> wrote:
->> With gcc 4.1.2:
->>
->>     mm/memory.o: In function `create_huge_pmd':
->>     memory.c:(.text+0x93e): undefined reference to `do_huge_pmd_anonymous_page'
->>
->> Converting transparent_hugepage_enabled() from a macro to a static
->> inline function reduced the ability of the compiler to remove unused
->> code.
->>
->> Fix this by marking create_huge_pmd() inline.
->>
->> Fixes: 16981d763501c0e0 ("mm: improve readability of transparent_hugepage_enabled()")
->> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
->
-> Acked-by: Arnd Bergmann <arnd@arndb.de>
+OK, this seems to be a misunderstanding and confusion on my end.
+do_mprotect_pkey does mprotect_fixup even for the pkey path which is
+quite surprising to me. I guess my misunderstanding comes from
+Documentation/x86/protection-keys.txt
+"
+Memory Protection Keys provides a mechanism for enforcing page-based
+protections, but without requiring modification of the page tables
+when an application changes protection domains.  It works by
+dedicating 4 previously ignored bits in each page table entry to a
+"protection key", giving 16 possible keys.
+"
 
-Thanks!
-
->> ---
->> Interestingly, create_huge_pmd() is emitted in the assembler output, but
->> never called.
->
-> I've never seen this before either. I know that early gcc-4 compilers
-> would do this
-> when a function is referenced from an unused function pointer, but not with
-> a compile-time constant evaluation. I guess that transparent_hugepage_enabled
-> is just slightly more complex than it gcc-4.1 can handle here.
-
-You did mention seeing it with mips-gcc-4.1 in the thread "[RFC] minimum gcc
-version for kernel: raise to gcc-4.3 or 4.6?", but didn't provide any further
-details. Finally I started seeing it myself for m68k ;-)
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+So please disregard my previous comments about page tables and sorry
+about the confusion.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
