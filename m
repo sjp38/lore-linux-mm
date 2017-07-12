@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C84440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 14:06:21 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k14so16111118qkl.11
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 11:06:21 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F65440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 14:06:24 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id 16so16019485qkg.15
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 11:06:24 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y54si3026325qty.13.2017.07.12.11.06.20
+        by mx.google.com with ESMTPS id s2si2960371qts.42.2017.07.12.11.06.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 11:06:20 -0700 (PDT)
+        Wed, 12 Jul 2017 11:06:22 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 3/5] mm/memcontrol: allow to uncharge page without using page->lru field
-Date: Wed, 12 Jul 2017 14:06:05 -0400
-Message-Id: <20170712180607.2885-4-jglisse@redhat.com>
+Subject: [PATCH 4/5] mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_HOST v2
+Date: Wed, 12 Jul 2017 14:06:06 -0400
+Message-Id: <20170712180607.2885-5-jglisse@redhat.com>
 In-Reply-To: <20170712180607.2885-1-jglisse@redhat.com>
 References: <20170712180607.2885-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -24,12 +24,16 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
 HMM pages (private or host device pages) are ZONE_DEVICE page and
-thus you can not use page->lru fields of those pages. This patch
-re-arrange the uncharge to allow single page to be uncharge without
-modifying the lru field of the struct page.
+thus need special handling when it comes to lru or refcount. This
+patch make sure that memcontrol properly handle those when it face
+them. Those pages are use like regular pages in a process address
+space either as anonymous page or as file back page. So from memcg
+point of view we want to handle them like regular page for now at
+least.
 
-There is no change to memcontrol logic, it is the same as it was
-before this patch.
+Changed since v1:
+  - s/public/host
+  - add comments explaining how device memory behave and why
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -37,228 +41,176 @@ Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
 Cc: cgroups@vger.kernel.org
 ---
- mm/memcontrol.c | 168 +++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 92 insertions(+), 76 deletions(-)
+ kernel/memremap.c |  2 ++
+ mm/memcontrol.c   | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 60 insertions(+), 5 deletions(-)
 
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 8e19f6513dfd..165818363e6a 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -479,6 +479,8 @@ void put_zone_device_private_or_host_page(struct page *page)
+ 		__ClearPageActive(page);
+ 		__ClearPageWaiters(page);
+ 
++		mem_cgroup_uncharge(page);
++
+ 		page->pgmap->page_free(page, page->pgmap->data);
+ 	}
+ 	else if (!count)
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3df3c04d73ab..c709fdceac13 100644
+index c709fdceac13..f8a961c7b3a0 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5509,48 +5509,102 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
- 	cancel_charge(memcg, nr_pages);
+@@ -4391,12 +4391,13 @@ enum mc_target_type {
+ 	MC_TARGET_NONE = 0,
+ 	MC_TARGET_PAGE,
+ 	MC_TARGET_SWAP,
++	MC_TARGET_DEVICE,
+ };
+ 
+ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+ 						unsigned long addr, pte_t ptent)
+ {
+-	struct page *page = vm_normal_page(vma, addr, ptent);
++	struct page *page = _vm_normal_page(vma, addr, ptent, true);
+ 
+ 	if (!page || !page_mapped(page))
+ 		return NULL;
+@@ -4407,13 +4408,20 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+ 		if (!(mc.flags & MOVE_FILE))
+ 			return NULL;
+ 	}
+-	if (!get_page_unless_zero(page))
++	if (is_device_host_page(page)) {
++		/*
++		 * MEMORY_DEVICE_HOST means ZONE_DEVICE page and which have a
++		 * refcount of 1 when free (unlike normal page)
++		 */
++		if (!page_ref_add_unless(page, 1, 1))
++			return NULL;
++	} else if (!get_page_unless_zero(page))
+ 		return NULL;
+ 
+ 	return page;
  }
  
--static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
--			   unsigned long nr_anon, unsigned long nr_file,
--			   unsigned long nr_kmem, unsigned long nr_huge,
--			   unsigned long nr_shmem, struct page *dummy_page)
-+struct uncharge_gather {
-+	struct mem_cgroup *memcg;
-+	unsigned long pgpgout;
-+	unsigned long nr_anon;
-+	unsigned long nr_file;
-+	unsigned long nr_kmem;
-+	unsigned long nr_huge;
-+	unsigned long nr_shmem;
-+	struct page *dummy_page;
-+};
-+
-+static inline void uncharge_gather_clear(struct uncharge_gather *ug)
+-#ifdef CONFIG_SWAP
++#if defined(CONFIG_SWAP) || defined(CONFIG_DEVICE_PRIVATE)
+ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+ 			pte_t ptent, swp_entry_t *entry)
  {
--	unsigned long nr_pages = nr_anon + nr_file + nr_kmem;
-+	memset(ug, 0, sizeof(*ug));
-+}
-+
-+static void uncharge_batch(const struct uncharge_gather *ug)
-+{
-+	unsigned long nr_pages = ug->nr_anon + ug->nr_file + ug->nr_kmem;
- 	unsigned long flags;
+@@ -4422,6 +4430,23 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
  
--	if (!mem_cgroup_is_root(memcg)) {
--		page_counter_uncharge(&memcg->memory, nr_pages);
-+	if (!mem_cgroup_is_root(ug->memcg)) {
-+		page_counter_uncharge(&ug->memcg->memory, nr_pages);
- 		if (do_memsw_account())
--			page_counter_uncharge(&memcg->memsw, nr_pages);
--		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && nr_kmem)
--			page_counter_uncharge(&memcg->kmem, nr_kmem);
--		memcg_oom_recover(memcg);
-+			page_counter_uncharge(&ug->memcg->memsw, nr_pages);
-+		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && ug->nr_kmem)
-+			page_counter_uncharge(&ug->memcg->kmem, ug->nr_kmem);
-+		memcg_oom_recover(ug->memcg);
- 	}
- 
- 	local_irq_save(flags);
--	__this_cpu_sub(memcg->stat->count[MEMCG_RSS], nr_anon);
--	__this_cpu_sub(memcg->stat->count[MEMCG_CACHE], nr_file);
--	__this_cpu_sub(memcg->stat->count[MEMCG_RSS_HUGE], nr_huge);
--	__this_cpu_sub(memcg->stat->count[NR_SHMEM], nr_shmem);
--	__this_cpu_add(memcg->stat->events[PGPGOUT], pgpgout);
--	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
--	memcg_check_events(memcg, dummy_page);
-+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS], ug->nr_anon);
-+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_CACHE], ug->nr_file);
-+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS_HUGE], ug->nr_huge);
-+	__this_cpu_sub(ug->memcg->stat->count[NR_SHMEM], ug->nr_shmem);
-+	__this_cpu_add(ug->memcg->stat->events[PGPGOUT], ug->pgpgout);
-+	__this_cpu_add(ug->memcg->stat->nr_page_events, nr_pages);
-+	memcg_check_events(ug->memcg, ug->dummy_page);
- 	local_irq_restore(flags);
- 
--	if (!mem_cgroup_is_root(memcg))
--		css_put_many(&memcg->css, nr_pages);
-+	if (!mem_cgroup_is_root(ug->memcg))
-+		css_put_many(&ug->memcg->css, nr_pages);
-+}
-+
-+static void uncharge_page(struct page *page, struct uncharge_gather *ug)
-+{
-+	VM_BUG_ON_PAGE(PageLRU(page), page);
-+	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
-+
-+	if (!page->mem_cgroup)
-+		return;
+ 	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
+ 		return NULL;
 +
 +	/*
-+	 * Nobody should be changing or seriously looking at
-+	 * page->mem_cgroup at this point, we have fully
-+	 * exclusive access to the page.
++	 * Handle MEMORY_DEVICE_PRIVATE which are ZONE_DEVICE page belonging to
++	 * a device and because they are not accessible by CPU they are store
++	 * as special swap entry in the CPU page table.
 +	 */
-+
-+	if (ug->memcg != page->mem_cgroup) {
-+		if (ug->memcg) {
-+			uncharge_batch(ug);
-+			uncharge_gather_clear(ug);
-+		}
-+		ug->memcg = page->mem_cgroup;
++	if (is_device_private_entry(ent)) {
++		page = device_private_entry_to_page(ent);
++		/*
++		 * MEMORY_DEVICE_PRIVATE means ZONE_DEVICE page and which have
++		 * a refcount of 1 when free (unlike normal page)
++		 */
++		if (!page_ref_add_unless(page, 1, 1))
++			return NULL;
++		return page;
 +	}
 +
-+	if (!PageKmemcg(page)) {
-+		unsigned int nr_pages = 1;
-+
-+		if (PageTransHuge(page)) {
-+			nr_pages <<= compound_order(page);
-+			ug->nr_huge += nr_pages;
-+		}
-+		if (PageAnon(page))
-+			ug->nr_anon += nr_pages;
-+		else {
-+			ug->nr_file += nr_pages;
-+			if (PageSwapBacked(page))
-+				ug->nr_shmem += nr_pages;
-+		}
-+		ug->pgpgout++;
-+	} else {
-+		ug->nr_kmem += 1 << compound_order(page);
-+		__ClearPageKmemcg(page);
-+	}
-+
-+	ug->dummy_page = page;
-+	page->mem_cgroup = NULL;
- }
- 
- static void uncharge_list(struct list_head *page_list)
- {
--	struct mem_cgroup *memcg = NULL;
--	unsigned long nr_shmem = 0;
--	unsigned long nr_anon = 0;
--	unsigned long nr_file = 0;
--	unsigned long nr_huge = 0;
--	unsigned long nr_kmem = 0;
--	unsigned long pgpgout = 0;
-+	struct uncharge_gather ug;
- 	struct list_head *next;
--	struct page *page;
-+
-+	uncharge_gather_clear(&ug);
- 
  	/*
- 	 * Note that the list can be a single page->lru; hence the
-@@ -5558,57 +5612,16 @@ static void uncharge_list(struct list_head *page_list)
- 	 */
- 	next = page_list->next;
- 	do {
-+		struct page *page;
-+
- 		page = list_entry(next, struct page, lru);
- 		next = page->lru.next;
- 
--		VM_BUG_ON_PAGE(PageLRU(page), page);
--		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
--
--		if (!page->mem_cgroup)
--			continue;
--
--		/*
--		 * Nobody should be changing or seriously looking at
--		 * page->mem_cgroup at this point, we have fully
--		 * exclusive access to the page.
--		 */
--
--		if (memcg != page->mem_cgroup) {
--			if (memcg) {
--				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
--					       nr_kmem, nr_huge, nr_shmem, page);
--				pgpgout = nr_anon = nr_file = nr_kmem = 0;
--				nr_huge = nr_shmem = 0;
--			}
--			memcg = page->mem_cgroup;
--		}
--
--		if (!PageKmemcg(page)) {
--			unsigned int nr_pages = 1;
--
--			if (PageTransHuge(page)) {
--				nr_pages <<= compound_order(page);
--				nr_huge += nr_pages;
--			}
--			if (PageAnon(page))
--				nr_anon += nr_pages;
--			else {
--				nr_file += nr_pages;
--				if (PageSwapBacked(page))
--					nr_shmem += nr_pages;
--			}
--			pgpgout++;
--		} else {
--			nr_kmem += 1 << compound_order(page);
--			__ClearPageKmemcg(page);
--		}
--
--		page->mem_cgroup = NULL;
-+		uncharge_page(page, &ug);
- 	} while (next != page_list);
- 
--	if (memcg)
--		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
--			       nr_kmem, nr_huge, nr_shmem, page);
-+	if (ug.memcg)
-+		uncharge_batch(&ug);
- }
- 
- /**
-@@ -5620,6 +5633,8 @@ static void uncharge_list(struct list_head *page_list)
+ 	 * Because lookup_swap_cache() updates some statistics counter,
+ 	 * we call find_get_page() with swapper_space directly.
+@@ -4582,6 +4607,13 @@ static int mem_cgroup_move_account(struct page *page,
+  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
+  *     target for charge migration. if @target is not NULL, the entry is stored
+  *     in target->ent.
++ *   3(MC_TARGET_DEVICE): like MC_TARGET_PAGE  but page is MEMORY_DEVICE_HOST
++ *     or MEMORY_DEVICE_PRIVATE (so ZONE_DEVICE page and thus not on the lru).
++ *     For now we such page is charge like a regular page would be as for all
++ *     intent and purposes it is just special memory taking the place of a
++ *     regular page. See Documentations/vm/hmm.txt and include/linux/hmm.h for
++ *     more informations on this type of memory how it is use and why it is
++ *     charge like this.
+  *
+  * Called with pte lock held.
   */
- void mem_cgroup_uncharge(struct page *page)
- {
-+	struct uncharge_gather ug;
-+
- 	if (mem_cgroup_disabled())
- 		return;
+@@ -4610,6 +4642,9 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+ 		 */
+ 		if (page->mem_cgroup == mc.from) {
+ 			ret = MC_TARGET_PAGE;
++			if (is_device_private_page(page) ||
++			    is_device_host_page(page))
++				ret = MC_TARGET_DEVICE;
+ 			if (target)
+ 				target->page = page;
+ 		}
+@@ -4669,6 +4704,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
  
-@@ -5627,8 +5642,9 @@ void mem_cgroup_uncharge(struct page *page)
- 	if (!page->mem_cgroup)
- 		return;
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+ 	if (ptl) {
++		/*
++		 * Note their can not be MC_TARGET_DEVICE for now as we do not
++		 * support transparent huge page with MEMORY_DEVICE_HOST or
++		 * MEMORY_DEVICE_PRIVATE but this might change.
++		 */
+ 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
+ 			mc.precharge += HPAGE_PMD_NR;
+ 		spin_unlock(ptl);
+@@ -4884,6 +4924,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 				putback_lru_page(page);
+ 			}
+ 			put_page(page);
++		} else if (target_type == MC_TARGET_DEVICE) {
++			page = target.page;
++			if (!mem_cgroup_move_account(page, true,
++						     mc.from, mc.to)) {
++				mc.precharge -= HPAGE_PMD_NR;
++				mc.moved_charge += HPAGE_PMD_NR;
++			}
++			put_page(page);
+ 		}
+ 		spin_unlock(ptl);
+ 		return 0;
+@@ -4895,12 +4943,16 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		pte_t ptent = *(pte++);
++		bool device = false;
+ 		swp_entry_t ent;
  
--	INIT_LIST_HEAD(&page->lru);
--	uncharge_list(&page->lru);
-+	uncharge_gather_clear(&ug);
-+	uncharge_page(page, &ug);
-+	uncharge_batch(&ug);
- }
+ 		if (!mc.precharge)
+ 			break;
  
- /**
+ 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
++		case MC_TARGET_DEVICE:
++			device = true;
++			/* fall through */
+ 		case MC_TARGET_PAGE:
+ 			page = target.page;
+ 			/*
+@@ -4911,7 +4963,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 			 */
+ 			if (PageTransCompound(page))
+ 				goto put;
+-			if (isolate_lru_page(page))
++			if (!device && isolate_lru_page(page))
+ 				goto put;
+ 			if (!mem_cgroup_move_account(page, false,
+ 						mc.from, mc.to)) {
+@@ -4919,7 +4971,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 				/* we uncharge from mc.from later. */
+ 				mc.moved_charge++;
+ 			}
+-			putback_lru_page(page);
++			if (!device)
++				putback_lru_page(page);
+ put:			/* get_mctgt_type() gets the page */
+ 			put_page(page);
+ 			break;
 -- 
 2.13.0
 
