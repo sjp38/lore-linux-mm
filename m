@@ -1,93 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E06C06B0514
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:47:24 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s4so23694690pgr.3
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:47:24 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB5C6B0518
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:47:27 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p1so22548521pfl.2
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:47:27 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id j10si1876028pfc.13.2017.07.12.05.47.23
+        by mx.google.com with ESMTPS id j10si1876028pfc.13.2017.07.12.05.47.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 05:47:23 -0700 (PDT)
+        Wed, 12 Jul 2017 05:47:26 -0700 (PDT)
 From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v12 0/8] Virtio-balloon Enhancement
-Date: Wed, 12 Jul 2017 20:40:13 +0800
-Message-Id: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+Subject: [PATCH v12 1/8] virtio-balloon: deflate via a page list
+Date: Wed, 12 Jul 2017 20:40:14 +0800
+Message-Id: <1499863221-16206-2-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, wei.w.wang@intel.com, liliang.opensource@gmail.com
 Cc: virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-This patch series enhances the existing virtio-balloon with the following new
-features:
-1) fast ballooning: transfer ballooned pages between the guest and host in
-chunks using sgs, instead of one by one; and
-2) cmdq: a new virtqueue to send commands between the device and driver.
-Currently, it supports commands to report memory stats (replace the old statq
-mechanism) and report guest unused pages.
+From: Liang Li <liang.z.li@intel.com>
 
-Change Log:
+This patch saves the deflated pages to a list, instead of the PFN array.
+Accordingly, the balloon_pfn_to_page() function is removed.
 
-v11->v12:
-1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
-2) virtio-ring: enable the driver to build up a desc chain using vring desc.
-3) virtio-ring: Add locking to the existing START_USE() and END_USE() macro
-to lock/unlock the vq when a vq operation starts/ends.
-4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
-5) virtio-balloon: describe chunks of ballooned pages and free pages blocks
-directly using one or more chains of desc from the vq.
+Signed-off-by: Liang Li <liang.z.li@intel.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+---
+ drivers/virtio/virtio_balloon.c | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
 
-v10->v11:
-1) virtio_balloon: use vring_desc to describe a chunk;
-2) virtio_ring: support to add an indirect desc table to virtqueue;
-3)  virtio_balloon: use cmdq to report guest memory statistics.
-
-v9->v10:
-1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
-2) virtio-balloon: add virtballoon_validate();
-3) virtio-balloon: msg format change;
-4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
-5) virtio-balloon: code cleanup.
-
-v8->v9:
-1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
-VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
-implementation;
-2) Simpler function to get the free page block.
-
-v7->v8:
-1) Use only one chunk format, instead of two.
-2) re-write the virtio-balloon implementation patch.
-3) commit changes
-4) patch re-org
-
-Liang Li (1):
-  virtio-balloon: deflate via a page list
-
-Matthew Wilcox (1):
-  Introduce xbitmap
-
-Wei Wang (6):
-  virtio-balloon: coding format cleanup
-  xbitmap: add xb_find_next_bit() and xb_zero()
-  virtio-balloon: VIRTIO_BALLOON_F_SG
-  mm: support reporting free page blocks
-  mm: export symbol of next_zone and first_online_pgdat
-  virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
-
- drivers/virtio/virtio_balloon.c     | 414 ++++++++++++++++++++++++++++++++----
- drivers/virtio/virtio_ring.c        | 224 +++++++++++++++++--
- include/linux/mm.h                  |   5 +
- include/linux/radix-tree.h          |   2 +
- include/linux/virtio.h              |  22 ++
- include/linux/xbitmap.h             |  53 +++++
- include/uapi/linux/virtio_balloon.h |  11 +
- lib/radix-tree.c                    | 164 +++++++++++++-
- mm/mmzone.c                         |   2 +
- mm/page_alloc.c                     |  96 +++++++++
- 10 files changed, 926 insertions(+), 67 deletions(-)
- create mode 100644 include/linux/xbitmap.h
-
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 22caf80..7f38ae6 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -104,12 +104,6 @@ static u32 page_to_balloon_pfn(struct page *page)
+ 	return pfn * VIRTIO_BALLOON_PAGES_PER_PAGE;
+ }
+ 
+-static struct page *balloon_pfn_to_page(u32 pfn)
+-{
+-	BUG_ON(pfn % VIRTIO_BALLOON_PAGES_PER_PAGE);
+-	return pfn_to_page(pfn / VIRTIO_BALLOON_PAGES_PER_PAGE);
+-}
+-
+ static void balloon_ack(struct virtqueue *vq)
+ {
+ 	struct virtio_balloon *vb = vq->vdev->priv;
+@@ -182,18 +176,16 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	return num_allocated_pages;
+ }
+ 
+-static void release_pages_balloon(struct virtio_balloon *vb)
++static void release_pages_balloon(struct virtio_balloon *vb,
++				 struct list_head *pages)
+ {
+-	unsigned int i;
+-	struct page *page;
++	struct page *page, *next;
+ 
+-	/* Find pfns pointing at start of each page, get pages and free them. */
+-	for (i = 0; i < vb->num_pfns; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		page = balloon_pfn_to_page(virtio32_to_cpu(vb->vdev,
+-							   vb->pfns[i]));
++	list_for_each_entry_safe(page, next, pages, lru) {
+ 		if (!virtio_has_feature(vb->vdev,
+ 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 			adjust_managed_page_count(page, 1);
++		list_del(&page->lru);
+ 		put_page(page); /* balloon reference */
+ 	}
+ }
+@@ -203,6 +195,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	unsigned num_freed_pages;
+ 	struct page *page;
+ 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
++	LIST_HEAD(pages);
+ 
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+@@ -216,6 +209,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 		if (!page)
+ 			break;
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
++		list_add(&page->lru, &pages);
+ 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 	}
+ 
+@@ -227,7 +221,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	 */
+ 	if (vb->num_pfns != 0)
+ 		tell_host(vb, vb->deflate_vq);
+-	release_pages_balloon(vb);
++	release_pages_balloon(vb, &pages);
+ 	mutex_unlock(&vb->balloon_lock);
+ 	return num_freed_pages;
+ }
 -- 
 2.7.4
 
