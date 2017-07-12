@@ -1,59 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 192756810BE
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 03:22:53 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t188so1341120oih.15
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:22:53 -0700 (PDT)
-Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
-        by mx.google.com with ESMTPS id b205si1206639oia.375.2017.07.12.00.22.51
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57602440856
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 03:23:43 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g46so3440287wrd.3
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:23:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 189si1472252wmy.138.2017.07.12.00.23.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 00:22:52 -0700 (PDT)
-Received: by mail-oi0-x22b.google.com with SMTP id p188so12566230oia.0
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 00:22:51 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 12 Jul 2017 00:23:42 -0700 (PDT)
+Date: Wed, 12 Jul 2017 09:23:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC v5 00/38] powerpc: Memory Protection Keys
+Message-ID: <20170712072337.GB28912@dhcp22.suse.cz>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <20170711145246.GA11917@dhcp22.suse.cz>
+ <20170711193257.GB5525@ram.oc3035372033.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1499842660-10665-1-git-send-email-geert@linux-m68k.org>
-References: <1499842660-10665-1-git-send-email-geert@linux-m68k.org>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 12 Jul 2017 09:22:51 +0200
-Message-ID: <CAK8P3a3J8uyTW2_iDpOi2Y5ONf7z3TR0zk3igp2uBrL8xsQd8Q@mail.gmail.com>
-Subject: Re: [PATCH] mm: Mark create_huge_pmd() inline to prevent build failure
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170711193257.GB5525@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Wed, Jul 12, 2017 at 8:57 AM, Geert Uytterhoeven
-<geert@linux-m68k.org> wrote:
->
-> With gcc 4.1.2:
->
->     mm/memory.o: In function `create_huge_pmd':
->     memory.c:(.text+0x93e): undefined reference to `do_huge_pmd_anonymous_page'
->
-> Converting transparent_hugepage_enabled() from a macro to a static
-> inline function reduced the ability of the compiler to remove unused
-> code.
->
-> Fix this by marking create_huge_pmd() inline.
->
-> Fixes: 16981d763501c0e0 ("mm: improve readability of transparent_hugepage_enabled()")
-> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+On Tue 11-07-17 12:32:57, Ram Pai wrote:
+> On Tue, Jul 11, 2017 at 04:52:46PM +0200, Michal Hocko wrote:
+> > On Wed 05-07-17 14:21:37, Ram Pai wrote:
+> > > Memory protection keys enable applications to protect its
+> > > address space from inadvertent access or corruption from
+> > > itself.
+> > > 
+> > > The overall idea:
+> > > 
+> > >  A process allocates a   key  and associates it with
+> > >  an  address  range  within    its   address   space.
+> > >  The process  then  can  dynamically  set read/write 
+> > >  permissions on  the   key   without  involving  the 
+> > >  kernel. Any  code that  violates   the  permissions
+> > >  of  the address space; as defined by its associated
+> > >  key, will receive a segmentation fault.
+> > > 
+> > > This patch series enables the feature on PPC64 HPTE
+> > > platform.
+> > > 
+> > > ISA3.0 section 5.7.13 describes the detailed specifications.
+> > 
+> > Could you describe the highlevel design of this feature in the cover
+> > letter.
+> 
+> Yes it can be hard to understand without the big picture.  I will
+> provide the high level design and the rationale behind the patch split
+> towards the end.  Also I will have it in the cover letter for my next
+> revision of the patchset.
 
-Acked-by: Arnd Bergmann <arnd@arndb.de>
+Thanks!
+ 
+> > I have tried to get some idea from the patchset but it was
+> > really far from trivial. Patches are not very well split up (many
+> > helpers are added without their users etc..). 
+> 
+> I see your point. Earlier, I had the patches split such a way that the
+> users of the helpers were in the same patch as that of the helper.
+> But then comments from others lead to the current split.
 
-> ---
-> Interestingly, create_huge_pmd() is emitted in the assembler output, but
-> never called.
+It is not my call here, obviously. I cannot review arch specific parts
+due to lack of familiarity but it is a general good practice to include
+helpers along with their users to make the usage clear. Also, as much as
+I like small patches because they are easier to review, having very many
+of them can lead to a harder review in the end because you easily lose
+a higher level overview.
 
-I've never seen this before either. I know that early gcc-4 compilers
-would do this
-when a function is referenced from an unused function pointer, but not with
-a compile-time constant evaluation. I guess that transparent_hugepage_enabled
-is just slightly more complex than it gcc-4.1 can handle here.
+> > > Testing:
+> > > 	This patch series has passed all the protection key
+> > > 	tests available in  the selftests directory.
+> > > 	The tests are updated to work on both x86 and powerpc.
+> > > 
+> > > version v5:
+> > > 	(1) reverted back to the old design -- store the 
+> > > 	    key in the pte, instead of bypassing it.
+> > > 	    The v4 design slowed down the hash page path.
+> > 
+> > This surprised me a lot but I couldn't find the respective code. Why do
+> > you need to store anything in the pte? My understanding of PKEYs is that
+> > the setup and teardown should be very cheap and so no page tables have
+> > to updated. Or do I just misunderstand what you wrote here?
+> 
+> Ideally the MMU looks at the PTE for keys, in order to enforce
+> protection. This is the case with x86 and is the case with power9 Radix
+> page table. Hence the keys have to be programmed into the PTE.
 
-       Arnd
+But x86 doesn't update ptes for PKEYs, that would be just too expensive.
+You could use standard mprotect to do the same...
+ 
+> However with HPT on power, these keys do not necessarily have to be
+> programmed into the PTE. We could bypass the Linux Page Table Entry(PTE)
+> and instead just program them into the Hash Page Table(HPTE), since
+> the MMU does not refer the PTE but refers the HPTE. The last version
+> of the page attempted to do that.   It worked as follows:
+> 
+> a) when a address range is requested to be associated with a key; by the
+>    application through key_mprotect() system call, the kernel
+>    stores that key in the vmas corresponding to that address
+>    range.
+> 
+> b) Whenever there is a hash page fault for that address, the fault
+>    handler reads the key from the VMA and programs the key into the
+>    HPTE. __hash_page() is the function that does that.
+
+What causes the fault here?
+
+> c) Once the hpte is programmed, the MMU can sense key violations and
+>    generate key-faults.
+> 
+> The problem is with step (b).  This step is really a very critical
+> path which is performance sensitive. We dont want to add any delays.
+> However if we want to access the key from the vma, we will have to
+> hold the vma semaphore, and that is a big NO-NO. As a result, this
+> design had to be dropped.
+> 
+> 
+> 
+> I reverted back to the old design i.e the design in v4 version. In this
+> version we do the following:
+> 
+> a) when a address range is requested to be associated with a key; by the
+>    application through key_mprotect() system call, the kernel
+>    stores that key in the vmas corresponding to that address
+>    range. Also the kernel programs the key into Linux PTE coresponding to all the
+>    pages associated with the address range.
+
+OK, so how is this any different from the regular mprotect then?
+
+> b) Whenever there is a hash page fault for that address, the fault
+>    handler reads the key from the Linux PTE and programs the key into 
+>    the HPTE.
+> 
+> c) Once the HPTE is programmed, the MMU can sense key violations and
+>    generate key-faults.
+> 
+> 
+> Since step (b) in this case has easy access to the Linux PTE, and hence
+> to the key, it is fast to access it and program the HPTE. Thus we avoid
+> taking any performance hit on this critical path.
+> 
+> Hope this explains the rationale,
+> 
+> 
+> As promised here is the high level design:
+
+I will read through that later
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
