@@ -1,106 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C62440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 10:54:56 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id k192so19668904ith.0
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 07:54:56 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id x70si2645726ita.34.2017.07.12.07.54.55
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF3B3440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 11:44:56 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id c190so20697673ith.3
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:44:56 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id z11si3552847iof.191.2017.07.12.08.44.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 07:54:55 -0700 (PDT)
-Date: Wed, 12 Jul 2017 09:54:54 -0500 (CDT)
+        Wed, 12 Jul 2017 08:44:55 -0700 (PDT)
+Date: Wed, 12 Jul 2017 10:44:54 -0500 (CDT)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] slub: Introduce 'alternate' per cpu partial lists
-In-Reply-To: <1496965984-21962-1-git-send-email-labbott@redhat.com>
-Message-ID: <alpine.DEB.2.20.1707120949260.15771@nuc-kabylake>
-References: <1496965984-21962-1-git-send-email-labbott@redhat.com>
+Subject: Re: BUG: using __this_cpu_read() in preemptible [00000000] code:
+ mm_percpu_wq/7
+In-Reply-To: <b7cc8709-5bbf-8a9a-a155-0ea804641e9a@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.20.1707121039180.15771@nuc-kabylake>
+References: <b7cc8709-5bbf-8a9a-a155-0ea804641e9a@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Andre Wild <wild@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, heiko.carstens@de.ibm.com
 
-On Thu, 8 Jun 2017, Laura Abbott wrote:
+On Wed, 7 Jun 2017, Andre Wild wrote:
 
-> - Some of this code is redundant and can probably be combined.
-> - The fast path is very sensitive and it was suggested I leave it alone. The
-> approach I took means the fastpath cmpxchg always fails before trying the
-> alternate cmpxchg. From some of my profiling, the cmpxchg seemed to be fairly
-> expensive.
+> I'm currently seeing the following message running kernel version 4.11.0.
+> It looks like it was introduced with the patch
+> 4037d452202e34214e8a939fa5621b2b3bbb45b7.
 
-I think its better to change the fast path. Just make sure that the hot
-path is as unencumbered as possible. There are already slow pieces in the
-hotpath. If you modifications are similar then it would work.
-
-> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-> index 07ef550..d582101 100644
-> --- a/include/linux/slub_def.h
-> +++ b/include/linux/slub_def.h
-> @@ -42,6 +44,12 @@ struct kmem_cache_cpu {
->  	unsigned long tid;	/* Globally unique transaction id */
->  	struct page *page;	/* The slab from which we are allocating */
->  	struct page *partial;	/* Partially allocated frozen slabs */
-> +	/*
-> +	 * The following fields have identical uses to those above */
-> +	void **alt_freelist;
-> +	unsigned long alt_tid;
-> +	struct page *alt_partial;
-> +	struct page *alt_page;
->  #ifdef CONFIG_SLUB_STATS
->  	unsigned stat[NR_SLUB_STAT_ITEMS];
->  #endif
-
-I would rather avoid duplication here. Use the regular entries and modify
-the flow depending on a flag.
-
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 7449593..b1fc4c6 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -132,10 +132,24 @@ void *fixup_red_left(struct kmem_cache *s, void *p)
->  	return p;
->  }
->
-> +#define SLAB_NO_PARTIAL (SLAB_CONSISTENCY_CHECKS | SLAB_STORE_USER | \
-> +                               SLAB_TRACE)
-> +
-> +
-> +static inline bool kmem_cache_use_alt_partial(struct kmem_cache *s)
-> +{
-> +#ifdef CONFIG_SLUB_CPU_PARTIAL
-> +	return s->flags & (SLAB_RED_ZONE | SLAB_POISON) &&
-> +		!(s->flags & SLAB_NO_PARTIAL);
-> +#else
-> +	return false;
-> +#endif
-> +}
-> +
->  static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
->  {
->  #ifdef CONFIG_SLUB_CPU_PARTIAL
-> -	return !kmem_cache_debug(s);
-> +	return !(s->flags & SLAB_NO_PARTIAL);
->  #else
->  	return false;
->  #endif
-> @@ -1786,6 +1800,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
->  }
-
-Hmmm... Looks like the inversion would be better
-
-SLAB_PARTIAL?
+A 2007 patch? At that point we did not have __this_cpu_read() nor
+refresh_cpu_vmstats.... Is this on s390 or some such architecture?
 
 
-...
+> Can you please take a look at this problem?
 
-Lots of duplication. I think that can be avoided by rearranging the fast
-path depending on a flag.
+Could you give me a bit more context?
 
-Maybe make the fast poisoning the default? If you can keep the performance
-of the fast path for regular use then this may be best. You can then avoid
-adding the additional flag as well as the additional debug counters.
+
+> [Tue Jun  6 15:27:03 2017] BUG: using __this_cpu_read() in preemptible
+> [00000000] code: mm_percpu_wq/7
+> [Tue Jun  6 15:27:03 2017] caller is refresh_cpu_vm_stats+0x198/0x3d8
+> [Tue Jun  6 15:27:03 2017] CPU: 0 PID: 7 Comm: mm_percpu_wq Tainted: G
+> W       4.11.0-20170529.0.ae409ab.224a322.fc25.s390xdefault #1
+> [Tue Jun  6 15:27:03 2017] Workqueue: mm_percpu_wq vmstat_update
+
+It is run in preemptible mode but this from a kworker
+context so the processor cannot change (see vmstat_refresh()).
+
+Even on s390 or so this should be fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
