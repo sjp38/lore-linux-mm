@@ -1,66 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C52156B056F
-	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 22:01:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d18so9873500pfe.8
-        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 19:01:41 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id m184si769215pgm.585.2017.07.11.19.01.37
-        for <linux-mm@kvack.org>;
-        Tue, 11 Jul 2017 19:01:40 -0700 (PDT)
-Date: Wed, 12 Jul 2017 11:00:53 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170712020053.GB20323@X58A-UD3R>
-References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
- <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
- <20170711161232.GB28975@worktop>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A15226B0571
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2017 22:22:46 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z10so10478726pff.1
+        for <linux-mm@kvack.org>; Tue, 11 Jul 2017 19:22:46 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id s185si805347pgc.591.2017.07.11.19.22.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jul 2017 19:22:45 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v2 2/6] mm, swap: Add swap readahead hit statistics
+References: <20170630014443.23983-1-ying.huang@intel.com>
+	<20170630014443.23983-3-ying.huang@intel.com>
+	<1152d4f5-fe8b-b46c-9d6b-3ecf69019172@intel.com>
+Date: Wed, 12 Jul 2017 10:22:42 +0800
+In-Reply-To: <1152d4f5-fe8b-b46c-9d6b-3ecf69019172@intel.com> (Dave Hansen's
+	message of "Tue, 11 Jul 2017 11:25:36 -0700")
+Message-ID: <87shi24cnh.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170711161232.GB28975@worktop>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
 
-On Tue, Jul 11, 2017 at 06:12:32PM +0200, Peter Zijlstra wrote:
-> 
-> ARGH!!! please, if there are known holes in patches, put a comment in.
+Dave Hansen <dave.hansen@intel.com> writes:
 
-The fourth of the last change log is the comment, but it was not enough.
-I will try to add more comment in that case.
+> On 06/29/2017 06:44 PM, Huang, Ying wrote:
+>>  
+>>  static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
+>> +static atomic_long_t swapin_readahead_hits_total = ATOMIC_INIT(0);
+>> +static atomic_long_t swapin_readahead_total = ATOMIC_INIT(0);
+>>  
+>>  void show_swap_cache_info(void)
+>>  {
+>> @@ -305,8 +307,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
+>>  
+>>  	if (page && likely(!PageTransCompound(page))) {
+>>  		INC_CACHE_INFO(find_success);
+>> -		if (TestClearPageReadahead(page))
+>> +		if (TestClearPageReadahead(page)) {
+>>  			atomic_inc(&swapin_readahead_hits);
+>> +			atomic_long_inc(&swapin_readahead_hits_total);
+>> +		}
+>>  	}
+>
+> Adding global atomics that we touch in hot paths seems like poor
+> future-proofing.  Are we sure we want to do this and not use some of the
+> nice, fancy, percpu counters that we have?
 
-> I now had to independently discover this problem during review of the
-> last patch.
-> 
+Yes.  It is much better to use percpu counters instead.  Will change it
+in the next version.
 
-...
-
-> 
-> Right, like I wrote in the comment; I don't think you need quite this
-> much.
-> 
-> The problem only happens if you rewind more than MAX_XHLOCKS_NR;
-> although I realize it can be an accumulative rewind, which makes it
-> slightly more tricky.
-> 
-> We can either make the rewind more expensive and make xhlock_valid()
-> false for each rewound entry; or we can keep the max_idx and account
-
-Does max_idx mean the 'original position - 1'?
-
-> from there. If we rewind >= MAX_XHLOCKS_NR from the max_idx we need to
-> invalidate the entire state, which we can do by invaliding
-
-Could you explain what the entire state is?
-
-> xhlock_valid() or by re-introduction of the hist_gen_id. When we
-
-What does the re-introduction of the hist_gen_id mean?
-
-> invalidate the entire state, we can also clear the max_idx.
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
