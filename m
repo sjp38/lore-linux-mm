@@ -1,273 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03C676B0539
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:49:38 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 23so5358606wry.4
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:49:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k31si1800083wrk.167.2017.07.12.05.49.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4916B6B053F
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 08:55:08 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s4so23870816pgr.3
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 05:55:08 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id d6si1967910pln.369.2017.07.12.05.55.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Jul 2017 05:49:36 -0700 (PDT)
-Date: Wed, 12 Jul 2017 14:49:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
-Message-ID: <20170712124933.GK28912@dhcp22.suse.cz>
-References: <20170629073509.623-1-mhocko@kernel.org>
- <20170629073509.623-3-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jul 2017 05:55:07 -0700 (PDT)
+Message-ID: <59661CA6.5040903@intel.com>
+Date: Wed, 12 Jul 2017 20:57:10 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170629073509.623-3-mhocko@kernel.org>
+Subject: Re: [virtio-dev] Re: [PATCH v11 6/6] virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
+References: <1497004901-30593-1-git-send-email-wei.w.wang@intel.com> <1497004901-30593-7-git-send-email-wei.w.wang@intel.com> <20170620190343-mutt-send-email-mst@kernel.org> <5949E7C0.3050106@intel.com> <20170621151922-mutt-send-email-mst@kernel.org> <594B8287.6000706@intel.com> <20170628175956-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170628175956-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "nilal@redhat.com" <nilal@redhat.com>
 
-Are there any other concerns regarding this patch? Can I repost it for
-inclusion?
+On 06/28/2017 11:01 PM, Michael S. Tsirkin wrote:
+> On Thu, Jun 22, 2017 at 04:40:39PM +0800, Wei Wang wrote:
+>> On 06/21/2017 08:28 PM, Michael S. Tsirkin wrote:
+>>> On Wed, Jun 21, 2017 at 11:28:00AM +0800, Wei Wang wrote:
+>>>> On 06/21/2017 12:18 AM, Michael S. Tsirkin wrote:
+>>>>> On Fri, Jun 09, 2017 at 06:41:41PM +0800, Wei Wang wrote:
+>>>>>> -	if (!virtqueue_indirect_desc_table_add(vq, desc, num)) {
+>>>>>> +	if (!virtqueue_indirect_desc_table_add(vq, desc, *num)) {
+>>>>>>     		virtqueue_kick(vq);
+>>>>>> -		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+>>>>>> -		vb->balloon_page_chunk.chunk_num = 0;
+>>>>>> +		if (busy_wait)
+>>>>>> +			while (!virtqueue_get_buf(vq, &len) &&
+>>>>>> +			       !virtqueue_is_broken(vq))
+>>>>>> +				cpu_relax();
+>>>>>> +		else
+>>>>>> +			wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+>>>>> This is something I didn't previously notice.
+>>>>> As you always keep a single buffer in flight, you do not
+>>>>> really need indirect at all. Just add all descriptors
+>>>>> in the ring directly, then kick.
+>>>>>
+>>>>> E.g.
+>>>>> 	virtqueue_add_first
+>>>>> 	virtqueue_add_next
+>>>>> 	virtqueue_add_last
+>>>>>
+>>>>> ?
+>>>>>
+>>>>> You also want a flag to avoid allocations but there's no need to do it
+>>>>> per descriptor, set it on vq.
+>>>>>
+>>>> Without using the indirect table, I'm thinking about changing to use
+>>>> the standard sg (i.e. struct scatterlist), instead of vring_desc, so that
+>>>> we don't need to modify or add any new functions of virtqueue_add().
+>>>>
+>>>> In this case, we will kmalloc an array of sgs in probe(), and we can add
+>>>> the sgs one by one to the vq, which won't trigger the allocation of an
+>>>> indirect table inside virtqueue_add(), and then kick when all are added.
+>>>>
+>>>> Best,
+>>>> Wei
+>>> And allocate headers too? This can work. API extensions aren't
+>>> necessarily a bad idea though. The API I suggest above is preferable
+>>> for the simple reason that it can work without INDIRECT flag
+>>> support in hypervisor.
+>> OK, probably we don't need to add a desc to the vq - we can just use
+>> the vq's desc, like this:
+>>
+>> int virtqueue_add_first(struct virtqueue *_vq,
+>>                                       uint64_t addr,
+>>                                       uint32_t len,
+>>                                       bool in,
+>>                                       unsigned int *idx) {
+>>
+>>      ...
+>>     uint16_t desc_flags = in ? VRING_DESC_F_NEXT | VRING_DESC_F_WRITE :
+>>                                               VRING_DESC_F_NEXT;
+>>
+>>      vq->vring.desc[vq->free_head].addr = addr;
+>>      vq->vring.desc[vq->free_head].len = len;
+>>      vq->vring.desc[vq->free_head].flags = cpu_to_virtio16(_vq->vdev, flags);
+>>      /* return to the caller the desc id */
+>>      *idx = vq->free_head;
+>>      ...
+>> }
+>>
+>> int virtqueue_add_next(struct virtqueue *_vq,
+>>                                       uint64_t addr,
+>>                                       uint32_t len,
+>>                                       bool in,
+>>                                       bool end,
+>>                                       unsigned int *idx) {
+>>      ...
+>>      vq->vring.desc[*idx].next = vq->free_head;
+>>      vq->vring.desc[vq->free_head].addr = addr;
+>>      ...
+>>      if (end)
+>>          remove the VRING_DESC_F_NEXT flag
+>> }
+>>
+> Add I would say add-last.
+>
+>> What do you think? We can also combine the two functions into one.
+>>
+>>
+>>
+>> Best,
+>> Wei
+> With an enum? Yes that's also an option.
+>
 
-On Thu 29-06-17 09:35:09, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
-> to precede the Movable zone in the physical memory range. The purpose of
-> the movable zone is, however, not bound to any physical memory restriction.
-> It merely defines a class of migrateable and reclaimable memory.
-> 
-> There are users (e.g. CMA) who might want to reserve specific physical
-> memory ranges for their own purpose. Moreover our pfn walkers have to be
-> prepared for zones overlapping in the physical range already because we
-> do support interleaving NUMA nodes and therefore zones can interleave as
-> well. This means we can allow each memory block to be associated with a
-> different zone.
-> 
-> Loosen the current onlining semantic and allow explicit onlining type on
-> any memblock. That means that online_{kernel,movable} will be allowed
-> regardless of the physical address of the memblock as long as it is
-> offline of course. This might result in moveble zone overlapping with
-> other kernel zones. Default onlining then becomes a bit tricky but still
-> sensible. echo online > memoryXY/state will online the given block to
-> 	1) the default zone if the given range is outside of any zone
-> 	2) the enclosing zone if such a zone doesn't interleave with
-> 	   any other zone
->         3) the default zone if more zones interleave for this range
-> where default zone is movable zone only if movable_node is enabled
-> otherwise it is a kernel zone.
-> 
-> Here is an example of the semantic with (movable_node is not present but
-> it work in an analogous way). We start with following memblocks, all of
-> them offline
-> memory34/valid_zones:Normal Movable
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Normal Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal Movable
-> memory40/valid_zones:Normal Movable
-> memory41/valid_zones:Normal Movable
-> 
-> Now, we online block 34 in default mode and block 37 as movable
-> root@test1:/sys/devices/system/node/node1# echo online > memory34/state
-> root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal Movable
-> memory40/valid_zones:Normal Movable
-> memory41/valid_zones:Normal Movable
-> 
-> As we can see all other blocks can still be onlined both into Normal and
-> Movable zones and the Normal is default because the Movable zone spans
-> only block37 now.
-> root@test1:/sys/devices/system/node/node1# echo online_movable > memory41/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Movable Normal
-> memory39/valid_zones:Movable Normal
-> memory40/valid_zones:Movable Normal
-> memory41/valid_zones:Movable
-> 
-> Now the default zone for blocks 37-41 has changed because movable zone
-> spans that range.
-> root@test1:/sys/devices/system/node/node1# echo online_kernel > memory39/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal
-> memory40/valid_zones:Movable Normal
-> memory41/valid_zones:Movable
-> 
-> Note that the block 39 now belongs to the zone Normal and so block38
-> falls into Normal by default as well.
-> 
-> For completness
-> root@test1:/sys/devices/system/node/node1# for i in memory[34]?
-> do
-> 	echo online > $i/state 2>/dev/null
-> done
-> 
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal
-> memory36/valid_zones:Normal
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal
-> memory39/valid_zones:Normal
-> memory40/valid_zones:Movable
-> memory41/valid_zones:Movable
-> 
-> Implementation wise the change is quite straightforward. We can get rid
-> of allow_online_pfn_range altogether. online_pages allows only offline
-> nodes already. The original default_zone_for_pfn will become
-> default_kernel_zone_for_pfn. New default_zone_for_pfn implements the
-> above semantic. zone_for_pfn_range is slightly reorganized to implement
-> kernel and movable online type explicitly and MMOP_ONLINE_KEEP becomes
-> a catch all default behavior.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  drivers/base/memory.c |  3 ---
->  mm/memory_hotplug.c   | 74 ++++++++++++++++-----------------------------------
->  2 files changed, 23 insertions(+), 54 deletions(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 26383af9900c..4e3b61cda520 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -394,9 +394,6 @@ static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
->  {
->  	struct zone *zone;
->  
-> -	if (!allow_online_pfn_range(nid, start_pfn, nr_pages, online_type))
-> -		return;
-> -
->  	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
->  	if (zone != default_zone) {
->  		strcat(buf, " ");
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 6b9a60115e37..670f7acbecf4 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -894,7 +894,7 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
->   * If no kernel zone covers this pfn range it will automatically go
->   * to the ZONE_NORMAL.
->   */
-> -static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-> +static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn,
->  		unsigned long nr_pages)
->  {
->  	struct pglist_data *pgdat = NODE_DATA(nid);
-> @@ -910,65 +910,40 @@ static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
->  	return &pgdat->node_zones[ZONE_NORMAL];
->  }
->  
-> -bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, int online_type)
-> +static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-> +		unsigned long nr_pages)
->  {
-> -	struct pglist_data *pgdat = NODE_DATA(nid);
-> -	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-> -	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
-> +	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
-> +			nr_pages);
-> +	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-> +	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
-> +	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
->  
->  	/*
-> -	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
-> -	 * physically before ZONE_MOVABLE. All we need is they do not
-> -	 * overlap. Historically we didn't allow ZONE_NORMAL after ZONE_MOVABLE
-> -	 * though so let's stick with it for simplicity for now.
-> -	 * TODO make sure we do not overlap with ZONE_DEVICE
-> +	 * We inherit the existing zone in a simple case where zones do not
-> +	 * overlap in the given range
->  	 */
-> -	if (online_type == MMOP_ONLINE_KERNEL) {
-> -		if (zone_is_empty(movable_zone))
-> -			return true;
-> -		return movable_zone->zone_start_pfn >= pfn + nr_pages;
-> -	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-> -		return zone_end_pfn(default_zone) <= pfn;
-> -	}
-> -
-> -	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
-> -	return online_type == MMOP_ONLINE_KEEP;
-> -}
-> -
-> -static inline bool movable_pfn_range(int nid, struct zone *default_zone,
-> -		unsigned long start_pfn, unsigned long nr_pages)
-> -{
-> -	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-> -				MMOP_ONLINE_KERNEL))
-> -		return true;
-> -
-> -	if (!movable_node_is_enabled())
-> -		return false;
-> +	if (in_kernel ^ in_movable)
-> +		return (in_kernel) ? kernel_zone : movable_zone;
->  
-> -	return !zone_intersects(default_zone, start_pfn, nr_pages);
-> +	/*
-> +	 * If the range doesn't belong to any zone or two zones overlap in the
-> +	 * given range then we use movable zone only if movable_node is
-> +	 * enabled because we always online to a kernel zone by default.
-> +	 */
-> +	return movable_node_enabled ? movable_zone : kernel_zone;
->  }
->  
->  struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
->  		unsigned long nr_pages)
->  {
-> -	struct pglist_data *pgdat = NODE_DATA(nid);
-> -	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
-> +	if (online_type == MMOP_ONLINE_KERNEL)
-> +		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
->  
-> -	if (online_type == MMOP_ONLINE_KEEP) {
-> -		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-> -		/*
-> -		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
-> -		 * movable zone if that is not possible (e.g. we are within
-> -		 * or past the existing movable zone). movable_node overrides
-> -		 * this default and defaults to movable zone
-> -		 */
-> -		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
-> -			zone = movable_zone;
-> -	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-> -		zone = &pgdat->node_zones[ZONE_MOVABLE];
-> -	}
-> +	if (online_type == MMOP_ONLINE_MOVABLE)
-> +		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
->  
-> -	return zone;
-> +	return default_zone_for_pfn(nid, start_pfn, nr_pages);
->  }
->  
->  /*
-> @@ -997,9 +972,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->  	struct memory_notify arg;
->  
->  	nid = pfn_to_nid(pfn);
-> -	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
-> -		return -EINVAL;
-> -
->  	/* associate pfn range with the zone */
->  	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
->  
-> -- 
-> 2.11.0
-> 
+Thanks for the suggestion. I shifted it a little bit, please have a check
+the latest v12 patches that I just sent out.
 
--- 
-Michal Hocko
-SUSE Labs
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
