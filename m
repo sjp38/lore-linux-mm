@@ -1,117 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8627F440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 09:56:07 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id s20so12690692qki.12
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 06:56:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o74si2328496qkl.67.2017.07.12.06.56.06
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B957F440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 10:11:30 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id g40so8890443uaa.4
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 07:11:30 -0700 (PDT)
+Received: from mail-ua0-x231.google.com (mail-ua0-x231.google.com. [2607:f8b0:400c:c08::231])
+        by mx.google.com with ESMTPS id v64si866622vkb.146.2017.07.12.07.11.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 06:56:06 -0700 (PDT)
-Date: Wed, 12 Jul 2017 16:56:00 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170712163746-mutt-send-email-mst@kernel.org>
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
- <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
- <20170712160129-mutt-send-email-mst@kernel.org>
- <5966241C.9060503@intel.com>
+        Wed, 12 Jul 2017 07:11:29 -0700 (PDT)
+Received: by mail-ua0-x231.google.com with SMTP id z22so15059184uah.1
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 07:11:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5966241C.9060503@intel.com>
+In-Reply-To: <20170710133238.2afcda57ea28e020ca03c4f0@linux-foundation.org>
+References: <20170707083408.40410-1-glider@google.com> <20170707132351.4f10cd778fc5eb58e9cc5513@linux-foundation.org>
+ <alpine.DEB.2.20.1707071816560.20454@east.gentwo.org> <20170710133238.2afcda57ea28e020ca03c4f0@linux-foundation.org>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 12 Jul 2017 16:11:28 +0200
+Message-ID: <CAG_fn=WKtQhGfcTxvRgDYnAkOp1acGUmnLyoJRf6syvEL-Yysg@mail.gmail.com>
+Subject: Re: [PATCH] slub: make sure struct kmem_cache_node is initialized
+ before publication
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Jul 12, 2017 at 09:29:00PM +0800, Wei Wang wrote:
-> On 07/12/2017 09:06 PM, Michael S. Tsirkin wrote:
-> > On Wed, Jul 12, 2017 at 08:40:18PM +0800, Wei Wang wrote:
-> > > diff --git a/include/linux/virtio.h b/include/linux/virtio.h
-> > > index 28b0e96..9f27101 100644
-> > > --- a/include/linux/virtio.h
-> > > +++ b/include/linux/virtio.h
-> > > @@ -57,8 +57,28 @@ int virtqueue_add_sgs(struct virtqueue *vq,
-> > >   		      void *data,
-> > >   		      gfp_t gfp);
-> > > +/* A desc with this init id is treated as an invalid desc */
-> > > +#define VIRTQUEUE_DESC_ID_INIT UINT_MAX
-> > > +int virtqueue_add_chain_desc(struct virtqueue *_vq,
-> > > +			     uint64_t addr,
-> > > +			     uint32_t len,
-> > > +			     unsigned int *head_id,
-> > > +			     unsigned int *prev_id,
-> > > +			     bool in);
-> > > +
-> > > +int virtqueue_add_chain(struct virtqueue *_vq,
-> > > +			unsigned int head,
-> > > +			bool indirect,
-> > > +			struct vring_desc *indirect_desc,
-> > > +			void *data,
-> > > +			void *ctx);
-> > > +
-> > >   bool virtqueue_kick(struct virtqueue *vq);
-> > > +bool virtqueue_kick_sync(struct virtqueue *vq);
-> > > +
-> > > +bool virtqueue_kick_async(struct virtqueue *vq, wait_queue_head_t wq);
-> > > +
-> > >   bool virtqueue_kick_prepare(struct virtqueue *vq);
-> > >   bool virtqueue_notify(struct virtqueue *vq);
-> > I don't much care for this API. It does exactly what balloon needs,
-> > but at cost of e.g. transparently busy-waiting. Unlikely to be
-> > a good fit for anything else.
-> 
-> If you were referring to this API - virtqueue_add_chain_desc():
-> 
-> Busy waiting only happens when the vq is full (i.e. no desc left). If
-> necessary, I think we can add an input parameter like
-> "bool busywaiting", then the caller can decide to simply get a -ENOSPC
-> or busy wait to add when no desc is available.
+Hi everyone,
 
-I think this just shows this API is too high level.
-This policy should live in drivers.
-
-> > 
-> > If you don't like my original _first/_next/_last, you will
-> > need to come up with something else.
-> 
-> I thought the above virtqueue_add_chain_des() performs the same
-> functionality as _first/next/last, which are used to grab descs from the
-> vq and chain them together. If not, could you please elaborate the
-> usage of the original proposal?
-> 
-> Best,
-> Wei
-> 
-
-So the way I see it, there are several issues:
-
-- internal wait - forces multiple APIs like kick/kick_sync
-  note how kick_sync can fail but your code never checks return code
-- need to re-write the last descriptor - might not work
-  for alternative layouts which always expose descriptors
-  immediately
-- some kind of iterator type would be nicer instead of
-  maintaining head/prev explicitly
-
-
-As for the use, it would be better to do
-
-if (!add_next(vq, ...)) {
-	add_last(vq, ...)
-	kick
-	wait
-}
-
-Using VIRTQUEUE_DESC_ID_INIT seems to avoid a branch in the driver, but
-in fact it merely puts the branch in the virtio code.
+On Mon, Jul 10, 2017 at 10:32 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 7 Jul 2017 18:18:31 -0500 (CDT) Christoph Lameter <cl@linux.com> =
+wrote:
+>
+>> On Fri, 7 Jul 2017, Andrew Morton wrote:
+>>
+>> > On Fri,  7 Jul 2017 10:34:08 +0200 Alexander Potapenko <glider@google.=
+com> wrote:
+>> >
+>> > > --- a/mm/slub.c
+>> > > +++ b/mm/slub.c
+>> > > @@ -3389,8 +3389,8 @@ static int init_kmem_cache_nodes(struct kmem_c=
+ache *s)
+>> > >                   return 0;
+>> > >           }
+>> > >
+>> > > -         s->node[node] =3D n;
+>> > >           init_kmem_cache_node(n);
+>> > > +         s->node[node] =3D n;
+>> > >   }
+>> > >   return 1;
+>> > >  }
+>> >
+>> > If this matters then I have bad feelings about free_kmem_cache_nodes()=
+:
+>>
+>> At creation time the kmem_cache structure is private and no one can run =
+a
+>> free operation.
+I've double-checked the code path and this turned out to be a false
+positive caused by KMSAN not instrumenting the contents of mm/slub.c
+(i.e. the initialization of the spinlock remained unnoticed).
+Christoph is indeed right that kmem_cache_structure is private, so a
+race is not possible here.
+I am sorry for the false alarm.
+>> > Inviting a use-after-free?  I guess not, as there should be no way
+>> > to look up these items at this stage.
+>>
+>> Right.
+>
+> Still.   It looks bad, and other sites do these things in the other order=
+.
+If the maintainers agree the initialization order needs to be fixed,
+we'll need to remove the (irrelevant) KMSAN report from the patch
+description.
+>> > Could the slab maintainers please take a look at these and also have a
+>> > think about Alexander's READ_ONCE/WRITE_ONCE question?
+>>
+>> Was I cced on these?
+>
+> It's all on linux-mm.
 
 
 
--- 
-MST
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
