@@ -1,146 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4DC440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 13:59:27 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id h47so25666235qta.12
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 10:59:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m34si5532336qtd.363.2017.07.13.10.59.26
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6781F440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:12:25 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id i71so76022473itf.2
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 11:12:25 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id c187si19273ith.132.2017.07.13.11.12.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 10:59:26 -0700 (PDT)
-Date: Thu, 13 Jul 2017 20:59:09 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 8/8] virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
-Message-ID: <20170713205247-mutt-send-email-mst@kernel.org>
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
- <1499863221-16206-9-git-send-email-wei.w.wang@intel.com>
- <20170713032207-mutt-send-email-mst@kernel.org>
- <59673365.7080408@intel.com>
+        Thu, 13 Jul 2017 11:12:24 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
+ mirroring functionality
+References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
+ <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+ <20170711123642.GC11936@dhcp22.suse.cz>
+ <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
+ <20170712114655.GG28912@dhcp22.suse.cz>
+ <3a2cfeae-520c-b6e5-2808-cf1bcf62b067@oracle.com>
+ <20170713061651.GA14492@dhcp22.suse.cz>
+ <21b264e7-b879-f072-03d2-f6f4aec5c957@oracle.com>
+ <20170713163054.GK22628@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <28a8da13-bdc2-3f23-dee9-607377ac1cc3@oracle.com>
+Date: Thu, 13 Jul 2017 11:11:37 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <59673365.7080408@intel.com>
+In-Reply-To: <20170713163054.GK22628@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Jul 13, 2017 at 04:46:29PM +0800, Wei Wang wrote:
-> On 07/13/2017 08:22 AM, Michael S. Tsirkin wrote:
-> > On Wed, Jul 12, 2017 at 08:40:21PM +0800, Wei Wang wrote:
-> > > Add a new vq, cmdq, to handle requests between the device and driver.
-> > > 
-> > > This patch implements two commands sent from the device and handled in
-> > > the driver.
-> > > 1) VIRTIO_BALLOON_CMDQ_REPORT_STATS: this command is used to report
-> > > the guest memory statistics to the host. The stats_vq mechanism is not
-> > > used when the cmdq mechanism is enabled.
-> > > 2) VIRTIO_BALLOON_CMDQ_REPORT_UNUSED_PAGES: this command is used to
-> > > report the guest unused pages to the host.
-> > > 
-> > > Since now we have a vq to handle multiple commands, we need to keep only
-> > > one vq operation at a time. Here, we change the existing START_USE()
-> > > and END_USE() to lock on each vq operation.
-> > > 
-> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > ---
-> > >   drivers/virtio/virtio_balloon.c     | 245 ++++++++++++++++++++++++++++++++++--
-> > >   drivers/virtio/virtio_ring.c        |  25 +++-
-> > >   include/linux/virtio.h              |   2 +
-> > >   include/uapi/linux/virtio_balloon.h |  10 ++
-> > >   4 files changed, 265 insertions(+), 17 deletions(-)
-> > > 
-> > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > > index aa4e7ec..ae91fbf 100644
-> > > --- a/drivers/virtio/virtio_balloon.c
-> > > +++ b/drivers/virtio/virtio_balloon.c
-> > > @@ -54,11 +54,12 @@ static struct vfsmount *balloon_mnt;
-> > >   struct virtio_balloon {
-> > >   	struct virtio_device *vdev;
-> > > -	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-> > > +	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *cmd_vq;
-> > >   	/* The balloon servicing is delegated to a freezable workqueue. */
-> > >   	struct work_struct update_balloon_stats_work;
-> > >   	struct work_struct update_balloon_size_work;
-> > > +	struct work_struct cmdq_handle_work;
-> > >   	/* Prevent updating balloon when it is being canceled. */
-> > >   	spinlock_t stop_update_lock;
-> > > @@ -90,6 +91,12 @@ struct virtio_balloon {
-> > >   	/* Memory statistics */
-> > >   	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
-> > > +	/* Cmdq msg buffer for memory statistics */
-> > > +	struct virtio_balloon_cmdq_hdr cmdq_stats_hdr;
-> > > +
-> > > +	/* Cmdq msg buffer for reporting ununsed pages */
-
-typo above btw
-
-> > > +	struct virtio_balloon_cmdq_hdr cmdq_unused_page_hdr;
-> > > +
-> > >   	/* To register callback in oom notifier call chain */
-> > >   	struct notifier_block nb;
-> > >   };
-> > > @@ -485,25 +492,214 @@ static void update_balloon_size_func(struct work_struct *work)
-> > >   		queue_work(system_freezable_wq, work);
-> > >   }
-> > > +static unsigned int cmdq_hdr_add(struct virtqueue *vq,
-> > > +				 struct virtio_balloon_cmdq_hdr *hdr,
-> > > +				 bool in)
-> > > +{
-> > > +	unsigned int id = VIRTQUEUE_DESC_ID_INIT;
-> > > +	uint64_t hdr_pa = (uint64_t)virt_to_phys((void *)hdr);
-> > > +
-> > > +	virtqueue_add_chain_desc(vq, hdr_pa, sizeof(*hdr), &id, &id, in);
-> > > +
-> > > +	/* Deliver the hdr for the host to send commands. */
-> > > +	if (in) {
-> > > +		hdr->flags = 0;
-> > > +		virtqueue_add_chain(vq, id, 0, NULL, hdr, NULL);
-> > > +		virtqueue_kick(vq);
-> > > +	}
-> > > +
-> > > +	return id;
-> > > +}
-> > > +
-> > > +static void cmdq_add_chain_desc(struct virtio_balloon *vb,
-> > > +				struct virtio_balloon_cmdq_hdr *hdr,
-> > > +				uint64_t addr,
-> > > +				uint32_t len,
-> > > +				unsigned int *head_id,
-> > > +				unsigned int *prev_id)
-> > > +{
-> > > +retry:
-> > > +	if (*head_id == VIRTQUEUE_DESC_ID_INIT) {
-> > > +		*head_id = cmdq_hdr_add(vb->cmd_vq, hdr, 0);
-> > > +		*prev_id = *head_id;
-> > > +	}
-> > > +
-> > > +	virtqueue_add_chain_desc(vb->cmd_vq, addr, len, head_id, prev_id, 0);
-> > > +	if (*head_id == *prev_id) {
-> > That's an ugly way to detect ring full.
+On 07/13/2017 09:30 AM, Andrea Arcangeli wrote:
+> On Thu, Jul 13, 2017 at 09:01:54AM -0700, Mike Kravetz wrote:
+>> Sent a patch (in separate e-mail thread) to return EINVAL for private
+>> mappings.
 > 
-> It's actually not detecting ring full. I will call it tail_id, instead of
-> prev_id.
-> So, *head_id == *tail_id is the case that the first desc was just added by
->  virtqueue_add_chain_desc().
+> The way old_len == 0 behaves for MAP_PRIVATE seems more sane to me
+> than the alternative of copying pagetables for anon pages (as behaving
+> the way that way avoids to break anon pages invariants), despite it's
+> not creating an exact mirror of what was in the original vma as it
+> excludes any modification done to cowed anon pages.
 > 
-> Best,
-> Wei
+> By nullifying move_page_tables old_len == 0 is simply duping the vma
+> which is equivalent to a new mmap on the file for the MAP_PRIVATE
+> case, it has a deterministic result. The real question is if it
+> anybody is using it.
 
-Oh so it's adding header before each list. Ugh.
+As previously discussed, copying pagetables (via move_page_tables) does
+not happen if old_len == 0.  This is true for both for private and shared
+mappings.
 
-I don't think we should stay with this API. It's just too tricky to use.
+Here is my understanding of how things work for old_len == 0 of anon
+mappings:
+- shared mappings
+	- New vma is created at new virtual address
+	- vma refers to the same underlying object/pages as old vma
+	- after mremap, no page tables exist for new vma, they are
+	  created as pages are accessed/faulted
+	- page at new_address is same as page at old_address
+- private mappings
+	- New vma is created at new virtual address
+	- vma does not refer to same pages as old vma.  It is a 'new'
+	  private anon mapping.
+	- after mremap, no page tables exist for new vma.  access to
+	  the range of the new vma will result in faults that allocate
+	  a new page.
+	- page at new_address is different than  page at old_address
+	  the new vma will result in new 
 
-If we have an API that fails when it can't add descriptors
-(you can reserve space for the last descriptor)
-the balloon knows whether it's the first descriptor in a chain
-and can just use a boolean that tells it whether that is the case.
+So, the result of mremap(old_len == 0) on a private mapping is that it
+simply creates a new private mapping.  IMO, this is contrary to the purpose
+of mremap.  mremap should return a mapping that is somehow related to
+the original mapping.
 
+Perhaps you are thinking about mremap of a private file mapping?  I was
+not considering that case.  I believe you are right.  In this case a
+private COW mapping based on the original mapping would be created.  So,
+this seems more in line with the intent of mremap.  The new mapping is
+still related to the old mapping.
 
+With this in mind, what about returning EINVAL only for the anon private
+mapping case?
+
+However, if you have a fd (for a file mapping) then I can not see why
+someone would be using the old_len == 0 trick.  It would be more straight
+forward to simply use mmap to create the additional mapping.
+
+> So an alternative would be to start by adding a WARN_ON_ONCE deprecation
+> warning instead of -EINVAL right away.
+> 
+> The vma->vm_flags VM_ACCOUNT being wiped on the original vma as side
+> effect of using the old_len == 0 trick looks like a bug, I guess it
+> should get fixed if we intend to keep old_len and document it for the
+> long term.
+
+Others seem to think we should keep old_len == 0 and document.
+
+> Overall I'm more concerned about the fact an allocation failure in
+> do_munmap is unreported to userland and it will leave the old vma
+> intact like old_len == 0 would do (unless I'm misreading something
+> there). The VM_ACCOUNT wipe as side effect of old_len == 0 is not
+> major short term concern.
+
+I assume you are concerned about the do_munmap call in move_vma?  That
+does indeed look to be of concern.  This happens AFTER setting up the
+new mapping.  So, I'm thinking we should tear down the new mapping in
+the case do_munmap of the old mapping fails?  That 'should' simply
+be a matter of:
+- moving page tables back to original mapping
+- remove/delete new vma
+- I don't think we need to 'unmap' the new vma as there should be no
+  associated pages.
+
+I'll look into doing this as well.
+
+Just curious, do those userfaultfd callouts still work as desired in the
+case of map duplication (old_len == 0)?
 -- 
-MST
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
