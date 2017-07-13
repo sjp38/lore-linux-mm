@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC984408E5
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 17:15:44 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id s20so32019307qki.12
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:15:44 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ABC0D4408E5
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 17:15:45 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id h63so25051870qkf.6
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:15:45 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h45si6160784qtc.50.2017.07.13.14.15.43
+        by mx.google.com with ESMTPS id t185si6093824qkc.252.2017.07.13.14.15.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 14:15:43 -0700 (PDT)
+        Thu, 13 Jul 2017 14:15:44 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 5/6] mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC v3
-Date: Thu, 13 Jul 2017 17:15:31 -0400
-Message-Id: <20170713211532.970-6-jglisse@redhat.com>
+Subject: [PATCH 6/6] mm/hmm: documents how device memory is accounted in rss and memcg
+Date: Thu, 13 Jul 2017 17:15:32 -0400
+Message-Id: <20170713211532.970-7-jglisse@redhat.com>
 In-Reply-To: <20170713211532.970-1-jglisse@redhat.com>
 References: <20170713211532.970-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,198 +21,83 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-HMM pages (private or public device pages) are ZONE_DEVICE page and
-thus need special handling when it comes to lru or refcount. This
-patch make sure that memcontrol properly handle those when it face
-them. Those pages are use like regular pages in a process address
-space either as anonymous page or as file back page. So from memcg
-point of view we want to handle them like regular page for now at
-least.
+For now we account device memory exactly like a regular page in
+respect to rss counters and memory cgroup. We do this so that any
+existing application that starts using device memory without knowing
+about it will keep running unimpacted. This also simplify migration
+code.
 
-Changed since v2:
-  - s/host/public
-Changed since v1:
-  - s/public/host
-  - add comments explaining how device memory behave and why
+We will likely revisit this choice once we gain more experience with
+how device memory is use and how it impacts overall memory resource
+management. For now we believe this is a good enough choice.
+
+Note that device memory can not be pin. Nor by device driver, nor
+by GUP thus device memory can always be free and unaccounted when
+a process exit.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org
 ---
- kernel/memremap.c |  2 ++
- mm/memcontrol.c   | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 60 insertions(+), 5 deletions(-)
+ Documentation/vm/hmm.txt | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 25c098151ed2..4d74b4a4f8f5 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -479,6 +479,8 @@ void put_zone_device_private_or_public_page(struct page *page)
- 		__ClearPageActive(page);
- 		__ClearPageWaiters(page);
+diff --git a/Documentation/vm/hmm.txt b/Documentation/vm/hmm.txt
+index 192dcdb38bd1..4d3aac9f4a5d 100644
+--- a/Documentation/vm/hmm.txt
++++ b/Documentation/vm/hmm.txt
+@@ -15,6 +15,15 @@ section present the new migration helper that allow to leverage the device DMA
+ engine.
  
-+		mem_cgroup_uncharge(page);
+ 
++1) Problems of using device specific memory allocator:
++2) System bus, device memory characteristics
++3) Share address space and migration
++4) Address space mirroring implementation and API
++5) Represent and manage device memory from core kernel point of view
++6) Migrate to and from device memory
++7) Memory cgroup (memcg) and rss accounting
 +
- 		page->pgmap->page_free(page, page->pgmap->data);
- 	}
- 	else if (!count)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c709fdceac13..858842a741bf 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4391,12 +4391,13 @@ enum mc_target_type {
- 	MC_TARGET_NONE = 0,
- 	MC_TARGET_PAGE,
- 	MC_TARGET_SWAP,
-+	MC_TARGET_DEVICE,
- };
- 
- static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- 						unsigned long addr, pte_t ptent)
- {
--	struct page *page = vm_normal_page(vma, addr, ptent);
-+	struct page *page = _vm_normal_page(vma, addr, ptent, true);
- 
- 	if (!page || !page_mapped(page))
- 		return NULL;
-@@ -4407,13 +4408,20 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
- 		if (!(mc.flags & MOVE_FILE))
- 			return NULL;
- 	}
--	if (!get_page_unless_zero(page))
-+	if (is_device_public_page(page)) {
-+		/*
-+		 * MEMORY_DEVICE_PUBLIC means ZONE_DEVICE page and which have a
-+		 * refcount of 1 when free (unlike normal page)
-+		 */
-+		if (!page_ref_add_unless(page, 1, 1))
-+			return NULL;
-+	} else if (!get_page_unless_zero(page))
- 		return NULL;
- 
- 	return page;
- }
- 
--#ifdef CONFIG_SWAP
-+#if defined(CONFIG_SWAP) || defined(CONFIG_DEVICE_PRIVATE)
- static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 			pte_t ptent, swp_entry_t *entry)
- {
-@@ -4422,6 +4430,23 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
- 
- 	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
- 		return NULL;
 +
-+	/*
-+	 * Handle MEMORY_DEVICE_PRIVATE which are ZONE_DEVICE page belonging to
-+	 * a device and because they are not accessible by CPU they are store
-+	 * as special swap entry in the CPU page table.
-+	 */
-+	if (is_device_private_entry(ent)) {
-+		page = device_private_entry_to_page(ent);
-+		/*
-+		 * MEMORY_DEVICE_PRIVATE means ZONE_DEVICE page and which have
-+		 * a refcount of 1 when free (unlike normal page)
-+		 */
-+		if (!page_ref_add_unless(page, 1, 1))
-+			return NULL;
-+		return page;
-+	}
+ -------------------------------------------------------------------------------
+ 
+ 1) Problems of using device specific memory allocator:
+@@ -342,3 +351,34 @@ that happens then the finalize_and_map() can catch any pages that was not
+ migrated. Note those page were still copied to new page and thus we wasted
+ bandwidth but this is considered as a rare event and a price that we are
+ willing to pay to keep all the code simpler.
 +
- 	/*
- 	 * Because lookup_swap_cache() updates some statistics counter,
- 	 * we call find_get_page() with swapper_space directly.
-@@ -4582,6 +4607,13 @@ static int mem_cgroup_move_account(struct page *page,
-  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-  *     target for charge migration. if @target is not NULL, the entry is stored
-  *     in target->ent.
-+ *   3(MC_TARGET_DEVICE): like MC_TARGET_PAGE  but page is MEMORY_DEVICE_PUBLIC
-+ *     or MEMORY_DEVICE_PRIVATE (so ZONE_DEVICE page and thus not on the lru).
-+ *     For now we such page is charge like a regular page would be as for all
-+ *     intent and purposes it is just special memory taking the place of a
-+ *     regular page. See Documentations/vm/hmm.txt and include/linux/hmm.h for
-+ *     more informations on this type of memory how it is use and why it is
-+ *     charge like this.
-  *
-  * Called with pte lock held.
-  */
-@@ -4610,6 +4642,9 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 		 */
- 		if (page->mem_cgroup == mc.from) {
- 			ret = MC_TARGET_PAGE;
-+			if (is_device_private_page(page) ||
-+			    is_device_public_page(page))
-+				ret = MC_TARGET_DEVICE;
- 			if (target)
- 				target->page = page;
- 		}
-@@ -4669,6 +4704,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
- 
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
-+		/*
-+		 * Note their can not be MC_TARGET_DEVICE for now as we do not
-+		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
-+		 * MEMORY_DEVICE_PRIVATE but this might change.
-+		 */
- 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
- 			mc.precharge += HPAGE_PMD_NR;
- 		spin_unlock(ptl);
-@@ -4884,6 +4924,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 				putback_lru_page(page);
- 			}
- 			put_page(page);
-+		} else if (target_type == MC_TARGET_DEVICE) {
-+			page = target.page;
-+			if (!mem_cgroup_move_account(page, true,
-+						     mc.from, mc.to)) {
-+				mc.precharge -= HPAGE_PMD_NR;
-+				mc.moved_charge += HPAGE_PMD_NR;
-+			}
-+			put_page(page);
- 		}
- 		spin_unlock(ptl);
- 		return 0;
-@@ -4895,12 +4943,16 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	for (; addr != end; addr += PAGE_SIZE) {
- 		pte_t ptent = *(pte++);
-+		bool device = false;
- 		swp_entry_t ent;
- 
- 		if (!mc.precharge)
- 			break;
- 
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
-+		case MC_TARGET_DEVICE:
-+			device = true;
-+			/* fall through */
- 		case MC_TARGET_PAGE:
- 			page = target.page;
- 			/*
-@@ -4911,7 +4963,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 			 */
- 			if (PageTransCompound(page))
- 				goto put;
--			if (isolate_lru_page(page))
-+			if (!device && isolate_lru_page(page))
- 				goto put;
- 			if (!mem_cgroup_move_account(page, false,
- 						mc.from, mc.to)) {
-@@ -4919,7 +4971,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
- 				/* we uncharge from mc.from later. */
- 				mc.moved_charge++;
- 			}
--			putback_lru_page(page);
-+			if (!device)
-+				putback_lru_page(page);
- put:			/* get_mctgt_type() gets the page */
- 			put_page(page);
- 			break;
++
++-------------------------------------------------------------------------------
++
++7) Memory cgroup (memcg) and rss accounting
++
++For now device memory is accounted as any regular page in rss counters (either
++anonymous if device page is use for anonymous, file if device page is use for
++file back page or shmem if device page is use for share memory). This is a
++deliberate choice to keep existing application that might start using device
++memory without knowing about it to keep runing unimpacted.
++
++Drawbacks is that OOM killer might kill an application using a lot of device
++memory and not a lot of regular system memory and thus not freeing much system
++memory. We want to gather more real world experience on how application and
++system react under memory pressure in the presence of device memory before
++deciding to account device memory differently.
++
++
++Same decision was made for memory cgroup. Device memory page are accounted
++against same memory cgroup a regular page would be accounted to. This does
++simplify migration to and from device memory. This also means that migration
++back from device memory to regular memory can not fail because it would
++go above memory cgroup limit. We might revisit this choice latter on once we
++get more experience in how device memory is use and its impact on memory
++resource control.
++
++
++Note that device memory can never be pin nor by device driver nor through GUP
++and thus such memory is always free upon process exit. Or when last reference
++is drop in case of share memory or file back memory.
 -- 
 2.13.0
 
