@@ -1,100 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DC70440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:59 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q87so46693916pfk.15
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:39:59 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j10si3937093plg.201.2017.07.13.00.39.57
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BBF94440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:40:08 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j186so48943467pge.12
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:40:08 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id a4si3862694plt.238.2017.07.13.00.40.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 00:39:58 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6D7csLa001291
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:57 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bnt3r44pc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:57 -0400
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 13 Jul 2017 03:39:55 -0400
-Date: Thu, 13 Jul 2017 00:39:41 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 02/38] powerpc: Free up four 64K PTE bits in 64K backed
- HPTE pages
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-3-git-send-email-linuxram@us.ibm.com>
- <20170711155959.79e2d4de@firefly.ozlabs.ibm.com>
- <20170711154415.GA5525@ram.oc3035372033.ibm.com>
- <20170712131051.5bf657c7@firefly.ozlabs.ibm.com>
+        Thu, 13 Jul 2017 00:40:07 -0700 (PDT)
+Message-ID: <5967246B.9030804@intel.com>
+Date: Thu, 13 Jul 2017 15:42:35 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170712131051.5bf657c7@firefly.ozlabs.ibm.com>
-Message-Id: <20170713073941.GE5525@ram.oc3035372033.ibm.com>
+Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-6-git-send-email-wei.w.wang@intel.com> <20170712160129-mutt-send-email-mst@kernel.org> <5966241C.9060503@intel.com> <20170712163746-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170712163746-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Wed, Jul 12, 2017 at 01:10:51PM +1000, Balbir Singh wrote:
-> On Tue, 11 Jul 2017 08:44:15 -0700
-> Ram Pai <linuxram@us.ibm.com> wrote:
-> 
-> > On Tue, Jul 11, 2017 at 03:59:59PM +1000, Balbir Singh wrote:
-> > > On Wed,  5 Jul 2017 14:21:39 -0700
-> > > Ram Pai <linuxram@us.ibm.com> wrote:
-> > >   
-> > > > Rearrange 64K PTE bits to  free  up  bits 3, 4, 5  and  6
-> > > > in the 64K backed HPTE pages. This along with the earlier
-> > > > patch will  entirely free  up the four bits from 64K PTE.
-> > > > The bit numbers are  big-endian as defined in the  ISA3.0
-> > > > 
-> > > > This patch  does  the  following change to 64K PTE backed
-> > > > by 64K HPTE.
-> > > > 
-> > > > H_PAGE_F_SECOND (S) which  occupied  bit  4  moves to the
-> > > > 	second part of the pte to bit 60.
-> > > > H_PAGE_F_GIX (G,I,X) which  occupied  bit 5, 6 and 7 also
-> > > > 	moves  to  the   second part of the pte to bit 61,
-> > > >        	62, 63, 64 respectively
-> > > > 
-> > > > since bit 7 is now freed up, we move H_PAGE_BUSY (B) from
-> > > > bit  9  to  bit  7.
-> > > > 
-> > > > The second part of the PTE will hold
-> > > > (H_PAGE_F_SECOND|H_PAGE_F_GIX) at bit 60,61,62,63.
-> > > > 
-> > > > Before the patch, the 64K HPTE backed 64k PTE format was
-> > > > as follows
-> > > > 
-> > > >  0 1 2 3 4  5  6  7  8 9 10...........................63
-> > > >  : : : : :  :  :  :  : : :                            :
-> > > >  v v v v v  v  v  v  v v v                            v
-> > > > 
-> > > > ,-,-,-,-,--,--,--,--,-,-,-,-,-,------------------,-,-,-,
-> > > > |x|x|x| |S |G |I |X |x|B|x|x|x|................|.|.|.|.| <- primary pte
-> > > > '_'_'_'_'__'__'__'__'_'_'_'_'_'________________'_'_'_'_'
-> > > > | | | | |  |  |  |  | | | | |..................| | | | | <- secondary pte
-> > > > '_'_'_'_'__'__'__'__'_'_'_'_'__________________'_'_'_'_'
-> > > >  
-> > > 
-> > > It's not entirely clear what the secondary pte contains
-> > > today and how many of the bits are free today?  
-> > 
-> > The secondary pte today is not used for anything for 64k-hpte
-> > backed ptes. It gets used the moment the pte gets backed by
-> > 4-k hptes. Till then the bits are available. And this patch
-> > makes use of that knowledge. 
-> 
-> OK.. but does this mean subpage-protection? Or do you mean
-> page size demotion? I presume it's the later.
+On 07/12/2017 09:56 PM, Michael S. Tsirkin wrote:
+>
+> So the way I see it, there are several issues:
+>
+> - internal wait - forces multiple APIs like kick/kick_sync
+>    note how kick_sync can fail but your code never checks return code
+> - need to re-write the last descriptor - might not work
+>    for alternative layouts which always expose descriptors
+>    immediately
 
-Yes. the later.
-RP
+Probably it wasn't clear. Please let me explain the two functions here:
+
+1) virtqueue_add_chain_desc(vq, head_id, prev_id,..):
+grabs a desc from the vq and inserts it to the chain tail (which is 
+indexed by
+prev_id, probably better to call it tail_id). Then, the new added desc 
+becomes
+the tail (i.e. the last desc). The _F_NEXT flag is cleared for each desc 
+when it's
+added to the chain, and set when another desc comes to follow later.
+
+2) virtqueue_add_chain(vq, head_id,..): expose the chain to the other end.
+
+So, if people want to add a desc and immediately expose it to the other end,
+i.e. build a single desc chain, they can just add and expose:
+
+virtqueue_add_chain_desc(..);
+virtqueue_add_chain(..,head_id);
+
+Would you see any issues here?
+
+
+> - some kind of iterator type would be nicer instead of
+>    maintaining head/prev explicitly
+
+Why would we need to iterate the chain? I think it would be simpler to use
+a wrapper struct:
+
+struct virtqueue_desc_chain {
+     unsigned int head;  // head desc id of the chain
+     unsigned int tail;     // tail desc id of the chain
+}
+
+The new desc will be put to desc[tail].next, and we don't need to walk
+from the head desc[head].next when inserting a new desc to the chain, right?
+
+
+>
+> As for the use, it would be better to do
+>
+> if (!add_next(vq, ...)) {
+> 	add_last(vq, ...)
+> 	kick
+> 	wait
+> }
+
+"!add_next(vq, ...)" means that the vq is full? If so, what would 
+add_last() do then?
+
+
+> Using VIRTQUEUE_DESC_ID_INIT seems to avoid a branch in the driver, but
+> in fact it merely puts the branch in the virtio code.
+>
+
+Actually it wasn't intended to improve performance. It is used to 
+indicate the "init" state
+of the chain. So, when virtqueue_add_chain_desc(, head_id,..) finds head 
+id=INIT, it will
+assign the grabbed desc id to &head_id. In some sense, it is equivalent 
+to add_first().
+
+Do you have a different opinion here?
+
+Best,
+Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
