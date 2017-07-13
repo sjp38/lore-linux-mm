@@ -1,106 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E450440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:49:07 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id h63so16991048qkf.6
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:49:07 -0700 (PDT)
-Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
-        by mx.google.com with ESMTPS id b199si4619613qka.362.2017.07.13.02.49.06
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 078B0440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:51:04 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id v193so54353658itc.10
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:51:04 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id e14si4938292itd.96.2017.07.13.02.51.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 02:49:06 -0700 (PDT)
-Received: by mail-qt0-x242.google.com with SMTP id v31so5349164qtb.3
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:49:06 -0700 (PDT)
+        Thu, 13 Jul 2017 02:51:03 -0700 (PDT)
+Date: Thu, 13 Jul 2017 11:50:52 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
+ buffer overwrite
+Message-ID: <20170713095052.dssev34f7c43vlok@hirez.programming.kicks-ass.net>
+References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
+ <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
+ <20170711161232.GB28975@worktop>
+ <20170712020053.GB20323@X58A-UD3R>
+ <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
+ <20170713020745.GG20323@X58A-UD3R>
+ <20170713081442.GA439@worktop>
+ <20170713085746.GH20323@X58A-UD3R>
 MIME-Version: 1.0
-In-Reply-To: <20170713075502.GG5525@ram.oc3035372033.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-16-git-send-email-linuxram@us.ibm.com> <20170712152601.3b2f52ed@firefly.ozlabs.ibm.com>
- <20170713075502.GG5525@ram.oc3035372033.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 13 Jul 2017 19:49:05 +1000
-Message-ID: <CAKTCnzmDd2K0gc=0gvNn7Q_QBPqmQdwppnpU-J9B1AMva7w8sA@mail.gmail.com>
-Subject: Re: [RFC v5 15/38] powerpc: helper function to read,write
- AMR,IAMR,UAMOR registers
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170713085746.GH20323@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-kselftest@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Ingo Molnar <mingo@redhat.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Thu, Jul 13, 2017 at 5:55 PM, Ram Pai <linuxram@us.ibm.com> wrote:
-> On Wed, Jul 12, 2017 at 03:26:01PM +1000, Balbir Singh wrote:
->> On Wed,  5 Jul 2017 14:21:52 -0700
->> Ram Pai <linuxram@us.ibm.com> wrote:
->>
->> > Implements helper functions to read and write the key related
->> > registers; AMR, IAMR, UAMOR.
->> >
->> > AMR register tracks the read,write permission of a key
->> > IAMR register tracks the execute permission of a key
->> > UAMOR register enables and disables a key
->> >
->> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->> > ---
->> >  arch/powerpc/include/asm/book3s/64/pgtable.h |   60 ++++++++++++++++++++++++++
->> >  1 files changed, 60 insertions(+), 0 deletions(-)
->> >
->> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > index 85bc987..435d6a7 100644
->> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > @@ -428,6 +428,66 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
->> >             pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
->> >  }
->> >
->> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->> > +
->> > +#include <asm/reg.h>
->> > +static inline u64 read_amr(void)
->> > +{
->> > +   return mfspr(SPRN_AMR);
->> > +}
->> > +static inline void write_amr(u64 value)
->> > +{
->> > +   mtspr(SPRN_AMR, value);
->> > +}
->> > +static inline u64 read_iamr(void)
->> > +{
->> > +   return mfspr(SPRN_IAMR);
->> > +}
->> > +static inline void write_iamr(u64 value)
->> > +{
->> > +   mtspr(SPRN_IAMR, value);
->> > +}
->> > +static inline u64 read_uamor(void)
->> > +{
->> > +   return mfspr(SPRN_UAMOR);
->> > +}
->> > +static inline void write_uamor(u64 value)
->> > +{
->> > +   mtspr(SPRN_UAMOR, value);
->> > +}
->> > +
->> > +#else /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
->> > +
->> > +static inline u64 read_amr(void)
->> > +{
->> > +   WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
->> > +   return -1;
->> > +}
->>
->> Why do we need to have a version here if we are going to WARN(), why not
->> let the compilation fail if called from outside of CONFIG_PPC64_MEMORY_PROTECTION_KEYS?
->> Is that the intention?
->
-> I did not want to stop someone; kernel module for example, from calling
-> these interfaces from outside the pkey domain.
->
-> Either way can be argued to be correct, I suppose.
+On Thu, Jul 13, 2017 at 05:57:46PM +0900, Byungchul Park wrote:
+> On Thu, Jul 13, 2017 at 10:14:42AM +0200, Peter Zijlstra wrote:
+> > On Thu, Jul 13, 2017 at 11:07:45AM +0900, Byungchul Park wrote:
+> > > Does my approach have problems, rewinding to 'original idx' on exit and
+> > > deciding whether overwrite or not? I think, this way, no need to do the
+> > > drastic work. Or.. does my one get more overhead in usual case?
+> > 
+> > So I think that invalidating just the one entry doesn't work; the moment
+> 
+> I think invalidating just the one is enough. After rewinding, the entry
+> will be invalidated and the ring buffer starts to be filled forward from
+> the point with valid ones. When commit, it will proceed backward with
+> valid ones until meeting the invalidated entry and stop.
+> 
+> IOW, in case of (overwritten)
+> 
+>          rewind to here
+>          |
+> ppppppppppiiiiiiiiiiiiiiii
+> iiiiiiiiiiiiiii
+> 
+>          invalidate it on exit_irq
+>          and start to fill from here again
+>          |
+> pppppppppxiiiiiiiiiiiiiiii
+> iiiiiiiiiiiiiii
+> 
+>                     when commit occurs here
+>                     |
+> pppppppppxpppppppppppiiiii
+> 
+>          do commit within this range
+>          |<---------|
+> pppppppppxpppppppppppiiiii
+> 
+> So I think this works and is much simple. Anything I missed?
 
-Nope, build failures are better than run time failures, otherwise the
-kernel will split its guts warning and warning here.
 
-Balbir Singh.
+	wait_for_completion(&C);
+	  atomic_inc_return();
+
+					mutex_lock(A1);
+					mutex_unlock(A1);
+
+
+					<IRQ>
+					  spin_lock(B1);
+					  spin_unlock(B1);
+
+					  ...
+
+					  spin_lock(B64);
+					  spin_unlock(B64);
+					</IRQ>
+
+
+					mutex_lock(A2);
+					mutex_unlock(A2);
+
+					complete(&C);
+
+
+That gives:
+
+	xhist[ 0] = A1
+	xhist[ 1] = B1
+	...
+	xhist[63] = B63
+
+then we wrap and have:
+
+	xhist[0] = B64
+
+then we rewind to 1 and invalidate to arrive at:
+
+	xhist[ 0] = B64
+	xhist[ 1] = NULL   <-- idx
+	xhist[ 2] = B2
+	...
+	xhist[63] = B63
+
+
+Then we do A2 and get
+
+	xhist[ 0] = B64
+	xhist[ 1] = A2   <-- idx
+	xhist[ 2] = B2
+	...
+	xhist[63] = B63
+
+and the commit_xhlocks() will happily create links between C and A2,
+B2..B64.
+
+The C<->A2 link is desired, the C<->B* are not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
