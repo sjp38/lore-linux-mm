@@ -1,73 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A858440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 16:37:22 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e199so66324939pfh.7
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 13:37:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z6si4784630pgb.140.2017.07.13.13.37.21
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDDA440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 17:15:37 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o8so28314791qtc.1
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:15:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u64si6042065qka.284.2017.07.13.14.15.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 13:37:21 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6DKYXsr037440
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 16:37:21 -0400
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bpcn97xs4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 16:37:20 -0400
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 13 Jul 2017 14:37:20 -0600
-Date: Thu, 13 Jul 2017 13:37:04 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 14/38] powerpc: initial plumbing for key management
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-15-git-send-email-linuxram@us.ibm.com>
- <20170712132825.2a37e2e9@firefly.ozlabs.ibm.com>
- <20170713074500.GF5525@ram.oc3035372033.ibm.com>
+        Thu, 13 Jul 2017 14:15:36 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
+Date: Thu, 13 Jul 2017 17:15:26 -0400
+Message-Id: <20170713211532.970-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170713074500.GF5525@ram.oc3035372033.ibm.com>
-Message-Id: <20170713203704.GA5538@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Thu, Jul 13, 2017 at 12:45:00AM -0700, Ram Pai wrote:
-> On Wed, Jul 12, 2017 at 01:28:25PM +1000, Balbir Singh wrote:
-> > On Wed,  5 Jul 2017 14:21:51 -0700
-> > Ram Pai <linuxram@us.ibm.com> wrote:
-> > 
-> > > Initial plumbing to manage all the keys supported by the
-> > > hardware.
-> > > 
-> > > Total 32 keys are supported on powerpc. However pkey 0,1
-> > > and 31 are reserved. So effectively we have 29 pkeys.
-> > > 
-> > > This patch keeps track of reserved keys, allocated  keys
-> > > and keys that are currently free.
-> > 
-> > It looks like this patch will only work in guest mode?
-> > Is that an assumption we've made? What happens if I use
-> > keys when running in hypervisor mode?
-> 
-> It works in supervisor mode, as a guest aswell as a bare-metal
-> kernel. Whatever needs to be done in hypervisor mode
-> is already there in power-kvm.
+Sorry i made horrible mistake on names in v4, i completly miss-
+understood the suggestion. So here i repost with proper naming.
+This is the only change since v3. Again sorry about the noise
+with v4.
 
-I realize i did not answer your question accurately...
-"What happens if I use keys when running in hypervisor mode?"
+Changes since v4:
+  - s/DEVICE_HOST/DEVICE_PUBLIC
 
-Its not clear what happens. As far as I can tell the MMU does
-not check key violation when in hypervisor mode. So effectively
-I think, keys are ineffective when in hypervisor mode.
+Git tree:
+https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v5
 
-RP
+
+Cache coherent device memory apply to architecture with system bus
+like CAPI or CCIX. Device connected to such system bus can expose
+their memory to the system and allow cache coherent access to it
+from the CPU.
+
+Even if for all intent and purposes device memory behave like regular
+memory, we still want to manage it in isolation from regular memory.
+Several reasons for that, first and foremost this memory is less
+reliable than regular memory if the device hangs because of invalid
+commands we can loose access to device memory. Second CPU access to
+this memory is expected to be slower than to regular memory. Third
+having random memory into device means that some of the bus bandwith
+wouldn't be available to the device but would be use by CPU access.
+
+This is why we want to manage such memory in isolation from regular
+memory. Kernel should not try to use this memory even as last resort
+when running out of memory, at least for now.
+
+This patchset add a new type of ZONE_DEVICE memory (DEVICE_HOST)
+that is use to represent CDM memory. This patchset build on top of
+the HMM patchset that already introduce a new type of ZONE_DEVICE
+memory for private device memory (see HMM patchset).
+
+The end result is that with this patchset if a device is in use in
+a process you might have private anonymous memory or file back
+page memory using ZONE_DEVICE (DEVICE_HOST). Thus care must be
+taken to not overwritte lru fields of such pages.
+
+Hence all core mm changes are done to address assumption that any
+process memory is back by a regular struct page that is part of
+the lru. ZONE_DEVICE page are not on the lru and the lru pointer
+of struct page are use to store device specific informations.
+
+Thus this patchset update all code path that would make assumptions
+about lruness of a process page.
+
+patch 01 - rename DEVICE_PUBLIC to DEVICE_HOST to free DEVICE_PUBLIC name
+patch 02 - add DEVICE_PUBLIC type to ZONE_DEVICE (all core mm changes)
+patch 03 - add an helper to HMM for hotplug of CDM memory
+patch 04 - preparatory patch for memory controller changes (memch)
+patch 05 - update memory controller to properly handle
+           ZONE_DEVICE pages when uncharging
+patch 06 - documentation patch
+
+Previous posting:
+v1 https://lkml.org/lkml/2017/4/7/638
+v2 https://lwn.net/Articles/725412/
+v3 https://lwn.net/Articles/727114/
+v4 https://lwn.net/Articles/727692/
+
+JA(C)rA'me Glisse (6):
+  mm/zone-device: rename DEVICE_PUBLIC to DEVICE_HOST
+  mm/device-public-memory: device memory cache coherent with CPU v4
+  mm/hmm: add new helper to hotplug CDM memory region v3
+  mm/memcontrol: allow to uncharge page without using page->lru field
+  mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC
+    v3
+  mm/hmm: documents how device memory is accounted in rss and memcg
+
+ Documentation/vm/hmm.txt |  40 ++++++++
+ fs/proc/task_mmu.c       |   2 +-
+ include/linux/hmm.h      |   7 +-
+ include/linux/ioport.h   |   1 +
+ include/linux/memremap.h |  25 ++++-
+ include/linux/mm.h       |  20 ++--
+ kernel/memremap.c        |  19 ++--
+ mm/Kconfig               |  11 +++
+ mm/gup.c                 |   7 ++
+ mm/hmm.c                 |  89 ++++++++++++++++--
+ mm/madvise.c             |   2 +-
+ mm/memcontrol.c          | 231 ++++++++++++++++++++++++++++++-----------------
+ mm/memory.c              |  46 +++++++++-
+ mm/migrate.c             |  57 +++++++-----
+ mm/swap.c                |  11 +++
+ 15 files changed, 434 insertions(+), 134 deletions(-)
+
+-- 
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
