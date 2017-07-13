@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A8A4408E5
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 17:15:41 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id s20so32018707qki.12
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:15:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 590174408E5
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 17:15:43 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id h63so25051386qkf.6
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:15:43 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y13si6168337qtc.205.2017.07.13.14.15.40
+        by mx.google.com with ESMTPS id 12si6189247qtf.152.2017.07.13.14.15.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 14:15:40 -0700 (PDT)
+        Thu, 13 Jul 2017 14:15:42 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 3/6] mm/hmm: add new helper to hotplug CDM memory region v3
-Date: Thu, 13 Jul 2017 17:15:29 -0400
-Message-Id: <20170713211532.970-4-jglisse@redhat.com>
+Subject: [PATCH 4/6] mm/memcontrol: allow to uncharge page without using page->lru field
+Date: Thu, 13 Jul 2017 17:15:30 -0400
+Message-Id: <20170713211532.970-5-jglisse@redhat.com>
 In-Reply-To: <20170713211532.970-1-jglisse@redhat.com>
 References: <20170713211532.970-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,174 +21,244 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-Unlike unaddressable memory, coherent device memory has a real
-resource associated with it on the system (as CPU can address
-it). Add a new helper to hotplug such memory within the HMM
-framework.
+HMM pages (private or public device pages) are ZONE_DEVICE page and
+thus you can not use page->lru fields of those pages. This patch
+re-arrange the uncharge to allow single page to be uncharge without
+modifying the lru field of the struct page.
 
-Changed since v2:
-  - s/host/public
-Changed since v1:
-  - s/public/host
+There is no change to memcontrol logic, it is the same as it was
+before this patch.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Reviewed-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: cgroups@vger.kernel.org
 ---
- include/linux/hmm.h |  3 ++
- mm/hmm.c            | 85 +++++++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 83 insertions(+), 5 deletions(-)
+ mm/memcontrol.c | 168 +++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 92 insertions(+), 76 deletions(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index a40288309fd2..e44cb8edb137 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -392,6 +392,9 @@ struct hmm_devmem {
- struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 				  struct device *device,
- 				  unsigned long size);
-+struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
-+					   struct device *device,
-+					   struct resource *res);
- void hmm_devmem_remove(struct hmm_devmem *devmem);
- 
- /*
-diff --git a/mm/hmm.c b/mm/hmm.c
-index eadf70829c34..28e54e3b4e1d 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -849,7 +849,11 @@ static void hmm_devmem_release(struct device *dev, void *data)
- 	zone = page_zone(page);
- 
- 	mem_hotplug_begin();
--	__remove_pages(zone, start_pfn, npages);
-+	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-+		__remove_pages(zone, start_pfn, npages);
-+	else
-+		arch_remove_memory(start_pfn << PAGE_SHIFT,
-+				   npages << PAGE_SHIFT);
- 	mem_hotplug_done();
- 
- 	hmm_devmem_radix_release(resource);
-@@ -885,7 +889,11 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 	if (is_ram == REGION_INTERSECTS)
- 		return -ENXIO;
- 
--	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-+	if (devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY)
-+		devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
-+	else
-+		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
-+
- 	devmem->pagemap.res = devmem->resource;
- 	devmem->pagemap.page_fault = hmm_devmem_fault;
- 	devmem->pagemap.page_free = hmm_devmem_free;
-@@ -924,8 +932,11 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
- 		nid = numa_mem_id();
- 
- 	mem_hotplug_begin();
--	ret = add_pages(nid, align_start >> PAGE_SHIFT,
--			align_size >> PAGE_SHIFT, false);
-+	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-+		ret = arch_add_memory(nid, align_start, align_size, false);
-+	else
-+		ret = add_pages(nid, align_start >> PAGE_SHIFT,
-+				align_size >> PAGE_SHIFT, false);
- 	if (ret) {
- 		mem_hotplug_done();
- 		goto error_add_memory;
-@@ -1075,6 +1086,67 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3df3c04d73ab..c709fdceac13 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5509,48 +5509,102 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
+ 	cancel_charge(memcg, nr_pages);
  }
- EXPORT_SYMBOL(hmm_devmem_add);
  
-+struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
-+					   struct device *device,
-+					   struct resource *res)
+-static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+-			   unsigned long nr_anon, unsigned long nr_file,
+-			   unsigned long nr_kmem, unsigned long nr_huge,
+-			   unsigned long nr_shmem, struct page *dummy_page)
++struct uncharge_gather {
++	struct mem_cgroup *memcg;
++	unsigned long pgpgout;
++	unsigned long nr_anon;
++	unsigned long nr_file;
++	unsigned long nr_kmem;
++	unsigned long nr_huge;
++	unsigned long nr_shmem;
++	struct page *dummy_page;
++};
++
++static inline void uncharge_gather_clear(struct uncharge_gather *ug)
+ {
+-	unsigned long nr_pages = nr_anon + nr_file + nr_kmem;
++	memset(ug, 0, sizeof(*ug));
++}
++
++static void uncharge_batch(const struct uncharge_gather *ug)
 +{
-+	struct hmm_devmem *devmem;
-+	int ret;
++	unsigned long nr_pages = ug->nr_anon + ug->nr_file + ug->nr_kmem;
+ 	unsigned long flags;
+ 
+-	if (!mem_cgroup_is_root(memcg)) {
+-		page_counter_uncharge(&memcg->memory, nr_pages);
++	if (!mem_cgroup_is_root(ug->memcg)) {
++		page_counter_uncharge(&ug->memcg->memory, nr_pages);
+ 		if (do_memsw_account())
+-			page_counter_uncharge(&memcg->memsw, nr_pages);
+-		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && nr_kmem)
+-			page_counter_uncharge(&memcg->kmem, nr_kmem);
+-		memcg_oom_recover(memcg);
++			page_counter_uncharge(&ug->memcg->memsw, nr_pages);
++		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && ug->nr_kmem)
++			page_counter_uncharge(&ug->memcg->kmem, ug->nr_kmem);
++		memcg_oom_recover(ug->memcg);
+ 	}
+ 
+ 	local_irq_save(flags);
+-	__this_cpu_sub(memcg->stat->count[MEMCG_RSS], nr_anon);
+-	__this_cpu_sub(memcg->stat->count[MEMCG_CACHE], nr_file);
+-	__this_cpu_sub(memcg->stat->count[MEMCG_RSS_HUGE], nr_huge);
+-	__this_cpu_sub(memcg->stat->count[NR_SHMEM], nr_shmem);
+-	__this_cpu_add(memcg->stat->events[PGPGOUT], pgpgout);
+-	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
+-	memcg_check_events(memcg, dummy_page);
++	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS], ug->nr_anon);
++	__this_cpu_sub(ug->memcg->stat->count[MEMCG_CACHE], ug->nr_file);
++	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS_HUGE], ug->nr_huge);
++	__this_cpu_sub(ug->memcg->stat->count[NR_SHMEM], ug->nr_shmem);
++	__this_cpu_add(ug->memcg->stat->events[PGPGOUT], ug->pgpgout);
++	__this_cpu_add(ug->memcg->stat->nr_page_events, nr_pages);
++	memcg_check_events(ug->memcg, ug->dummy_page);
+ 	local_irq_restore(flags);
+ 
+-	if (!mem_cgroup_is_root(memcg))
+-		css_put_many(&memcg->css, nr_pages);
++	if (!mem_cgroup_is_root(ug->memcg))
++		css_put_many(&ug->memcg->css, nr_pages);
++}
 +
-+	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
-+		return ERR_PTR(-EINVAL);
++static void uncharge_page(struct page *page, struct uncharge_gather *ug)
++{
++	VM_BUG_ON_PAGE(PageLRU(page), page);
++	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
 +
-+	static_branch_enable(&device_private_key);
++	if (!page->mem_cgroup)
++		return;
 +
-+	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
-+				   GFP_KERNEL, dev_to_node(device));
-+	if (!devmem)
-+		return ERR_PTR(-ENOMEM);
++	/*
++	 * Nobody should be changing or seriously looking at
++	 * page->mem_cgroup at this point, we have fully
++	 * exclusive access to the page.
++	 */
 +
-+	init_completion(&devmem->completion);
-+	devmem->pfn_first = -1UL;
-+	devmem->pfn_last = -1UL;
-+	devmem->resource = res;
-+	devmem->device = device;
-+	devmem->ops = ops;
-+
-+	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
-+			      0, GFP_KERNEL);
-+	if (ret)
-+		goto error_percpu_ref;
-+
-+	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
-+	if (ret)
-+		goto error_devm_add_action;
-+
-+
-+	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
-+	devmem->pfn_last = devmem->pfn_first +
-+			   (resource_size(devmem->resource) >> PAGE_SHIFT);
-+
-+	ret = hmm_devmem_pages_create(devmem);
-+	if (ret)
-+		goto error_devm_add_action;
-+
-+	devres_add(device, devmem);
-+
-+	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
-+	if (ret) {
-+		hmm_devmem_remove(devmem);
-+		return ERR_PTR(ret);
++	if (ug->memcg != page->mem_cgroup) {
++		if (ug->memcg) {
++			uncharge_batch(ug);
++			uncharge_gather_clear(ug);
++		}
++		ug->memcg = page->mem_cgroup;
 +	}
 +
-+	return devmem;
++	if (!PageKmemcg(page)) {
++		unsigned int nr_pages = 1;
 +
-+error_devm_add_action:
-+	hmm_devmem_ref_kill(&devmem->ref);
-+	hmm_devmem_ref_exit(&devmem->ref);
-+error_percpu_ref:
-+	devres_free(devmem);
-+	return ERR_PTR(ret);
-+}
-+EXPORT_SYMBOL(hmm_devmem_add_resource);
++		if (PageTransHuge(page)) {
++			nr_pages <<= compound_order(page);
++			ug->nr_huge += nr_pages;
++		}
++		if (PageAnon(page))
++			ug->nr_anon += nr_pages;
++		else {
++			ug->nr_file += nr_pages;
++			if (PageSwapBacked(page))
++				ug->nr_shmem += nr_pages;
++		}
++		ug->pgpgout++;
++	} else {
++		ug->nr_kmem += 1 << compound_order(page);
++		__ClearPageKmemcg(page);
++	}
 +
- /*
-  * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
-  *
-@@ -1088,6 +1160,7 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
- {
- 	resource_size_t start, size;
- 	struct device *device;
-+	bool cdm = false;
- 
- 	if (!devmem)
- 		return;
-@@ -1096,11 +1169,13 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
- 	start = devmem->resource->start;
- 	size = resource_size(devmem->resource);
- 
-+	cdm = devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY;
- 	hmm_devmem_ref_kill(&devmem->ref);
- 	hmm_devmem_ref_exit(&devmem->ref);
- 	hmm_devmem_pages_remove(devmem);
- 
--	devm_release_mem_region(device, start, size);
-+	if (!cdm)
-+		devm_release_mem_region(device, start, size);
++	ug->dummy_page = page;
++	page->mem_cgroup = NULL;
  }
- EXPORT_SYMBOL(hmm_devmem_remove);
  
+ static void uncharge_list(struct list_head *page_list)
+ {
+-	struct mem_cgroup *memcg = NULL;
+-	unsigned long nr_shmem = 0;
+-	unsigned long nr_anon = 0;
+-	unsigned long nr_file = 0;
+-	unsigned long nr_huge = 0;
+-	unsigned long nr_kmem = 0;
+-	unsigned long pgpgout = 0;
++	struct uncharge_gather ug;
+ 	struct list_head *next;
+-	struct page *page;
++
++	uncharge_gather_clear(&ug);
+ 
+ 	/*
+ 	 * Note that the list can be a single page->lru; hence the
+@@ -5558,57 +5612,16 @@ static void uncharge_list(struct list_head *page_list)
+ 	 */
+ 	next = page_list->next;
+ 	do {
++		struct page *page;
++
+ 		page = list_entry(next, struct page, lru);
+ 		next = page->lru.next;
+ 
+-		VM_BUG_ON_PAGE(PageLRU(page), page);
+-		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+-
+-		if (!page->mem_cgroup)
+-			continue;
+-
+-		/*
+-		 * Nobody should be changing or seriously looking at
+-		 * page->mem_cgroup at this point, we have fully
+-		 * exclusive access to the page.
+-		 */
+-
+-		if (memcg != page->mem_cgroup) {
+-			if (memcg) {
+-				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+-					       nr_kmem, nr_huge, nr_shmem, page);
+-				pgpgout = nr_anon = nr_file = nr_kmem = 0;
+-				nr_huge = nr_shmem = 0;
+-			}
+-			memcg = page->mem_cgroup;
+-		}
+-
+-		if (!PageKmemcg(page)) {
+-			unsigned int nr_pages = 1;
+-
+-			if (PageTransHuge(page)) {
+-				nr_pages <<= compound_order(page);
+-				nr_huge += nr_pages;
+-			}
+-			if (PageAnon(page))
+-				nr_anon += nr_pages;
+-			else {
+-				nr_file += nr_pages;
+-				if (PageSwapBacked(page))
+-					nr_shmem += nr_pages;
+-			}
+-			pgpgout++;
+-		} else {
+-			nr_kmem += 1 << compound_order(page);
+-			__ClearPageKmemcg(page);
+-		}
+-
+-		page->mem_cgroup = NULL;
++		uncharge_page(page, &ug);
+ 	} while (next != page_list);
+ 
+-	if (memcg)
+-		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+-			       nr_kmem, nr_huge, nr_shmem, page);
++	if (ug.memcg)
++		uncharge_batch(&ug);
+ }
+ 
+ /**
+@@ -5620,6 +5633,8 @@ static void uncharge_list(struct list_head *page_list)
+  */
+ void mem_cgroup_uncharge(struct page *page)
+ {
++	struct uncharge_gather ug;
++
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
+@@ -5627,8 +5642,9 @@ void mem_cgroup_uncharge(struct page *page)
+ 	if (!page->mem_cgroup)
+ 		return;
+ 
+-	INIT_LIST_HEAD(&page->lru);
+-	uncharge_list(&page->lru);
++	uncharge_gather_clear(&ug);
++	uncharge_page(page, &ug);
++	uncharge_batch(&ug);
+ }
+ 
+ /**
 -- 
 2.13.0
 
