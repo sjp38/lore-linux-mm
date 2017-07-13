@@ -1,97 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD9C4408E5
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 18:33:59 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id j53so25875531uaa.2
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 15:33:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n2si3257098uaj.93.2017.07.13.15.33.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E56B4408E5
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 18:40:04 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d62so69919438pfb.13
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 15:40:04 -0700 (PDT)
+Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
+        by mx.google.com with ESMTPS id s59si5362159plb.319.2017.07.13.15.40.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 15:33:58 -0700 (PDT)
-Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
- mappings
-References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
- <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <415625d2-1be9-71f0-ca11-a014cef98a3f@oracle.com>
-Date: Thu, 13 Jul 2017 15:33:47 -0700
+        Thu, 13 Jul 2017 15:40:03 -0700 (PDT)
+Received: by mail-pg0-x22e.google.com with SMTP id u62so36116792pgb.3
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 15:40:02 -0700 (PDT)
+Subject: Re: [PATCH 1/4] kasan: support alloca() poisoning
+References: <20170706220114.142438-1-ghackmann@google.com>
+ <20170706220114.142438-2-ghackmann@google.com>
+ <CACT4Y+YWLc3n-PBcD1Cmu_FLGSDd+vyTTyeBamk2bBZhdWJSoA@mail.gmail.com>
+From: Greg Hackmann <ghackmann@google.com>
+Message-ID: <c7160aca-a203-e3d8-eb49-b051aff78f0e@google.com>
+Date: Thu, 13 Jul 2017 15:40:00 -0700
 MIME-Version: 1.0
-In-Reply-To: <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <CACT4Y+YWLc3n-PBcD1Cmu_FLGSDd+vyTTyeBamk2bBZhdWJSoA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>
 
-On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
-> [+CC linux-api]
+Hi,
+
+Thanks for taking a look at this patchstack.  I apologize for the delay 
+in responding.
+
+On 07/10/2017 01:44 AM, Dmitry Vyukov wrote:
+>> +
+>> +       const void *left_redzone = (const void *)(addr -
+>> +                       KASAN_ALLOCA_REDZONE_SIZE);
+>> +       const void *right_redzone = (const void *)(addr + rounded_up_size);
 > 
-> On 07/13/2017 05:58 PM, Mike Kravetz wrote:
->> mremap will create a 'duplicate' mapping if old_size == 0 is
->> specified.  Such duplicate mappings make no sense for private
->> mappings.  If duplication is attempted for a private mapping,
->> mremap creates a separate private mapping unrelated to the
->> original mapping and makes no modifications to the original.
->> This is contrary to the purpose of mremap which should return
->> a mapping which is in some way related to the original.
->>
->> Therefore, return EINVAL in the case where if an attempt is
->> made to duplicate a private mapping.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Please check that size is rounded to KASAN_ALLOCA_REDZONE_SIZE. That's
+> the expectation, right? That can change is clang silently.
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>> +       kasan_poison_shadow(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
+>> +                       KASAN_ALLOCA_LEFT);
+>> +       kasan_poison_shadow(right_redzone,
+>> +                       padding_size + KASAN_ALLOCA_REDZONE_SIZE,
+>> +                       KASAN_ALLOCA_RIGHT);
 > 
+> We also need to poison the unaligned part at the end of the object
+> from size to rounded_up_size. You can see how we do it for heap
+> objects.
 
-In another e-mail thread, Andrea makes the case that mremap(old_size == 0)
-of private file backed mappings could possibly be used for something useful.
-For example to create a private COW mapping.  Of course, a better way to do
-this would be simply using the fd to create a private mapping.
+The expectation is that `size' is the exact size of the alloca()ed 
+object.  `rounded_up_size' then adds the 0-7 bytes needed to adjust the 
+size to the ASAN shadow scale.  So `addr + rounded_up_size' should be 
+the correct place to start poisoning.
 
-If returning EINVAL for all private mappings is too general, the following
-patch adds a check to only return EINVAL for private anon mappings.
+In retrospect this part of the code was pretty confusing.  How about 
+this?  I think its intent is clearer, plus it's a closer match for the 
+description in my commit message:
 
-mm/mremap: Fail map duplication attempts for private anon mappings
+	unsigned long left_redzone_start;
+	unsigned long object_end;
+	unsigned long right_redzone_start, right_redzone_end;
 
-mremap will create a 'duplicate' mapping if old_size == 0 is
-specified.  Such duplicate mappings make no sense for private
-anonymous mappings.  If duplication is attempted for a private
-anon mapping, mremap creates a separate private mapping unrelated
-to the original mapping and makes no modifications to the original.
-This is contrary to the purpose of mremap which should return a
-mapping which is in some way related to the original.
+	left_redzone_start = addr - KASAN_ALLOCA_REDZONE_SIZE;
+	kasan_poison_shadow((const void *)left_redzone_start,
+			KASAN_ALLOCA_REDZONE_SIZE,
+			KASAN_ALLOCA_LEFT);
 
-Therefore, return EINVAL in the case where an attempt is made to
-duplicate a private anon mapping.
-
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/mremap.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/mremap.c b/mm/mremap.c
-index cd8a1b1..586ea3d 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -383,6 +383,14 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- 	if (!vma || vma->vm_start > addr)
- 		return ERR_PTR(-EFAULT);
- 
-+	/*
-+	 * !old_len  is a special case where a mapping is 'duplicated'.
-+	 * Do not allow this for private anon mappings.
-+	 */
-+	if (!old_len && vma_is_anonymous(vma) &&
-+	    !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
-+		return ERR_PTR(-EINVAL);
-+
- 	if (is_vm_hugetlb_page(vma))
- 		return ERR_PTR(-EINVAL);
- 
--- 
-2.7.5
+	object_end = round_up(addr + size, KASAN_SHADOW_SCALE_SIZE);
+	right_redzone_start = round_up(object_end, KASAN_ALLOCA_REDZONE_SIZE);
+	right_redzone_end = right_redzone_start + KASAN_ALLOCA_REDZONE_SIZE;
+	kasan_poison_shadow((const void *)object_end,
+			right_redzone_end - object_end,
+			KASAN_ALLOCA_RIGHT);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
