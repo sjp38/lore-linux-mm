@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A64D0440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 14:23:53 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 23so9771664wry.4
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 11:23:53 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C8A440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 15:11:59 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u23so5838937wma.14
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 12:11:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o188si45277wmd.102.2017.07.13.11.23.52
+        by mx.google.com with ESMTPS id 96si4899213wrk.320.2017.07.13.12.11.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Jul 2017 11:23:52 -0700 (PDT)
-Date: Thu, 13 Jul 2017 19:23:50 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Potential race in TLB flush batching?
-Message-ID: <20170713182350.n64dmnkgbiivikmh@suse.de>
-References: <20170711191823.qthrmdgqcd3rygjk@suse.de>
- <20170711200923.gyaxfjzz3tpvreuq@suse.de>
- <20170711215240.tdpmwmgwcuerjj3o@suse.de>
- <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
- <20170712082733.ouf7yx2bnvwwcfms@suse.de>
- <591A2865-13B8-4B3A-B094-8B83A7F9814B@gmail.com>
- <20170713060706.o2cuko5y6irxwnww@suse.de>
- <CALCETrWF7hxR7rFCUwi5FZWPt_NUy2U5dV+zy6HUm_x+0jdomA@mail.gmail.com>
- <20170713170712.4iriw5lncoulcgda@suse.de>
- <CALCETrXm8GXXgbXOw8DKL2O9fWfyv2CzExwCLR+6kHLELPsP3Q@mail.gmail.com>
+        Thu, 13 Jul 2017 12:11:57 -0700 (PDT)
+Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
+ mappings
+References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
+Date: Thu, 13 Jul 2017 21:11:08 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CALCETrXm8GXXgbXOw8DKL2O9fWfyv2CzExwCLR+6kHLELPsP3Q@mail.gmail.com>
+In-Reply-To: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Jul 13, 2017 at 10:15:15AM -0700, Andrew Lutomirski wrote:
-> On Thu, Jul 13, 2017 at 10:07 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Thu, Jul 13, 2017 at 09:08:21AM -0700, Andrew Lutomirski wrote:
-> >> On Wed, Jul 12, 2017 at 11:07 PM, Mel Gorman <mgorman@suse.de> wrote:
-> >> > --- a/arch/x86/mm/tlb.c
-> >> > +++ b/arch/x86/mm/tlb.c
-> >> > @@ -455,6 +455,39 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
-> >> >         put_cpu();
-> >> >  }
-> >> >
-> >> > +/*
-> >> > + * Ensure that any arch_tlbbatch_add_mm calls on this mm are up to date when
-> >>
-> >> s/are up to date/have flushed the TLBs/ perhaps?
-> >>
-> >>
-> >> Can you update this comment in arch/x86/include/asm/tlbflush.h:
-> >>
-> >>          * - Fully flush a single mm.  .mm will be set, .end will be
-> >>          *   TLB_FLUSH_ALL, and .new_tlb_gen will be the tlb_gen to
-> >>          *   which the IPI sender is trying to catch us up.
-> >>
-> >> by adding something like: This can also happen due to
-> >> arch_tlbflush_flush_one_mm(), in which case it's quite likely that
-> >> most or all CPUs are already up to date.
-> >>
-> >
-> > No problem, thanks. Care to ack the patch below? If so, I'll send it
-> > to Ingo with x86 and linux-mm cc'd after some tests complete (hopefully
-> > successfully). It's fairly x86 specific and makes sense to go in with the
-> > rest of the pcid and mm tlb_gen stuff rather than via Andrew's tree even
-> > through it touches core mm.
+[+CC linux-api]
+
+On 07/13/2017 05:58 PM, Mike Kravetz wrote:
+> mremap will create a 'duplicate' mapping if old_size == 0 is
+> specified.  Such duplicate mappings make no sense for private
+> mappings.  If duplication is attempted for a private mapping,
+> mremap creates a separate private mapping unrelated to the
+> original mapping and makes no modifications to the original.
+> This is contrary to the purpose of mremap which should return
+> a mapping which is in some way related to the original.
 > 
-> Acked-by: Andy Lutomirski <luto@kernel.org> # for the x86 parts
+> Therefore, return EINVAL in the case where if an attempt is
+> made to duplicate a private mapping.
 > 
-> When you send to Ingo, you might want to change
-> arch_tlbbatch_flush_one_mm to arch_tlbbatch_flush_one_mm(), because
-> otherwise he'll probably do it for you :)
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-*cringe*. I fixed it up.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
--- 
-Mel Gorman
-SUSE Labs
+> ---
+>  mm/mremap.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index cd8a1b1..076f506 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -383,6 +383,13 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+>  	if (!vma || vma->vm_start > addr)
+>  		return ERR_PTR(-EFAULT);
+>  
+> +	/*
+> +	 * !old_len  is a special case where a mapping is 'duplicated'.
+> +	 * Do not allow this for private mappings.
+> +	 */
+> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
+> +		return ERR_PTR(-EINVAL);
+> +
+>  	if (is_vm_hugetlb_page(vma))
+>  		return ERR_PTR(-EINVAL);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
