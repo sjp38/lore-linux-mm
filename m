@@ -1,111 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DF103440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:55:20 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i127so2925229wma.15
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:55:20 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B490440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:04:07 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 40so4061770wrw.10
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:04:07 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m63si4601726wme.38.2017.07.13.00.55.19
+        by mx.google.com with ESMTPS id 196si4543392wmm.55.2017.07.13.01.04.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 00:55:19 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6D7robW101138
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:55:18 -0400
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bnt3p4egh-1
+        Thu, 13 Jul 2017 01:04:06 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6D83kA8116849
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:04:04 -0400
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bnt3pctx5-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:55:18 -0400
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:04:04 -0400
 Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 13 Jul 2017 01:55:17 -0600
-Date: Thu, 13 Jul 2017 00:55:02 -0700
+	Thu, 13 Jul 2017 04:04:04 -0400
+Date: Thu, 13 Jul 2017 01:03:48 -0700
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v5 15/38] powerpc: helper function to read,write
- AMR,IAMR,UAMOR registers
+Subject: Re: [RFC v5 34/38] procfs: display the protection-key number
+ associated with a vma
 Reply-To: Ram Pai <linuxram@us.ibm.com>
 References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
- <1499289735-14220-16-git-send-email-linuxram@us.ibm.com>
- <20170712152601.3b2f52ed@firefly.ozlabs.ibm.com>
+ <1499289735-14220-35-git-send-email-linuxram@us.ibm.com>
+ <8b0827c9-9fc9-c2d5-d1a5-52d9eef8965e@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170712152601.3b2f52ed@firefly.ozlabs.ibm.com>
-Message-Id: <20170713075502.GG5525@ram.oc3035372033.ibm.com>
+In-Reply-To: <8b0827c9-9fc9-c2d5-d1a5-52d9eef8965e@intel.com>
+Message-Id: <20170713080348.GH5525@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-On Wed, Jul 12, 2017 at 03:26:01PM +1000, Balbir Singh wrote:
-> On Wed,  5 Jul 2017 14:21:52 -0700
-> Ram Pai <linuxram@us.ibm.com> wrote:
-> 
-> > Implements helper functions to read and write the key related
-> > registers; AMR, IAMR, UAMOR.
-> > 
-> > AMR register tracks the read,write permission of a key
-> > IAMR register tracks the execute permission of a key
-> > UAMOR register enables and disables a key
-> > 
-> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> > ---
-> >  arch/powerpc/include/asm/book3s/64/pgtable.h |   60 ++++++++++++++++++++++++++
-> >  1 files changed, 60 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > index 85bc987..435d6a7 100644
-> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > @@ -428,6 +428,66 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> >  		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
-> >  }
-> >  
+On Tue, Jul 11, 2017 at 11:13:56AM -0700, Dave Hansen wrote:
+> On 07/05/2017 02:22 PM, Ram Pai wrote:
 > > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> > +
-> > +#include <asm/reg.h>
-> > +static inline u64 read_amr(void)
+> > +void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
 > > +{
-> > +	return mfspr(SPRN_AMR);
+> > +	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
 > > +}
-> > +static inline void write_amr(u64 value)
-> > +{
-> > +	mtspr(SPRN_AMR, value);
-> > +}
-> > +static inline u64 read_iamr(void)
-> > +{
-> > +	return mfspr(SPRN_IAMR);
-> > +}
-> > +static inline void write_iamr(u64 value)
-> > +{
-> > +	mtspr(SPRN_IAMR, value);
-> > +}
-> > +static inline u64 read_uamor(void)
-> > +{
-> > +	return mfspr(SPRN_UAMOR);
-> > +}
-> > +static inline void write_uamor(u64 value)
-> > +{
-> > +	mtspr(SPRN_UAMOR, value);
-> > +}
-> > +
-> > +#else /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
-> > +
-> > +static inline u64 read_amr(void)
-> > +{
-> > +	WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
-> > +	return -1;
-> > +}
+> > +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
 > 
-> Why do we need to have a version here if we are going to WARN(), why not
-> let the compilation fail if called from outside of CONFIG_PPC64_MEMORY_PROTECTION_KEYS?
-> Is that the intention?
+> This seems like kinda silly unnecessary duplication.  Could we just put
+> this in the fs/proc/ code and #ifdef it on ARCH_HAS_PKEYS?
 
-I did not want to stop someone; kernel module for example, from calling
-these interfaces from outside the pkey domain.
+Well x86 predicates it based on availability of X86_FEATURE_OSPKE.
 
-Either way can be argued to be correct, I suppose.
+powerpc doesn't need that check or any similar check. So trying to
+generalize the code does not save much IMHO.
+
+maybe have a seperate inline function that does
+seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+and is called from x86 and powerpc's arch_show_smap()?
+At least will keep the string format captured in 
+one single place.
+
+thoughts?
 RP
 
 --
