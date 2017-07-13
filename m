@@ -1,204 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D1737440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 07:28:33 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s4so54815015pgr.3
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:28:33 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0099.outbound.protection.outlook.com. [104.47.36.99])
-        by mx.google.com with ESMTPS id a8si4348462plt.556.2017.07.13.04.28.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF7E440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 08:56:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v26so54095429pfa.0
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:56:14 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0110.outbound.protection.outlook.com. [104.47.1.110])
+        by mx.google.com with ESMTPS id 41si1036068plf.204.2017.07.13.05.56.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 13 Jul 2017 04:28:32 -0700 (PDT)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH v8 05/10] mm: thp: enable thp migration in generic path
-Date: Thu, 13 Jul 2017 07:28:24 -0400
-Message-ID: <F7B0F5C1-F8ED-4029-87ED-F1757975E767@cs.rutgers.edu>
-In-Reply-To: <20170713093040.GA24851@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170701134008.110579-1-zi.yan@sent.com>
- <20170701134008.110579-6-zi.yan@sent.com>
- <20170711064736.GB22052@hori1.linux.bs1.fc.nec.co.jp>
- <F7626C3B-4F03-4144-B5DF-23CB45E4373D@cs.rutgers.edu>
- <20170713093040.GA24851@hori1.linux.bs1.fc.nec.co.jp>
+        Thu, 13 Jul 2017 05:56:13 -0700 (PDT)
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+References: <20170710184704.realchrhzpblqqlk@node.shutemov.name>
+ <CALCETrVJQ_u-agPm8fFHAW1UJY=VLowdbM+gXyjFCb586r0V3g@mail.gmail.com>
+ <20170710212403.7ycczkhhki3vrgac@node.shutemov.name>
+ <CALCETrW6pWzpdf1MVx_ytaYYuVGBsF7R+JowEsKqd3i=vCwJ_w@mail.gmail.com>
+ <20170711103548.mkv5w7dd5gpdenne@node.shutemov.name>
+ <CALCETrVpNUq3-zEu1Q1O77N8r4kv4kFdefXp7XEs3Hpf-JPAjg@mail.gmail.com>
+ <d3caf8c4-4575-c1b5-6b0f-95527efaf2f9@virtuozzo.com>
+ <f11d9e07-6b31-1add-7677-6a29d15ab608@virtuozzo.com>
+ <20170711170332.wlaudicepkg35dmm@node.shutemov.name>
+ <e9a395f4-018e-4c8c-2098-170172e438f3@virtuozzo.com>
+ <20170711190554.zxkpjeg2bt65wtir@black.fi.intel.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <20939b37-efd8-2d32-0040-3682fff927c2@virtuozzo.com>
+Date: Thu, 13 Jul 2017 15:58:29 +0300
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_773430CB-F76A-4A3A-A9BD-72F39805FF95_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+In-Reply-To: <20170711190554.zxkpjeg2bt65wtir@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
-
---=_MailMate_773430CB-F76A-4A3A-A9BD-72F39805FF95_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-On 13 Jul 2017, at 5:30, Naoya Horiguchi wrote:
-
-> On Tue, Jul 11, 2017 at 10:00:30AM -0400, Zi Yan wrote:
->> On 11 Jul 2017, at 2:47, Naoya Horiguchi wrote:
+On 07/11/2017 10:05 PM, Kirill A. Shutemov wrote:
+>>> Can use your Signed-off-by for a [cleaned up version of your] patch?
 >>
->>> On Sat, Jul 01, 2017 at 09:40:03AM -0400, Zi Yan wrote:
->>>> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>>>
->>>> This patch adds thp migration's core code, including conversions
->>>> between a PMD entry and a swap entry, setting PMD migration entry,
->>>> removing PMD migration entry, and waiting on PMD migration entries.
->>>>
->>>> This patch makes it possible to support thp migration.
->>>> If you fail to allocate a destination page as a thp, you just split
->>>> the source thp as we do now, and then enter the normal page migratio=
-n.
->>>> If you succeed to allocate destination thp, you enter thp migration.=
+>> Sure.
+> 
+> Another KASAN-releated issue: dumping page tables for KASAN shadow memory
+> region takes unreasonable time due to kasan_zero_p?? mapped there.
+> 
+> The patch below helps. Any objections?
+> 
 
->>>> Subsequent patches actually enable thp migration for each caller of
->>>> page migration by allowing its get_new_page() callback to
->>>> allocate thps.
->>>>
->>>> ChangeLog v1 -> v2:
->>>> - support pte-mapped thp, doubly-mapped thp
->>>>
->>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>>>
->>>> ChangeLog v2 -> v3:
->>>> - use page_vma_mapped_walk()
->>>> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear() i=
-n
->>>>   set_pmd_migration_entry()
->>>>
->>>> ChangeLog v3 -> v4:
->>>> - factor out the code of removing pte pgtable page in zap_huge_pmd()=
+Well, page tables dump doesn't work at all on 5-level paging.
+E.g. I've got this nonsense: 
 
->>>>
->>>> ChangeLog v4 -> v5:
->>>> - remove unnecessary PTE-mapped THP code in remove_migration_pmd()
->>>>   and set_pmd_migration_entry()
->>>> - restructure the code in zap_huge_pmd() to avoid factoring out
->>>>   the pte pgtable page code
->>>> - in zap_huge_pmd(), check that PMD swap entries are migration entri=
-es
->>>> - change author information
->>>>
->>>> ChangeLog v5 -> v7
->>>> - use macro to disable the code when thp migration is not enabled
->>>>
->>>> ChangeLog v7 -> v8
->>>> - use IS_ENABLED instead of macro to make code look clean in
->>>>   zap_huge_pmd() and page_vma_mapped_walk()
->>>> - remove BUILD_BUG() in pmd_to_swp_entry() and swp_entry_to_pmd() to=
-
->>>>   avoid compilation error
->>>> - rename variable 'migration' to 'flush_needed' and invert the logic=
- in
->>>>   zap_huge_pmd() to make code more descriptive
->>>> - use pmdp_invalidate() in set_pmd_migration_entry() to avoid race
->>>>   with MADV_DONTNEED
->>>> - remove unnecessary tlb flush in remove_migration_pmd()
->>>> - add the missing migration flag check in page_vma_mapped_walk()
->>>>
->>>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
->>>> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>> ---
->>>>  arch/x86/include/asm/pgtable_64.h |  2 +
->>>>  include/linux/swapops.h           | 67 ++++++++++++++++++++++++++++=
-++-
->>>>  mm/huge_memory.c                  | 84 ++++++++++++++++++++++++++++=
-++++++++---
->>>>  mm/migrate.c                      | 32 ++++++++++++++-
->>>>  mm/page_vma_mapped.c              | 18 +++++++--
->>>>  mm/pgtable-generic.c              |  3 +-
->>>>  mm/rmap.c                         | 13 ++++++
->>>>  7 files changed, 207 insertions(+), 12 deletions(-)
->>>>
->>> ...
->>>
->>>> diff --git a/mm/rmap.c b/mm/rmap.c
->>>> index 91948fbbb0bb..b28f633cd569 100644
->>>> --- a/mm/rmap.c
->>>> +++ b/mm/rmap.c
->>>> @@ -1302,6 +1302,7 @@ static bool try_to_unmap_one(struct page *page=
-, struct vm_area_struct *vma,
->>>>  	bool ret =3D true;
->>>>  	enum ttu_flags flags =3D (enum ttu_flags)arg;
->>>>
->>>> +
->>>>  	/* munlock has nothing to gain from examining un-locked vmas */
->>>>  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
->>>>  		return true;
->>>> @@ -1312,6 +1313,18 @@ static bool try_to_unmap_one(struct page *pag=
-e, struct vm_area_struct *vma,
->>>>  	}
->>>>
->>>>  	while (page_vma_mapped_walk(&pvmw)) {
->>>> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
->>>> +		/* PMD-mapped THP migration entry */
->>>> +		if (flags & TTU_MIGRATION) {
->>>
->>> My testing based on mmotm-2017-07-06-16-18 showed that migrating shme=
-m thp
->>> caused kernel crash. I don't think this is critical because that case=
- is
->>> just not-prepared yet. So in order to avoid the crash, please add
->>> PageAnon(page) check here. This makes shmem thp migration just fail.
->>>
->>> +			if (!PageAnon(page))
->>> +				continue;
->>>
->>
->> Thanks for your testing. I will add this check in my next version.
->
-> Sorry, the code I'm suggesting above doesn't work because it makes norm=
-al
-> pagecache migration fail.  This check should come after making sure tha=
-t
-> pvmw.pte is NULL.
-
-Right. I think the two ifs are confusing. Replacing the chunk with:
-
-if (!pvmw.pte && (flags & TTU_MIGRATION)) {
-    VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page),
-            page);
-
-    if (!PageAnon(page))
-        continue;
-
-    set_pmd_migration_entry(&pvmw, page);
-    continue;
-}
-
-would be better.
-
-BTW, is your page migration test suite available online? If so, I could u=
-se
-it to test my code.
-
-Thanks.
+....
+---[ Kernel Space ]---
+0xffff800000000000-0xffff808000000000         512G                               pud
+---[ Low Kernel Mapping ]---
+0xffff808000000000-0xffff810000000000         512G                               pud
+---[ vmalloc() Area ]---
+0xffff810000000000-0xffff818000000000         512G                               pud
+---[ Vmemmap ]---
+0xffff818000000000-0xffffff0000000000      128512G                               pud
+---[ ESPfix Area ]---
+0xffffff0000000000-0x0000000000000000           1T                               pud
+0x0000000000000000-0x0000000000000000           0E                               pgd
+0x0000000000000000-0x0000000000001000           4K     RW     PCD         GLB NX pte
+0x0000000000001000-0x0000000000002000           4K                               pte
+0x0000000000002000-0x0000000000003000           4K     ro                 GLB NX pte
+0x0000000000003000-0x0000000000004000           4K                               pte
+0x0000000000004000-0x0000000000007000          12K     RW                 GLB NX pte
+0x0000000000007000-0x0000000000008000           4K                               pte
+0x0000000000008000-0x0000000000108000           1M     RW                 GLB NX pte
+0x0000000000108000-0x0000000000109000           4K                               pte
+0x0000000000109000-0x0000000000189000         512K     RW                 GLB NX pte
+0x0000000000189000-0x000000000018a000           4K                               pte
+0x000000000018a000-0x000000000018e000          16K     RW                 GLB NX pte
+0x000000000018e000-0x000000000018f000           4K                               pte
+0x000000000018f000-0x0000000000193000          16K     RW                 GLB NX pte
+0x0000000000193000-0x0000000000194000           4K                               pte
+... 304 entries skipped ... 
+---[ EFI Runtime Services ]---
+0xffffffef00000000-0xffffffff80000000          66G                               pud
+---[ High Kernel Mapping ]---
+0xffffffff80000000-0xffffffffc0000000           1G                               pud
+...
 
 
 
-=E2=80=94
-Best Regards,
-Yan Zi
+As for KASAN, I think it would be better just to make it work faster, the patch below demonstrates the idea.
 
---=_MailMate_773430CB-F76A-4A3A-A9BD-72F39805FF95_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
 
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
 
-iQEcBAEBCgAGBQJZZ1lYAAoJEEGLLxGcTqbMATcH/jlryvtdD8CdWHv0Nn+mjFZF
-OmFqpxbSJ9yCHVPNC/YTd79FI25lF/F7YcSkl5U2cXL2JSkJmeqcDink1dEs1mP6
-64wnONqDtRqJWCMEBrdnC9gftKZNhjyV80O3OdRl5oG0LPRk3pi/1fwuSCE1COq9
-1u8r1BL84aK0d59XuvRTmTJEbmZ6naI3pk3Zfq6k5UAcyXDt9jgisph6xvqKPhq7
-QQIx3scYTS3HTcfbDwi0C844jH8u9bIIlBnAgKc6evV8FN7z8r6wZif32+4vZit7
-Cy5fD0jaENV/Q8ly+edWHMEWGh4Wo1V+hj73ozwm+PKIhA322kd1c5p+wPINzF4=
-=gCIF
------END PGP SIGNATURE-----
+---
+ arch/x86/mm/dump_pagetables.c | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
 
---=_MailMate_773430CB-F76A-4A3A-A9BD-72F39805FF95_=--
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 0470826d2bdc..36515fba86b0 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -13,6 +13,7 @@
+  */
+ 
+ #include <linux/debugfs.h>
++#include <linux/kasan.h>
+ #include <linux/mm.h>
+ #include <linux/init.h>
+ #include <linux/sched.h>
+@@ -307,16 +308,19 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
+ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, unsigned long P)
+ {
+ 	int i;
+-	pmd_t *start;
++	pmd_t *start, *pmd_addr;
+ 	pgprotval_t prot;
+ 
+-	start = (pmd_t *)pud_page_vaddr(addr);
++	pmd_addr = start = (pmd_t *)pud_page_vaddr(addr);
+ 	for (i = 0; i < PTRS_PER_PMD; i++) {
+ 		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
+ 		if (!pmd_none(*start)) {
+ 			if (pmd_large(*start) || !pmd_present(*start)) {
+ 				prot = pmd_flags(*start);
+ 				note_page(m, st, __pgprot(prot), 3);
++			} else if (__pa(pmd_addr) == __pa(kasan_zero_pmd)) {
++				prot = pte_flags(kasan_zero_pte[0]);
++				note_page(m, st, __pgprot(prot), 4);
+ 			} else {
+ 				walk_pte_level(m, st, *start,
+ 					       P + i * PMD_LEVEL_MULT);
+@@ -349,11 +353,11 @@ static bool pud_already_checked(pud_t *prev_pud, pud_t *pud, bool checkwx)
+ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, unsigned long P)
+ {
+ 	int i;
+-	pud_t *start;
++	pud_t *start, *pud_addr;
+ 	pgprotval_t prot;
+ 	pud_t *prev_pud = NULL;
+ 
+-	start = (pud_t *)p4d_page_vaddr(addr);
++	pud_addr = start = (pud_t *)p4d_page_vaddr(addr);
+ 
+ 	for (i = 0; i < PTRS_PER_PUD; i++) {
+ 		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
+@@ -362,6 +366,9 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
+ 			if (pud_large(*start) || !pud_present(*start)) {
+ 				prot = pud_flags(*start);
+ 				note_page(m, st, __pgprot(prot), 2);
++			} else if (__pa(pud_addr) == __pa(kasan_zero_pud)) {
++				prot = pte_flags(kasan_zero_pte[0]);
++				note_page(m, st, __pgprot(prot), 4);
+ 			} else {
+ 				walk_pmd_level(m, st, *start,
+ 					       P + i * PUD_LEVEL_MULT);
+@@ -385,10 +392,10 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
+ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
+ {
+ 	int i;
+-	p4d_t *start;
++	p4d_t *start, *p4d_addr;
+ 	pgprotval_t prot;
+ 
+-	start = (p4d_t *)pgd_page_vaddr(addr);
++	p4d_addr = start = (p4d_t *)pgd_page_vaddr(addr);
+ 
+ 	for (i = 0; i < PTRS_PER_P4D; i++) {
+ 		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
+@@ -396,6 +403,9 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+ 			if (p4d_large(*start) || !p4d_present(*start)) {
+ 				prot = p4d_flags(*start);
+ 				note_page(m, st, __pgprot(prot), 2);
++			} else if (__pa(p4d_addr) == __pa(kasan_zero_p4d)) {
++				prot = pte_flags(kasan_zero_pte[0]);
++				note_page(m, st, __pgprot(prot), 4);
+ 			} else {
+ 				walk_pud_level(m, st, *start,
+ 					       P + i * P4D_LEVEL_MULT);
+-- 
+2.13.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
