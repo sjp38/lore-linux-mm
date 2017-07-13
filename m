@@ -1,133 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5661D440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 16:19:31 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g53so27568537qtc.6
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 13:19:31 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C121440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 16:33:32 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id s20so31545034qki.12
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 13:33:32 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u19si5761515qka.294.2017.07.13.13.19.30
+        by mx.google.com with ESMTPS id a11si5724719qtd.334.2017.07.13.13.33.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 13:19:30 -0700 (PDT)
-Date: Thu, 13 Jul 2017 23:19:22 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170713210819-mutt-send-email-mst@kernel.org>
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
- <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
- <20170712160129-mutt-send-email-mst@kernel.org>
- <5966241C.9060503@intel.com>
- <20170712163746-mutt-send-email-mst@kernel.org>
- <5967246B.9030804@intel.com>
+        Thu, 13 Jul 2017 13:33:30 -0700 (PDT)
+Date: Thu, 13 Jul 2017 22:33:27 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
+ mirroring functionality
+Message-ID: <20170713203327.GL22628@redhat.com>
+References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
+ <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
+ <20170711123642.GC11936@dhcp22.suse.cz>
+ <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
+ <20170712114655.GG28912@dhcp22.suse.cz>
+ <3a2cfeae-520c-b6e5-2808-cf1bcf62b067@oracle.com>
+ <20170713061651.GA14492@dhcp22.suse.cz>
+ <21b264e7-b879-f072-03d2-f6f4aec5c957@oracle.com>
+ <20170713163054.GK22628@redhat.com>
+ <28a8da13-bdc2-3f23-dee9-607377ac1cc3@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5967246B.9030804@intel.com>
+In-Reply-To: <28a8da13-bdc2-3f23-dee9-607377ac1cc3@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Jul 13, 2017 at 03:42:35PM +0800, Wei Wang wrote:
-> On 07/12/2017 09:56 PM, Michael S. Tsirkin wrote:
+On Thu, Jul 13, 2017 at 11:11:37AM -0700, Mike Kravetz wrote:
+> Here is my understanding of how things work for old_len == 0 of anon
+> mappings:
+> - shared mappings
+> 	- New vma is created at new virtual address
+> 	- vma refers to the same underlying object/pages as old vma
+> 	- after mremap, no page tables exist for new vma, they are
+> 	  created as pages are accessed/faulted
+> 	- page at new_address is same as page at old_address
+
+Yes, and this isn't backed by anon memory, it's backed by
+shmem. "Shared anon mapping" is really synonymous of shmem, the fact
+it's not a mmap of a tmpfs file is purely an API detail.
+
+> - private mappings
+> 	- New vma is created at new virtual address
+> 	- vma does not refer to same pages as old vma.  It is a 'new'
+> 	  private anon mapping.
+> 	- after mremap, no page tables exist for new vma.  access to
+> 	  the range of the new vma will result in faults that allocate
+> 	  a new page.
+> 	- page at new_address is different than  page at old_address
+> 	  the new vma will result in new 
+
+Yes, for a anon private mapping (so backed by real anonymous memory)
+no payload in the old vma could possibly go in the new vma.
+
+> So, the result of mremap(old_len == 0) on a private mapping is that it
+> simply creates a new private mapping.  IMO, this is contrary to the purpose
+> of mremap.  mremap should return a mapping that is somehow related to
+> the original mapping.
+
+I agree there's no point to ever use the mremap(old_len == 0)
+undocumented trick, to create a new anon private mmap, when you could
+use mmap instead and the result would be the same.
+
+So it's plausible nobody could use it for it.
+
+> Perhaps you are thinking about mremap of a private file mapping?  I was
+> not considering that case.  I believe you are right.  In this case a
+> private COW mapping based on the original mapping would be created.  So,
+> this seems more in line with the intent of mremap.  The new mapping is
+> still related to the old mapping.
+
+Yes my earlier example was all about filebacked private mappings, to
+point out those also have a deterministic behavior with the old_len ==
+0 trick and it could be still used because the IPC_RMID was executed
+early on.
+
+The point is that you could always use a plain new mmap instead of the
+old_len == 0 trick, but that applies to shared mappings as well.
+
+My argument is that if you keep it and document it for shared anon
+mappings, I don't see something fundamentally wrong as keeping it for
+private filebacked mappings too as the shmat ID may have been deleted
+for those too.
+
+> With this in mind, what about returning EINVAL only for the anon private
+> mapping case?
+
+The only case where there's no excuse to use mremap(old_len == 0) as
+replacement for a new mmap is the private anon mappings case, so while
+it may still break something (as opposed to a deprecation warning), I
+guess the likely hood somebody is using it, is very low.
+
+> However, if you have a fd (for a file mapping) then I can not see why
+> someone would be using the old_len == 0 trick.  It would be more straight
+> forward to simply use mmap to create the additional mapping.
+
+That applies to MAP_SHARED too and that's why deprecating the whole
+undocumented old_len ==0 sounded and still sound attractive to me, but
+doing it right away without a deprecation warning cycle, sounds too
+risky.
+
+> > So an alternative would be to start by adding a WARN_ON_ONCE deprecation
+> > warning instead of -EINVAL right away.
 > > 
-> > So the way I see it, there are several issues:
-> > 
-> > - internal wait - forces multiple APIs like kick/kick_sync
-> >    note how kick_sync can fail but your code never checks return code
-> > - need to re-write the last descriptor - might not work
-> >    for alternative layouts which always expose descriptors
-> >    immediately
+> > The vma->vm_flags VM_ACCOUNT being wiped on the original vma as side
+> > effect of using the old_len == 0 trick looks like a bug, I guess it
+> > should get fixed if we intend to keep old_len and document it for the
+> > long term.
 > 
-> Probably it wasn't clear. Please let me explain the two functions here:
-> 
-> 1) virtqueue_add_chain_desc(vq, head_id, prev_id,..):
-> grabs a desc from the vq and inserts it to the chain tail (which is indexed
-> by
-> prev_id, probably better to call it tail_id). Then, the new added desc
-> becomes
-> the tail (i.e. the last desc). The _F_NEXT flag is cleared for each desc
-> when it's
-> added to the chain, and set when another desc comes to follow later.
+> Others seem to think we should keep old_len == 0 and document.
 
-And this only works if there are multiple rings like
-avail + descriptor ring.
-It won't work e.g. with the proposed new layout where
-writing out a descriptor exposes it immediately.
+The only case where it makes sense is after IPC_RMID, but with
+memfd_create there's no point anymore to use IPC_RMID.
 
-> 2) virtqueue_add_chain(vq, head_id,..): expose the chain to the other end.
-> 
-> So, if people want to add a desc and immediately expose it to the other end,
-> i.e. build a single desc chain, they can just add and expose:
-> 
-> virtqueue_add_chain_desc(..);
-> virtqueue_add_chain(..,head_id);
-> 
-> Would you see any issues here?
+tmpfs/hugetlbfs/realfs files can be unlinked while the fd is still
+open so again no need of the mremap(old_len == 0) trick.
 
-The way the new APIs poll used ring internally.
+Which is why I'd find it attractive to deprecate it if we could, but I
+assume we can't drop it even if undocumented, which is why I felt a
+deprecation warning would be suitable in this case (similar to
+deprecation warning of sysfs and then dropped via config option). I am
+assuming here that nobody is using it because it's undocumented and it
+has a bug in the VM_ACCOUNT code too. Without a deprecation warning
+it'd be hard to tell if the assumption is correct.
 
-> 
-> > - some kind of iterator type would be nicer instead of
-> >    maintaining head/prev explicitly
-> 
-> Why would we need to iterate the chain?
+> I assume you are concerned about the do_munmap call in move_vma?  That
 
-In your patches prev/tail are iterators - they keep track of
-where you are in the chain.
+Yes exactly.
 
-> I think it would be simpler to use
-> a wrapper struct:
-> 
-> struct virtqueue_desc_chain {
->     unsigned int head;  // head desc id of the chain
->     unsigned int tail;     // tail desc id of the chain
-> }
-> 
-> The new desc will be put to desc[tail].next, and we don't need to walk
-> from the head desc[head].next when inserting a new desc to the chain, right?
-> 
-> 
-> > 
-> > As for the use, it would be better to do
-> > 
-> > if (!add_next(vq, ...)) {
-> > 	add_last(vq, ...)
-> > 	kick
-> > 	wait
-> > }
-> 
-> "!add_next(vq, ...)" means that the vq is full?
+> does indeed look to be of concern.  This happens AFTER setting up the
+> new mapping.  So, I'm thinking we should tear down the new mapping in
+> the case do_munmap of the old mapping fails?  That 'should' simply
+> be a matter of:
+> - moving page tables back to original mapping
+> - remove/delete new vma
 
+Yes.
 
-No - it means there's only 1 entry left for the last descriptor.
+> - I don't think we need to 'unmap' the new vma as there should be no
+>   associated pages.
 
+The new vma doesn't require memory allocations to drop as it was just
+created by copy_vma so there's no risk of further failures in the
+unwind.
 
-> If so, what would add_last()
-> do then?
-> 
-> > Using VIRTQUEUE_DESC_ID_INIT seems to avoid a branch in the driver, but
-> > in fact it merely puts the branch in the virtio code.
-> > 
-> 
-> Actually it wasn't intended to improve performance. It is used to indicate
-> the "init" state
-> of the chain. So, when virtqueue_add_chain_desc(, head_id,..) finds head
-> id=INIT, it will
-> assign the grabbed desc id to &head_id. In some sense, it is equivalent to
-> add_first().
-> 
-> Do you have a different opinion here?
-> 
-> Best,
-> Wei
-> 
+After the unwind it'll return -ENOMEM to userland (which we don't
+right now).
 
-It is but let's make it explicit here - an API function is better
-than a special value.
+> I'll look into doing this as well.
 
--- 
-MST
+It's mostly theoretical, the chances of an allocation failure
+triggering exactly in that split_vma are basically zero, but I think
+it'd be more correct and safer.
+
+> Just curious, do those userfaultfd callouts still work as desired in the
+> case of map duplication (old_len == 0)?
+
+old_len == 0 is fine with userfaultfd because, len == 0 returns
+-EINVAL in do_munmap before userfaultfd_unmap_prep is called.
+
+Still looking at the VM_ACCOUNT adjustments around do_munmap:
+
+mremap:
+
+	/* Conceal VM_ACCOUNT so old reservation is not undone */
+	if (vm_flags & VM_ACCOUNT) {
+
+do_munmap:
+
+	if (uf) {
+		int error = userfaultfd_unmap_prep(vma, start, end, uf);
+
+		if (error)
+			return error;
+	}
+
+	/*
+	 * If we need to split any vma, do it now to save pain later.
+	 *
+	 * Note: mremap's move_vma VM_ACCOUNT handling assumes a partially
+	 * unmapped vm_area_struct will remain in use: so lower split_vma
+	 * places tmp vma above, and higher split_vma places tmp vma below.
+	 */
+
+I don't see this assumption where it matters that on do_munmap
+failure, mremap assumes the partially unmapped vma remains in use. In
+fact it's not partially unmapped at all, it's only split at the
+"start" address of the do_munmap but not unmapped.
+
+mremap caller simply sets excess = 0 and assumes it's all still mapped
+at the original vma as expected regardless of the order of the
+__split_vma executed in do_munmap.
+
+The whole VM_ACCOUNT logic in this place exists since the start of the
+git history so I can't see the change originating the above comment,
+but I assume the comment is wrong or simply confusing.
+
+I don't see a problem in userfaultfd_unmap_prep failing with -ENOMEM
+in relation to the VM_ACCOUNT logic above, before split_vma is called
+(callee doesn't seem to make assumption).
+
+However unrelated to mremap old_len == 0, but purely internal to
+do_munmap and theoretical, if either of the two __split_vma fails
+there's no need to send an unmap event and in fact it'd be wrong to,
+so userfaultfd_unmap_prep should be moved after both split_vma succeded.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
