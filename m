@@ -1,199 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4544D440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:58:34 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id g14so51134737pgu.9
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:58:34 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e21si3745764pfh.275.2017.07.13.01.58.32
-        for <linux-mm@kvack.org>;
-        Thu, 13 Jul 2017 01:58:33 -0700 (PDT)
-Date: Thu, 13 Jul 2017 17:57:46 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170713085746.GH20323@X58A-UD3R>
-References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
- <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
- <20170711161232.GB28975@worktop>
- <20170712020053.GB20323@X58A-UD3R>
- <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
- <20170713020745.GG20323@X58A-UD3R>
- <20170713081442.GA439@worktop>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A508D440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:33:12 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 188so52712788itx.9
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:33:12 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id l72si5096731itl.112.2017.07.13.02.33.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jul 2017 02:33:11 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v8 05/10] mm: thp: enable thp migration in generic path
+Date: Thu, 13 Jul 2017 09:30:40 +0000
+Message-ID: <20170713093040.GA24851@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170701134008.110579-1-zi.yan@sent.com>
+ <20170701134008.110579-6-zi.yan@sent.com>
+ <20170711064736.GB22052@hori1.linux.bs1.fc.nec.co.jp>
+ <F7626C3B-4F03-4144-B5DF-23CB45E4373D@cs.rutgers.edu>
+In-Reply-To: <F7626C3B-4F03-4144-B5DF-23CB45E4373D@cs.rutgers.edu>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <2AA5A5ADA629C04ABA68EE310F639021@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170713081442.GA439@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
 
-On Thu, Jul 13, 2017 at 10:14:42AM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 13, 2017 at 11:07:45AM +0900, Byungchul Park wrote:
-> > Does my approach have problems, rewinding to 'original idx' on exit and
-> > deciding whether overwrite or not? I think, this way, no need to do the
-> > drastic work. Or.. does my one get more overhead in usual case?
-> 
-> So I think that invalidating just the one entry doesn't work; the moment
+On Tue, Jul 11, 2017 at 10:00:30AM -0400, Zi Yan wrote:
+> On 11 Jul 2017, at 2:47, Naoya Horiguchi wrote:
+>=20
+> > On Sat, Jul 01, 2017 at 09:40:03AM -0400, Zi Yan wrote:
+> >> From: Zi Yan <zi.yan@cs.rutgers.edu>
+> >>
+> >> This patch adds thp migration's core code, including conversions
+> >> between a PMD entry and a swap entry, setting PMD migration entry,
+> >> removing PMD migration entry, and waiting on PMD migration entries.
+> >>
+> >> This patch makes it possible to support thp migration.
+> >> If you fail to allocate a destination page as a thp, you just split
+> >> the source thp as we do now, and then enter the normal page migration.
+> >> If you succeed to allocate destination thp, you enter thp migration.
+> >> Subsequent patches actually enable thp migration for each caller of
+> >> page migration by allowing its get_new_page() callback to
+> >> allocate thps.
+> >>
+> >> ChangeLog v1 -> v2:
+> >> - support pte-mapped thp, doubly-mapped thp
+> >>
+> >> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> >>
+> >> ChangeLog v2 -> v3:
+> >> - use page_vma_mapped_walk()
+> >> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear() in
+> >>   set_pmd_migration_entry()
+> >>
+> >> ChangeLog v3 -> v4:
+> >> - factor out the code of removing pte pgtable page in zap_huge_pmd()
+> >>
+> >> ChangeLog v4 -> v5:
+> >> - remove unnecessary PTE-mapped THP code in remove_migration_pmd()
+> >>   and set_pmd_migration_entry()
+> >> - restructure the code in zap_huge_pmd() to avoid factoring out
+> >>   the pte pgtable page code
+> >> - in zap_huge_pmd(), check that PMD swap entries are migration entries
+> >> - change author information
+> >>
+> >> ChangeLog v5 -> v7
+> >> - use macro to disable the code when thp migration is not enabled
+> >>
+> >> ChangeLog v7 -> v8
+> >> - use IS_ENABLED instead of macro to make code look clean in
+> >>   zap_huge_pmd() and page_vma_mapped_walk()
+> >> - remove BUILD_BUG() in pmd_to_swp_entry() and swp_entry_to_pmd() to
+> >>   avoid compilation error
+> >> - rename variable 'migration' to 'flush_needed' and invert the logic i=
+n
+> >>   zap_huge_pmd() to make code more descriptive
+> >> - use pmdp_invalidate() in set_pmd_migration_entry() to avoid race
+> >>   with MADV_DONTNEED
+> >> - remove unnecessary tlb flush in remove_migration_pmd()
+> >> - add the missing migration flag check in page_vma_mapped_walk()
+> >>
+> >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> >> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >> ---
+> >>  arch/x86/include/asm/pgtable_64.h |  2 +
+> >>  include/linux/swapops.h           | 67 ++++++++++++++++++++++++++++++=
+-
+> >>  mm/huge_memory.c                  | 84 ++++++++++++++++++++++++++++++=
+++++++---
+> >>  mm/migrate.c                      | 32 ++++++++++++++-
+> >>  mm/page_vma_mapped.c              | 18 +++++++--
+> >>  mm/pgtable-generic.c              |  3 +-
+> >>  mm/rmap.c                         | 13 ++++++
+> >>  7 files changed, 207 insertions(+), 12 deletions(-)
+> >>
+> > ...
+> >
+> >> diff --git a/mm/rmap.c b/mm/rmap.c
+> >> index 91948fbbb0bb..b28f633cd569 100644
+> >> --- a/mm/rmap.c
+> >> +++ b/mm/rmap.c
+> >> @@ -1302,6 +1302,7 @@ static bool try_to_unmap_one(struct page *page, =
+struct vm_area_struct *vma,
+> >>  	bool ret =3D true;
+> >>  	enum ttu_flags flags =3D (enum ttu_flags)arg;
+> >>
+> >> +
+> >>  	/* munlock has nothing to gain from examining un-locked vmas */
+> >>  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+> >>  		return true;
+> >> @@ -1312,6 +1313,18 @@ static bool try_to_unmap_one(struct page *page,=
+ struct vm_area_struct *vma,
+> >>  	}
+> >>
+> >>  	while (page_vma_mapped_walk(&pvmw)) {
+> >> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+> >> +		/* PMD-mapped THP migration entry */
+> >> +		if (flags & TTU_MIGRATION) {
+> >
+> > My testing based on mmotm-2017-07-06-16-18 showed that migrating shmem =
+thp
+> > caused kernel crash. I don't think this is critical because that case i=
+s
+> > just not-prepared yet. So in order to avoid the crash, please add
+> > PageAnon(page) check here. This makes shmem thp migration just fail.
+> >
+> > +			if (!PageAnon(page))
+> > +				continue;
+> >
+>=20
+> Thanks for your testing. I will add this check in my next version.
 
-I think invalidating just the one is enough. After rewinding, the entry
-will be invalidated and the ring buffer starts to be filled forward from
-the point with valid ones. When commit, it will proceed backward with
-valid ones until meeting the invalidated entry and stop.
+Sorry, the code I'm suggesting above doesn't work because it makes normal
+pagecache migration fail.  This check should come after making sure that
+pvmw.pte is NULL.
 
-IOW, in case of (overwritten)
-
-         rewind to here
-         |
-ppppppppppiiiiiiiiiiiiiiii
-iiiiiiiiiiiiiii
-
-         invalidate it on exit_irq
-         and start to fill from here again
-         |
-pppppppppxiiiiiiiiiiiiiiii
-iiiiiiiiiiiiiii
-
-                    when commit occurs here
-                    |
-pppppppppxpppppppppppiiiii
-
-         do commit within this range
-         |<---------|
-pppppppppxpppppppppppiiiii
-
-So I think this works and is much simple. Anything I missed?
-
-> you fill that up the iteration in commit_xhlocks() will again use the
-> next one etc.. even though you wanted it not to.
-> 
-> So we need to wipe the _entire_ history.
-> 
-> So I _think_ the below should work, but its not been near a compiler.
-> 
-> 
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -822,6 +822,7 @@ struct task_struct {
->  	unsigned int xhlock_idx_soft; /* For restoring at softirq exit */
->  	unsigned int xhlock_idx_hard; /* For restoring at hardirq exit */
->  	unsigned int xhlock_idx_hist; /* For restoring at history boundaries */
-> +	unsigned int xhlock_idX_max;
->  #endif
->  #ifdef CONFIG_UBSAN
->  	unsigned int			in_ubsan;
-> --- a/kernel/locking/lockdep.c
-> +++ b/kernel/locking/lockdep.c
-> @@ -4746,6 +4746,14 @@ EXPORT_SYMBOL_GPL(lockdep_rcu_suspicious
->  static atomic_t cross_gen_id; /* Can be wrapped */
->  
->  /*
-> + * make xhlock_valid() false.
-> + */
-> +static inline void invalidate_xhlock(struct hist_lock *xhlock)
-> +{
-> +	xhlock->hlock.instance = NULL;
-> +}
-> +
-> +/*
->   * Lock history stacks; we have 3 nested lock history stacks:
->   *
->   *   Hard IRQ
-> @@ -4764,28 +4772,58 @@ static atomic_t cross_gen_id; /* Can be
->   * MAX_XHLOCKS_NR ? Possibly re-instroduce hist_gen_id ?
->   */
->  
-> -void crossrelease_hardirq_start(void)
-> +static inline void __crossrelease_start(unsigned int *stamp)
->  {
->  	if (current->xhlocks)
-> -		current->xhlock_idx_hard = current->xhlock_idx;
-> +		*stamp = current->xhlock_idx;
-> +}
-> +
-> +static void __crossrelease_end(unsigned int *stamp)
-> +{
-> +	int i;
-> +
-> +	if (!current->xhlocks)
-> +		return;
-> +
-> +	current->xhlock_idx = *stamp;
-> +
-> +	/*
-> +	 * If we rewind past the tail; all of history is lost.
-> +	 */
-> +	if ((current->xhlock_idx_max - *stamp) < MAX_XHLOCKS_NR)
-> +		return;
-> +
-> +	/*
-> +	 * Invalidate the entire history..
-> +	 */
-> +	for (i = 0; i < MAX_XHLOCKS_NR; i++)
-> +		invalidate_xhlock(&xhlock(i));
-> +
-> +	current->xhlock_idx = 0;
-> +	current->xhlock_idx_hard = 0;
-> +	current->xhlock_idx_soft = 0;
-> +	current->xhlock_idx_hist = 0;
-> +	current->xhlock_idx_max = 0;
-> +}
-> +
-> +void crossrelease_hardirq_start(void)
-> +{
-> +	__crossrelease_start(&current->xhlock_idx_hard);
->  }
->  
->  void crossrelease_hardirq_end(void)
->  {
-> -	if (current->xhlocks)
-> -		current->xhlock_idx = current->xhlock_idx_hard;
-> +	__crossrelease_end(&current->xhlock_idx_hard);
->  }
->  
->  void crossrelease_softirq_start(void)
->  {
-> -	if (current->xhlocks)
-> -		current->xhlock_idx_soft = current->xhlock_idx;
-> +	__crossrelease_start(&current->xhlock_idx_soft);
->  }
->  
->  void crossrelease_softirq_end(void)
->  {
-> -	if (current->xhlocks)
-> -		current->xhlock_idx = current->xhlock_idx_soft;
-> +	__crossrelease_end(&current->xhlock_idx_soft);
->  }
->  
->  /*
-> @@ -4806,14 +4844,12 @@ void crossrelease_softirq_end(void)
->   */
->  void crossrelease_hist_start(void)
->  {
-> -	if (current->xhlocks)
-> -		current->xhlock_idx_hist = current->xhlock_idx;
-> +	__crossrelease_start(&current->xhlock_idx_hist);
->  }
->  
->  void crossrelease_hist_end(void)
->  {
-> -	if (current->xhlocks)
-> -		current->xhlock_idx = current->xhlock_idx_hist;
-> +	__crossrelease_end(&current->xhlock_idx_hist);
->  }
->  
->  static int cross_lock(struct lockdep_map *lock)
-> @@ -4880,6 +4916,9 @@ static void add_xhlock(struct held_lock
->  	unsigned int idx = ++current->xhlock_idx;
->  	struct hist_lock *xhlock = &xhlock(idx);
->  
-> +	if ((int)(current->xhlock_idx_max - idx) < 0)
-> +		current->xhlock_idx_max = idx;
-> +
->  #ifdef CONFIG_DEBUG_LOCKDEP
->  	/*
->  	 * This can be done locklessly because they are all task-local
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
