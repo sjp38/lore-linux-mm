@@ -1,131 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C9464440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:44:01 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p10so50841292pgr.6
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:44:01 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id j130si3779551pgc.387.2017.07.13.01.43.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 01:44:00 -0700 (PDT)
-Message-ID: <59673365.7080408@intel.com>
-Date: Thu, 13 Jul 2017 16:46:29 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4544D440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:58:34 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g14so51134737pgu.9
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:58:34 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id e21si3745764pfh.275.2017.07.13.01.58.32
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jul 2017 01:58:33 -0700 (PDT)
+Date: Thu, 13 Jul 2017 17:57:46 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
+ buffer overwrite
+Message-ID: <20170713085746.GH20323@X58A-UD3R>
+References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
+ <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
+ <20170711161232.GB28975@worktop>
+ <20170712020053.GB20323@X58A-UD3R>
+ <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
+ <20170713020745.GG20323@X58A-UD3R>
+ <20170713081442.GA439@worktop>
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 8/8] virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-9-git-send-email-wei.w.wang@intel.com> <20170713032207-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170713032207-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170713081442.GA439@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On 07/13/2017 08:22 AM, Michael S. Tsirkin wrote:
-> On Wed, Jul 12, 2017 at 08:40:21PM +0800, Wei Wang wrote:
->> Add a new vq, cmdq, to handle requests between the device and driver.
->>
->> This patch implements two commands sent from the device and handled in
->> the driver.
->> 1) VIRTIO_BALLOON_CMDQ_REPORT_STATS: this command is used to report
->> the guest memory statistics to the host. The stats_vq mechanism is not
->> used when the cmdq mechanism is enabled.
->> 2) VIRTIO_BALLOON_CMDQ_REPORT_UNUSED_PAGES: this command is used to
->> report the guest unused pages to the host.
->>
->> Since now we have a vq to handle multiple commands, we need to keep only
->> one vq operation at a time. Here, we change the existing START_USE()
->> and END_USE() to lock on each vq operation.
->>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->> Signed-off-by: Liang Li <liang.z.li@intel.com>
->> ---
->>   drivers/virtio/virtio_balloon.c     | 245 ++++++++++++++++++++++++++++++++++--
->>   drivers/virtio/virtio_ring.c        |  25 +++-
->>   include/linux/virtio.h              |   2 +
->>   include/uapi/linux/virtio_balloon.h |  10 ++
->>   4 files changed, 265 insertions(+), 17 deletions(-)
->>
->> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->> index aa4e7ec..ae91fbf 100644
->> --- a/drivers/virtio/virtio_balloon.c
->> +++ b/drivers/virtio/virtio_balloon.c
->> @@ -54,11 +54,12 @@ static struct vfsmount *balloon_mnt;
->>   
->>   struct virtio_balloon {
->>   	struct virtio_device *vdev;
->> -	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
->> +	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *cmd_vq;
->>   
->>   	/* The balloon servicing is delegated to a freezable workqueue. */
->>   	struct work_struct update_balloon_stats_work;
->>   	struct work_struct update_balloon_size_work;
->> +	struct work_struct cmdq_handle_work;
->>   
->>   	/* Prevent updating balloon when it is being canceled. */
->>   	spinlock_t stop_update_lock;
->> @@ -90,6 +91,12 @@ struct virtio_balloon {
->>   	/* Memory statistics */
->>   	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
->>   
->> +	/* Cmdq msg buffer for memory statistics */
->> +	struct virtio_balloon_cmdq_hdr cmdq_stats_hdr;
->> +
->> +	/* Cmdq msg buffer for reporting ununsed pages */
->> +	struct virtio_balloon_cmdq_hdr cmdq_unused_page_hdr;
->> +
->>   	/* To register callback in oom notifier call chain */
->>   	struct notifier_block nb;
->>   };
->> @@ -485,25 +492,214 @@ static void update_balloon_size_func(struct work_struct *work)
->>   		queue_work(system_freezable_wq, work);
->>   }
->>   
->> +static unsigned int cmdq_hdr_add(struct virtqueue *vq,
->> +				 struct virtio_balloon_cmdq_hdr *hdr,
->> +				 bool in)
->> +{
->> +	unsigned int id = VIRTQUEUE_DESC_ID_INIT;
->> +	uint64_t hdr_pa = (uint64_t)virt_to_phys((void *)hdr);
->> +
->> +	virtqueue_add_chain_desc(vq, hdr_pa, sizeof(*hdr), &id, &id, in);
->> +
->> +	/* Deliver the hdr for the host to send commands. */
->> +	if (in) {
->> +		hdr->flags = 0;
->> +		virtqueue_add_chain(vq, id, 0, NULL, hdr, NULL);
->> +		virtqueue_kick(vq);
->> +	}
->> +
->> +	return id;
->> +}
->> +
->> +static void cmdq_add_chain_desc(struct virtio_balloon *vb,
->> +				struct virtio_balloon_cmdq_hdr *hdr,
->> +				uint64_t addr,
->> +				uint32_t len,
->> +				unsigned int *head_id,
->> +				unsigned int *prev_id)
->> +{
->> +retry:
->> +	if (*head_id == VIRTQUEUE_DESC_ID_INIT) {
->> +		*head_id = cmdq_hdr_add(vb->cmd_vq, hdr, 0);
->> +		*prev_id = *head_id;
->> +	}
->> +
->> +	virtqueue_add_chain_desc(vb->cmd_vq, addr, len, head_id, prev_id, 0);
->> +	if (*head_id == *prev_id) {
-> That's an ugly way to detect ring full.
+On Thu, Jul 13, 2017 at 10:14:42AM +0200, Peter Zijlstra wrote:
+> On Thu, Jul 13, 2017 at 11:07:45AM +0900, Byungchul Park wrote:
+> > Does my approach have problems, rewinding to 'original idx' on exit and
+> > deciding whether overwrite or not? I think, this way, no need to do the
+> > drastic work. Or.. does my one get more overhead in usual case?
+> 
+> So I think that invalidating just the one entry doesn't work; the moment
 
-It's actually not detecting ring full. I will call it tail_id, instead 
-of prev_id.
-So, *head_id == *tail_id is the case that the first desc was just added by
-  virtqueue_add_chain_desc().
+I think invalidating just the one is enough. After rewinding, the entry
+will be invalidated and the ring buffer starts to be filled forward from
+the point with valid ones. When commit, it will proceed backward with
+valid ones until meeting the invalidated entry and stop.
 
-Best,
-Wei
+IOW, in case of (overwritten)
+
+         rewind to here
+         |
+ppppppppppiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiii
+
+         invalidate it on exit_irq
+         and start to fill from here again
+         |
+pppppppppxiiiiiiiiiiiiiiii
+iiiiiiiiiiiiiii
+
+                    when commit occurs here
+                    |
+pppppppppxpppppppppppiiiii
+
+         do commit within this range
+         |<---------|
+pppppppppxpppppppppppiiiii
+
+So I think this works and is much simple. Anything I missed?
+
+> you fill that up the iteration in commit_xhlocks() will again use the
+> next one etc.. even though you wanted it not to.
+> 
+> So we need to wipe the _entire_ history.
+> 
+> So I _think_ the below should work, but its not been near a compiler.
+> 
+> 
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -822,6 +822,7 @@ struct task_struct {
+>  	unsigned int xhlock_idx_soft; /* For restoring at softirq exit */
+>  	unsigned int xhlock_idx_hard; /* For restoring at hardirq exit */
+>  	unsigned int xhlock_idx_hist; /* For restoring at history boundaries */
+> +	unsigned int xhlock_idX_max;
+>  #endif
+>  #ifdef CONFIG_UBSAN
+>  	unsigned int			in_ubsan;
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -4746,6 +4746,14 @@ EXPORT_SYMBOL_GPL(lockdep_rcu_suspicious
+>  static atomic_t cross_gen_id; /* Can be wrapped */
+>  
+>  /*
+> + * make xhlock_valid() false.
+> + */
+> +static inline void invalidate_xhlock(struct hist_lock *xhlock)
+> +{
+> +	xhlock->hlock.instance = NULL;
+> +}
+> +
+> +/*
+>   * Lock history stacks; we have 3 nested lock history stacks:
+>   *
+>   *   Hard IRQ
+> @@ -4764,28 +4772,58 @@ static atomic_t cross_gen_id; /* Can be
+>   * MAX_XHLOCKS_NR ? Possibly re-instroduce hist_gen_id ?
+>   */
+>  
+> -void crossrelease_hardirq_start(void)
+> +static inline void __crossrelease_start(unsigned int *stamp)
+>  {
+>  	if (current->xhlocks)
+> -		current->xhlock_idx_hard = current->xhlock_idx;
+> +		*stamp = current->xhlock_idx;
+> +}
+> +
+> +static void __crossrelease_end(unsigned int *stamp)
+> +{
+> +	int i;
+> +
+> +	if (!current->xhlocks)
+> +		return;
+> +
+> +	current->xhlock_idx = *stamp;
+> +
+> +	/*
+> +	 * If we rewind past the tail; all of history is lost.
+> +	 */
+> +	if ((current->xhlock_idx_max - *stamp) < MAX_XHLOCKS_NR)
+> +		return;
+> +
+> +	/*
+> +	 * Invalidate the entire history..
+> +	 */
+> +	for (i = 0; i < MAX_XHLOCKS_NR; i++)
+> +		invalidate_xhlock(&xhlock(i));
+> +
+> +	current->xhlock_idx = 0;
+> +	current->xhlock_idx_hard = 0;
+> +	current->xhlock_idx_soft = 0;
+> +	current->xhlock_idx_hist = 0;
+> +	current->xhlock_idx_max = 0;
+> +}
+> +
+> +void crossrelease_hardirq_start(void)
+> +{
+> +	__crossrelease_start(&current->xhlock_idx_hard);
+>  }
+>  
+>  void crossrelease_hardirq_end(void)
+>  {
+> -	if (current->xhlocks)
+> -		current->xhlock_idx = current->xhlock_idx_hard;
+> +	__crossrelease_end(&current->xhlock_idx_hard);
+>  }
+>  
+>  void crossrelease_softirq_start(void)
+>  {
+> -	if (current->xhlocks)
+> -		current->xhlock_idx_soft = current->xhlock_idx;
+> +	__crossrelease_start(&current->xhlock_idx_soft);
+>  }
+>  
+>  void crossrelease_softirq_end(void)
+>  {
+> -	if (current->xhlocks)
+> -		current->xhlock_idx = current->xhlock_idx_soft;
+> +	__crossrelease_end(&current->xhlock_idx_soft);
+>  }
+>  
+>  /*
+> @@ -4806,14 +4844,12 @@ void crossrelease_softirq_end(void)
+>   */
+>  void crossrelease_hist_start(void)
+>  {
+> -	if (current->xhlocks)
+> -		current->xhlock_idx_hist = current->xhlock_idx;
+> +	__crossrelease_start(&current->xhlock_idx_hist);
+>  }
+>  
+>  void crossrelease_hist_end(void)
+>  {
+> -	if (current->xhlocks)
+> -		current->xhlock_idx = current->xhlock_idx_hist;
+> +	__crossrelease_end(&current->xhlock_idx_hist);
+>  }
+>  
+>  static int cross_lock(struct lockdep_map *lock)
+> @@ -4880,6 +4916,9 @@ static void add_xhlock(struct held_lock
+>  	unsigned int idx = ++current->xhlock_idx;
+>  	struct hist_lock *xhlock = &xhlock(idx);
+>  
+> +	if ((int)(current->xhlock_idx_max - idx) < 0)
+> +		current->xhlock_idx_max = idx;
+> +
+>  #ifdef CONFIG_DEBUG_LOCKDEP
+>  	/*
+>  	 * This can be done locklessly because they are all task-local
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
