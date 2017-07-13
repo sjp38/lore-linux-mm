@@ -1,169 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C22A4440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:14:47 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 125so50271651pgi.2
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:14:47 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id r29si3682260pfb.477.2017.07.13.01.14.46
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D51D9440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 04:23:17 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 123so50474336pgj.4
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 01:23:17 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id o6si3816056pgq.559.2017.07.13.01.23.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 01:14:46 -0700 (PDT)
-Date: Thu, 13 Jul 2017 10:14:42 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170713081442.GA439@worktop>
-References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
- <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
- <20170711161232.GB28975@worktop>
- <20170712020053.GB20323@X58A-UD3R>
- <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
- <20170713020745.GG20323@X58A-UD3R>
+        Thu, 13 Jul 2017 01:23:16 -0700 (PDT)
+Message-ID: <59672E8B.9040108@intel.com>
+Date: Thu, 13 Jul 2017 16:25:47 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170713020745.GG20323@X58A-UD3R>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-7-git-send-email-wei.w.wang@intel.com> <20170713032314-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170713032314-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Thu, Jul 13, 2017 at 11:07:45AM +0900, Byungchul Park wrote:
-> Does my approach have problems, rewinding to 'original idx' on exit and
-> deciding whether overwrite or not? I think, this way, no need to do the
-> drastic work. Or.. does my one get more overhead in usual case?
+On 07/13/2017 08:33 AM, Michael S. Tsirkin wrote:
+> On Wed, Jul 12, 2017 at 08:40:19PM +0800, Wei Wang wrote:
+>> This patch adds support for reporting blocks of pages on the free list
+>> specified by the caller.
+>>
+>> As pages can leave the free list during this call or immediately
+>> afterwards, they are not guaranteed to be free after the function
+>> returns. The only guarantee this makes is that the page was on the free
+>> list at some point in time after the function has been invoked.
+>>
+>> Therefore, it is not safe for caller to use any pages on the returned
+>> block or to discard data that is put there after the function returns.
+>> However, it is safe for caller to discard data that was in one of these
+>> pages before the function was invoked.
+>>
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Signed-off-by: Liang Li <liang.z.li@intel.com>
+>> ---
+>>   include/linux/mm.h |  5 +++
+>>   mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>>   2 files changed, 101 insertions(+)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 46b9ac5..76cb433 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1835,6 +1835,11 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+>>   		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>>   extern void free_initmem(void);
+>>   
+>> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+>> +extern int report_unused_page_block(struct zone *zone, unsigned int order,
+>> +				    unsigned int migratetype,
+>> +				    struct page **page);
+>> +#endif
+>>   /*
+>>    * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>>    * into the buddy system. The freed pages will be poisoned with pattern
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 64b7d82..8b3c9dd 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -4753,6 +4753,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>>   	show_swap_cache_info();
+>>   }
+>>   
+>> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+>> +
+>> +/*
+>> + * Heuristically get a page block in the system that is unused.
+>> + * It is possible that pages from the page block are used immediately after
+>> + * report_unused_page_block() returns. It is the caller's responsibility
+>> + * to either detect or prevent the use of such pages.
+>> + *
+>> + * The free list to check: zone->free_area[order].free_list[migratetype].
+>> + *
+>> + * If the caller supplied page block (i.e. **page) is on the free list, offer
+>> + * the next page block on the list to the caller. Otherwise, offer the first
+>> + * page block on the list.
+>> + *
+>> + * Note: it is not safe for caller to use any pages on the returned
+>> + * block or to discard data that is put there after the function returns.
+>> + * However, it is safe for caller to discard data that was in one of these
+>> + * pages before the function was invoked.
+>> + *
+>> + * Return 0 when a page block is found on the caller specified free list.
+> Otherwise?
 
-So I think that invalidating just the one entry doesn't work; the moment
-you fill that up the iteration in commit_xhlocks() will again use the
-next one etc.. even though you wanted it not to.
+Other values mean that no page block is found. I will add them.
 
-So we need to wipe the _entire_ history.
+>
+>> + */
+> As an alternative, we could have an API that scans free pages
+> and invokes a callback under a lock. Granted, this might end up
+> staying a lot of time under a lock. Is this a big issue?
+> Some benchmarking will tell.
+>
+> It would then be up to the hypervisor to decide whether it wants to play
+> tricks with the dirty bit or just wants to drop pages while VCPU is
+> stopped.
+>
+>
+>> +int report_unused_page_block(struct zone *zone, unsigned int order,
+>> +			     unsigned int migratetype, struct page **page)
+>> +{
+>> +	struct zone *this_zone;
+>> +	struct list_head *this_list;
+>> +	int ret = 0;
+>> +	unsigned long flags;
+>> +
+>> +	/* Sanity check */
+>> +	if (zone == NULL || page == NULL || order >= MAX_ORDER ||
+>> +	    migratetype >= MIGRATE_TYPES)
+>> +		return -EINVAL;
+> Why do callers this?
+>
+>> +
+>> +	/* Zone validity check */
+>> +	for_each_populated_zone(this_zone) {
+>> +		if (zone == this_zone)
+>> +			break;
+>> +	}
+> Why?  Will take a long time if there are lots of zones.
+>
+>> +
+>> +	/* Got a non-existent zone from the caller? */
+>> +	if (zone != this_zone)
+>> +		return -EINVAL;
+> When does this happen?
 
-So I _think_ the below should work, but its not been near a compiler.
+The above lines of code are just sanity check. If not
+necessary, we can remove them.
 
+>
+>> +
+>> +	spin_lock_irqsave(&this_zone->lock, flags);
+>> +
+>> +	this_list = &zone->free_area[order].free_list[migratetype];
+>> +	if (list_empty(this_list)) {
+>> +		*page = NULL;
+>> +		ret = 1;
+>
+> What does this mean?
 
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -822,6 +822,7 @@ struct task_struct {
- 	unsigned int xhlock_idx_soft; /* For restoring at softirq exit */
- 	unsigned int xhlock_idx_hard; /* For restoring at hardirq exit */
- 	unsigned int xhlock_idx_hist; /* For restoring at history boundaries */
-+	unsigned int xhlock_idX_max;
- #endif
- #ifdef CONFIG_UBSAN
- 	unsigned int			in_ubsan;
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -4746,6 +4746,14 @@ EXPORT_SYMBOL_GPL(lockdep_rcu_suspicious
- static atomic_t cross_gen_id; /* Can be wrapped */
- 
- /*
-+ * make xhlock_valid() false.
-+ */
-+static inline void invalidate_xhlock(struct hist_lock *xhlock)
-+{
-+	xhlock->hlock.instance = NULL;
-+}
-+
-+/*
-  * Lock history stacks; we have 3 nested lock history stacks:
-  *
-  *   Hard IRQ
-@@ -4764,28 +4772,58 @@ static atomic_t cross_gen_id; /* Can be
-  * MAX_XHLOCKS_NR ? Possibly re-instroduce hist_gen_id ?
-  */
- 
--void crossrelease_hardirq_start(void)
-+static inline void __crossrelease_start(unsigned int *stamp)
- {
- 	if (current->xhlocks)
--		current->xhlock_idx_hard = current->xhlock_idx;
-+		*stamp = current->xhlock_idx;
-+}
-+
-+static void __crossrelease_end(unsigned int *stamp)
-+{
-+	int i;
-+
-+	if (!current->xhlocks)
-+		return;
-+
-+	current->xhlock_idx = *stamp;
-+
-+	/*
-+	 * If we rewind past the tail; all of history is lost.
-+	 */
-+	if ((current->xhlock_idx_max - *stamp) < MAX_XHLOCKS_NR)
-+		return;
-+
-+	/*
-+	 * Invalidate the entire history..
-+	 */
-+	for (i = 0; i < MAX_XHLOCKS_NR; i++)
-+		invalidate_xhlock(&xhlock(i));
-+
-+	current->xhlock_idx = 0;
-+	current->xhlock_idx_hard = 0;
-+	current->xhlock_idx_soft = 0;
-+	current->xhlock_idx_hist = 0;
-+	current->xhlock_idx_max = 0;
-+}
-+
-+void crossrelease_hardirq_start(void)
-+{
-+	__crossrelease_start(&current->xhlock_idx_hard);
- }
- 
- void crossrelease_hardirq_end(void)
- {
--	if (current->xhlocks)
--		current->xhlock_idx = current->xhlock_idx_hard;
-+	__crossrelease_end(&current->xhlock_idx_hard);
- }
- 
- void crossrelease_softirq_start(void)
- {
--	if (current->xhlocks)
--		current->xhlock_idx_soft = current->xhlock_idx;
-+	__crossrelease_start(&current->xhlock_idx_soft);
- }
- 
- void crossrelease_softirq_end(void)
- {
--	if (current->xhlocks)
--		current->xhlock_idx = current->xhlock_idx_soft;
-+	__crossrelease_end(&current->xhlock_idx_soft);
- }
- 
- /*
-@@ -4806,14 +4844,12 @@ void crossrelease_softirq_end(void)
-  */
- void crossrelease_hist_start(void)
- {
--	if (current->xhlocks)
--		current->xhlock_idx_hist = current->xhlock_idx;
-+	__crossrelease_start(&current->xhlock_idx_hist);
- }
- 
- void crossrelease_hist_end(void)
- {
--	if (current->xhlocks)
--		current->xhlock_idx = current->xhlock_idx_hist;
-+	__crossrelease_end(&current->xhlock_idx_hist);
- }
- 
- static int cross_lock(struct lockdep_map *lock)
-@@ -4880,6 +4916,9 @@ static void add_xhlock(struct held_lock
- 	unsigned int idx = ++current->xhlock_idx;
- 	struct hist_lock *xhlock = &xhlock(idx);
- 
-+	if ((int)(current->xhlock_idx_max - idx) < 0)
-+		current->xhlock_idx_max = idx;
-+
- #ifdef CONFIG_DEBUG_LOCKDEP
- 	/*
- 	 * This can be done locklessly because they are all task-local
+Just means the list is empty, and expects the caller to try again
+in the next list.
+
+Probably, use "-EAGAIN" is better?
+
+>
+>> +		*page = list_first_entry(this_list, struct page, lru);
+>> +		ret = 0;
+>> +		goto out;
+>> +	}
+>> +
+>> +	/*
+>> +	 * The page block passed from the caller is not on this free list
+>> +	 * anymore (e.g. a 1MB free page block has been split). In this case,
+>> +	 * offer the first page block on the free list that the caller is
+>> +	 * asking for.
+> This just might keep giving you same block over and over again.
+> E.g.
+> 	- get 1st block
+> 	- get 2nd block
+> 	- 2nd gets broken up
+> 	- get 1st block again
+>
+> this way we might never make progress beyond the 1st 2 blocks
+
+Not really. I think the pages are allocated in order. If the 2nd block 
+isn't there, then
+the 1st block must have gone, too. So, the call will return the 3rd one 
+(which is the
+new first) on the list.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
