@@ -1,630 +1,631 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1339A440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 20:44:33 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id g53so14949390qtc.6
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:44:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i4si3779913qte.203.2017.07.12.17.44.31
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B101440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 21:16:55 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z10so40207287pff.1
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 18:16:55 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id q186si2982817pfq.132.2017.07.12.18.16.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 17:44:31 -0700 (PDT)
-Date: Thu, 13 Jul 2017 03:44:21 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
+        Wed, 12 Jul 2017 18:16:53 -0700 (PDT)
+Date: Thu, 13 Jul 2017 09:16:06 +0800
+From: kbuild test robot <lkp@intel.com>
 Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170713033352-mutt-send-email-mst@kernel.org>
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
- <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
+Message-ID: <201707130803.CdA76hBd%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="9jxsPFA5p3P2qPhR"
 Content-Disposition: inline
 In-Reply-To: <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
-
-On Wed, Jul 12, 2017 at 08:40:18PM +0800, Wei Wang wrote:
-> Add a new feature, VIRTIO_BALLOON_F_SG, which enables to
-> transfer a chunk of ballooned (i.e. inflated/deflated) pages using
-> scatter-gather lists to the host.
-> 
-> The implementation of the previous virtio-balloon is not very
-> efficient, because the balloon pages are transferred to the
-> host one by one. Here is the breakdown of the time in percentage
-> spent on each step of the balloon inflating process (inflating
-> 7GB of an 8GB idle guest).
-> 
-> 1) allocating pages (6.5%)
-> 2) sending PFNs to host (68.3%)
-> 3) address translation (6.1%)
-> 4) madvise (19%)
-> 
-> It takes about 4126ms for the inflating process to complete.
-> The above profiling shows that the bottlenecks are stage 2)
-> and stage 4).
-> 
-> This patch optimizes step 2) by transferring pages to the host in
-> sgs. An sg describes a chunk of guest physically continuous pages.
-> With this mechanism, step 4) can also be optimized by doing address
-> translation and madvise() in chunks rather than page by page.
-> 
-> With this new feature, the above ballooning process takes ~491ms
-> resulting in an improvement of ~88%.
-> 
-> TODO: optimize stage 1) by allocating/freeing a chunk of pages
-> instead of a single page each time.
-> 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  drivers/virtio/virtio_balloon.c     | 141 ++++++++++++++++++++++---
->  drivers/virtio/virtio_ring.c        | 199 +++++++++++++++++++++++++++++++++---
->  include/linux/virtio.h              |  20 ++++
->  include/uapi/linux/virtio_balloon.h |   1 +
->  4 files changed, 329 insertions(+), 32 deletions(-)
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index f0b3a0b..aa4e7ec 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -32,6 +32,7 @@
->  #include <linux/mm.h>
->  #include <linux/mount.h>
->  #include <linux/magic.h>
-> +#include <linux/xbitmap.h>
->  
->  /*
->   * Balloon device works in 4K page units.  So each page is pointed to by
-> @@ -79,6 +80,9 @@ struct virtio_balloon {
->  	/* Synchronize access/update to this struct virtio_balloon elements */
->  	struct mutex balloon_lock;
->  
-> +	/* The xbitmap used to record ballooned pages */
-> +	struct xb page_xb;
-> +
->  	/* The array of pfns we tell the Host about. */
->  	unsigned int num_pfns;
->  	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
-> @@ -141,13 +145,71 @@ static void set_page_pfns(struct virtio_balloon *vb,
->  					  page_to_balloon_pfn(page) + i);
->  }
->  
-> +/*
-> + * Send balloon pages in sgs to host.
-> + * The balloon pages are recorded in the page xbitmap. Each bit in the bitmap
-> + * corresponds to a page of PAGE_SIZE. The page xbitmap is searched for
-> + * continuous "1" bits, which correspond to continuous pages, to chunk into
-> + * sgs.
-> + *
-> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
-> + * need to be serached.
-
-searched
-
-> + */
-> +static void tell_host_sgs(struct virtio_balloon *vb,
-> +			  struct virtqueue *vq,
-> +			  unsigned long page_xb_start,
-> +			  unsigned long page_xb_end)
-> +{
-> +	unsigned int head_id = VIRTQUEUE_DESC_ID_INIT,
-> +		     prev_id = VIRTQUEUE_DESC_ID_INIT;
-> +	unsigned long sg_pfn_start, sg_pfn_end;
-> +	uint64_t sg_addr;
-> +	uint32_t sg_size;
-> +
-> +	sg_pfn_start = page_xb_start;
-> +	while (sg_pfn_start < page_xb_end) {
-> +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
-> +						page_xb_end, 1);
-> +		if (sg_pfn_start == page_xb_end + 1)
-> +			break;
-> +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
-> +					      page_xb_end, 0);
-> +		sg_addr = sg_pfn_start << PAGE_SHIFT;
-> +		sg_size = (sg_pfn_end - sg_pfn_start) * PAGE_SIZE;
-
-There's an issue here - this might not fit in uint32_t.
-You need to limit sg_pfn_end - something like:
-
-	/* make sure sg_size below fits in a 32 bit integer */
-	sg_pfn_end = min(sg_pfn_end, sg_pfn_start + UINT_MAX >> PAGE_SIZE);
-
-> +		virtqueue_add_chain_desc(vq, sg_addr, sg_size, &head_id,
-> +					 &prev_id, 0);
-> +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
-> +		sg_pfn_start = sg_pfn_end + 1;
-> +	}
-> +
-> +	if (head_id != VIRTQUEUE_DESC_ID_INIT) {
-> +		virtqueue_add_chain(vq, head_id, 0, NULL, vb, NULL);
-> +		virtqueue_kick_async(vq, vb->acked);
-> +	}
-> +}
-> +
-> +/* Update pfn_max and pfn_min according to the pfn of @page */
-> +static inline void update_pfn_range(struct virtio_balloon *vb,
-> +				    struct page *page,
-> +				    unsigned long *pfn_min,
-> +				    unsigned long *pfn_max)
-> +{
-> +	unsigned long pfn = page_to_pfn(page);
-> +
-> +	*pfn_min = min(pfn, *pfn_min);
-> +	*pfn_max = max(pfn, *pfn_max);
-> +}
-> +
->  static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
->  {
->  	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
->  	unsigned num_allocated_pages;
-> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
-> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
->  
->  	/* We can only do one array worth at a time. */
-> -	num = min(num, ARRAY_SIZE(vb->pfns));
-> +	if (!use_sg)
-> +		num = min(num, ARRAY_SIZE(vb->pfns));
->  
->  	mutex_lock(&vb->balloon_lock);
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
-> @@ -162,7 +224,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
->  			msleep(200);
->  			break;
->  		}
-> -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> +		if (use_sg) {
-> +			update_pfn_range(vb, page, &pfn_min, &pfn_max);
-> +			xb_set_bit(&vb->page_xb, page_to_pfn(page));
-> +		} else {
-> +			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> +		}
->  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
->  		if (!virtio_has_feature(vb->vdev,
->  					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-> @@ -171,8 +238,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
->  
->  	num_allocated_pages = vb->num_pfns;
->  	/* Did we get any? */
-> -	if (vb->num_pfns != 0)
-> -		tell_host(vb, vb->inflate_vq);
-> +	if (vb->num_pfns != 0) {
-> +		if (use_sg)
-> +			tell_host_sgs(vb, vb->inflate_vq, pfn_min, pfn_max);
-> +		else
-> +			tell_host(vb, vb->inflate_vq);
-> +	}
->  	mutex_unlock(&vb->balloon_lock);
->  
->  	return num_allocated_pages;
-> @@ -198,9 +269,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  	struct page *page;
->  	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
->  	LIST_HEAD(pages);
-> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
-> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
->  
-> -	/* We can only do one array worth at a time. */
-> -	num = min(num, ARRAY_SIZE(vb->pfns));
-> +	/* Traditionally, we can only do one array worth at a time. */
-> +	if (!use_sg)
-> +		num = min(num, ARRAY_SIZE(vb->pfns));
->  
->  	mutex_lock(&vb->balloon_lock);
->  	/* We can't release more pages than taken */
-> @@ -210,7 +284,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  		page = balloon_page_dequeue(vb_dev_info);
->  		if (!page)
->  			break;
-> -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> +		if (use_sg) {
-> +			update_pfn_range(vb, page, &pfn_min, &pfn_max);
-> +			xb_set_bit(&vb->page_xb, page_to_pfn(page));
-> +		} else {
-> +			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> +		}
->  		list_add(&page->lru, &pages);
->  		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
->  	}
-> @@ -221,8 +300,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
->  	 * is true, we *have* to do it in this order
->  	 */
-> -	if (vb->num_pfns != 0)
-> -		tell_host(vb, vb->deflate_vq);
-> +	if (vb->num_pfns != 0) {
-> +		if (use_sg)
-> +			tell_host_sgs(vb, vb->deflate_vq, pfn_min, pfn_max);
-> +		else
-> +			tell_host(vb, vb->deflate_vq);
-> +	}
->  	release_pages_balloon(vb, &pages);
->  	mutex_unlock(&vb->balloon_lock);
->  	return num_freed_pages;
-> @@ -441,6 +524,18 @@ static int init_vqs(struct virtio_balloon *vb)
->  }
->  
->  #ifdef CONFIG_BALLOON_COMPACTION
-> +
-> +static void tell_host_one_page(struct virtio_balloon *vb, struct virtqueue *vq,
-> +			       struct page *page)
-> +{
-> +	unsigned int id = VIRTQUEUE_DESC_ID_INIT;
-> +	u64 addr = page_to_pfn(page) << VIRTIO_BALLOON_PFN_SHIFT;
-> +
-> +	virtqueue_add_chain_desc(vq, addr, PAGE_SIZE, &id, &id, 0);
-> +	virtqueue_add_chain(vq, id, 0, NULL, (void *)addr, NULL);
-> +	virtqueue_kick_async(vq, vb->acked);
-> +}
-> +
->  /*
->   * virtballoon_migratepage - perform the balloon page migration on behalf of
->   *			     a compation thread.     (called under page lock)
-> @@ -464,6 +559,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
->  {
->  	struct virtio_balloon *vb = container_of(vb_dev_info,
->  			struct virtio_balloon, vb_dev_info);
-> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
->  	unsigned long flags;
->  
->  	/*
-> @@ -485,16 +581,22 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
->  	vb_dev_info->isolated_pages--;
->  	__count_vm_event(BALLOON_MIGRATE);
->  	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
-> -	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-> -	set_page_pfns(vb, vb->pfns, newpage);
-> -	tell_host(vb, vb->inflate_vq);
-> -
-> +	if (use_sg) {
-> +		tell_host_one_page(vb, vb->inflate_vq, newpage);
-> +	} else {
-> +		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-> +		set_page_pfns(vb, vb->pfns, newpage);
-> +		tell_host(vb, vb->inflate_vq);
-> +	}
->  	/* balloon's page migration 2nd step -- deflate "page" */
->  	balloon_page_delete(page);
-> -	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-> -	set_page_pfns(vb, vb->pfns, page);
-> -	tell_host(vb, vb->deflate_vq);
-> -
-> +	if (use_sg) {
-> +		tell_host_one_page(vb, vb->deflate_vq, page);
-> +	} else {
-> +		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-> +		set_page_pfns(vb, vb->pfns, page);
-> +		tell_host(vb, vb->deflate_vq);
-> +	}
->  	mutex_unlock(&vb->balloon_lock);
->  
->  	put_page(page); /* balloon reference */
-> @@ -553,6 +655,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
->  	if (err)
->  		goto out_free_vb;
->  
-> +	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_SG))
-> +		xb_init(&vb->page_xb);
-> +
->  	vb->nb.notifier_call = virtballoon_oom_notify;
->  	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
->  	err = register_oom_notifier(&vb->nb);
-> @@ -618,6 +723,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
->  	cancel_work_sync(&vb->update_balloon_size_work);
->  	cancel_work_sync(&vb->update_balloon_stats_work);
->  
-> +	xb_empty(&vb->page_xb);
->  	remove_common(vb);
->  #ifdef CONFIG_BALLOON_COMPACTION
->  	if (vb->vb_dev_info.inode)
-> @@ -669,6 +775,7 @@ static unsigned int features[] = {
->  	VIRTIO_BALLOON_F_MUST_TELL_HOST,
->  	VIRTIO_BALLOON_F_STATS_VQ,
->  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-> +	VIRTIO_BALLOON_F_SG,
->  };
->  
->  static struct virtio_driver virtio_balloon_driver = {
-> diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
-> index 5e1b548..b9d7e10 100644
-> --- a/drivers/virtio/virtio_ring.c
-> +++ b/drivers/virtio/virtio_ring.c
-> @@ -269,7 +269,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
->  	struct vring_virtqueue *vq = to_vvq(_vq);
->  	struct scatterlist *sg;
->  	struct vring_desc *desc;
-> -	unsigned int i, n, avail, descs_used, uninitialized_var(prev), err_idx;
-> +	unsigned int i, n, descs_used, uninitialized_var(prev), err_id;
->  	int head;
->  	bool indirect;
->  
-> @@ -387,10 +387,68 @@ static inline int virtqueue_add(struct virtqueue *_vq,
->  	else
->  		vq->free_head = i;
->  
-> -	/* Store token and indirect buffer state. */
-> +	END_USE(vq);
-> +
-> +	return virtqueue_add_chain(_vq, head, indirect, desc, data, ctx);
-> +
-> +unmap_release:
-> +	err_id = i;
-> +	i = head;
-> +
-> +	for (n = 0; n < total_sg; n++) {
-> +		if (i == err_id)
-> +			break;
-> +		vring_unmap_one(vq, &desc[i]);
-> +		i = virtio16_to_cpu(_vq->vdev, vq->vring.desc[i].next);
-> +	}
-> +
-> +	vq->vq.num_free += total_sg;
-> +
-> +	if (indirect)
-> +		kfree(desc);
-> +
-> +	END_USE(vq);
-> +	return -EIO;
-> +}
-> +
-> +/**
-> + * virtqueue_add_chain - expose a chain of buffers to the other end
-> + * @_vq: the struct virtqueue we're talking about.
-> + * @head: desc id of the chain head.
-> + * @indirect: set if the chain of descs are indrect descs.
-> + * @indir_desc: the first indirect desc.
-> + * @data: the token identifying the chain.
-> + * @ctx: extra context for the token.
-> + *
-> + * Caller must ensure we don't call this with other virtqueue operations
-> + * at the same time (except where noted).
-> + *
-> + * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
-> + */
-> +int virtqueue_add_chain(struct virtqueue *_vq,
-> +			unsigned int head,
-> +			bool indirect,
-> +			struct vring_desc *indir_desc,
-> +			void *data,
-> +			void *ctx)
-> +{
-> +	struct vring_virtqueue *vq = to_vvq(_vq);
-> +	unsigned int avail;
-> +
-> +	/* The desc chain is empty. */
-> +	if (head == VIRTQUEUE_DESC_ID_INIT)
-> +		return 0;
-> +
-> +	START_USE(vq);
-> +
-> +	if (unlikely(vq->broken)) {
-> +		END_USE(vq);
-> +		return -EIO;
-> +	}
-> +
->  	vq->desc_state[head].data = data;
->  	if (indirect)
-> -		vq->desc_state[head].indir_desc = desc;
-> +		vq->desc_state[head].indir_desc = indir_desc;
->  	if (ctx)
->  		vq->desc_state[head].indir_desc = ctx;
->  
-> @@ -415,26 +473,87 @@ static inline int virtqueue_add(struct virtqueue *_vq,
->  		virtqueue_kick(_vq);
->  
->  	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(virtqueue_add_chain);
->  
-> -unmap_release:
-> -	err_idx = i;
-> -	i = head;
-> +/**
-> + * virtqueue_add_chain_desc - add a buffer to a chain using a vring desc
-> + * @vq: the struct virtqueue we're talking about.
-> + * @addr: address of the buffer to add.
-> + * @len: length of the buffer.
-> + * @head_id: desc id of the chain head.
-> + * @prev_id: desc id of the previous buffer.
-> + * @in: set if the buffer is for the device to write.
-> + *
-> + * Caller must ensure we don't call this with other virtqueue operations
-> + * at the same time (except where noted).
-> + *
-> + * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
-> + */
-> +int virtqueue_add_chain_desc(struct virtqueue *_vq,
-> +			     uint64_t addr,
-> +			     uint32_t len,
-> +			     unsigned int *head_id,
-> +			     unsigned int *prev_id,
-> +			     bool in)
-> +{
-> +	struct vring_virtqueue *vq = to_vvq(_vq);
-> +	struct vring_desc *desc = vq->vring.desc;
-> +	uint16_t flags = in ? VRING_DESC_F_WRITE : 0;
-> +	unsigned int i;
->  
-> -	for (n = 0; n < total_sg; n++) {
-> -		if (i == err_idx)
-> -			break;
-> -		vring_unmap_one(vq, &desc[i]);
-> -		i = virtio16_to_cpu(_vq->vdev, vq->vring.desc[i].next);
-> +	/* Sanity check */
-> +	if (!_vq || !head_id || !prev_id)
-> +		return -EINVAL;
-> +retry:
-> +	START_USE(vq);
-> +	if (unlikely(vq->broken)) {
-> +		END_USE(vq);
-> +		return -EIO;
->  	}
->  
-> -	vq->vq.num_free += total_sg;
-> +	if (vq->vq.num_free < 1) {
-> +		/*
-> +		 * If there is no desc avail in the vq, so kick what is
-> +		 * already added, and re-start to build a new chain for
-> +		 * the passed sg.
-> +		 */
-> +		if (likely(*head_id != VIRTQUEUE_DESC_ID_INIT)) {
-> +			END_USE(vq);
-> +			virtqueue_add_chain(_vq, *head_id, 0, NULL, vq, NULL);
-> +			virtqueue_kick_sync(_vq);
-> +			*head_id = VIRTQUEUE_DESC_ID_INIT;
-> +			*prev_id = VIRTQUEUE_DESC_ID_INIT;
-> +			goto retry;
-> +		} else {
-> +			END_USE(vq);
-> +			return -ENOSPC;
-> +		}
-> +	}
->  
-> -	if (indirect)
-> -		kfree(desc);
-> +	i = vq->free_head;
-> +	flags &= ~VRING_DESC_F_NEXT;
-> +	desc[i].flags = cpu_to_virtio16(_vq->vdev, flags);
-> +	desc[i].addr = cpu_to_virtio64(_vq->vdev, addr);
-> +	desc[i].len = cpu_to_virtio32(_vq->vdev, len);
-> +
-> +	/* Add the desc to the end of the chain */
-> +	if (*prev_id != VIRTQUEUE_DESC_ID_INIT) {
-> +		desc[*prev_id].next = cpu_to_virtio16(_vq->vdev, i);
-> +		desc[*prev_id].flags |= cpu_to_virtio16(_vq->vdev,
-> +							 VRING_DESC_F_NEXT);
-> +	}
-> +	*prev_id = i;
-> +	if (*head_id == VIRTQUEUE_DESC_ID_INIT)
-> +		*head_id = *prev_id;
->  
-> +	vq->vq.num_free--;
-> +	vq->free_head = virtio16_to_cpu(_vq->vdev, desc[i].next);
->  	END_USE(vq);
-> -	return -EIO;
-> +
-> +	return 0;
->  }
-> +EXPORT_SYMBOL_GPL(virtqueue_add_chain_desc);
->  
->  /**
->   * virtqueue_add_sgs - expose buffers to other end
-> @@ -627,6 +746,56 @@ bool virtqueue_kick(struct virtqueue *vq)
->  }
->  EXPORT_SYMBOL_GPL(virtqueue_kick);
->  
-> +/**
-> + * virtqueue_kick_sync - update after add_buf and busy wait till update is done
-> + * @vq: the struct virtqueue
-> + *
-> + * After one or more virtqueue_add_* calls, invoke this to kick
-> + * the other side. Busy wait till the other side is done with the update.
-> + *
-> + * Caller must ensure we don't call this with other virtqueue
-> + * operations at the same time (except where noted).
-> + *
-> + * Returns false if kick failed, otherwise true.
-> + */
-> +bool virtqueue_kick_sync(struct virtqueue *vq)
-> +{
-> +	u32 len;
-> +
-> +	if (likely(virtqueue_kick(vq))) {
-> +		while (!virtqueue_get_buf(vq, &len) &&
-> +		       !virtqueue_is_broken(vq))
-> +			cpu_relax();
-> +		return true;
-> +	}
-> +	return false;
-> +}
-> +EXPORT_SYMBOL_GPL(virtqueue_kick_sync);
-> +
-> +/**
-> + * virtqueue_kick_async - update after add_buf and blocking till update is done
-> + * @vq: the struct virtqueue
-> + *
-> + * After one or more virtqueue_add_* calls, invoke this to kick
-> + * the other side. Blocking till the other side is done with the update.
-> + *
-> + * Caller must ensure we don't call this with other virtqueue
-> + * operations at the same time (except where noted).
-> + *
-> + * Returns false if kick failed, otherwise true.
-> + */
-> +bool virtqueue_kick_async(struct virtqueue *vq, wait_queue_head_t wq)
-> +{
-> +	u32 len;
-> +
-> +	if (likely(virtqueue_kick(vq))) {
-> +		wait_event(wq, virtqueue_get_buf(vq, &len));
-> +		return true;
-> +	}
-> +	return false;
-> +}
-> +EXPORT_SYMBOL_GPL(virtqueue_kick_async);
-> +
-
-This happens to
-1. drop the buf
-2. not do the right thing if more than one is in flight
-
-which means this API isn't all that useful. Even balloon
-might benefit from keeping multiple bufs in flight down
-the road.
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
 
->  static void detach_buf(struct vring_virtqueue *vq, unsigned int head,
->  		       void **ctx)
->  {
-> diff --git a/include/linux/virtio.h b/include/linux/virtio.h
-> index 28b0e96..9f27101 100644
-> --- a/include/linux/virtio.h
-> +++ b/include/linux/virtio.h
-> @@ -57,8 +57,28 @@ int virtqueue_add_sgs(struct virtqueue *vq,
->  		      void *data,
->  		      gfp_t gfp);
->  
-> +/* A desc with this init id is treated as an invalid desc */
-> +#define VIRTQUEUE_DESC_ID_INIT UINT_MAX
-> +int virtqueue_add_chain_desc(struct virtqueue *_vq,
-> +			     uint64_t addr,
-> +			     uint32_t len,
-> +			     unsigned int *head_id,
-> +			     unsigned int *prev_id,
-> +			     bool in);
-> +
-> +int virtqueue_add_chain(struct virtqueue *_vq,
-> +			unsigned int head,
-> +			bool indirect,
-> +			struct vring_desc *indirect_desc,
-> +			void *data,
-> +			void *ctx);
-> +
->  bool virtqueue_kick(struct virtqueue *vq);
->  
-> +bool virtqueue_kick_sync(struct virtqueue *vq);
-> +
-> +bool virtqueue_kick_async(struct virtqueue *vq, wait_queue_head_t wq);
-> +
->  bool virtqueue_kick_prepare(struct virtqueue *vq);
->  
->  bool virtqueue_notify(struct virtqueue *vq);
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index 343d7dd..37780a7 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -34,6 +34,7 @@
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
->  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-> +#define VIRTIO_BALLOON_F_SG		3 /* Use sg instead of PFN lists */
->  
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> -- 
-> 2.7.4
+--9jxsPFA5p3P2qPhR
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi Wei,
+
+[auto build test WARNING on linus/master]
+[also build test WARNING on v4.12 next-20170712]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Wei-Wang/Virtio-balloon-Enhancement/20170713-074956
+config: i386-randconfig-x071-07121639 (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+All warnings (new ones prefixed by >>):
+
+   drivers//virtio/virtio_balloon.c: In function 'tell_host_one_page':
+>> drivers//virtio/virtio_balloon.c:535:39: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+     virtqueue_add_chain(vq, id, 0, NULL, (void *)addr, NULL);
+                                          ^
+
+vim +535 drivers//virtio/virtio_balloon.c
+
+   527	
+   528	static void tell_host_one_page(struct virtio_balloon *vb, struct virtqueue *vq,
+   529				       struct page *page)
+   530	{
+   531		unsigned int id = VIRTQUEUE_DESC_ID_INIT;
+   532		u64 addr = page_to_pfn(page) << VIRTIO_BALLOON_PFN_SHIFT;
+   533	
+   534		virtqueue_add_chain_desc(vq, addr, PAGE_SIZE, &id, &id, 0);
+ > 535		virtqueue_add_chain(vq, id, 0, NULL, (void *)addr, NULL);
+   536		virtqueue_kick_async(vq, vb->acked);
+   537	}
+   538	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--9jxsPFA5p3P2qPhR
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+AIh+JIlsaqO/3WQB//2v/wNe4f+oGckBAA==
+
+--9jxsPFA5p3P2qPhR--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
