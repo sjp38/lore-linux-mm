@@ -1,145 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A508D440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:33:12 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 188so52712788itx.9
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:33:12 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id l72si5096731itl.112.2017.07.13.02.33.10
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E450440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 05:49:07 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id h63so16991048qkf.6
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:49:07 -0700 (PDT)
+Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
+        by mx.google.com with ESMTPS id b199si4619613qka.362.2017.07.13.02.49.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 02:33:11 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v8 05/10] mm: thp: enable thp migration in generic path
-Date: Thu, 13 Jul 2017 09:30:40 +0000
-Message-ID: <20170713093040.GA24851@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170701134008.110579-1-zi.yan@sent.com>
- <20170701134008.110579-6-zi.yan@sent.com>
- <20170711064736.GB22052@hori1.linux.bs1.fc.nec.co.jp>
- <F7626C3B-4F03-4144-B5DF-23CB45E4373D@cs.rutgers.edu>
-In-Reply-To: <F7626C3B-4F03-4144-B5DF-23CB45E4373D@cs.rutgers.edu>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <2AA5A5ADA629C04ABA68EE310F639021@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Thu, 13 Jul 2017 02:49:06 -0700 (PDT)
+Received: by mail-qt0-x242.google.com with SMTP id v31so5349164qtb.3
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 02:49:06 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20170713075502.GG5525@ram.oc3035372033.ibm.com>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-16-git-send-email-linuxram@us.ibm.com> <20170712152601.3b2f52ed@firefly.ozlabs.ibm.com>
+ <20170713075502.GG5525@ram.oc3035372033.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Thu, 13 Jul 2017 19:49:05 +1000
+Message-ID: <CAKTCnzmDd2K0gc=0gvNn7Q_QBPqmQdwppnpU-J9B1AMva7w8sA@mail.gmail.com>
+Subject: Re: [RFC v5 15/38] powerpc: helper function to read,write
+ AMR,IAMR,UAMOR registers
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-kselftest@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Aneesh Kumar KV <aneesh.kumar@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Haren Myneni/Beaverton/IBM <hbabu@us.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Ingo Molnar <mingo@redhat.com>
 
-On Tue, Jul 11, 2017 at 10:00:30AM -0400, Zi Yan wrote:
-> On 11 Jul 2017, at 2:47, Naoya Horiguchi wrote:
->=20
-> > On Sat, Jul 01, 2017 at 09:40:03AM -0400, Zi Yan wrote:
-> >> From: Zi Yan <zi.yan@cs.rutgers.edu>
-> >>
-> >> This patch adds thp migration's core code, including conversions
-> >> between a PMD entry and a swap entry, setting PMD migration entry,
-> >> removing PMD migration entry, and waiting on PMD migration entries.
-> >>
-> >> This patch makes it possible to support thp migration.
-> >> If you fail to allocate a destination page as a thp, you just split
-> >> the source thp as we do now, and then enter the normal page migration.
-> >> If you succeed to allocate destination thp, you enter thp migration.
-> >> Subsequent patches actually enable thp migration for each caller of
-> >> page migration by allowing its get_new_page() callback to
-> >> allocate thps.
-> >>
-> >> ChangeLog v1 -> v2:
-> >> - support pte-mapped thp, doubly-mapped thp
-> >>
-> >> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >>
-> >> ChangeLog v2 -> v3:
-> >> - use page_vma_mapped_walk()
-> >> - use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear() in
-> >>   set_pmd_migration_entry()
-> >>
-> >> ChangeLog v3 -> v4:
-> >> - factor out the code of removing pte pgtable page in zap_huge_pmd()
-> >>
-> >> ChangeLog v4 -> v5:
-> >> - remove unnecessary PTE-mapped THP code in remove_migration_pmd()
-> >>   and set_pmd_migration_entry()
-> >> - restructure the code in zap_huge_pmd() to avoid factoring out
-> >>   the pte pgtable page code
-> >> - in zap_huge_pmd(), check that PMD swap entries are migration entries
-> >> - change author information
-> >>
-> >> ChangeLog v5 -> v7
-> >> - use macro to disable the code when thp migration is not enabled
-> >>
-> >> ChangeLog v7 -> v8
-> >> - use IS_ENABLED instead of macro to make code look clean in
-> >>   zap_huge_pmd() and page_vma_mapped_walk()
-> >> - remove BUILD_BUG() in pmd_to_swp_entry() and swp_entry_to_pmd() to
-> >>   avoid compilation error
-> >> - rename variable 'migration' to 'flush_needed' and invert the logic i=
-n
-> >>   zap_huge_pmd() to make code more descriptive
-> >> - use pmdp_invalidate() in set_pmd_migration_entry() to avoid race
-> >>   with MADV_DONTNEED
-> >> - remove unnecessary tlb flush in remove_migration_pmd()
-> >> - add the missing migration flag check in page_vma_mapped_walk()
-> >>
-> >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> >> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >> ---
-> >>  arch/x86/include/asm/pgtable_64.h |  2 +
-> >>  include/linux/swapops.h           | 67 ++++++++++++++++++++++++++++++=
--
-> >>  mm/huge_memory.c                  | 84 ++++++++++++++++++++++++++++++=
-++++++---
-> >>  mm/migrate.c                      | 32 ++++++++++++++-
-> >>  mm/page_vma_mapped.c              | 18 +++++++--
-> >>  mm/pgtable-generic.c              |  3 +-
-> >>  mm/rmap.c                         | 13 ++++++
-> >>  7 files changed, 207 insertions(+), 12 deletions(-)
-> >>
-> > ...
-> >
-> >> diff --git a/mm/rmap.c b/mm/rmap.c
-> >> index 91948fbbb0bb..b28f633cd569 100644
-> >> --- a/mm/rmap.c
-> >> +++ b/mm/rmap.c
-> >> @@ -1302,6 +1302,7 @@ static bool try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
-> >>  	bool ret =3D true;
-> >>  	enum ttu_flags flags =3D (enum ttu_flags)arg;
-> >>
-> >> +
-> >>  	/* munlock has nothing to gain from examining un-locked vmas */
-> >>  	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
-> >>  		return true;
-> >> @@ -1312,6 +1313,18 @@ static bool try_to_unmap_one(struct page *page,=
- struct vm_area_struct *vma,
-> >>  	}
-> >>
-> >>  	while (page_vma_mapped_walk(&pvmw)) {
-> >> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> >> +		/* PMD-mapped THP migration entry */
-> >> +		if (flags & TTU_MIGRATION) {
-> >
-> > My testing based on mmotm-2017-07-06-16-18 showed that migrating shmem =
-thp
-> > caused kernel crash. I don't think this is critical because that case i=
-s
-> > just not-prepared yet. So in order to avoid the crash, please add
-> > PageAnon(page) check here. This makes shmem thp migration just fail.
-> >
-> > +			if (!PageAnon(page))
-> > +				continue;
-> >
->=20
-> Thanks for your testing. I will add this check in my next version.
+On Thu, Jul 13, 2017 at 5:55 PM, Ram Pai <linuxram@us.ibm.com> wrote:
+> On Wed, Jul 12, 2017 at 03:26:01PM +1000, Balbir Singh wrote:
+>> On Wed,  5 Jul 2017 14:21:52 -0700
+>> Ram Pai <linuxram@us.ibm.com> wrote:
+>>
+>> > Implements helper functions to read and write the key related
+>> > registers; AMR, IAMR, UAMOR.
+>> >
+>> > AMR register tracks the read,write permission of a key
+>> > IAMR register tracks the execute permission of a key
+>> > UAMOR register enables and disables a key
+>> >
+>> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+>> > ---
+>> >  arch/powerpc/include/asm/book3s/64/pgtable.h |   60 ++++++++++++++++++++++++++
+>> >  1 files changed, 60 insertions(+), 0 deletions(-)
+>> >
+>> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+>> > index 85bc987..435d6a7 100644
+>> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+>> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+>> > @@ -428,6 +428,66 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
+>> >             pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
+>> >  }
+>> >
+>> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+>> > +
+>> > +#include <asm/reg.h>
+>> > +static inline u64 read_amr(void)
+>> > +{
+>> > +   return mfspr(SPRN_AMR);
+>> > +}
+>> > +static inline void write_amr(u64 value)
+>> > +{
+>> > +   mtspr(SPRN_AMR, value);
+>> > +}
+>> > +static inline u64 read_iamr(void)
+>> > +{
+>> > +   return mfspr(SPRN_IAMR);
+>> > +}
+>> > +static inline void write_iamr(u64 value)
+>> > +{
+>> > +   mtspr(SPRN_IAMR, value);
+>> > +}
+>> > +static inline u64 read_uamor(void)
+>> > +{
+>> > +   return mfspr(SPRN_UAMOR);
+>> > +}
+>> > +static inline void write_uamor(u64 value)
+>> > +{
+>> > +   mtspr(SPRN_UAMOR, value);
+>> > +}
+>> > +
+>> > +#else /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
+>> > +
+>> > +static inline u64 read_amr(void)
+>> > +{
+>> > +   WARN(1, "%s called with MEMORY PROTECTION KEYS disabled\n", __func__);
+>> > +   return -1;
+>> > +}
+>>
+>> Why do we need to have a version here if we are going to WARN(), why not
+>> let the compilation fail if called from outside of CONFIG_PPC64_MEMORY_PROTECTION_KEYS?
+>> Is that the intention?
+>
+> I did not want to stop someone; kernel module for example, from calling
+> these interfaces from outside the pkey domain.
+>
+> Either way can be argued to be correct, I suppose.
 
-Sorry, the code I'm suggesting above doesn't work because it makes normal
-pagecache migration fail.  This check should come after making sure that
-pvmw.pte is NULL.
+Nope, build failures are better than run time failures, otherwise the
+kernel will split its guts warning and warning here.
 
-Thanks,
-Naoya Horiguchi=
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
