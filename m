@@ -1,101 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A9224440874
-	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 20:14:15 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q66so19804703qki.1
-        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:14:15 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D4F31440874
+	for <linux-mm@kvack.org>; Wed, 12 Jul 2017 20:16:56 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p45so14629351qtg.11
+        for <linux-mm@kvack.org>; Wed, 12 Jul 2017 17:16:56 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h126si3721216qkf.114.2017.07.12.17.14.14
+        by mx.google.com with ESMTPS id i3si3679773qtb.98.2017.07.12.17.16.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jul 2017 17:14:15 -0700 (PDT)
-Date: Thu, 13 Jul 2017 03:14:07 +0300
+        Wed, 12 Jul 2017 17:16:56 -0700 (PDT)
+Date: Thu, 13 Jul 2017 03:16:49 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 0/8] Virtio-balloon Enhancement
-Message-ID: <20170713031326-mutt-send-email-mst@kernel.org>
+Subject: Re: [PATCH v12 7/8] mm: export symbol of next_zone and
+ first_online_pgdat
+Message-ID: <20170713031526-mutt-send-email-mst@kernel.org>
 References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+ <1499863221-16206-8-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1499863221-16206-8-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wei Wang <wei.w.wang@intel.com>
 Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Wed, Jul 12, 2017 at 08:40:13PM +0800, Wei Wang wrote:
-> This patch series enhances the existing virtio-balloon with the following new
-> features:
-> 1) fast ballooning: transfer ballooned pages between the guest and host in
-> chunks using sgs, instead of one by one; and
-> 2) cmdq: a new virtqueue to send commands between the device and driver.
-> Currently, it supports commands to report memory stats (replace the old statq
-> mechanism) and report guest unused pages.
+On Wed, Jul 12, 2017 at 08:40:20PM +0800, Wei Wang wrote:
+> This patch enables for_each_zone()/for_each_populated_zone() to be
+> invoked by a kernel module.
 
-Could we get some feedback from mm crowd on patches 6 and 7?
+... for use by virtio balloon.
 
-> Change Log:
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+
+balloon seems to only use
++       for_each_populated_zone(zone)
++               for_each_migratetype_order(order, type)
+
+
+> ---
+>  mm/mmzone.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> v11->v12:
-> 1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
-> 2) virtio-ring: enable the driver to build up a desc chain using vring desc.
-> 3) virtio-ring: Add locking to the existing START_USE() and END_USE() macro
-> to lock/unlock the vq when a vq operation starts/ends.
-> 4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
-> 5) virtio-balloon: describe chunks of ballooned pages and free pages blocks
-> directly using one or more chains of desc from the vq.
-> 
-> v10->v11:
-> 1) virtio_balloon: use vring_desc to describe a chunk;
-> 2) virtio_ring: support to add an indirect desc table to virtqueue;
-> 3)  virtio_balloon: use cmdq to report guest memory statistics.
-> 
-> v9->v10:
-> 1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
-> 2) virtio-balloon: add virtballoon_validate();
-> 3) virtio-balloon: msg format change;
-> 4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
-> 5) virtio-balloon: code cleanup.
-> 
-> v8->v9:
-> 1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
-> VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
-> implementation;
-> 2) Simpler function to get the free page block.
-> 
-> v7->v8:
-> 1) Use only one chunk format, instead of two.
-> 2) re-write the virtio-balloon implementation patch.
-> 3) commit changes
-> 4) patch re-org
-> 
-> Liang Li (1):
->   virtio-balloon: deflate via a page list
-> 
-> Matthew Wilcox (1):
->   Introduce xbitmap
-> 
-> Wei Wang (6):
->   virtio-balloon: coding format cleanup
->   xbitmap: add xb_find_next_bit() and xb_zero()
->   virtio-balloon: VIRTIO_BALLOON_F_SG
->   mm: support reporting free page blocks
->   mm: export symbol of next_zone and first_online_pgdat
->   virtio-balloon: VIRTIO_BALLOON_F_CMD_VQ
-> 
->  drivers/virtio/virtio_balloon.c     | 414 ++++++++++++++++++++++++++++++++----
->  drivers/virtio/virtio_ring.c        | 224 +++++++++++++++++--
->  include/linux/mm.h                  |   5 +
->  include/linux/radix-tree.h          |   2 +
->  include/linux/virtio.h              |  22 ++
->  include/linux/xbitmap.h             |  53 +++++
->  include/uapi/linux/virtio_balloon.h |  11 +
->  lib/radix-tree.c                    | 164 +++++++++++++-
->  mm/mmzone.c                         |   2 +
->  mm/page_alloc.c                     |  96 +++++++++
->  10 files changed, 926 insertions(+), 67 deletions(-)
->  create mode 100644 include/linux/xbitmap.h
-> 
+> diff --git a/mm/mmzone.c b/mm/mmzone.c
+> index a51c0a6..08a2a3a 100644
+> --- a/mm/mmzone.c
+> +++ b/mm/mmzone.c
+> @@ -13,6 +13,7 @@ struct pglist_data *first_online_pgdat(void)
+>  {
+>  	return NODE_DATA(first_online_node);
+>  }
+> +EXPORT_SYMBOL_GPL(first_online_pgdat);
+>  
+>  struct pglist_data *next_online_pgdat(struct pglist_data *pgdat)
+>  {
+> @@ -41,6 +42,7 @@ struct zone *next_zone(struct zone *zone)
+>  	}
+>  	return zone;
+>  }
+> +EXPORT_SYMBOL_GPL(next_zone);
+>  
+>  static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
+>  {
 > -- 
 > 2.7.4
 
