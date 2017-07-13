@@ -1,89 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E6CD0440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:04:44 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id c190so49603651ith.3
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:04:44 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id g189si5452464iof.63.2017.07.13.00.04.43
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DC70440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q87so46693916pfk.15
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:39:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j10si3937093plg.201.2017.07.13.00.39.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 00:04:43 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id o202so5841898itc.1
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 00:04:43 -0700 (PDT)
+        Thu, 13 Jul 2017 00:39:58 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6D7csLa001291
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:57 -0400
+Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bnt3r44pc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 03:39:57 -0400
+Received: from localhost
+	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 13 Jul 2017 03:39:55 -0400
+Date: Thu, 13 Jul 2017 00:39:41 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v5 02/38] powerpc: Free up four 64K PTE bits in 64K backed
+ HPTE pages
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1499289735-14220-1-git-send-email-linuxram@us.ibm.com>
+ <1499289735-14220-3-git-send-email-linuxram@us.ibm.com>
+ <20170711155959.79e2d4de@firefly.ozlabs.ibm.com>
+ <20170711154415.GA5525@ram.oc3035372033.ibm.com>
+ <20170712131051.5bf657c7@firefly.ozlabs.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jpBRF=pC6fuHeWC0mVKBbvkPRRGGTdB0H=qmoveBTLbQ@mail.gmail.com>
-References: <1499842660-10665-1-git-send-email-geert@linux-m68k.org> <CAPcyv4jpBRF=pC6fuHeWC0mVKBbvkPRRGGTdB0H=qmoveBTLbQ@mail.gmail.com>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Thu, 13 Jul 2017 09:04:42 +0200
-Message-ID: <CAMuHMdWFz5cFngxuYYNtuoRd-=S_4pNybxQ2c-zJsP=SGk5+sQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Mark create_huge_pmd() inline to prevent build failure
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170712131051.5bf657c7@firefly.ozlabs.ibm.com>
+Message-Id: <20170713073941.GE5525@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com
 
-Hi Dan,
+On Wed, Jul 12, 2017 at 01:10:51PM +1000, Balbir Singh wrote:
+> On Tue, 11 Jul 2017 08:44:15 -0700
+> Ram Pai <linuxram@us.ibm.com> wrote:
+> 
+> > On Tue, Jul 11, 2017 at 03:59:59PM +1000, Balbir Singh wrote:
+> > > On Wed,  5 Jul 2017 14:21:39 -0700
+> > > Ram Pai <linuxram@us.ibm.com> wrote:
+> > >   
+> > > > Rearrange 64K PTE bits to  free  up  bits 3, 4, 5  and  6
+> > > > in the 64K backed HPTE pages. This along with the earlier
+> > > > patch will  entirely free  up the four bits from 64K PTE.
+> > > > The bit numbers are  big-endian as defined in the  ISA3.0
+> > > > 
+> > > > This patch  does  the  following change to 64K PTE backed
+> > > > by 64K HPTE.
+> > > > 
+> > > > H_PAGE_F_SECOND (S) which  occupied  bit  4  moves to the
+> > > > 	second part of the pte to bit 60.
+> > > > H_PAGE_F_GIX (G,I,X) which  occupied  bit 5, 6 and 7 also
+> > > > 	moves  to  the   second part of the pte to bit 61,
+> > > >        	62, 63, 64 respectively
+> > > > 
+> > > > since bit 7 is now freed up, we move H_PAGE_BUSY (B) from
+> > > > bit  9  to  bit  7.
+> > > > 
+> > > > The second part of the PTE will hold
+> > > > (H_PAGE_F_SECOND|H_PAGE_F_GIX) at bit 60,61,62,63.
+> > > > 
+> > > > Before the patch, the 64K HPTE backed 64k PTE format was
+> > > > as follows
+> > > > 
+> > > >  0 1 2 3 4  5  6  7  8 9 10...........................63
+> > > >  : : : : :  :  :  :  : : :                            :
+> > > >  v v v v v  v  v  v  v v v                            v
+> > > > 
+> > > > ,-,-,-,-,--,--,--,--,-,-,-,-,-,------------------,-,-,-,
+> > > > |x|x|x| |S |G |I |X |x|B|x|x|x|................|.|.|.|.| <- primary pte
+> > > > '_'_'_'_'__'__'__'__'_'_'_'_'_'________________'_'_'_'_'
+> > > > | | | | |  |  |  |  | | | | |..................| | | | | <- secondary pte
+> > > > '_'_'_'_'__'__'__'__'_'_'_'_'__________________'_'_'_'_'
+> > > >  
+> > > 
+> > > It's not entirely clear what the secondary pte contains
+> > > today and how many of the bits are free today?  
+> > 
+> > The secondary pte today is not used for anything for 64k-hpte
+> > backed ptes. It gets used the moment the pte gets backed by
+> > 4-k hptes. Till then the bits are available. And this patch
+> > makes use of that knowledge. 
+> 
+> OK.. but does this mean subpage-protection? Or do you mean
+> page size demotion? I presume it's the later.
 
-On Thu, Jul 13, 2017 at 2:29 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Tue, Jul 11, 2017 at 11:57 PM, Geert Uytterhoeven
-> <geert@linux-m68k.org> wrote:
->> With gcc 4.1.2:
->>
->>     mm/memory.o: In function `create_huge_pmd':
->>     memory.c:(.text+0x93e): undefined reference to `do_huge_pmd_anonymous_page'
->>
->> Converting transparent_hugepage_enabled() from a macro to a static
->> inline function reduced the ability of the compiler to remove unused
->> code.
->>
->> Fix this by marking create_huge_pmd() inline.
->>
->> Fixes: 16981d763501c0e0 ("mm: improve readability of transparent_hugepage_enabled()")
->> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
->> ---
->> Interestingly, create_huge_pmd() is emitted in the assembler output, but
->> never called.
->> ---
->>  mm/memory.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index cbb57194687e393a..0e517be91a89e162 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -3591,7 +3591,7 @@ static int do_numa_page(struct vm_fault *vmf)
->>         return 0;
->>  }
->>
->> -static int create_huge_pmd(struct vm_fault *vmf)
->> +static inline int create_huge_pmd(struct vm_fault *vmf)
->>  {
->
-> This seems fragile, what if the kernel decides to ignore the inline
-> hint? If it must be inlined to avoid compile errors then it should be
-> __always_inline, right?
-
-With gcc-4, "inline" is already #define'd to
-#define inline inline           __attribute__((always_inline,unused)) notrace
-
-> I also wonder if it's enough to just specify __always_inline to
-> transparent_hugepage_enabled(), i.e. in case the compiler is making an
-> uninlined copy of transparent_hugepage_enabled() in mm/memory.c.
-
-Hence the answer is no.
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Yes. the later.
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
