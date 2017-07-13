@@ -1,88 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0404A440874
-	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 12:02:04 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id j1so21853854uah.3
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 09:02:03 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 21si22732vkg.6.2017.07.13.09.02.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A5FD440874
+	for <linux-mm@kvack.org>; Thu, 13 Jul 2017 12:05:05 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 125so62857334pgi.2
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 09:05:05 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id 1si4630574pgp.88.2017.07.13.09.05.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 09:02:03 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/mremap: add MREMAP_MIRROR flag for existing
- mirroring functionality
-References: <1499357846-7481-1-git-send-email-mike.kravetz@oracle.com>
- <1499357846-7481-2-git-send-email-mike.kravetz@oracle.com>
- <20170711123642.GC11936@dhcp22.suse.cz>
- <7f14334f-81d1-7698-d694-37278f05a78e@oracle.com>
- <20170712114655.GG28912@dhcp22.suse.cz>
- <3a2cfeae-520c-b6e5-2808-cf1bcf62b067@oracle.com>
- <20170713061651.GA14492@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <21b264e7-b879-f072-03d2-f6f4aec5c957@oracle.com>
-Date: Thu, 13 Jul 2017 09:01:54 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170713061651.GA14492@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Thu, 13 Jul 2017 09:05:04 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id j186so7441708pge.1
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 09:05:03 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: Potential race in TLB flush batching?
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <CALCETrVrP3OVgs_AjnpfOY2-aeDGRorMQ2i4jeO50kPGb-D6+g@mail.gmail.com>
+Date: Thu, 13 Jul 2017 09:05:01 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <5F1E23BA-B0DE-4FF0-AB8F-C22936263EAA@gmail.com>
+References: <20170711092935.bogdb4oja6v7kilq@suse.de>
+ <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+ <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
+ <20170711155312.637eyzpqeghcgqzp@suse.de>
+ <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <20170711200923.gyaxfjzz3tpvreuq@suse.de>
+ <20170711215240.tdpmwmgwcuerjj3o@suse.de>
+ <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
+ <20170712082733.ouf7yx2bnvwwcfms@suse.de>
+ <591A2865-13B8-4B3A-B094-8B83A7F9814B@gmail.com>
+ <CALCETrXr16TGe1gxnPajqpq-G8z1hK_fzPzZiJa+h+zZ8RysNw@mail.gmail.com>
+ <079D9048-0FFD-4A58-90EF-889259EB6ECE@gmail.com>
+ <CALCETrVrP3OVgs_AjnpfOY2-aeDGRorMQ2i4jeO50kPGb-D6+g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 07/12/2017 11:16 PM, Michal Hocko wrote:
-> On Wed 12-07-17 09:55:48, Mike Kravetz wrote:
->> On 07/12/2017 04:46 AM, Michal Hocko wrote:
->>> On Tue 11-07-17 11:23:19, Mike Kravetz wrote:
->>>> On 07/11/2017 05:36 AM, Michal Hocko wrote:
->>> [...]
->>>>> Anyway the patch should fail with -EINVAL on private mappings as Kirill
->>>>> already pointed out
->>>>
->>>> Yes.  I think this should be a separate patch.  As mentioned earlier,
->>>> mremap today creates a new/additional private mapping if called in this
->>>> way with old_size == 0.  To me, this is a bug.
->>>
->>> Not only that. It clears existing ptes in the old mapping so the content
->>> is lost. That is quite unexpected behavior. Now it is hard to assume
->>> whether somebody relies on the behavior (I can easily imagine somebody
->>> doing backup&clear in atomic way) so failing with EINVAL might break
->>> userspace so I am not longer sure. Anyway this really needs to be
->>> documented.
->>
->> I am pretty sure it does not clear ptes in the old mapping, or modify it
->> in any way.  Are you thinking they are cleared as part of the call to
->> move_page_tables?  Since old_size == 0 (len as passed to move_page_tables),
->> the for loop in move_page_tables is not run and it doesn't do much of
->> anything in this case.
-> 
-> Dang. I have completely missed that we give old_len as the len
-> parameter. Then it is clear that this old_len == 0 trick never really
-> worked for MAP_PRIVATE because it simply fails the main invariant that
-> the content at the new location matches the old one. Care to send a
-> patch to clarify that and sent EINVAL or should I do it?
+Andy Lutomirski <luto@kernel.org> wrote:
 
-Sent a patch (in separate e-mail thread) to return EINVAL for private
-mappings.
+> On Wed, Jul 12, 2017 at 4:42 PM, Nadav Amit <nadav.amit@gmail.com> =
+wrote:
+>> Andy Lutomirski <luto@kernel.org> wrote:
+>>=20
+>>> On Wed, Jul 12, 2017 at 4:27 PM, Nadav Amit <nadav.amit@gmail.com> =
+wrote:
+>>>> Actually, I think that based on Andy=E2=80=99s patches there is a =
+relatively
+>>>> reasonable solution. For each mm we will hold both a =
+=E2=80=9Cpending_tlb_gen=E2=80=9D
+>>>> (increased under the PT-lock) and an =E2=80=9Cexecuted_tlb_gen=E2=80=9D=
+. Once
+>>>> flush_tlb_mm_range finishes flushing it will use cmpxchg to update =
+the
+>>>> executed_tlb_gen to the pending_tlb_gen that was prior the flush =
+(the
+>>>> cmpxchg will ensure the TLB gen only goes forward). Then, whenever
+>>>> pending_tlb_gen is different than executed_tlb_gen - a flush is =
+needed.
+>>>=20
+>>> Why do we need executed_tlb_gen?  We already have
+>>> cpu_tlbstate.ctxs[...].tlb_gen.  Or is the idea that =
+executed_tlb_gen
+>>> guarantees that all cpus in mm_cpumask are at least up to date to
+>>> executed_tlb_gen?
+>>=20
+>> Hm... So actually it may be enough, no? Just compare =
+mm->context.tlb_gen
+>> with cpu_tlbstate.ctxs[...].tlb_gen and flush if they are different?
+>=20
+> Wouldn't that still leave the races where the CPU observing the stale
+> TLB entry isn't the CPU that did munmap/mprotect/whatever?  I think
+> executed_tlb_gen or similar may really be needed for your approach.
 
->> If adding hugetlbfs support to memfd_create works out, I would like to
->> see mremap(old_size == 0) support dropped.  Nobody here (kernel mm
->> development) seems to like it.  However, as you note there may be somebody
->> depending on this behavior.  What would be the process for removing
->> such support?  AFAIK, it is not documented anywhere.  If we do document
->> the behavior, then we will certainly be stuck with it for a long time.
-> 
-> I would rather document it than remove it. From the past we know that
-> there are users and my experience tells me that once something is used
-> it lives its life for ever basically. And moreover it is not like this
-> costs us any maintenance burden to support the hack. Just make it more
-> obvious so that we do not have to rediscover it each time.
+Yes, you are right.
 
-I will put together a patch to add a description of (old_size == 0)
-behavior to the man page.
+This approach requires a counter that is only updated after the flush is
+completed by all cores. This way you ensure there is no CPU that did not
+complete the flush.
 
--- 
-Mike Kravetz
+Does it make sense?=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
