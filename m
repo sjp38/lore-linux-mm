@@ -1,147 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C9C4408E5
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 03:53:33 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v26so80356096pfa.0
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 00:53:33 -0700 (PDT)
-Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.124])
-        by mx.google.com with ESMTPS id c76si5967676pfl.274.2017.07.14.00.53.31
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E3A74408E5
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 04:00:28 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id x43so303951wrb.9
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 01:00:28 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
+        by mx.google.com with ESMTPS id b204si1619469wmh.72.2017.07.14.01.00.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 00:53:32 -0700 (PDT)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH] zsmalloc: zs_page_migrate: not check inuse if migrate_mode is not MIGRATE_ASYNC
-Date: Fri, 14 Jul 2017 15:51:07 +0800
-Message-ID: <1500018667-30175-1-git-send-email-zhuhui@xiaomi.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Jul 2017 01:00:27 -0700 (PDT)
+Received: by mail-wr0-f195.google.com with SMTP id 77so11075725wrb.3
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 01:00:27 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/9] cleanup zonelists initialization
+Date: Fri, 14 Jul 2017 09:59:57 +0200
+Message-Id: <20170714080006.7250-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, joonsoo kim <js1304@gmail.com>, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Shaohua Li <shaohua.li@intel.com>, Toshi Kani <toshi.kani@hp.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-Got some -EBUSY from zs_page_migrate that will make migration
-slow (retry) or fail (zs_page_putback will schedule_work free_work,
-but it cannot ensure the success).
+Hi,
+this is aimed at cleaning up the zonelists initialization code we have
+but the primary motivation was bug report [1] which got resolved but
+the usage of stop_machine is just too ugly to live. Most patches are
+straightforward but 3 of them need a special consideration.
 
-And I didn't find anything that make zs_page_migrate cannot work with
-a ZS_EMPTY zspage.
-So make the patch to not check inuse if migrate_mode is not
-MIGRATE_ASYNC.
+Patch 1 removes zone ordered zonelists completely. I am CCing linux-api
+because this is a user visible change. As I argue in the patch
+description I do not think we have a strong usecase for it these days.
+I have kept sysctl in place and warn into the log if somebody tries to
+configure zone lists ordering. If somebody has a real usecase for it
+we can revert this patch but I do not expect anybody will actually notice
+runtime differences. This patch is not strictly needed for the rest but
+it made patch 6 easier to implement.
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- mm/zsmalloc.c | 66 +++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 37 insertions(+), 29 deletions(-)
+Patch 7 removes stop_machine from build_all_zonelists without adding any
+special synchronization between iterators and updater which I _believe_
+is acceptable as explained in the changelog. I hope I am not missing
+anything.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index d41edd2..c298e5c 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1982,6 +1982,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 	unsigned long old_obj, new_obj;
- 	unsigned int obj_idx;
- 	int ret = -EAGAIN;
-+	int inuse;
- 
- 	VM_BUG_ON_PAGE(!PageMovable(page), page);
- 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
-@@ -1996,21 +1997,24 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 	offset = get_first_obj_offset(page);
- 
- 	spin_lock(&class->lock);
--	if (!get_zspage_inuse(zspage)) {
-+	inuse = get_zspage_inuse(zspage);
-+	if (mode == MIGRATE_ASYNC && !inuse) {
- 		ret = -EBUSY;
- 		goto unlock_class;
- 	}
- 
- 	pos = offset;
- 	s_addr = kmap_atomic(page);
--	while (pos < PAGE_SIZE) {
--		head = obj_to_head(page, s_addr + pos);
--		if (head & OBJ_ALLOCATED_TAG) {
--			handle = head & ~OBJ_ALLOCATED_TAG;
--			if (!trypin_tag(handle))
--				goto unpin_objects;
-+	if (inuse) {
-+		while (pos < PAGE_SIZE) {
-+			head = obj_to_head(page, s_addr + pos);
-+			if (head & OBJ_ALLOCATED_TAG) {
-+				handle = head & ~OBJ_ALLOCATED_TAG;
-+				if (!trypin_tag(handle))
-+					goto unpin_objects;
-+			}
-+			pos += class->size;
- 		}
--		pos += class->size;
- 	}
- 
- 	/*
-@@ -2020,20 +2024,22 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 	memcpy(d_addr, s_addr, PAGE_SIZE);
- 	kunmap_atomic(d_addr);
- 
--	for (addr = s_addr + offset; addr < s_addr + pos;
--					addr += class->size) {
--		head = obj_to_head(page, addr);
--		if (head & OBJ_ALLOCATED_TAG) {
--			handle = head & ~OBJ_ALLOCATED_TAG;
--			if (!testpin_tag(handle))
--				BUG();
--
--			old_obj = handle_to_obj(handle);
--			obj_to_location(old_obj, &dummy, &obj_idx);
--			new_obj = (unsigned long)location_to_obj(newpage,
--								obj_idx);
--			new_obj |= BIT(HANDLE_PIN_BIT);
--			record_obj(handle, new_obj);
-+	if (inuse) {
-+		for (addr = s_addr + offset; addr < s_addr + pos;
-+						addr += class->size) {
-+			head = obj_to_head(page, addr);
-+			if (head & OBJ_ALLOCATED_TAG) {
-+				handle = head & ~OBJ_ALLOCATED_TAG;
-+				if (!testpin_tag(handle))
-+					BUG();
-+
-+				old_obj = handle_to_obj(handle);
-+				obj_to_location(old_obj, &dummy, &obj_idx);
-+				new_obj = (unsigned long)
-+					location_to_obj(newpage, obj_idx);
-+				new_obj |= BIT(HANDLE_PIN_BIT);
-+				record_obj(handle, new_obj);
-+			}
- 		}
- 	}
- 
-@@ -2055,14 +2061,16 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 
- 	ret = MIGRATEPAGE_SUCCESS;
- unpin_objects:
--	for (addr = s_addr + offset; addr < s_addr + pos;
-+	if (inuse) {
-+		for (addr = s_addr + offset; addr < s_addr + pos;
- 						addr += class->size) {
--		head = obj_to_head(page, addr);
--		if (head & OBJ_ALLOCATED_TAG) {
--			handle = head & ~OBJ_ALLOCATED_TAG;
--			if (!testpin_tag(handle))
--				BUG();
--			unpin_tag(handle);
-+			head = obj_to_head(page, addr);
-+			if (head & OBJ_ALLOCATED_TAG) {
-+				handle = head & ~OBJ_ALLOCATED_TAG;
-+				if (!testpin_tag(handle))
-+					BUG();
-+				unpin_tag(handle);
-+			}
- 		}
- 	}
- 	kunmap_atomic(s_addr);
--- 
-1.9.1
+Patch 8 then removes zonelists_mutex which is kind of ugly as well and
+not really needed AFAICS but a care should be taken when double checking
+my thinking.
+
+This has passed my light testing but I currently do not have a HW to
+test hotadd_new_pgdat path (aka a completely new node added to the
+system in runtime).
+
+This is based on the current mmomt git tree (mmotm-2017-07-12-15-11).
+Any feedback is highly appreciated.
+
+The diffstat looks really promissing
+ include/linux/mmzone.h |   3 +-
+ init/main.c            |   2 +-
+ kernel/sysctl.c        |   2 -
+ mm/internal.h          |   1 +
+ mm/memory_hotplug.c    |  27 +----
+ mm/page_alloc.c        | 293 ++++++++++++-------------------------------------
+ mm/page_ext.c          |   5 +-
+ mm/sparse-vmemmap.c    |  11 +-
+ mm/sparse.c            |  10 +-
+ 9 files changed, 89 insertions(+), 265 deletions(-)
+
+Shortlog says
+Michal Hocko (9):
+      mm, page_alloc: rip out ZONELIST_ORDER_ZONE
+      mm, page_alloc: remove boot pageset initialization from memory hotplug
+      mm, page_alloc: do not set_cpu_numa_mem on empty nodes initialization
+      mm, memory_hotplug: drop zone from build_all_zonelists
+      mm, memory_hotplug: remove explicit build_all_zonelists from try_online_node
+      mm, page_alloc: simplify zonelist initialization
+      mm, page_alloc: remove stop_machine from build_all_zonelists
+      mm, memory_hotplug: get rid of zonelists_mutex
+      mm, sparse, page_ext: drop ugly N_HIGH_MEMORY branches for allocations
+
+[1] http://lkml.kernel.org/r/alpine.DEB.2.20.1706291803380.1861@nanos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
