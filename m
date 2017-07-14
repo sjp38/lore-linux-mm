@@ -1,139 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A9372440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:18:00 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z81so11150966wrc.2
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:18:00 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 472E9440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:30:29 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id r7so834032wrb.0
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:30:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t72si2152379wmt.135.2017.07.14.05.17.59
+        by mx.google.com with ESMTPS id 20si6588253wrv.297.2017.07.14.05.30.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 05:17:59 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
-References: <20170714121233.16861-1-mhocko@kernel.org>
- <20170714121233.16861-3-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <c65abd07-f024-6c66-fa55-3c23926a6ebe@suse.cz>
-Date: Fri, 14 Jul 2017 14:17:55 +0200
+        Fri, 14 Jul 2017 05:30:27 -0700 (PDT)
+Date: Fri, 14 Jul 2017 14:30:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170714123023.GA2624@dhcp22.suse.cz>
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+ <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170714121233.16861-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-api@vger.kernel.org
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 07/14/2017 02:12 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed 12-07-17 20:40:19, Wei Wang wrote:
+> This patch adds support for reporting blocks of pages on the free list
+> specified by the caller.
 > 
-> Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
-> to precede the Movable zone in the physical memory range. The purpose of
-> the movable zone is, however, not bound to any physical memory restriction.
-> It merely defines a class of migrateable and reclaimable memory.
+> As pages can leave the free list during this call or immediately
+> afterwards, they are not guaranteed to be free after the function
+> returns. The only guarantee this makes is that the page was on the free
+> list at some point in time after the function has been invoked.
 > 
-> There are users (e.g. CMA) who might want to reserve specific physical
-> memory ranges for their own purpose. Moreover our pfn walkers have to be
-> prepared for zones overlapping in the physical range already because we
-> do support interleaving NUMA nodes and therefore zones can interleave as
-> well. This means we can allow each memory block to be associated with a
-> different zone.
-> 
-> Loosen the current onlining semantic and allow explicit onlining type on
-> any memblock. That means that online_{kernel,movable} will be allowed
-> regardless of the physical address of the memblock as long as it is
-> offline of course. This might result in moveble zone overlapping with
-> other kernel zones. Default onlining then becomes a bit tricky but still
-> sensible. echo online > memoryXY/state will online the given block to
-> 	1) the default zone if the given range is outside of any zone
-> 	2) the enclosing zone if such a zone doesn't interleave with
-> 	   any other zone
->         3) the default zone if more zones interleave for this range
-> where default zone is movable zone only if movable_node is enabled
-> otherwise it is a kernel zone.
-> 
-> Here is an example of the semantic with (movable_node is not present but
-> it work in an analogous way). We start with following memblocks, all of
-> them offline
-> memory34/valid_zones:Normal Movable
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Normal Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal Movable
-> memory40/valid_zones:Normal Movable
-> memory41/valid_zones:Normal Movable
-> 
-> Now, we online block 34 in default mode and block 37 as movable
-> root@test1:/sys/devices/system/node/node1# echo online > memory34/state
-> root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal Movable
-> memory40/valid_zones:Normal Movable
-> memory41/valid_zones:Normal Movable
-> 
-> As we can see all other blocks can still be onlined both into Normal and
-> Movable zones and the Normal is default because the Movable zone spans
-> only block37 now.
-> root@test1:/sys/devices/system/node/node1# echo online_movable > memory41/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Movable Normal
-> memory39/valid_zones:Movable Normal
-> memory40/valid_zones:Movable Normal
-> memory41/valid_zones:Movable
-> 
-> Now the default zone for blocks 37-41 has changed because movable zone
-> spans that range.
-> root@test1:/sys/devices/system/node/node1# echo online_kernel > memory39/state
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal Movable
-> memory36/valid_zones:Normal Movable
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal Movable
-> memory39/valid_zones:Normal
-> memory40/valid_zones:Movable Normal
-> memory41/valid_zones:Movable
-> 
-> Note that the block 39 now belongs to the zone Normal and so block38
-> falls into Normal by default as well.
-> 
-> For completness
-> root@test1:/sys/devices/system/node/node1# for i in memory[34]?
-> do
-> 	echo online > $i/state 2>/dev/null
-> done
-> 
-> memory34/valid_zones:Normal
-> memory35/valid_zones:Normal
-> memory36/valid_zones:Normal
-> memory37/valid_zones:Movable
-> memory38/valid_zones:Normal
-> memory39/valid_zones:Normal
-> memory40/valid_zones:Movable
-> memory41/valid_zones:Movable
-> 
-> Implementation wise the change is quite straightforward. We can get rid
-> of allow_online_pfn_range altogether. online_pages allows only offline
-> nodes already. The original default_zone_for_pfn will become
-> default_kernel_zone_for_pfn. New default_zone_for_pfn implements the
-> above semantic. zone_for_pfn_range is slightly reorganized to implement
-> kernel and movable online type explicitly and MMOP_ONLINE_KEEP becomes
-> a catch all default behavior.
-> 
-> Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Therefore, it is not safe for caller to use any pages on the returned
+> block or to discard data that is put there after the function returns.
+> However, it is safe for caller to discard data that was in one of these
+> pages before the function was invoked.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I do not understand what is the point of such a function and how it is
+used because the patch doesn't give us any user (I haven't checked other
+patches yet).
 
-> Cc: <linux-api@vger.kernel.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+But just from the semantic point of view this sounds like a horrible
+idea. The only way to get a free block of pages is to call the page
+allocator. I am tempted to give it Nack right on those grounds but I
+would like to hear more about what you actually want to achieve.
+
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> ---
+>  include/linux/mm.h |  5 +++
+>  mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 101 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 46b9ac5..76cb433 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1835,6 +1835,11 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>  extern void free_initmem(void);
+>  
+> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+> +extern int report_unused_page_block(struct zone *zone, unsigned int order,
+> +				    unsigned int migratetype,
+> +				    struct page **page);
+> +#endif
+>  /*
+>   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>   * into the buddy system. The freed pages will be poisoned with pattern
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 64b7d82..8b3c9dd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4753,6 +4753,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>  	show_swap_cache_info();
+>  }
+>  
+> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+> +
+> +/*
+> + * Heuristically get a page block in the system that is unused.
+> + * It is possible that pages from the page block are used immediately after
+> + * report_unused_page_block() returns. It is the caller's responsibility
+> + * to either detect or prevent the use of such pages.
+> + *
+> + * The free list to check: zone->free_area[order].free_list[migratetype].
+> + *
+> + * If the caller supplied page block (i.e. **page) is on the free list, offer
+> + * the next page block on the list to the caller. Otherwise, offer the first
+> + * page block on the list.
+> + *
+> + * Note: it is not safe for caller to use any pages on the returned
+> + * block or to discard data that is put there after the function returns.
+> + * However, it is safe for caller to discard data that was in one of these
+> + * pages before the function was invoked.
+> + *
+> + * Return 0 when a page block is found on the caller specified free list.
+> + */
+> +int report_unused_page_block(struct zone *zone, unsigned int order,
+> +			     unsigned int migratetype, struct page **page)
+> +{
+> +	struct zone *this_zone;
+> +	struct list_head *this_list;
+> +	int ret = 0;
+> +	unsigned long flags;
+> +
+> +	/* Sanity check */
+> +	if (zone == NULL || page == NULL || order >= MAX_ORDER ||
+> +	    migratetype >= MIGRATE_TYPES)
+> +		return -EINVAL;
+> +
+> +	/* Zone validity check */
+> +	for_each_populated_zone(this_zone) {
+> +		if (zone == this_zone)
+> +			break;
+> +	}
+> +
+> +	/* Got a non-existent zone from the caller? */
+> +	if (zone != this_zone)
+> +		return -EINVAL;
+
+Huh, what do you check for here? Why don't you simply
+populated_zone(zone)?
+
+> +
+> +	spin_lock_irqsave(&this_zone->lock, flags);
+> +
+> +	this_list = &zone->free_area[order].free_list[migratetype];
+> +	if (list_empty(this_list)) {
+> +		*page = NULL;
+> +		ret = 1;
+> +		goto out;
+> +	}
+> +
+> +	/* The caller is asking for the first free page block on the list */
+> +	if ((*page) == NULL) {
+> +		*page = list_first_entry(this_list, struct page, lru);
+> +		ret = 0;
+> +		goto out;
+> +	}
+> +
+> +	/*
+> +	 * The page block passed from the caller is not on this free list
+> +	 * anymore (e.g. a 1MB free page block has been split). In this case,
+> +	 * offer the first page block on the free list that the caller is
+> +	 * asking for.
+> +	 */
+> +	if (PageBuddy(*page) && order != page_order(*page)) {
+> +		*page = list_first_entry(this_list, struct page, lru);
+> +		ret = 0;
+> +		goto out;
+> +	}
+> +
+> +	/*
+> +	 * The page block passed from the caller has been the last page block
+> +	 * on the list.
+> +	 */
+> +	if ((*page)->lru.next == this_list) {
+> +		*page = NULL;
+> +		ret = 1;
+> +		goto out;
+> +	}
+> +
+> +	/*
+> +	 * Finally, fall into the regular case: the page block passed from the
+> +	 * caller is still on the free list. Offer the next one.
+> +	 */
+> +	*page = list_next_entry((*page), lru);
+> +	ret = 0;
+> +out:
+> +	spin_unlock_irqrestore(&this_zone->lock, flags);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(report_unused_page_block);
+> +
+> +#endif
+> +
+>  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+>  {
+>  	zoneref->zone = zone;
+> -- 
+> 2.7.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
