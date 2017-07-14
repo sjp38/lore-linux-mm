@@ -1,74 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F4A440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 04:26:33 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r7so376733wrb.0
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 01:26:33 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D1059440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 04:31:17 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c81so8148796wmd.10
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 01:31:17 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f184si1642164wma.85.2017.07.14.01.26.32
+        by mx.google.com with ESMTPS id l202si1713012wmb.153.2017.07.14.01.31.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 01:26:32 -0700 (PDT)
-Date: Fri, 14 Jul 2017 10:26:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
- mappings
-Message-ID: <20170714082629.GA2618@dhcp22.suse.cz>
-References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
- <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
- <415625d2-1be9-71f0-ca11-a014cef98a3f@oracle.com>
+        Fri, 14 Jul 2017 01:31:16 -0700 (PDT)
+Date: Fri, 14 Jul 2017 09:31:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170714083114.zhaz3pszrklnrn52@suse.de>
+References: <D810A11D-1827-48C7-BA74-C1A6DCD80862@gmail.com>
+ <20170711092935.bogdb4oja6v7kilq@suse.de>
+ <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
+ <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
+ <20170711155312.637eyzpqeghcgqzp@suse.de>
+ <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <CALCETrXvkF3rxLijtou3ndSxG9vu62hrqh1ZXkaWgWbL-wd+cg@mail.gmail.com>
+ <1500015641.2865.81.camel@kernel.crashing.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <415625d2-1be9-71f0-ca11-a014cef98a3f@oracle.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1500015641.2865.81.camel@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, linux-mm@kvack.org
 
-On Thu 13-07-17 15:33:47, Mike Kravetz wrote:
-> On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
-> > [+CC linux-api]
+On Fri, Jul 14, 2017 at 05:00:41PM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2017-07-11 at 15:07 -0700, Andy Lutomirski wrote:
+> > On Tue, Jul 11, 2017 at 12:18 PM, Mel Gorman <mgorman@suse.de> wrote:
 > > 
-> > On 07/13/2017 05:58 PM, Mike Kravetz wrote:
-> >> mremap will create a 'duplicate' mapping if old_size == 0 is
-> >> specified.  Such duplicate mappings make no sense for private
-> >> mappings.  If duplication is attempted for a private mapping,
-> >> mremap creates a separate private mapping unrelated to the
-> >> original mapping and makes no modifications to the original.
-> >> This is contrary to the purpose of mremap which should return
-> >> a mapping which is in some way related to the original.
-> >>
-> >> Therefore, return EINVAL in the case where if an attempt is
-> >> made to duplicate a private mapping.
-> >>
-> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> > I would change this slightly:
 > > 
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > > +void flush_tlb_batched_pending(struct mm_struct *mm)
+> > > +{
+> > > +       if (mm->tlb_flush_batched) {
+> > > +               flush_tlb_mm(mm);
 > > 
+> > How about making this a new helper arch_tlbbatch_flush_one_mm(mm);
+> > The idea is that this could be implemented as flush_tlb_mm(mm), but
+> > the actual semantics needed are weaker.  All that's really needed
+> > AFAICS is to make sure that any arch_tlbbatch_add_mm() calls on this
+> > mm that have already happened become effective by the time that
+> > arch_tlbbatch_flush_one_mm() returns.
 > 
-> In another e-mail thread, Andrea makes the case that mremap(old_size == 0)
-> of private file backed mappings could possibly be used for something useful.
-> For example to create a private COW mapping.
+> Jumping in ... I just discovered that 'new' batching stuff... is it
+> documented anywhere ?
+> 
 
-What does this mean exactly? I do not see it would force CoW so again
-the new mapping could fail with the basic invariant that the content
-of the new mapping should match the old one (e.g. old mapping already
-CoWed some pages the new mapping would still contain the origin content
-unless I am missing something).
+This should be a new thread.
 
-[...]
-> +	/*
-> +	 * !old_len  is a special case where a mapping is 'duplicated'.
-> +	 * Do not allow this for private anon mappings.
-> +	 */
-> +	if (!old_len && vma_is_anonymous(vma) &&
-> +	    !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
-> +		return ERR_PTR(-EINVAL);
+The original commit log has many of the details and the comments have
+others. It's clearer what the boundaries are and what is needed from an
+architecture with Andy's work on top which right now is easier to see
+from tip/x86/mm
 
-Why is vma_is_anonymous() without VM_*SHARE* check insufficient?
+> We already had some form of batching via the mmu_gather, now there's a
+> different somewhat orthogonal and it's completely unclear what it's
+> about and why we couldn't use what we already had. Also what
+> assumptions it makes if I want to port it to my arch....
+> 
+
+The batching in this context is more about mm's than individual pages
+and was done this was as the number of mm's to track was potentially
+unbound. At the time of implementation, tracking individual pages and the
+extra bits for mmu_gather was overkill and fairly complex due to the need
+to potentiall restart when the gather structure filled.
+
+It may also be only a gain on a limited number of architectures depending
+on exactly how an architecture handles flushing. At the time, batching
+this for x86 in the worse-case scenario where all pages being reclaimed
+were mapped from multiple threads knocked 24.4% off elapsed run time and
+29% off system CPU but only on multi-socket NUMA machines. On UMA, it was
+barely noticable. For some workloads where only a few pages are mapped or
+the mapped pages on the LRU are relatively sparese, it'll make no difference.
+
+The worst-case situation is extremely IPI intensive on x86 where many
+IPIs were being sent for each unmap. It's only worth even considering if
+you see that the time spent sending IPIs for flushes is a large portion
+of reclaim.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
