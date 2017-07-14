@@ -1,86 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D2F92440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:34:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b11so8382345wmh.0
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:34:34 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4B5440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:36:54 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b11so8389378wmh.0
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:36:54 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u62si5961251wrc.312.2017.07.14.02.34.33
+        by mx.google.com with ESMTPS id 64si1823549wmc.171.2017.07.14.02.36.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 02:34:33 -0700 (PDT)
-Subject: Re: "mm: use early_pfn_to_nid in page_ext_init" broken on some
- configurations?
-References: <20170630141847.GN22917@dhcp22.suse.cz>
- <54336b9a-6dc7-890f-1900-c4188fb6cf1a@suse.cz>
- <20170704051713.GB28589@js1304-desktop>
- <31ca76ee-fd1a-236b-2b9d-fa205202c1ac@suse.cz>
- <20170714091304.GC2618@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <18f28347-af10-0726-5a62-0dd1afdbd2a9@suse.cz>
-Date: Fri, 14 Jul 2017 11:34:31 +0200
+        Fri, 14 Jul 2017 02:36:53 -0700 (PDT)
+Date: Fri, 14 Jul 2017 10:36:50 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/9] mm, page_alloc: rip out ZONELIST_ORDER_ZONE
+Message-ID: <20170714093650.l67vbem2g4typkta@suse.de>
+References: <20170714080006.7250-1-mhocko@kernel.org>
+ <20170714080006.7250-2-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20170714091304.GC2618@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170714080006.7250-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Yang Shi <yang.shi@linaro.org>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-api@vger.kernel.org
 
-On 07/14/2017 11:13 AM, Michal Hocko wrote:
-> On Fri 07-07-17 14:00:03, Vlastimil Babka wrote:
->> On 07/04/2017 07:17 AM, Joonsoo Kim wrote:
->>>>
->>>> Still, backporting b8f1a75d61d8 fixes this:
->>>>
->>>> [    1.538379] allocated 738197504 bytes of page_ext
->>>> [    1.539340] Node 0, zone      DMA: page owner found early allocated 0 pages
->>>> [    1.540179] Node 0, zone    DMA32: page owner found early allocated 33 pages
->>>> [    1.611173] Node 0, zone   Normal: page owner found early allocated 96755 pages
->>>> [    1.683167] Node 1, zone   Normal: page owner found early allocated 96575 pages
->>>>
->>>> No panic, notice how it allocated more for page_ext, and found smaller number of
->>>> early allocated pages.
->>>>
->>>> Now backporting fe53ca54270a on top:
->>>>
->>>> [    0.000000] allocated 738197504 bytes of page_ext
->>>> [    0.000000] Node 0, zone      DMA: page owner found early allocated 0 pages
->>>> [    0.000000] Node 0, zone    DMA32: page owner found early allocated 33 pages
->>>> [    0.000000] Node 0, zone   Normal: page owner found early allocated 2842622 pages
->>>> [    0.000000] Node 1, zone   Normal: page owner found early allocated 3694362 pages
->>>>
->>>> Again no panic, and same amount of page_ext usage. But the "early allocated" numbers
->>>> seem bogus to me. I think it's because init_pages_in_zone() is running and inspecting
->>>> struct pages that have not been yet initialized. It doesn't end up crashing, but
->>>> still doesn't seem correct?
->>>
->>> Numbers looks sane to me. fe53ca54270a makes init_pages_in_zone()
->>> called before page_alloc_init_late(). So, there would be many
->>> uninitialized pages with PageReserved(). Page owner regarded these
->>> PageReserved() page as allocated page.
->>
->> That seems incorrect for two reasons:
->> - init_pages_in_zone() actually skips PageReserved() pages
->> - the pages don't have PageReserved() flag, until the deferred struct page init
->> thread processes them via deferred_init_memmap() -> __init_single_page() AFAICS
->>
->> Now I've found out why upstream reports much less early allocated pages than our
->> kernel. We're missing 9d43f5aec950 ("mm/page_owner: add zone range overlapping
->> check") which adds a "page_zone(page) != zone" check. I think this only works
->> because the pages are not initialized and thus have no nid/zone links. Probably
->> page_zone() only doesn't break because it's all zeroed. I don't think it's safe
->> to rely on this?
+On Fri, Jul 14, 2017 at 09:59:58AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Yes, if anything PageReserved should be checked before the zone check.
+> Supporting zone ordered zonelists costs us just a lot of code while
+> the usefulness is arguable if existent at all. Mel has already made
+> node ordering default on 64b systems. 32b systems are still using
+> ZONELIST_ORDER_ZONE because it is considered better to fallback to
+> a different NUMA node rather than consume precious lowmem zones.
+> 
+> This argument is, however, weaken by the fact that the memory reclaim
+> has been reworked to be node rather than zone oriented. This means
+> that lowmem requests have to skip over all highmem pages on LRUs already
+> and so zone ordering doesn't save the reclaim time much. So the only
+> advantage of the zone ordering is under a light memory pressure when
+> highmem requests do not ever hit into lowmem zones and the lowmem
+> pressure doesn't need to reclaim.
+> 
+> Considering that 32b NUMA systems are rather suboptimal already and
+> it is generally advisable to use 64b kernel on such a HW I believe we
+> should rather care about the code maintainability and just get rid of
+> ZONELIST_ORDER_ZONE altogether. Keep systcl in place and warn if
+> somebody tries to set zone ordering either from kernel command line
+> or the sysctl.
+> 
+> Cc: <linux-api@vger.kernel.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> index 80e4adb4c360..d9f4ea057e74 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4864,40 +4824,22 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
+>  		void __user *buffer, size_t *length,
+>  		loff_t *ppos)
+>  {
+> -	char saved_string[NUMA_ZONELIST_ORDER_LEN];
+> +	char *str;
+>  	int ret;
+> -	static DEFINE_MUTEX(zl_order_mutex);
+>  
+> -	mutex_lock(&zl_order_mutex);
+> -	if (write) {
+> -		if (strlen((char *)table->data) >= NUMA_ZONELIST_ORDER_LEN) {
+> -			ret = -EINVAL;
+> -			goto out;
+> -		}
+> -		strcpy(saved_string, (char *)table->data);
+> +	if (!write) {
+> +		int len = sizeof("Default");
+> +		if (copy_to_user(buffer, "Default", len))
+> +			return -EFAULT;
+> +		return len;
+>  	}
 
-That wouldn't change anything, because we skip PageReserved and it's not
-set. Perhaps we could skip pages that have the raw page flags value
-zero, but then a) we should make sure that the allocation of the struct
-page array zeroes the range, and b) the first modification of struct
-page in the initialization is setting the PageReserved flag.
+That should to be "default" because the original code would have the proc
+entry display "default" unless it was set at runtime. Pretty weird I
+know but it's always possible someone is parsing the original default
+and not handling it properly.
+
+Otherwise I think we're way past the point where large memory 32-bit
+NUMA machines are a thing so
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
