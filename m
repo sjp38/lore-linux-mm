@@ -1,126 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D163F440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:31:28 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id a142so6308634oii.5
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:31:28 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id z70si6087293oia.152.2017.07.14.02.31.27
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D2F92440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:34:34 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b11so8382345wmh.0
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:34:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u62si5961251wrc.312.2017.07.14.02.34.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jul 2017 02:31:27 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v8 06/10] mm: thp: check pmd migration entry in common
- path
-Date: Fri, 14 Jul 2017 09:29:43 +0000
-Message-ID: <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170701134008.110579-1-zi.yan@sent.com>
- <20170701134008.110579-7-zi.yan@sent.com>
-In-Reply-To: <20170701134008.110579-7-zi.yan@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <5C963B16EB7721409607A6564AF92E06@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Jul 2017 02:34:33 -0700 (PDT)
+Subject: Re: "mm: use early_pfn_to_nid in page_ext_init" broken on some
+ configurations?
+References: <20170630141847.GN22917@dhcp22.suse.cz>
+ <54336b9a-6dc7-890f-1900-c4188fb6cf1a@suse.cz>
+ <20170704051713.GB28589@js1304-desktop>
+ <31ca76ee-fd1a-236b-2b9d-fa205202c1ac@suse.cz>
+ <20170714091304.GC2618@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <18f28347-af10-0726-5a62-0dd1afdbd2a9@suse.cz>
+Date: Fri, 14 Jul 2017 11:34:31 +0200
 MIME-Version: 1.0
+In-Reply-To: <20170714091304.GC2618@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Yang Shi <yang.shi@linaro.org>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Jul 01, 2017 at 09:40:04AM -0400, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
->=20
-> If one of callers of page migration starts to handle thp,
-> memory management code start to see pmd migration entry, so we need
-> to prepare for it before enabling. This patch changes various code
-> point which checks the status of given pmds in order to prevent race
-> between thp migration and the pmd-related works.
->=20
-> ChangeLog v1 -> v2:
-> - introduce pmd_related() (I know the naming is not good, but can't
->   think up no better name. Any suggesntion is welcomed.)
->=20
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->=20
-> ChangeLog v2 -> v3:
-> - add is_swap_pmd()
-> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
->   pmd_trans_huge(), pmd_devmap(), or pmd_none()
-> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() return
->   true on pmd_migration_entry, so that migration entries are not
->   treated as pmd page table entries.
->=20
-> ChangeLog v4 -> v5:
-> - add explanation in pmd_none_or_trans_huge_or_clear_bad() to state
->   the equivalence of !pmd_present() and is_pmd_migration_entry()
-> - fix migration entry wait deadlock code (from v1) in follow_page_mask()
-> - remove unnecessary code (from v1) in follow_trans_huge_pmd()
-> - use is_swap_pmd() instead of !pmd_present() for pmd migration entry,
->   so it will not be confused with pmd_none()
-> - change author information
->=20
-> ChangeLog v5 -> v7
-> - use macro to disable the code when thp migration is not enabled
->=20
-> ChangeLog v7 -> v8
-> - remove not used code in do_huge_pmd_wp_page()
-> - copy the comment from change_pte_range() on downgrading
->   write migration entry to read to change_huge_pmd()
->=20
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/mm/gup.c             |  7 +++--
->  fs/proc/task_mmu.c            | 33 ++++++++++++++-------
->  include/asm-generic/pgtable.h | 17 ++++++++++-
->  include/linux/huge_mm.h       | 14 +++++++--
->  mm/gup.c                      | 22 ++++++++++++--
->  mm/huge_memory.c              | 67 +++++++++++++++++++++++++++++++++++++=
-++----
->  mm/memcontrol.c               |  5 ++++
->  mm/memory.c                   | 12 ++++++--
->  mm/mprotect.c                 |  4 +--
->  mm/mremap.c                   |  2 +-
->  10 files changed, 154 insertions(+), 29 deletions(-)
->=20
-> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-> index 456dfdfd2249..096bbcc801e6 100644
-> --- a/arch/x86/mm/gup.c
-> +++ b/arch/x86/mm/gup.c
-> @@ -9,6 +9,7 @@
->  #include <linux/vmstat.h>
->  #include <linux/highmem.h>
->  #include <linux/swap.h>
-> +#include <linux/swapops.h>
->  #include <linux/memremap.h>
-> =20
->  #include <asm/mmu_context.h>
-> @@ -243,9 +244,11 @@ static int gup_pmd_range(pud_t pud, unsigned long ad=
-dr, unsigned long end,
->  		pmd_t pmd =3D *pmdp;
-> =20
->  		next =3D pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd)) {
-> +			VM_BUG_ON(is_swap_pmd(pmd) && IS_ENABLED(CONFIG_MIGRATION) &&
-> +					  !is_pmd_migration_entry(pmd));
+On 07/14/2017 11:13 AM, Michal Hocko wrote:
+> On Fri 07-07-17 14:00:03, Vlastimil Babka wrote:
+>> On 07/04/2017 07:17 AM, Joonsoo Kim wrote:
+>>>>
+>>>> Still, backporting b8f1a75d61d8 fixes this:
+>>>>
+>>>> [    1.538379] allocated 738197504 bytes of page_ext
+>>>> [    1.539340] Node 0, zone      DMA: page owner found early allocated 0 pages
+>>>> [    1.540179] Node 0, zone    DMA32: page owner found early allocated 33 pages
+>>>> [    1.611173] Node 0, zone   Normal: page owner found early allocated 96755 pages
+>>>> [    1.683167] Node 1, zone   Normal: page owner found early allocated 96575 pages
+>>>>
+>>>> No panic, notice how it allocated more for page_ext, and found smaller number of
+>>>> early allocated pages.
+>>>>
+>>>> Now backporting fe53ca54270a on top:
+>>>>
+>>>> [    0.000000] allocated 738197504 bytes of page_ext
+>>>> [    0.000000] Node 0, zone      DMA: page owner found early allocated 0 pages
+>>>> [    0.000000] Node 0, zone    DMA32: page owner found early allocated 33 pages
+>>>> [    0.000000] Node 0, zone   Normal: page owner found early allocated 2842622 pages
+>>>> [    0.000000] Node 1, zone   Normal: page owner found early allocated 3694362 pages
+>>>>
+>>>> Again no panic, and same amount of page_ext usage. But the "early allocated" numbers
+>>>> seem bogus to me. I think it's because init_pages_in_zone() is running and inspecting
+>>>> struct pages that have not been yet initialized. It doesn't end up crashing, but
+>>>> still doesn't seem correct?
+>>>
+>>> Numbers looks sane to me. fe53ca54270a makes init_pages_in_zone()
+>>> called before page_alloc_init_late(). So, there would be many
+>>> uninitialized pages with PageReserved(). Page owner regarded these
+>>> PageReserved() page as allocated page.
+>>
+>> That seems incorrect for two reasons:
+>> - init_pages_in_zone() actually skips PageReserved() pages
+>> - the pages don't have PageReserved() flag, until the deferred struct page init
+>> thread processes them via deferred_init_memmap() -> __init_single_page() AFAICS
+>>
+>> Now I've found out why upstream reports much less early allocated pages than our
+>> kernel. We're missing 9d43f5aec950 ("mm/page_owner: add zone range overlapping
+>> check") which adds a "page_zone(page) != zone" check. I think this only works
+>> because the pages are not initialized and thus have no nid/zone links. Probably
+>> page_zone() only doesn't break because it's all zeroed. I don't think it's safe
+>> to rely on this?
+> 
+> Yes, if anything PageReserved should be checked before the zone check.
 
-This VM_BUG_ON() triggers when gup is called on hugetlb hwpoison entry.
-I think that in such case kernel falls into the gup slow path, and
-a page fault in follow_hugetlb_page() can properly report the error to
-affected processes, so no need to alarm with BUG_ON.
-
-Could you make this VM_BUG_ON more specific, or just remove it?
-
-Thanks,
-Naoya Horiguchi
-
->  			return 0;
-> -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
-> +		} else if (unlikely(pmd_large(pmd))) {
->  			/*
->  			 * NUMA hinting faults need to be handled in the GUP
->  			 * slowpath for accounting purposes and so that they
+That wouldn't change anything, because we skip PageReserved and it's not
+set. Perhaps we could skip pages that have the raw page flags value
+zero, but then a) we should make sure that the allocation of the struct
+page array zeroes the range, and b) the first modification of struct
+page in the initialization is setting the PageReserved flag.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
