@@ -1,93 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B36264408E5
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:13:55 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id r74so6049413oie.1
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 23:13:55 -0700 (PDT)
-Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
-        by mx.google.com with ESMTPS id a22si5632099oib.276.2017.07.13.23.13.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jul 2017 23:13:54 -0700 (PDT)
-Received: by mail-oi0-x22f.google.com with SMTP id x187so63944430oig.3
-        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 23:13:54 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE3EC4408E5
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:43:02 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z10so78943768pff.1
+        for <linux-mm@kvack.org>; Thu, 13 Jul 2017 23:43:02 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 1si5948852pgt.572.2017.07.13.23.43.01
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jul 2017 23:43:01 -0700 (PDT)
+Date: Fri, 14 Jul 2017 15:42:10 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
+ buffer overwrite
+Message-ID: <20170714064210.GK20323@X58A-UD3R>
+References: <20170712020053.GB20323@X58A-UD3R>
+ <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
+ <20170713020745.GG20323@X58A-UD3R>
+ <20170713081442.GA439@worktop>
+ <20170713085746.GH20323@X58A-UD3R>
+ <20170713095052.dssev34f7c43vlok@hirez.programming.kicks-ass.net>
+ <20170713100953.GI20323@X58A-UD3R>
+ <20170713102905.ysrvn7td6ryt4jaj@hirez.programming.kicks-ass.net>
+ <20170713111209.ji6w3trt45icpuf6@hirez.programming.kicks-ass.net>
+ <CANrsvRMZ=i+L1sQzPiMVzpTOduNnTw_gKqcNkBVWPdpDs5fQZA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <c7160aca-a203-e3d8-eb49-b051aff78f0e@google.com>
-References: <20170706220114.142438-1-ghackmann@google.com> <20170706220114.142438-2-ghackmann@google.com>
- <CACT4Y+YWLc3n-PBcD1Cmu_FLGSDd+vyTTyeBamk2bBZhdWJSoA@mail.gmail.com> <c7160aca-a203-e3d8-eb49-b051aff78f0e@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 14 Jul 2017 08:13:33 +0200
-Message-ID: <CACT4Y+Yo1gKVJQF74kG5gZ60Qmzo65=6NLnN69ybd+QtzfAi1w@mail.gmail.com>
-Subject: Re: [PATCH 1/4] kasan: support alloca() poisoning
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANrsvRMZ=i+L1sQzPiMVzpTOduNnTw_gKqcNkBVWPdpDs5fQZA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Hackmann <ghackmann@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>
+To: Byungchul Park <max.byungchul.park@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, Michel Lespinasse <walken@google.com>, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Fri, Jul 14, 2017 at 12:40 AM, Greg Hackmann <ghackmann@google.com> wrote:
-> Hi,
->
-> Thanks for taking a look at this patchstack.  I apologize for the delay in
-> responding.
->
-> On 07/10/2017 01:44 AM, Dmitry Vyukov wrote:
->>>
->>> +
->>> +       const void *left_redzone = (const void *)(addr -
->>> +                       KASAN_ALLOCA_REDZONE_SIZE);
->>> +       const void *right_redzone = (const void *)(addr +
->>> rounded_up_size);
->>
->>
->> Please check that size is rounded to KASAN_ALLOCA_REDZONE_SIZE. That's
->> the expectation, right? That can change is clang silently.
->>
->>> +       kasan_poison_shadow(left_redzone, KASAN_ALLOCA_REDZONE_SIZE,
->>> +                       KASAN_ALLOCA_LEFT);
->>> +       kasan_poison_shadow(right_redzone,
->>> +                       padding_size + KASAN_ALLOCA_REDZONE_SIZE,
->>> +                       KASAN_ALLOCA_RIGHT);
->>
->>
->> We also need to poison the unaligned part at the end of the object
->> from size to rounded_up_size. You can see how we do it for heap
->> objects.
->
->
-> The expectation is that `size' is the exact size of the alloca()ed object.
-> `rounded_up_size' then adds the 0-7 bytes needed to adjust the size to the
-> ASAN shadow scale.  So `addr + rounded_up_size' should be the correct place
-> to start poisoning.
+On Thu, Jul 13, 2017 at 08:23:33PM +0900, Byungchul Park wrote:
+> On Thu, Jul 13, 2017 at 8:12 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > On Thu, Jul 13, 2017 at 12:29:05PM +0200, Peter Zijlstra wrote:
+> >> On Thu, Jul 13, 2017 at 07:09:53PM +0900, Byungchul Park wrote:
+> >> > On Thu, Jul 13, 2017 at 11:50:52AM +0200, Peter Zijlstra wrote:
+> >> > >   wait_for_completion(&C);
+> >> > >     atomic_inc_return();
+> >> > >
+> >> > >                                   mutex_lock(A1);
+> >> > >                                   mutex_unlock(A1);
+> >> > >
+> >> > >
+> >> > >                                   <IRQ>
+> >> > >                                     spin_lock(B1);
+> >> > >                                     spin_unlock(B1);
+> >> > >
+> >> > >                                     ...
+> >> > >
+> >> > >                                     spin_lock(B64);
+> >> > >                                     spin_unlock(B64);
+> >> > >                                   </IRQ>
+> >> > >
+> >> > >
+> >
+> > Also consider the alternative:
+> >
+> >                                         <IRQ>
+> >                                           spin_lock(D);
+> >                                           spin_unlock(D);
+> >
+> >                                           complete(&C);
+> >                                         </IRQ>
+> >
+> > in which case the context test will also not work.
+> 
+> Context tests are done on xhlock with the release context, _not_
+> acquisition context. For example, spin_lock(D) and complete(&C) are
+> in the same context, so the test would pass in this example.
 
-
-We need to start poisoning at addr+size exactly.
-Asan shadow scheme supports this. It's not possible to poison
-beginning of an aligned 8-byte block, but leave tail unpoisoned. But
-it is possible to poison tail of an aligned 8-byte block and leave
-beginning unpoisoned. Look at what we do for kmalloc.
-
-
-> In retrospect this part of the code was pretty confusing.  How about this?
-> I think its intent is clearer, plus it's a closer match for the description
-> in my commit message:
->
->         unsigned long left_redzone_start;
->         unsigned long object_end;
->         unsigned long right_redzone_start, right_redzone_end;
->
->         left_redzone_start = addr - KASAN_ALLOCA_REDZONE_SIZE;
->         kasan_poison_shadow((const void *)left_redzone_start,
->                         KASAN_ALLOCA_REDZONE_SIZE,
->                         KASAN_ALLOCA_LEFT);
->
->         object_end = round_up(addr + size, KASAN_SHADOW_SCALE_SIZE);
->         right_redzone_start = round_up(object_end,
-> KASAN_ALLOCA_REDZONE_SIZE);
->         right_redzone_end = right_redzone_start + KASAN_ALLOCA_REDZONE_SIZE;
->         kasan_poison_shadow((const void *)object_end,
->                         right_redzone_end - object_end,
->                         KASAN_ALLOCA_RIGHT);
+I think you got confused. Or do I?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
