@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5287E44093F
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 88E6044093E
 	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 18:16:11 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id m68so122861357ith.1
+Received: by mail-io0-f198.google.com with SMTP id f1so28704418ioj.11
         for <linux-mm@kvack.org>; Fri, 14 Jul 2017 15:16:11 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j125si3257300ith.0.2017.07.14.15.16.10
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y3si13755555ioe.11.2017.07.14.15.16.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 14 Jul 2017 15:16:10 -0700 (PDT)
 From: daniel.m.jordan@oracle.com
-Subject: [RFC PATCH v1 4/6] mm: enlarge type of offset argument in mem_map_offset and mem_map_next
-Date: Fri, 14 Jul 2017 15:16:11 -0700
-Message-Id: <1500070573-3948-5-git-send-email-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v1 3/6] ktask: add /proc/sys/debug/ktask_max_threads
+Date: Fri, 14 Jul 2017 15:16:10 -0700
+Message-Id: <1500070573-3948-4-git-send-email-daniel.m.jordan@oracle.com>
 In-Reply-To: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
 References: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Changes the type of 'offset' from int to unsigned long in both
-mem_map_offset and mem_map_next.
-
-This facilitates ktask's use of mem_map_next with its unsigned long
-types to avoid silent truncation when these unsigned longs are passed as
-ints.
-
-It also fixes the preexisting truncation of 'offset' from unsigned long
-to int by the sole caller of mem_map_offset, follow_hugetlb_page.
+Adds a proc file to control the maximum number of ktask threads in use
+for any one job.  Its primary use is to aid in debugging.
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- mm/internal.h |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
+ kernel/sysctl.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 0e4f558..96d9669 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -365,7 +365,8 @@ static inline void mlock_migrate_page(struct page *new, struct page *old) { }
-  * the maximally aligned gigantic page 'base'.  Handle any discontiguity
-  * in the mem_map at MAX_ORDER_NR_PAGES boundaries.
-  */
--static inline struct page *mem_map_offset(struct page *base, int offset)
-+static inline struct page *mem_map_offset(struct page *base,
-+					  unsigned long offset)
- {
- 	if (unlikely(offset >= MAX_ORDER_NR_PAGES))
- 		return nth_page(base, offset);
-@@ -376,8 +377,8 @@ static inline void mlock_migrate_page(struct page *new, struct page *old) { }
-  * Iterator over all subpages within the maximally aligned gigantic
-  * page 'base'.  Handle any discontiguity in the mem_map.
-  */
--static inline struct page *mem_map_next(struct page *iter,
--						struct page *base, int offset)
-+static inline struct page *mem_map_next(struct page *iter, struct page *base,
-+					unsigned long offset)
- {
- 	if (unlikely((offset & (MAX_ORDER_NR_PAGES - 1)) == 0)) {
- 		unsigned long pfn = page_to_pfn(base) + offset;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 4dfba1a..7fe142b 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -67,6 +67,7 @@
+ #include <linux/kexec.h>
+ #include <linux/bpf.h>
+ #include <linux/mount.h>
++#include <linux/ktask_internal.h>
+ 
+ #include <linux/uaccess.h>
+ #include <asm/processor.h>
+@@ -1850,6 +1851,15 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
+ 		.extra2		= &one,
+ 	},
+ #endif
++#if defined(CONFIG_KTASK)
++	{
++		.procname	= "ktask_max_threads",
++		.data		= &ktask_max_threads,
++		.maxlen		= sizeof(ktask_max_threads),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++#endif
+ 	{ }
+ };
+ 
 -- 
 1.7.1
 
