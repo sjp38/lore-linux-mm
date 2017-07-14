@@ -1,107 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E60A9440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 13:29:10 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n42so40128642qtn.10
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 10:29:10 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id q5si8106963qkd.61.2017.07.14.10.29.09
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A4BAE440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 14:29:10 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id g53so40783926qtc.6
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 11:29:10 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id l41si8440769qtf.200.2017.07.14.11.29.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jul 2017 10:29:09 -0700 (PDT)
-Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
- mappings
-References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
- <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
- <415625d2-1be9-71f0-ca11-a014cef98a3f@oracle.com>
- <20170714082629.GA2618@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <146116f3-c318-efc0-de40-f67655cbbf94@oracle.com>
-Date: Fri, 14 Jul 2017 10:29:01 -0700
+        Fri, 14 Jul 2017 11:29:09 -0700 (PDT)
+From: "Zi Yan" <zi.yan@sent.com>
+Subject: Re: [PATCH v8 06/10] mm: thp: check pmd migration entry in common
+ path
+Date: Fri, 14 Jul 2017 14:29:07 -0400
+Message-ID: <3144A36B-4C90-4BEF-B4A7-3658D37DE618@sent.com>
+In-Reply-To: <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170701134008.110579-1-zi.yan@sent.com>
+ <20170701134008.110579-7-zi.yan@sent.com>
+ <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170714082629.GA2618@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed;
+ boundary="=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
 
-On 07/14/2017 01:26 AM, Michal Hocko wrote:
-> On Thu 13-07-17 15:33:47, Mike Kravetz wrote:
->> On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
->>> [+CC linux-api]
->>>
->>> On 07/13/2017 05:58 PM, Mike Kravetz wrote:
->>>> mremap will create a 'duplicate' mapping if old_size == 0 is
->>>> specified.  Such duplicate mappings make no sense for private
->>>> mappings.  If duplication is attempted for a private mapping,
->>>> mremap creates a separate private mapping unrelated to the
->>>> original mapping and makes no modifications to the original.
->>>> This is contrary to the purpose of mremap which should return
->>>> a mapping which is in some way related to the original.
->>>>
->>>> Therefore, return EINVAL in the case where if an attempt is
->>>> made to duplicate a private mapping.
->>>>
->>>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->>>
->>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>>
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+
+--=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
+
+On 14 Jul 2017, at 5:29, Naoya Horiguchi wrote:
+
+> On Sat, Jul 01, 2017 at 09:40:04AM -0400, Zi Yan wrote:
+>> From: Zi Yan <zi.yan@cs.rutgers.edu>
 >>
->> In another e-mail thread, Andrea makes the case that mremap(old_size == 0)
->> of private file backed mappings could possibly be used for something useful.
->> For example to create a private COW mapping.
-> 
-> What does this mean exactly? I do not see it would force CoW so again
-> the new mapping could fail with the basic invariant that the content
-> of the new mapping should match the old one (e.g. old mapping already
-> CoWed some pages the new mapping would still contain the origin content
-> unless I am missing something).
+>> If one of callers of page migration starts to handle thp,
+>> memory management code start to see pmd migration entry, so we need
+>> to prepare for it before enabling. This patch changes various code
+>> point which checks the status of given pmds in order to prevent race
+>> between thp migration and the pmd-related works.
+>>
+>> ChangeLog v1 -> v2:
+>> - introduce pmd_related() (I know the naming is not good, but can't
+>>   think up no better name. Any suggesntion is welcomed.)
+>>
+>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>
+>> ChangeLog v2 -> v3:
+>> - add is_swap_pmd()
+>> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
+>>   pmd_trans_huge(), pmd_devmap(), or pmd_none()
+>> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() retur=
+n
+>>   true on pmd_migration_entry, so that migration entries are not
+>>   treated as pmd page table entries.
+>>
+>> ChangeLog v4 -> v5:
+>> - add explanation in pmd_none_or_trans_huge_or_clear_bad() to state
+>>   the equivalence of !pmd_present() and is_pmd_migration_entry()
+>> - fix migration entry wait deadlock code (from v1) in follow_page_mask=
+()
+>> - remove unnecessary code (from v1) in follow_trans_huge_pmd()
+>> - use is_swap_pmd() instead of !pmd_present() for pmd migration entry,=
 
-I do not think you are missing anything.  You are correct in saying that
-the new mapping would be COW of the original file contents.  It is NOT
-based on any private pages of the old private mapping.  Sorry, my wording
-above was not quite clear.
+>>   so it will not be confused with pmd_none()
+>> - change author information
+>>
+>> ChangeLog v5 -> v7
+>> - use macro to disable the code when thp migration is not enabled
+>>
+>> ChangeLog v7 -> v8
+>> - remove not used code in do_huge_pmd_wp_page()
+>> - copy the comment from change_pte_range() on downgrading
+>>   write migration entry to read to change_huge_pmd()
+>>
+>> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+>> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> ---
+>>  arch/x86/mm/gup.c             |  7 +++--
+>>  fs/proc/task_mmu.c            | 33 ++++++++++++++-------
+>>  include/asm-generic/pgtable.h | 17 ++++++++++-
+>>  include/linux/huge_mm.h       | 14 +++++++--
+>>  mm/gup.c                      | 22 ++++++++++++--
+>>  mm/huge_memory.c              | 67 ++++++++++++++++++++++++++++++++++=
++++++----
+>>  mm/memcontrol.c               |  5 ++++
+>>  mm/memory.c                   | 12 ++++++--
+>>  mm/mprotect.c                 |  4 +--
+>>  mm/mremap.c                   |  2 +-
+>>  10 files changed, 154 insertions(+), 29 deletions(-)
+>>
+>> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+>> index 456dfdfd2249..096bbcc801e6 100644
+>> --- a/arch/x86/mm/gup.c
+>> +++ b/arch/x86/mm/gup.c
+>> @@ -9,6 +9,7 @@
+>>  #include <linux/vmstat.h>
+>>  #include <linux/highmem.h>
+>>  #include <linux/swap.h>
+>> +#include <linux/swapops.h>
+>>  #include <linux/memremap.h>
+>>
+>>  #include <asm/mmu_context.h>
+>> @@ -243,9 +244,11 @@ static int gup_pmd_range(pud_t pud, unsigned long=
+ addr, unsigned long end,
+>>  		pmd_t pmd =3D *pmdp;
+>>
+>>  		next =3D pmd_addr_end(addr, end);
+>> -		if (pmd_none(pmd))
+>> +		if (!pmd_present(pmd)) {
+>> +			VM_BUG_ON(is_swap_pmd(pmd) && IS_ENABLED(CONFIG_MIGRATION) &&
+>> +					  !is_pmd_migration_entry(pmd));
+>
+> This VM_BUG_ON() triggers when gup is called on hugetlb hwpoison entry.=
 
-As previously discussed, the more straight forward to way to accomplish
-the same thing would be a simple call to mmap with the fd.
+> I think that in such case kernel falls into the gup slow path, and
+> a page fault in follow_hugetlb_page() can properly report the error to
+> affected processes, so no need to alarm with BUG_ON.
+>
+> Could you make this VM_BUG_ON more specific, or just remove it?
 
-After thinking about this some more, perhaps the original patch to return
-EINVAL for all private mappings makes more sense.  Even in the case of a
-file backed private mapping, the new mapping will be based on the file and
-not the old mapping.  The purpose of mremap is to create a new mapping
-based on the old mapping.  So, this is not strictly in line with the purpose
-of mremap.
+I will remove it, since adding code to detect hugetlb hwpoison entry
+to existing VM_BUG_ON() will be quite messy.
 
-Actually, the more I think about this, the more I wish there was some way
-to deprecate and eventually eliminate the old_size == 0 behavior.
+Thanks for pointing this out.
 
-> [...]
->> +	/*
->> +	 * !old_len  is a special case where a mapping is 'duplicated'.
->> +	 * Do not allow this for private anon mappings.
->> +	 */
->> +	if (!old_len && vma_is_anonymous(vma) &&
->> +	    !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
->> +		return ERR_PTR(-EINVAL);
-> 
-> Why is vma_is_anonymous() without VM_*SHARE* check insufficient?
+--
+Best Regards
+Yan Zi
 
-Are you asking,
-why is if (!old_len && vma_is_anonymous(vma)) insufficient?
+--=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
 
-If so, you are correct that the additional check for VM_*SHARE* is not
-necessary.  Shared mappings are technically not anonymous as they must
-contain a common backing object.
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
 
-The !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE) check was there in the first
-patch to catch all private mappings.  When adding vma_is_anonymous(vma), I
-missed the fact that it was redundant.  But, based on your comments above
-I think the first patch is more correct.
+iQEcBAEBCgAGBQJZaQ1zAAoJEEGLLxGcTqbMk8cH/0C8SZ75UHrk0e8/ETXdRoVu
+Ro3WvxjQFNUjdPE7Z7AgrUWLLvVTe+RekVV3CuNRHKXs0rl7Zxw2oATlrR/YUTQw
+E8AjB092K1buEOOvec0eHmiWffWacaTzwTGLcgrr6Z1fJXYAcLh67xMq0i9vkyaM
+TiHd5RVjvMzYX8ntDJqri+7rz/DqrUmqJ0EUSQxLwkVIbBFBQwv07tbtoIJrM6XP
+7qZkY7dLtJps3i//wVzRd5VbH3jBujZabOjPl4+3Qz0fFeVUB19AByYuKkQC0szy
+QDT0D7PeuiFsAPvi1gSACGQs0GVeyK+vVXGHxxcuUJIgQ2hJh/SPBbpVakDMAeg=
+=ttWN
+-----END PGP SIGNATURE-----
 
--- 
-Mike Kravetz
+--=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
