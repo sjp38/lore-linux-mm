@@ -1,75 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A28440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:27:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g46so10835114wrd.3
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:27:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x73si1817680wma.0.2017.07.14.02.27.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D163F440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:31:28 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a142so6308634oii.5
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 02:31:28 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id z70si6087293oia.152.2017.07.14.02.31.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 02:27:49 -0700 (PDT)
-Date: Fri, 14 Jul 2017 10:27:47 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Potential race in TLB flush batching?
-Message-ID: <20170714092747.ebytils6c65zporo@suse.de>
-References: <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
- <20170711132023.wdfpjxwtbqpi3wp2@suse.de>
- <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
- <20170711155312.637eyzpqeghcgqzp@suse.de>
- <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
- <20170711191823.qthrmdgqcd3rygjk@suse.de>
- <CALCETrXvkF3rxLijtou3ndSxG9vu62hrqh1ZXkaWgWbL-wd+cg@mail.gmail.com>
- <1500015641.2865.81.camel@kernel.crashing.org>
- <20170714083114.zhaz3pszrklnrn52@suse.de>
- <1500022977.2865.88.camel@kernel.crashing.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Jul 2017 02:31:27 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v8 06/10] mm: thp: check pmd migration entry in common
+ path
+Date: Fri, 14 Jul 2017 09:29:43 +0000
+Message-ID: <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170701134008.110579-1-zi.yan@sent.com>
+ <20170701134008.110579-7-zi.yan@sent.com>
+In-Reply-To: <20170701134008.110579-7-zi.yan@sent.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <5C963B16EB7721409607A6564AF92E06@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1500022977.2865.88.camel@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Zi Yan <zi.yan@sent.com>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "zi.yan@cs.rutgers.edu" <zi.yan@cs.rutgers.edu>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
 
-On Fri, Jul 14, 2017 at 07:02:57PM +1000, Benjamin Herrenschmidt wrote:
-> On Fri, 2017-07-14 at 09:31 +0100, Mel Gorman wrote:
-> > It may also be only a gain on a limited number of architectures depending
-> > on exactly how an architecture handles flushing. At the time, batching
-> > this for x86 in the worse-case scenario where all pages being reclaimed
-> > were mapped from multiple threads knocked 24.4% off elapsed run time and
-> > 29% off system CPU but only on multi-socket NUMA machines. On UMA, it was
-> > barely noticable. For some workloads where only a few pages are mapped or
-> > the mapped pages on the LRU are relatively sparese, it'll make no difference.
-> > 
-> > The worst-case situation is extremely IPI intensive on x86 where many
-> > IPIs were being sent for each unmap. It's only worth even considering if
-> > you see that the time spent sending IPIs for flushes is a large portion
-> > of reclaim.
-> 
-> Ok, it would be interesting to see how that compares to powerpc with
-> its HW tlb invalidation broadcasts. We tend to hate them and prefer
-> IPIs in most cases but maybe not *this* case .. (mostly we find that
-> IPI + local inval is better for large scale invals, such as full mm on
-> exit/fork etc...).
-> 
-> In the meantime I found the original commits, we'll dig and see if it's
-> useful for us.
-> 
+On Sat, Jul 01, 2017 at 09:40:04AM -0400, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
+>=20
+> If one of callers of page migration starts to handle thp,
+> memory management code start to see pmd migration entry, so we need
+> to prepare for it before enabling. This patch changes various code
+> point which checks the status of given pmds in order to prevent race
+> between thp migration and the pmd-related works.
+>=20
+> ChangeLog v1 -> v2:
+> - introduce pmd_related() (I know the naming is not good, but can't
+>   think up no better name. Any suggesntion is welcomed.)
+>=20
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>=20
+> ChangeLog v2 -> v3:
+> - add is_swap_pmd()
+> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
+>   pmd_trans_huge(), pmd_devmap(), or pmd_none()
+> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() return
+>   true on pmd_migration_entry, so that migration entries are not
+>   treated as pmd page table entries.
+>=20
+> ChangeLog v4 -> v5:
+> - add explanation in pmd_none_or_trans_huge_or_clear_bad() to state
+>   the equivalence of !pmd_present() and is_pmd_migration_entry()
+> - fix migration entry wait deadlock code (from v1) in follow_page_mask()
+> - remove unnecessary code (from v1) in follow_trans_huge_pmd()
+> - use is_swap_pmd() instead of !pmd_present() for pmd migration entry,
+>   so it will not be confused with pmd_none()
+> - change author information
+>=20
+> ChangeLog v5 -> v7
+> - use macro to disable the code when thp migration is not enabled
+>=20
+> ChangeLog v7 -> v8
+> - remove not used code in do_huge_pmd_wp_page()
+> - copy the comment from change_pte_range() on downgrading
+>   write migration entry to read to change_huge_pmd()
+>=20
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/mm/gup.c             |  7 +++--
+>  fs/proc/task_mmu.c            | 33 ++++++++++++++-------
+>  include/asm-generic/pgtable.h | 17 ++++++++++-
+>  include/linux/huge_mm.h       | 14 +++++++--
+>  mm/gup.c                      | 22 ++++++++++++--
+>  mm/huge_memory.c              | 67 +++++++++++++++++++++++++++++++++++++=
+++----
+>  mm/memcontrol.c               |  5 ++++
+>  mm/memory.c                   | 12 ++++++--
+>  mm/mprotect.c                 |  4 +--
+>  mm/mremap.c                   |  2 +-
+>  10 files changed, 154 insertions(+), 29 deletions(-)
+>=20
+> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+> index 456dfdfd2249..096bbcc801e6 100644
+> --- a/arch/x86/mm/gup.c
+> +++ b/arch/x86/mm/gup.c
+> @@ -9,6 +9,7 @@
+>  #include <linux/vmstat.h>
+>  #include <linux/highmem.h>
+>  #include <linux/swap.h>
+> +#include <linux/swapops.h>
+>  #include <linux/memremap.h>
+> =20
+>  #include <asm/mmu_context.h>
+> @@ -243,9 +244,11 @@ static int gup_pmd_range(pud_t pud, unsigned long ad=
+dr, unsigned long end,
+>  		pmd_t pmd =3D *pmdp;
+> =20
+>  		next =3D pmd_addr_end(addr, end);
+> -		if (pmd_none(pmd))
+> +		if (!pmd_present(pmd)) {
+> +			VM_BUG_ON(is_swap_pmd(pmd) && IS_ENABLED(CONFIG_MIGRATION) &&
+> +					  !is_pmd_migration_entry(pmd));
 
-I would suggest that it is based on top of Andy's work that is currently in
-Linus' tree for 4.13-rc1 as the core/arch boundary is a lot clearer. While
-there is other work pending on top related to mm and generation counters,
-that is primarily important for addressing the race which ppc64 may not
-need if you always flush to clear the accessed bit (or equivalent). The
-main thing to watch for is that if an accessed or young bit is being set
-for the first time that the arch check the underlying PTE and trap if it's
-invalid. If that holds and there is a flush when the young bit is cleared
-then you probably do not need the arch hook that closes the race.
+This VM_BUG_ON() triggers when gup is called on hugetlb hwpoison entry.
+I think that in such case kernel falls into the gup slow path, and
+a page fault in follow_hugetlb_page() can properly report the error to
+affected processes, so no need to alarm with BUG_ON.
 
--- 
-Mel Gorman
-SUSE Labs
+Could you make this VM_BUG_ON more specific, or just remove it?
+
+Thanks,
+Naoya Horiguchi
+
+>  			return 0;
+> -		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
+> +		} else if (unlikely(pmd_large(pmd))) {
+>  			/*
+>  			 * NUMA hinting faults need to be handled in the GUP
+>  			 * slowpath for accounting purposes and so that they
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
