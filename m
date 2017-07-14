@@ -1,93 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 641AF440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 10:18:27 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u110so11355708wrb.14
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 07:18:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j63si2396218wmg.3.2017.07.14.07.18.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A34CE440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 10:26:57 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 76so93526009pgh.11
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 07:26:57 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 1si6729584pgk.415.2017.07.14.07.26.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 07:18:26 -0700 (PDT)
-Date: Fri, 14 Jul 2017 15:18:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/9] mm, page_alloc: simplify zonelist initialization
-Message-ID: <20170714141823.2j7t37t6zdzdf3sv@suse.de>
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-7-mhocko@kernel.org>
- <20170714124645.i3duhuie6cczlybr@suse.de>
- <20170714130242.GQ2618@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Jul 2017 07:26:56 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6EEOARU058772
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 10:26:56 -0400
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bpmft9gcc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 10:26:55 -0400
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Fri, 14 Jul 2017 10:26:54 -0400
+Date: Fri, 14 Jul 2017 09:26:45 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove zone restrictions
+References: <20170714121233.16861-1-mhocko@kernel.org>
+ <20170714121233.16861-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20170714130242.GQ2618@dhcp22.suse.cz>
+In-Reply-To: <20170714121233.16861-3-mhocko@kernel.org>
+Message-Id: <20170714142645.dmetqyfucnc7jeur@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-api@vger.kernel.org
 
-On Fri, Jul 14, 2017 at 03:02:42PM +0200, Michal Hocko wrote:
-> > It *might* be safer given the next patch to zero out the remainder of
-> > the _zonerefs to that there is no combination of node add/remove that has
-> > an iterator working with a semi-valid _zoneref which is beyond the last
-> > correct value. It *should* be safe as the very last entry will always
-> > be null but if you don't zero it out, it is possible for iterators to be
-> > working beyond the "end" of the zonelist for a short window.
-> 
-> yes that is true but there will always be terminating NULL zone and I
-> found that acceptable. It is basically the same thing as accessing an
-> empty zone or a zone twice. Or do you think this is absolutely necessary
-> to handle?
-> 
+On Fri, Jul 14, 2017 at 02:12:33PM +0200, Michal Hocko wrote: 
+>Historically we have enforced that any kernel zone (e.g ZONE_NORMAL) has
+>to precede the Movable zone in the physical memory range. The purpose of
+>the movable zone is, however, not bound to any physical memory restriction.
+>It merely defines a class of migrateable and reclaimable memory.
+>
+>There are users (e.g. CMA) who might want to reserve specific physical
+>memory ranges for their own purpose. Moreover our pfn walkers have to be
+>prepared for zones overlapping in the physical range already because we
+>do support interleaving NUMA nodes and therefore zones can interleave as
+>well. This means we can allow each memory block to be associated with a
+>different zone.
+>
+>Loosen the current onlining semantic and allow explicit onlining type on
+>any memblock. That means that online_{kernel,movable} will be allowed
+>regardless of the physical address of the memblock as long as it is
+>offline of course. This might result in moveble zone overlapping with
+>other kernel zones. Default onlining then becomes a bit tricky but still
+>sensible. echo online > memoryXY/state will online the given block to
+>	1) the default zone if the given range is outside of any zone
+>	2) the enclosing zone if such a zone doesn't interleave with
+>	   any other zone
+>        3) the default zone if more zones interleave for this range
+>where default zone is movable zone only if movable_node is enabled
+>otherwise it is a kernel zone.
+>
+>Here is an example of the semantic with (movable_node is not present but
+>it work in an analogous way). We start with following memblocks, all of
+>them offline
+>memory34/valid_zones:Normal Movable
+>memory35/valid_zones:Normal Movable
+>memory36/valid_zones:Normal Movable
+>memory37/valid_zones:Normal Movable
+>memory38/valid_zones:Normal Movable
+>memory39/valid_zones:Normal Movable
+>memory40/valid_zones:Normal Movable
+>memory41/valid_zones:Normal Movable
+>
+>Now, we online block 34 in default mode and block 37 as movable
+>root@test1:/sys/devices/system/node/node1# echo online > memory34/state
+>root@test1:/sys/devices/system/node/node1# echo online_movable > memory37/state
+>memory34/valid_zones:Normal
+>memory35/valid_zones:Normal Movable
+>memory36/valid_zones:Normal Movable
+>memory37/valid_zones:Movable
+>memory38/valid_zones:Normal Movable
+>memory39/valid_zones:Normal Movable
+>memory40/valid_zones:Normal Movable
+>memory41/valid_zones:Normal Movable
+>
+>As we can see all other blocks can still be onlined both into Normal and
+>Movable zones and the Normal is default because the Movable zone spans
+>only block37 now.
+>root@test1:/sys/devices/system/node/node1# echo online_movable > memory41/state
+>memory34/valid_zones:Normal
+>memory35/valid_zones:Normal Movable
+>memory36/valid_zones:Normal Movable
+>memory37/valid_zones:Movable
+>memory38/valid_zones:Movable Normal
+>memory39/valid_zones:Movable Normal
+>memory40/valid_zones:Movable Normal
+>memory41/valid_zones:Movable
+>
+>Now the default zone for blocks 37-41 has changed because movable zone
+>spans that range.
+>root@test1:/sys/devices/system/node/node1# echo online_kernel > memory39/state
+>memory34/valid_zones:Normal
+>memory35/valid_zones:Normal Movable
+>memory36/valid_zones:Normal Movable
+>memory37/valid_zones:Movable
+>memory38/valid_zones:Normal Movable
+>memory39/valid_zones:Normal
+>memory40/valid_zones:Movable Normal
+>memory41/valid_zones:Movable
+>
+>Note that the block 39 now belongs to the zone Normal and so block38
+>falls into Normal by default as well.
+>
+>For completness
+>root@test1:/sys/devices/system/node/node1# for i in memory[34]?
+>do
+>	echo online > $i/state 2>/dev/null
+>done
+>
+>memory34/valid_zones:Normal
+>memory35/valid_zones:Normal
+>memory36/valid_zones:Normal
+>memory37/valid_zones:Movable
+>memory38/valid_zones:Normal
+>memory39/valid_zones:Normal
+>memory40/valid_zones:Movable
+>memory41/valid_zones:Movable
+>
+>Implementation wise the change is quite straightforward. We can get rid
+>of allow_online_pfn_range altogether. online_pages allows only offline
+>nodes already. The original default_zone_for_pfn will become
+>default_kernel_zone_for_pfn. New default_zone_for_pfn implements the
+>above semantic. zone_for_pfn_range is slightly reorganized to implement
+>kernel and movable online type explicitly and MMOP_ONLINE_KEEP becomes
+>a catch all default behavior.
+>
+>Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I don't think it's absolutely necessary. While you could construct some
-odd behaviour for iterators currently past the end of the list, they would
-eventually encounter a NULL.
+Acked-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 
-> > Otherwise think it's ok including my stupid comment about node_order
-> > stack usage.
-> 
-> What do you think about this on top?
-> ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 49bade7ff049..3b98524c04ec 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4913,20 +4913,21 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
->   * This results in maximum locality--normal zone overflows into local
->   * DMA zone, if any--but risks exhausting DMA zone.
->   */
-> -static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order)
-> +static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
-> +		unsigned nr_nodes)
->  {
->  	struct zonelist *zonelist;
-> -	int i, zoneref_idx = 0;
-> +	int i, nr_zones = 0;
->  
->  	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
->  
-> -	for (i = 0; i < MAX_NUMNODES; i++) {
-> +	for (i = 0; i < nr_nodes; i++) {
-
-The first iteration is then -- for (i = 0; i < 0; i++)
-
-Fairly sure that's not what you meant.
-
-
->  		pg_data_t *node = NODE_DATA(node_order[i]);
->  
-> -		zoneref_idx = build_zonelists_node(node, zonelist, zoneref_idx);
-> +		nr_zones = build_zonelists_node(node, zonelist, nr_zones);
-
-I meant converting build_zonelists_node and passing in &nr_zones and
-returning false when an empty node is encountered. In this context,
-it's also not about zones, it really is nr_zonerefs. Rename nr_zones in
-build_zonelists_node as well.
+>Cc: <linux-api@vger.kernel.org>
+>Signed-off-by: Michal Hocko <mhocko@suse.com>
 
 -- 
-Mel Gorman
-SUSE Labs
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
