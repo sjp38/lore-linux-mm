@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 910F1440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:47:46 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 79so9064012wmg.4
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:47:46 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5B986440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:48:37 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b20so9062096wmd.6
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:48:37 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f2si6192884wrc.107.2017.07.14.05.47.45
+        by mx.google.com with ESMTPS id t15si2202909wme.83.2017.07.14.05.48.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 05:47:45 -0700 (PDT)
-Date: Fri, 14 Jul 2017 13:47:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
- build_all_zonelists
-Message-ID: <20170714124743.jhvobgvxj3nv45cb@suse.de>
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-8-mhocko@kernel.org>
- <20170714095932.jihl6h3y77hxyyiu@suse.de>
- <20170714110025.GG2618@dhcp22.suse.cz>
+        Fri, 14 Jul 2017 05:48:36 -0700 (PDT)
+Date: Fri, 14 Jul 2017 14:48:33 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: Serialize warn_alloc() if schedulable.
+Message-ID: <20170714124833.GO2618@dhcp22.suse.cz>
+References: <20170711134900.GD11936@dhcp22.suse.cz>
+ <201707120706.FHC86458.FLFOHtQVJSFMOO@I-love.SAKURA.ne.jp>
+ <20170712085431.GD28912@dhcp22.suse.cz>
+ <201707122123.CDD21817.FOQSFJtOHOVLFM@I-love.SAKURA.ne.jp>
+ <20170712124145.GI28912@dhcp22.suse.cz>
+ <201707142130.JJF10142.FHJFOQSOOtMVLF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170714110025.GG2618@dhcp22.suse.cz>
+In-Reply-To: <201707142130.JJF10142.FHJFOQSOOtMVLF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, vbabka@suse.cz, sergey.senozhatsky.work@gmail.com, pmladek@suse.com
 
-On Fri, Jul 14, 2017 at 01:00:25PM +0200, Michal Hocko wrote:
-> On Fri 14-07-17 10:59:32, Mel Gorman wrote:
-> > On Fri, Jul 14, 2017 at 10:00:04AM +0200, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > build_all_zonelists has been (ab)using stop_machine to make sure that
-> > > zonelists do not change while somebody is looking at them. This is
-> > > is just a gross hack because a) it complicates the context from which
-> > > we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
-> > > switch locking to a percpu rwsem")) and b) is is not really necessary
-> > > especially after "mm, page_alloc: simplify zonelist initialization".
-> > > 
-> > > Updates of the zonelists happen very seldom, basically only when a zone
-> > > becomes populated during memory online or when it loses all the memory
-> > > during offline. A racing iteration over zonelists could either miss a
-> > > zone or try to work on one zone twice. Both of these are something we
-> > > can live with occasionally because there will always be at least one
-> > > zone visible so we are not likely to fail allocation too easily for
-> > > example.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Fri 14-07-17 21:30:54, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+[...]
+> > As I've said earlier, if there is no other way to make printk work without all
+> > these nasty side effected then I would be OK to add a printk context
+> > specific calls into the oom killer.
 > > 
-> > This patch is contingent on the last patch which updates in place
-> > instead of zeroing the early part of the zonelist first but needs to fix
-> > the stack usage issues. I think it's also worth pointing out in the
-> > changelog that stop_machine never gave the guarantees it claimed as a
-> > process iterating through the zonelist can be stopped so when it resumes
-> > the zonelist has changed underneath it. Doing it online is roughly
-> > equivalent in terms of safety.
+> > Removing the rest because this is again getting largely tangent. The
+> > primary problem you are seeing is that we stumble over printk here.
+> > Unless I can see a sound argument this is not the case it doesn't make
+> > any sense to discuss allocator changes.
 > 
-> OK, what about the following addendum?
-> "
-> Please note that the original stop_machine approach doesn't really
-> provide a better exclusion because the iteration might be interrupted
-> half way (unless the whole iteration is preempt disabled which is not the
-> case in most cases) so the some zones could still be seen twice or a
-> zone missed.
-> "
+> You are still ignoring my point. I agree that we stumble over printk(), but
+> printk() is nothing but one of locations we stumble.
 
-Works for me.
+I am not ignoring it. You just mix too many things together to have a
+meaningful conversation...
+ 
+> Look at schedule_timeout_killable(1) in out_of_memory() which is called with
+> oom_lock still held. I'm reporting that even printk() is offloaded to printk
+> kernel thread, scheduling priority can make schedule_timeout_killable(1) sleep
+> for more than 12 minutes (which is intended to sleep for only one millisecond).
+> (I gave up waiting and pressed SysRq-i. I can't imagine how long it would have
+> continued sleeping inside schedule_timeout_killable(1) with oom_lock held.)
+> 
+> Without cooperation from other allocating threads which failed to hold oom_lock,
+> it is dangerous to keep out_of_memory() preemptible/schedulable context.
 
+I have already tried to explain that this is something that the whole
+reclaim path suffers from the priority inversions problem because it has
+never been designed to handle that. You are just poking to one
+particular path of the reclaim stack and missing the whole forest for a
+tree. How the hack is this any different from a reclaim path stumbling
+over a lock down inside the filesystem and stalling basically everybody
+from making a reasonable progress? Is this a problem? Of course it is,
+theoretically. In practice not all that much to go and reimplement the
+whole stack. At least I haven't seen any real life reports complaining
+about this.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
