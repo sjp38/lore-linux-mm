@@ -1,109 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E0C1F440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:46:49 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g15so9063703wmi.11
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:46:49 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 910F1440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:47:46 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 79so9064012wmg.4
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:47:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o79si505652wrc.34.2017.07.14.05.46.48
+        by mx.google.com with ESMTPS id f2si6192884wrc.107.2017.07.14.05.47.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 05:46:48 -0700 (PDT)
-Date: Fri, 14 Jul 2017 13:46:46 +0100
+        Fri, 14 Jul 2017 05:47:45 -0700 (PDT)
+Date: Fri, 14 Jul 2017 13:47:43 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/9] mm, page_alloc: simplify zonelist initialization
-Message-ID: <20170714124645.i3duhuie6cczlybr@suse.de>
+Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
+ build_all_zonelists
+Message-ID: <20170714124743.jhvobgvxj3nv45cb@suse.de>
 References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-7-mhocko@kernel.org>
+ <20170714080006.7250-8-mhocko@kernel.org>
+ <20170714095932.jihl6h3y77hxyyiu@suse.de>
+ <20170714110025.GG2618@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170714080006.7250-7-mhocko@kernel.org>
+In-Reply-To: <20170714110025.GG2618@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 14, 2017 at 10:00:03AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Fri, Jul 14, 2017 at 01:00:25PM +0200, Michal Hocko wrote:
+> On Fri 14-07-17 10:59:32, Mel Gorman wrote:
+> > On Fri, Jul 14, 2017 at 10:00:04AM +0200, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > build_all_zonelists has been (ab)using stop_machine to make sure that
+> > > zonelists do not change while somebody is looking at them. This is
+> > > is just a gross hack because a) it complicates the context from which
+> > > we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
+> > > switch locking to a percpu rwsem")) and b) is is not really necessary
+> > > especially after "mm, page_alloc: simplify zonelist initialization".
+> > > 
+> > > Updates of the zonelists happen very seldom, basically only when a zone
+> > > becomes populated during memory online or when it loses all the memory
+> > > during offline. A racing iteration over zonelists could either miss a
+> > > zone or try to work on one zone twice. Both of these are something we
+> > > can live with occasionally because there will always be at least one
+> > > zone visible so we are not likely to fail allocation too easily for
+> > > example.
+> > > 
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > 
+> > This patch is contingent on the last patch which updates in place
+> > instead of zeroing the early part of the zonelist first but needs to fix
+> > the stack usage issues. I think it's also worth pointing out in the
+> > changelog that stop_machine never gave the guarantees it claimed as a
+> > process iterating through the zonelist can be stopped so when it resumes
+> > the zonelist has changed underneath it. Doing it online is roughly
+> > equivalent in terms of safety.
 > 
-> build_zonelists gradually builds zonelists from the nearest to the most
-> distant node. As we do not know how many populated zones we will have in
-> each node we rely on the _zoneref to terminate initialized part of the
-> zonelist by a NULL zone. While this is functionally correct it is quite
-> suboptimal because we cannot allow updaters to race with zonelists
-> users because they could see an empty zonelist and fail the allocation
-> or hit the OOM killer in the worst case.
-> 
-> We can do much better, though. We can store the node ordering into an
-> already existing node_order array and then give this array to
-> build_zonelists_in_node_order and do the whole initialization at once.
-> zonelists consumers still might see halfway initialized state but that
-> should be much more tolerateable because the list will not be empty and
-> they would either see some zone twice or skip over some zone(s) in the
-> worst case which shouldn't lead to immediate failures.
-> 
-> This patch alone doesn't introduce any functional change yet, though, it
-> is merely a preparatory work for later changes.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/page_alloc.c | 42 ++++++++++++++++++------------------------
->  1 file changed, 18 insertions(+), 24 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 00e117922b3f..78bd62418380 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4913,17 +4913,20 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
->   * This results in maximum locality--normal zone overflows into local
->   * DMA zone, if any--but risks exhausting DMA zone.
->   */
-> -static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
-> +static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order)
->  {
-> -	int j;
->  	struct zonelist *zonelist;
-> +	int i, zoneref_idx = 0;
->  
->  	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
-> -	for (j = 0; zonelist->_zonerefs[j].zone != NULL; j++)
-> -		;
-> -	j = build_zonelists_node(NODE_DATA(node), zonelist, j);
-> -	zonelist->_zonerefs[j].zone = NULL;
-> -	zonelist->_zonerefs[j].zone_idx = 0;
-> +
-> +	for (i = 0; i < MAX_NUMNODES; i++) {
-> +		pg_data_t *node = NODE_DATA(node_order[i]);
-> +
-> +		zoneref_idx = build_zonelists_node(node, zonelist, zoneref_idx);
-> +	}
+> OK, what about the following addendum?
+> "
+> Please note that the original stop_machine approach doesn't really
+> provide a better exclusion because the iteration might be interrupted
+> half way (unless the whole iteration is preempt disabled which is not the
+> case in most cases) so the some zones could still be seen twice or a
+> zone missed.
+> "
 
-The naming here is weird to say the least and makes this a lot more
-confusing than it needs to be. Primarily, it's because the zoneref_idx
-parameter gets renamed to nr_zones in build_zonelists_node where it's
-nothing to do with the number of zones at all.
-
-It also iterates for longer than it needs to. MAX_NUMNODES can be a
-large value of mostly empty nodes but it happily goes through them
-anyway. Pass zoneref_idx in as a pointer that is updated by the function
-and use the return value to break the loop when an empty node is
-encountered?
-
-> +	zonelist->_zonerefs[zoneref_idx].zone = NULL;
-> +	zonelist->_zonerefs[zoneref_idx].zone_idx = 0;
->  }
->  
-
-It *might* be safer given the next patch to zero out the remainder of
-the _zonerefs to that there is no combination of node add/remove that has
-an iterator working with a semi-valid _zoneref which is beyond the last
-correct value. It *should* be safe as the very last entry will always
-be null but if you don't zero it out, it is possible for iterators to be
-working beyond the "end" of the zonelist for a short window.
-
-Otherwise think it's ok including my stupid comment about node_order
-stack usage.
+Works for me.
 
 -- 
 Mel Gorman
