@@ -1,295 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB4644093F
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 18:16:12 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o202so123011063itc.14
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 15:16:12 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k73si10418934iok.207.2017.07.14.15.16.11
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3B5440941
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 18:21:27 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 6so7630390oik.11
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 15:21:27 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f137si7418060oib.237.2017.07.14.15.21.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jul 2017 15:16:11 -0700 (PDT)
-From: daniel.m.jordan@oracle.com
-Subject: [RFC PATCH v1 6/6] hugetlbfs: parallelize hugetlbfs_fallocate with ktask
-Date: Fri, 14 Jul 2017 15:16:13 -0700
-Message-Id: <1500070573-3948-7-git-send-email-daniel.m.jordan@oracle.com>
-In-Reply-To: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
-References: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
+        Fri, 14 Jul 2017 15:21:26 -0700 (PDT)
+Received: from mail-vk0-f41.google.com (mail-vk0-f41.google.com [209.85.213.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id AFD6222D3B
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 22:21:25 +0000 (UTC)
+Received: by mail-vk0-f41.google.com with SMTP id y70so53292018vky.3
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 15:21:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170714092747.ebytils6c65zporo@suse.de>
+References: <E37E0D40-821A-4C82-B924-F1CE6DF97719@gmail.com>
+ <20170711132023.wdfpjxwtbqpi3wp2@suse.de> <CALCETrUOYwpJZAAVF8g+_U9fo5cXmGhYrM-ix+X=bbfid+j-Cw@mail.gmail.com>
+ <20170711155312.637eyzpqeghcgqzp@suse.de> <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de> <CALCETrXvkF3rxLijtou3ndSxG9vu62hrqh1ZXkaWgWbL-wd+cg@mail.gmail.com>
+ <1500015641.2865.81.camel@kernel.crashing.org> <20170714083114.zhaz3pszrklnrn52@suse.de>
+ <1500022977.2865.88.camel@kernel.crashing.org> <20170714092747.ebytils6c65zporo@suse.de>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 14 Jul 2017 15:21:03 -0700
+Message-ID: <CALCETrX9Nzn0+6L0MQ0oQt5VjEFJ-w0v0PnZjke=eECgEaVT0w@mail.gmail.com>
+Subject: Re: Potential race in TLB flush batching?
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-hugetlbfs_fallocate preallocates huge pages to back a file in a
-hugetlbfs filesystem.  The time to call this function grows linearly
-with size.
+On Fri, Jul 14, 2017 at 2:27 AM, Mel Gorman <mgorman@suse.de> wrote:
+> On Fri, Jul 14, 2017 at 07:02:57PM +1000, Benjamin Herrenschmidt wrote:
+>> On Fri, 2017-07-14 at 09:31 +0100, Mel Gorman wrote:
+>> > It may also be only a gain on a limited number of architectures depending
+>> > on exactly how an architecture handles flushing. At the time, batching
+>> > this for x86 in the worse-case scenario where all pages being reclaimed
+>> > were mapped from multiple threads knocked 24.4% off elapsed run time and
+>> > 29% off system CPU but only on multi-socket NUMA machines. On UMA, it was
+>> > barely noticable. For some workloads where only a few pages are mapped or
+>> > the mapped pages on the LRU are relatively sparese, it'll make no difference.
+>> >
+>> > The worst-case situation is extremely IPI intensive on x86 where many
+>> > IPIs were being sent for each unmap. It's only worth even considering if
+>> > you see that the time spent sending IPIs for flushes is a large portion
+>> > of reclaim.
+>>
+>> Ok, it would be interesting to see how that compares to powerpc with
+>> its HW tlb invalidation broadcasts. We tend to hate them and prefer
+>> IPIs in most cases but maybe not *this* case .. (mostly we find that
+>> IPI + local inval is better for large scale invals, such as full mm on
+>> exit/fork etc...).
+>>
+>> In the meantime I found the original commits, we'll dig and see if it's
+>> useful for us.
+>>
+>
+> I would suggest that it is based on top of Andy's work that is currently in
+> Linus' tree for 4.13-rc1 as the core/arch boundary is a lot clearer. While
+> there is other work pending on top related to mm and generation counters,
+> that is primarily important for addressing the race which ppc64 may not
+> need if you always flush to clear the accessed bit (or equivalent). The
+> main thing to watch for is that if an accessed or young bit is being set
+> for the first time that the arch check the underlying PTE and trap if it's
+> invalid. If that holds and there is a flush when the young bit is cleared
+> then you probably do not need the arch hook that closes the race.
+>
 
-ktask performs well with its default thread count of 4; higher thread
-counts are given for context only.
-
-Machine: Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 cpus, 1T memory
-Test:    fallocate(1) a file on a hugetlbfs filesystem
-
-nthread   speedup   size (GiB)   min time (s)   stdev
-      1                    200         127.53    2.19
-      2     3.09x          200          41.30    2.11
-      4     5.72x          200          22.29    0.51
-      8     9.45x          200          13.50    2.58
-     16     9.74x          200          13.09    1.64
-
-      1                    400         193.09    2.47
-      2     2.14x          400          90.31    3.39
-      4     3.84x          400          50.32    0.44
-      8     5.11x          400          37.75    1.23
-     16     6.12x          400          31.54    3.13
-
-Machine: SPARC T7-4, 1024 cpus, 504G memory
-Test:    fallocate(1) a file on a hugetlbfs filesystem
-
-nthread   speedup   size (GiB)   min time (s)   stdev
-
-      1                    100          15.55    0.05
-      2     1.92x          100           8.08    0.01
-      4     3.55x          100           4.38    0.02
-      8     5.87x          100           2.65    0.06
-     16     6.45x          100           2.41    0.09
-
-      1                    200          31.26    0.02
-      2     1.92x          200          16.26    0.02
-      4     3.58x          200           8.73    0.04
-      8     5.54x          200           5.64    0.16
-     16     6.96x          200           4.49    0.35
-
-      1                    400          62.18    0.09
-      2     1.98x          400          31.36    0.04
-      4     3.55x          400          17.52    0.03
-      8     5.53x          400          11.25    0.04
-     16     6.61x          400           9.40    0.17
-
-The primary bottleneck for better scaling at higher thread counts is
-hugetlb_fault_mutex_table[hash].  perf showed L1-dcache-loads increase
-with 8 threads and again sharply with 16 threads, and a cpu counter
-profile showed that 31% of the L1d misses were on
-hugetlb_fault_mutex_table[hash] in the 16-thread case.
-
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
----
- fs/hugetlbfs/inode.c |  122 +++++++++++++++++++++++++++++++++++++++++---------
- 1 files changed, 100 insertions(+), 22 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index d44f545..1e1d136 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -36,6 +36,7 @@
- #include <linux/magic.h>
- #include <linux/migrate.h>
- #include <linux/uio.h>
-+#include <linux/ktask.h>
- 
- #include <linux/uaccess.h>
- 
-@@ -86,11 +87,16 @@ enum {
- };
- 
- #ifdef CONFIG_NUMA
-+static inline struct shared_policy *hugetlb_get_shared_policy(
-+							struct inode *inode)
-+{
-+	return &HUGETLBFS_I(inode)->policy;
-+}
-+
- static inline void hugetlb_set_vma_policy(struct vm_area_struct *vma,
--					struct inode *inode, pgoff_t index)
-+				struct shared_policy *policy, pgoff_t index)
- {
--	vma->vm_policy = mpol_shared_policy_lookup(&HUGETLBFS_I(inode)->policy,
--							index);
-+	vma->vm_policy = mpol_shared_policy_lookup(policy, index);
- }
- 
- static inline void hugetlb_drop_vma_policy(struct vm_area_struct *vma)
-@@ -98,8 +104,14 @@ static inline void hugetlb_drop_vma_policy(struct vm_area_struct *vma)
- 	mpol_cond_put(vma->vm_policy);
- }
- #else
-+static inline struct shared_policy *hugetlb_get_shared_policy(
-+							struct inode *inode)
-+{
-+	return NULL;
-+}
-+
- static inline void hugetlb_set_vma_policy(struct vm_area_struct *vma,
--					struct inode *inode, pgoff_t index)
-+				struct shared_policy *policy, pgoff_t index)
- {
- }
- 
-@@ -551,19 +563,29 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
- 	return 0;
- }
- 
-+struct hf_args {
-+	struct file		*file;
-+	struct task_struct	*parent_task;
-+	struct mm_struct	*mm;
-+	struct shared_policy	*shared_policy;
-+	struct hstate		*hstate;
-+	struct address_space	*mapping;
-+	int			error;
-+};
-+
-+static int hugetlbfs_fallocate_chunk(pgoff_t start, pgoff_t end,
-+				     struct hf_args *args);
-+
- static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 				loff_t len)
- {
- 	struct inode *inode = file_inode(file);
--	struct address_space *mapping = inode->i_mapping;
- 	struct hstate *h = hstate_inode(inode);
--	struct vm_area_struct pseudo_vma;
--	struct mm_struct *mm = current->mm;
- 	loff_t hpage_size = huge_page_size(h);
- 	unsigned long hpage_shift = huge_page_shift(h);
--	pgoff_t start, index, end;
-+	pgoff_t start, end;
-+	struct hf_args hf_args;
- 	int error;
--	u32 hash;
- 
- 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
- 		return -EOPNOTSUPP;
-@@ -586,16 +608,72 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	if (error)
- 		goto out;
- 
-+	hf_args.file = file;
-+	hf_args.parent_task = current;
-+	hf_args.mm = current->mm;
-+	hf_args.shared_policy = hugetlb_get_shared_policy(inode);
-+	hf_args.hstate = h;
-+	hf_args.mapping = inode->i_mapping;
-+	hf_args.error = 0;
-+
-+	if (unlikely(hstate_is_gigantic(h))) {
-+		/*
-+		 * Use multiple threads in clear_gigantic_page instead of here,
-+		 * so just do a 1-threaded hugetlbfs_fallocate_chunk.
-+		 */
-+		error = hugetlbfs_fallocate_chunk(start, end, &hf_args);
-+	} else {
-+		DEFINE_KTASK_CTL_RANGE(ctl, hugetlbfs_fallocate_chunk,
-+				       &hf_args, KTASK_BPGS_MINCHUNK,
-+				       GFP_KERNEL, 0);
-+
-+		error = ktask_run((void *)start, end - start, &ctl);
-+	}
-+
-+	if (error == KTASK_RETURN_ERROR && hf_args.error != -EINTR)
-+		goto out;
-+
-+	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
-+		i_size_write(inode, offset + len);
-+	inode->i_ctime = current_time(inode);
-+out:
-+	inode_unlock(inode);
-+	return error;
-+}
-+
-+static int hugetlbfs_fallocate_chunk(pgoff_t start, pgoff_t end,
-+				     struct hf_args *args) {
-+	pgoff_t			index;
-+	struct vm_area_struct	pseudo_vma;
-+	struct task_struct	*parent_task;
-+	struct mm_struct	*mm;
-+	struct shared_policy	*shared_policy;
-+	struct file		*file;
-+	struct address_space	*mapping;
-+	struct hstate		*h;
-+	loff_t			hpage_size;
-+	int			error = 0;
-+	u32			hash;
-+
-+	file = args->file;
-+	parent_task = args->parent_task;
-+	mm = args->mm;
-+	shared_policy = args->shared_policy;
-+	h = args->hstate;
-+	mapping = args->mapping;
-+	hpage_size = huge_page_size(h);
-+
- 	/*
- 	 * Initialize a pseudo vma as this is required by the huge page
- 	 * allocation routines.  If NUMA is configured, use page index
--	 * as input to create an allocation policy.
-+	 * as input to create an allocation policy.  Each thread gets its
-+	 * own pseudo vma because mempolicies can differ by page.
- 	 */
- 	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
- 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
- 	pseudo_vma.vm_file = file;
- 
--	for (index = start; index < end; index++) {
-+	for (index = (pgoff_t)start; index < (pgoff_t)end; ++index) {
- 		/*
- 		 * This is supposed to be the vaddr where the page is being
- 		 * faulted in, but we have no vaddr here.
-@@ -610,13 +688,13 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 		 * fallocate(2) manpage permits EINTR; we may have been
- 		 * interrupted because we are using up too much memory.
- 		 */
--		if (signal_pending(current)) {
-+		if (signal_pending(parent_task) || signal_pending(current)) {
- 			error = -EINTR;
--			break;
-+			goto err;
- 		}
- 
- 		/* Set numa allocation policy based on index */
--		hugetlb_set_vma_policy(&pseudo_vma, inode, index);
-+		hugetlb_set_vma_policy(&pseudo_vma, shared_policy, index);
- 
- 		/* addr is the offset within the file (zero based) */
- 		addr = index * hpage_size;
-@@ -641,7 +719,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 		if (IS_ERR(page)) {
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
- 			error = PTR_ERR(page);
--			goto out;
-+			goto err;
- 		}
- 		clear_huge_page(page, addr, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
-@@ -649,7 +727,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 		if (unlikely(error)) {
- 			put_page(page);
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
--			goto out;
-+			goto err;
- 		}
- 
- 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-@@ -662,12 +740,12 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 		unlock_page(page);
- 	}
- 
--	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
--		i_size_write(inode, offset + len);
--	inode->i_ctime = current_time(inode);
--out:
--	inode_unlock(inode);
--	return error;
-+	return KTASK_RETURN_SUCCESS;
-+
-+err:
-+	args->error = error;
-+
-+	return KTASK_RETURN_ERROR;
- }
- 
- static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
--- 
-1.7.1
+Ben, if you could read the API in tip:x86/mm + Mel's patch, it would
+be fantastic.  I'd like to know whether a non-x86 non-mm person can
+understand the API (arch_tlbbatch_add_mm, arch_tlbbatch_flush, and
+arch_tlbbatch_flush_one_mm) well enough to implement it.  I'd also
+like to know for real that it makes sense outside of x86.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
