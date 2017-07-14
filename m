@@ -1,156 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A4BAE440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 14:29:10 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id g53so40783926qtc.6
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 11:29:10 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id l41si8440769qtf.200.2017.07.14.11.29.09
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B2DE2440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 15:17:29 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id g6so10851292qkf.15
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 12:17:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w64si8389380qkd.327.2017.07.14.12.17.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jul 2017 11:29:09 -0700 (PDT)
-From: "Zi Yan" <zi.yan@sent.com>
-Subject: Re: [PATCH v8 06/10] mm: thp: check pmd migration entry in common
- path
-Date: Fri, 14 Jul 2017 14:29:07 -0400
-Message-ID: <3144A36B-4C90-4BEF-B4A7-3658D37DE618@sent.com>
-In-Reply-To: <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170701134008.110579-1-zi.yan@sent.com>
- <20170701134008.110579-7-zi.yan@sent.com>
- <20170714092943.GA14125@hori1.linux.bs1.fc.nec.co.jp>
+        Fri, 14 Jul 2017 12:17:28 -0700 (PDT)
+Date: Fri, 14 Jul 2017 22:17:13 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170714181523-mutt-send-email-mst@kernel.org>
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+ <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
+ <20170714123023.GA2624@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170714123023.GA2624@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "mhocko@kernel.org" <mhocko@kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "dnellans@nvidia.com" <dnellans@nvidia.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On Fri, Jul 14, 2017 at 02:30:23PM +0200, Michal Hocko wrote:
+> On Wed 12-07-17 20:40:19, Wei Wang wrote:
+> > This patch adds support for reporting blocks of pages on the free list
+> > specified by the caller.
+> > 
+> > As pages can leave the free list during this call or immediately
+> > afterwards, they are not guaranteed to be free after the function
+> > returns. The only guarantee this makes is that the page was on the free
+> > list at some point in time after the function has been invoked.
+> > 
+> > Therefore, it is not safe for caller to use any pages on the returned
+> > block or to discard data that is put there after the function returns.
+> > However, it is safe for caller to discard data that was in one of these
+> > pages before the function was invoked.
+> 
+> I do not understand what is the point of such a function and how it is
+> used because the patch doesn't give us any user (I haven't checked other
+> patches yet).
+> 
+> But just from the semantic point of view this sounds like a horrible
+> idea. The only way to get a free block of pages is to call the page
+> allocator. I am tempted to give it Nack right on those grounds but I
+> would like to hear more about what you actually want to achieve.
 
---=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Basically it's a performance hint to the hypervisor.
+For example, these pages would be good candidates to
+move around as they are not mapped into any running
+applications.
 
-On 14 Jul 2017, at 5:29, Naoya Horiguchi wrote:
+As such, it's important not to slow down other parts of the system too
+much - otherwise we are speeding up one part of the system while we slow
+down other parts of it, which is why it's trying to drop the lock as
+soon a possible.
 
-> On Sat, Jul 01, 2017 at 09:40:04AM -0400, Zi Yan wrote:
->> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>
->> If one of callers of page migration starts to handle thp,
->> memory management code start to see pmd migration entry, so we need
->> to prepare for it before enabling. This patch changes various code
->> point which checks the status of given pmds in order to prevent race
->> between thp migration and the pmd-related works.
->>
->> ChangeLog v1 -> v2:
->> - introduce pmd_related() (I know the naming is not good, but can't
->>   think up no better name. Any suggesntion is welcomed.)
->>
->> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>
->> ChangeLog v2 -> v3:
->> - add is_swap_pmd()
->> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
->>   pmd_trans_huge(), pmd_devmap(), or pmd_none()
->> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() retur=
-n
->>   true on pmd_migration_entry, so that migration entries are not
->>   treated as pmd page table entries.
->>
->> ChangeLog v4 -> v5:
->> - add explanation in pmd_none_or_trans_huge_or_clear_bad() to state
->>   the equivalence of !pmd_present() and is_pmd_migration_entry()
->> - fix migration entry wait deadlock code (from v1) in follow_page_mask=
-()
->> - remove unnecessary code (from v1) in follow_trans_huge_pmd()
->> - use is_swap_pmd() instead of !pmd_present() for pmd migration entry,=
+As long as hypervisor does not assume it can drop these pages, and as
+long it's correct in most cases.  we are OK even if the hint is slightly
+wrong because hypervisor notifications are racing with allocations.
 
->>   so it will not be confused with pmd_none()
->> - change author information
->>
->> ChangeLog v5 -> v7
->> - use macro to disable the code when thp migration is not enabled
->>
->> ChangeLog v7 -> v8
->> - remove not used code in do_huge_pmd_wp_page()
->> - copy the comment from change_pte_range() on downgrading
->>   write migration entry to read to change_huge_pmd()
->>
->> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
->> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> ---
->>  arch/x86/mm/gup.c             |  7 +++--
->>  fs/proc/task_mmu.c            | 33 ++++++++++++++-------
->>  include/asm-generic/pgtable.h | 17 ++++++++++-
->>  include/linux/huge_mm.h       | 14 +++++++--
->>  mm/gup.c                      | 22 ++++++++++++--
->>  mm/huge_memory.c              | 67 ++++++++++++++++++++++++++++++++++=
-+++++----
->>  mm/memcontrol.c               |  5 ++++
->>  mm/memory.c                   | 12 ++++++--
->>  mm/mprotect.c                 |  4 +--
->>  mm/mremap.c                   |  2 +-
->>  10 files changed, 154 insertions(+), 29 deletions(-)
->>
->> diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
->> index 456dfdfd2249..096bbcc801e6 100644
->> --- a/arch/x86/mm/gup.c
->> +++ b/arch/x86/mm/gup.c
->> @@ -9,6 +9,7 @@
->>  #include <linux/vmstat.h>
->>  #include <linux/highmem.h>
->>  #include <linux/swap.h>
->> +#include <linux/swapops.h>
->>  #include <linux/memremap.h>
->>
->>  #include <asm/mmu_context.h>
->> @@ -243,9 +244,11 @@ static int gup_pmd_range(pud_t pud, unsigned long=
- addr, unsigned long end,
->>  		pmd_t pmd =3D *pmdp;
->>
->>  		next =3D pmd_addr_end(addr, end);
->> -		if (pmd_none(pmd))
->> +		if (!pmd_present(pmd)) {
->> +			VM_BUG_ON(is_swap_pmd(pmd) && IS_ENABLED(CONFIG_MIGRATION) &&
->> +					  !is_pmd_migration_entry(pmd));
->
-> This VM_BUG_ON() triggers when gup is called on hugetlb hwpoison entry.=
+There are patches to do more tricks - if hypervisor tracks all
+memory writes we might actually use this hint to discard data -
+but that is just implementation detail.
 
-> I think that in such case kernel falls into the gup slow path, and
-> a page fault in follow_hugetlb_page() can properly report the error to
-> affected processes, so no need to alarm with BUG_ON.
->
-> Could you make this VM_BUG_ON more specific, or just remove it?
 
-I will remove it, since adding code to detect hugetlb hwpoison entry
-to existing VM_BUG_ON() will be quite messy.
-
-Thanks for pointing this out.
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJZaQ1zAAoJEEGLLxGcTqbMk8cH/0C8SZ75UHrk0e8/ETXdRoVu
-Ro3WvxjQFNUjdPE7Z7AgrUWLLvVTe+RekVV3CuNRHKXs0rl7Zxw2oATlrR/YUTQw
-E8AjB092K1buEOOvec0eHmiWffWacaTzwTGLcgrr6Z1fJXYAcLh67xMq0i9vkyaM
-TiHd5RVjvMzYX8ntDJqri+7rz/DqrUmqJ0EUSQxLwkVIbBFBQwv07tbtoIJrM6XP
-7qZkY7dLtJps3i//wVzRd5VbH3jBujZabOjPl4+3Qz0fFeVUB19AByYuKkQC0szy
-QDT0D7PeuiFsAPvi1gSACGQs0GVeyK+vVXGHxxcuUJIgQ2hJh/SPBbpVakDMAeg=
-=ttWN
------END PGP SIGNATURE-----
-
---=_MailMate_546E1D85-A473-489E-A5D6-0DF3E5FC933B_=--
+> > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > ---
+> >  include/linux/mm.h |  5 +++
+> >  mm/page_alloc.c    | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 101 insertions(+)
+> > 
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 46b9ac5..76cb433 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1835,6 +1835,11 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+> >  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+> >  extern void free_initmem(void);
+> >  
+> > +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+> > +extern int report_unused_page_block(struct zone *zone, unsigned int order,
+> > +				    unsigned int migratetype,
+> > +				    struct page **page);
+> > +#endif
+> >  /*
+> >   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+> >   * into the buddy system. The freed pages will be poisoned with pattern
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 64b7d82..8b3c9dd 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4753,6 +4753,102 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+> >  	show_swap_cache_info();
+> >  }
+> >  
+> > +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
+> > +
+> > +/*
+> > + * Heuristically get a page block in the system that is unused.
+> > + * It is possible that pages from the page block are used immediately after
+> > + * report_unused_page_block() returns. It is the caller's responsibility
+> > + * to either detect or prevent the use of such pages.
+> > + *
+> > + * The free list to check: zone->free_area[order].free_list[migratetype].
+> > + *
+> > + * If the caller supplied page block (i.e. **page) is on the free list, offer
+> > + * the next page block on the list to the caller. Otherwise, offer the first
+> > + * page block on the list.
+> > + *
+> > + * Note: it is not safe for caller to use any pages on the returned
+> > + * block or to discard data that is put there after the function returns.
+> > + * However, it is safe for caller to discard data that was in one of these
+> > + * pages before the function was invoked.
+> > + *
+> > + * Return 0 when a page block is found on the caller specified free list.
+> > + */
+> > +int report_unused_page_block(struct zone *zone, unsigned int order,
+> > +			     unsigned int migratetype, struct page **page)
+> > +{
+> > +	struct zone *this_zone;
+> > +	struct list_head *this_list;
+> > +	int ret = 0;
+> > +	unsigned long flags;
+> > +
+> > +	/* Sanity check */
+> > +	if (zone == NULL || page == NULL || order >= MAX_ORDER ||
+> > +	    migratetype >= MIGRATE_TYPES)
+> > +		return -EINVAL;
+> > +
+> > +	/* Zone validity check */
+> > +	for_each_populated_zone(this_zone) {
+> > +		if (zone == this_zone)
+> > +			break;
+> > +	}
+> > +
+> > +	/* Got a non-existent zone from the caller? */
+> > +	if (zone != this_zone)
+> > +		return -EINVAL;
+> 
+> Huh, what do you check for here? Why don't you simply
+> populated_zone(zone)?
+> 
+> > +
+> > +	spin_lock_irqsave(&this_zone->lock, flags);
+> > +
+> > +	this_list = &zone->free_area[order].free_list[migratetype];
+> > +	if (list_empty(this_list)) {
+> > +		*page = NULL;
+> > +		ret = 1;
+> > +		goto out;
+> > +	}
+> > +
+> > +	/* The caller is asking for the first free page block on the list */
+> > +	if ((*page) == NULL) {
+> > +		*page = list_first_entry(this_list, struct page, lru);
+> > +		ret = 0;
+> > +		goto out;
+> > +	}
+> > +
+> > +	/*
+> > +	 * The page block passed from the caller is not on this free list
+> > +	 * anymore (e.g. a 1MB free page block has been split). In this case,
+> > +	 * offer the first page block on the free list that the caller is
+> > +	 * asking for.
+> > +	 */
+> > +	if (PageBuddy(*page) && order != page_order(*page)) {
+> > +		*page = list_first_entry(this_list, struct page, lru);
+> > +		ret = 0;
+> > +		goto out;
+> > +	}
+> > +
+> > +	/*
+> > +	 * The page block passed from the caller has been the last page block
+> > +	 * on the list.
+> > +	 */
+> > +	if ((*page)->lru.next == this_list) {
+> > +		*page = NULL;
+> > +		ret = 1;
+> > +		goto out;
+> > +	}
+> > +
+> > +	/*
+> > +	 * Finally, fall into the regular case: the page block passed from the
+> > +	 * caller is still on the free list. Offer the next one.
+> > +	 */
+> > +	*page = list_next_entry((*page), lru);
+> > +	ret = 0;
+> > +out:
+> > +	spin_unlock_irqrestore(&this_zone->lock, flags);
+> > +	return ret;
+> > +}
+> > +EXPORT_SYMBOL(report_unused_page_block);
+> > +
+> > +#endif
+> > +
+> >  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+> >  {
+> >  	zoneref->zone = zone;
+> > -- 
+> > 2.7.4
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
