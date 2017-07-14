@@ -1,126 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A48CB440905
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:39:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c81so9027803wmd.10
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:39:45 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C1F440905
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 08:46:49 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g15so9063703wmi.11
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 05:46:49 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f197si2228294wmg.81.2017.07.14.05.39.43
+        by mx.google.com with ESMTPS id o79si505652wrc.34.2017.07.14.05.46.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jul 2017 05:39:44 -0700 (PDT)
-Date: Fri, 14 Jul 2017 14:39:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/9] mm, page_alloc: do not set_cpu_numa_mem on empty
- nodes initialization
-Message-ID: <20170714123940.GN2618@dhcp22.suse.cz>
+        Fri, 14 Jul 2017 05:46:48 -0700 (PDT)
+Date: Fri, 14 Jul 2017 13:46:46 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 6/9] mm, page_alloc: simplify zonelist initialization
+Message-ID: <20170714124645.i3duhuie6cczlybr@suse.de>
 References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-4-mhocko@kernel.org>
- <20170714094810.ftthctfz33artwh2@suse.de>
- <20170714105003.GE2618@dhcp22.suse.cz>
- <20170714123242.zepgecug2kdolhky@suse.de>
+ <20170714080006.7250-7-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170714123242.zepgecug2kdolhky@suse.de>
+In-Reply-To: <20170714080006.7250-7-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri 14-07-17 13:32:42, Mel Gorman wrote:
-> On Fri, Jul 14, 2017 at 12:50:04PM +0200, Michal Hocko wrote:
-> > On Fri 14-07-17 10:48:10, Mel Gorman wrote:
-> > > On Fri, Jul 14, 2017 at 10:00:00AM +0200, Michal Hocko wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > __build_all_zonelists reinitializes each online cpu local node for
-> > > > CONFIG_HAVE_MEMORYLESS_NODES. This makes sense because previously memory
-> > > > less nodes could gain some memory during memory hotplug and so the local
-> > > > node should be changed for CPUs close to such a node. It makes less
-> > > > sense to do that unconditionally for a newly creaded NUMA node which is
-> > > > still offline and without any memory.
-> > > > 
-> > > > Let's also simplify the cpu loop and use for_each_online_cpu instead of
-> > > > an explicit cpu_online check for all possible cpus.
-> > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > > ---
-> > > >  mm/page_alloc.c | 6 ++----
-> > > >  1 file changed, 2 insertions(+), 4 deletions(-)
-> > > > 
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index 7746824a425d..ebc3311555b1 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -5096,10 +5096,8 @@ static int __build_all_zonelists(void *data)
-> > > >  
-> > > >  			build_zonelists(pgdat);
-> > > >  		}
-> > > > -	}
-> > > >  
-> > > >  #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-> > > > -	for_each_possible_cpu(cpu) {
-> > > >  		/*
-> > > >  		 * We now know the "local memory node" for each node--
-> > > >  		 * i.e., the node of the first zone in the generic zonelist.
-> > > > @@ -5108,10 +5106,10 @@ static int __build_all_zonelists(void *data)
-> > > >  		 * secondary cpus' numa_mem as they come on-line.  During
-> > > >  		 * node/memory hotplug, we'll fixup all on-line cpus.
-> > > >  		 */
-> > > > -		if (cpu_online(cpu))
-> > > > +		for_each_online_cpu(cpu)
-> > > >  			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
-> > > > -	}
-> > > >  #endif
-> > > > +	}
-> > > >  
-> > > 
-> > > This is not as clear a benefit. For each online node, we now go through
-> > > all online CPUs once per node. There would be some rationale for using
-> > > for_each_online_cpu.
-> > 
-> > I am not sure I understand. I am using for_each_online_cpu...
+On Fri, Jul 14, 2017 at 10:00:03AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Yes, but within a loop that looks like
+> build_zonelists gradually builds zonelists from the nearest to the most
+> distant node. As we do not know how many populated zones we will have in
+> each node we rely on the _zoneref to terminate initialized part of the
+> zonelist by a NULL zone. While this is functionally correct it is quite
+> suboptimal because we cannot allow updaters to race with zonelists
+> users because they could see an empty zonelist and fail the allocation
+> or hit the OOM killer in the worst case.
 > 
-> for_each_online_node(nid)
-> 	...
-> 	for_each_online_cpu(cpu)
+> We can do much better, though. We can store the node ordering into an
+> already existing node_order array and then give this array to
+> build_zonelists_in_node_order and do the whole initialization at once.
+> zonelists consumers still might see halfway initialized state but that
+> should be much more tolerateable because the list will not be empty and
+> they would either see some zone twice or skip over some zone(s) in the
+> worst case which shouldn't lead to immediate failures.
 > 
-> Or maybe you aren't because we are looking at different baselines. I had
-> minor fuzz and conflicts applying the series.
+> This patch alone doesn't introduce any functional change yet, though, it
+> is merely a preparatory work for later changes.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 42 ++++++++++++++++++------------------------
+>  1 file changed, 18 insertions(+), 24 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 00e117922b3f..78bd62418380 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4913,17 +4913,20 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
+>   * This results in maximum locality--normal zone overflows into local
+>   * DMA zone, if any--but risks exhausting DMA zone.
+>   */
+> -static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
+> +static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order)
+>  {
+> -	int j;
+>  	struct zonelist *zonelist;
+> +	int i, zoneref_idx = 0;
+>  
+>  	zonelist = &pgdat->node_zonelists[ZONELIST_FALLBACK];
+> -	for (j = 0; zonelist->_zonerefs[j].zone != NULL; j++)
+> -		;
+> -	j = build_zonelists_node(NODE_DATA(node), zonelist, j);
+> -	zonelist->_zonerefs[j].zone = NULL;
+> -	zonelist->_zonerefs[j].zone_idx = 0;
+> +
+> +	for (i = 0; i < MAX_NUMNODES; i++) {
+> +		pg_data_t *node = NODE_DATA(node_order[i]);
+> +
+> +		zoneref_idx = build_zonelists_node(node, zonelist, zoneref_idx);
+> +	}
 
-The current mmotm after this patch looks like this
-	if (self && !node_online(self->node_id)) {
-		build_zonelists(self);
-	} else {
-		for_each_online_node(nid) {
-			pg_data_t *pgdat = NODE_DATA(nid);
+The naming here is weird to say the least and makes this a lot more
+confusing than it needs to be. Primarily, it's because the zoneref_idx
+parameter gets renamed to nr_zones in build_zonelists_node where it's
+nothing to do with the number of zones at all.
 
-			build_zonelists(pgdat);
-		}
+It also iterates for longer than it needs to. MAX_NUMNODES can be a
+large value of mostly empty nodes but it happily goes through them
+anyway. Pass zoneref_idx in as a pointer that is updated by the function
+and use the return value to break the loop when an empty node is
+encountered?
 
-#ifdef CONFIG_HAVE_MEMORYLESS_NODES
-		/*
-		 * We now know the "local memory node" for each node--
-		 * i.e., the node of the first zone in the generic zonelist.
-		 * Set up numa_mem percpu variable for on-line cpus.  During
-		 * boot, only the boot cpu should be on-line;  we'll init the
-		 * secondary cpus' numa_mem as they come on-line.  During
-		 * node/memory hotplug, we'll fixup all on-line cpus.
-		 */
-		for_each_online_cpu(cpu)
-			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
-#endif
-	}
+> +	zonelist->_zonerefs[zoneref_idx].zone = NULL;
+> +	zonelist->_zonerefs[zoneref_idx].zone_idx = 0;
+>  }
+>  
 
-So for_each_online_cpu is called outside of the for_each_online_node.
-Have a look at
-git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-branch attempts/zonlists-build-simplification
+It *might* be safer given the next patch to zero out the remainder of
+the _zonerefs to that there is no combination of node add/remove that has
+an iterator working with a semi-valid _zoneref which is beyond the last
+correct value. It *should* be safe as the very last entry will always
+be null but if you don't zero it out, it is possible for iterators to be
+working beyond the "end" of the zonelist for a short window.
+
+Otherwise think it's ok including my stupid comment about node_order
+stack usage.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
