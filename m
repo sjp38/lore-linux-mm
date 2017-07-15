@@ -1,95 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C91B4440941
-	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 19:50:36 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id a195so47192275qkb.13
-        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 16:50:36 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B7CD0440941
+	for <linux-mm@kvack.org>; Fri, 14 Jul 2017 20:56:00 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l55so44658998qtl.7
+        for <linux-mm@kvack.org>; Fri, 14 Jul 2017 17:56:00 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 35si9077795qtr.317.2017.07.14.16.50.35
+        by mx.google.com with ESMTPS id v8si9426860qtc.58.2017.07.14.17.55.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jul 2017 16:50:35 -0700 (PDT)
-From: shuwang@redhat.com
-Subject: [PATCH v2] kmemleak: add oom=<disable|ignore> runtime parameter
-Date: Sat, 15 Jul 2017 07:50:24 +0800
-Message-Id: <1500076224-13404-1-git-send-email-shuwang@redhat.com>
+        Fri, 14 Jul 2017 17:55:59 -0700 (PDT)
+Date: Fri, 14 Jul 2017 20:55:55 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+Message-ID: <20170715005554.GA12694@redhat.com>
+References: <fa402b70fa9d418ebf58a26a454abd06@HQMAIL103.nvidia.com>
+ <5f476e8c-8256-13a8-2228-a2b9e5650586@nvidia.com>
+ <20170701005749.GA7232@redhat.com>
+ <ff6cb2b9-b930-afad-1a1f-1c437eced3cf@nvidia.com>
+ <20170711182922.GC5347@redhat.com>
+ <7a4478cb-7eb6-2546-e707-1b0f18e3acd4@nvidia.com>
+ <20170711184919.GD5347@redhat.com>
+ <84d83148-41a3-d0e8-be80-56187a8e8ccc@nvidia.com>
+ <20170713201620.GB1979@redhat.com>
+ <ca12b033-8ec5-84b0-c2aa-ea829e1194fa@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <ca12b033-8ec5-84b0-c2aa-ea829e1194fa@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, corbet@lwn.net
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shuwang@redhat.com, liwang@redhat.com, chuhu@redhat.com
+To: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-From: Shu Wang <shuwang@redhat.com>
+On Fri, Jul 14, 2017 at 12:43:51PM -0700, Evgeny Baskakov wrote:
+> On 7/13/17 1:16 PM, Jerome Glisse wrote:
+> Hi Jerome,
+> 
+> I have hit another kind of hang. Briefly, if a not yet allocated page faults
+> on CPU during migration to device memory, any subsequent migration will fail
+> for such page. Such a situation can trigger if a CPU page fault happens just
+> immediately after migrate_vma() starts unmapping pages to migrate.
+> 
+> Please find attached a reproducer based on the sample driver. In the
+> hmm_test() function, an HMM_DMIRROR_MIGRATE request is triggered from a
+> separate thread for not yet allocated pages (coming from malloc). In the
+> same time, a HMM_DMIRROR_READ request is made for the same pages. This
+> results in a sporadic app-side hang, because random number of pages never
+> migrate to device memory.
+> 
+> Note that if the pages are touched (initialized with data) prior to that,
+> everything works as expected: all HMM_DMIRROR_READ and HMM_DMIRROR_MIGRATE
+> requests eventually succeed. See comments in the hmm_test() function.
+> 
 
-When running memory stress tests, kmemleak could be easily disabled in
-function create_object as system is out of memory and kmemleak failed to
-alloc from object_cache. Since there's no way to enable kmemleak after
-it's off, simply ignore the object_cache alloc failure will just loses
-track of some memory objects, but could increase the usability of kmemleak
-under memory stress.
+So pushed an updated hmm-next branch this should fix all issues you had.
+Thought i am not sure about the test in this mail, all i see is that it
+continously spit error messages but it does not hang (i let it run 20min
+or so). Dunno if that is what expected. Let me know if this is still an
+issue and if so what should be the expected output of this test program.
 
-The default action for oom is still disable kmemleak,
-echo oom=ignore > /sys/kernel/debug/kmemleak can change to action to
-ignore oom.
-
-Signed-off-by: Shu Wang <shuwang@redhat.com>
----
- Documentation/dev-tools/kmemleak.rst |  5 +++++
- mm/kmemleak.c                        | 10 +++++++++-
- 2 files changed, 14 insertions(+), 1 deletion(-)
-
-diff --git a/Documentation/dev-tools/kmemleak.rst b/Documentation/dev-tools/kmemleak.rst
-index cb88626..3013809 100644
---- a/Documentation/dev-tools/kmemleak.rst
-+++ b/Documentation/dev-tools/kmemleak.rst
-@@ -60,6 +60,11 @@ Memory scanning parameters can be modified at run-time by writing to the
-     or free all kmemleak objects if kmemleak has been disabled.
- - dump=<addr>
-     dump information about the object found at <addr>
-+- oom=disable
-+    disable kmemleak after system out of memory (default)
-+- oom=ignore
-+    do not disable kmemleak after system out of memory
-+    (useful for memory stress test, but will lose some objects)
- 
- Kmemleak can also be disabled at boot-time by passing ``kmemleak=off`` on
- the kernel command line.
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 7780cd8..b5cb2c6 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -236,6 +236,9 @@ static DEFINE_MUTEX(scan_mutex);
- static int kmemleak_skip_disable;
- /* If there are leaks that can be reported */
- static bool kmemleak_found_leaks;
-+/* If disable kmemleak after out of memory */
-+static bool kmemleak_oom_disable = true;
-+
- 
- /*
-  * Early object allocation/freeing logging. Kmemleak is initialized after the
-@@ -556,7 +559,8 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
- 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
- 	if (!object) {
- 		pr_warn("Cannot allocate a kmemleak_object structure\n");
--		kmemleak_disable();
-+		if (kmemleak_oom_disable)
-+			kmemleak_disable();
- 		return NULL;
- 	}
- 
-@@ -1888,6 +1892,10 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 		kmemleak_scan();
- 	else if (strncmp(buf, "dump=", 5) == 0)
- 		ret = dump_str_object_info(buf + 5);
-+	else if (strncmp(buf, "oom=ignore", 10) == 0)
-+		kmemleak_oom_disable = false;
-+	else if (strncmp(buf, "oom=disable", 11) == 0)
-+		kmemleak_oom_disable = true;
- 	else
- 		ret = -EINVAL;
- 
--- 
-2.5.0
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
