@@ -1,814 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D5591440941
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 04:02:20 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 77so12545096wrb.11
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 01:02:20 -0700 (PDT)
-Received: from smtp4.service.unic24.net (smtp4.service.unic24.net. [195.191.132.173])
-        by mx.google.com with ESMTPS id y187si4328829wmb.96.2017.07.15.01.02.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D606B05FE
+	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 11:55:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t3so13507990wme.9
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 08:55:23 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b7si5373776wma.134.2017.07.15.08.55.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 15 Jul 2017 01:02:19 -0700 (PDT)
-Received: from srdix-prd-inx3.p.unic24.net (srdix-prd-inx3.p.unic24.net [172.29.153.81])
-	by smtp4.service.unic24.net (Postfix) with ESMTP id B8D45DF959
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 10:02:18 +0200 (CEST)
-Date: Sat, 15 Jul 2017 10:02:18 +0200 (CEST)
-From: =?UTF-8?Q?M=C3=B6venpick_Hotels_=26_Resorts_Newsletter?= <newsletter@moevenpick.com>
-Message-ID: <INX.1134b1c5b8edb78e7c898684c3c.120a61.357902.5ef.15d4542ecf64d7d.bounce@mail.moevenpick-hotels.com>
-Subject: Reminder: Just one click and you receive your 20 % discount!
+        Sat, 15 Jul 2017 08:55:20 -0700 (PDT)
+Date: Sat, 15 Jul 2017 16:55:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170715155518.ok2q62efc2vurqk5@suse.de>
+References: <20170711155312.637eyzpqeghcgqzp@suse.de>
+ <CALCETrWjER+vLfDryhOHbJAF5D5YxjN7e9Z0kyhbrmuQ-CuVbA@mail.gmail.com>
+ <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <20170711200923.gyaxfjzz3tpvreuq@suse.de>
+ <20170711215240.tdpmwmgwcuerjj3o@suse.de>
+ <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
+ <20170712082733.ouf7yx2bnvwwcfms@suse.de>
+ <591A2865-13B8-4B3A-B094-8B83A7F9814B@gmail.com>
+ <20170713060706.o2cuko5y6irxwnww@suse.de>
+ <A9CB595E-7C6D-438F-9835-A9EB8DA90892@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_Part_2313628_256672739.1500105738781"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <A9CB595E-7C6D-438F-9835-A9EB8DA90892@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-------=_Part_2313628_256672739.1500105738781
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Fri, Jul 14, 2017 at 04:16:44PM -0700, Nadav Amit wrote:
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Wed, Jul 12, 2017 at 04:27:23PM -0700, Nadav Amit wrote:
+> >>> If reclaim is first, it'll take the PTL, set batched while a racing
+> >>> mprotect/munmap/etc spins. On release, the racing mprotect/munmmap
+> >>> immediately calls flush_tlb_batched_pending() before proceeding as normal,
+> >>> finding pte_none with the TLB flushed.
+> >> 
+> >> This is the scenario I regarded in my example. Notice that when the first
+> >> flush_tlb_batched_pending is called, CPU0 and CPU1 hold different page-table
+> >> locks - allowing them to run concurrently. As a result
+> >> flush_tlb_batched_pending is executed before the PTE was cleared and
+> >> mm->tlb_flush_batched is cleared. Later, after CPU0 runs ptep_get_and_clear
+> >> mm->tlb_flush_batched remains clear, and CPU1 can use the stale PTE.
+> > 
+> > If they hold different PTL locks, it means that reclaim and and the parallel
+> > munmap/mprotect/madvise/mremap operation are operating on different regions
+> > of an mm or separate mm's and the race should not apply or at the very
+> > least is equivalent to not batching the flushes. For multiple parallel
+> > operations, munmap/mprotect/mremap are serialised by mmap_sem so there
+> > is only one risky operation at a time. For multiple madvise, there is a
+> > small window when a page is accessible after madvise returns but it is an
+> > advisory call so it's primarily a data integrity concern and the TLB is
+> > flushed before the page is either freed or IO starts on the reclaim side.
+> 
+> I think there is some miscommunication. Perhaps one detail was missing:
+> 
+> CPU0				CPU1
+> ---- 				----
+> should_defer_flush
+> => mm->tlb_flush_batched=true		
+> 				flush_tlb_batched_pending (another PT)
+> 				=> flush TLB
+> 				=> mm->tlb_flush_batched=false
+> 
+> 				Access PTE (and cache in TLB)
+> ptep_get_and_clear(PTE)
+> ...
+> 
+> 				flush_tlb_batched_pending (batched PT)
+> 				[ no flush since tlb_flush_batched=false ]
+> 				use the stale PTE
+> ...
+> try_to_unmap_flush
+> 
+> There are only 2 CPUs and both regard the same address-space. CPU0 reclaim a
+> page from this address-space. Just between setting tlb_flush_batch and the
+> actual clearing of the PTE, the process on CPU1 runs munmap and calls
+> flush_tlb_batched_pending. This can happen if CPU1 regards a different
+> page-table.
+> 
 
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+If both regard the same address-space then they have the same page table so
+there is a disconnect between the first and last sentence in your paragraph
+above. On CPU 0, the setting of tlb_flush_batched and ptep_get_and_clear
+is also reversed as the sequence is
 
-M=C3=B6venpick Hotels & Resorts
+                        pteval = ptep_get_and_clear(mm, address, pvmw.pte);
+                        set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
 
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=20
+Additional barriers should not be needed as within the critical section
+that can race, it's protected by the lock and with Andy's code, there is
+a full barrier before the setting of tlb_flush_batched. With Andy's code,
+there may be a need for a compiler barrier but I can rethink about that
+and add it during the backport to -stable if necessary.
 
-Dear Ms =E8=87=AA=E5=8A=A8=E4=B8=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=B0=81=E9=
-=82=AE=E4=BB=B6=EF=BC=8C=E6=97=A5=E5=8F=913=E4=B8=87=E5=B0=81=EF=BC=8C=E4=
-=B8=80=E4=B8=AA=E6=9C=88=E8=AE=A9=E6=82=A8=E5=8F=91=E9=80=81100=E4=B8=87=E5=
-=B0=81=E6=95=B0=E9=87=8F=EF=BC=8C=E4=B8=80=E5=85=B1900=E5=9D=97=E9=92=B1 =
-=E5=8A=A0weixin=EF=BC=9AKaifaxin(=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=
-=BC=E9=9F=B3),=20
+So the setting happens after the clear and if they share the same address
+space and collide then they both share the same PTL so are protected from
+each other.
 
-Thank you for your interest in the M=C3=B6venpick Hotels & Resorts newslett=
-er.
-You have not confirmed your subscription since 13.07.2017 yet. We would
-like to remind you just once with this email. Should you not wish to
-receive our newsletter you can ignore this email.
+If there are separate address spaces using a shared mapping then the
+same race does not occur.
 
-Once your subscription has been approved you will receive your personal 20
-% welcome promotion code and many other exclusive offerings, benefits and
-news from us.
+> > +/*
+> > + * Ensure that any arch_tlbbatch_add_mm calls on this mm are up to date when
+> > + * this returns. Using the current mm tlb_gen means the TLB will be up to date
+> > + * with respect to the tlb_gen set at arch_tlbbatch_add_mm. If a flush has
+> > + * happened since then the IPIs will still be sent but the actual flush is
+> > + * avoided. Unfortunately the IPIs are necessary as the per-cpu context
+> > + * tlb_gens cannot be safely accessed.
+> > + */
+> > +void arch_tlbbatch_flush_one_mm(struct mm_struct *mm)
+> > +{
+> > +	int cpu;
+> > +	struct flush_tlb_info info = {
+> > +		.mm = mm,
+> > +		.new_tlb_gen = atomic64_read(&mm->context.tlb_gen),
+> > +		.start = 0,
+> > +		.end = TLB_FLUSH_ALL,
+> > +	};
+> > +
+> > +	cpu = get_cpu();
+> > +
+> > +	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+> > +		VM_WARN_ON(irqs_disabled());
+> > +		local_irq_disable();
+> > +		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+> > +		local_irq_enable();
+> > +	}
+> > +
+> > +	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+> > +		flush_tlb_others(mm_cpumask(mm), &info);
+> > +
+> > +	put_cpu();
+> > +}
+> > +
+> 
+> It is a shame that after Andy collapsed all the different flushing flows,
+> you create a new one. How about squashing this untested one to yours?
+> 
 
-Please confirm your subscription by clicking the link below in order to
-prevent unwanted emails:=20
+The patch looks fine to be but when writing the patch, I wondered why the
+original code disabled preemption before inc_mm_tlb_gen. I didn't spot
+the reason for it but given the importance of properly synchronising with
+switch_mm, I played it safe. However, this should be ok on top and
+maintain the existing sequences
 
-##########################################################################
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 248063dc5be8..cbd8621a0bee 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -404,6 +404,21 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
+  */
+ static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+ 
++static void flush_tlb_mm_common(struct flush_tlb_info *info, int cpu)
++{
++	struct mm_struct *mm = info->mm;
++
++	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
++		VM_WARN_ON(irqs_disabled());
++		local_irq_disable();
++		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
++		local_irq_enable();
++	}
++
++	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
++		flush_tlb_others(mm_cpumask(mm), info);
++}
++
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag)
+ {
+@@ -429,15 +444,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 		info.end = TLB_FLUSH_ALL;
+ 	}
+ 
+-	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+-		VM_WARN_ON(irqs_disabled());
+-		local_irq_disable();
+-		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+-		local_irq_enable();
+-	}
+-
+-	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), &info);
++	flush_tlb_mm_common(&info, cpu);
+ 
+ 	put_cpu();
+ }
+@@ -515,7 +522,6 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+  */
+ void arch_tlbbatch_flush_one_mm(struct mm_struct *mm)
+ {
+-	int cpu;
+ 	struct flush_tlb_info info = {
+ 		.mm = mm,
+ 		.new_tlb_gen = atomic64_read(&mm->context.tlb_gen),
+@@ -523,17 +529,7 @@ void arch_tlbbatch_flush_one_mm(struct mm_struct *mm)
+ 		.end = TLB_FLUSH_ALL,
+ 	};
+ 
+-	cpu = get_cpu();
+-
+-	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm)) {
+-		VM_WARN_ON(irqs_disabled());
+-		local_irq_disable();
+-		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
+-		local_irq_enable();
+-	}
+-
+-	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), &info);
++	flush_tlb_mm_common(&info, get_cpu());
+ 
+ 	put_cpu();
+ }
 
-Yes, I would like to receive the M=C3=B6venpick Hotels & Resorts newsletter=
- plus
-my 20 % welcome discount:
-http://moevenpick-hotels.inx.ch/inxmail14/d/d.php?q0gyc0700gv3byd0d00000000=
-0000000fnmiz5xq2118&e=3Dlinux-mm@kvack.org&s=3Df&f=3D=E8=87=AA=E5=8A=A8=E4=
-=B8=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=B0=81=E9=82=AE=E4=BB=B6=EF=BC=8C=E6=97=
-=A5=E5=8F=913=E4=B8=87=E5=B0=81=EF=BC=8C=E4=B8=80=E4=B8=AA=E6=9C=88=E8=AE=
-=A9=E6=82=A8=E5=8F=91=E9=80=81100=E4=B8=87=E5=B0=81=E6=95=B0=E9=87=8F=EF=BC=
-=8C=E4=B8=80=E5=85=B1900=E5=9D=97=E9=92=B1
-=E5=8A=A0weixin=EF=BC=9Akaifaxin(=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=
-=BC=E9=9F=B3)&n=3D=E8=87=AA=E5=8A=A8=E4=B8=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=
-=B0=81=E9=82=AE=E4=BB=B6=EF=BC=8C=E6=97=A5=E5=8F=913=E4=B8=87=E5=B0=81=EF=
-=BC=8C=E4=B8=80=E4=B8=AA=E6=9C=88=E8=AE=A9=E6=82=A8=E5=8F=91=E9=80=81100=E4=
-=B8=87=E5=B0=81=E6=95=B0=E9=87=8F=EF=BC=8C=E4=B8=80=E5=85=B1900=E5=9D=97=E9=
-=92=B1
-=E5=8A=A0weixin=EF=BC=9Akaifaxin(=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=
-=BC=E9=9F=B3)&l=3Den&c=3Dtv
-
-##########################################################################
-=20
-Should you not wish to receive our newsletter you can ignore this email.
-
-Please use our newsletter contact form to get in touch, should you have any
-questions: http://moevenpick-hotels.inx.ch/inxmail14/d?q0gyc07i0gv3byd0d000=
-000000000000fnmisqpy2118
-
-Best regards
-Your M=C3=B6venpick Hotels & Resorts team
-=09
----
-=09=09
-By signing up for our newsletter, you consent to us sending you e-mails for
-marketing purposes. You also consent to us analysing your clicking
-pattern, in order for us to personalize the newsletter according to your
-interests. You can withdraw this consent at any time through the
-unsubscribe link in the newsletter or on our website.
-=09
-
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-
-M=C3=B6venpick Hotels & Resorts Management AG
-Oberneuhofstrasse 12 . 6340 Baar, Switzerland
-Phone +41 41 759 19 19  . Fax +41 41 759 18 18
-www.movenpick.com
-
-Copyright =C2=A9 M=C3=B6venpick Hotels & Resorts 2016
-
-
----
-
-
-Imprint: http://moevenpick-hotels.inx.ch/inxmail14/d?q0gyc07q0gv3byd0d00000=
-0000000000fnmi7kxi2118
-
-Privacy Policy: http://moevenpick-hotels.inx.ch/inxmail14/d?q0gyc07y0gv3byd=
-0d000000000000000fnmiuhp02118
-------=_Part_2313628_256672739.1500105738781
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
-w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns=3D"http://www.w3.org/1999/xhtml">
-<head>
-=09<meta http-equiv=3D"Content-Type" content=3D"text/html;charset=3DUTF-8"/=
->
-=09<meta http-equiv=3D"Content-Style-Type" content=3D"text/css;charset=3DUT=
-F-8"/>
-=09<meta content=3D"width =3D device-width" name=3D"viewport">
-=09<meta content=3D"telephone=3Dno" name=3D"format-detection">
-=09<title>M&ouml;venpick Hotels &amp; Resorts</title>
-=09<style type=3D"text/css">
-=09=09@media screen {
-=09=09=09@font-face {
-=09=09=09=09font-family: TheSans;
-=09=09=09=09src: url(http://www.movenpick.com/../../../assets/Fonts/TheSans=
-_B2_400.eot);
-=09=09=09=09src: url(http://www.movenpick.com/../../../assets/Fonts/TheSans=
-_B2_400.eot?#iefix) format("embedded-opentype"),
-=09=09=09=09url(http://www.movenpick.com/../../../assets/Fonts/TheSans_B2_4=
-00.woff) format("woff"),
-=09=09=09=09url(http://www.movenpick.com/../../../assets/Fonts/TheSans_B2_4=
-00.svg#TheSans_B2_400) format("svg");
-=09=09=09=09font-weight: 400;
-=09=09=09=09mso-font-alt: 'Arial';
-=09=09=09}
-
-=09=09=09@font-face {
-=09=09=09=09font-family: TheSans;
-=09=09=09=09src: url(http://www.movenpick.com/../../../assets/Fonts/TheSans=
-_B2_600.eot);
-=09=09=09=09src: url(http://www.movenpick.com/../../../assets/Fonts/TheSans=
-_B2_600.eot?#iefix) format("embedded-opentype"),
-=09=09=09=09url(http://www.movenpick.com/../../../assets/Fonts/TheSans_B2_6=
-00.woff) format("woff"),
-=09=09=09=09url(http://www.movenpick.com/../../../assets/Fonts/TheSans_B2_6=
-00.svg#TheSans_B2_600) format("svg");
-=09=09=09=09font-weight: 600;
-=09=09=09=09mso-font-alt: 'Arial';
-=09=09=09}
-=09=09}
-=09=09html,
-=09=09body {
-=09=09=09font-family:TheSans,Tahoma,Arial,sans-serif;
-=09=09}
-
-=09=09body
-=09=09{
-=09=09=09-ms-text-size-adjust: none;
-=09=09=09-webkit-text-size-adjust: none;
-=09=09=09background: #ffffff;
-=09=09=09margin: 0;
-=09=09=09padding: 0;
-=09=09=09text-rendering: optimizeLegibility;
-=09=09=09text-size-adjust: none;
-=09=09}
-
-=09=09a
-=09=09{
-=09=09=09color: #ae0a3b !important;
-=09=09=09text-decoration: underline;
-=09=09}
-
-=09=09a:hover
-=09=09{
-=09=09=09text-decoration: none;
-=09=09}
-=09=09table td
-=09=09{
-=09=09=09border-collapse: collapse;
-=09=09}
-=09=09@media
-=09=09only screen and (max-device-width : 480px),
-=09=09only screen and (max-width: 580px)
-=09=09{
-=09=09=09*[class].h
-=09=09=09{
-=09=09=09=09display: none !important;
-=09=09=09}
-=09=09=09*[class].w224
-=09=09=09{
-=09=09=09=09width: 224px !important;
-=09=09=09}
-=09=09=09*[class].w230
-=09=09=09{
-=09=09=09=09width: 230px !important;
-=09=09=09}
-=09=09=09*[class].w250
-=09=09=09{
-=09=09=09=09width: 250px !important;
-=09=09=09}
-=09=09=09*[class].w290
-=09=09=09{
-=09=09=09=09width: 290px !important;
-=09=09=09}
-=09=09=09*[class].w320
-=09=09=09{
-=09=09=09=09width: 320px !important;
-=09=09=09}
-=09=09=09*[class].h20
-=09=09=09{
-=09=09=09=09height: 20px !important;
-=09=09=09}
-=09=09=09*[class].h30
-=09=09=09{
-=09=09=09=09height: 30px !important;
-=09=09=09}
-=09=09=09*[class].h40
-=09=09=09{
-=09=09=09=09height: 40px !important;
-=09=09=09}
-=09=09=09*[class].ah
-=09=09=09{
-=09=09=09=09height: auto !important;
-=09=09=09}
-=09=09=09*[class].fl
-=09=09=09{
-=09=09=09=09float: left !important;
-=09=09=09}
-=09=09=09*[class].db
-=09=09=09{
-=09=09=09=09display: block !important;
-=09=09=09}
-=09=09=09*[class].paddrl10
-=09=09=09{
-=09=09=09=09padding-right: 10px !important;
-=09=09=09=09padding-left: 10px !important;
-=09=09=09}
-=09=09=09*[class].marg0a
-=09=09=09{
-=09=09=09=09margin: 0 auto !important;
-=09=09=09}
-=09=09=09*[class].margt20
-=09=09=09{
-=09=09=09=09margin-top: 20px !important;
-=09=09=09}
-=09=09=09*[class].margtb10
-=09=09=09{
-=09=09=09=09margin-top: 10px !important;
-=09=09=09=09margin-bottom: 10px !important;
-=09=09=09}
-=09=09=09*[class].margrl15
-=09=09=09{
-=09=09=09=09margin-left: 15px !important;
-=09=09=09=09margin-right: 15px !important;
-=09=09=09}
-=09=09=09*[class].margrl20
-=09=09=09{
-=09=09=09=09margin-left: 20px !important;
-=09=09=09=09margin-right: 20px !important;
-=09=09=09}
-=09=09=09*[class].margrl30
-=09=09=09{
-=09=09=09=09margin-left: 30px !important;
-=09=09=09=09margin-right: 30px !important;
-=09=09=09}
-=09=09=09*[class].margtrl20 {
-=09=09=09=09margin-top: 20px !important;
-=09=09=09=09margin-left: 20px !important;
-=09=09=09=09margin-right: 20px !important;
-=09=09=09}
-=09=09=09*[class].margb10
-=09=09=09{
-=09=09=09=09margin-bottom: 10px !important;
-=09=09=09}
-=09=09=09*[class].margb20
-=09=09=09{
-=09=09=09=09margin-bottom: 20px !important;
-=09=09=09}
-=09=09=09*[class].margb30
-=09=09=09{
-=09=09=09=09margin-bottom: 30px !important;
-=09=09=09}
-=09=09=09*[class].tac
-=09=09=09{
-=09=09=09=09text-align: center !important;
-=09=09=09}
-=09=09=09*[class].border0 {
-=09=09=09=09border: none !important;
-=09=09=09}
-=09=09=09*[class].borderw {
-=09=09=09=09border: 2px solid #ffffff;
-=09=09=09}
-=09=09=09*[class].borderph {
-=09=09=09=09border-bottom: 1px solid #e0dcd7;
-=09=09=09=09margin-bottom: 5px;
-=09=09=09=09padding-bottom: 5px;
-=09=09=09}
-=09=09=09*[class].bgred {
-=09=09=09=09background-color: #ae0a3b;
-=09=09=09}
-=09=09=09*[class].bgnone
-=09=09=09{
-=09=09=09=09background-color: transparent;
-=09=09=09=09background: none;
-=09=09=09}
-=09=09}
-=09</style>
-</head>
-<body topmargin=3D"0" leftmargin=3D"0" rightmargin=3D"0" bottommargin=3D"0"=
- link=3D"#ef0000" alink=3D"#ef0000" vlink=3D"#ef0000" bgcolor=3D"#ffffff" s=
-tyle=3D"margin-top: 0px; margin-left: 0px; margin-right: 0px; margin-bottom=
-: 0px; padding-top: 0px; padding-left: 0px; padding-right: 0px; padding-bot=
-tom: 0px;">
-<table class=3D"marg0a" bgcolor=3D"#ffffff" border=3D"0" cellpadding=3D"0" =
-cellspacing=3D"0" height=3D"100%" width=3D"100%">
-=09<tbody>
-=09<tr>
-=09=09<td align=3D"center" valign=3D"top">
-=09=09=09<table class=3D"w320" align=3D"center" border=3D"0" cellpadding=3D=
-"0" cellspacing=3D"0" width=3D"820" bgcolor=3D"#f2f2f2">
-=09=09=09=09<tr>
-=09=09=09=09=09<td class=3D"w290 margrl15" align=3D"center" valign=3D"top">
-=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D"0" cellp=
-adding=3D"0" cellspacing=3D"0" width=3D"100%" bgcolor=3D"#f2f2f2">
-=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09<td align=3D"center" valign=3D"top">
-=09=09=09=09=09=09=09=09=09<!-- Preheader -->
-=09=09=09=09=09=09=09=09=09<table class=3D"h" align=3D"center" border=3D"0"=
- cellpadding=3D"0" cellspacing=3D"0" width=3D"672" style=3D"display: none;"=
->
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D"right" valign=3D"=
-middle" width=3D"672" style=3D"">
-=09=09=09=09=09=09=09=09=09=09=09=09<div style=3D"display: none;"><font sty=
-le=3D"font-size: 1px; line-height: 1px;" color=3D"#f2f2f2">Confirm your sub=
-scription now and get your 20 % welcome discount!</font></div>
-=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09<!-- //Preheader -->
-=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09</table>
-=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D"0" cellp=
-adding=3D"0" =09 cellspacing=3D"0" width=3D"100%" bgcolor=3D"#f2f2f2">
-=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09<td align=3D"center" valign=3D"top">
-
-=09=09=09=09=09=09=09=09=09<!-- View in Browser -->
-=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D=
-"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 ah fl db paddtb5 margrl2=
-0" align=3D"center" valign=3D"middle" width=3D"672" height=3D"30">
-=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-family: TheSans,Tah=
-oma,Arial,sans-serif; font-size: 12px; font-weight: 400; line-height: 20px;=
-" color=3D"#333333" face=3D"TheSans,Tahoma,Arial,sans-serif">
-=09=09=09=09=09=09=09=09=09=09=09=09=09If this newsletter does not open cor=
-rectly, please click <a href=3D"http://moevenpick-hotels.inx.ch/inxmail14/h=
-tml_mail.jsp?params=3D3503644+linux-mm%40kvack.org+12+00j0uyi000eem00000000=
-bllcextknrb" style=3D"color: #ae0a3b;" color=3D"#ae0a3b" target=3D"_blank">=
-<font color=3D"#ae0a3b" style=3D"color: #ae0a3b;">here</font></a>.
-=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09<!-- //View in Browser-->
-
-=09=09=09=09=09=09=09=09=09<!-- Spacer -->
-=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D=
-"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672" bgcolor=3D"#ffffff">
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 h40 fl db" align=3D"left=
-" valign=3D"top" width=3D"672" height=3D"20"><font style=3D"font-size: 1px;=
- line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09<!-- //Spacer-->
-
-=09=09=09=09=09=09=09=09=09<!-- Logo -->
-=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D=
-"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672" bgcolor=3D"#ffffff">
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D"left" valign=3D"t=
-op" width=3D"40"><font style=3D"font-size: 1px; line-height: 1px;">&nbsp;</=
-font></td>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 ah fl db margb20" align=
-=3D"left" valign=3D"top" width=3D"592" height=3D"66">
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"left" bo=
-rder=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"208">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db" align=3D=
-"left" valign=3D"middle" width=3D"208">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<a href=3D"http://www.movenpic=
-k.com?utm_medium=3Demail-doi&utm_source=3Demail-db&utm_campaign=3D{GLOBAL}s=
-ubscription-doi-no-pms_EN&utm_content=3Dheader-logo" target=3D"_blank">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<img class=3D"marg0a tac" w=
-idth=3D"208" height=3D"66" alt=3D"M&ouml;venpick Hotels &amp; Resorts" src=
-=3D"http://moevenpick-hotels.inx.ch/images/template2017-new_logo/mhr_new_lo=
-go.jpg" style=3D"display: block;" border=3D"0"/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D"left" valign=3D"t=
-op" width=3D"40"><font style=3D"font-size: 1px; line-height: 1px;">&nbsp;</=
-font></td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 h20 fl db" colspan=3D"4"=
- align=3D"left" valign=3D"top" width=3D"672" height=3D"30"><font style=3D"f=
-ont-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09<!-- //Logo -->
-
-=09=09=09=09=09=09=09=09=09<!-- body -->
-=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" border=3D=
-"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"100%">
-=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09<td align=3D"left" valign=3D"top">
-
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- Headerimage -->
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" =
-border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672" bgcolor=3D"#=
-ffffff">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db" align=3D=
-"center" valign=3D"top" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<img class=3D"w290 ah marg0a t=
-ac" width=3D"672" height=3D"300" alt=3D"" src=3D"http://moevenpick-hotels.i=
-nx.ch/images/Welcome%20Mail/header_doi_cebu.jpg" style=3D"display: block;" =
-border=3D"0"/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- //Headerimage-->
-
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- Spacer -->
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" =
-border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 h40 fl db" alig=
-n=3D"left" valign=3D"top" width=3D"672" height=3D"25"><font style=3D"font-s=
-ize: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- //Spacer-->
-
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- Editorial -->
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" =
-border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db" align=3D=
-"center" valign=3D"top" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D=
-"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 fl db =
-margrl20" align=3D"center" valign=3D"top" width=3D"604">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 26px; font-weight: 600; l=
-ine-height: 32px;" face=3D"TheSans,Tahoma,Arial,sans-serif" color=3D"#33333=
-3">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Dear Ms =E8=87=AA=
-=E5=8A=A8=E4=B8=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=B0=81=E9=82=AE=E4=BB=B6=EF=
-=BC=8C=E6=97=A5=E5=8F=913=E4=B8=87=E5=B0=81=EF=BC=8C=E4=B8=80=E4=B8=AA=E6=
-=9C=88=E8=AE=A9=E6=82=A8=E5=8F=91=E9=80=81100=E4=B8=87=E5=B0=81=E6=95=B0=E9=
-=87=8F=EF=BC=8C=E4=B8=80=E5=85=B1900=E5=9D=97=E9=92=B1 =E5=8A=A0weixin=EF=
-=BC=9AKaifaxin(=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=BC=E9=9F=B3),=20
-
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250  fl db=
- margrl20" colspan=3D"3" align=3D"center" valign=3D"top" width=3D"672" heig=
-ht=3D"40">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<img class=3D"w250 ah=
- marg0a tac" width=3D"320" height=3D"15" alt=3D"" src=3D"http://mhr.interap=
-ps.de/newsletter/images/standard2017/spacer.png" style=3D"display: block;" =
-border=3D"0"/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 fl db =
-margrl20" align=3D"center" valign=3D"top" width=3D"604">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 16px; font-weight: 400; l=
-ine-height: 20px;" face=3D"TheSans,Tahoma,Arial,sans-serif" color=3D"#33333=
-3">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Thank you for your in=
-terest in the M=C3=B6venpick Hotels & Resorts newsletter.<br/>You have <b>n=
-ot confirmed your subscription since 13.07.2017</b> yet. We would like to r=
-emind you just once with this email. Should you not wish to receive our new=
-sletter you can ignore this email.
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/><br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Once your subscriptio=
-n has been approved you will receive your personal <strong>20 % welcome pro=
-motion code</strong> and many other exclusive offerings, benefits and news =
-from us.
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/><br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Please confirm your s=
-ubscription by clicking the link below in order to prevent unwanted emails:
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" colspan=
-=3D"3" align=3D"left" valign=3D"top" width=3D"672" height=3D"30"><font styl=
-e=3D"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"30"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 fl db =
-margrl20" align=3D"left" valign=3D"top" width=3D"590">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w250 =
-margt20" align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" =
-width=3D"240">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h"=
- align=3D"left" valign=3D"top" width=3D"15" bgcolor=3D"#ae0a3b"><font style=
-=3D"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w2=
-30 fl db paddrl10" align=3D"center" valign=3D"middle" width=3D"210" bgcolor=
-=3D"#ae0a3b">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<a href=3D"http=
-://moevenpick-hotels.inx.ch/inxmail14/d/d.php?q0gycbey0gv3byd0d000000000000=
-000fnmirizy2118&e=3Dlinux-mm@kvack.org&s=3Df&f=3D=E8=87=AA=E5=8A=A8=E4=B8=
-=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=B0=81=E9=82=AE=E4=BB=B6=EF=BC=8C=E6=97=A5=
-=E5=8F=913=E4=B8=87=E5=B0=81=EF=BC=8C=E4=B8=80=E4=B8=AA=E6=9C=88=E8=AE=A9=
-=E6=82=A8=E5=8F=91=E9=80=81100=E4=B8=87=E5=B0=81=E6=95=B0=E9=87=8F=EF=BC=8C=
-=E4=B8=80=E5=85=B1900=E5=9D=97=E9=92=B1 =E5=8A=A0weixin=EF=BC=9Akaifaxin(=
-=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=BC=E9=9F=B3)&n=3D=E8=87=AA=E5=8A=
-=A8=E4=B8=80=E7=A7=92=E5=8F=91=E4=B8=80=E5=B0=81=E9=82=AE=E4=BB=B6=EF=BC=8C=
-=E6=97=A5=E5=8F=913=E4=B8=87=E5=B0=81=EF=BC=8C=E4=B8=80=E4=B8=AA=E6=9C=88=
-=E8=AE=A9=E6=82=A8=E5=8F=91=E9=80=81100=E4=B8=87=E5=B0=81=E6=95=B0=E9=87=8F=
-=EF=BC=8C=E4=B8=80=E5=85=B1900=E5=9D=97=E9=92=B1 =E5=8A=A0weixin=EF=BC=9Aka=
-ifaxin(=E5=BC=80=E5=8F=91=E4=BF=A1=E7=9A=84=E6=8B=BC=E9=9F=B3)&l=3Den&c=3Dt=
-v" style=3D"display: block; text-decoration: none; color: #ffffff; padding:=
- 10px 0;" color=3D"#ffffff" target=3D"_blank">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font sty=
-le=3D"font-family:TheSans,Tahoma,Arial,sans-serif; font-size: 16px; font-we=
-ight: 400; line-height: 26px;" face=3D"TheSans,Tahoma,Arial,sans-serif" col=
-or=3D"#ffffff">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Accept=
- now
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h"=
- align=3D"left" valign=3D"top" width=3D"15" bgcolor=3D"#ae0a3b"><font style=
-=3D"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"30"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db"=
- colspan=3D"4" align=3D"left" valign=3D"top" width=3D"672" height=3D"30"><f=
-ont style=3D"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 fl db =
-margrl20" align=3D"center" valign=3D"top" width=3D"604">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 16px; font-weight: 400; l=
-ine-height: 20px;" face=3D"TheSans,Tahoma,Arial,sans-serif" color=3D"#33333=
-3">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Best regards,
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<b>Your M&ouml;ven=
-pick Hotels &amp; Resorts team</b>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/><br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09We will send you a=
- reminder only once. If you don=E2=80=99t accept it, you will no longer rec=
-eive any marketing email communications from M=C3=B6venpick Hotels & Resort=
-s.
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/><br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<a href=3D"http://=
-www.movenpick.com/en/privacy-policy/?utm_medium=3Demail-doi&utm_source=3Dem=
-ail-db&utm_campaign=3D{GLOBAL}subscription-doi-no-pms_EN&utm_content=3Dhype=
-rlink-privacy" style=3D"font-family:TheSans,Tahoma,Arial,sans-serif; text-d=
-ecoration: none; color: #ae0a3b;" color=3D"#ae0a3b" target=3D"_blank">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font color=3D"=
-#ae0a3b" style=3D"color: #ae0a3b;">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09More informa=
-tion about our privacy policy details
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"h" align=3D=
-"left" valign=3D"top" width=3D"34"><font style=3D"font-size: 1px; line-heig=
-ht: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db"=
- colspan=3D"4" align=3D"left" valign=3D"top" width=3D"672" height=3D"30"><f=
-ont style=3D"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- //Editorial -->
-
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- Footer lower part-->
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" =
-border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"100%" bgcolor=3D"=
-#ffffff">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 ah fl db" align=
-=3D"left" valign=3D"top" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D=
-"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"fl db w290"=
- colspan=3D"5" align=3D"center" valign=3D"top" height=3D"30"><font style=3D=
-"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 ah fl =
-db tac" align=3D"left" valign=3D"top" width=3D"208">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 14px; font-weight: 400; l=
-ine-height: 20px;" color=3D"#706b65" face=3D"TheSans,Tahoma,Arial,sans-seri=
-f">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09M&ouml;venpick Hot=
-els &amp; Resorts
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Management AG
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Oberneuhofstrasse =
-12
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=096340 Baar, Switzer=
-land
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db =
-h20" align=3D"left" valign=3D"top" width=3D"24"><font style=3D"font-size: 1=
-px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 ah fl =
-db tac" align=3D"left" valign=3D"top" width=3D"208">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 14px; font-weight: 400; l=
-ine-height: 20px;" color=3D"#706b65" face=3D"TheSans,Tahoma,Arial,sans-seri=
-f">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Phone <a href=3D"#=
-" style=3D"font-family:TheSans,Tahoma,Arial,sans-serif; text-decoration: no=
-ne; color: #ae0a3b; border: none;" color=3D"#ae0a3b">+41 41 759 19 19</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Fax <a href=3D"#" =
-style=3D"font-family:TheSans,Tahoma,Arial,sans-serif; text-decoration: none=
-; color: #ae0a3b; border: none;" color=3D"#ae0a3b">+41 41 759 18 18</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<br/>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<a href=3D"http://=
-www.movenpick.com?utm_medium=3Demail-doi&utm_source=3Demail-db&utm_campaign=
-=3D{GLOBAL}subscription-doi-no-pms_EN&utm_content=3Dfooter-Link-MHR" style=
-=3D"font-family:TheSans,Tahoma,Arial,sans-serif; text-decoration: none; col=
-or: #ae0a3b;" color=3D"#ae0a3b" target=3D"_blank">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font color=3D"=
-#ae0a3b" style=3D"color: #ae0a3b;">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09www.movenpic=
-k.com
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</a>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db =
-h20" align=3D"left" valign=3D"top" width=3D"24"><font style=3D"font-size: 1=
-px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 ah fl =
-db margrl20 tac" align=3D"left" valign=3D"top" width=3D"208">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 14px; font-weight: 400; l=
-ine-height: 20px;" color=3D"#706b65" face=3D"TheSans,Tahoma,Arial,sans-seri=
-f">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Please do not repl=
-y to this email. If you want to contact us, please use our <a href=3D"http:=
-//www.movenpick.com/en/contact/?utm_medium=3Demail-doi&utm_source=3Demail-d=
-b&utm_campaign=3D{GLOBAL}subscription-doi-no-pms_EN&utm_content=3Dcontacts-=
-contactus" style=3D"font-family:TheSans,Tahoma,Arial,sans-serif; text-decor=
-ation: none; color: #ae0a3b;" color=3D"#ae0a3b" target=3D"_blank"><font col=
-or=3D"#ae0a3b" style=3D"color: #ae0a3b;">contact form</font></a> &raquo;
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"fl db w290"=
- colspan=3D"5" align=3D"center" valign=3D"top" height=3D"30"><font style=3D=
-"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- //Footer lower part -->
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- copyright + footer links -->
-=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D"center" =
-border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"100%" bgcolor=3D"=
-#ffffff">
-=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w290 fl db" align=3D=
-"center" valign=3D"middle">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<table class=3D"w290" align=3D=
-"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"672">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"fl db w290"=
- colspan=3D"2" align=3D"center" valign=3D"top" height=3D"30"><font style=3D=
-"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 ah fl =
-db margrl20 tac" align=3D"left" valign=3D"top" width=3D"336">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 14px; font-weight: 400; l=
-ine-height: 20px;" color=3D"#706b65" face=3D"TheSans,Tahoma,Arial,sans-seri=
-f">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09Copyright &copy; M=
-&ouml;venpick Hotels &amp; Resorts 2017
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"w250 ah fl =
-db margtrl20 tac" align=3D"right" valign=3D"top" width=3D"336">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<font style=3D"font-f=
-amily:TheSans,Tahoma,Arial,sans-serif; font-size: 14px; font-weight: 400; l=
-ine-height: 20px;" color=3D"#706b65" face=3D"TheSans,Tahoma,Arial,sans-seri=
-f">
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<span class=3D"db =
-margb10"><a href=3D"http://www.movenpick.com/en/imprint/?utm_medium=3Demail=
--doi&utm_source=3Demail-db&utm_campaign=3D{GLOBAL}subscription-doi-no-pms_E=
-N&utm_content=3Dfooter-imprint" style=3D"font-family:TheSans,Tahoma,Arial,s=
-ans-serif; text-decoration: none; color: #ae0a3b;" color=3D"#ae0a3b" target=
-=3D"_blank">Imprint</a> &raquo;</span>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<span class=3D"h">=
-&nbsp;</span>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<span class=3D"db =
-margb10"><a href=3D"http://www.movenpick.com/en/privacy-policy/?utm_medium=
-=3Demail-doi&utm_source=3Demail-db&utm_campaign=3D{GLOBAL}subscription-doi-=
-no-pms_EN&utm_content=3Dfooter-privacy" style=3D"font-family:TheSans,Tahoma=
-,Arial,sans-serif; text-decoration: none; color: #ae0a3b;" color=3D"#ae0a3b=
-" target=3D"_blank">Privacy Policy</a> &raquo;</span>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</font>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09<td class=3D"fl db w290"=
- colspan=3D"2" align=3D"center" valign=3D"top" height=3D"30"><font style=3D=
-"font-size: 1px; line-height: 1px;">&nbsp;</font></td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09=09=09=09<!-- //copyright + footer links -->
-=09=09=09=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09=09=09=09</table>
-=09=09=09=09=09=09=09=09=09<!-- //body-->
-=09=09=09=09=09=09=09=09</td>
-=09=09=09=09=09=09=09</tr>
-=09=09=09=09=09=09</table>
-=09=09=09=09=09</td>
-=09=09=09=09</tr>
-=09=09=09</table>
-=09=09</td>
-=09</tr>
-=09</tbody>
-</table>
-</body>
-</html>
-
-------=_Part_2313628_256672739.1500105738781--
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
