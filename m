@@ -1,80 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 458DD6B04D9
-	for <linux-mm@kvack.org>; Sun, 16 Jul 2017 07:01:45 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q4so9787111oif.2
-        for <linux-mm@kvack.org>; Sun, 16 Jul 2017 04:01:45 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u190si10509814oiu.342.2017.07.16.04.01.43
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24AAB6B04FC
+	for <linux-mm@kvack.org>; Sun, 16 Jul 2017 09:28:05 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id z37so129270956ybh.15
+        for <linux-mm@kvack.org>; Sun, 16 Jul 2017 06:28:05 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id r128si3593184ywd.385.2017.07.16.06.28.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 16 Jul 2017 04:01:44 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH v2] mm/page_alloc: Wait for oom_lock before retrying.
-Date: Sun, 16 Jul 2017 19:59:51 +0900
-Message-Id: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 16 Jul 2017 06:28:03 -0700 (PDT)
+Date: Sun, 16 Jul 2017 14:27:35 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH] mm: make allocation counters per-order
+Message-ID: <20170716132735.GA757@castle>
+References: <1499346271-15653-1-git-send-email-guro@fb.com>
+ <20170706131941.omod4zl4cyuscmjo@techsingularity.net>
+ <20170706144634.GB14840@castle>
+ <20170706154704.owxsnyizel6bcgku@techsingularity.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170706154704.owxsnyizel6bcgku@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, mhocko@kernel.org, hannes@cmpxchg.org, rientjes@google.com
-Cc: linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Rik van Riel <riel@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-Since the whole memory reclaim path has never been designed to handle the
-scheduling priority inversions, those locations which are assuming that
-execution of some code path shall eventually complete without using
-synchronization mechanisms can get stuck (livelock) due to scheduling
-priority inversions, for CPU time is not guaranteed to be yielded to some
-thread doing such code path.
+On Thu, Jul 06, 2017 at 04:47:05PM +0100, Mel Gorman wrote:
+> On Thu, Jul 06, 2017 at 03:46:34PM +0100, Roman Gushchin wrote:
+> > > The alloc counter updates are themselves a surprisingly heavy cost to
+> > > the allocation path and this makes it worse for a debugging case that is
+> > > relatively rare. I'm extremely reluctant for such a patch to be added
+> > > given that the tracepoints can be used to assemble such a monitor even
+> > > if it means running a userspace daemon to keep track of it. Would such a
+> > > solution be suitable? Failing that if this is a severe issue, would it be
+> > > possible to at least make this a compile-time or static tracepoint option?
+> > > That way, only people that really need it have to take the penalty.
+> > 
+> > I've tried to measure the difference with my patch applied and without
+> > any accounting at all (__count_alloc_event() redefined to an empty function),
+> > and I wasn't able to find any measurable difference.
+> > Can you, please, provide more details, how your scenario looked like,
+> > when alloc coutners were costly?
+> > 
+> 
+> At the time I used a page allocator microbenchmark from mmtests to call
+> the allocator directly without zeroing pages. Triggering allocations from
+> userspace generally mask the overhead by the zeroing costs. It's just a few
+> cycles but given the budget for the page allocator in some circumstances
+> is tiny, it was noticable. perf was used to examine the cost.
+> 
+> > As new counters replace an old one, and both are per-cpu counters, I believe,
+> > that the difference should be really small.
+> > 
+> 
+> Minimally you add a new branch and a small number of computations. It's
+> small but it's there. The cache footprint of the counters is also increased.
+> That is hard to take given that it's overhead for everybody on the off-chance
+> it can debug something.
+> 
+> It's not a strong objection and I won't nak it on this basis but given
+> that the same information can be easily obtained using tracepoints
+> (optionally lower overhead with systemtap), the information is rarely
+> going to be useful (no latency information for example) and there is an
+> increased maintenance cost then it does not seem to be that useful.
 
-mutex_trylock() in __alloc_pages_may_oom() (waiting for oom_lock) and
-schedule_timeout_killable(1) in out_of_memory() (already held oom_lock) is
-one of such locations, and it was demonstrated using artificial stressing
-that the system gets stuck effectively forever because SCHED_IDLE priority
-thread is unable to resume execution at schedule_timeout_killable(1) if
-a lot of !SCHED_IDLE priority threads are wasting CPU time [1].
+I ran page allocator microbenchmark on raw 4.12 and 4.12 + the change
+on my hardware.
 
-To solve this problem properly, complete redesign and rewrite of the whole
-memory reclaim path will be needed. But we are not going to think about
-reimplementing the the whole stack (at least for foreseeable future).
+Here are the results (raw 4.12 and patched 4.12 corrspondigly):
+order  0 batch      1 alloc 1942 free 1041     order  0 batch      1 alloc 822 free 451
+order  0 batch      1 alloc 596 free 306       order  0 batch      1 alloc 493 free 290
+order  0 batch      1 alloc 417 free 245       order  0 batch      1 alloc 526 free 286
+order  0 batch      1 alloc 419 free 243       order  0 batch      1 alloc 435 free 255
+order  0 batch      1 alloc 411 free 243       order  0 batch      1 alloc 423 free 240
+order  0 batch      1 alloc 417 free 241       order  0 batch      1 alloc 406 free 239
+order  0 batch      1 alloc 376 free 225       order  0 batch      1 alloc 383 free 219
+order  0 batch      1 alloc 416 free 222       order  0 batch      1 alloc 355 free 205
+order  0 batch      1 alloc 312 free 183       order  0 batch      1 alloc 438 free 216
+order  0 batch      1 alloc 315 free 181       order  0 batch      1 alloc 347 free 194
+order  0 batch      1 alloc 305 free 181       order  0 batch      1 alloc 317 free 185
+order  0 batch      1 alloc 307 free 179       order  0 batch      1 alloc 329 free 191
+order  0 batch      1 alloc 308 free 178       order  0 batch      1 alloc 335 free 192
+order  0 batch      1 alloc 314 free 180       order  0 batch      1 alloc 350 free 190
+order  0 batch      1 alloc 301 free 180       order  0 batch      1 alloc 319 free 184
+order  0 batch      1 alloc 1807 free 1002     order  0 batch      1 alloc 813 free 459
+order  0 batch      1 alloc 633 free 302       order  0 batch      1 alloc 500 free 287
+order  0 batch      1 alloc 331 free 194       order  0 batch      1 alloc 609 free 300
+order  0 batch      1 alloc 332 free 194       order  0 batch      1 alloc 443 free 255
+order  0 batch      1 alloc 330 free 194       order  0 batch      1 alloc 410 free 239
+order  0 batch      1 alloc 331 free 194       order  0 batch      1 alloc 383 free 222
+order  0 batch      1 alloc 386 free 214       order  0 batch      1 alloc 372 free 212
+order  0 batch      1 alloc 370 free 212       order  0 batch      1 alloc 342 free 203
+order  0 batch      1 alloc 360 free 208       order  0 batch      1 alloc 428 free 216
+order  0 batch      1 alloc 324 free 186       order  0 batch      1 alloc 350 free 195
+order  0 batch      1 alloc 298 free 179       order  0 batch      1 alloc 320 free 186
+order  0 batch      1 alloc 293 free 173       order  0 batch      1 alloc 323 free 187
+order  0 batch      1 alloc 296 free 173       order  0 batch      1 alloc 320 free 188
+order  0 batch      1 alloc 294 free 173       order  0 batch      1 alloc 321 free 186
+order  0 batch      1 alloc 312 free 174       order  0 batch      1 alloc 320 free 189
+order  0 batch      1 alloc 1927 free 1042     order  0 batch      1 alloc 2016 free 10
+order  0 batch      1 alloc 856 free 522       order  0 batch      1 alloc 1805 free 10
+order  0 batch      1 alloc 372 free 225       order  0 batch      1 alloc 1485 free 73
+order  0 batch      1 alloc 375 free 224       order  0 batch      1 alloc 732 free 419
+order  0 batch      1 alloc 419 free 234       order  0 batch      1 alloc 576 free 327
+order  0 batch      1 alloc 389 free 233       order  0 batch      1 alloc 488 free 280
+order  0 batch      1 alloc 376 free 223       order  0 batch      1 alloc 390 free 233
+order  0 batch      1 alloc 331 free 196       order  0 batch      1 alloc 409 free 227
+order  0 batch      1 alloc 328 free 191       order  0 batch      1 alloc 338 free 198
+order  0 batch      1 alloc 307 free 182       order  0 batch      1 alloc 320 free 186
+order  0 batch      1 alloc 307 free 183       order  0 batch      1 alloc 322 free 187
+order  0 batch      1 alloc 304 free 183       order  0 batch      1 alloc 296 free 173
+order  0 batch      1 alloc 303 free 183       order  0 batch      1 alloc 297 free 173
+order  0 batch      1 alloc 303 free 176       order  0 batch      1 alloc 296 free 173
+order  0 batch      1 alloc 294 free 176       order  0 batch      1 alloc 296 free 173
+order  0 batch      1 alloc 716 free 433       order  0 batch      1 alloc 725 free 421
+order  0 batch      1 alloc 487 free 286       order  0 batch      1 alloc 485 free 287
+order  0 batch      1 alloc 499 free 296       order  0 batch      1 alloc 627 free 300
+order  0 batch      1 alloc 437 free 253       order  0 batch      1 alloc 406 free 238
+order  0 batch      1 alloc 412 free 242       order  0 batch      1 alloc 390 free 226
+order  0 batch      1 alloc 391 free 228       order  0 batch      1 alloc 364 free 218
+order  0 batch      1 alloc 379 free 220       order  0 batch      1 alloc 353 free 213
+order  0 batch      1 alloc 349 free 210       order  0 batch      1 alloc 334 free 200
+order  0 batch      1 alloc 350 free 207       order  0 batch      1 alloc 328 free 194
+order  0 batch      1 alloc 402 free 229       order  0 batch      1 alloc 406 free 202
+order  0 batch      1 alloc 329 free 188       order  0 batch      1 alloc 333 free 188
+order  0 batch      1 alloc 310 free 182       order  0 batch      1 alloc 318 free 188
+order  0 batch      1 alloc 307 free 180       order  0 batch      1 alloc 319 free 186
+order  0 batch      1 alloc 304 free 180       order  0 batch      1 alloc 320 free 183
+order  0 batch      1 alloc 307 free 180       order  0 batch      1 alloc 317 free 185
+order  0 batch      1 alloc 827 free 479       order  0 batch      1 alloc 667 free 375
+order  0 batch      1 alloc 389 free 228       order  0 batch      1 alloc 479 free 276
+order  0 batch      1 alloc 509 free 256       order  0 batch      1 alloc 599 free 294
+order  0 batch      1 alloc 338 free 204       order  0 batch      1 alloc 412 free 243
+order  0 batch      1 alloc 331 free 194       order  0 batch      1 alloc 376 free 227
+order  0 batch      1 alloc 318 free 189       order  0 batch      1 alloc 363 free 211
+order  0 batch      1 alloc 305 free 180       order  0 batch      1 alloc 343 free 204
+order  0 batch      1 alloc 307 free 191       order  0 batch      1 alloc 332 free 200
+order  0 batch      1 alloc 304 free 180       order  0 batch      1 alloc 415 free 206
+order  0 batch      1 alloc 351 free 195       order  0 batch      1 alloc 328 free 199
+order  0 batch      1 alloc 351 free 193       order  0 batch      1 alloc 321 free 185
+order  0 batch      1 alloc 315 free 184       order  0 batch      1 alloc 318 free 185
+order  0 batch      1 alloc 317 free 194       order  0 batch      1 alloc 319 free 193
+order  0 batch      1 alloc 298 free 179       order  0 batch      1 alloc 323 free 187
+order  0 batch      1 alloc 293 free 175       order  0 batch      1 alloc 324 free 184
 
-Thus, this patch workarounds livelock by forcibly yielding enough CPU time
-to the thread holding oom_lock by using mutex_lock_killable() mechanism,
-so that the OOM killer/reaper can use CPU time yielded by this patch.
-Of course, this patch does not help if the cause of lack of CPU time is
-somewhere else (e.g. executing CPU intensive computation with very high
-scheduling priority), but that is not fault of this patch.
-This patch only manages not to lockup if the cause of lack of CPU time is
-direct reclaim storm wasting CPU time without making any progress while
-waiting for oom_lock.
+TBH, I can't see any meaningful difference here, but it might
+depend on hardware, of course. As most of the allocations are
+order 0, and all other nearby counters are not so hot,
+the cache footprint increase should be not so important.
 
-[1] http://lkml.kernel.org/r/201707142130.JJF10142.FHJFOQSOOtMVLF@I-love.SAKURA.ne.jp
+Anyway, I've added a config option.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/page_alloc.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+Thanks!
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 80e4adb..622ecbf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3259,10 +3259,12 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	*did_some_progress = 0;
- 
- 	/*
--	 * Acquire the oom lock.  If that fails, somebody else is
--	 * making progress for us.
-+	 * Acquire the oom lock. If that fails, somebody else should be making
-+	 * progress for us. But if many threads are doing the same thing, the
-+	 * owner of the oom lock can fail to make progress due to lack of CPU
-+	 * time. Therefore, wait unless we get SIGKILL.
- 	 */
--	if (!mutex_trylock(&oom_lock)) {
-+	if (mutex_lock_killable(&oom_lock)) {
- 		*did_some_progress = 1;
- 		schedule_timeout_uninterruptible(1);
- 		return NULL;
--- 
-1.8.3.1
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
