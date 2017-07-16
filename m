@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E30406B0597
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 22:24:39 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e199so128952142pfh.7
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 19:24:39 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 114ED6B0598
+	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 22:24:41 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id z1so135202026pgs.10
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 19:24:41 -0700 (PDT)
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id d10si719739pgn.405.2017.07.15.19.24.38
+        by mx.google.com with ESMTPS id e127si9898132pgc.44.2017.07.15.19.24.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jul 2017 19:24:38 -0700 (PDT)
+        Sat, 15 Jul 2017 19:24:39 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH 04/10] percpu: update the header comment and pcpu_build_alloc_info comments
-Date: Sat, 15 Jul 2017 22:23:09 -0400
-Message-ID: <20170716022315.19892-5-dennisz@fb.com>
+Subject: [PATCH 05/10] percpu: change reserved_size to end page aligned
+Date: Sat, 15 Jul 2017 22:23:10 -0400
+Message-ID: <20170716022315.19892-6-dennisz@fb.com>
 In-Reply-To: <20170716022315.19892-1-dennisz@fb.com>
 References: <20170716022315.19892-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,117 +24,121 @@ Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-The header comment for percpu memory is a little hard to parse and is
-not super clear about how the first chunk is managed. This adds a
-little more clarity to the situation.
-
-There is also quite a bit of tricky logic in the pcpu_build_alloc_info.
-This adds a restructure of a comment to add a little more information.
-Unfortunately, you will still have to piece together a handful of other
-comments too, but should help direct you to the meaningful comments.
+Preparatory patch to modify the first chunk's static_size +
+reserved_size to end page aligned. The first chunk has a unique
+allocation scheme overlaying the static, reserved, and dynamic regions.
+The other regions of each chunk are reserved or hidden. The bitmap
+allocator would have to allocate in the bitmap the static region to
+replicate this. By having the reserved region to end page aligned, the
+metadata overhead can be saved. The consequence is that up to an
+additional page of memory will be allocated to the reserved region that
+primarily serves static percpu variables.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu.c | 58 ++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 32 insertions(+), 26 deletions(-)
+ arch/ia64/mm/contig.c    |  3 ++-
+ arch/ia64/mm/discontig.c |  3 ++-
+ include/linux/percpu.h   | 29 +++++++++++++++++++++++++++++
+ mm/percpu.c              |  6 ++++++
+ 4 files changed, 39 insertions(+), 2 deletions(-)
 
+diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
+index 52715a7..20ee2b2 100644
+--- a/arch/ia64/mm/contig.c
++++ b/arch/ia64/mm/contig.c
+@@ -164,7 +164,8 @@ setup_per_cpu_areas(void)
+ 
+ 	/* set parameters */
+ 	static_size = __per_cpu_end - __per_cpu_start;
+-	reserved_size = PERCPU_MODULE_RESERVE;
++	reserved_size = pcpu_align_reserved_region(static_size,
++						   PERCPU_MODULE_RESERVE);
+ 	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+ 	if (dyn_size < 0)
+ 		panic("percpu area overflow static=%zd reserved=%zd\n",
+diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+index 8786268..f898b24 100644
+--- a/arch/ia64/mm/discontig.c
++++ b/arch/ia64/mm/discontig.c
+@@ -214,7 +214,8 @@ void __init setup_per_cpu_areas(void)
+ 
+ 	/* set basic parameters */
+ 	static_size = __per_cpu_end - __per_cpu_start;
+-	reserved_size = PERCPU_MODULE_RESERVE;
++	reserved_size = pcpu_align_reserved_region(static_size,
++						   PERCPU_MODULE_RSERVE);
+ 	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+ 	if (dyn_size < 0)
+ 		panic("percpu area overflow static=%zd reserved=%zd\n",
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index 491b3f5..98a371c 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -130,4 +130,33 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
+ 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
+ 						__alignof__(type))
+ 
++/*
++ * pcpu_align_reserved_region - page align the end of the reserved region
++ * @static_size: the static region size
++ * @reserved_size: the minimum reserved region size
++ *
++ * This function calculates the size of the reserved region required to
++ * make the reserved region end page aligned.
++ *
++ * Percpu memory offers a maximum alignment of PAGE_SIZE.  Aligning this
++ * minimizes the metadata overhead of overlapping the static, reserved,
++ * and dynamic regions by allowing the metadata for the static region to
++ * not be allocated.  This lets the base_addr be moved up to a page
++ * aligned address and disregard the static region as offsets are allocated.
++ * The beginning of the reserved region will overlap with the static
++ * region if the end of the static region is not page aligned.
++ *
++ * RETURNS:
++ * Size of reserved region required to make static_size + reserved_size
++ * page aligned.
++ */
++static inline ssize_t pcpu_align_reserved_region(ssize_t static_size,
++						 ssize_t reserved_size)
++{
++	if (!reserved_size)
++		return 0;
++
++	return PFN_ALIGN(static_size + reserved_size) - static_size;
++}
++
+ #endif /* __LINUX_PERCPU_H */
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 9ec5fd4..5bb90d8 100644
+index 5bb90d8..7704db9 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -4,36 +4,35 @@
-  * Copyright (C) 2009		SUSE Linux Products GmbH
-  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
-  *
-- * This file is released under the GPLv2.
-+ * This file is released under the GPLv2 license.
-  *
-- * This is percpu allocator which can handle both static and dynamic
-- * areas.  Percpu areas are allocated in chunks.  Each chunk is
-- * consisted of boot-time determined number of units and the first
-- * chunk is used for static percpu variables in the kernel image
-- * (special boot time alloc/init handling necessary as these areas
-- * need to be brought up before allocation services are running).
-- * Unit grows as necessary and all units grow or shrink in unison.
-- * When a chunk is filled up, another chunk is allocated.
-+ * The percpu allocator handles both static and dynamic areas.  Percpu
-+ * areas are allocated in chunks which are divided into units.  There is
-+ * a 1-to-1 mapping for units to possible cpus.  These units are grouped
-+ * based on NUMA properties of the machine.
-  *
-  *  c0                           c1                         c2
-  *  -------------------          -------------------        ------------
-  * | u0 | u1 | u2 | u3 |        | u0 | u1 | u2 | u3 |      | u0 | u1 | u
-  *  -------------------  ......  -------------------  ....  ------------
-+
-+ * Allocation is done by offsets into a unit's address space.  Ie., an
-+ * area of 512 bytes at 6k in c1 occupies 512 bytes at 6k in c1:u0,
-+ * c1:u1, c1:u2, etc.  On NUMA machines, the mapping may be non-linear
-+ * and even sparse.  Access is handled by configuring percpu base
-+ * registers according to the cpu to unit mappings and offsetting the
-+ * base address using pcpu_unit_size.
-+ *
-+ * There is special consideration for the first chunk which must handle
-+ * the static percpu variables in the kernel image as allocation services
-+ * are not online yet.  In short, the first chunk is structure like so:
-  *
-- * Allocation is done in offset-size areas of single unit space.  Ie,
-- * an area of 512 bytes at 6k in c1 occupies 512 bytes at 6k of c1:u0,
-- * c1:u1, c1:u2 and c1:u3.  On UMA, units corresponds directly to
-- * cpus.  On NUMA, the mapping can be non-linear and even sparse.
-- * Percpu access can be done by configuring percpu base registers
-- * according to cpu to unit mapping and pcpu_unit_size.
-- *
-- * There are usually many small percpu allocations many of them being
-- * as small as 4 bytes.  The allocator organizes chunks into lists
-- * according to free size and tries to allocate from the fullest one.
-- * Each chunk keeps the maximum contiguous area size hint which is
-- * guaranteed to be equal to or larger than the maximum contiguous
-- * area in the chunk.  This helps the allocator not to iterate the
-- * chunk maps unnecessarily.
-+ *                  <Static | [Reserved] | Dynamic>
-+ *
-+ * The static data is copied from the original section managed by the
-+ * linker.  The reserved section, if non-zero, primarily manages static
-+ * percpu variables from kernel modules.  Finally, the dynamic section
-+ * takes care of normal allocations.
-  *
-  * Allocation state in each chunk is kept using an array of integers
-  * on chunk->map.  A positive value in the map represents a free
-@@ -43,6 +42,12 @@
-  * Chunks can be determined from the address using the index field
-  * in the page struct. The index field contains a pointer to the chunk.
-  *
-+ * These chunks are organized into lists according to free_size and
-+ * tries to allocate from the fullest chunk first. Each chunk maintains
-+ * a maximum contiguous area size hint which is guaranteed to be equal
-+ * to or larger than the maximum contiguous area in the chunk. This
-+ * helps prevent the allocator from iterating over chunks unnecessarily.
-+ *
-  * To use this allocator, arch code should do the following:
-  *
-  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
-@@ -1842,6 +1847,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
- 	 */
- 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
+@@ -1597,6 +1597,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
+ 	PCPU_SETUP_BUG_ON(offset_in_page(ai->unit_size));
+ 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
++	PCPU_SETUP_BUG_ON(ai->reserved_size &&
++			  !PAGE_ALIGNED(ai->static_size + ai->reserved_size));
+ 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+ 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
  
-+	/* determine the maximum # of units that can fit in an allocation */
- 	alloc_size = roundup(min_unit_size, atom_size);
- 	upa = alloc_size / min_unit_size;
- 	while (alloc_size % upa || (offset_in_page(alloc_size / upa)))
-@@ -1868,9 +1874,9 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
- 	}
+@@ -1800,6 +1802,9 @@ early_param("percpu_alloc", percpu_alloc_setup);
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  *
++ * If there is a @reserved_size, it is expanded to ensure the end of the
++ * reserved region is page aligned.
++ *
+  * This function determines grouping of units, their mappings to cpus
+  * and other parameters considering needed percpu size, allocation
+  * atom size and distances between CPUs.
+@@ -1835,6 +1840,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+ 	memset(group_cnt, 0, sizeof(group_cnt));
  
- 	/*
--	 * Expand unit size until address space usage goes over 75%
--	 * and then as much as possible without using more address
--	 * space.
-+	 * Wasted space is caused by a ratio imbalance of upa to group_cnt.
-+	 * Expand the unit_size until we use >= 75% of the units allocated.
-+	 * Related to atom_size, which could be much larger than the unit_size.
- 	 */
- 	last_allocs = INT_MAX;
- 	for (upa = max_upa; upa; upa--) {
+ 	/* calculate size_sum and ensure dyn_size is enough for early alloc */
++	reserved_size = pcpu_align_reserved_region(static_size, reserved_size);
+ 	size_sum = PFN_ALIGN(static_size + reserved_size +
+ 			    max_t(size_t, dyn_size, PERCPU_DYNAMIC_EARLY_SIZE));
+ 	dyn_size = size_sum - static_size - reserved_size;
 -- 
 2.9.3
 
