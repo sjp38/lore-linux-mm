@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 78D2E6B0595
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 22:24:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e19so10013765pfb.13
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 19:24:37 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B3C706B0596
+	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 22:24:38 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p15so135440715pgs.7
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 19:24:38 -0700 (PDT)
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id s74si9562036pfa.388.2017.07.15.19.24.36
+        by mx.google.com with ESMTPS id e4si1485454pgn.444.2017.07.15.19.24.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jul 2017 19:24:36 -0700 (PDT)
+        Sat, 15 Jul 2017 19:24:37 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH 02/10] percpu: change the format for percpu_stats output
-Date: Sat, 15 Jul 2017 22:23:07 -0400
-Message-ID: <20170716022315.19892-3-dennisz@fb.com>
+Subject: [PATCH 03/10] percpu: expose pcpu_nr_empty_pop_pages in pcpu_stats
+Date: Sat, 15 Jul 2017 22:23:08 -0400
+Message-ID: <20170716022315.19892-4-dennisz@fb.com>
 In-Reply-To: <20170716022315.19892-1-dennisz@fb.com>
 References: <20170716022315.19892-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,45 +24,55 @@ Cc: kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-This makes the debugfs output for percpu_stats a little easier
-to read by changing the spacing of the output to be consistent.
+Percpu memory holds a minimum threshold of pages that are populated
+in order to serve atomic percpu memory requests. This change makes it
+easier to verify that there are a minimum number of populated pages
+lying around.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu-stats.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/percpu-internal.h | 1 +
+ mm/percpu-stats.c    | 1 +
+ mm/percpu.c          | 2 +-
+ 3 files changed, 3 insertions(+), 1 deletion(-)
 
+diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
+index cd2442e..c9158a4 100644
+--- a/mm/percpu-internal.h
++++ b/mm/percpu-internal.h
+@@ -36,6 +36,7 @@ extern spinlock_t pcpu_lock;
+ 
+ extern struct list_head *pcpu_slot;
+ extern int pcpu_nr_slots;
++extern int pcpu_nr_empty_pop_pages;
+ 
+ extern struct pcpu_chunk *pcpu_first_chunk;
+ extern struct pcpu_chunk *pcpu_reserved_chunk;
 diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
-index 0d81044..fa0f5de 100644
+index fa0f5de..44e561d 100644
 --- a/mm/percpu-stats.c
 +++ b/mm/percpu-stats.c
-@@ -18,7 +18,7 @@
- #include "percpu-internal.h"
+@@ -164,6 +164,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
+ 	PU(nr_max_chunks);
+ 	PU(min_alloc_size);
+ 	PU(max_alloc_size);
++	P("empty_pop_pages", pcpu_nr_empty_pop_pages);
+ 	seq_putc(m, '\n');
  
- #define P(X, Y) \
--	seq_printf(m, "  %-24s: %8lld\n", X, (long long int)Y)
-+	seq_printf(m, "  %-20s: %12lld\n", X, (long long int)Y)
+ #undef PU
+diff --git a/mm/percpu.c b/mm/percpu.c
+index bd4130a..9ec5fd4 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -160,7 +160,7 @@ static LIST_HEAD(pcpu_map_extend_chunks);
+  * The number of empty populated pages, protected by pcpu_lock.  The
+  * reserved chunk doesn't contribute to the count.
+  */
+-static int pcpu_nr_empty_pop_pages;
++int pcpu_nr_empty_pop_pages;
  
- struct percpu_stats pcpu_stats;
- struct pcpu_alloc_info pcpu_stats_ai;
-@@ -134,7 +134,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
- 	}
- 
- #define PL(X) \
--	seq_printf(m, "  %-24s: %8lld\n", #X, (long long int)pcpu_stats_ai.X)
-+	seq_printf(m, "  %-20s: %12lld\n", #X, (long long int)pcpu_stats_ai.X)
- 
- 	seq_printf(m,
- 			"Percpu Memory Statistics\n"
-@@ -151,7 +151,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
- #undef PL
- 
- #define PU(X) \
--	seq_printf(m, "  %-18s: %14llu\n", #X, (unsigned long long)pcpu_stats.X)
-+	seq_printf(m, "  %-20s: %12llu\n", #X, (unsigned long long)pcpu_stats.X)
- 
- 	seq_printf(m,
- 			"Global Stats:\n"
+ /*
+  * Balance work is used to populate or destroy chunks asynchronously.  We
 -- 
 2.9.3
 
