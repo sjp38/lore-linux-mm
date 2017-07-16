@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DEF6B067D
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 23:59:49 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id o3so57046450qto.15
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:49 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id v205si11627575qka.10.2017.07.15.20.59.48
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D50A06B067E
+	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 23:59:51 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id h15so57268849qte.0
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:51 -0700 (PDT)
+Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
+        by mx.google.com with ESMTPS id t64si11888112qkc.20.2017.07.15.20.59.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jul 2017 20:59:48 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id q66so17064715qki.1
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:48 -0700 (PDT)
+        Sat, 15 Jul 2017 20:59:50 -0700 (PDT)
+Received: by mail-qk0-x241.google.com with SMTP id a66so16023266qkb.0
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:50 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v6 43/62] selftest/vm: move generic definitions to header file
-Date: Sat, 15 Jul 2017 20:56:45 -0700
-Message-Id: <1500177424-13695-44-git-send-email-linuxram@us.ibm.com>
+Subject: [RFC v6 44/62] selftest/vm: typecast the pkey register
+Date: Sat, 15 Jul 2017 20:56:46 -0700
+Message-Id: <1500177424-13695-45-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
 References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,191 +22,338 @@ List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
 
-Moved all the generic definition and helper functions to the
-header file
+This is in preparation to accomadate a differing size register
+across architectures.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- tools/testing/selftests/vm/pkey-helpers.h    |   62 +++++++++++++++++++++++--
- tools/testing/selftests/vm/protection_keys.c |   54 ----------------------
- 2 files changed, 57 insertions(+), 59 deletions(-)
+ tools/testing/selftests/vm/pkey-helpers.h    |   27 +++++-----
+ tools/testing/selftests/vm/protection_keys.c |   75 ++++++++++++++------------
+ 2 files changed, 54 insertions(+), 48 deletions(-)
 
 diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
-index 2d9887a..f378bc2 100644
+index f378bc2..12260e8 100644
 --- a/tools/testing/selftests/vm/pkey-helpers.h
 +++ b/tools/testing/selftests/vm/pkey-helpers.h
-@@ -12,8 +12,31 @@
- #include <ucontext.h>
- #include <sys/mman.h>
+@@ -17,6 +17,7 @@
+ #define u16 uint16_t
+ #define u32 uint32_t
+ #define u64 uint64_t
++#define pkey_reg_t u32
  
-+/* Define some kernel-like types */
-+#define  u8 uint8_t
-+#define u16 uint16_t
-+#define u32 uint32_t
-+#define u64 uint64_t
-+
-+#ifdef __i386__
-+#define SYS_mprotect_key 380
-+#define SYS_pkey_alloc	 381
-+#define SYS_pkey_free	 382
-+#define REG_IP_IDX REG_EIP
-+#define si_pkey_offset 0x14
-+#else
-+#define SYS_mprotect_key 329
-+#define SYS_pkey_alloc	 330
-+#define SYS_pkey_free	 331
-+#define REG_IP_IDX REG_RIP
-+#define si_pkey_offset 0x20
-+#endif
-+
- #define NR_PKEYS 16
- #define PKEY_BITS_PER_PKEY 2
-+#define PKEY_DISABLE_ACCESS    0x1
-+#define PKEY_DISABLE_WRITE     0x2
-+#define HPAGE_SIZE	(1UL<<21)
+ #ifdef __i386__
+ #define SYS_mprotect_key 380
+@@ -76,12 +77,12 @@ static inline void sigsafe_printf(const char *format, ...)
+ #define dprintf3(args...) dprintf_level(3, args)
+ #define dprintf4(args...) dprintf_level(4, args)
  
- #ifndef DEBUG_LEVEL
- #define DEBUG_LEVEL 0
-@@ -137,11 +160,6 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
- 	dprintf4("pkey_reg now: %08x\n", rdpkey_reg());
+-extern unsigned int shadow_pkey_reg;
+-static inline unsigned int __rdpkey_reg(void)
++extern pkey_reg_t shadow_pkey_reg;
++static inline pkey_reg_t __rdpkey_reg(void)
+ {
+ 	unsigned int eax, edx;
+ 	unsigned int ecx = 0;
+-	unsigned int pkey_reg;
++	pkey_reg_t pkey_reg;
+ 
+ 	asm volatile(".byte 0x0f,0x01,0xee\n\t"
+ 		     : "=a" (eax), "=d" (edx)
+@@ -90,11 +91,11 @@ static inline unsigned int __rdpkey_reg(void)
+ 	return pkey_reg;
  }
  
--#define PROT_PKEY0     0x10            /* protection key value (bit 0) */
--#define PROT_PKEY1     0x20            /* protection key value (bit 1) */
--#define PROT_PKEY2     0x40            /* protection key value (bit 2) */
--#define PROT_PKEY3     0x80            /* protection key value (bit 3) */
--
- #define PAGE_SIZE 4096
- #define MB	(1<<20)
+-static inline unsigned int _rdpkey_reg(int line)
++static inline pkey_reg_t _rdpkey_reg(int line)
+ {
+-	unsigned int pkey_reg = __rdpkey_reg();
++	pkey_reg_t pkey_reg = __rdpkey_reg();
  
-@@ -219,4 +237,38 @@ int pkey_reg_xstate_offset(void)
- 	return xstate_offset;
+-	dprintf4("rdpkey_reg(line=%d) pkey_reg: %x shadow: %x\n",
++	dprintf4("rdpkey_reg(line=%d) pkey_reg: %016lx shadow: %016lx\n",
+ 			line, pkey_reg, shadow_pkey_reg);
+ 	assert(pkey_reg == shadow_pkey_reg);
+ 
+@@ -103,11 +104,11 @@ static inline unsigned int _rdpkey_reg(int line)
+ 
+ #define rdpkey_reg() _rdpkey_reg(__LINE__)
+ 
+-static inline void __wrpkey_reg(unsigned int pkey_reg)
++static inline void __wrpkey_reg(pkey_reg_t pkey_reg)
+ {
+-	unsigned int eax = pkey_reg;
+-	unsigned int ecx = 0;
+-	unsigned int edx = 0;
++	pkey_reg_t eax = pkey_reg;
++	pkey_reg_t ecx = 0;
++	pkey_reg_t edx = 0;
+ 
+ 	dprintf4("%s() changing %08x to %08x\n", __func__,
+ 			__rdpkey_reg(), pkey_reg);
+@@ -116,7 +117,7 @@ static inline void __wrpkey_reg(unsigned int pkey_reg)
+ 	assert(pkey_reg == __rdpkey_reg());
  }
  
-+static inline void __page_o_noops(void)
-+{
-+	/* 8-bytes of instruction * 512 bytes = 1 page */
-+	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
-+}
-+
- #endif /* _PKEYS_HELPER_H */
-+
-+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-+#define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
-+#define ALIGN_DOWN(x, align_to) ((x) & ~((align_to)-1))
-+#define ALIGN_PTR_UP(p, ptr_align_to)	\
-+		((typeof(p))ALIGN_UP((unsigned long)(p), ptr_align_to))
-+#define ALIGN_PTR_DOWN(p, ptr_align_to) \
-+	((typeof(p))ALIGN_DOWN((unsigned long)(p), ptr_align_to))
-+#define __stringify_1(x...)     #x
-+#define __stringify(x...)       __stringify_1(x)
-+
-+#define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
-+
-+int dprint_in_signal;
-+char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
-+
-+extern void abort_hooks(void);
-+#define pkey_assert(condition) do {		\
-+	if (!(condition)) {			\
-+		dprintf0("assert() at %s::%d test_nr: %d iteration: %d\n", \
-+				__FILE__, __LINE__,	\
-+				test_nr, iteration_nr);	\
-+		dprintf0("errno at assert: %d", errno);	\
-+		abort_hooks();			\
-+		assert(condition);		\
-+	}					\
-+} while (0)
-+#define raw_assert(cond) assert(cond)
+-static inline void wrpkey_reg(unsigned int pkey_reg)
++static inline void wrpkey_reg(pkey_reg_t pkey_reg)
+ {
+ 	dprintf4("%s() changing %08x to %08x\n", __func__,
+ 			__rdpkey_reg(), pkey_reg);
+@@ -134,7 +135,7 @@ static inline void wrpkey_reg(unsigned int pkey_reg)
+  */
+ static inline void __pkey_access_allow(int pkey, int do_allow)
+ {
+-	unsigned int pkey_reg = rdpkey_reg();
++	pkey_reg_t pkey_reg = rdpkey_reg();
+ 	int bit = pkey * 2;
+ 
+ 	if (do_allow)
+@@ -148,7 +149,7 @@ static inline void __pkey_access_allow(int pkey, int do_allow)
+ 
+ static inline void __pkey_write_allow(int pkey, int do_allow_write)
+ {
+-	long pkey_reg = rdpkey_reg();
++	pkey_reg_t pkey_reg = rdpkey_reg();
+ 	int bit = pkey * 2 + 1;
+ 
+ 	if (do_allow_write)
 diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-index 2a237e2..c345ff8 100644
+index c345ff8..bd46f87 100644
 --- a/tools/testing/selftests/vm/protection_keys.c
 +++ b/tools/testing/selftests/vm/protection_keys.c
-@@ -48,34 +48,9 @@
+@@ -47,7 +47,7 @@
+ int iteration_nr = 1;
  int test_nr;
  
- unsigned int shadow_pkey_reg;
--
--#define HPAGE_SIZE	(1UL<<21)
--#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
--#define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
--#define ALIGN_DOWN(x, align_to) ((x) & ~((align_to)-1))
--#define ALIGN_PTR_UP(p, ptr_align_to)	((typeof(p))ALIGN_UP((unsigned long)(p),	ptr_align_to))
--#define ALIGN_PTR_DOWN(p, ptr_align_to)	((typeof(p))ALIGN_DOWN((unsigned long)(p),	ptr_align_to))
--#define __stringify_1(x...)     #x
--#define __stringify(x...)       __stringify_1(x)
--
--#define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
--
+-unsigned int shadow_pkey_reg;
++pkey_reg_t shadow_pkey_reg;
  int dprint_in_signal;
  char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
  
--extern void abort_hooks(void);
--#define pkey_assert(condition) do {		\
--	if (!(condition)) {			\
--		dprintf0("assert() at %s::%d test_nr: %d iteration: %d\n", \
--				__FILE__, __LINE__,	\
--				test_nr, iteration_nr);	\
--		dprintf0("errno at assert: %d", errno);	\
--		abort_hooks();			\
--		assert(condition);		\
--	}					\
--} while (0)
--#define raw_assert(cond) assert(cond)
--
- void cat_into_file(char *str, char *file)
- {
- 	int fd = open(file, O_RDWR);
-@@ -153,12 +128,6 @@ void abort_hooks(void)
- #endif
+@@ -157,7 +157,7 @@ void dump_mem(void *dumpme, int len_bytes)
+ 
+ 	for (i = 0; i < len_bytes; i += sizeof(u64)) {
+ 		u64 *ptr = (u64 *)(c + i);
+-		dprintf1("dump[%03d][@%p]: %016jx\n", i, ptr, *ptr);
++		dprintf1("dump[%03d][@%p]: %016lx\n", i, ptr, *ptr);
+ 	}
  }
  
--static inline void __page_o_noops(void)
--{
--	/* 8-bytes of instruction * 512 bytes = 1 page */
--	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
--}
--
- /*
-  * This attempts to have roughly a page of instructions followed by a few
-  * instructions that do a write, and another page of instructions.  That
-@@ -181,26 +150,6 @@ void lots_o_noops_around_write(int *write_to_me)
- 	dprintf3("%s() done\n", __func__);
- }
+@@ -186,15 +186,16 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 	int trapno;
+ 	unsigned long ip;
+ 	char *fpregs;
+-	u32 *pkey_reg_ptr;
+-	u64 si_pkey;
+-	u32 *si_pkey_ptr;
++	pkey_reg_t *pkey_reg_ptr;
++	u32 si_pkey;
++	pkey_reg_t *si_pkey_ptr;
+ 	int pkey_reg_offset;
+ 	fpregset_t fpregset;
  
--/* Define some kernel-like types */
--#define  u8 uint8_t
--#define u16 uint16_t
--#define u32 uint32_t
--#define u64 uint64_t
--
--#ifdef __i386__
--#define SYS_mprotect_key 380
--#define SYS_pkey_alloc	 381
--#define SYS_pkey_free	 382
--#define REG_IP_IDX REG_EIP
--#define si_pkey_offset 0x14
--#else
--#define SYS_mprotect_key 329
--#define SYS_pkey_alloc	 330
--#define SYS_pkey_free	 331
--#define REG_IP_IDX REG_RIP
--#define si_pkey_offset 0x20
--#endif
--
- void dump_mem(void *dumpme, int len_bytes)
- {
- 	char *c = (void *)dumpme;
-@@ -412,9 +361,6 @@ void dumpit(char *f)
- 	close(fd);
- }
+ 	dprint_in_signal = 1;
+ 	dprintf1(">>>>===============SIGSEGV============================\n");
+-	dprintf1("%s()::%d, pkey_reg: 0x%x shadow: %x\n", __func__, __LINE__,
++	dprintf1("%s()::%d, pkey_reg: 0x%016lx shadow: %016lx\n",
++			__func__, __LINE__,
+ 			__rdpkey_reg(), shadow_pkey_reg);
  
--#define PKEY_DISABLE_ACCESS    0x1
--#define PKEY_DISABLE_WRITE     0x2
--
+ 	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
+@@ -202,8 +203,9 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 	fpregset = uctxt->uc_mcontext.fpregs;
+ 	fpregs = (void *)fpregset;
+ 
+-	dprintf2("%s() trapno: %d ip: 0x%lx info->si_code: %s/%d\n", __func__,
+-			trapno, ip, si_code_str(si->si_code), si->si_code);
++	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
++			__func__, trapno, ip, si_code_str(si->si_code),
++			si->si_code);
+ #ifdef __i386__
+ 	/*
+ 	 * 32-bit has some extra padding so that userspace can tell whether
+@@ -226,7 +228,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 		dump_mem(pkey_reg_ptr - 128, 256);
+ 	pkey_assert(*pkey_reg_ptr);
+ 
+-	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
++	si_pkey_ptr = (pkey_reg_t *)(((u8 *)si) + si_pkey_offset);
+ 	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
+ 	dump_mem(si_pkey_ptr - 8, 24);
+ 	si_pkey = *si_pkey_ptr;
+@@ -240,12 +242,12 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
+ 		exit(4);
+ 	}
+ 
+-	dprintf1("signal pkey_reg from xsave: %08x\n", *pkey_reg_ptr);
++	dprintf1("signal pkey_reg from xsave: %016lx\n", *pkey_reg_ptr);
+ 	/*
+ 	 * need __rdpkey_reg() version so we do not do shadow_pkey_reg
+ 	 * checking
+ 	 */
+-	dprintf1("signal pkey_reg from  pkey_reg: %08x\n", __rdpkey_reg());
++	dprintf1("signal pkey_reg from  pkey_reg: %016lx\n", __rdpkey_reg());
+ 	dprintf1("si_pkey from siginfo: %jx\n", si_pkey);
+ 	*(u64 *)pkey_reg_ptr = 0x00000000;
+ 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
+@@ -364,8 +366,8 @@ void dumpit(char *f)
  u32 pkey_get(int pkey, unsigned long flags)
  {
  	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+-	u32 pkey_reg = __rdpkey_reg();
+-	u32 shifted_pkey_reg;
++	pkey_reg_t pkey_reg = __rdpkey_reg();
++	pkey_reg_t shifted_pkey_reg;
+ 	u32 masked_pkey_reg;
+ 
+ 	dprintf1("%s(pkey=%d, flags=%lx) = %x / %d\n",
+@@ -386,8 +388,8 @@ u32 pkey_get(int pkey, unsigned long flags)
+ int pkey_set(int pkey, unsigned long rights, unsigned long flags)
+ {
+ 	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+-	u32 old_pkey_reg = __rdpkey_reg();
+-	u32 new_pkey_reg;
++	pkey_reg_t old_pkey_reg = __rdpkey_reg();
++	pkey_reg_t new_pkey_reg;
+ 
+ 	/* make sure that 'rights' only contains the bits we expect: */
+ 	assert(!(rights & ~mask));
+@@ -401,10 +403,10 @@ int pkey_set(int pkey, unsigned long rights, unsigned long flags)
+ 
+ 	__wrpkey_reg(new_pkey_reg);
+ 
+-	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x"
+-	       " pkey_reg now: %x old_pkey_reg: %x\n",
+-		__func__, pkey, rights, flags, 0, __rdpkey_reg(),
+-		old_pkey_reg);
++	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x "
++			"pkey_reg now: %016lx old_pkey_reg: %016lx\n",
++			__func__, pkey, rights, flags,
++			0, __rdpkey_reg(), old_pkey_reg);
+ 	return 0;
+ }
+ 
+@@ -413,7 +415,7 @@ void pkey_disable_set(int pkey, int flags)
+ 	unsigned long syscall_flags = 0;
+ 	int ret;
+ 	int pkey_rights;
+-	u32 orig_pkey_reg = rdpkey_reg();
++	pkey_reg_t orig_pkey_reg = rdpkey_reg();
+ 
+ 	dprintf1("START->%s(%d, 0x%x)\n", __func__,
+ 		pkey, flags);
+@@ -421,8 +423,6 @@ void pkey_disable_set(int pkey, int flags)
+ 
+ 	pkey_rights = pkey_get(pkey, syscall_flags);
+ 
+-	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
+-			pkey, pkey, pkey_rights);
+ 	pkey_assert(pkey_rights >= 0);
+ 
+ 	pkey_rights |= flags;
+@@ -431,7 +431,8 @@ void pkey_disable_set(int pkey, int flags)
+ 	assert(!ret);
+ 	/*pkey_reg and flags have the same format */
+ 	shadow_pkey_reg |= flags << (pkey * 2);
+-	dprintf1("%s(%d) shadow: 0x%x\n", __func__, pkey, shadow_pkey_reg);
++	dprintf1("%s(%d) shadow: 0x%016lx\n",
++		__func__, pkey, shadow_pkey_reg);
+ 
+ 	pkey_assert(ret >= 0);
+ 
+@@ -439,7 +440,8 @@ void pkey_disable_set(int pkey, int flags)
+ 	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+-	dprintf1("%s(%d) pkey_reg: 0x%x\n", __func__, pkey, rdpkey_reg());
++	dprintf1("%s(%d) pkey_reg: 0x%lx\n",
++		__func__, pkey, rdpkey_reg());
+ 	if (flags)
+ 		pkey_assert(rdpkey_reg() > orig_pkey_reg);
+ 	dprintf1("END<---%s(%d, 0x%x)\n", __func__,
+@@ -451,7 +453,7 @@ void pkey_disable_clear(int pkey, int flags)
+ 	unsigned long syscall_flags = 0;
+ 	int ret;
+ 	int pkey_rights = pkey_get(pkey, syscall_flags);
+-	u32 orig_pkey_reg = rdpkey_reg();
++	pkey_reg_t orig_pkey_reg = rdpkey_reg();
+ 
+ 	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+ 
+@@ -470,7 +472,8 @@ void pkey_disable_clear(int pkey, int flags)
+ 	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
+ 			pkey, pkey, pkey_rights);
+ 
+-	dprintf1("%s(%d) pkey_reg: 0x%x\n", __func__, pkey, rdpkey_reg());
++	dprintf1("%s(%d) pkey_reg: 0x%016lx\n", __func__,
++			pkey, rdpkey_reg());
+ 	if (flags)
+ 		assert(rdpkey_reg() > orig_pkey_reg);
+ }
+@@ -525,20 +528,21 @@ int alloc_pkey(void)
+ 	int ret;
+ 	unsigned long init_val = 0x0;
+ 
+-	dprintf1("%s()::%d, pkey_reg: 0x%x shadow: %x\n", __func__,
++	dprintf1("%s()::%d, pkey_reg: 0x%016lx shadow: %016lx\n", __func__,
+ 			__LINE__, __rdpkey_reg(), shadow_pkey_reg);
+ 	ret = sys_pkey_alloc(0, init_val);
+ 	/*
+ 	 * pkey_alloc() sets PKEY register, so we need to reflect it in
+ 	 * shadow_pkey_reg:
+ 	 */
+-	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%x\n",
++	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016lx shadow: 0x%016lx\n",
+ 			__func__, __LINE__, ret, __rdpkey_reg(),
+ 			shadow_pkey_reg);
+ 	if (ret) {
+ 		/* clear both the bits: */
+ 		shadow_pkey_reg &= ~(0x3      << (ret * 2));
+-		dprintf4("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%x\n",
++		dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016lx "
++				"shadow: 0x%016lx\n",
+ 				__func__,
+ 				__LINE__, ret, __rdpkey_reg(),
+ 				shadow_pkey_reg);
+@@ -548,13 +552,13 @@ int alloc_pkey(void)
+ 		 */
+ 		shadow_pkey_reg |=  (init_val << (ret * 2));
+ 	}
+-	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%x\n",
++	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016lx shadow: 0x%016lx\n",
+ 			__func__, __LINE__, ret, __rdpkey_reg(),
+ 			shadow_pkey_reg);
+ 	dprintf1("%s()::%d errno: %d\n", __func__, __LINE__, errno);
+ 	/* for shadow checking: */
+ 	rdpkey_reg();
+-	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%x shadow: 0x%x\n",
++	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016lx shadow: 0x%016lx\n",
+ 		__func__, __LINE__, ret, __rdpkey_reg(),
+ 		shadow_pkey_reg);
+ 	return ret;
+@@ -1103,9 +1107,10 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
+ 		int new_pkey;
+ 		dprintf1("%s() alloc loop: %d\n", __func__, i);
+ 		new_pkey = alloc_pkey();
+-		dprintf4("%s()::%d, err: %d pkey_reg: 0x%x shadow: 0x%x\n",
+-				__func__, __LINE__, err, __rdpkey_reg(),
+-				shadow_pkey_reg);
++		dprintf4("%s()::%d, err: %d pkey_reg: 0x%016lx "
++				"shadow: 0x%016lx\n",
++			__func__, __LINE__, err, __rdpkey_reg(),
++			shadow_pkey_reg);
+ 		rdpkey_reg(); /* for shadow checking */
+ 		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
+ 		if ((new_pkey == -1) && (errno == ENOSPC)) {
+@@ -1343,7 +1348,7 @@ int main(void)
+ 	}
+ 
+ 	pkey_setup_shadow();
+-	printf("startup pkey_reg: %x\n", rdpkey_reg());
++	printf("startup pkey_reg: 0x%016lx\n", rdpkey_reg());
+ 	setup_hugetlbfs();
+ 
+ 	while (nr_iterations-- > 0)
 -- 
 1.7.1
 
