@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 04C786B065D
-	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 23:59:06 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v125so19409048qkd.6
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:06 -0700 (PDT)
-Received: from mail-qt0-x242.google.com (mail-qt0-x242.google.com. [2607:f8b0:400d:c0d::242])
-        by mx.google.com with ESMTPS id s46si1080308qtc.383.2017.07.15.20.59.05
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AB38D6B065F
+	for <linux-mm@kvack.org>; Sat, 15 Jul 2017 23:59:08 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id p25so57093741qtp.4
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:08 -0700 (PDT)
+Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
+        by mx.google.com with ESMTPS id t187si12099323qkh.150.2017.07.15.20.59.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jul 2017 20:59:05 -0700 (PDT)
-Received: by mail-qt0-x242.google.com with SMTP id m54so14728759qtb.1
-        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:05 -0700 (PDT)
+        Sat, 15 Jul 2017 20:59:07 -0700 (PDT)
+Received: by mail-qk0-x242.google.com with SMTP id q66so17063906qki.1
+        for <linux-mm@kvack.org>; Sat, 15 Jul 2017 20:59:07 -0700 (PDT)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [RFC v6 26/62] powerpc: Program HPTE key protection bits
-Date: Sat, 15 Jul 2017 20:56:28 -0700
-Message-Id: <1500177424-13695-27-git-send-email-linuxram@us.ibm.com>
+Subject: [RFC v6 27/62] powerpc: helper to validate key-access permissions of a pte
+Date: Sat, 15 Jul 2017 20:56:29 -0700
+Message-Id: <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
 References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,77 +22,95 @@ List-ID: <linux-mm.kvack.org>
 To: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, linuxram@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
 
-Map the PTE protection key bits to the HPTE key protection bits,
-while creating HPTE  entries.
+helper function that checks if the read/write/execute is allowed
+on the pte.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/mmu-hash.h |    5 +++++
- arch/powerpc/include/asm/pkeys.h              |   12 ++++++++++++
- arch/powerpc/mm/hash_utils_64.c               |    4 ++++
- 3 files changed, 21 insertions(+), 0 deletions(-)
+ arch/powerpc/include/asm/book3s/64/pgtable.h |    4 +++
+ arch/powerpc/include/asm/pkeys.h             |   12 +++++++++
+ arch/powerpc/mm/pkeys.c                      |   33 ++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+), 0 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-index 6981a52..f7a6ed3 100644
---- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-+++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
-@@ -90,6 +90,8 @@
- #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
- #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
- #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
-+#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
-+#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
- #define HPTE_R_RPN_SHIFT	12
- #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
- #define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
-@@ -104,6 +106,9 @@
- #define HPTE_R_C		ASM_CONST(0x0000000000000080)
- #define HPTE_R_R		ASM_CONST(0x0000000000000100)
- #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
-+#define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
-+#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
-+#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
- 
- #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
- #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
-diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index ad39db0..bbb5d85 100644
---- a/arch/powerpc/include/asm/pkeys.h
-+++ b/arch/powerpc/include/asm/pkeys.h
-@@ -41,6 +41,18 @@ static inline u64 vmflag_to_page_pkey_bits(u64 vm_flags)
- 		((vm_flags & VM_PKEY_BIT4) ? H_PAGE_PKEY_BIT0 : 0x0UL));
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 30d7f55..0056e58 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -472,6 +472,10 @@ static inline void write_uamor(u64 value)
+ 	mtspr(SPRN_UAMOR, value);
  }
  
-+static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
++#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
++extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
++#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
++
+ #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+ 				       unsigned long addr, pte_t *ptep)
+diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+index bbb5d85..7a9aade 100644
+--- a/arch/powerpc/include/asm/pkeys.h
++++ b/arch/powerpc/include/asm/pkeys.h
+@@ -53,6 +53,18 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
+ 		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
+ }
+ 
++static inline u16 pte_to_pkey_bits(u64 pteflags)
 +{
 +	if (!pkey_inited)
 +		return 0x0UL;
 +
-+	return (((pteflags & H_PAGE_PKEY_BIT0) ? HPTE_R_KEY_BIT0 : 0x0UL) |
-+		((pteflags & H_PAGE_PKEY_BIT1) ? HPTE_R_KEY_BIT1 : 0x0UL) |
-+		((pteflags & H_PAGE_PKEY_BIT2) ? HPTE_R_KEY_BIT2 : 0x0UL) |
-+		((pteflags & H_PAGE_PKEY_BIT3) ? HPTE_R_KEY_BIT3 : 0x0UL) |
-+		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
++	return (((pteflags & H_PAGE_PKEY_BIT0) ? 0x10 : 0x0UL) |
++		((pteflags & H_PAGE_PKEY_BIT1) ? 0x8 : 0x0UL) |
++		((pteflags & H_PAGE_PKEY_BIT2) ? 0x4 : 0x0UL) |
++		((pteflags & H_PAGE_PKEY_BIT3) ? 0x2 : 0x0UL) |
++		((pteflags & H_PAGE_PKEY_BIT4) ? 0x1 : 0x0UL));
 +}
 +
  static inline int vma_pkey(struct vm_area_struct *vma)
  {
  	if (!pkey_inited)
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index f88423b..1e74529 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -231,6 +231,10 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
- 		 */
- 		rflags |= HPTE_R_M;
- 
-+#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-+	rflags |= pte_to_hpte_pkey_bits(pteflags);
-+#endif
-+
- 	return rflags;
+diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
+index 403f5ae..1794e17 100644
+--- a/arch/powerpc/mm/pkeys.c
++++ b/arch/powerpc/mm/pkeys.c
+@@ -201,3 +201,36 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
+ 	 */
+ 	return vma_pkey(vma);
  }
- 
++
++static bool pkey_access_permitted(int pkey, bool write, bool execute)
++{
++	int pkey_shift;
++	u64 amr;
++
++	if (!pkey)
++		return true;
++
++	pkey_shift = pkeyshift(pkey);
++	if (!(read_uamor() & (0x3UL << pkey_shift)))
++		return true;
++
++	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
++		return true;
++
++	if (!write) {
++		amr = read_amr();
++		if (!(amr & (AMR_RD_BIT << pkey_shift)))
++			return true;
++	}
++
++	amr = read_amr(); /* delay reading amr uptil absolutely needed */
++	return (write && !(amr & (AMR_WR_BIT << pkey_shift)));
++}
++
++bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
++{
++	if (!pkey_inited)
++		return true;
++	return pkey_access_permitted(pte_to_pkey_bits(pte),
++			write, execute);
++}
 -- 
 1.7.1
 
