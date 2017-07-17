@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DBBD6B0292
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:11:44 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id l7so3021018iof.2
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:11:44 -0700 (PDT)
-Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
-        by mx.google.com with ESMTPS id d125si11923iog.59.2017.07.17.12.11.43
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B71086B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:26:09 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id n43so77017723qtc.13
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:26:09 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id v62si54914qkc.104.2017.07.17.12.26.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 12:11:43 -0700 (PDT)
-Received: by mail-it0-x231.google.com with SMTP id a62so9093297itd.1
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:11:43 -0700 (PDT)
+        Mon, 17 Jul 2017 12:26:08 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id q66so21831147qki.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:26:08 -0700 (PDT)
+Date: Mon, 17 Jul 2017 15:26:02 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 08/10] percpu: change the number of pages marked in the
+ first_chunk bitmaps
+Message-ID: <20170717192602.GB585283@devbig577.frc2.facebook.com>
+References: <20170716022315.19892-1-dennisz@fb.com>
+ <20170716022315.19892-9-dennisz@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
-References: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
- <20170717175459.GC14983@bombadil.infradead.org> <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake>
- <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 17 Jul 2017 12:11:40 -0700
-Message-ID: <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or corruption
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170716022315.19892-9-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Popov <alex.popov@linux.com>
-Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
 
-On Mon, Jul 17, 2017 at 12:01 PM, Alexander Popov <alex.popov@linux.com> wrote:
-> Hello Christopher,
->
-> Thanks for your reply.
->
-> On 17.07.2017 21:04, Christopher Lameter wrote:
->> On Mon, 17 Jul 2017, Matthew Wilcox wrote:
->>
->>> On Mon, Jul 17, 2017 at 07:45:07PM +0300, Alexander Popov wrote:
->>>> Add an assertion similar to "fasttop" check in GNU C Library allocator:
->>>> an object added to a singly linked freelist should not point to itself.
->>>> That helps to detect some double free errors (e.g. CVE-2017-2636) without
->>>> slub_debug and KASAN. Testing with hackbench doesn't show any noticeable
->>>> performance penalty.
->>>
->>>>  {
->>>> +   BUG_ON(object == fp); /* naive detection of double free or corruption */
->>>>     *(void **)(object + s->offset) = fp;
->>>>  }
->>>
->>> Is BUG() the best response to this situation?  If it's a corruption, then
->>> yes, but if we spot a double-free, then surely we should WARN() and return
->>> without doing anything?
->>
->> The double free debug checking already does the same thing in a more
->> thourough way (this one only checks if the last free was the same
->> address). So its duplicating a check that already exists.
->
-> Yes, absolutely. Enabled slub_debug (or KASAN with its quarantine) can detect
-> more double-free errors. But it introduces much bigger performance penalty and
-> it's disabled by default.
->
->> However, this one is always on.
->
-> Yes, I would propose to have this relatively cheap check enabled by default. I
-> think it will block a good share of double-free errors. Currently it's really
-> easy to turn such a double-free into use-after-free and exploit it, since, as I
-> wrote, next two kmalloc() calls return the same address. So we could make
-> exploiting harder for a relatively low price.
->
-> Christopher, if I change BUG_ON() to VM_BUG_ON(), it will be disabled by default
-> again, right?
+Hello,
 
-Let's merge this with the proposed CONFIG_FREELIST_HARDENED, then the
-performance change is behind a config, and we gain the rest of the
-freelist protections at the same time:
+On Sat, Jul 15, 2017 at 10:23:13PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
+> 
+> This patch changes the allocator to only mark allocated pages for the
+> region the population bitmap is used for. Prior, the bitmap was marked
+> completely used as the first chunk was allocated and immutable. This is
+> misleading because the first chunk may not be completely filled.
+> Additionally, with moving the base_addr up in the previous patch, the
+> population map no longer corresponds to what is being checked.
 
-http://www.openwall.com/lists/kernel-hardening/2017/07/06/1
+This in isolation makes sense although the rationale isn't clear from
+the description.  Is it a mere cleanup or is this needed to enable
+further changes?
 
--Kees
+> pcpu_nr_empty_pop_pages is used to ensure there are a handful of free
+> pages around to serve atomic allocations. A new field, nr_empty_pop_pages,
+> is added to the pcpu_chunk struct to keep track of the number of empty
+> pages. This field is needed as the number of empty populated pages is
+> globally kept track of and deltas are used to update it. This new field
+> is exposed in percpu_stats.
+
+But I can't see why this is being added or why this is in the same
+patch with the previous change.
+
+> Now that chunk->nr_pages is the number of pages the chunk is serving, it
+> is nice to use this in the work function for population and freeing of
+> chunks rather than use the global variable pcpu_unit_pages.
+
+The same goes for the above part.  It's fine to collect misc changes
+into a patch when they're trivial and related in some ways but the
+content of this patch seems a bit random.
+
+Thanks.
 
 -- 
-Kees Cook
-Pixel Security
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
