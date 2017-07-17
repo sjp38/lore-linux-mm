@@ -1,52 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE25D6B0292
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:51:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id r74so11563500oie.1
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 06:51:06 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q184si10795622oig.116.2017.07.17.06.51.04
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F6AC6B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 10:44:55 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 19so73722464qty.2
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 07:44:55 -0700 (PDT)
+Received: from mail-qk0-x22b.google.com (mail-qk0-x22b.google.com. [2607:f8b0:400d:c09::22b])
+        by mx.google.com with ESMTPS id g6si6391303qkc.238.2017.07.17.07.44.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 06:51:05 -0700 (PDT)
-Subject: Re: [PATCH v2] mm/page_alloc: Wait for oom_lock before retrying.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170717085605.GE12888@dhcp22.suse.cz>
-In-Reply-To: <20170717085605.GE12888@dhcp22.suse.cz>
-Message-Id: <201707172250.DFE18753.VOSMOFOFFLQHtJ@I-love.SAKURA.ne.jp>
-Date: Mon, 17 Jul 2017 22:50:47 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jul 2017 07:44:54 -0700 (PDT)
+Received: by mail-qk0-x22b.google.com with SMTP id d78so121917256qkb.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 07:44:54 -0700 (PDT)
+Date: Mon, 17 Jul 2017 10:44:51 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 01/10] percpu: pcpu-stats change void buffer to int buffer
+Message-ID: <20170717144451.GD3519177@devbig577.frc2.facebook.com>
+References: <20170716022315.19892-1-dennisz@fb.com>
+ <20170716022315.19892-2-dennisz@fb.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170716022315.19892-2-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
 
-Michal Hocko wrote:
-> On Sun 16-07-17 19:59:51, Tetsuo Handa wrote:
-> > Since the whole memory reclaim path has never been designed to handle the
-> > scheduling priority inversions, those locations which are assuming that
-> > execution of some code path shall eventually complete without using
-> > synchronization mechanisms can get stuck (livelock) due to scheduling
-> > priority inversions, for CPU time is not guaranteed to be yielded to some
-> > thread doing such code path.
-> > 
-> > mutex_trylock() in __alloc_pages_may_oom() (waiting for oom_lock) and
-> > schedule_timeout_killable(1) in out_of_memory() (already held oom_lock) is
-> > one of such locations, and it was demonstrated using artificial stressing
-> > that the system gets stuck effectively forever because SCHED_IDLE priority
-> > thread is unable to resume execution at schedule_timeout_killable(1) if
-> > a lot of !SCHED_IDLE priority threads are wasting CPU time [1].
+On Sat, Jul 15, 2017 at 10:23:06PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 > 
-> I do not understand this. All the contending tasks will go and sleep for
-> 1s. How can they preempt the lock holder?
+> Changes the use of a void buffer to an int buffer for clarity.
+> 
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 
-Not 1s. It sleeps for only 1 jiffies, which is 1ms if CONFIG_HZ=1000.
+Applied to percpu/for-4.14.h
 
-And 1ms may not be long enough to allow the owner of oom_lock when there are
-many threads doing the same thing. I demonstrated that SCHED_IDLE oom_lock
-owner is completely defeated by a bunch of !SCHED_IDLE contending threads.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
