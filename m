@@ -1,174 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E2886B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:40:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id u123so160812361itu.5
-        for <linux-mm@kvack.org>; Sun, 16 Jul 2017 22:40:06 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id f202si9089752itb.123.2017.07.16.22.40.02
-        for <linux-mm@kvack.org>;
-        Sun, 16 Jul 2017 22:40:03 -0700 (PDT)
-Date: Mon, 17 Jul 2017 14:39:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: zs_page_migrate: not check inuse if
- migrate_mode is not MIGRATE_ASYNC
-Message-ID: <20170717053941.GA29581@bbox>
-References: <1500018667-30175-1-git-send-email-zhuhui@xiaomi.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5AE6B02B4
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:45:29 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 80so6697324wmt.15
+        for <linux-mm@kvack.org>; Sun, 16 Jul 2017 22:45:29 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e69si8747023wme.95.2017.07.16.22.45.27
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 16 Jul 2017 22:45:27 -0700 (PDT)
+Subject: Re: [PATCH 3/8] x86/xen: Redefine XEN_ELFNOTE_INIT_P2M using PUD_SIZE
+ * PTRS_PER_PUD
+References: <20170716225954.74185-1-kirill.shutemov@linux.intel.com>
+ <20170716225954.74185-4-kirill.shutemov@linux.intel.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <de750662-faee-ce5b-526e-3f03ab87419d@suse.com>
+Date: Mon, 17 Jul 2017 07:45:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1500018667-30175-1-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <20170716225954.74185-4-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Hui,
-
-On Fri, Jul 14, 2017 at 03:51:07PM +0800, Hui Zhu wrote:
-> Got some -EBUSY from zs_page_migrate that will make migration
-> slow (retry) or fail (zs_page_putback will schedule_work free_work,
-> but it cannot ensure the success).
-
-I think EAGAIN(migration retrial) is better than EBUSY(bailout) because
-expectation is that zsmalloc will release the empty zs_page soon so
-at next retrial, it will be succeeded.
-About schedule_work, as you said, we don't make sure when it happens but
-I believe it will happen in a migration iteration most of case.
-How often do you see that case?
-
+On 17/07/17 00:59, Kirill A. Shutemov wrote:
+> XEN_ELFNOTE_INIT_P2M has to be 512GB for both 4- and 5-level paging.
+> (PUD_SIZE * PTRS_PER_PUD) would do this.
 > 
-> And I didn't find anything that make zs_page_migrate cannot work with
-> a ZS_EMPTY zspage.
-> So make the patch to not check inuse if migrate_mode is not
-> MIGRATE_ASYNC.
-
-At a first glance, I think it work but the question is that it a same problem
-ith schedule_work of zs_page_putback. IOW, Until the work is done, compaction
-cannot succeed. Do you have any number before and after?
-
-Thanks.
-
+> Unfortunately, we cannot use P4D_SIZE, which would fit here. With
+> current headers structure it cannot be used in assembly, if p4d
+> level is folded.
 > 
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> ---
->  mm/zsmalloc.c | 66 +++++++++++++++++++++++++++++++++--------------------------
->  1 file changed, 37 insertions(+), 29 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index d41edd2..c298e5c 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1982,6 +1982,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  	unsigned long old_obj, new_obj;
->  	unsigned int obj_idx;
->  	int ret = -EAGAIN;
-> +	int inuse;
->  
->  	VM_BUG_ON_PAGE(!PageMovable(page), page);
->  	VM_BUG_ON_PAGE(!PageIsolated(page), page);
-> @@ -1996,21 +1997,24 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  	offset = get_first_obj_offset(page);
->  
->  	spin_lock(&class->lock);
-> -	if (!get_zspage_inuse(zspage)) {
-> +	inuse = get_zspage_inuse(zspage);
-> +	if (mode == MIGRATE_ASYNC && !inuse) {
->  		ret = -EBUSY;
->  		goto unlock_class;
->  	}
->  
->  	pos = offset;
->  	s_addr = kmap_atomic(page);
-> -	while (pos < PAGE_SIZE) {
-> -		head = obj_to_head(page, s_addr + pos);
-> -		if (head & OBJ_ALLOCATED_TAG) {
-> -			handle = head & ~OBJ_ALLOCATED_TAG;
-> -			if (!trypin_tag(handle))
-> -				goto unpin_objects;
-> +	if (inuse) {
-> +		while (pos < PAGE_SIZE) {
-> +			head = obj_to_head(page, s_addr + pos);
-> +			if (head & OBJ_ALLOCATED_TAG) {
-> +				handle = head & ~OBJ_ALLOCATED_TAG;
-> +				if (!trypin_tag(handle))
-> +					goto unpin_objects;
-> +			}
-> +			pos += class->size;
->  		}
-> -		pos += class->size;
->  	}
->  
->  	/*
-> @@ -2020,20 +2024,22 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  	memcpy(d_addr, s_addr, PAGE_SIZE);
->  	kunmap_atomic(d_addr);
->  
-> -	for (addr = s_addr + offset; addr < s_addr + pos;
-> -					addr += class->size) {
-> -		head = obj_to_head(page, addr);
-> -		if (head & OBJ_ALLOCATED_TAG) {
-> -			handle = head & ~OBJ_ALLOCATED_TAG;
-> -			if (!testpin_tag(handle))
-> -				BUG();
-> -
-> -			old_obj = handle_to_obj(handle);
-> -			obj_to_location(old_obj, &dummy, &obj_idx);
-> -			new_obj = (unsigned long)location_to_obj(newpage,
-> -								obj_idx);
-> -			new_obj |= BIT(HANDLE_PIN_BIT);
-> -			record_obj(handle, new_obj);
-> +	if (inuse) {
-> +		for (addr = s_addr + offset; addr < s_addr + pos;
-> +						addr += class->size) {
-> +			head = obj_to_head(page, addr);
-> +			if (head & OBJ_ALLOCATED_TAG) {
-> +				handle = head & ~OBJ_ALLOCATED_TAG;
-> +				if (!testpin_tag(handle))
-> +					BUG();
-> +
-> +				old_obj = handle_to_obj(handle);
-> +				obj_to_location(old_obj, &dummy, &obj_idx);
-> +				new_obj = (unsigned long)
-> +					location_to_obj(newpage, obj_idx);
-> +				new_obj |= BIT(HANDLE_PIN_BIT);
-> +				record_obj(handle, new_obj);
-> +			}
->  		}
->  	}
->  
-> @@ -2055,14 +2061,16 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  
->  	ret = MIGRATEPAGE_SUCCESS;
->  unpin_objects:
-> -	for (addr = s_addr + offset; addr < s_addr + pos;
-> +	if (inuse) {
-> +		for (addr = s_addr + offset; addr < s_addr + pos;
->  						addr += class->size) {
-> -		head = obj_to_head(page, addr);
-> -		if (head & OBJ_ALLOCATED_TAG) {
-> -			handle = head & ~OBJ_ALLOCATED_TAG;
-> -			if (!testpin_tag(handle))
-> -				BUG();
-> -			unpin_tag(handle);
-> +			head = obj_to_head(page, addr);
-> +			if (head & OBJ_ALLOCATED_TAG) {
-> +				handle = head & ~OBJ_ALLOCATED_TAG;
-> +				if (!testpin_tag(handle))
-> +					BUG();
-> +				unpin_tag(handle);
-> +			}
->  		}
->  	}
->  	kunmap_atomic(s_addr);
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Reviewed-by: Juergen Gross <jgross@suse.com>
+
+
+Thanks,
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
