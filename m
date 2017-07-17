@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 60F3E6B02B4
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 11:56:20 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m81so1463973wmh.6
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 08:56:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k63si4469293wmf.26.2017.07.17.08.56.18
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C4C6B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:02:38 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c12so169347242pfj.12
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:02:38 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p18si2242324pgc.484.2017.07.17.09.02.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 08:56:18 -0700 (PDT)
-Date: Mon, 17 Jul 2017 16:56:16 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 00/10] PCID and improved laziness
-Message-ID: <20170717155616.jpyi7xdl33mcafyf@suse.de>
-References: <cover.1498751203.git.luto@kernel.org>
- <20170705085657.eghd4xbv7g7shf5v@gmail.com>
- <20170717095715.yzmuhhp6txqsxtpf@suse.de>
- <20170717150625.2depy7bqkx7qt7zv@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jul 2017 09:02:36 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 5/6] mm: parallelize clear_gigantic_page
+References: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
+ <1500070573-3948-6-git-send-email-daniel.m.jordan@oracle.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <398e9887-6d6e-e1d3-abcf-43a6d7496bc8@intel.com>
+Date: Mon, 17 Jul 2017 09:02:36 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170717150625.2depy7bqkx7qt7zv@gmail.com>
+In-Reply-To: <1500070573-3948-6-git-send-email-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@kernel.org>, x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: daniel.m.jordan@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jul 17, 2017 at 05:06:25PM +0200, Ingo Molnar wrote:
-> > > I'll push it all out when it passes testing.
-> > > 
-> > > If it's all super stable I plan to tempt Linus with a late merge window pull 
-> > > request for all these preparatory patches. (Unless he objects that is. Hint, hint.)
-> > > 
-> > > Any objections?
-> > > 
-> > 
-> > What was the final verdict here? I have a patch ready that should be layered
-> > on top which will need a backport. PCID support does not appear to have
-> > made it in this merge window so I'm wondering if I should send the patch
-> > as-is for placement on top of Andy's work or go with the backport and
-> > apply a follow-on patch after Andy's work gets merged.
-> 
-> It's en route for v4.14 - it narrowly missed v4.13.
-> 
+On 07/14/2017 03:16 PM, daniel.m.jordan@oracle.com wrote:
+> Machine:  Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 cpus, 1T memory
+> Test:    Clear a range of gigantic pages
+> nthread   speedup   size (GiB)   min time (s)   stdev
+>       1                    100          41.13    0.03
+>       2     2.03x          100          20.26    0.14
+>       4     4.28x          100           9.62    0.09
+>       8     8.39x          100           4.90    0.05
+>      16    10.44x          100           3.94    0.03
+...
+>       1                    800         434.91    1.81
+>       2     2.54x          800         170.97    1.46
+>       4     4.98x          800          87.38    1.91
+>       8    10.15x          800          42.86    2.59
+>      16    12.99x          800          33.48    0.83
 
-Grand. I sent out a version that doesn't depend on Andy's work to Andrew
-as it's purely a mm patch. If that passes inspection then I'll send a
-follow-on patch to apply on top of the PCID work.
+What was the actual test here?  Did you just use sysfs to allocate 800GB
+of 1GB huge pages?
 
-Thanks Ingo.
+This test should be entirely memory-bandwidth-limited, right?  Are you
+contending here that a single core can only use 1/10th of the memory
+bandwidth when clearing a page?
 
--- 
-Mel Gorman
-SUSE Labs
+Or, does all the gain here come because we are round-robin-allocating
+the pages across all 8 NUMA nodes' memory controllers and the speedup
+here is because we're not doing the clearing across the interconnect?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
