@@ -1,86 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D626B02B4
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:10:51 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 1so174078497pfi.14
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:10:51 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id f21si12285pff.143.2017.07.17.12.10.50
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DBBD6B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:11:44 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l7so3021018iof.2
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:11:44 -0700 (PDT)
+Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
+        by mx.google.com with ESMTPS id d125si11923iog.59.2017.07.17.12.11.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 12:10:50 -0700 (PDT)
-Date: Mon, 17 Jul 2017 15:10:26 -0400
-From: Dennis Zhou <dennisz@fb.com>
-Subject: Re: [PATCH 05/10] percpu: change reserved_size to end page aligned
-Message-ID: <20170717191025.GA59543@dennisz-mbp.dhcp.thefacebook.com>
-References: <20170716022315.19892-1-dennisz@fb.com>
- <20170716022315.19892-6-dennisz@fb.com>
- <20170717164650.GJ3519177@devbig577.frc2.facebook.com>
+        Mon, 17 Jul 2017 12:11:43 -0700 (PDT)
+Received: by mail-it0-x231.google.com with SMTP id a62so9093297itd.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:11:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170717164650.GJ3519177@devbig577.frc2.facebook.com>
+In-Reply-To: <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
+References: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
+ <20170717175459.GC14983@bombadil.infradead.org> <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake>
+ <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 17 Jul 2017 12:11:40 -0700
+Message-ID: <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or corruption
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
+To: Alexander Popov <alex.popov@linux.com>
+Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Hi Tejun,
+On Mon, Jul 17, 2017 at 12:01 PM, Alexander Popov <alex.popov@linux.com> wrote:
+> Hello Christopher,
+>
+> Thanks for your reply.
+>
+> On 17.07.2017 21:04, Christopher Lameter wrote:
+>> On Mon, 17 Jul 2017, Matthew Wilcox wrote:
+>>
+>>> On Mon, Jul 17, 2017 at 07:45:07PM +0300, Alexander Popov wrote:
+>>>> Add an assertion similar to "fasttop" check in GNU C Library allocator:
+>>>> an object added to a singly linked freelist should not point to itself.
+>>>> That helps to detect some double free errors (e.g. CVE-2017-2636) without
+>>>> slub_debug and KASAN. Testing with hackbench doesn't show any noticeable
+>>>> performance penalty.
+>>>
+>>>>  {
+>>>> +   BUG_ON(object == fp); /* naive detection of double free or corruption */
+>>>>     *(void **)(object + s->offset) = fp;
+>>>>  }
+>>>
+>>> Is BUG() the best response to this situation?  If it's a corruption, then
+>>> yes, but if we spot a double-free, then surely we should WARN() and return
+>>> without doing anything?
+>>
+>> The double free debug checking already does the same thing in a more
+>> thourough way (this one only checks if the last free was the same
+>> address). So its duplicating a check that already exists.
+>
+> Yes, absolutely. Enabled slub_debug (or KASAN with its quarantine) can detect
+> more double-free errors. But it introduces much bigger performance penalty and
+> it's disabled by default.
+>
+>> However, this one is always on.
+>
+> Yes, I would propose to have this relatively cheap check enabled by default. I
+> think it will block a good share of double-free errors. Currently it's really
+> easy to turn such a double-free into use-after-free and exploit it, since, as I
+> wrote, next two kmalloc() calls return the same address. So we could make
+> exploiting harder for a relatively low price.
+>
+> Christopher, if I change BUG_ON() to VM_BUG_ON(), it will be disabled by default
+> again, right?
 
-On Mon, Jul 17, 2017 at 12:46:50PM -0400, Tejun Heo wrote:
+Let's merge this with the proposed CONFIG_FREELIST_HARDENED, then the
+performance change is behind a config, and we gain the rest of the
+freelist protections at the same time:
 
-> > +/*
-> 
-> Should be /**
-> 
+http://www.openwall.com/lists/kernel-hardening/2017/07/06/1
 
-I have fixed this in v2.
+-Kees
 
-> > + * pcpu_align_reserved_region - page align the end of the reserved region
-> > + * @static_size: the static region size
-> > + * @reserved_size: the minimum reserved region size
-> > + *
-> > + * This function calculates the size of the reserved region required to
-> > + * make the reserved region end page aligned.
-> > + *
-> > + * Percpu memory offers a maximum alignment of PAGE_SIZE.  Aligning this
-> > + * minimizes the metadata overhead of overlapping the static, reserved,
-> > + * and dynamic regions by allowing the metadata for the static region to
-> > + * not be allocated.  This lets the base_addr be moved up to a page
-> > + * aligned address and disregard the static region as offsets are allocated.
-> > + * The beginning of the reserved region will overlap with the static
-> > + * region if the end of the static region is not page aligned.
-> 
-> Heh, that was pretty difficult to parse, but here's my question.  So,
-> we're expanding reserved area so that its end aligns to page boundary
-> which is completely fine.  We may end up with reserved area which is a
-> bit larger than specified but no big deal.  However, we can't do the
-> same thing with the boundary between the static and reserved chunks,
-> so instead we pull down the start of the reserved area and mark off
-> the overwrapping area, which is fine too.
-> 
-> My question is why we're doing one thing for the end of reserved area
-> while we need to do a different thing for the beginning of it.  Can't
-> we do the same thing in both cases?  ie. for the both boundaries
-> between static and reserved, and reserved and dynamic, pull down the
-> start to the page boundary and mark the overlapping areas used?
-
-I don't have a very good answer to why I chose to do it different for
-the beginning and then end. I think it came down to wanting to maximize
-metadata usage at the time.
-
-A benefit to doing it this way is that it clarifies the number of full
-pages that will be allocated to the reserved region. For example, if
-the reserved region is set to 8KB and the region is offset due to the
-static region, the reserved region would only be given one full page.
-The first and last page are shared with the static region and dynamic
-region respectively. Expanding the reserved region would allocate two
-4KB pages to it + the partial at the beginning if the static region is
-not aligned. It's not perfect, but it makes alignment slightly easier to
-understand for the reserved region.
-
-Thanks,
-Dennis
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
