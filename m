@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A87636B03AB
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:17 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id r14so565972qte.11
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:17 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0043.outbound.protection.outlook.com. [104.47.33.43])
-        by mx.google.com with ESMTPS id o2si231483qkc.372.2017.07.17.14.11.16
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1378A6B03B5
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:22 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id b20so5210039itd.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:22 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0077.outbound.protection.outlook.com. [104.47.34.77])
+        by mx.google.com with ESMTPS id m17si72249ioi.112.2017.07.17.14.11.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 14:11:16 -0700 (PDT)
+        Mon, 17 Jul 2017 14:11:21 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v10 07/38] x86/mm: Remove phys_to_virt() usage in ioremap()
-Date: Mon, 17 Jul 2017 16:10:04 -0500
-Message-Id: <88ada7b09c6568c61cd696351eb59fb15a82ce1a.1500319216.git.thomas.lendacky@amd.com>
+Subject: [PATCH v10 08/38] x86/mm: Add support to enable SME in early boot processing
+Date: Mon, 17 Jul 2017 16:10:05 -0500
+Message-Id: <e52ad781f085224bf835b3caff9aa3aee6febccb.1500319216.git.thomas.lendacky@amd.com>
 In-Reply-To: <cover.1500319216.git.thomas.lendacky@amd.com>
 References: <cover.1500319216.git.thomas.lendacky@amd.com>
 MIME-Version: 1.0
@@ -22,63 +22,242 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com
 Cc: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>
 
-Currently there is a check if the address being mapped is in the ISA
-range (is_ISA_range()), and if it is, then phys_to_virt() is used to
-perform the mapping. When SME is active, the default is to add pagetable
-mappings with the encryption bit set unless specifically overridden. The
-resulting pagetable mapping from phys_to_virt() will result in a mapping
-that has the encryption bit set. With SME, the use of ioremap() is
-intended to generate pagetable mappings that do not have the encryption
-bit set through the use of the PAGE_KERNEL_IO protection value.
+Add support to the early boot code to use Secure Memory Encryption (SME).
+Since the kernel has been loaded into memory in a decrypted state, encrypt
+the kernel in place and update the early pagetables with the memory
+encryption mask so that new pagetable entries will use memory encryption.
 
-Rather than special case the SME scenario, remove the ISA range check and
-usage of phys_to_virt() and have ISA range mappings continue through the
-remaining ioremap() path.
+The routines to set the encryption mask and perform the encryption are
+stub routines for now with functionality to be added in a later patch.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/mm/ioremap.c | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ arch/x86/include/asm/mem_encrypt.h |  8 ++++++
+ arch/x86/kernel/head64.c           | 53 ++++++++++++++++++++++++++++++--------
+ arch/x86/kernel/head_64.S          | 20 ++++++++++++--
+ arch/x86/mm/mem_encrypt.c          |  9 +++++++
+ include/linux/mem_encrypt.h        |  5 ++++
+ 5 files changed, 82 insertions(+), 13 deletions(-)
 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index 4c1b5fd..66ddf5e 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -106,12 +106,6 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
+diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+index a105796..475e34f 100644
+--- a/arch/x86/include/asm/mem_encrypt.h
++++ b/arch/x86/include/asm/mem_encrypt.h
+@@ -15,14 +15,22 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++#include <linux/init.h>
++
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
+ 
+ extern unsigned long sme_me_mask;
+ 
++void __init sme_encrypt_kernel(void);
++void __init sme_enable(void);
++
+ #else	/* !CONFIG_AMD_MEM_ENCRYPT */
+ 
+ #define sme_me_mask	0UL
+ 
++static inline void __init sme_encrypt_kernel(void) { }
++static inline void __init sme_enable(void) { }
++
+ #endif	/* CONFIG_AMD_MEM_ENCRYPT */
+ 
+ #endif	/* __ASSEMBLY__ */
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 46c3c73..1f0ddcc 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -14,6 +14,7 @@
+ #include <linux/start_kernel.h>
+ #include <linux/io.h>
+ #include <linux/memblock.h>
++#include <linux/mem_encrypt.h>
+ 
+ #include <asm/processor.h>
+ #include <asm/proto.h>
+@@ -45,9 +46,10 @@ static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
+ 	return ptr - (void *)_text + (void *)physaddr;
+ }
+ 
+-void __head __startup_64(unsigned long physaddr)
++unsigned long __head __startup_64(unsigned long physaddr)
+ {
+ 	unsigned long load_delta, *p;
++	unsigned long pgtable_flags;
+ 	pgdval_t *pgd;
+ 	p4dval_t *p4d;
+ 	pudval_t *pud;
+@@ -68,6 +70,12 @@ void __head __startup_64(unsigned long physaddr)
+ 	if (load_delta & ~PMD_PAGE_MASK)
+ 		for (;;);
+ 
++	/* Activate Secure Memory Encryption (SME) if supported and enabled */
++	sme_enable();
++
++	/* Include the SME encryption mask in the fixup value */
++	load_delta += sme_get_me_mask();
++
+ 	/* Fixup the physical addresses in the page table */
+ 
+ 	pgd = fixup_pointer(&early_top_pgt, physaddr);
+@@ -94,28 +102,30 @@ void __head __startup_64(unsigned long physaddr)
+ 
+ 	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
++	pgtable_flags = _KERNPG_TABLE + sme_get_me_mask();
+ 
+ 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+ 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 
+ 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
+-		pgd[i + 0] = (pgdval_t)p4d + _KERNPG_TABLE;
+-		pgd[i + 1] = (pgdval_t)p4d + _KERNPG_TABLE;
++		pgd[i + 0] = (pgdval_t)p4d + pgtable_flags;
++		pgd[i + 1] = (pgdval_t)p4d + pgtable_flags;
+ 
+ 		i = (physaddr >> P4D_SHIFT) % PTRS_PER_P4D;
+-		p4d[i + 0] = (pgdval_t)pud + _KERNPG_TABLE;
+-		p4d[i + 1] = (pgdval_t)pud + _KERNPG_TABLE;
++		p4d[i + 0] = (pgdval_t)pud + pgtable_flags;
++		p4d[i + 1] = (pgdval_t)pud + pgtable_flags;
+ 	} else {
+ 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
+-		pgd[i + 0] = (pgdval_t)pud + _KERNPG_TABLE;
+-		pgd[i + 1] = (pgdval_t)pud + _KERNPG_TABLE;
++		pgd[i + 0] = (pgdval_t)pud + pgtable_flags;
++		pgd[i + 1] = (pgdval_t)pud + pgtable_flags;
  	}
  
- 	/*
--	 * Don't remap the low PCI/ISA area, it's always mapped..
--	 */
--	if (is_ISA_range(phys_addr, last_addr))
--		return (__force void __iomem *)phys_to_virt(phys_addr);
--
--	/*
- 	 * Don't allow anybody to remap normal RAM that we're using..
- 	 */
- 	pfn      = phys_addr >> PAGE_SHIFT;
-@@ -340,13 +334,17 @@ void iounmap(volatile void __iomem *addr)
- 		return;
+ 	i = (physaddr >> PUD_SHIFT) % PTRS_PER_PUD;
+-	pud[i + 0] = (pudval_t)pmd + _KERNPG_TABLE;
+-	pud[i + 1] = (pudval_t)pmd + _KERNPG_TABLE;
++	pud[i + 0] = (pudval_t)pmd + pgtable_flags;
++	pud[i + 1] = (pudval_t)pmd + pgtable_flags;
  
- 	/*
--	 * __ioremap special-cases the PCI/ISA range by not instantiating a
--	 * vm_area and by simply returning an address into the kernel mapping
--	 * of ISA space.   So handle that here.
-+	 * The PCI/ISA range special-casing was removed from __ioremap()
-+	 * so this check, in theory, can be removed. However, there are
-+	 * cases where iounmap() is called for addresses not obtained via
-+	 * ioremap() (vga16fb for example). Add a warning so that these
-+	 * cases can be caught and fixed.
- 	 */
- 	if ((void __force *)addr >= phys_to_virt(ISA_START_ADDRESS) &&
--	    (void __force *)addr < phys_to_virt(ISA_END_ADDRESS))
-+	    (void __force *)addr < phys_to_virt(ISA_END_ADDRESS)) {
-+		WARN(1, "iounmap() called for ISA range not obtained using ioremap()\n");
- 		return;
-+	}
+ 	pmd_entry = __PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL;
++	pmd_entry += sme_get_me_mask();
+ 	pmd_entry +=  physaddr;
  
- 	addr = (volatile void __iomem *)
- 		(PAGE_MASK & (unsigned long __force)addr);
+ 	for (i = 0; i < DIV_ROUND_UP(_end - _text, PMD_SIZE); i++) {
+@@ -136,9 +146,30 @@ void __head __startup_64(unsigned long physaddr)
+ 			pmd[i] += load_delta;
+ 	}
+ 
+-	/* Fixup phys_base */
++	/*
++	 * Fixup phys_base - remove the memory encryption mask to obtain
++	 * the true physical address.
++	 */
+ 	p = fixup_pointer(&phys_base, physaddr);
+-	*p += load_delta;
++	*p += load_delta - sme_get_me_mask();
++
++	/* Encrypt the kernel (if SME is active) */
++	sme_encrypt_kernel();
++
++	/*
++	 * Return the SME encryption mask (if SME is active) to be used as a
++	 * modifier for the initial pgdir entry programmed into CR3.
++	 */
++	return sme_get_me_mask();
++}
++
++unsigned long __startup_secondary_64(void)
++{
++	/*
++	 * Return the SME encryption mask (if SME is active) to be used as a
++	 * modifier for the initial pgdir entry programmed into CR3.
++	 */
++	return sme_get_me_mask();
+ }
+ 
+ /* Wipe all early page tables except for the kernel symbol map */
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index 6225550..ec5d5e9 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -73,12 +73,19 @@ startup_64:
+ 	/* Sanitize CPU configuration */
+ 	call verify_cpu
+ 
++	/*
++	 * Perform pagetable fixups. Additionally, if SME is active, encrypt
++	 * the kernel and retrieve the modifier (SME encryption mask if SME
++	 * is active) to be added to the initial pgdir entry that will be
++	 * programmed into CR3.
++	 */
+ 	leaq	_text(%rip), %rdi
+ 	pushq	%rsi
+ 	call	__startup_64
+ 	popq	%rsi
+ 
+-	movq	$(early_top_pgt - __START_KERNEL_map), %rax
++	/* Form the CR3 value being sure to include the CR3 modifier */
++	addq	$(early_top_pgt - __START_KERNEL_map), %rax
+ 	jmp 1f
+ ENTRY(secondary_startup_64)
+ 	/*
+@@ -98,7 +105,16 @@ ENTRY(secondary_startup_64)
+ 	/* Sanitize CPU configuration */
+ 	call verify_cpu
+ 
+-	movq	$(init_top_pgt - __START_KERNEL_map), %rax
++	/*
++	 * Retrieve the modifier (SME encryption mask if SME is active) to be
++	 * added to the initial pgdir entry that will be programmed into CR3.
++	 */
++	pushq	%rsi
++	call	__startup_secondary_64
++	popq	%rsi
++
++	/* Form the CR3 value being sure to include the CR3 modifier */
++	addq	$(init_top_pgt - __START_KERNEL_map), %rax
+ 1:
+ 
+ 	/* Enable PAE mode, PGE and LA57 */
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index b99d469..3ac6f99 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -11,6 +11,7 @@
+  */
+ 
+ #include <linux/linkage.h>
++#include <linux/init.h>
+ 
+ /*
+  * Since SME related variables are set early in the boot process they must
+@@ -19,3 +20,11 @@
+  */
+ unsigned long sme_me_mask __section(.data) = 0;
+ EXPORT_SYMBOL_GPL(sme_me_mask);
++
++void __init sme_encrypt_kernel(void)
++{
++}
++
++void __init sme_enable(void)
++{
++}
+diff --git a/include/linux/mem_encrypt.h b/include/linux/mem_encrypt.h
+index 59769f7..570f4fc 100644
+--- a/include/linux/mem_encrypt.h
++++ b/include/linux/mem_encrypt.h
+@@ -30,6 +30,11 @@ static inline bool sme_active(void)
+ 	return !!sme_me_mask;
+ }
+ 
++static inline unsigned long sme_get_me_mask(void)
++{
++	return sme_me_mask;
++}
++
+ #endif	/* __ASSEMBLY__ */
+ 
+ #endif	/* __MEM_ENCRYPT_H__ */
 -- 
 1.9.1
 
