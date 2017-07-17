@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D288A6B02FD
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:03 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id k190so1434616pgk.8
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:03 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0063.outbound.protection.outlook.com. [104.47.33.63])
-        by mx.google.com with ESMTPS id j130si176717pgc.387.2017.07.17.14.11.01
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 82BFF6B0313
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:06 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id b40so682769qtb.8
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:06 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0080.outbound.protection.outlook.com. [104.47.33.80])
+        by mx.google.com with ESMTPS id h7si257076qtf.176.2017.07.17.14.11.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 14:11:01 -0700 (PDT)
+        Mon, 17 Jul 2017 14:11:05 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v10 03/38] x86, mpparse, x86/acpi, x86/PCI, x86/dmi, SFI: Use memremap for RAM mappings
-Date: Mon, 17 Jul 2017 16:10:00 -0500
-Message-Id: <b13fccb9abbd547a7eef7b1fdfc223431b211c88.1500319216.git.thomas.lendacky@amd.com>
+Subject: [PATCH v10 04/38] x86/CPU/AMD: Add the Secure Memory Encryption CPU feature
+Date: Mon, 17 Jul 2017 16:10:01 -0500
+Message-Id: <85c17ff450721abccddc95e611ae8df3f4d9718b.1500319216.git.thomas.lendacky@amd.com>
 In-Reply-To: <cover.1500319216.git.thomas.lendacky@amd.com>
 References: <cover.1500319216.git.thomas.lendacky@amd.com>
 MIME-Version: 1.0
@@ -22,433 +22,87 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com
 Cc: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>
 
-The ioremap() function is intended for mapping MMIO. For RAM, the
-memremap() function should be used. Convert calls from ioremap() to
-memremap() when re-mapping RAM.
+Update the CPU features to include identifying and reporting on the
+Secure Memory Encryption (SME) feature.  SME is identified by CPUID
+0x8000001f, but requires BIOS support to enable it (set bit 23 of
+MSR_K8_SYSCFG).  Only show the SME feature as available if reported by
+CPUID, enabled by BIOS and not configured as CONFIG_X86_32.
 
-This will be used later by SME to control how the encryption mask is
-applied to memory mappings, with certain memory locations being mapped
-decrypted vs encrypted.
-
-Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/dmi.h   |  8 ++++----
- arch/x86/kernel/acpi/boot.c  |  6 +++---
- arch/x86/kernel/kdebugfs.c   | 34 +++++++++++-----------------------
- arch/x86/kernel/ksysfs.c     | 28 ++++++++++++++--------------
- arch/x86/kernel/mpparse.c    | 10 +++++-----
- arch/x86/pci/common.c        |  4 ++--
- drivers/firmware/dmi-sysfs.c |  5 +++--
- drivers/firmware/pcdp.c      |  4 ++--
- drivers/sfi/sfi_core.c       | 22 +++++++++++-----------
- 9 files changed, 55 insertions(+), 66 deletions(-)
+ arch/x86/include/asm/cpufeatures.h |  1 +
+ arch/x86/include/asm/msr-index.h   |  2 ++
+ arch/x86/kernel/cpu/amd.c          | 19 +++++++++++++++++++
+ arch/x86/kernel/cpu/scattered.c    |  1 +
+ 4 files changed, 23 insertions(+)
 
-diff --git a/arch/x86/include/asm/dmi.h b/arch/x86/include/asm/dmi.h
-index 3c69fed..a8e15b0 100644
---- a/arch/x86/include/asm/dmi.h
-+++ b/arch/x86/include/asm/dmi.h
-@@ -13,9 +13,9 @@ static __always_inline __init void *dmi_alloc(unsigned len)
- }
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index ca3c48c..14f0f29 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -196,6 +196,7 @@
  
- /* Use early IO mappings for DMI because it's initialized early */
--#define dmi_early_remap		early_ioremap
--#define dmi_early_unmap		early_iounmap
--#define dmi_remap		ioremap_cache
--#define dmi_unmap		iounmap
-+#define dmi_early_remap		early_memremap
-+#define dmi_early_unmap		early_memunmap
-+#define dmi_remap(_x, _l)	memremap(_x, _l, MEMREMAP_WB)
-+#define dmi_unmap(_x)		memunmap(_x)
+ #define X86_FEATURE_HW_PSTATE	( 7*32+ 8) /* AMD HW-PState */
+ #define X86_FEATURE_PROC_FEEDBACK ( 7*32+ 9) /* AMD ProcFeedbackInterface */
++#define X86_FEATURE_SME		( 7*32+10) /* AMD Secure Memory Encryption */
  
- #endif /* _ASM_X86_DMI_H */
-diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-index 6bb6806..850160a 100644
---- a/arch/x86/kernel/acpi/boot.c
-+++ b/arch/x86/kernel/acpi/boot.c
-@@ -115,7 +115,7 @@
- #define	ACPI_INVALID_GSI		INT_MIN
- 
- /*
-- * This is just a simple wrapper around early_ioremap(),
-+ * This is just a simple wrapper around early_memremap(),
-  * with sanity checks for phys == 0 and size == 0.
-  */
- char *__init __acpi_map_table(unsigned long phys, unsigned long size)
-@@ -124,7 +124,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
- 	if (!phys || !size)
- 		return NULL;
- 
--	return early_ioremap(phys, size);
-+	return early_memremap(phys, size);
- }
- 
- void __init __acpi_unmap_table(char *map, unsigned long size)
-@@ -132,7 +132,7 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
- 	if (!map || !size)
- 		return;
- 
--	early_iounmap(map, size);
-+	early_memunmap(map, size);
- }
- 
- #ifdef CONFIG_X86_LOCAL_APIC
-diff --git a/arch/x86/kernel/kdebugfs.c b/arch/x86/kernel/kdebugfs.c
-index 38b6458..fd6f8fb 100644
---- a/arch/x86/kernel/kdebugfs.c
-+++ b/arch/x86/kernel/kdebugfs.c
-@@ -33,7 +33,6 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
- 	struct setup_data_node *node = file->private_data;
- 	unsigned long remain;
- 	loff_t pos = *ppos;
--	struct page *pg;
- 	void *p;
- 	u64 pa;
- 
-@@ -47,18 +46,13 @@ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
- 		count = node->len - pos;
- 
- 	pa = node->paddr + sizeof(struct setup_data) + pos;
--	pg = pfn_to_page((pa + count - 1) >> PAGE_SHIFT);
--	if (PageHighMem(pg)) {
--		p = ioremap_cache(pa, count);
--		if (!p)
--			return -ENXIO;
--	} else
--		p = __va(pa);
-+	p = memremap(pa, count, MEMREMAP_WB);
-+	if (!p)
-+		return -ENOMEM;
- 
- 	remain = copy_to_user(user_buf, p, count);
- 
--	if (PageHighMem(pg))
--		iounmap(p);
-+	memunmap(p);
- 
- 	if (remain)
- 		return -EFAULT;
-@@ -109,7 +103,6 @@ static int __init create_setup_data_nodes(struct dentry *parent)
- 	struct setup_data *data;
- 	int error;
- 	struct dentry *d;
--	struct page *pg;
- 	u64 pa_data;
- 	int no = 0;
- 
-@@ -126,16 +119,12 @@ static int __init create_setup_data_nodes(struct dentry *parent)
- 			goto err_dir;
- 		}
- 
--		pg = pfn_to_page((pa_data+sizeof(*data)-1) >> PAGE_SHIFT);
--		if (PageHighMem(pg)) {
--			data = ioremap_cache(pa_data, sizeof(*data));
--			if (!data) {
--				kfree(node);
--				error = -ENXIO;
--				goto err_dir;
--			}
--		} else
--			data = __va(pa_data);
-+		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
-+		if (!data) {
-+			kfree(node);
-+			error = -ENOMEM;
-+			goto err_dir;
+ #define X86_FEATURE_INTEL_PPIN	( 7*32+14) /* Intel Processor Inventory Number */
+ #define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
+diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
+index 5573c75..17f5c12 100644
+--- a/arch/x86/include/asm/msr-index.h
++++ b/arch/x86/include/asm/msr-index.h
+@@ -356,6 +356,8 @@
+ #define MSR_K8_TOP_MEM1			0xc001001a
+ #define MSR_K8_TOP_MEM2			0xc001001d
+ #define MSR_K8_SYSCFG			0xc0010010
++#define MSR_K8_SYSCFG_MEM_ENCRYPT_BIT	23
++#define MSR_K8_SYSCFG_MEM_ENCRYPT	BIT_ULL(MSR_K8_SYSCFG_MEM_ENCRYPT_BIT)
+ #define MSR_K8_INT_PENDING_MSG		0xc0010055
+ /* C1E active bits in int pending message */
+ #define K8_INTP_C1E_ACTIVE_MASK		0x18000000
+diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
+index 3b9e220..7f658d0 100644
+--- a/arch/x86/kernel/cpu/amd.c
++++ b/arch/x86/kernel/cpu/amd.c
+@@ -612,6 +612,25 @@ static void early_init_amd(struct cpuinfo_x86 *c)
+ 	 */
+ 	if (cpu_has_amd_erratum(c, amd_erratum_400))
+ 		set_cpu_bug(c, X86_BUG_AMD_E400);
++
++	/*
++	 * BIOS support is required for SME. If BIOS has not enabled SME
++	 * then don't advertise the feature (set in scattered.c). Also,
++	 * since the SME support requires long mode, don't advertise the
++	 * feature under CONFIG_X86_32.
++	 */
++	if (cpu_has(c, X86_FEATURE_SME)) {
++		if (IS_ENABLED(CONFIG_X86_32)) {
++			clear_cpu_cap(c, X86_FEATURE_SME);
++		} else {
++			u64 msr;
++
++			/* Check if SME is enabled */
++			rdmsrl(MSR_K8_SYSCFG, msr);
++			if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
++				clear_cpu_cap(c, X86_FEATURE_SME);
 +		}
- 
- 		node->paddr = pa_data;
- 		node->type = data->type;
-@@ -143,8 +132,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
- 		error = create_setup_data_node(d, no, node);
- 		pa_data = data->next;
- 
--		if (PageHighMem(pg))
--			iounmap(data);
-+		memunmap(data);
- 		if (error)
- 			goto err_dir;
- 		no++;
-diff --git a/arch/x86/kernel/ksysfs.c b/arch/x86/kernel/ksysfs.c
-index 4afc67f..ee51db9 100644
---- a/arch/x86/kernel/ksysfs.c
-+++ b/arch/x86/kernel/ksysfs.c
-@@ -16,8 +16,8 @@
- #include <linux/stat.h>
- #include <linux/slab.h>
- #include <linux/mm.h>
-+#include <linux/io.h>
- 
--#include <asm/io.h>
- #include <asm/setup.h>
- 
- static ssize_t version_show(struct kobject *kobj,
-@@ -79,12 +79,12 @@ static int get_setup_data_paddr(int nr, u64 *paddr)
- 			*paddr = pa_data;
- 			return 0;
- 		}
--		data = ioremap_cache(pa_data, sizeof(*data));
-+		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
- 		if (!data)
- 			return -ENOMEM;
- 
- 		pa_data = data->next;
--		iounmap(data);
-+		memunmap(data);
- 		i++;
- 	}
- 	return -EINVAL;
-@@ -97,17 +97,17 @@ static int __init get_setup_data_size(int nr, size_t *size)
- 	u64 pa_data = boot_params.hdr.setup_data;
- 
- 	while (pa_data) {
--		data = ioremap_cache(pa_data, sizeof(*data));
-+		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
- 		if (!data)
- 			return -ENOMEM;
- 		if (nr == i) {
- 			*size = data->len;
--			iounmap(data);
-+			memunmap(data);
- 			return 0;
- 		}
- 
- 		pa_data = data->next;
--		iounmap(data);
-+		memunmap(data);
- 		i++;
- 	}
- 	return -EINVAL;
-@@ -127,12 +127,12 @@ static ssize_t type_show(struct kobject *kobj,
- 	ret = get_setup_data_paddr(nr, &paddr);
- 	if (ret)
- 		return ret;
--	data = ioremap_cache(paddr, sizeof(*data));
-+	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
- 	if (!data)
- 		return -ENOMEM;
- 
- 	ret = sprintf(buf, "0x%x\n", data->type);
--	iounmap(data);
-+	memunmap(data);
- 	return ret;
++	}
  }
  
-@@ -154,7 +154,7 @@ static ssize_t setup_data_data_read(struct file *fp,
- 	ret = get_setup_data_paddr(nr, &paddr);
- 	if (ret)
- 		return ret;
--	data = ioremap_cache(paddr, sizeof(*data));
-+	data = memremap(paddr, sizeof(*data), MEMREMAP_WB);
- 	if (!data)
- 		return -ENOMEM;
+ static void init_amd_k8(struct cpuinfo_x86 *c)
+diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
+index 23c2350..05459ad 100644
+--- a/arch/x86/kernel/cpu/scattered.c
++++ b/arch/x86/kernel/cpu/scattered.c
+@@ -31,6 +31,7 @@ struct cpuid_bit {
+ 	{ X86_FEATURE_HW_PSTATE,	CPUID_EDX,  7, 0x80000007, 0 },
+ 	{ X86_FEATURE_CPB,		CPUID_EDX,  9, 0x80000007, 0 },
+ 	{ X86_FEATURE_PROC_FEEDBACK,    CPUID_EDX, 11, 0x80000007, 0 },
++	{ X86_FEATURE_SME,		CPUID_EAX,  0, 0x8000001f, 0 },
+ 	{ 0, 0, 0, 0, 0 }
+ };
  
-@@ -170,15 +170,15 @@ static ssize_t setup_data_data_read(struct file *fp,
- 		goto out;
- 
- 	ret = count;
--	p = ioremap_cache(paddr + sizeof(*data), data->len);
-+	p = memremap(paddr + sizeof(*data), data->len, MEMREMAP_WB);
- 	if (!p) {
- 		ret = -ENOMEM;
- 		goto out;
- 	}
- 	memcpy(buf, p + off, count);
--	iounmap(p);
-+	memunmap(p);
- out:
--	iounmap(data);
-+	memunmap(data);
- 	return ret;
- }
- 
-@@ -250,13 +250,13 @@ static int __init get_setup_data_total_num(u64 pa_data, int *nr)
- 	*nr = 0;
- 	while (pa_data) {
- 		*nr += 1;
--		data = ioremap_cache(pa_data, sizeof(*data));
-+		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
- 		if (!data) {
- 			ret = -ENOMEM;
- 			goto out;
- 		}
- 		pa_data = data->next;
--		iounmap(data);
-+		memunmap(data);
- 	}
- 
- out:
-diff --git a/arch/x86/kernel/mpparse.c b/arch/x86/kernel/mpparse.c
-index 0d904d7..fd37f39 100644
---- a/arch/x86/kernel/mpparse.c
-+++ b/arch/x86/kernel/mpparse.c
-@@ -436,9 +436,9 @@ static unsigned long __init get_mpc_size(unsigned long physptr)
- 	struct mpc_table *mpc;
- 	unsigned long size;
- 
--	mpc = early_ioremap(physptr, PAGE_SIZE);
-+	mpc = early_memremap(physptr, PAGE_SIZE);
- 	size = mpc->length;
--	early_iounmap(mpc, PAGE_SIZE);
-+	early_memunmap(mpc, PAGE_SIZE);
- 	apic_printk(APIC_VERBOSE, "  mpc: %lx-%lx\n", physptr, physptr + size);
- 
- 	return size;
-@@ -450,7 +450,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
- 	unsigned long size;
- 
- 	size = get_mpc_size(mpf->physptr);
--	mpc = early_ioremap(mpf->physptr, size);
-+	mpc = early_memremap(mpf->physptr, size);
- 	/*
- 	 * Read the physical hardware table.  Anything here will
- 	 * override the defaults.
-@@ -461,10 +461,10 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
- #endif
- 		pr_err("BIOS bug, MP table errors detected!...\n");
- 		pr_cont("... disabling SMP support. (tell your hw vendor)\n");
--		early_iounmap(mpc, size);
-+		early_memunmap(mpc, size);
- 		return -1;
- 	}
--	early_iounmap(mpc, size);
-+	early_memunmap(mpc, size);
- 
- 	if (early)
- 		return -1;
-diff --git a/arch/x86/pci/common.c b/arch/x86/pci/common.c
-index dbe2132..7a5350d 100644
---- a/arch/x86/pci/common.c
-+++ b/arch/x86/pci/common.c
-@@ -674,7 +674,7 @@ int pcibios_add_device(struct pci_dev *dev)
- 
- 	pa_data = boot_params.hdr.setup_data;
- 	while (pa_data) {
--		data = ioremap(pa_data, sizeof(*rom));
-+		data = memremap(pa_data, sizeof(*rom), MEMREMAP_WB);
- 		if (!data)
- 			return -ENOMEM;
- 
-@@ -693,7 +693,7 @@ int pcibios_add_device(struct pci_dev *dev)
- 			}
- 		}
- 		pa_data = data->next;
--		iounmap(data);
-+		memunmap(data);
- 	}
- 	set_dma_domain_ops(dev);
- 	set_dev_domain_options(dev);
-diff --git a/drivers/firmware/dmi-sysfs.c b/drivers/firmware/dmi-sysfs.c
-index ef76e5e..d5de6ee 100644
---- a/drivers/firmware/dmi-sysfs.c
-+++ b/drivers/firmware/dmi-sysfs.c
-@@ -25,6 +25,7 @@
- #include <linux/slab.h>
- #include <linux/list.h>
- #include <linux/io.h>
-+#include <asm/dmi.h>
- 
- #define MAX_ENTRY_TYPE 255 /* Most of these aren't used, but we consider
- 			      the top entry type is only 8 bits */
-@@ -380,7 +381,7 @@ static ssize_t dmi_sel_raw_read_phys32(struct dmi_sysfs_entry *entry,
- 	u8 __iomem *mapped;
- 	ssize_t wrote = 0;
- 
--	mapped = ioremap(sel->access_method_address, sel->area_length);
-+	mapped = dmi_remap(sel->access_method_address, sel->area_length);
- 	if (!mapped)
- 		return -EIO;
- 
-@@ -390,7 +391,7 @@ static ssize_t dmi_sel_raw_read_phys32(struct dmi_sysfs_entry *entry,
- 		wrote++;
- 	}
- 
--	iounmap(mapped);
-+	dmi_unmap(mapped);
- 	return wrote;
- }
- 
-diff --git a/drivers/firmware/pcdp.c b/drivers/firmware/pcdp.c
-index 75273a25..e83d6ae 100644
---- a/drivers/firmware/pcdp.c
-+++ b/drivers/firmware/pcdp.c
-@@ -95,7 +95,7 @@
- 	if (efi.hcdp == EFI_INVALID_TABLE_ADDR)
- 		return -ENODEV;
- 
--	pcdp = early_ioremap(efi.hcdp, 4096);
-+	pcdp = early_memremap(efi.hcdp, 4096);
- 	printk(KERN_INFO "PCDP: v%d at 0x%lx\n", pcdp->rev, efi.hcdp);
- 
- 	if (strstr(cmdline, "console=hcdp")) {
-@@ -131,6 +131,6 @@
- 	}
- 
- out:
--	early_iounmap(pcdp, 4096);
-+	early_memunmap(pcdp, 4096);
- 	return rc;
- }
-diff --git a/drivers/sfi/sfi_core.c b/drivers/sfi/sfi_core.c
-index 296db7a..d5ce534 100644
---- a/drivers/sfi/sfi_core.c
-+++ b/drivers/sfi/sfi_core.c
-@@ -86,13 +86,13 @@
- /*
-  * FW creates and saves the SFI tables in memory. When these tables get
-  * used, they may need to be mapped to virtual address space, and the mapping
-- * can happen before or after the ioremap() is ready, so a flag is needed
-+ * can happen before or after the memremap() is ready, so a flag is needed
-  * to indicating this
-  */
--static u32 sfi_use_ioremap __read_mostly;
-+static u32 sfi_use_memremap __read_mostly;
- 
- /*
-- * sfi_un/map_memory calls early_ioremap/iounmap which is a __init function
-+ * sfi_un/map_memory calls early_memremap/memunmap which is a __init function
-  * and introduces section mismatch. So use __ref to make it calm.
-  */
- static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
-@@ -100,10 +100,10 @@ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
- 	if (!phys || !size)
- 		return NULL;
- 
--	if (sfi_use_ioremap)
--		return ioremap_cache(phys, size);
-+	if (sfi_use_memremap)
-+		return memremap(phys, size, MEMREMAP_WB);
- 	else
--		return early_ioremap(phys, size);
-+		return early_memremap(phys, size);
- }
- 
- static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
-@@ -111,10 +111,10 @@ static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
- 	if (!virt || !size)
- 		return;
- 
--	if (sfi_use_ioremap)
--		iounmap(virt);
-+	if (sfi_use_memremap)
-+		memunmap(virt);
- 	else
--		early_iounmap(virt, size);
-+		early_memunmap(virt, size);
- }
- 
- static void sfi_print_table_header(unsigned long long pa,
-@@ -507,8 +507,8 @@ void __init sfi_init_late(void)
- 	length = syst_va->header.len;
- 	sfi_unmap_memory(syst_va, sizeof(struct sfi_table_simple));
- 
--	/* Use ioremap now after it is ready */
--	sfi_use_ioremap = 1;
-+	/* Use memremap now after it is ready */
-+	sfi_use_memremap = 1;
- 	syst_va = sfi_map_memory(syst_pa, length);
- 
- 	sfi_acpi_init();
 -- 
 1.9.1
 
