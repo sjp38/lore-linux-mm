@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 457626B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:29:55 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 80so7205978wmt.15
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:29:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z12si12224653wrz.83.2017.07.17.01.29.53
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B25A56B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:46:29 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b130so11145391oii.9
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:46:29 -0700 (PDT)
+Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
+        by mx.google.com with ESMTPS id e189si8674183oif.287.2017.07.17.01.46.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 01:29:54 -0700 (PDT)
-Date: Mon, 17 Jul 2017 10:29:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jul 2017 01:46:28 -0700 (PDT)
 Subject: Re: [PATCH v2] mm/vmalloc: terminate searching since one node found
-Message-ID: <20170717082945.GB12888@dhcp22.suse.cz>
-References: <1500276451-10492-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+References: <CAGWkznEyWgQe0HFiJ2MvfMB+Acbk_dTVTPH5VAA+Fep9uAFRZg@mail.gmail.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <596C7924.1010207@zoho.com>
+Date: Mon, 17 Jul 2017 16:45:24 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1500276451-10492-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+In-Reply-To: <CAGWkznEyWgQe0HFiJ2MvfMB+Acbk_dTVTPH5VAA+Fep9uAFRZg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>linux-mm@kvack.orglinux-kernel@vger.kernel.org
 
-On Mon 17-07-17 15:27:31, Zhaoyang Huang wrote:
-> From: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com:wq>
-> 
+On 07/17/2017 04:07 PM, Zhaoyang Huang wrote:
 > It is no need to find the very beginning of the area within
 > alloc_vmap_area, which can be done by judging each node during the process
 > 
@@ -46,14 +44,13 @@ On Mon 17-07-17 15:27:31, Zhaoyang Huang wrote:
 >     first(current approach)
 > 
 > vmap_area_list->...->first->...->tmp->tmp_next
+
+the original code can ensure the following two points :
+A, the result vamp_area has the lowest available address in the range [vstart, vend)
+B, it can maintain the cached vamp_area node rightly which can speedup relative allocation
+i suspect this patch maybe destroy the above two points 
 >                             (2)
-
-This still doesn't answer questions posted for your previous version
-http://lkml.kernel.org/r/20170717070024.GC7397@dhcp22.suse.cz
-
-Please note that is really important to describe _why_ the patch is
-needed. What has changed can be easily read in the diff...
-
+> 
 > Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
 > ---
 >  mm/vmalloc.c | 7 +++++++
@@ -63,35 +60,30 @@ needed. What has changed can be easily read in the diff...
 > index 34a1c3e..f833e07 100644
 > --- a/mm/vmalloc.c
 > +++ b/mm/vmalloc.c
-> @@ -459,9 +459,16 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
->  
->  		while (n) {
->  			struct vmap_area *tmp;
-> +			struct vmap_area *tmp_next;
->  			tmp = rb_entry(n, struct vmap_area, rb_node);
-> +			tmp_next = list_next_entry(tmp, list);
->  			if (tmp->va_end >= addr) {
->  				first = tmp;
-> +				if (ALIGN(tmp->va_end, align) + size
-> +						< tmp_next->va_start) {
-> +					addr = ALIGN(tmp->va_end, align);
-> +					goto found;
-> +				}
->  				if (tmp->va_start <= addr)
->  					break;
->  				n = n->rb_left;
-> -- 
+> @@ -459,9 +459,16 @@ static struct vmap_area *alloc_vmap_area(unsigned
+> long size,
+> 
+>                 while (n) {
+>                         struct vmap_area *tmp;
+> +                       struct vmap_area *tmp_next;
+>                         tmp = rb_entry(n, struct vmap_area, rb_node);
+> +                       tmp_next = list_next_entry(tmp, list);
+>                         if (tmp->va_end >= addr) {
+>                                 first = tmp;
+> +                               if (ALIGN(tmp->va_end, align) + size
+> +                                               < tmp_next->va_start) {
+> +                                       addr = ALIGN(tmp->va_end, align);
+> +                                       goto found;
+> +                               }
+is the aim vamp_area the lowest available one if the goto occurs ?
+it will bypass the latter cached vamp_area info  cached_hole_size update possibly if the goto occurs
+>                                 if (tmp->va_start <= addr)
+>                                         break;
+>                                 n = n->rb_left;
+> --
 > 1.9.1
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
