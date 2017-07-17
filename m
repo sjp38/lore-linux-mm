@@ -1,98 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D79566B0292
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 07:52:35 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id z1so170667266pgs.10
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:52:35 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0138.outbound.protection.outlook.com. [104.47.1.138])
-        by mx.google.com with ESMTPS id r14si12963157pgf.6.2017.07.17.04.52.33
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AE25D6B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:51:06 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id r74so11563500oie.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 06:51:06 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id q184si10795622oig.116.2017.07.17.06.51.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 04:52:34 -0700 (PDT)
-Subject: Re: [PATCH v2] userfaultfd: non-cooperative: notify about unmap of
- destination during mremap
-References: <1500276876-3350-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: Pavel Emelyanov <xemul@virtuozzo.com>
-Message-ID: <79a8ac9a-8f20-2145-6953-427480d2a84e@virtuozzo.com>
-Date: Mon, 17 Jul 2017 14:52:25 +0300
-MIME-Version: 1.0
-In-Reply-To: <1500276876-3350-1-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 06:51:05 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/page_alloc: Wait for oom_lock before retrying.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170717085605.GE12888@dhcp22.suse.cz>
+In-Reply-To: <20170717085605.GE12888@dhcp22.suse.cz>
+Message-Id: <201707172250.DFE18753.VOSMOFOFFLQHtJ@I-love.SAKURA.ne.jp>
+Date: Mon, 17 Jul 2017 22:50:47 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, stable@vger.kernel.org
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-On 07/17/2017 10:34 AM, Mike Rapoport wrote:
-> When mremap is called with MREMAP_FIXED it unmaps memory at the destination
-> address without notifying userfaultfd monitor. If the destination were
-> registered with userfaultfd, the monitor has no way to distinguish between
-> the old and new ranges and to properly relate the page faults that would
-> occur in the destination region.
+Michal Hocko wrote:
+> On Sun 16-07-17 19:59:51, Tetsuo Handa wrote:
+> > Since the whole memory reclaim path has never been designed to handle the
+> > scheduling priority inversions, those locations which are assuming that
+> > execution of some code path shall eventually complete without using
+> > synchronization mechanisms can get stuck (livelock) due to scheduling
+> > priority inversions, for CPU time is not guaranteed to be yielded to some
+> > thread doing such code path.
+> > 
+> > mutex_trylock() in __alloc_pages_may_oom() (waiting for oom_lock) and
+> > schedule_timeout_killable(1) in out_of_memory() (already held oom_lock) is
+> > one of such locations, and it was demonstrated using artificial stressing
+> > that the system gets stuck effectively forever because SCHED_IDLE priority
+> > thread is unable to resume execution at schedule_timeout_killable(1) if
+> > a lot of !SCHED_IDLE priority threads are wasting CPU time [1].
 > 
-> Cc: stable@vger.kernel.org
-> Fixes: 897ab3e0c49e ("userfaultfd: non-cooperative: add event for memory
-> unmaps")
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> I do not understand this. All the contending tasks will go and sleep for
+> 1s. How can they preempt the lock holder?
 
-Acked-by: Pavel Emelyanov <xemul@virtuozzo.com>
+Not 1s. It sleeps for only 1 jiffies, which is 1ms if CONFIG_HZ=1000.
 
-> ---
-> 
-> v2: make sure userfault callbacks are called with mmap_sem released
->  
->  mm/mremap.c | 7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b199ef9..8d6fc5f104d1 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -428,6 +428,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
->  static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
->  		unsigned long new_addr, unsigned long new_len, bool *locked,
->  		struct vm_userfaultfd_ctx *uf,
-> +		struct list_head *uf_unmap_early,
->  		struct list_head *uf_unmap)
->  {
->  	struct mm_struct *mm = current->mm;
-> @@ -446,7 +447,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
->  	if (addr + old_len > new_addr && new_addr + new_len > addr)
->  		goto out;
->  
-> -	ret = do_munmap(mm, new_addr, new_len, NULL);
-> +	ret = do_munmap(mm, new_addr, new_len, uf_unmap_early);
->  	if (ret)
->  		goto out;
->  
-> @@ -514,6 +515,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  	unsigned long charged = 0;
->  	bool locked = false;
->  	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
-> +	LIST_HEAD(uf_unmap_early);
->  	LIST_HEAD(uf_unmap);
->  
->  	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
-> @@ -541,7 +543,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  
->  	if (flags & MREMAP_FIXED) {
->  		ret = mremap_to(addr, old_len, new_addr, new_len,
-> -				&locked, &uf, &uf_unmap);
-> +				&locked, &uf, &uf_unmap_early, &uf_unmap);
->  		goto out;
->  	}
->  
-> @@ -621,6 +623,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
->  	up_write(&current->mm->mmap_sem);
->  	if (locked && new_len > old_len)
->  		mm_populate(new_addr + old_len, new_len - old_len);
-> +	userfaultfd_unmap_complete(mm, &uf_unmap_early);
->  	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
->  	userfaultfd_unmap_complete(mm, &uf_unmap);
->  	return ret;
-> 
+And 1ms may not be long enough to allow the owner of oom_lock when there are
+many threads doing the same thing. I demonstrated that SCHED_IDLE oom_lock
+owner is completely defeated by a bunch of !SCHED_IDLE contending threads.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
