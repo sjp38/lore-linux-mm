@@ -1,73 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CA66B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 05:57:19 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m81so123084wmh.6
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 02:57:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r186si9239379wmf.157.2017.07.17.02.57.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D79566B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 07:52:35 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id z1so170667266pgs.10
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:52:35 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0138.outbound.protection.outlook.com. [104.47.1.138])
+        by mx.google.com with ESMTPS id r14si12963157pgf.6.2017.07.17.04.52.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 02:57:18 -0700 (PDT)
-Date: Mon, 17 Jul 2017 10:57:15 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 00/10] PCID and improved laziness
-Message-ID: <20170717095715.yzmuhhp6txqsxtpf@suse.de>
-References: <cover.1498751203.git.luto@kernel.org>
- <20170705085657.eghd4xbv7g7shf5v@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 04:52:34 -0700 (PDT)
+Subject: Re: [PATCH v2] userfaultfd: non-cooperative: notify about unmap of
+ destination during mremap
+References: <1500276876-3350-1-git-send-email-rppt@linux.vnet.ibm.com>
+From: Pavel Emelyanov <xemul@virtuozzo.com>
+Message-ID: <79a8ac9a-8f20-2145-6953-427480d2a84e@virtuozzo.com>
+Date: Mon, 17 Jul 2017 14:52:25 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170705085657.eghd4xbv7g7shf5v@gmail.com>
+In-Reply-To: <1500276876-3350-1-git-send-email-rppt@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@kernel.org>, x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, Jul 05, 2017 at 10:56:57AM +0200, Ingo Molnar wrote:
+On 07/17/2017 10:34 AM, Mike Rapoport wrote:
+> When mremap is called with MREMAP_FIXED it unmaps memory at the destination
+> address without notifying userfaultfd monitor. If the destination were
+> registered with userfaultfd, the monitor has no way to distinguish between
+> the old and new ranges and to properly relate the page faults that would
+> occur in the destination region.
 > 
-> * Andy Lutomirski <luto@kernel.org> wrote:
+> Cc: stable@vger.kernel.org
+> Fixes: 897ab3e0c49e ("userfaultfd: non-cooperative: add event for memory
+> unmaps")
 > 
-> > *** Ingo, even if this misses 4.13, please apply the first patch before
-> > *** the merge window.
-> 
-> > Andy Lutomirski (10):
-> >   x86/mm: Don't reenter flush_tlb_func_common()
-> >   x86/mm: Delete a big outdated comment about TLB flushing
-> >   x86/mm: Give each mm TLB flush generation a unique ID
-> >   x86/mm: Track the TLB's tlb_gen and update the flushing algorithm
-> >   x86/mm: Rework lazy TLB mode and TLB freshness tracking
-> >   x86/mm: Stop calling leave_mm() in idle code
-> >   x86/mm: Disable PCID on 32-bit kernels
-> >   x86/mm: Add nopcid to turn off PCID
-> >   x86/mm: Enable CR4.PCIDE on supported systems
-> >   x86/mm: Try to preserve old TLB entries using PCID
-> 
-> So this series is really nice, and the first two patches are already upstream, and 
-> I've just applied all but the final patch to tip:x86/mm (out of caution - I'm a wimp).
-> 
-> That should already offer some improvements and enables the CR4 bit - but doesn't 
-> actually use the PCID hardware yet.
-> 
-> I'll push it all out when it passes testing.
-> 
-> If it's all super stable I plan to tempt Linus with a late merge window pull 
-> request for all these preparatory patches. (Unless he objects that is. Hint, hint.)
-> 
-> Any objections?
-> 
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-What was the final verdict here? I have a patch ready that should be layered
-on top which will need a backport. PCID support does not appear to have
-made it in this merge window so I'm wondering if I should send the patch
-as-is for placement on top of Andy's work or go with the backport and
-apply a follow-on patch after Andy's work gets merged.
+Acked-by: Pavel Emelyanov <xemul@virtuozzo.com>
 
-Thanks.
-
--- 
-Mel Gorman
-SUSE Labs
+> ---
+> 
+> v2: make sure userfault callbacks are called with mmap_sem released
+>  
+>  mm/mremap.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index cd8a1b199ef9..8d6fc5f104d1 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -428,6 +428,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+>  static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+>  		unsigned long new_addr, unsigned long new_len, bool *locked,
+>  		struct vm_userfaultfd_ctx *uf,
+> +		struct list_head *uf_unmap_early,
+>  		struct list_head *uf_unmap)
+>  {
+>  	struct mm_struct *mm = current->mm;
+> @@ -446,7 +447,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+>  	if (addr + old_len > new_addr && new_addr + new_len > addr)
+>  		goto out;
+>  
+> -	ret = do_munmap(mm, new_addr, new_len, NULL);
+> +	ret = do_munmap(mm, new_addr, new_len, uf_unmap_early);
+>  	if (ret)
+>  		goto out;
+>  
+> @@ -514,6 +515,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+>  	unsigned long charged = 0;
+>  	bool locked = false;
+>  	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
+> +	LIST_HEAD(uf_unmap_early);
+>  	LIST_HEAD(uf_unmap);
+>  
+>  	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
+> @@ -541,7 +543,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+>  
+>  	if (flags & MREMAP_FIXED) {
+>  		ret = mremap_to(addr, old_len, new_addr, new_len,
+> -				&locked, &uf, &uf_unmap);
+> +				&locked, &uf, &uf_unmap_early, &uf_unmap);
+>  		goto out;
+>  	}
+>  
+> @@ -621,6 +623,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+>  	up_write(&current->mm->mmap_sem);
+>  	if (locked && new_len > old_len)
+>  		mm_populate(new_addr + old_len, new_len - old_len);
+> +	userfaultfd_unmap_complete(mm, &uf_unmap_early);
+>  	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
+>  	userfaultfd_unmap_complete(mm, &uf_unmap);
+>  	return ret;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
