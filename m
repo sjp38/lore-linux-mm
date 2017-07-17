@@ -1,100 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 235266B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 03:34:48 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 184so3439149wmo.7
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 00:34:48 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g145si8813368wmg.198.2017.07.17.00.34.46
+	by kanga.kvack.org (Postfix) with ESMTP id 4AFCE6B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 03:49:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b20so18493752wmd.6
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 00:49:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i65si9018606wmg.60.2017.07.17.00.49.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 00:34:46 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6H7Xmiw088205
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 03:34:45 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2brpbsnx2u-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 03:34:45 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 17 Jul 2017 08:34:44 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v2] userfaultfd: non-cooperative: notify about unmap of destination during mremap
-Date: Mon, 17 Jul 2017 10:34:36 +0300
-Message-Id: <1500276876-3350-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 00:49:43 -0700 (PDT)
+Date: Mon, 17 Jul 2017 08:49:41 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170717074941.sti4dqm3ysy5upen@suse.de>
+References: <20170711191823.qthrmdgqcd3rygjk@suse.de>
+ <20170711200923.gyaxfjzz3tpvreuq@suse.de>
+ <20170711215240.tdpmwmgwcuerjj3o@suse.de>
+ <9ECCACFE-6006-4C19-8FC0-C387EB5F3BEE@gmail.com>
+ <20170712082733.ouf7yx2bnvwwcfms@suse.de>
+ <591A2865-13B8-4B3A-B094-8B83A7F9814B@gmail.com>
+ <20170713060706.o2cuko5y6irxwnww@suse.de>
+ <A9CB595E-7C6D-438F-9835-A9EB8DA90892@gmail.com>
+ <20170715155518.ok2q62efc2vurqk5@suse.de>
+ <CALCETrWbvt2n2PLtsVM5RgCKz+RZ30STFS2xZ=dacPZRwokFHw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALCETrWbvt2n2PLtsVM5RgCKz+RZ30STFS2xZ=dacPZRwokFHw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, stable@vger.kernel.org
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Nadav Amit <nadav.amit@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-When mremap is called with MREMAP_FIXED it unmaps memory at the destination
-address without notifying userfaultfd monitor. If the destination were
-registered with userfaultfd, the monitor has no way to distinguish between
-the old and new ranges and to properly relate the page faults that would
-occur in the destination region.
+On Sat, Jul 15, 2017 at 09:41:35AM -0700, Andrew Lutomirski wrote:
+> On Sat, Jul 15, 2017 at 8:55 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > The patch looks fine to be but when writing the patch, I wondered why the
+> > original code disabled preemption before inc_mm_tlb_gen. I didn't spot
+> > the reason for it but given the importance of properly synchronising with
+> > switch_mm, I played it safe. However, this should be ok on top and
+> > maintain the existing sequences
+> 
+> LGTM.  You could also fold it into your patch or even put it before
+> your patch, too.
+> 
 
-Cc: stable@vger.kernel.org
-Fixes: 897ab3e0c49e ("userfaultfd: non-cooperative: add event for memory
-unmaps")
+Thanks.
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
+> FWIW, I didn't have any real reason to inc_mm_tlb_gen() with
+> preemption disabled.  I think I did it because the code it replaced
+> was also called with preemption off.  That being said, it's
+> effectively a single instruction, so it barely matters latency-wise.
+> (Hmm.  Would there be a performance downside if a thread got preempted
+> between inc_mm_tlb_gen() and doing the flush? 
 
-v2: make sure userfault callbacks are called with mmap_sem released
- 
- mm/mremap.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+There isn't a preemption point until the point where irqs are
+disabled/enabled for the local TLB flush so it doesn't really matter.
+It can still be preempted by an interrupt but that's not surprising. I
+don't think it matters that much either way so I'll leave it at it is.
 
-diff --git a/mm/mremap.c b/mm/mremap.c
-index cd8a1b199ef9..8d6fc5f104d1 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -428,6 +428,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
- 		unsigned long new_addr, unsigned long new_len, bool *locked,
- 		struct vm_userfaultfd_ctx *uf,
-+		struct list_head *uf_unmap_early,
- 		struct list_head *uf_unmap)
- {
- 	struct mm_struct *mm = current->mm;
-@@ -446,7 +447,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
- 	if (addr + old_len > new_addr && new_addr + new_len > addr)
- 		goto out;
- 
--	ret = do_munmap(mm, new_addr, new_len, NULL);
-+	ret = do_munmap(mm, new_addr, new_len, uf_unmap_early);
- 	if (ret)
- 		goto out;
- 
-@@ -514,6 +515,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	unsigned long charged = 0;
- 	bool locked = false;
- 	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
-+	LIST_HEAD(uf_unmap_early);
- 	LIST_HEAD(uf_unmap);
- 
- 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
-@@ -541,7 +543,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 
- 	if (flags & MREMAP_FIXED) {
- 		ret = mremap_to(addr, old_len, new_addr, new_len,
--				&locked, &uf, &uf_unmap);
-+				&locked, &uf, &uf_unmap_early, &uf_unmap);
- 		goto out;
- 	}
- 
-@@ -621,6 +623,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	up_write(&current->mm->mmap_sem);
- 	if (locked && new_len > old_len)
- 		mm_populate(new_addr + old_len, new_len - old_len);
-+	userfaultfd_unmap_complete(mm, &uf_unmap_early);
- 	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
- 	userfaultfd_unmap_complete(mm, &uf_unmap);
- 	return ret;
 -- 
-2.7.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
