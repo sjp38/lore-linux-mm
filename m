@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EC38F6B049E
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:52 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id k2so557198qkf.10
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:52 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0063.outbound.protection.outlook.com. [104.47.33.63])
-        by mx.google.com with ESMTPS id r3si240865qta.312.2017.07.17.14.11.51
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ABFB86B04A0
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:11:56 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id s20so440536qki.12
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:11:56 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0045.outbound.protection.outlook.com. [104.47.33.45])
+        by mx.google.com with ESMTPS id a5si280736qkg.33.2017.07.17.14.11.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 14:11:52 -0700 (PDT)
+        Mon, 17 Jul 2017 14:11:55 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v10 16/38] efi: Add an EFI table address match function
-Date: Mon, 17 Jul 2017 16:10:13 -0500
-Message-Id: <e1e06441d80f44776df391e0e4cb485b345b7518.1500319216.git.thomas.lendacky@amd.com>
+Subject: [PATCH v10 17/38] efi: Update efi_mem_type() to return an error rather than 0
+Date: Mon, 17 Jul 2017 16:10:14 -0500
+Message-Id: <7fbf40a9dc414d5da849e1ddcd7f7c1285e4e181.1500319216.git.thomas.lendacky@amd.com>
 In-Reply-To: <cover.1500319216.git.thomas.lendacky@amd.com>
 References: <cover.1500319216.git.thomas.lendacky@amd.com>
 MIME-Version: 1.0
@@ -22,93 +22,84 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com
 Cc: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>
 
-Add a function that will determine if a supplied physical address matches
-the address of an EFI table.
+The efi_mem_type() function currently returns a 0, which maps to
+EFI_RESERVED_TYPE, if the function is unable to find a memmap entry for
+the supplied physical address. Returning EFI_RESERVED_TYPE implies that
+a memmap entry exists, when it doesn't.  Instead of returning 0, change
+the function to return a negative error value when no memmap entry is
+found.
 
 Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- drivers/firmware/efi/efi.c | 33 +++++++++++++++++++++++++++++++++
- include/linux/efi.h        |  7 +++++++
- 2 files changed, 40 insertions(+)
+ arch/ia64/kernel/efi.c      | 4 ++--
+ arch/x86/platform/efi/efi.c | 6 +++---
+ include/linux/efi.h         | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
-index 045d6d3..69d4d13 100644
---- a/drivers/firmware/efi/efi.c
-+++ b/drivers/firmware/efi/efi.c
-@@ -55,6 +55,25 @@ struct efi __read_mostly efi = {
- };
- EXPORT_SYMBOL(efi);
- 
-+static unsigned long *efi_tables[] = {
-+	&efi.mps,
-+	&efi.acpi,
-+	&efi.acpi20,
-+	&efi.smbios,
-+	&efi.smbios3,
-+	&efi.sal_systab,
-+	&efi.boot_info,
-+	&efi.hcdp,
-+	&efi.uga,
-+	&efi.uv_systab,
-+	&efi.fw_vendor,
-+	&efi.runtime,
-+	&efi.config_table,
-+	&efi.esrt,
-+	&efi.properties_table,
-+	&efi.mem_attr_table,
-+};
-+
- static bool disable_runtime;
- static int __init setup_noefi(char *arg)
- {
-@@ -855,6 +874,20 @@ int efi_status_to_err(efi_status_t status)
- 	return err;
+diff --git a/arch/ia64/kernel/efi.c b/arch/ia64/kernel/efi.c
+index 1212956..8141600 100644
+--- a/arch/ia64/kernel/efi.c
++++ b/arch/ia64/kernel/efi.c
+@@ -757,14 +757,14 @@ static void __init handle_palo(unsigned long phys_addr)
+ 	return 0;
  }
  
-+bool efi_is_table_address(unsigned long phys_addr)
-+{
-+	unsigned int i;
-+
-+	if (phys_addr == EFI_INVALID_TABLE_ADDR)
-+		return false;
-+
-+	for (i = 0; i < ARRAY_SIZE(efi_tables); i++)
-+		if (*(efi_tables[i]) == phys_addr)
-+			return true;
-+
-+	return false;
-+}
-+
- #ifdef CONFIG_KEXEC
- static int update_efi_random_seed(struct notifier_block *nb,
- 				  unsigned long code, void *unused)
+-u32
++int
+ efi_mem_type (unsigned long phys_addr)
+ {
+ 	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
+ 
+ 	if (md)
+ 		return md->type;
+-	return 0;
++	return -EINVAL;
+ }
+ 
+ u64
+diff --git a/arch/x86/platform/efi/efi.c b/arch/x86/platform/efi/efi.c
+index f084d87..6217b23 100644
+--- a/arch/x86/platform/efi/efi.c
++++ b/arch/x86/platform/efi/efi.c
+@@ -1035,12 +1035,12 @@ void __init efi_enter_virtual_mode(void)
+ /*
+  * Convenience functions to obtain memory types and attributes
+  */
+-u32 efi_mem_type(unsigned long phys_addr)
++int efi_mem_type(unsigned long phys_addr)
+ {
+ 	efi_memory_desc_t *md;
+ 
+ 	if (!efi_enabled(EFI_MEMMAP))
+-		return 0;
++		return -ENOTSUPP;
+ 
+ 	for_each_efi_memory_desc(md) {
+ 		if ((md->phys_addr <= phys_addr) &&
+@@ -1048,7 +1048,7 @@ u32 efi_mem_type(unsigned long phys_addr)
+ 				  (md->num_pages << EFI_PAGE_SHIFT))))
+ 			return md->type;
+ 	}
+-	return 0;
++	return -EINVAL;
+ }
+ 
+ static int __init arch_parse_efi_cmdline(char *str)
 diff --git a/include/linux/efi.h b/include/linux/efi.h
-index 8269bcb..8e24f09 100644
+index 8e24f09..4e47f78 100644
 --- a/include/linux/efi.h
 +++ b/include/linux/efi.h
-@@ -1091,6 +1091,8 @@ static inline bool efi_enabled(int feature)
- 	return test_bit(feature, &efi.flags) != 0;
- }
- extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
-+
-+extern bool efi_is_table_address(unsigned long phys_addr);
- #else
- static inline bool efi_enabled(int feature)
- {
-@@ -1104,6 +1106,11 @@ static inline bool efi_enabled(int feature)
- {
- 	return false;
- }
-+
-+static inline bool efi_is_table_address(unsigned long phys_addr)
-+{
-+	return false;
-+}
- #endif
- 
- extern int efi_status_to_err(efi_status_t status);
+@@ -985,7 +985,7 @@ static inline void efi_esrt_init(void) { }
+ extern int efi_config_parse_tables(void *config_tables, int count, int sz,
+ 				   efi_config_table_type_t *arch_tables);
+ extern u64 efi_get_iobase (void);
+-extern u32 efi_mem_type (unsigned long phys_addr);
++extern int efi_mem_type(unsigned long phys_addr);
+ extern u64 efi_mem_attributes (unsigned long phys_addr);
+ extern u64 efi_mem_attribute (unsigned long phys_addr, unsigned long size);
+ extern int __init efi_uart_console_only (void);
 -- 
 1.9.1
 
