@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A0A46B04B2
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:12:38 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id s4so1944141pgr.3
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:12:38 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0078.outbound.protection.outlook.com. [104.47.33.78])
-        by mx.google.com with ESMTPS id z10si170939pgs.544.2017.07.17.14.12.36
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 64F9D6B04B6
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:12:42 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g13so3979129ioj.9
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 14:12:42 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0074.outbound.protection.outlook.com. [104.47.34.74])
+        by mx.google.com with ESMTPS id q6si671769ite.88.2017.07.17.14.12.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 14:12:37 -0700 (PDT)
+        Mon, 17 Jul 2017 14:12:41 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [PATCH v10 26/38] x86/CPU/AMD: Make the microcode level available earlier in the boot
-Date: Mon, 17 Jul 2017 16:10:23 -0500
-Message-Id: <7b7525fa12593dac5f4b01fcc25c95f97e93862f.1500319216.git.thomas.lendacky@amd.com>
+Subject: [PATCH v10 27/38] iommu/amd: Allow the AMD IOMMU to work with memory encryption
+Date: Mon, 17 Jul 2017 16:10:24 -0500
+Message-Id: <3053631ea25ba8b1601c351cb7c541c496f6d9bc.1500319216.git.thomas.lendacky@amd.com>
 In-Reply-To: <cover.1500319216.git.thomas.lendacky@amd.com>
 References: <cover.1500319216.git.thomas.lendacky@amd.com>
 MIME-Version: 1.0
@@ -20,53 +20,276 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com
-Cc: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>
+Cc: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, iommu@lists.linux-foundation.org, Joerg Roedel <jroedel@suse.de>
 
-Move the setting of the cpuinfo_x86.microcode field from amd_init() to
-early_amd_init() so that it is available earlier in the boot process. This
-avoids having to read MSR_AMD64_PATCH_LEVEL directly during early boot.
+The IOMMU is programmed with physical addresses for the various tables
+and buffers that are used to communicate between the device and the
+driver. When the driver allocates this memory it is encrypted. In order
+for the IOMMU to access the memory as encrypted the encryption mask needs
+to be included in these physical addresses during configuration.
 
+The PTE entries created by the IOMMU should also include the encryption
+mask so that when the device behind the IOMMU performs a DMA, the DMA
+will be performed to encrypted memory.
+
+Cc: <iommu@lists.linux-foundation.org>
+Cc: Joerg Roedel <jroedel@suse.de>
+Acked-by: Joerg Roedel <jroedel@suse.de>
 Reviewed-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/kernel/cpu/amd.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ drivers/iommu/amd_iommu.c       | 30 ++++++++++++++++--------------
+ drivers/iommu/amd_iommu_init.c  | 34 ++++++++++++++++++++++++++++------
+ drivers/iommu/amd_iommu_proto.h | 10 ++++++++++
+ drivers/iommu/amd_iommu_types.h |  2 +-
+ 4 files changed, 55 insertions(+), 21 deletions(-)
 
-diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
-index e41670e..110ca5d 100644
---- a/arch/x86/kernel/cpu/amd.c
-+++ b/arch/x86/kernel/cpu/amd.c
-@@ -548,8 +548,12 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
+diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
+index 688e775..abc6ca6 100644
+--- a/drivers/iommu/amd_iommu.c
++++ b/drivers/iommu/amd_iommu.c
+@@ -575,7 +575,7 @@ static void dump_dte_entry(u16 devid)
  
- static void early_init_amd(struct cpuinfo_x86 *c)
+ static void dump_command(unsigned long phys_addr)
  {
-+	u32 dummy;
-+
- 	early_init_amd_mc(c);
+-	struct iommu_cmd *cmd = phys_to_virt(phys_addr);
++	struct iommu_cmd *cmd = iommu_phys_to_virt(phys_addr);
+ 	int i;
  
-+	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
-+
- 	/*
- 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
- 	 * with P/T states and does not stop in deep C-states
-@@ -751,8 +755,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
+ 	for (i = 0; i < 4; ++i)
+@@ -919,11 +919,13 @@ static void copy_cmd_to_buffer(struct amd_iommu *iommu,
  
- static void init_amd(struct cpuinfo_x86 *c)
+ static void build_completion_wait(struct iommu_cmd *cmd, u64 address)
  {
--	u32 dummy;
--
- 	early_init_amd(c);
++	u64 paddr = iommu_virt_to_phys((void *)address);
++
+ 	WARN_ON(address & 0x7ULL);
  
- 	/*
-@@ -814,8 +816,6 @@ static void init_amd(struct cpuinfo_x86 *c)
- 	if (c->x86 > 0x11)
- 		set_cpu_cap(c, X86_FEATURE_ARAT);
+ 	memset(cmd, 0, sizeof(*cmd));
+-	cmd->data[0] = lower_32_bits(__pa(address)) | CMD_COMPL_WAIT_STORE_MASK;
+-	cmd->data[1] = upper_32_bits(__pa(address));
++	cmd->data[0] = lower_32_bits(paddr) | CMD_COMPL_WAIT_STORE_MASK;
++	cmd->data[1] = upper_32_bits(paddr);
+ 	cmd->data[2] = 1;
+ 	CMD_SET_TYPE(cmd, CMD_COMPL_WAIT);
+ }
+@@ -1383,7 +1385,7 @@ static bool increase_address_space(struct protection_domain *domain,
+ 		return false;
  
--	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
--
- 	/* 3DNow or LM implies PREFETCHW */
- 	if (!cpu_has(c, X86_FEATURE_3DNOWPREFETCH))
- 		if (cpu_has(c, X86_FEATURE_3DNOW) || cpu_has(c, X86_FEATURE_LM))
+ 	*pte             = PM_LEVEL_PDE(domain->mode,
+-					virt_to_phys(domain->pt_root));
++					iommu_virt_to_phys(domain->pt_root));
+ 	domain->pt_root  = pte;
+ 	domain->mode    += 1;
+ 	domain->updated  = true;
+@@ -1420,7 +1422,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
+ 			if (!page)
+ 				return NULL;
+ 
+-			__npte = PM_LEVEL_PDE(level, virt_to_phys(page));
++			__npte = PM_LEVEL_PDE(level, iommu_virt_to_phys(page));
+ 
+ 			/* pte could have been changed somewhere. */
+ 			if (cmpxchg64(pte, __pte, __npte) != __pte) {
+@@ -1536,10 +1538,10 @@ static int iommu_map_page(struct protection_domain *dom,
+ 			return -EBUSY;
+ 
+ 	if (count > 1) {
+-		__pte = PAGE_SIZE_PTE(phys_addr, page_size);
++		__pte = PAGE_SIZE_PTE(__sme_set(phys_addr), page_size);
+ 		__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_P | IOMMU_PTE_FC;
+ 	} else
+-		__pte = phys_addr | IOMMU_PTE_P | IOMMU_PTE_FC;
++		__pte = __sme_set(phys_addr) | IOMMU_PTE_P | IOMMU_PTE_FC;
+ 
+ 	if (prot & IOMMU_PROT_IR)
+ 		__pte |= IOMMU_PTE_IR;
+@@ -1755,7 +1757,7 @@ static void free_gcr3_tbl_level1(u64 *tbl)
+ 		if (!(tbl[i] & GCR3_VALID))
+ 			continue;
+ 
+-		ptr = __va(tbl[i] & PAGE_MASK);
++		ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
+ 
+ 		free_page((unsigned long)ptr);
+ 	}
+@@ -1770,7 +1772,7 @@ static void free_gcr3_tbl_level2(u64 *tbl)
+ 		if (!(tbl[i] & GCR3_VALID))
+ 			continue;
+ 
+-		ptr = __va(tbl[i] & PAGE_MASK);
++		ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
+ 
+ 		free_gcr3_tbl_level1(ptr);
+ 	}
+@@ -2049,7 +2051,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
+ 	u64 flags = 0;
+ 
+ 	if (domain->mode != PAGE_MODE_NONE)
+-		pte_root = virt_to_phys(domain->pt_root);
++		pte_root = iommu_virt_to_phys(domain->pt_root);
+ 
+ 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
+ 		    << DEV_ENTRY_MODE_SHIFT;
+@@ -2061,7 +2063,7 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
+ 		flags |= DTE_FLAG_IOTLB;
+ 
+ 	if (domain->flags & PD_IOMMUV2_MASK) {
+-		u64 gcr3 = __pa(domain->gcr3_tbl);
++		u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
+ 		u64 glx  = domain->glx;
+ 		u64 tmp;
+ 
+@@ -3606,10 +3608,10 @@ static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
+ 			if (root == NULL)
+ 				return NULL;
+ 
+-			*pte = __pa(root) | GCR3_VALID;
++			*pte = iommu_virt_to_phys(root) | GCR3_VALID;
+ 		}
+ 
+-		root = __va(*pte & PAGE_MASK);
++		root = iommu_phys_to_virt(*pte & PAGE_MASK);
+ 
+ 		level -= 1;
+ 	}
+@@ -3788,7 +3790,7 @@ static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)
+ 
+ 	dte	= amd_iommu_dev_table[devid].data[2];
+ 	dte	&= ~DTE_IRQ_PHYS_ADDR_MASK;
+-	dte	|= virt_to_phys(table->table);
++	dte	|= iommu_virt_to_phys(table->table);
+ 	dte	|= DTE_IRQ_REMAP_INTCTL;
+ 	dte	|= DTE_IRQ_TABLE_LEN;
+ 	dte	|= DTE_IRQ_REMAP_ENABLE;
+diff --git a/drivers/iommu/amd_iommu_init.c b/drivers/iommu/amd_iommu_init.c
+index 5cc597b..42ff9a8 100644
+--- a/drivers/iommu/amd_iommu_init.c
++++ b/drivers/iommu/amd_iommu_init.c
+@@ -30,6 +30,7 @@
+ #include <linux/iommu.h>
+ #include <linux/kmemleak.h>
+ #include <linux/crash_dump.h>
++#include <linux/mem_encrypt.h>
+ #include <asm/pci-direct.h>
+ #include <asm/iommu.h>
+ #include <asm/gart.h>
+@@ -348,7 +349,7 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
+ 
+ 	BUG_ON(iommu->mmio_base == NULL);
+ 
+-	entry = virt_to_phys(amd_iommu_dev_table);
++	entry = iommu_virt_to_phys(amd_iommu_dev_table);
+ 	entry |= (dev_table_size >> 12) - 1;
+ 	memcpy_toio(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET,
+ 			&entry, sizeof(entry));
+@@ -606,7 +607,7 @@ static void iommu_enable_command_buffer(struct amd_iommu *iommu)
+ 
+ 	BUG_ON(iommu->cmd_buf == NULL);
+ 
+-	entry = (u64)virt_to_phys(iommu->cmd_buf);
++	entry = iommu_virt_to_phys(iommu->cmd_buf);
+ 	entry |= MMIO_CMD_SIZE_512;
+ 
+ 	memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
+@@ -635,7 +636,7 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
+ 
+ 	BUG_ON(iommu->evt_buf == NULL);
+ 
+-	entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
++	entry = iommu_virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+ 
+ 	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
+ 		    &entry, sizeof(entry));
+@@ -668,7 +669,7 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
+ 	if (iommu->ppr_log == NULL)
+ 		return;
+ 
+-	entry = (u64)virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
++	entry = iommu_virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
+ 
+ 	memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
+ 		    &entry, sizeof(entry));
+@@ -748,10 +749,10 @@ static int iommu_init_ga_log(struct amd_iommu *iommu)
+ 	if (!iommu->ga_log_tail)
+ 		goto err_out;
+ 
+-	entry = (u64)virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
++	entry = iommu_virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
+ 	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
+ 		    &entry, sizeof(entry));
+-	entry = ((u64)virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
++	entry = (iommu_virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
+ 	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_TAIL_OFFSET,
+ 		    &entry, sizeof(entry));
+ 	writel(0x00, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+@@ -2564,6 +2565,24 @@ static int __init amd_iommu_init(void)
+ 	return ret;
+ }
+ 
++static bool amd_iommu_sme_check(void)
++{
++	if (!sme_active() || (boot_cpu_data.x86 != 0x17))
++		return true;
++
++	/* For Fam17h, a specific level of support is required */
++	if (boot_cpu_data.microcode >= 0x08001205)
++		return true;
++
++	if ((boot_cpu_data.microcode >= 0x08001126) &&
++	    (boot_cpu_data.microcode <= 0x080011ff))
++		return true;
++
++	pr_notice("AMD-Vi: IOMMU not currently supported when SME is active\n");
++
++	return false;
++}
++
+ /****************************************************************************
+  *
+  * Early detect code. This code runs at IOMMU detection time in the DMA
+@@ -2578,6 +2597,9 @@ int __init amd_iommu_detect(void)
+ 	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
+ 		return -ENODEV;
+ 
++	if (!amd_iommu_sme_check())
++		return -ENODEV;
++
+ 	ret = iommu_go_to_state(IOMMU_IVRS_DETECTED);
+ 	if (ret)
+ 		return ret;
+diff --git a/drivers/iommu/amd_iommu_proto.h b/drivers/iommu/amd_iommu_proto.h
+index 466260f..3f12fb2 100644
+--- a/drivers/iommu/amd_iommu_proto.h
++++ b/drivers/iommu/amd_iommu_proto.h
+@@ -87,4 +87,14 @@ static inline bool iommu_feature(struct amd_iommu *iommu, u64 f)
+ 	return !!(iommu->features & f);
+ }
+ 
++static inline u64 iommu_virt_to_phys(void *vaddr)
++{
++	return (u64)__sme_set(virt_to_phys(vaddr));
++}
++
++static inline void *iommu_phys_to_virt(unsigned long paddr)
++{
++	return phys_to_virt(__sme_clr(paddr));
++}
++
+ #endif /* _ASM_X86_AMD_IOMMU_PROTO_H  */
+diff --git a/drivers/iommu/amd_iommu_types.h b/drivers/iommu/amd_iommu_types.h
+index 294a409..8591f43 100644
+--- a/drivers/iommu/amd_iommu_types.h
++++ b/drivers/iommu/amd_iommu_types.h
+@@ -344,7 +344,7 @@
+ 
+ #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
+ #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
+-#define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
++#define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
+ #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
+ 
+ #define IOMMU_PROT_MASK 0x03
 -- 
 1.9.1
 
