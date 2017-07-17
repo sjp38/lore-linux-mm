@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C41436B0292
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:06:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s70so169676364pfs.5
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:06:41 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id u2si13565461plj.486.2017.07.17.09.06.40
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 930606B0292
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:45:21 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id d80so35009416lfg.0
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:45:21 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id e23si7582822ljb.164.2017.07.17.09.45.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 09:06:40 -0700 (PDT)
-Subject: Re: semantics of dma_map_single()
-References: <dc128260-6641-828a-3bb6-c2f0b4f09f78@synopsys.com>
- <20170717064220.GA15807@lst.de>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <23203d16-da54-99c7-0eba-c082eba120d7@synopsys.com>
-Date: Mon, 17 Jul 2017 09:06:29 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170717064220.GA15807@lst.de>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Mon, 17 Jul 2017 09:45:20 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id t72so13643176lff.0
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 09:45:19 -0700 (PDT)
+From: Alexander Popov <alex.popov@linux.com>
+Subject: [PATCH 1/1] mm/slub.c: add a naive detection of double free or corruption
+Date: Mon, 17 Jul 2017 19:45:07 +0300
+Message-Id: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, bart.vanassche@sandisk.com, Alexander Duyck <alexander.h.duyck@intel.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, arcml <linux-snps-arc@lists.infradead.org>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, keescook@chromium.org, alex.popov@linux.com
 
-Hi Christoph,
+Add an assertion similar to "fasttop" check in GNU C Library allocator:
+an object added to a singly linked freelist should not point to itself.
+That helps to detect some double free errors (e.g. CVE-2017-2636) without
+slub_debug and KASAN. Testing with hackbench doesn't show any noticeable
+performance penalty.
 
-On 07/16/2017 11:42 PM, Christoph Hellwig wrote:
-> I would expect that it would support any contiguous range in
-> the kernel mapping (e.g. no vmalloc and friends).  But it's not
-> documented anywhere, and if no in kernel users makes use of that
-> fact at the moment it might be better to document a page size
-> limitation and add asserts to enforce it.
+Signed-off-by: Alexander Popov <alex.popov@linux.com>
+---
+ mm/slub.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-My first thought was indeed to add a BUG_ON for @size > PAGE_SIZE (also accounting 
-for offset etc), but I have a feeling this will cause too many breakages. So 
-perhaps it would be better to add the fact to Documentation that it can handle any 
-physically contiguous range.
-
--Vineet
+diff --git a/mm/slub.c b/mm/slub.c
+index 1d3f983..a106939b 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -261,6 +261,7 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
+ 
+ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+ {
++	BUG_ON(object == fp); /* naive detection of double free or corruption */
+ 	*(void **)(object + s->offset) = fp;
+ }
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
