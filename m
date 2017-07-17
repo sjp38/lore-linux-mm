@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 960EE6B039F
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:40:31 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id v76so78042652qka.5
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:40:31 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79EF96B03B5
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 15:40:32 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a66so18036445qkb.13
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 12:40:32 -0700 (PDT)
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id f42si53551qki.351.2017.07.17.12.40.30
+        by mx.google.com with ESMTPS id 2si92816qtb.107.2017.07.17.12.40.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 12:40:30 -0700 (PDT)
+        Mon, 17 Jul 2017 12:40:31 -0700 (PDT)
 From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH v9 08/10] mm: mempolicy: mbind and migrate_pages support thp migration
-Date: Mon, 17 Jul 2017 15:39:53 -0400
-Message-Id: <20170717193955.20207-9-zi.yan@sent.com>
+Subject: [PATCH v9 10/10] mm: memory_hotplug: memory hotremove supports thp migration
+Date: Mon, 17 Jul 2017 15:39:55 -0400
+Message-Id: <20170717193955.20207-11-zi.yan@sent.com>
 In-Reply-To: <20170717193955.20207-1-zi.yan@sent.com>
 References: <20170717193955.20207-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,193 +22,72 @@ Cc: kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-This patch enables thp migration for mbind(2) and migrate_pages(2).
+This patch enables thp migration for memory hotremove.
 
-ChangeLog v1 -> v2:
-- support pte-mapped and doubly-mapped thp
+---
+ChangeLog v1->v2:
+- base code switched from alloc_migrate_target to new_node_page()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-ChangeLog v2 -> v6:
-- use the same gfp flag (GFP_TRANSHUGE) in mbind() and migrate_pages()
-  for thp allocations.
+ChangeLog v2->v7:
+- base code switched from new_node_page() new_page_nodemask()
 
 Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
 ---
- mm/mempolicy.c | 108 +++++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 79 insertions(+), 29 deletions(-)
+ include/linux/migrate.h | 15 ++++++++++++++-
+ mm/memory_hotplug.c     |  4 +++-
+ 2 files changed, 17 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 58166bf1d1fd..088e6562f6f4 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -97,6 +97,7 @@
- #include <linux/mm_inline.h>
- #include <linux/mmu_notifier.h>
- #include <linux/printk.h>
-+#include <linux/swapops.h>
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 3e0d405dc842..ce15989521a1 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -35,15 +35,28 @@ static inline struct page *new_page_nodemask(struct page *page,
+ 				int preferred_nid, nodemask_t *nodemask)
+ {
+ 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL;
++	unsigned int order = 0;
++	struct page *new_page = NULL;
  
- #include <asm/tlbflush.h>
- #include <linux/uaccess.h>
-@@ -426,6 +427,49 @@ static inline bool queue_pages_required(struct page *page,
- 	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
+ 	if (PageHuge(page))
+ 		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+ 				preferred_nid, nodemask);
+ 
++	if (thp_migration_supported() && PageTransHuge(page)) {
++		order = HPAGE_PMD_ORDER;
++		gfp_mask |= GFP_TRANSHUGE;
++	}
++
+ 	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+ 		gfp_mask |= __GFP_HIGHMEM;
+ 
+-	return __alloc_pages_nodemask(gfp_mask, 0, preferred_nid, nodemask);
++	new_page = __alloc_pages_nodemask(gfp_mask, order,
++				preferred_nid, nodemask);
++
++	if (new_page && PageTransHuge(page))
++		prep_transhuge_page(new_page);
++
++	return new_page;
  }
- 
-+static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
-+{
-+	int ret = 0;
-+	struct page *page;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags;
-+
-+	if (unlikely(is_pmd_migration_entry(*pmd))) {
-+		ret = 1;
-+		goto unlock;
-+	}
-+	page = pmd_page(*pmd);
-+	if (is_huge_zero_page(page)) {
-+		spin_unlock(ptl);
-+		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
-+		goto out;
-+	}
-+	if (!thp_migration_supported()) {
-+		get_page(page);
-+		spin_unlock(ptl);
-+		lock_page(page);
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+		goto out;
-+	}
-+	if (!queue_pages_required(page, qp)) {
-+		ret = 1;
-+		goto unlock;
-+	}
-+
-+	ret = 1;
-+	flags = qp->flags;
-+	/* go to thp migration */
-+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-+		migrate_page_add(page, qp->pagelist, flags);
-+unlock:
-+	spin_unlock(ptl);
-+out:
-+	return ret;
-+}
-+
- /*
-  * Scan through pages checking if pages follow certain conditions,
-  * and move them to the pagelist if they do.
-@@ -437,30 +481,15 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 	struct page *page;
- 	struct queue_pages *qp = walk->private;
- 	unsigned long flags = qp->flags;
--	int nid, ret;
-+	int ret;
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
--	if (pmd_trans_huge(*pmd)) {
--		ptl = pmd_lock(walk->mm, pmd);
--		if (pmd_trans_huge(*pmd)) {
--			page = pmd_page(*pmd);
--			if (is_huge_zero_page(page)) {
--				spin_unlock(ptl);
--				__split_huge_pmd(vma, pmd, addr, false, NULL);
--			} else {
--				get_page(page);
--				spin_unlock(ptl);
--				lock_page(page);
--				ret = split_huge_page(page);
--				unlock_page(page);
--				put_page(page);
--				if (ret)
--					return 0;
--			}
--		} else {
--			spin_unlock(ptl);
--		}
-+	ptl = pmd_trans_huge_lock(pmd, vma);
-+	if (ptl) {
-+		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
-+		if (ret)
-+			return 0;
- 	}
- 
- 	if (pmd_trans_unstable(pmd))
-@@ -481,7 +510,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
- 			continue;
- 		if (!queue_pages_required(page, qp))
- 			continue;
--		if (PageTransCompound(page)) {
-+		if (PageTransCompound(page) && !thp_migration_supported()) {
- 			get_page(page);
- 			pte_unmap_unlock(pte, ptl);
- 			lock_page(page);
-@@ -898,19 +927,21 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
  
  #ifdef CONFIG_MIGRATION
- /*
-- * page migration
-+ * page migration, thp tail pages can be passed.
-  */
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags)
- {
-+	struct page *head = compound_head(page);
- 	/*
- 	 * Avoid migrating a page that is shared with others.
- 	 */
--	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
--		if (!isolate_lru_page(page)) {
--			list_add_tail(&page->lru, pagelist);
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(head) == 1) {
-+		if (!isolate_lru_page(head)) {
-+			list_add_tail(&head->lru, pagelist);
-+			mod_node_page_state(page_pgdat(head),
-+				NR_ISOLATED_ANON + page_is_file_cache(head),
-+				hpage_nr_pages(head));
- 		}
- 	}
- }
-@@ -920,7 +951,17 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
- 	if (PageHuge(page))
- 		return alloc_huge_page_node(page_hstate(compound_head(page)),
- 					node);
--	else
-+	else if (thp_migration_supported() && PageTransHuge(page)) {
-+		struct page *thp;
-+
-+		thp = alloc_pages_node(node,
-+			(GFP_TRANSHUGE | __GFP_THISNODE),
-+			HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
-+	} else
- 		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
- 						    __GFP_THISNODE, 0);
- }
-@@ -1086,6 +1127,15 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
- 	if (PageHuge(page)) {
- 		BUG_ON(!vma);
- 		return alloc_huge_page_noerr(vma, address, 1);
-+	} else if (thp_migration_supported() && PageTransHuge(page)) {
-+		struct page *thp;
-+
-+		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
-+					 HPAGE_PMD_ORDER);
-+		if (!thp)
-+			return NULL;
-+		prep_transhuge_page(thp);
-+		return thp;
- 	}
- 	/*
- 	 * if !vma, alloc_page_vma() will use task or system default policy
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d620d0427b6b..30e980069351 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1416,7 +1416,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			if (isolate_huge_page(page, &source))
+ 				move_pages -= 1 << compound_order(head);
+ 			continue;
+-		}
++		} else if (thp_migration_supported() && PageTransHuge(page))
++			pfn = page_to_pfn(compound_head(page))
++				+ hpage_nr_pages(page) - 1;
+ 
+ 		if (!get_page_unless_zero(page))
+ 			continue;
 -- 
 2.11.0
 
