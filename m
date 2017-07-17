@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B25A56B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:46:29 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b130so11145391oii.9
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:46:29 -0700 (PDT)
-Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
-        by mx.google.com with ESMTPS id e189si8674183oif.287.2017.07.17.01.46.28
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 77ECC6B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:56:09 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v60so14596310wrc.7
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:56:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i83si9397952wmf.128.2017.07.17.01.56.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 01:46:28 -0700 (PDT)
-Subject: Re: [PATCH v2] mm/vmalloc: terminate searching since one node found
-References: <CAGWkznEyWgQe0HFiJ2MvfMB+Acbk_dTVTPH5VAA+Fep9uAFRZg@mail.gmail.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <596C7924.1010207@zoho.com>
-Date: Mon, 17 Jul 2017 16:45:24 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 01:56:08 -0700 (PDT)
+Date: Mon, 17 Jul 2017 10:56:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/page_alloc: Wait for oom_lock before retrying.
+Message-ID: <20170717085605.GE12888@dhcp22.suse.cz>
+References: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CAGWkznEyWgQe0HFiJ2MvfMB+Acbk_dTVTPH5VAA+Fep9uAFRZg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>linux-mm@kvack.orglinux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-On 07/17/2017 04:07 PM, Zhaoyang Huang wrote:
-> It is no need to find the very beginning of the area within
-> alloc_vmap_area, which can be done by judging each node during the process
+On Sun 16-07-17 19:59:51, Tetsuo Handa wrote:
+> Since the whole memory reclaim path has never been designed to handle the
+> scheduling priority inversions, those locations which are assuming that
+> execution of some code path shall eventually complete without using
+> synchronization mechanisms can get stuck (livelock) due to scheduling
+> priority inversions, for CPU time is not guaranteed to be yielded to some
+> thread doing such code path.
 > 
-> For current approach, the worst case is that the starting node which be found
-> for searching the 'vmap_area_list' is close to the 'vstart', while the final
-> available one is round to the tail(especially for the left branch).
-> This commit have the list searching start at the first available node, which
-> will save the time of walking the rb tree'(1)' and walking the list(2).
-> 
->       vmap_area_root
->           /      \
->      tmp_next     U
->         /   (1)
->       tmp
->        /
->      ...
->       /
->     first(current approach)
-> 
-> vmap_area_list->...->first->...->tmp->tmp_next
+> mutex_trylock() in __alloc_pages_may_oom() (waiting for oom_lock) and
+> schedule_timeout_killable(1) in out_of_memory() (already held oom_lock) is
+> one of such locations, and it was demonstrated using artificial stressing
+> that the system gets stuck effectively forever because SCHED_IDLE priority
+> thread is unable to resume execution at schedule_timeout_killable(1) if
+> a lot of !SCHED_IDLE priority threads are wasting CPU time [1].
 
-the original code can ensure the following two points :
-A, the result vamp_area has the lowest available address in the range [vstart, vend)
-B, it can maintain the cached vamp_area node rightly which can speedup relative allocation
-i suspect this patch maybe destroy the above two points 
->                             (2)
-> 
-> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
-> ---
->  mm/vmalloc.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 34a1c3e..f833e07 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -459,9 +459,16 @@ static struct vmap_area *alloc_vmap_area(unsigned
-> long size,
-> 
->                 while (n) {
->                         struct vmap_area *tmp;
-> +                       struct vmap_area *tmp_next;
->                         tmp = rb_entry(n, struct vmap_area, rb_node);
-> +                       tmp_next = list_next_entry(tmp, list);
->                         if (tmp->va_end >= addr) {
->                                 first = tmp;
-> +                               if (ALIGN(tmp->va_end, align) + size
-> +                                               < tmp_next->va_start) {
-> +                                       addr = ALIGN(tmp->va_end, align);
-> +                                       goto found;
-> +                               }
-is the aim vamp_area the lowest available one if the goto occurs ?
-it will bypass the latter cached vamp_area info  cached_hole_size update possibly if the goto occurs
->                                 if (tmp->va_start <= addr)
->                                         break;
->                                 n = n->rb_left;
-> --
-> 1.9.1
-> 
-
+I do not understand this. All the contending tasks will go and sleep for
+1s. How can they preempt the lock holder?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
