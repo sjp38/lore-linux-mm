@@ -1,65 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 142F86B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 04:58:08 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g15so18718009wmi.11
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 01:58:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e133si3780051wmg.17.2017.07.17.01.58.06
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4383E6B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 05:04:56 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id d77so11176002oig.7
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 02:04:56 -0700 (PDT)
+Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
+        by mx.google.com with ESMTPS id o9si11834704oib.359.2017.07.17.02.04.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Jul 2017 01:58:07 -0700 (PDT)
-Date: Mon, 17 Jul 2017 09:58:04 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/9] mm, page_alloc: simplify zonelist initialization
-Message-ID: <20170717085804.iujposlad2mxqh4l@suse.de>
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-7-mhocko@kernel.org>
- <20170714124645.i3duhuie6cczlybr@suse.de>
- <20170714130242.GQ2618@dhcp22.suse.cz>
- <20170714141823.2j7t37t6zdzdf3sv@suse.de>
- <20170717060639.GA7397@dhcp22.suse.cz>
- <20170717080723.wctyyukherj7bkqt@suse.de>
- <20170717081942.GA12888@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jul 2017 02:04:55 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/vmalloc: terminate searching since one node found
+References: <CAGWkznEyWgQe0HFiJ2MvfMB+Acbk_dTVTPH5VAA+Fep9uAFRZg@mail.gmail.com>
+ <596C7924.1010207@zoho.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <596C7D99.5040208@zoho.com>
+Date: Mon, 17 Jul 2017 17:04:25 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170717081942.GA12888@dhcp22.suse.cz>
+In-Reply-To: <596C7924.1010207@zoho.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com
 
-On Mon, Jul 17, 2017 at 10:19:42AM +0200, Michal Hocko wrote:
-> On Mon 17-07-17 09:07:23, Mel Gorman wrote:
-> > On Mon, Jul 17, 2017 at 08:06:40AM +0200, Michal Hocko wrote:
-> > > On Fri 14-07-17 15:18:23, Mel Gorman wrote:
-> > > > Fairly sure that's not what you meant.
-> > > > 
-> > > > 
-> > > > >  		pg_data_t *node = NODE_DATA(node_order[i]);
-> > > > >  
-> > > > > -		zoneref_idx = build_zonelists_node(node, zonelist, zoneref_idx);
-> > > > > +		nr_zones = build_zonelists_node(node, zonelist, nr_zones);
-> > > > 
-> > > > I meant converting build_zonelists_node and passing in &nr_zones and
-> > > > returning false when an empty node is encountered. In this context,
-> > > > it's also not about zones, it really is nr_zonerefs. Rename nr_zones in
-> > > > build_zonelists_node as well.
-> > > 
-> > > hmm, why don't we rather make it zonerefs based then. Something
-> > > like the following?
-> > 
-> > Works for me.
+On 07/17/2017 04:45 PM, zijun_hu wrote:
+> On 07/17/2017 04:07 PM, Zhaoyang Huang wrote:
+>> It is no need to find the very beginning of the area within
+>> alloc_vmap_area, which can be done by judging each node during the process
+>>
+>> For current approach, the worst case is that the starting node which be found
+>> for searching the 'vmap_area_list' is close to the 'vstart', while the final
+>> available one is round to the tail(especially for the left branch).
+>> This commit have the list searching start at the first available node, which
+>> will save the time of walking the rb tree'(1)' and walking the list(2).
+>>
+>>       vmap_area_root
+>>           /      \
+>>      tmp_next     U
+>>         /   (1)
+>>       tmp
+>>        /
+>>      ...
+>>       /
+>>     first(current approach)
+>>
+>> vmap_area_list->...->first->...->tmp->tmp_next
 > 
-> Should I fold it to the patch or make it a patch on its own?
+> the original code can ensure the following two points :
+> A, the result vamp_area has the lowest available address in the range [vstart, vend)
+> B, it can maintain the cached vamp_area node rightly which can speedup relative allocation
+> i suspect this patch maybe destroy the above two points 
+>>                             (2)
+>>
+>> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+>> ---
+>>  mm/vmalloc.c | 7 +++++++
+>>  1 file changed, 7 insertions(+)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 34a1c3e..f833e07 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -459,9 +459,16 @@ static struct vmap_area *alloc_vmap_area(unsigned
+>> long size,
+>>
+>>                 while (n) {
+>>                         struct vmap_area *tmp;
+>> +                       struct vmap_area *tmp_next;
+>>                         tmp = rb_entry(n, struct vmap_area, rb_node);
+>> +                       tmp_next = list_next_entry(tmp, list);
+>>                         if (tmp->va_end >= addr) {
+>>                                 first = tmp;
+>> +                               if (ALIGN(tmp->va_end, align) + size
+>> +                                               < tmp_next->va_start) {
+>> +                                       addr = ALIGN(tmp->va_end, align);
+>> +                                       goto found;
+>> +                               }
+> is the aim vamp_area the lowest available one if the goto occurs ?
+> it will bypass the latter cached vamp_area info  cached_hole_size update possibly if the goto occurs
+  it think the aim area maybe don't locates the required range [vstart, vend) possibly.
+>>                                 if (tmp->va_start <= addr)
+>>                                         break;
+>>                                 n = n->rb_left;
+>> --
+>> 1.9.1
+>>
+> 
 
-I have no strong feelings either way but if it was folded then the
-overall naming should be easier to follow (at least for me).
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
