@@ -1,87 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D166B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 02:46:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e3so157985380pfc.4
-        for <linux-mm@kvack.org>; Sun, 16 Jul 2017 23:46:31 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t5si12587757plj.397.2017.07.16.23.46.30
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 32A546B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 03:00:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g15so18330892wmi.11
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 00:00:31 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u92si41766wrc.79.2017.07.17.00.00.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Jul 2017 23:46:30 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6H6hjnO113340
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 02:46:30 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2brqy90mr3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 02:46:29 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 17 Jul 2017 07:46:27 +0100
-Date: Mon, 17 Jul 2017 09:46:21 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] userfaultfd: non-cooperative: notify about unmap of
- destination during mremap
-References: <1500272293-17174-1-git-send-email-rppt@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 00:00:30 -0700 (PDT)
+Date: Mon, 17 Jul 2017 09:00:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/vmalloc: terminate searching since one node found
+Message-ID: <20170717070024.GC7397@dhcp22.suse.cz>
+References: <1500190107-2192-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1500272293-17174-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <20170717064620.GB6815@rapoport-lnx>
+In-Reply-To: <1500190107-2192-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm@kvack.org, stable@vger.kernel.org
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 17, 2017 at 09:18:13AM +0300, Mike Rapoport wrote:
-> When mremap is called with MREMAP_FIXED it unmaps memory at the destination
-> address without notifying userfaultfd monitor. If the destination were
-> registered with userfaultfd, the monitor has no way to distinguish between
-> the old and new ranges and to properly relate the page faults that would
-> occur in the destination region.
-> 
-> Cc: stable@vger.kernel.org
-> Fixes: 897ab3e0c49e ("userfaultfd: non-cooperative: add event for memory
-> unmaps")
-> 
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+On Sun 16-07-17 15:28:27, Zhaoyang Huang wrote:
+> It is no need to find the very beginning of the area within
+> alloc_vmap_area, which can be done by judging each node during the process
+
+Please describe _why_ the patch is needed. I suspect this is an
+optimization but for which workloads it matters and how much.
+
+> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+> Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+
+no need to to make your s-o-b twice. Just use the same one as the From
+(author of the patch).
+
 > ---
-
-Please discard this patch. I completely missed that
-userfaultfd_unmap_complete releases mmap_sem :(
-
->  mm/mremap.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
+>  mm/vmalloc.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
 > 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b199ef9..eb36ef9410e4 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -446,9 +446,14 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
->  	if (addr + old_len > new_addr && new_addr + new_len > addr)
->  		goto out;
-> 
-> -	ret = do_munmap(mm, new_addr, new_len, NULL);
-> +	/*
-> +	 * We presume the uf_unmap list is empty by this point and it
-> +	 * will be cleared again in userfaultfd_unmap_complete.
-> +	 */
-> +	ret = do_munmap(mm, new_addr, new_len, uf_unmap);
->  	if (ret)
->  		goto out;
-> +	userfaultfd_unmap_complete(mm, uf_unmap);
-> 
->  	if (old_len >= new_len) {
->  		ret = do_munmap(mm, addr+new_len, old_len - new_len, uf_unmap);
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 34a1c3e..f833e07 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -459,9 +459,16 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+>  
+>  		while (n) {
+>  			struct vmap_area *tmp;
+> +			struct vmap_area *tmp_next;
+>  			tmp = rb_entry(n, struct vmap_area, rb_node);
+> +			tmp_next = list_next_entry(tmp, list);
+>  			if (tmp->va_end >= addr) {
+>  				first = tmp;
+> +				if (ALIGN(tmp->va_end, align) + size
+> +						< tmp_next->va_start) {
+> +					addr = ALIGN(tmp->va_end, align);
+> +					goto found;
+> +				}
+>  				if (tmp->va_start <= addr)
+>  					break;
+>  				n = n->rb_left;
 > -- 
-> 2.7.4
+> 1.9.1
 > 
 
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
