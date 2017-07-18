@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A051C6B0292
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 17:41:03 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u5so33630809pgq.14
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 14:41:03 -0700 (PDT)
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id f13si2493921pln.475.2017.07.18.14.41.02
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7578B6B02B4
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 17:41:13 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id p10so34345901pgr.6
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 14:41:13 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id h63si2587226pfb.82.2017.07.18.14.41.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 14:41:02 -0700 (PDT)
-Subject: Re: [PATCH 09/15] mm/hmm/devmem: device memory hotplug using
- ZONE_DEVICE v6
-References: <20170628180047.5386-1-jglisse@redhat.com>
- <20170628180047.5386-10-jglisse@redhat.com>
-From: Evgeny Baskakov <ebaskakov@nvidia.com>
-Message-ID: <be0503da-f1c4-f3c2-dace-6a9aa02c3186@nvidia.com>
-Date: Tue, 18 Jul 2017 14:41:01 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170628180047.5386-10-jglisse@redhat.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+        Tue, 18 Jul 2017 14:41:12 -0700 (PDT)
+From: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+Subject: [PATCH v1] mm/mempolicy.c: Fix get_nodes() off-by-one error.
+Date: Tue, 18 Jul 2017 08:39:24 -0500
+Message-Id: <1500385164-11062-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
 
-On 6/28/17 11:00 AM, J=C3=A9r=C3=B4me Glisse wrote:
+set_mempolicy() and mbind() take as argument a pointer to a bit mask
+(nodemask) and the number of bits in the mask the kernel will use
+(maxnode), among others.  For instace on a system with 2 NUMA nodes valid
+masks are: 0b00, 0b01, 0b10 and 0b11 it's clear maxnode=2, however an
+off-by-one error in get_nodes() the function that copies the node mask from
+user space requires users to pass maxnode = 3 in this example and maxnode =
+actual_maxnode + 1 in the general case. This patch fixes such error.
 
-> +/*
-> + * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
-> + *
-> + * @free: call when refcount on page reach 1 and thus is no longer use
-> + * @fault: call when there is a page fault to unaddressable memory
-> + */
-> +struct hmm_devmem_ops {
-> +	void (*free)(struct hmm_devmem *devmem, struct page *page);
-> +	int (*fault)(struct hmm_devmem *devmem,
-> +		     struct vm_area_struct *vma,
-> +		     unsigned long addr,
-> +		     struct page *page,
-> +		     unsigned int flags,
-> +		     pmd_t *pmdp);
-> +};
->
+Signed-off-by: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+---
+ mm/mempolicy.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-Hi Jerome,
-
-As discussed, could you please add detailed documentation for these=20
-callbacks?
-
-Specifically, for the 'fault' callback it is important to clarify the=20
-meaning of each of its parameters and the return value (which error=20
-codes are expected to be returned from it).
-
-Thanks!
-
---=20
-Evgeny Baskakov
-NVIDIA
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d911fa5..5274e9d2 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1208,11 +1208,10 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
+ 	unsigned long nlongs;
+ 	unsigned long endmask;
+ 
+-	--maxnode;
+ 	nodes_clear(*nodes);
+-	if (maxnode == 0 || !nmask)
++	if (maxnode == 1 || !nmask)
+ 		return 0;
+-	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
++	if (maxnode - 1 > PAGE_SIZE * BITS_PER_BYTE)
+ 		return -EINVAL;
+ 
+ 	nlongs = BITS_TO_LONGS(maxnode);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
