@@ -1,122 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BDD96B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 22:09:43 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v62so7308958pfd.10
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 19:09:43 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id p16si658014pli.426.2017.07.17.19.09.42
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3071F6B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 23:33:45 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id b20so10419995itd.1
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 20:33:45 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id p206si1013277iod.10.2017.07.17.20.33.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 19:09:42 -0700 (PDT)
-Message-ID: <596D6E7E.4070700@intel.com>
-Date: Tue, 18 Jul 2017 10:12:14 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Jul 2017 20:33:44 -0700 (PDT)
+Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
+References: <20170713211532.970-1-jglisse@redhat.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
+Date: Tue, 18 Jul 2017 11:26:51 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-7-git-send-email-wei.w.wang@intel.com> <20170714123023.GA2624@dhcp22.suse.cz> <20170714181523-mutt-send-email-mst@kernel.org> <20170717152448.GN12888@dhcp22.suse.cz>
-In-Reply-To: <20170717152448.GN12888@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170713211532.970-1-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>
 
-On 07/17/2017 11:24 PM, Michal Hocko wrote:
-> On Fri 14-07-17 22:17:13, Michael S. Tsirkin wrote:
->> On Fri, Jul 14, 2017 at 02:30:23PM +0200, Michal Hocko wrote:
->>> On Wed 12-07-17 20:40:19, Wei Wang wrote:
->>>> This patch adds support for reporting blocks of pages on the free list
->>>> specified by the caller.
->>>>
->>>> As pages can leave the free list during this call or immediately
->>>> afterwards, they are not guaranteed to be free after the function
->>>> returns. The only guarantee this makes is that the page was on the free
->>>> list at some point in time after the function has been invoked.
->>>>
->>>> Therefore, it is not safe for caller to use any pages on the returned
->>>> block or to discard data that is put there after the function returns.
->>>> However, it is safe for caller to discard data that was in one of these
->>>> pages before the function was invoked.
->>> I do not understand what is the point of such a function and how it is
->>> used because the patch doesn't give us any user (I haven't checked other
->>> patches yet).
->>>
->>> But just from the semantic point of view this sounds like a horrible
->>> idea. The only way to get a free block of pages is to call the page
->>> allocator. I am tempted to give it Nack right on those grounds but I
->>> would like to hear more about what you actually want to achieve.
->> Basically it's a performance hint to the hypervisor.
->> For example, these pages would be good candidates to
->> move around as they are not mapped into any running
->> applications.
->>
->> As such, it's important not to slow down other parts of the system too
->> much - otherwise we are speeding up one part of the system while we slow
->> down other parts of it, which is why it's trying to drop the lock as
->> soon a possible.
+On 2017/7/14 5:15, JA(C)rA'me Glisse wrote:
+> Sorry i made horrible mistake on names in v4, i completly miss-
+> understood the suggestion. So here i repost with proper naming.
+> This is the only change since v3. Again sorry about the noise
+> with v4.
+> 
+> Changes since v4:
+>   - s/DEVICE_HOST/DEVICE_PUBLIC
+> 
+> Git tree:
+> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v5
+> 
+> 
+> Cache coherent device memory apply to architecture with system bus
+> like CAPI or CCIX. Device connected to such system bus can expose
+> their memory to the system and allow cache coherent access to it
+> from the CPU.
+> 
+> Even if for all intent and purposes device memory behave like regular
+> memory, we still want to manage it in isolation from regular memory.
+> Several reasons for that, first and foremost this memory is less
+> reliable than regular memory if the device hangs because of invalid
+> commands we can loose access to device memory. Second CPU access to
+> this memory is expected to be slower than to regular memory. Third
+> having random memory into device means that some of the bus bandwith
+> wouldn't be available to the device but would be use by CPU access.
+> 
+> This is why we want to manage such memory in isolation from regular
+> memory. Kernel should not try to use this memory even as last resort
+> when running out of memory, at least for now.
+>
 
+I think set a very large node distance for "Cache Coherent Device Memory" may be a easier way to address these concerns.
 
-Probably I should have included the introduction of the usages in
-the log. Hope it is not too later to explain here:
-
-Live migration needs to transfer the VM's memory from the source
-machine to the destination round by round. For the 1st round, all the VM's
-memory is transferred. From the 2nd round, only the pieces of memory
-that were written by the guest (after the 1st round) are transferred. One
-method that is popularly used by the hypervisor to track which part of
-memory is written is to write-protect all the guest memory.
-
-This patch enables the optimization of the 1st round memory transfer -
-the hypervisor can skip the transfer of guest unused pages in the 1st round.
-It is not concerned that the memory pages are used after they are given to
-the hypervisor as a hint of the unused pages, because they will be tracked
-by the hypervisor and transferred in the next round if they are used and
-written.
+--
+Regards,
+Bob Liu
 
 
-> So why cannot you simply allocate those page and then do whatever you
-> need. You can tell the page allocator to do only a lightweight
-> allocation by the gfp_mask - e.g. GFP_NOWAIT or if you even do not want
-> to risk kswapd intervening then 0 mask.
-
-
-Here are the 2 reasons that we can't get the hint of unused pages by 
-allocating
-them:
-
-1) It's expected that live migration shouldn't affect the things running 
-inside
-the VM - take away all the free pages from the guest would greatly slow 
-down the
-activities inside guest (e.g. the network transmission may be stuck due 
-to the lack of
-sk_buf).
-
-2) The hint of free pages are used to optimize the 1st round memory 
-transfer, so the hint
-is expect to be gotten by the hypervisor as quick as possible. Depending 
-on the memory
-size of the guest, allocation of all the free memory would be too long 
-for the case.
-
-Hope it clarifies the use case.
-
-
->> As long as hypervisor does not assume it can drop these pages, and as
->> long it's correct in most cases.  we are OK even if the hint is slightly
->> wrong because hypervisor notifications are racing with allocations.
-> But the page could have been reused anytime after the lock is dropped
-> and you cannot check for that except for elevating the reference count.
-
-As also introduced above, the hypervisor uses a dirty page logging mechanism
-to track which memory page is written by the guest when live migration 
-begins.
-
-
-Best,
-Wei
+ 
+> This patchset add a new type of ZONE_DEVICE memory (DEVICE_HOST)
+> that is use to represent CDM memory. This patchset build on top of
+> the HMM patchset that already introduce a new type of ZONE_DEVICE
+> memory for private device memory (see HMM patchset).
+> 
+> The end result is that with this patchset if a device is in use in
+> a process you might have private anonymous memory or file back
+> page memory using ZONE_DEVICE (DEVICE_HOST). Thus care must be
+> taken to not overwritte lru fields of such pages.
+> 
+> Hence all core mm changes are done to address assumption that any
+> process memory is back by a regular struct page that is part of
+> the lru. ZONE_DEVICE page are not on the lru and the lru pointer
+> of struct page are use to store device specific informations.
+> 
+> Thus this patchset update all code path that would make assumptions
+> about lruness of a process page.
+> 
+> patch 01 - rename DEVICE_PUBLIC to DEVICE_HOST to free DEVICE_PUBLIC name
+> patch 02 - add DEVICE_PUBLIC type to ZONE_DEVICE (all core mm changes)
+> patch 03 - add an helper to HMM for hotplug of CDM memory
+> patch 04 - preparatory patch for memory controller changes (memch)
+> patch 05 - update memory controller to properly handle
+>            ZONE_DEVICE pages when uncharging
+> patch 06 - documentation patch
+> 
+> Previous posting:
+> v1 https://lkml.org/lkml/2017/4/7/638
+> v2 https://lwn.net/Articles/725412/
+> v3 https://lwn.net/Articles/727114/
+> v4 https://lwn.net/Articles/727692/
+> 
+> JA(C)rA'me Glisse (6):
+>   mm/zone-device: rename DEVICE_PUBLIC to DEVICE_HOST
+>   mm/device-public-memory: device memory cache coherent with CPU v4
+>   mm/hmm: add new helper to hotplug CDM memory region v3
+>   mm/memcontrol: allow to uncharge page without using page->lru field
+>   mm/memcontrol: support MEMORY_DEVICE_PRIVATE and MEMORY_DEVICE_PUBLIC
+>     v3
+>   mm/hmm: documents how device memory is accounted in rss and memcg
+> 
+>  Documentation/vm/hmm.txt |  40 ++++++++
+>  fs/proc/task_mmu.c       |   2 +-
+>  include/linux/hmm.h      |   7 +-
+>  include/linux/ioport.h   |   1 +
+>  include/linux/memremap.h |  25 ++++-
+>  include/linux/mm.h       |  20 ++--
+>  kernel/memremap.c        |  19 ++--
+>  mm/Kconfig               |  11 +++
+>  mm/gup.c                 |   7 ++
+>  mm/hmm.c                 |  89 ++++++++++++++++--
+>  mm/madvise.c             |   2 +-
+>  mm/memcontrol.c          | 231 ++++++++++++++++++++++++++++++-----------------
+>  mm/memory.c              |  46 +++++++++-
+>  mm/migrate.c             |  57 +++++++-----
+>  mm/swap.c                |  11 +++
+>  15 files changed, 434 insertions(+), 134 deletions(-)
+> 
 
 
 --
