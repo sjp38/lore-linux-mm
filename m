@@ -1,106 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F272E6B0292
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 15:40:13 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id h2so21550203uaf.5
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:40:13 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 4si1210138vko.190.2017.07.18.12.40.13
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EEAB76B0292
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 15:56:29 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id b127so6835241lfb.3
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:56:29 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id a17si1419087lfc.225.2017.07.18.12.56.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 12:40:13 -0700 (PDT)
-From: daniel.m.jordan@oracle.com
-Subject: [PATCH] mm/hugetlb: __get_user_pages ignores certain follow_hugetlb_page errors
-Date: Tue, 18 Jul 2017 12:39:55 -0700
-Message-Id: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
+        Tue, 18 Jul 2017 12:56:28 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id w198so2244555lff.3
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:56:28 -0700 (PDT)
+Reply-To: alex.popov@linux.com
+Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or
+ corruption
+References: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
+ <20170717175459.GC14983@bombadil.infradead.org>
+ <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake>
+ <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
+ <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
+From: Alexander Popov <alex.popov@linux.com>
+Message-ID: <1edb137c-356f-81d6-4592-f5dfc68e8ea9@linux.com>
+Date: Tue, 18 Jul 2017 22:56:23 +0300
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, james.morse@arm.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, punit.agrawal@arm.com, zhongjiang@huawei.com, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Commit 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when
-FOLL_HWPOISON is specified") causes __get_user_pages to ignore certain
-errors from follow_hugetlb_page.  After such error, __get_user_pages
-subsequently calls faultin_page on the same VMA and start address that
-follow_hugetlb_page failed on instead of returning the error immediately
-as it should.
+On 17.07.2017 22:11, Kees Cook wrote:
+> On Mon, Jul 17, 2017 at 12:01 PM, Alexander Popov <alex.popov@linux.com> wrote:
+>> Hello Christopher,
+>>
+>> Thanks for your reply.
+>>
+>> On 17.07.2017 21:04, Christopher Lameter wrote:
+>>> On Mon, 17 Jul 2017, Matthew Wilcox wrote:
+>>>
+>>>> On Mon, Jul 17, 2017 at 07:45:07PM +0300, Alexander Popov wrote:
+>>>>> Add an assertion similar to "fasttop" check in GNU C Library allocator:
+>>>>> an object added to a singly linked freelist should not point to itself.
+>>>>> That helps to detect some double free errors (e.g. CVE-2017-2636) without
+>>>>> slub_debug and KASAN. Testing with hackbench doesn't show any noticeable
+>>>>> performance penalty.
+>>>>
+>>>>>  {
+>>>>> +   BUG_ON(object == fp); /* naive detection of double free or corruption */
+>>>>>     *(void **)(object + s->offset) = fp;
+>>>>>  }
+>>>>
+>>>> Is BUG() the best response to this situation?  If it's a corruption, then
+>>>> yes, but if we spot a double-free, then surely we should WARN() and return
+>>>> without doing anything?
+>>>
+>>> The double free debug checking already does the same thing in a more
+>>> thourough way (this one only checks if the last free was the same
+>>> address). So its duplicating a check that already exists.
+>>
+>> Yes, absolutely. Enabled slub_debug (or KASAN with its quarantine) can detect
+>> more double-free errors. But it introduces much bigger performance penalty and
+>> it's disabled by default.
+>>
+>>> However, this one is always on.
+>>
+>> Yes, I would propose to have this relatively cheap check enabled by default. I
+>> think it will block a good share of double-free errors. Currently it's really
+>> easy to turn such a double-free into use-after-free and exploit it, since, as I
+>> wrote, next two kmalloc() calls return the same address. So we could make
+>> exploiting harder for a relatively low price.
+>>
+>> Christopher, if I change BUG_ON() to VM_BUG_ON(), it will be disabled by default
+>> again, right?
+> 
+> Let's merge this with the proposed CONFIG_FREELIST_HARDENED, then the
+> performance change is behind a config, and we gain the rest of the
+> freelist protections at the same time:
+> 
+> http://www.openwall.com/lists/kernel-hardening/2017/07/06/1
 
-In follow_hugetlb_page, when hugetlb_fault returns a value covered under
-VM_FAULT_ERROR, follow_hugetlb_page returns it without setting nr_pages
-to 0 as __get_user_pages expects in this case, which causes the
-following to happen in __get_user_pages: the "while (nr_pages)" check
-succeeds, we skip the "if (!vma..." check because we got a VMA the last
-time around, we find no page with follow_page_mask, and we call
-faultin_page, which calls hugetlb_fault for the second time.
+Hello Kees,
 
-This issue also slightly changes how __get_user_pages works.  Before, it
-only returned error if it had made no progress (i = 0).  But now,
-follow_hugetlb_page can clobber "i" with an error code since its new
-return path doesn't check for progress.  So if "i" is nonzero before a
-failing call to follow_hugetlb_page, that indication of progress is lost
-and __get_user_pages can return error even if some pages were
-successfully pinned.
+If I change BUG_ON() to VM_BUG_ON(), this check will work at least on Fedora
+since it has CONFIG_DEBUG_VM enabled. Debian based distros have this option
+disabled. Do you like that more than having this check under
+CONFIG_FREELIST_HARDENED?
 
-To fix this, change follow_hugetlb_page so that it updates nr_pages,
-allowing __get_user_pages to fail immediately and restoring the "error
-only if no progress" behavior to __get_user_pages.
+If you insist on putting this check under CONFIG_FREELIST_HARDENED, should I
+rebase onto your patch and send again?
 
-Tested that __get_user_pages returns when expected on error from
-hugetlb_fault in follow_hugetlb_page.
-
-Fixes: 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when FOLL_HWPOISON is specified")
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: James Morse <james.morse@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Punit Agrawal <punit.agrawal@arm.com>
-Cc: zhong jiang <zhongjiang@huawei.com>
----
- mm/hugetlb.c | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3eedb18..cc28993 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4095,6 +4095,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long vaddr = *position;
- 	unsigned long remainder = *nr_pages;
- 	struct hstate *h = hstate_vma(vma);
-+	int err = -EFAULT;
- 
- 	while (vaddr < vma->vm_end && remainder) {
- 		pte_t *pte;
-@@ -4170,11 +4171,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			}
- 			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
- 			if (ret & VM_FAULT_ERROR) {
--				int err = vm_fault_to_errno(ret, flags);
--
--				if (err)
--					return err;
--
-+				err = vm_fault_to_errno(ret, flags);
- 				remainder = 0;
- 				break;
- 			}
-@@ -4229,7 +4226,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 */
- 	*position = vaddr;
- 
--	return i ? i : -EFAULT;
-+	return i ? i : err;
- }
- 
- #ifndef __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
--- 
-1.8.3.1
+Best regards,
+Alexander
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
