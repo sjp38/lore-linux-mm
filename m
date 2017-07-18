@@ -1,96 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CCED16B0279
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 05:08:33 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g28so3007678wrg.3
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 02:08:33 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g13si1395228wrg.355.2017.07.18.02.08.32
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B10876B02C3
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 05:25:59 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id r74so1081788oie.1
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 02:25:59 -0700 (PDT)
+Received: from sender-pp-092.zoho.com (sender-pp-092.zoho.com. [135.84.80.237])
+        by mx.google.com with ESMTPS id n130si1295680oih.7.2017.07.18.02.25.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Jul 2017 02:08:32 -0700 (PDT)
-Date: Tue, 18 Jul 2017 11:08:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/page_alloc: Wait for oom_lock before retrying.
-Message-ID: <20170718090829.GA19133@dhcp22.suse.cz>
-References: <1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170717152440.GM12888@dhcp22.suse.cz>
- <201707180642.IHF86993.OFMLVOOFJQHSFt@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jul 2017 02:25:58 -0700 (PDT)
+Subject: Re: [PATCH v3] mm/vmalloc: terminate searching since one node found
+References: <1500366424-5882-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+ <f1b03267c7ac48c08270406dd3d9bf54@SHMBX03.spreadtrum.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <596DD399.3030906@zoho.com>
+Date: Tue, 18 Jul 2017 17:23:37 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201707180642.IHF86993.OFMLVOOFJQHSFt@I-love.SAKURA.ne.jp>
+In-Reply-To: <f1b03267c7ac48c08270406dd3d9bf54@SHMBX03.spreadtrum.com>
+Content-Type: text/plain; charset=gbk
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: =?UTF-8?B?Wmhhb3lhbmcgSHVhbmcgKOm7hOacnemYsyk=?= <Zhaoyang.Huang@spreadtrum.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>linux-mm@kvack.orglinux-kernel@vger.kernel.org
 
-On Tue 18-07-17 06:42:31, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sun 16-07-17 19:59:51, Tetsuo Handa wrote:
-> > > Since the whole memory reclaim path has never been designed to handle the
-> > > scheduling priority inversions, those locations which are assuming that
-> > > execution of some code path shall eventually complete without using
-> > > synchronization mechanisms can get stuck (livelock) due to scheduling
-> > > priority inversions, for CPU time is not guaranteed to be yielded to some
-> > > thread doing such code path.
-> > > 
-> > > mutex_trylock() in __alloc_pages_may_oom() (waiting for oom_lock) and
-> > > schedule_timeout_killable(1) in out_of_memory() (already held oom_lock) is
-> > > one of such locations, and it was demonstrated using artificial stressing
-> > > that the system gets stuck effectively forever because SCHED_IDLE priority
-> > > thread is unable to resume execution at schedule_timeout_killable(1) if
-> > > a lot of !SCHED_IDLE priority threads are wasting CPU time [1].
-> > > 
-> > > To solve this problem properly, complete redesign and rewrite of the whole
-> > > memory reclaim path will be needed. But we are not going to think about
-> > > reimplementing the the whole stack (at least for foreseeable future).
-> > > 
-> > > Thus, this patch workarounds livelock by forcibly yielding enough CPU time
-> > > to the thread holding oom_lock by using mutex_lock_killable() mechanism,
-> > > so that the OOM killer/reaper can use CPU time yielded by this patch.
-> > > Of course, this patch does not help if the cause of lack of CPU time is
-> > > somewhere else (e.g. executing CPU intensive computation with very high
-> > > scheduling priority), but that is not fault of this patch.
-> > > This patch only manages not to lockup if the cause of lack of CPU time is
-> > > direct reclaim storm wasting CPU time without making any progress while
-> > > waiting for oom_lock.
-> > 
-> > I have to think about this some more. Hitting much more on the oom_lock
-> > is a problem while __oom_reap_task_mm still depends on the oom_lock. With
-> > http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org it
-> > doesn't do anymore.
+On 07/18/2017 04:31 PM, Zhaoyang Huang (>>AE3?No) wrote:
 > 
-> I suggested preserving oom_lock serialization when setting MMF_OOM_SKIP in
-> reply to that post (unless we use some trick for force calling
-> get_page_from_freelist() after confirming that there is no !MMF_OOM_SKIP mm).
-
-If that is necessary, which I believe it is not, it should be discussed
-in that thread email.
- 
-> > Also this whole reasoning is little bit dubious to me. The whole reclaim
-> > stack might still preempt the holder of the lock so you are addressin
-> > only a very specific contention case where everybody hits the oom. I
-> > suspect that a differently constructed testcase might result in the same
-> > problem.
+> It is no need to find the very beginning of the area within
+> alloc_vmap_area, which can be done by judging each node during the process
 > 
-> I think that direct reclaim/compaction is primary source of CPU time
-> consumption, for there will be nothing more to do other than
-> get_page_from_freelist() and schedule_timeout_uninterruptible() if
-> we are waiting for somebody else to make progress using the OOM killer.
-> Thus, if we wait using mutex_lock_killable(), direct reclaim/compaction
-> will not be called (i.e. the rest of whole reclaim stack will not preempt
-> the holder of the oom_lock) after each allocating thread failed to acquire
-> the oom_lock.
+it seems the original code is wrote to achieve the following two purposes :
+A, the result vamp_area has the lowest available address in the required range [vstart, vend)
+B, it maybe update the cached vamp_area node info which can speedup other relative allocations
+it look redundant but conventional and necessary
+this approach maybe destroy the original purposes
+> For current approach, the worst case is that the starting node which be found
+> for searching the 'vmap_area_list' is close to the 'vstart', while the final
+> available one is round to the tail(especially for the left branch).
+> This commit have the list searching start at the first available node, which
+> will save the time of walking the rb tree'(1)' and walking the list'(2)'.
+> 
+>       vmap_area_root
+>           /      \
+>      tmp_next     U
+>         /
+>       tmp
+>        /
+>      ...  (1)
+>       /
+>     first(current approach)
+>
+ @tmp_next is the next node of @tmp in the ordered list_head, not in the rbtree
 
-But you still assume that you are going to hit the oom path. That takes
-some time because you have to go over all reclaim priorities, compaction
-attempts and so on. Many allocation paths will eventually hit the oom
-path but many will simply still try the reclaim until they get there.
+> vmap_area_list->...->first->...->tmp->tmp_next
+>                             (2)
+> 
+> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+> ---
+>  mm/vmalloc.c | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 34a1c3e..9a5c177 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -459,9 +459,18 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+> 
+>                 while (n) {
+>                         struct vmap_area *tmp;
+> +                       struct vmap_area *tmp_next;
+>                         tmp = rb_entry(n, struct vmap_area, rb_node);
+> +                       tmp_next = list_next_entry(tmp, list);
+>                         if (tmp->va_end >= addr) {
+>                                 first = tmp;
+> +                               if (ALIGN(tmp->va_end, align) + size
+> +                                               < tmp_next->va_start) {
+if @tmp node don't locate in the required rang [vstart, vend), but the right of the range it maybe
+satisfy this condition, even if it locate it locate within the range, it maybe don't have the lowest free address.
+if @tmp don't have the next node, tmp_next->va_start will cause NULL dereference
+> +                                       addr = ALIGN(tmp->va_end, align);
+> +                                       if (cached_hole_size >= size)
+> +                                               cached_hole_size = 0;
+it seems a little rough to reset the @cached_hole_size by this way,  it will caused the cached info is updated in the next
+allocation regardless the allocation arguments.
+> +                                       goto found;
+> +                               }
+>                                 if (tmp->va_start <= addr)
+>                                         break;
+>                                 n = n->rb_left;
+> --
+> 1.9.1
+> 
 
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
