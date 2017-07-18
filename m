@@ -1,102 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5881E6B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 21:49:57 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id k190so7209845pgk.8
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 18:49:57 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a2si617323pgd.191.2017.07.17.18.49.56
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BDD96B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 22:09:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v62so7308958pfd.10
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 19:09:43 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p16si658014pli.426.2017.07.17.19.09.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 18:49:56 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 5/6] mm: parallelize clear_gigantic_page
-References: <1500070573-3948-1-git-send-email-daniel.m.jordan@oracle.com>
- <1500070573-3948-6-git-send-email-daniel.m.jordan@oracle.com>
- <398e9887-6d6e-e1d3-abcf-43a6d7496bc8@intel.com>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <c73eabca-4c8c-8fb1-36c7-1f887f56689a@oracle.com>
-Date: Mon, 17 Jul 2017 21:49:51 -0400
+        Mon, 17 Jul 2017 19:09:42 -0700 (PDT)
+Message-ID: <596D6E7E.4070700@intel.com>
+Date: Tue, 18 Jul 2017 10:12:14 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <398e9887-6d6e-e1d3-abcf-43a6d7496bc8@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-7-git-send-email-wei.w.wang@intel.com> <20170714123023.GA2624@dhcp22.suse.cz> <20170714181523-mutt-send-email-mst@kernel.org> <20170717152448.GN12888@dhcp22.suse.cz>
+In-Reply-To: <20170717152448.GN12888@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 07/17/2017 12:02 PM, Dave Hansen wrote:
-> On 07/14/2017 03:16 PM, daniel.m.jordan@oracle.com wrote:
->> Machine:  Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 cpus, 1T memory
->> Test:    Clear a range of gigantic pages
->> nthread   speedup   size (GiB)   min time (s)   stdev
->>        1                    100          41.13    0.03
->>        2     2.03x          100          20.26    0.14
->>        4     4.28x          100           9.62    0.09
->>        8     8.39x          100           4.90    0.05
->>       16    10.44x          100           3.94    0.03
-> ...
->>        1                    800         434.91    1.81
->>        2     2.54x          800         170.97    1.46
->>        4     4.98x          800          87.38    1.91
->>        8    10.15x          800          42.86    2.59
->>       16    12.99x          800          33.48    0.83
-> What was the actual test here?  Did you just use sysfs to allocate 800GB
-> of 1GB huge pages?
+On 07/17/2017 11:24 PM, Michal Hocko wrote:
+> On Fri 14-07-17 22:17:13, Michael S. Tsirkin wrote:
+>> On Fri, Jul 14, 2017 at 02:30:23PM +0200, Michal Hocko wrote:
+>>> On Wed 12-07-17 20:40:19, Wei Wang wrote:
+>>>> This patch adds support for reporting blocks of pages on the free list
+>>>> specified by the caller.
+>>>>
+>>>> As pages can leave the free list during this call or immediately
+>>>> afterwards, they are not guaranteed to be free after the function
+>>>> returns. The only guarantee this makes is that the page was on the free
+>>>> list at some point in time after the function has been invoked.
+>>>>
+>>>> Therefore, it is not safe for caller to use any pages on the returned
+>>>> block or to discard data that is put there after the function returns.
+>>>> However, it is safe for caller to discard data that was in one of these
+>>>> pages before the function was invoked.
+>>> I do not understand what is the point of such a function and how it is
+>>> used because the patch doesn't give us any user (I haven't checked other
+>>> patches yet).
+>>>
+>>> But just from the semantic point of view this sounds like a horrible
+>>> idea. The only way to get a free block of pages is to call the page
+>>> allocator. I am tempted to give it Nack right on those grounds but I
+>>> would like to hear more about what you actually want to achieve.
+>> Basically it's a performance hint to the hypervisor.
+>> For example, these pages would be good candidates to
+>> move around as they are not mapped into any running
+>> applications.
+>>
+>> As such, it's important not to slow down other parts of the system too
+>> much - otherwise we are speeding up one part of the system while we slow
+>> down other parts of it, which is why it's trying to drop the lock as
+>> soon a possible.
 
-I used fallocate(1) on a hugetlbfs, so this test is similar to the 6th 
-patch in the series, but here we parallelize only the page clearing 
-function since gigantic pages are large enough to benefit from multiple 
-threads, whereas we parallelize at the level of hugetlbfs_fallocate in 
-patch 6 for smaller page sizes (e.g. 2M on x86).
 
-> This test should be entirely memory-bandwidth-limited, right?
+Probably I should have included the introduction of the usages in
+the log. Hope it is not too later to explain here:
 
-That's right, the page clearing function dominates the test, so it's 
-memory-bandwidth-limited.
+Live migration needs to transfer the VM's memory from the source
+machine to the destination round by round. For the 1st round, all the VM's
+memory is transferred. From the 2nd round, only the pieces of memory
+that were written by the guest (after the 1st round) are transferred. One
+method that is popularly used by the hypervisor to track which part of
+memory is written is to write-protect all the guest memory.
 
-> Are you
-> contending here that a single core can only use 1/10th of the memory
-> bandwidth when clearing a page?
+This patch enables the optimization of the 1st round memory transfer -
+the hypervisor can skip the transfer of guest unused pages in the 1st round.
+It is not concerned that the memory pages are used after they are given to
+the hypervisor as a hint of the unused pages, because they will be tracked
+by the hypervisor and transferred in the next round if they are used and
+written.
 
-Yes, this is the biggest factor here.  More threads can use more memory 
-bandwidth.
 
-And yes, in the page clearing loop exercised in the test, a single 
-thread can use only a fraction of the chip's theoretical memory 
-bandwidth.  This is the page clearing loop I'm stressing:
+> So why cannot you simply allocate those page and then do whatever you
+> need. You can tell the page allocator to do only a lightweight
+> allocation by the gfp_mask - e.g. GFP_NOWAIT or if you even do not want
+> to risk kswapd intervening then 0 mask.
 
-ENTRY(clear_page_erms)
-movl $4096,%ecx
-xorl %eax,%eax
-rep stosb
-ret
 
-On my test machine, it tops out at around 2550 MiB/s with 1 thread, and 
-I get that same rate for each of 2, 4, or 8 threads when running on the 
-same chip (i.e. group of 18 cores for this machine).  It's only at 16 
-threads on the same chip that it starts to drop, falling to something 
-around 1420 MiB/s.
+Here are the 2 reasons that we can't get the hint of unused pages by 
+allocating
+them:
 
-> Or, does all the gain here come because we are round-robin-allocating
-> the pages across all 8 NUMA nodes' memory controllers and the speedup
-> here is because we're not doing the clearing across the interconnect?
+1) It's expected that live migration shouldn't affect the things running 
+inside
+the VM - take away all the free pages from the guest would greatly slow 
+down the
+activities inside guest (e.g. the network transmission may be stuck due 
+to the lack of
+sk_buf).
 
-The default NUMA policy was used for all results shown, so there was no 
-round-robin'ing at small sizes.  For example, in the 100 GiB case, all 
-pages were allocated from the same node.  But when it gets up to 800 
-GiB, obviously we're allocating from many nodes so that we get a sort of 
-round-robin effect and NUMA starts to matter.  For instance, the 
-1-thread case does better on 100 GiB with all local accesses than on 800 
-GiB with mostly remote accesses.
+2) The hint of free pages are used to optimize the 1st round memory 
+transfer, so the hint
+is expect to be gotten by the hypervisor as quick as possible. Depending 
+on the memory
+size of the guest, allocation of all the free memory would be too long 
+for the case.
 
-ktask's ability to run NUMA-aware threads helps out here so that we're 
-not clearing across the interconnect, which is why the speedups get 
-better as the sizes get larger.
+Hope it clarifies the use case.
 
-Thanks for your questions.
 
-Daniel
+>> As long as hypervisor does not assume it can drop these pages, and as
+>> long it's correct in most cases.  we are OK even if the hint is slightly
+>> wrong because hypervisor notifications are racing with allocations.
+> But the page could have been reused anytime after the lock is dropped
+> and you cannot check for that except for elevating the reference count.
+
+As also introduced above, the hypervisor uses a dirty page logging mechanism
+to track which memory page is written by the guest when live migration 
+begins.
+
+
+Best,
+Wei
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
