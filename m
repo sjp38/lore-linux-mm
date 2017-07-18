@@ -1,82 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9576B02B4
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 05:36:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id u89so3168825wrc.1
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 02:36:35 -0700 (PDT)
-Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
-        by mx.google.com with ESMTPS id b124si5128369wmg.75.2017.07.18.02.36.34
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 016726B02B4
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:02:10 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k82so80106oih.1
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:02:09 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id j79si1394467oiy.65.2017.07.18.04.02.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 02:36:34 -0700 (PDT)
-Received: by mail-wr0-x241.google.com with SMTP id w4so3374202wrb.1
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 02:36:34 -0700 (PDT)
-Date: Tue, 18 Jul 2017 11:36:31 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v10 37/38] compiler-gcc.h: Introduce __nostackp function
- attribute
-Message-ID: <20170718093631.pnamvdrkmzcjz64j@gmail.com>
-References: <cover.1500319216.git.thomas.lendacky@amd.com>
- <0576fd5c74440ad0250f16ac6609ecf587812456.1500319216.git.thomas.lendacky@amd.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Jul 2017 04:02:07 -0700 (PDT)
+Message-ID: <596DEA07.5000009@huawei.com>
+Date: Tue, 18 Jul 2017 18:59:19 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0576fd5c74440ad0250f16ac6609ecf587812456.1500319216.git.thomas.lendacky@amd.com>
+Subject: Re: mm, something wrong in page_lock_anon_vma_read()?
+References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils> <591FB173.4020409@huawei.com> <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz> <5923FF31.5020801@huawei.com> <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz> <593954BD.9060703@huawei.com> <e8dacd42-e5c5-998b-5f9a-a34dbfb986f1@suse.cz>
+In-Reply-To: <e8dacd42-e5c5-998b-5f9a-a34dbfb986f1@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, zhong jiang <zhongjiang@huawei.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 2017/6/8 21:59, Vlastimil Babka wrote:
 
-* Tom Lendacky <thomas.lendacky@amd.com> wrote:
-
-> Create a new function attribute, __nostackp, that can used to turn off
-> stack protection on a per function basis.
+> On 06/08/2017 03:44 PM, Xishi Qiu wrote:
+>> On 2017/5/23 17:33, Vlastimil Babka wrote:
+>>
+>>> On 05/23/2017 11:21 AM, zhong jiang wrote:
+>>>> On 2017/5/23 0:51, Vlastimil Babka wrote:
+>>>>> On 05/20/2017 05:01 AM, zhong jiang wrote:
+>>>>>> On 2017/5/20 10:40, Hugh Dickins wrote:
+>>>>>>> On Sat, 20 May 2017, Xishi Qiu wrote:
+>>>>>>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
+>>>>>>>> And I meet the bug too. However it is hard to reproduce, and 
+>>>>>>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
+>>>>>>>>
+>>>>>>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
+>>>>>>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
+>>>>>>>> but anon_vma has been corrupted.
+>>>>>>>>
+>>>>>>>> Any ideas?
+>>>>>>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
+>>>>>>> a pte mapped in on top of another pte; but cannot begin tell you where
+>>>>>>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
+>>>>>>>
+>>>>>>> Hugh
+>>>>>>>
+>>>>>>> .
+>>>>>>>
+>>>>>> Hi, Hugh
+>>>>>>
+>>>>>> I find the following message from the dmesg.
+>>>>>>
+>>>>>> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
+>>>>>>
+>>>>>> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
+>>>>>> still exist.
+>>>>> Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
+>>>>> thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
+>>>>   HI, Vlastimil
+>>>>  
+>>>>   I miss the patch.
+>>>
+>>> Try applying it then, there's good chance the error and crash will go
+>>> away. Even if your workload doesn't actually run any madvise(MADV_DONTNEED).
+>>>
+>>
+>> Hi Vlastimil,
+>>
+>> I find this error was reported by Kirill as following, right?
+>> https://patchwork.kernel.org/patch/7550401/
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  include/linux/compiler-gcc.h | 2 ++
->  include/linux/compiler.h     | 4 ++++
->  2 files changed, 6 insertions(+)
+> That was reported by Minchan.
 > 
-> diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
-> index cd4bbe8..682063b 100644
-> --- a/include/linux/compiler-gcc.h
-> +++ b/include/linux/compiler-gcc.h
-> @@ -166,6 +166,8 @@
->  
->  #if GCC_VERSION >= 40100
->  # define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
-> +
-> +#define __nostackp	__attribute__((__optimize__("no-stack-protector")))
->  #endif
->  
->  #if GCC_VERSION >= 40300
-> diff --git a/include/linux/compiler.h b/include/linux/compiler.h
-> index 219f82f..63cbca1 100644
-> --- a/include/linux/compiler.h
-> +++ b/include/linux/compiler.h
-> @@ -470,6 +470,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
->  #define __visible
->  #endif
->  
-> +#ifndef __nostackp
-> +#define __nostackp
-> +#endif
+>> The call trace is quite like the same as ours.
+> 
+> In that thread, the error seems just disappeared in the end.
+> 
+> So, did you apply the patch I suggested? Did it help?
+> 
 
-So I changed this from the hard to read and ambiguous "__nostackp" abbreviation 
-(does it mean 'no stack pointer?') to "__nostackprotector", plus added this detail 
-to the changelog:
+Hi,
 
-| ( This is needed by the SME in-place kernel memory encryption feature,
-|   which activates encryption in its sme_enable() function and thus changes the 
-|   visible value of the stack protection cookie on function return. )
+Unfortunately, this patch(mm: thp: fix SMP race condition between
+THP page fault and MADV_DONTNEED) didn't help, I got the panic again.
 
-Agreed?
+And I find this error before panic, "[468229.996610] BUG: Bad rss-counter state mm:ffff8806aebc2580 idx:1 val:1"
 
-Thanks,
+[468451.702807] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+[468451.702861] IP: [<ffffffff810ac089>] down_read_trylock+0x9/0x30
+[468451.702900] PGD 12445e067 PUD 11acaa067 PMD 0 
+[468451.702931] Oops: 0000 [#1] SMP 
+[468451.702953] kbox catch die event.
+[468451.703003] collected_len = 1047419, LOG_BUF_LEN_LOCAL = 1048576
+[468451.703003] kbox: notify die begin
+[468451.703003] kbox: no notify die func register. no need to notify
+[468451.703003] do nothing after die!
+[468451.703003] Modules linked in: ipt_REJECT macvlan ip_set_hash_ipport vport_vxlan(OVE) xt_statistic xt_physdev xt_nat xt_recent xt_mark xt_comment veth ct_limit(OVE) bum_extract(OVE) policy(OVE) bum(OVE) ip_set nfnetlink openvswitch(OVE) nf_defrag_ipv6 gre ext3 jbd ipt_MASQUERADE nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 xt_addrtype iptable_filter xt_conntrack nf_nat nf_conntrack bridge stp llc kboxdriver(O) kbox(O) dm_thin_pool dm_persistent_data crc32_pclmul dm_bio_prison dm_bufio ghash_clmulni_intel libcrc32c aesni_intel lrw gf128mul glue_helper ablk_helper cryptd ppdev sg parport_pc cirrus virtio_console parport syscopyarea sysfillrect sysimgblt ttm drm_kms_helper drm i2c_piix4 i2c_core pcspkr ip_tables ext4 jbd2 mbcache sr_mod cdrom ata_generic pata_acpi
+[468451.703003]  virtio_net virtio_blk crct10dif_pclmul crct10dif_common ata_piix virtio_pci libata serio_raw virtio_ring crc32c_intel virtio dm_mirror dm_region_hash dm_log dm_mod
+[468451.703003] CPU: 6 PID: 21965 Comm: docker-containe Tainted: G           OE  ----V-------   3.10.0-327.53.58.73.x86_64 #1
+[468451.703003] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20170107_142945-9_64_246_229 04/01/2014
+[468451.703003] task: ffff880692402e00 ti: ffff88018209c000 task.ti: ffff88018209c000
+[468451.703003] RIP: 0010:[<ffffffff810ac089>]  [<ffffffff810ac089>] down_read_trylock+0x9/0x30
+[468451.703003] RSP: 0018:ffff88018209f8f8  EFLAGS: 00010202
+[468451.703003] RAX: 0000000000000000 RBX: ffff880720cd7740 RCX: ffff880720cd7740
+[468451.703003] RDX: 0000000000000001 RSI: 0000000000000301 RDI: 0000000000000008
+[468451.703003] RBP: ffff88018209f8f8 R08: 00000000c0e0f310 R09: ffff880720cd7740
+[468451.703003] R10: ffff88083efd8000 R11: 0000000000000000 R12: ffff880720cd7741
+[468451.703003] R13: ffffea000824d100 R14: 0000000000000008 R15: 0000000000000000
+[468451.703003] FS:  00007fc0e2a85700(0000) GS:ffff88083ed80000(0000) knlGS:0000000000000000
+[468451.703003] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[468451.703003] CR2: 0000000000000008 CR3: 0000000661906000 CR4: 00000000001407e0
+[468451.703003] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[468451.703003] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[468451.703003] Stack:
+[468451.703003]  ffff88018209f928 ffffffff811a7eb5 ffffea000824d100 ffff88018209fa90
+[468451.703003]  ffffea00082f9680 0000000000000301 ffff88018209f978 ffffffff811a82e1
+[468451.703003]  ffffea000824d100 ffff88018209fa00 0000000000000001 ffffea000824d100
+[468451.703003] Call Trace:
+[468451.703003]  [<ffffffff811a7eb5>] page_lock_anon_vma_read+0x55/0x110
+[468451.703003]  [<ffffffff811a82e1>] try_to_unmap_anon+0x21/0x120
+[468451.703003]  [<ffffffff811a842d>] try_to_unmap+0x4d/0x60
+[468451.712006]  [<ffffffff811cc749>] migrate_pages+0x439/0x790
+[468451.712006]  [<ffffffff81193280>] ? __reset_isolation_suitable+0xe0/0xe0
+[468451.712006]  [<ffffffff811941f9>] compact_zone+0x299/0x400
+[468451.712006]  [<ffffffff81059aff>] ? kvm_clock_get_cycles+0x1f/0x30
+[468451.712006]  [<ffffffff811943fc>] compact_zone_order+0x9c/0xf0
+[468451.712006]  [<ffffffff811947b1>] try_to_compact_pages+0x121/0x1a0
+[468451.712006]  [<ffffffff8163ace6>] __alloc_pages_direct_compact+0xac/0x196
+[468451.712006]  [<ffffffff811783e2>] __alloc_pages_nodemask+0xbc2/0xca0
+[468451.712006]  [<ffffffff811bcb7a>] alloc_pages_vma+0x9a/0x150
+[468451.712006]  [<ffffffff811d1573>] do_huge_pmd_anonymous_page+0x123/0x510
+[468451.712006]  [<ffffffff8119bc58>] handle_mm_fault+0x1a8/0xf50
+[468451.712006]  [<ffffffff8164b4d6>] __do_page_fault+0x166/0x470
+[468451.712006]  [<ffffffff8164b8a3>] trace_do_page_fault+0x43/0x110
+[468451.712006]  [<ffffffff8164af79>] do_async_page_fault+0x29/0xe0
+[468451.712006]  [<ffffffff81647a38>] async_page_fault+0x28/0x30
+[468451.712006] Code: 00 00 00 ba 01 00 00 00 48 89 de e8 12 fe ff ff eb ce 48 c7 c0 f2 ff ff ff eb c5 e8 42 ff fc ff 66 90 0f 1f 44 00 00 55 48 89 e5 <48> 8b 07 48 89 c2 48 83 c2 01 7e 07 f0 48 0f b1 17 75 f0 48 f7 
+[468451.712006] RIP  [<ffffffff810ac089>] down_read_trylock+0x9/0x30
+[468451.738667]  RSP <ffff88018209f8f8>
+[468451.738667] CR2: 0000000000000008
 
-	Ingo
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
