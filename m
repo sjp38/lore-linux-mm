@@ -1,136 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9520B6B02F4
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:15:26 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p15so22641669pgs.7
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:15:26 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5FC6B02FD
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:15:27 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k190so22566922pgk.8
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:15:27 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
         by mx.google.com with ESMTPS id z191si1893638pgd.107.2017.07.18.07.15.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 18 Jul 2017 07:15:25 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 04/10] x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
-Date: Tue, 18 Jul 2017 17:15:11 +0300
-Message-Id: <20170718141517.52202-5-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 01/10] x86/kasan: Use the same shadow offset for 4- and 5-level paging
+Date: Tue, 18 Jul 2017 17:15:08 +0300
+Message-Id: <20170718141517.52202-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
 References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-We need to be able to adjust virtual memory layout at runtime to be able
-to switch between 4- and 5-level paging at boot-time.
+We are going to support boot-time switching between 4- and 5-level
+paging. For KASAN it means we cannot have different KASAN_SHADOW_OFFSET
+for different paging modes: the constant is passed to gcc to generate
+code and cannot be changed at runtime.
 
-KASLR already has movable __VMALLOC_BASE, __VMEMMAP_BASE and __PAGE_OFFSET.
-Let's re-use it.
+This patch changes KASAN code to use 0xdffffc0000000000 as shadow offset
+for both 4- and 5-level paging.
 
+For 5-level paging it means that shadow memory region is not aligned to
+PGD boundary anymore and we have to handle unaligned parts of the region
+properly.
+
+In addition, we have to exclude paravirt code from KASAN instrumentation
+as we now use set_pgd() before KASAN is fully setup.
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+[kirill.shutemov@linux.intel.com: clenaup, changelog message]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/kaslr.h            | 4 ----
- arch/x86/include/asm/page_64.h          | 4 ++++
- arch/x86/include/asm/page_64_types.h    | 2 +-
- arch/x86/include/asm/pgtable_64_types.h | 2 +-
- arch/x86/kernel/head64.c                | 9 +++++++++
- arch/x86/mm/kaslr.c                     | 8 --------
- 6 files changed, 15 insertions(+), 14 deletions(-)
+ arch/x86/Kconfig            |  1 -
+ arch/x86/kernel/Makefile    |  3 +-
+ arch/x86/mm/kasan_init_64.c | 86 ++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 67 insertions(+), 23 deletions(-)
 
-diff --git a/arch/x86/include/asm/kaslr.h b/arch/x86/include/asm/kaslr.h
-index 1052a797d71d..683c9d736314 100644
---- a/arch/x86/include/asm/kaslr.h
-+++ b/arch/x86/include/asm/kaslr.h
-@@ -4,10 +4,6 @@
- unsigned long kaslr_get_random_long(const char *purpose);
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index add693b0239e..4f94fda5dba5 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -299,7 +299,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
+-	default 0xdff8000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
  
- #ifdef CONFIG_RANDOMIZE_MEMORY
--extern unsigned long page_offset_base;
--extern unsigned long vmalloc_base;
--extern unsigned long vmemmap_base;
--
- void kernel_randomize_memory(void);
- #else
- static inline void kernel_randomize_memory(void) { }
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index b4a0d43248cf..a12fb4dcdd15 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -10,6 +10,10 @@
- extern unsigned long max_pfn;
- extern unsigned long phys_base;
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index a01892bdd61a..7f67b8316be0 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -24,7 +24,8 @@ endif
+ KASAN_SANITIZE_head$(BITS).o				:= n
+ KASAN_SANITIZE_dumpstack.o				:= n
+ KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
+-KASAN_SANITIZE_stacktrace.o := n
++KASAN_SANITIZE_stacktrace.o				:= n
++KASAN_SANITIZE_paravirt.o				:= n
  
-+extern unsigned long page_offset_base;
-+extern unsigned long vmalloc_base;
-+extern unsigned long vmemmap_base;
+ OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+ OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 02c9d7553409..0691cc0f91ac 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -15,6 +15,8 @@
+ extern pgd_t early_top_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
+ 
++static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
 +
- static inline unsigned long __phys_addr_nodebug(unsigned long x)
+ static int __init map_range(struct range *range)
  {
- 	unsigned long y = x - __START_KERNEL_map;
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 3f5f08b010d0..0126d6bc2eb1 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -42,7 +42,7 @@
- #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
- #endif
+ 	unsigned long start;
+@@ -30,8 +32,9 @@ static void __init clear_pgds(unsigned long start,
+ 			unsigned long end)
+ {
+ 	pgd_t *pgd;
++	unsigned long pgd_end = end & PGDIR_MASK;
  
--#ifdef CONFIG_RANDOMIZE_MEMORY
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
- #define __PAGE_OFFSET           page_offset_base
- #else
- #define __PAGE_OFFSET           __PAGE_OFFSET_BASE
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 06470da156ba..a9f77ead7088 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -85,7 +85,7 @@ typedef struct { pteval_t pte; } pte_t;
- #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
- #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
- #endif
--#ifdef CONFIG_RANDOMIZE_MEMORY
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
- #define VMALLOC_START	vmalloc_base
- #define VMEMMAP_START	vmemmap_base
- #else
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 46c3c73e7f43..15bce8410ee7 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -38,6 +38,15 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
- static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
- 
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
-+unsigned long page_offset_base = __PAGE_OFFSET_BASE;
-+EXPORT_SYMBOL(page_offset_base);
-+unsigned long vmalloc_base = __VMALLOC_BASE;
-+EXPORT_SYMBOL(vmalloc_base);
-+unsigned long vmemmap_base = __VMEMMAP_BASE;
-+EXPORT_SYMBOL(vmemmap_base);
-+#endif
+-	for (; start < end; start += PGDIR_SIZE) {
++	for (; start < pgd_end; start += PGDIR_SIZE) {
+ 		pgd = pgd_offset_k(start);
+ 		/*
+ 		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
+@@ -42,29 +45,60 @@ static void __init clear_pgds(unsigned long start,
+ 		else
+ 			pgd_clear(pgd);
+ 	}
 +
- #define __head	__section(.head.text)
++	pgd = pgd_offset_k(start);
++	for (; start < end; start += P4D_SIZE)
++		p4d_clear(p4d_offset(pgd, start));
++}
++
++static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
++{
++	unsigned long p4d;
++
++	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
++		return (p4d_t *)pgd;
++
++	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
++	p4d += __START_KERNEL_map - phys_base;
++	return (p4d_t *)p4d + p4d_index(addr);
++}
++
++static void __init kasan_early_p4d_populate(pgd_t *pgd,
++		unsigned long addr,
++		unsigned long end)
++{
++	pgd_t pgd_entry;
++	p4d_t *p4d, p4d_entry;
++	unsigned long next;
++
++	if (pgd_none(*pgd)) {
++		pgd_entry = __pgd(_KERNPG_TABLE | __pa_nodebug(kasan_zero_p4d));
++		set_pgd(pgd, pgd_entry);
++	}
++
++	p4d = early_p4d_offset(pgd, addr);
++	do {
++		next = p4d_addr_end(addr, end);
++
++		if (!p4d_none(*p4d))
++			continue;
++
++		p4d_entry = __p4d(_KERNPG_TABLE | __pa_nodebug(kasan_zero_pud));
++		set_p4d(p4d, p4d_entry);
++	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
+ }
  
- static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index af599167fe3c..e6420b18f6e0 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -53,14 +53,6 @@ static const unsigned long vaddr_end = EFI_VA_END;
- static const unsigned long vaddr_end = __START_KERNEL_map;
+ static void __init kasan_map_early_shadow(pgd_t *pgd)
+ {
+-	int i;
+-	unsigned long start = KASAN_SHADOW_START;
++	unsigned long addr = KASAN_SHADOW_START & PGDIR_MASK;
+ 	unsigned long end = KASAN_SHADOW_END;
++	unsigned long next;
+ 
+-	for (i = pgd_index(start); start < end; i++) {
+-		switch (CONFIG_PGTABLE_LEVELS) {
+-		case 4:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud) |
+-					_KERNPG_TABLE);
+-			break;
+-		case 5:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_p4d) |
+-					_KERNPG_TABLE);
+-			break;
+-		default:
+-			BUILD_BUG();
+-		}
+-		start += PGDIR_SIZE;
+-	}
++	pgd += pgd_index(addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		kasan_early_p4d_populate(pgd, addr, next);
++	} while (pgd++, addr = next, addr != end);
+ }
+ 
+ #ifdef CONFIG_KASAN_INLINE
+@@ -101,7 +135,7 @@ void __init kasan_early_init(void)
+ 	for (i = 0; i < PTRS_PER_PUD; i++)
+ 		kasan_zero_pud[i] = __pud(pud_val);
+ 
+-	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
++	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
+ 		kasan_zero_p4d[i] = __p4d(p4d_val);
+ 
+ 	kasan_map_early_shadow(early_top_pgt);
+@@ -117,12 +151,22 @@ void __init kasan_init(void)
  #endif
  
--/* Default values */
--unsigned long page_offset_base = __PAGE_OFFSET_BASE;
--EXPORT_SYMBOL(page_offset_base);
--unsigned long vmalloc_base = __VMALLOC_BASE;
--EXPORT_SYMBOL(vmalloc_base);
--unsigned long vmemmap_base = __VMEMMAP_BASE;
--EXPORT_SYMBOL(vmemmap_base);
--
- /*
-  * Memory regions randomized by KASLR (except modules that use a separate logic
-  * earlier during boot). The list is ordered based on virtual addresses. This
+ 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
++
++	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++		void *ptr;
++
++		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
++		memcpy(tmp_p4d_table, (void *)ptr, sizeof(tmp_p4d_table));
++		set_pgd(&early_top_pgt[pgd_index(KASAN_SHADOW_END)],
++				__pgd(__pa(tmp_p4d_table) | _KERNPG_TABLE));
++	}
++
+ 	load_cr3(early_top_pgt);
+ 	__flush_tlb_all();
+ 
+-	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
++	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
+ 
+-	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
++	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
+ 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
+ 
+ 	for (i = 0; i < E820_MAX_ENTRIES; i++) {
 -- 
 2.11.0
 
