@@ -1,150 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 77D076B02C3
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:07:27 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id c135so1503257oih.3
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:07:27 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m96si1831234oik.294.2017.07.18.07.07.25
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9520B6B02F4
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:15:26 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p15so22641669pgs.7
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:15:26 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id z191si1893638pgd.107.2017.07.18.07.15.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Jul 2017 07:07:25 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] oom_reaper: close race without using oom_lock
-Date: Tue, 18 Jul 2017 23:06:50 +0900
-Message-Id: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jul 2017 07:15:25 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 04/10] x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
+Date: Tue, 18 Jul 2017 17:15:11 +0300
+Message-Id: <20170718141517.52202-5-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, mhocko@kernel.org, hannes@cmpxchg.org, rientjes@google.com
-Cc: linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-guarded whole OOM reaping operations using oom_lock. But there was no
-need to guard whole operations. We needed to guard only setting of
-MMF_OOM_REAPED flag because get_page_from_freelist() in
-__alloc_pages_may_oom() is called with oom_lock held.
+We need to be able to adjust virtual memory layout at runtime to be able
+to switch between 4- and 5-level paging at boot-time.
 
-If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
-can start reaping operations as soon as wake_oom_reaper() is called.
-But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
-oom_lock, guarding only the OOM reaper side is not sufficient.
+KASLR already has movable __VMALLOC_BASE, __VMEMMAP_BASE and __PAGE_OFFSET.
+Let's re-use it.
 
-If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
-there is no need to guard setting of MMF_OOM_SKIP flag, and we can
-guarantee a chance to call get_page_from_freelist() in
-__alloc_pages_may_oom() without depending on oom_lock serialization.
-
-This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
-flag which acts as if MMF_OOM_SKIP, in order to close both race window
-(the OOM reaper side and __mmput() side) without using oom_lock.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm_types.h |  1 +
- mm/oom_kill.c            | 42 +++++++++++++++---------------------------
- 2 files changed, 16 insertions(+), 27 deletions(-)
+ arch/x86/include/asm/kaslr.h            | 4 ----
+ arch/x86/include/asm/page_64.h          | 4 ++++
+ arch/x86/include/asm/page_64_types.h    | 2 +-
+ arch/x86/include/asm/pgtable_64_types.h | 2 +-
+ arch/x86/kernel/head64.c                | 9 +++++++++
+ arch/x86/mm/kaslr.c                     | 8 --------
+ 6 files changed, 15 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ff15181..3184b7a 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -495,6 +495,7 @@ struct mm_struct {
- 	 */
- 	bool tlb_flush_pending;
- #endif
-+	bool oom_killer_synchronized;
- 	struct uprobes_state uprobes_state;
- #ifdef CONFIG_HUGETLB_PAGE
- 	atomic_long_t hugetlb_usage;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 9e8b4f0..1710133 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -300,11 +300,17 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	 * This task already has access to memory reserves and is being killed.
- 	 * Don't allow any other task to have access to the reserves unless
- 	 * the task has MMF_OOM_SKIP because chances that it would release
--	 * any memory is quite low.
-+	 * any memory is quite low. But ignore MMF_OOM_SKIP once, for there is
-+	 * still possibility that get_page_from_freelist() with oom_lock held
-+	 * succeeds because MMF_OOM_SKIP is set without oom_lock held.
- 	 */
- 	if (!is_sysrq_oom(oc) && tsk_is_oom_victim(task)) {
--		if (test_bit(MMF_OOM_SKIP, &task->signal->oom_mm->flags))
-+		struct mm_struct *mm = task->signal->oom_mm;
-+
-+		if (mm->oom_killer_synchronized)
- 			goto next;
-+		if (test_bit(MMF_OOM_SKIP, &mm->flags))
-+			mm->oom_killer_synchronized = true;
- 		goto abort;
- 	}
+diff --git a/arch/x86/include/asm/kaslr.h b/arch/x86/include/asm/kaslr.h
+index 1052a797d71d..683c9d736314 100644
+--- a/arch/x86/include/asm/kaslr.h
++++ b/arch/x86/include/asm/kaslr.h
+@@ -4,10 +4,6 @@
+ unsigned long kaslr_get_random_long(const char *purpose);
  
-@@ -470,28 +476,10 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
--	bool ret = true;
+ #ifdef CONFIG_RANDOMIZE_MEMORY
+-extern unsigned long page_offset_base;
+-extern unsigned long vmalloc_base;
+-extern unsigned long vmemmap_base;
 -
--	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * __oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
--	 */
--	mutex_lock(&oom_lock);
+ void kernel_randomize_memory(void);
+ #else
+ static inline void kernel_randomize_memory(void) { }
+diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+index b4a0d43248cf..a12fb4dcdd15 100644
+--- a/arch/x86/include/asm/page_64.h
++++ b/arch/x86/include/asm/page_64.h
+@@ -10,6 +10,10 @@
+ extern unsigned long max_pfn;
+ extern unsigned long phys_base;
  
- 	if (!down_read_trylock(&mm->mmap_sem)) {
--		ret = false;
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return false;
- 	}
++extern unsigned long page_offset_base;
++extern unsigned long vmalloc_base;
++extern unsigned long vmemmap_base;
++
+ static inline unsigned long __phys_addr_nodebug(unsigned long x)
+ {
+ 	unsigned long y = x - __START_KERNEL_map;
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 3f5f08b010d0..0126d6bc2eb1 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -42,7 +42,7 @@
+ #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
+ #endif
  
- 	/*
-@@ -502,7 +490,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	if (!mmget_not_zero(mm)) {
- 		up_read(&mm->mmap_sem);
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return true;
- 	}
+-#ifdef CONFIG_RANDOMIZE_MEMORY
++#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
+ #define __PAGE_OFFSET           page_offset_base
+ #else
+ #define __PAGE_OFFSET           __PAGE_OFFSET_BASE
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 06470da156ba..a9f77ead7088 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -85,7 +85,7 @@ typedef struct { pteval_t pte; } pte_t;
+ #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
+ #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
+ #endif
+-#ifdef CONFIG_RANDOMIZE_MEMORY
++#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
+ #define VMALLOC_START	vmalloc_base
+ #define VMEMMAP_START	vmemmap_base
+ #else
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 46c3c73e7f43..15bce8410ee7 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -38,6 +38,15 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
+ static unsigned int __initdata next_early_pgt;
+ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
  
- 	trace_start_task_reaping(tsk->pid);
-@@ -549,9 +537,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	 */
- 	mmput_async(mm);
- 	trace_finish_task_reaping(tsk->pid);
--unlock_oom:
--	mutex_unlock(&oom_lock);
--	return ret;
-+	return true;
- }
++#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
++unsigned long page_offset_base = __PAGE_OFFSET_BASE;
++EXPORT_SYMBOL(page_offset_base);
++unsigned long vmalloc_base = __VMALLOC_BASE;
++EXPORT_SYMBOL(vmalloc_base);
++unsigned long vmemmap_base = __VMEMMAP_BASE;
++EXPORT_SYMBOL(vmemmap_base);
++#endif
++
+ #define __head	__section(.head.text)
  
- #define MAX_OOM_REAP_RETRIES 10
-@@ -661,8 +647,10 @@ static void mark_oom_victim(struct task_struct *tsk)
- 		return;
+ static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
+diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
+index af599167fe3c..e6420b18f6e0 100644
+--- a/arch/x86/mm/kaslr.c
++++ b/arch/x86/mm/kaslr.c
+@@ -53,14 +53,6 @@ static const unsigned long vaddr_end = EFI_VA_END;
+ static const unsigned long vaddr_end = __START_KERNEL_map;
+ #endif
  
- 	/* oom_mm is bound to the signal struct life time. */
--	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
--		mmgrab(tsk->signal->oom_mm);
-+	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
-+		mmgrab(mm);
-+		mm->oom_killer_synchronized = false;
-+	}
- 
- 	/*
- 	 * Make sure that the task is woken up from uninterruptible sleep
+-/* Default values */
+-unsigned long page_offset_base = __PAGE_OFFSET_BASE;
+-EXPORT_SYMBOL(page_offset_base);
+-unsigned long vmalloc_base = __VMALLOC_BASE;
+-EXPORT_SYMBOL(vmalloc_base);
+-unsigned long vmemmap_base = __VMEMMAP_BASE;
+-EXPORT_SYMBOL(vmemmap_base);
+-
+ /*
+  * Memory regions randomized by KASLR (except modules that use a separate logic
+  * earlier during boot). The list is ordered based on virtual addresses. This
 -- 
-1.8.3.1
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
