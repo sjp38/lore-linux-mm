@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A28C6B039F
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:15:39 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t8so22825694pgs.5
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:15:39 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id w15si1912933plk.57.2017.07.18.07.15.38
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F0326B03AB
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:15:54 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z1so22322430pgs.10
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:15:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id m29si1911522pgn.176.2017.07.18.07.15.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 07:15:38 -0700 (PDT)
+        Tue, 18 Jul 2017 07:15:53 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 03/10] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
-Date: Tue, 18 Jul 2017 17:15:10 +0300
-Message-Id: <20170718141517.52202-4-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
-References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 00/10] Boot-time switching between 4- and 5-level paging
+Date: Tue, 18 Jul 2017 17:15:07 +0300
+Message-Id: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch prepare decompression code to boot-time switching between 4-
-and 5-level paging.
+[ This patchset is on top my previous 5-level paging patchset[1] ]
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/head_64.S | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+The basic idea is to implement the same logic as pgtable-nop4d.h provides,
+but at runtime.
 
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index fbf4c32d0b62..2e362aea3319 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -347,6 +347,28 @@ preferred_addr:
- 	leaq	boot_stack_end(%rbx), %rsp
- 
- #ifdef CONFIG_X86_5LEVEL
-+	/* Preserve rbx across cpuid */
-+	movq	%rbx, %r8
-+
-+	/* Check if leaf 7 is supported */
-+	movl	$0, %eax
-+	cpuid
-+	cmpl	$7, %eax
-+	jb	lvl5
-+
-+	/*
-+	 * Check if la57 is supported.
-+	 * The feature is enumerated with CPUID.(EAX=07H, ECX=0):ECX[bit 16]
-+	 */
-+	movl	$7, %eax
-+	movl	$0, %ecx
-+	cpuid
-+	andl	$(1 << 16), %ecx
-+	jz	lvl5
-+
-+	/* Restore rbx */
-+	movq	%r8, %rbx
-+
- 	/* Check if 5-level paging has already enabled */
- 	movq	%cr4, %rax
- 	testl	$X86_CR4_LA57, %eax
-@@ -386,6 +408,8 @@ preferred_addr:
- 	pushq	%rax
- 	lretq
- lvl5:
-+	/* Restore rbx */
-+	movq	%r8, %rbx
- #endif
- 
- 	/* Zero EFLAGS */
+Runtime folding is only implemented for CONFIG_X86_5LEVEL=y case. With the
+option disabled, we do compile-time folding as before..
+
+Initially, I tried to fold pgd instread. I've got to shell, but it
+required a lot of hacks as kernel threats pgd in a special way.
+
+Comparing to RFC patchset, I've dealt with hacks and performance should be
+fine now.
+
+Please review and consider applying.
+
+[1] http://lkml.kernel.org/r/20170716225954.74185-1-kirill.shutemov@linux.intel.com
+
+Kirill A. Shutemov (10):
+  x86/kasan: Use the same shadow offset for 4- and 5-level paging
+  x86/xen: Provide pre-built page tables only for XEN_PV and XEN_PVH
+  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+  x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
+  x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
+  x86/mm: Handle boot-time paging mode switching at early boot
+  x86/mm: Fold p4d page table layer at runtime
+  x86/mm: Replace compile-time checks for 5-level with runtime-time
+  x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
+  x86/mm: Offset boot-time paging mode switching cost
+
+ Documentation/x86/x86_64/5level-paging.txt |  9 +--
+ arch/x86/Kconfig                           |  5 +-
+ arch/x86/boot/compressed/head_64.S         | 24 ++++++++
+ arch/x86/boot/compressed/kaslr.c           | 14 +++++
+ arch/x86/boot/compressed/misc.h            |  5 ++
+ arch/x86/entry/entry_64.S                  | 12 ++++
+ arch/x86/include/asm/kaslr.h               |  4 --
+ arch/x86/include/asm/page_64.h             |  4 ++
+ arch/x86/include/asm/page_64_types.h       | 15 ++---
+ arch/x86/include/asm/paravirt.h            |  8 +--
+ arch/x86/include/asm/pgalloc.h             |  5 +-
+ arch/x86/include/asm/pgtable.h             | 10 +++-
+ arch/x86/include/asm/pgtable_32.h          |  2 +
+ arch/x86/include/asm/pgtable_32_types.h    |  2 +
+ arch/x86/include/asm/pgtable_64_types.h    | 53 ++++++++++++-----
+ arch/x86/include/asm/pgtable_types.h       | 67 +++++----------------
+ arch/x86/include/asm/processor.h           |  2 +-
+ arch/x86/include/asm/required-features.h   |  8 +--
+ arch/x86/include/asm/sparsemem.h           | 12 ++--
+ arch/x86/kernel/Makefile                   |  3 +-
+ arch/x86/kernel/head64.c                   | 71 +++++++++++++++++++---
+ arch/x86/kernel/head_64.S                  | 29 +++++----
+ arch/x86/mm/dump_pagetables.c              | 20 ++++---
+ arch/x86/mm/fault.c                        |  2 +-
+ arch/x86/mm/ident_map.c                    |  2 +-
+ arch/x86/mm/init_64.c                      | 32 +++++-----
+ arch/x86/mm/kasan_init_64.c                | 94 +++++++++++++++++++++++-------
+ arch/x86/mm/kaslr.c                        | 27 ++++-----
+ arch/x86/platform/efi/efi_64.c             |  6 +-
+ arch/x86/power/hibernate_64.c              |  6 +-
+ arch/x86/xen/mmu_pv.c                      |  2 +-
+ include/asm-generic/5level-fixup.h         |  1 +
+ include/asm-generic/pgtable-nop4d.h        |  1 +
+ include/linux/kasan.h                      |  2 +-
+ mm/kasan/kasan_init.c                      |  2 +-
+ 35 files changed, 363 insertions(+), 198 deletions(-)
+
 -- 
 2.11.0
 
