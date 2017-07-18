@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F06126B0279
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 21:26:46 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u17so6842815pfa.6
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 18:26:46 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id f8si568863plm.346.2017.07.17.18.26.45
-        for <linux-mm@kvack.org>;
-        Mon, 17 Jul 2017 18:26:45 -0700 (PDT)
-Date: Tue, 18 Jul 2017 10:25:55 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170718012554.GL20323@X58A-UD3R>
-References: <1495616389-29772-1-git-send-email-byungchul.park@lge.com>
- <1495616389-29772-7-git-send-email-byungchul.park@lge.com>
- <20170711161232.GB28975@worktop>
- <20170712020053.GB20323@X58A-UD3R>
- <20170712075617.o2jds2giuoqxjqic@hirez.programming.kicks-ass.net>
- <20170713020745.GG20323@X58A-UD3R>
- <20170713081442.GA439@worktop>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E21086B0279
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 21:31:59 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id q4so472372oif.2
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 18:31:59 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h77si517334oig.396.2017.07.17.18.31.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Jul 2017 18:31:59 -0700 (PDT)
+Received: from mail-ua0-f169.google.com (mail-ua0-f169.google.com [209.85.217.169])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6AF4722C95
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 01:31:58 +0000 (UTC)
+Received: by mail-ua0-f169.google.com with SMTP id 64so7245801uae.2
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 18:31:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170713081442.GA439@worktop>
+In-Reply-To: <20170717180246.62277-1-namit@vmware.com>
+References: <20170717180246.62277-1-namit@vmware.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 17 Jul 2017 18:31:36 -0700
+Message-ID: <CALCETrW3XP-nE9MxzbZZ0DxxQYFJ848_afeDvQ8UzY=-gwBjmQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: Prevent racy access to tlb_flush_pending
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Nadav Amit <namit@vmware.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Lutomirski <luto@kernel.org>
 
-On Thu, Jul 13, 2017 at 10:14:42AM +0200, Peter Zijlstra wrote:
-> +static void __crossrelease_end(unsigned int *stamp)
-> +{
+On Mon, Jul 17, 2017 at 11:02 AM, Nadav Amit <namit@vmware.com> wrote:
+> Setting and clearing mm->tlb_flush_pending can be performed by multiple
+> threads, since mmap_sem may only be acquired for read in task_numa_work.
+> If this happens, tlb_flush_pending may be cleared while one of the
+> threads still changes PTEs and batches TLB flushes.
+>
+> As a result, TLB flushes can be skipped because the indication of
+> pending TLB flushes is lost, for instance due to race between
+> migration and change_protection_range (just as in the scenario that
+> caused the introduction of tlb_flush_pending).
+>
+> The feasibility of such a scenario was confirmed by adding assertion to
+> check tlb_flush_pending is not set by two threads, adding artificial
+> latency in change_protection_range() and using sysctl to reduce
+> kernel.numa_balancing_scan_delay_ms.
 
-[snip]
+This thing is logically a refcount.  Should it be refcount_t?
 
-> +
-> +	/*
-> +	 * If we rewind past the tail; all of history is lost.
-> +	 */
-> +	if ((current->xhlock_idx_max - *stamp) < MAX_XHLOCKS_NR)
-> +		return;
-> +
-> +	/*
-> +	 * Invalidate the entire history..
-> +	 */
-> +	for (i = 0; i < MAX_XHLOCKS_NR; i++)
-> +		invalidate_xhlock(&xhlock(i));
-> +
-> +	current->xhlock_idx = 0;
-> +	current->xhlock_idx_hard = 0;
-> +	current->xhlock_idx_soft = 0;
-> +	current->xhlock_idx_hist = 0;
-> +	current->xhlock_idx_max = 0;
-
-I don't understand why you introduced this code, yet. Do we need this?
-
-The other of your suggestion looks very good though..
-
-> +}
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
