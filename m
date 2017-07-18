@@ -1,149 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 016726B02B4
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:02:10 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id k82so80106oih.1
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:02:09 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id j79si1394467oiy.65.2017.07.18.04.02.05
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF6A6B02F3
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:08:05 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id f1so15902169ioj.11
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:08:05 -0700 (PDT)
+Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
+        by mx.google.com with ESMTPS id u126si2426045itg.48.2017.07.18.04.08.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Jul 2017 04:02:07 -0700 (PDT)
-Message-ID: <596DEA07.5000009@huawei.com>
-Date: Tue, 18 Jul 2017 18:59:19 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 18 Jul 2017 04:08:02 -0700 (PDT)
+From: =?gb2312?B?Wmhhb3lhbmcgSHVhbmcgKLvGs6/R9Ck=?=
+	<Zhaoyang.Huang@spreadtrum.com>
+Subject: RE: [PATCH v3] mm/vmalloc: terminate searching since one node found
+Date: Tue, 18 Jul 2017 11:07:24 +0000
+Message-ID: <db68f97e78b54398bd4719be5bc076ac@SHMBX03.spreadtrum.com>
+References: <1500366424-5882-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+ <f1b03267c7ac48c08270406dd3d9bf54@SHMBX03.spreadtrum.com>,<596DD399.3030906@zoho.com>
+In-Reply-To: <596DD399.3030906@zoho.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: mm, something wrong in page_lock_anon_vma_read()?
-References: <591D6D79.7030704@huawei.com> <591EB25C.9080901@huawei.com> <591EBE71.7080402@huawei.com> <alpine.LSU.2.11.1705191453040.3819@eggly.anvils> <591F9A09.6010707@huawei.com> <alpine.LSU.2.11.1705191852360.11060@eggly.anvils> <591FA78E.9050307@huawei.com> <alpine.LSU.2.11.1705191935220.11750@eggly.anvils> <591FB173.4020409@huawei.com> <a94c202d-7d9f-0a62-3049-9f825a1db50d@suse.cz> <5923FF31.5020801@huawei.com> <aea91199-2b40-85fd-8c93-2d807ed726bd@suse.cz> <593954BD.9060703@huawei.com> <e8dacd42-e5c5-998b-5f9a-a34dbfb986f1@suse.cz>
-In-Reply-To: <e8dacd42-e5c5-998b-5f9a-a34dbfb986f1@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, zhong jiang <zhongjiang@huawei.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, aarcange@redhat.com, sumeet.keswani@hpe.com, Rik van Riel <riel@redhat.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: zijun_hu <zijun_hu@zoho.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "zijun_hu@htc.com" <zijun_hu@htc.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, =?gb2312?B?TWluZyBMaW5nICjB6MP3KQ==?= <Ming.Ling@spreadtrum.com>
 
-On 2017/6/8 21:59, Vlastimil Babka wrote:
-
-> On 06/08/2017 03:44 PM, Xishi Qiu wrote:
->> On 2017/5/23 17:33, Vlastimil Babka wrote:
->>
->>> On 05/23/2017 11:21 AM, zhong jiang wrote:
->>>> On 2017/5/23 0:51, Vlastimil Babka wrote:
->>>>> On 05/20/2017 05:01 AM, zhong jiang wrote:
->>>>>> On 2017/5/20 10:40, Hugh Dickins wrote:
->>>>>>> On Sat, 20 May 2017, Xishi Qiu wrote:
->>>>>>>> Here is a bug report form redhat: https://bugzilla.redhat.com/show_bug.cgi?id=1305620
->>>>>>>> And I meet the bug too. However it is hard to reproduce, and 
->>>>>>>> 624483f3ea82598("mm: rmap: fix use-after-free in __put_anon_vma") is not help.
->>>>>>>>
->>>>>>>> From the vmcore, it seems that the page is still mapped(_mapcount=0 and _count=2),
->>>>>>>> and the value of mapping is a valid address(mapping = 0xffff8801b3e2a101),
->>>>>>>> but anon_vma has been corrupted.
->>>>>>>>
->>>>>>>> Any ideas?
->>>>>>> Sorry, no.  I assume that _mapcount has been misaccounted, for example
->>>>>>> a pte mapped in on top of another pte; but cannot begin tell you where
->>>>>>> in Red Hat's kernel-3.10.0-229.4.2.el7 that might happen.
->>>>>>>
->>>>>>> Hugh
->>>>>>>
->>>>>>> .
->>>>>>>
->>>>>> Hi, Hugh
->>>>>>
->>>>>> I find the following message from the dmesg.
->>>>>>
->>>>>> [26068.316592] BUG: Bad rss-counter state mm:ffff8800a7de2d80 idx:1 val:1
->>>>>>
->>>>>> I can prove that the __mapcount is misaccount.  when task is exited. the rmap
->>>>>> still exist.
->>>>> Check if the kernel in question contains this commit: ad33bb04b2a6 ("mm:
->>>>> thp: fix SMP race condition between THP page fault and MADV_DONTNEED")
->>>>   HI, Vlastimil
->>>>  
->>>>   I miss the patch.
->>>
->>> Try applying it then, there's good chance the error and crash will go
->>> away. Even if your workload doesn't actually run any madvise(MADV_DONTNEED).
->>>
->>
->> Hi Vlastimil,
->>
->> I find this error was reported by Kirill as following, right?
->> https://patchwork.kernel.org/patch/7550401/
-> 
-> That was reported by Minchan.
-> 
->> The call trace is quite like the same as ours.
-> 
-> In that thread, the error seems just disappeared in the end.
-> 
-> So, did you apply the patch I suggested? Did it help?
-> 
-
-Hi,
-
-Unfortunately, this patch(mm: thp: fix SMP race condition between
-THP page fault and MADV_DONTNEED) didn't help, I got the panic again.
-
-And I find this error before panic, "[468229.996610] BUG: Bad rss-counter state mm:ffff8806aebc2580 idx:1 val:1"
-
-[468451.702807] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-[468451.702861] IP: [<ffffffff810ac089>] down_read_trylock+0x9/0x30
-[468451.702900] PGD 12445e067 PUD 11acaa067 PMD 0 
-[468451.702931] Oops: 0000 [#1] SMP 
-[468451.702953] kbox catch die event.
-[468451.703003] collected_len = 1047419, LOG_BUF_LEN_LOCAL = 1048576
-[468451.703003] kbox: notify die begin
-[468451.703003] kbox: no notify die func register. no need to notify
-[468451.703003] do nothing after die!
-[468451.703003] Modules linked in: ipt_REJECT macvlan ip_set_hash_ipport vport_vxlan(OVE) xt_statistic xt_physdev xt_nat xt_recent xt_mark xt_comment veth ct_limit(OVE) bum_extract(OVE) policy(OVE) bum(OVE) ip_set nfnetlink openvswitch(OVE) nf_defrag_ipv6 gre ext3 jbd ipt_MASQUERADE nf_nat_masquerade_ipv4 iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 xt_addrtype iptable_filter xt_conntrack nf_nat nf_conntrack bridge stp llc kboxdriver(O) kbox(O) dm_thin_pool dm_persistent_data crc32_pclmul dm_bio_prison dm_bufio ghash_clmulni_intel libcrc32c aesni_intel lrw gf128mul glue_helper ablk_helper cryptd ppdev sg parport_pc cirrus virtio_console parport syscopyarea sysfillrect sysimgblt ttm drm_kms_helper drm i2c_piix4 i2c_core pcspkr ip_tables ext4 jbd2 mbcache sr_mod cdrom ata_generic pata_acpi
-[468451.703003]  virtio_net virtio_blk crct10dif_pclmul crct10dif_common ata_piix virtio_pci libata serio_raw virtio_ring crc32c_intel virtio dm_mirror dm_region_hash dm_log dm_mod
-[468451.703003] CPU: 6 PID: 21965 Comm: docker-containe Tainted: G           OE  ----V-------   3.10.0-327.53.58.73.x86_64 #1
-[468451.703003] Hardware name: OpenStack Foundation OpenStack Nova, BIOS rel-1.8.1-0-g4adadbd-20170107_142945-9_64_246_229 04/01/2014
-[468451.703003] task: ffff880692402e00 ti: ffff88018209c000 task.ti: ffff88018209c000
-[468451.703003] RIP: 0010:[<ffffffff810ac089>]  [<ffffffff810ac089>] down_read_trylock+0x9/0x30
-[468451.703003] RSP: 0018:ffff88018209f8f8  EFLAGS: 00010202
-[468451.703003] RAX: 0000000000000000 RBX: ffff880720cd7740 RCX: ffff880720cd7740
-[468451.703003] RDX: 0000000000000001 RSI: 0000000000000301 RDI: 0000000000000008
-[468451.703003] RBP: ffff88018209f8f8 R08: 00000000c0e0f310 R09: ffff880720cd7740
-[468451.703003] R10: ffff88083efd8000 R11: 0000000000000000 R12: ffff880720cd7741
-[468451.703003] R13: ffffea000824d100 R14: 0000000000000008 R15: 0000000000000000
-[468451.703003] FS:  00007fc0e2a85700(0000) GS:ffff88083ed80000(0000) knlGS:0000000000000000
-[468451.703003] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[468451.703003] CR2: 0000000000000008 CR3: 0000000661906000 CR4: 00000000001407e0
-[468451.703003] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[468451.703003] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[468451.703003] Stack:
-[468451.703003]  ffff88018209f928 ffffffff811a7eb5 ffffea000824d100 ffff88018209fa90
-[468451.703003]  ffffea00082f9680 0000000000000301 ffff88018209f978 ffffffff811a82e1
-[468451.703003]  ffffea000824d100 ffff88018209fa00 0000000000000001 ffffea000824d100
-[468451.703003] Call Trace:
-[468451.703003]  [<ffffffff811a7eb5>] page_lock_anon_vma_read+0x55/0x110
-[468451.703003]  [<ffffffff811a82e1>] try_to_unmap_anon+0x21/0x120
-[468451.703003]  [<ffffffff811a842d>] try_to_unmap+0x4d/0x60
-[468451.712006]  [<ffffffff811cc749>] migrate_pages+0x439/0x790
-[468451.712006]  [<ffffffff81193280>] ? __reset_isolation_suitable+0xe0/0xe0
-[468451.712006]  [<ffffffff811941f9>] compact_zone+0x299/0x400
-[468451.712006]  [<ffffffff81059aff>] ? kvm_clock_get_cycles+0x1f/0x30
-[468451.712006]  [<ffffffff811943fc>] compact_zone_order+0x9c/0xf0
-[468451.712006]  [<ffffffff811947b1>] try_to_compact_pages+0x121/0x1a0
-[468451.712006]  [<ffffffff8163ace6>] __alloc_pages_direct_compact+0xac/0x196
-[468451.712006]  [<ffffffff811783e2>] __alloc_pages_nodemask+0xbc2/0xca0
-[468451.712006]  [<ffffffff811bcb7a>] alloc_pages_vma+0x9a/0x150
-[468451.712006]  [<ffffffff811d1573>] do_huge_pmd_anonymous_page+0x123/0x510
-[468451.712006]  [<ffffffff8119bc58>] handle_mm_fault+0x1a8/0xf50
-[468451.712006]  [<ffffffff8164b4d6>] __do_page_fault+0x166/0x470
-[468451.712006]  [<ffffffff8164b8a3>] trace_do_page_fault+0x43/0x110
-[468451.712006]  [<ffffffff8164af79>] do_async_page_fault+0x29/0xe0
-[468451.712006]  [<ffffffff81647a38>] async_page_fault+0x28/0x30
-[468451.712006] Code: 00 00 00 ba 01 00 00 00 48 89 de e8 12 fe ff ff eb ce 48 c7 c0 f2 ff ff ff eb c5 e8 42 ff fc ff 66 90 0f 1f 44 00 00 55 48 89 e5 <48> 8b 07 48 89 c2 48 83 c2 01 7e 07 f0 48 0f b1 17 75 f0 48 f7 
-[468451.712006] RIP  [<ffffffff810ac089>] down_read_trylock+0x9/0x30
-[468451.738667]  RSP <ffff88018209f8f8>
-[468451.738667] CR2: 0000000000000008
-
-
+Cl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18KRnJvbTogemlqdW5faHUg
+PHppanVuX2h1QHpvaG8uY29tPgpTZW50OiBUdWVzZGF5LCBKdWx5IDE4LCAyMDE3IDU6MjMgUE0K
+VG86IFpoYW95YW5nIEh1YW5nICi7xrOv0fQpCkNjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4
+LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IHppanVuX2h1QGh0Yy5jb207IEFuZHJldyBNb3J0b247
+IE1pY2hhbCBIb2NrbzsgSW5nbyBNb2xuYXI7IFZsYXN0aW1pbCBCYWJrYTsgVGhvbWFzIEdhcm5p
+ZXI7IEtpcmlsbCBBLiBTaHV0ZW1vdjsgQW5kcmV5IFJ5YWJpbmluOyBsaW51eC1tbUBrdmFjay5v
+cmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmcKU3ViamVjdDogUmU6IFtQQVRDSCB2M10g
+bW0vdm1hbGxvYzogdGVybWluYXRlIHNlYXJjaGluZyBzaW5jZSBvbmUgbm9kZSBmb3VuZAoKT24g
+MDcvMTgvMjAxNyAwNDozMSBQTSwgWmhhb3lhbmcgSHVhbmcgKLvGs6/R9Ckgd3JvdGU6Cj4KPiBJ
+dCBpcyBubyBuZWVkIHRvIGZpbmQgdGhlIHZlcnkgYmVnaW5uaW5nIG9mIHRoZSBhcmVhIHdpdGhp
+bgo+IGFsbG9jX3ZtYXBfYXJlYSwgd2hpY2ggY2FuIGJlIGRvbmUgYnkganVkZ2luZyBlYWNoIG5v
+ZGUgZHVyaW5nIHRoZSBwcm9jZXNzCj4KaXQgc2VlbXMgdGhlIG9yaWdpbmFsIGNvZGUgaXMgd3Jv
+dGUgdG8gYWNoaWV2ZSB0aGUgZm9sbG93aW5nIHR3byBwdXJwb3NlcyA6CkEsIHRoZSByZXN1bHQg
+dmFtcF9hcmVhIGhhcyB0aGUgbG93ZXN0IGF2YWlsYWJsZSBhZGRyZXNzIGluIHRoZSByZXF1aXJl
+ZCByYW5nZSBbdnN0YXJ0LCB2ZW5kKQpCLCBpdCBtYXliZSB1cGRhdGUgdGhlIGNhY2hlZCB2YW1w
+X2FyZWEgbm9kZSBpbmZvIHdoaWNoIGNhbiBzcGVlZHVwIG90aGVyIHJlbGF0aXZlIGFsbG9jYXRp
+b25zCml0IGxvb2sgcmVkdW5kYW50IGJ1dCBjb252ZW50aW9uYWwgYW5kIG5lY2Vzc2FyeQp0aGlz
+IGFwcHJvYWNoIG1heWJlIGRlc3Ryb3kgdGhlIG9yaWdpbmFsIHB1cnBvc2VzCkluIHRlcm1zIG9m
+ICdBJywgSSBkb24ndCB0aGluayBpdCBpcyBuZWNjZXNhcnJ5LCBmb3IgdGhlICd2bWFwX2FyZWFf
+cm9vdCcgYW5kICd2bWFwX2ZyZWVfbGlzdCcgYXJlIGFsbCBzb3J0ZWQuCndoZW5ldmVyIHlvdSBp
+bnNlcnQgZGF0YSwgdGhleSB3aWxsIGJlIHdlbGwgc29ydGVkIGFjY29yZGluZyB0byB0aGUgYWRk
+cmVzcyByYW5nZS4KSW4gdGVybXMgb2YgJ0InLCB0aGUgY2hhbmdlcyBhcmUgd2l0aGluIHRoZSBw
+cm9jZXNzIG9mICd3YWxraW5nIHRoZSByYiB0cmVlJyB3aGVyZSB0aGUgJ2ZyZWVfdm1hcF9jYWNo
+ZScKaXMgTlVMTCwgd2hpY2ggbWVhbnMgdGhlIGNhY2hlIGhhdmUgdG8gYmUgdXBkYXRlZCBoZXJl
+LgoKPiBGb3IgY3VycmVudCBhcHByb2FjaCwgdGhlIHdvcnN0IGNhc2UgaXMgdGhhdCB0aGUgc3Rh
+cnRpbmcgbm9kZSB3aGljaCBiZSBmb3VuZAo+IGZvciBzZWFyY2hpbmcgdGhlICd2bWFwX2FyZWFf
+bGlzdCcgaXMgY2xvc2UgdG8gdGhlICd2c3RhcnQnLCB3aGlsZSB0aGUgZmluYWwKPiBhdmFpbGFi
+bGUgb25lIGlzIHJvdW5kIHRvIHRoZSB0YWlsKGVzcGVjaWFsbHkgZm9yIHRoZSBsZWZ0IGJyYW5j
+aCkuCj4gVGhpcyBjb21taXQgaGF2ZSB0aGUgbGlzdCBzZWFyY2hpbmcgc3RhcnQgYXQgdGhlIGZp
+cnN0IGF2YWlsYWJsZSBub2RlLCB3aGljaAo+IHdpbGwgc2F2ZSB0aGUgdGltZSBvZiB3YWxraW5n
+IHRoZSByYiB0cmVlJygxKScgYW5kIHdhbGtpbmcgdGhlIGxpc3QnKDIpJy4KPgo+ICAgICAgIHZt
+YXBfYXJlYV9yb290Cj4gICAgICAgICAgIC8gICAgICBcCj4gICAgICB0bXBfbmV4dCAgICAgVQo+
+ICAgICAgICAgLwo+ICAgICAgIHRtcAo+ICAgICAgICAvCj4gICAgICAuLi4gICgxKQo+ICAgICAg
+IC8KPiAgICAgZmlyc3QoY3VycmVudCBhcHByb2FjaCkKPgogQHRtcF9uZXh0IGlzIHRoZSBuZXh0
+IG5vZGUgb2YgQHRtcCBpbiB0aGUgb3JkZXJlZCBsaXN0X2hlYWQsIG5vdCBpbiB0aGUgcmJ0cmVl
+Cgo+IHZtYXBfYXJlYV9saXN0LT4uLi4tPmZpcnN0LT4uLi4tPnRtcC0+dG1wX25leHQKPiAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgKDIpCj4KPiBTaWduZWQtb2ZmLWJ5OiBaaGFveWFuZyBI
+dWFuZyA8emhhb3lhbmcuaHVhbmdAc3ByZWFkdHJ1bS5jb20+Cj4gLS0tCj4gIG1tL3ZtYWxsb2Mu
+YyB8IDkgKysrKysrKysrCj4gIDEgZmlsZSBjaGFuZ2VkLCA5IGluc2VydGlvbnMoKykKPgo+IGRp
+ZmYgLS1naXQgYS9tbS92bWFsbG9jLmMgYi9tbS92bWFsbG9jLmMKPiBpbmRleCAzNGExYzNlLi45
+YTVjMTc3IDEwMDY0NAo+IC0tLSBhL21tL3ZtYWxsb2MuYwo+ICsrKyBiL21tL3ZtYWxsb2MuYwo+
+IEBAIC00NTksOSArNDU5LDE4IEBAIHN0YXRpYyBzdHJ1Y3Qgdm1hcF9hcmVhICphbGxvY192bWFw
+X2FyZWEodW5zaWduZWQgbG9uZyBzaXplLAo+Cj4gICAgICAgICAgICAgICAgIHdoaWxlIChuKSB7
+Cj4gICAgICAgICAgICAgICAgICAgICAgICAgc3RydWN0IHZtYXBfYXJlYSAqdG1wOwo+ICsgICAg
+ICAgICAgICAgICAgICAgICAgIHN0cnVjdCB2bWFwX2FyZWEgKnRtcF9uZXh0Owo+ICAgICAgICAg
+ICAgICAgICAgICAgICAgIHRtcCA9IHJiX2VudHJ5KG4sIHN0cnVjdCB2bWFwX2FyZWEsIHJiX25v
+ZGUpOwo+ICsgICAgICAgICAgICAgICAgICAgICAgIHRtcF9uZXh0ID0gbGlzdF9uZXh0X2VudHJ5
+KHRtcCwgbGlzdCk7Cj4gICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRtcC0+dmFfZW5kID49
+IGFkZHIpIHsKPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpcnN0ID0gdG1wOwo+
+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWYgKEFMSUdOKHRtcC0+dmFfZW5kLCBh
+bGlnbikgKyBzaXplCj4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgPCB0bXBfbmV4dC0+dmFfc3RhcnQpIHsKaWYgQHRtcCBub2RlIGRvbid0IGxvY2F0ZSBp
+biB0aGUgcmVxdWlyZWQgcmFuZyBbdnN0YXJ0LCB2ZW5kKSwgYnV0IHRoZSByaWdodCBvZiB0aGUg
+cmFuZ2UgaXQgbWF5YmUKc2F0aXNmeSB0aGlzIGNvbmRpdGlvbiwgZXZlbiBpZiBpdCBsb2NhdGUg
+aXQgbG9jYXRlIHdpdGhpbiB0aGUgcmFuZ2UsIGl0IG1heWJlIGRvbid0IGhhdmUgdGhlIGxvd2Vz
+dCBmcmVlIGFkZHJlc3MuCmlmIEB0bXAgZG9uJ3QgaGF2ZSB0aGUgbmV4dCBub2RlLCB0bXBfbmV4
+dC0+dmFfc3RhcnQgd2lsbCBjYXVzZSBOVUxMIGRlcmVmZXJlbmNlCj4gKyAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgIGFkZHIgPSBBTElHTih0bXAtPnZhX2VuZCwgYWxpZ24p
+Owo+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZiAoY2FjaGVkX2hv
+bGVfc2l6ZSA+PSBzaXplKQo+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgIGNhY2hlZF9ob2xlX3NpemUgPSAwOwppdCBzZWVtcyBhIGxpdHRsZSByb3VnaCB0
+byByZXNldCB0aGUgQGNhY2hlZF9ob2xlX3NpemUgYnkgdGhpcyB3YXksICBpdCB3aWxsIGNhdXNl
+ZCB0aGUgY2FjaGVkIGluZm8gaXMgdXBkYXRlZCBpbiB0aGUgbmV4dAphbGxvY2F0aW9uIHJlZ2Fy
+ZGxlc3MgdGhlIGFsbG9jYXRpb24gYXJndW1lbnRzLgo+ICsgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICBnb3RvIGZvdW5kOwo+ICsgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgfQo+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRtcC0+dmFfc3Rh
+cnQgPD0gYWRkcikKPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYnJl
+YWs7Cj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBuID0gbi0+cmJfbGVmdDsKPiAt
+LQo+IDEuOS4xCj4KCgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
