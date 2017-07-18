@@ -1,108 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0D96B0292
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 16:04:44 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id v193so26643354itc.10
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 13:04:44 -0700 (PDT)
-Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
-        by mx.google.com with ESMTPS id h184si3054587iof.166.2017.07.18.13.04.43
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2456B0292
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 16:51:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e3so31174126pfc.4
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 13:51:18 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i8si2595978pll.390.2017.07.18.13.51.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 13:04:43 -0700 (PDT)
-Received: by mail-io0-x22d.google.com with SMTP id e93so2128167ioi.3
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 13:04:43 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1edb137c-356f-81d6-4592-f5dfc68e8ea9@linux.com>
-References: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
- <20170717175459.GC14983@bombadil.infradead.org> <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake>
- <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com> <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
- <1edb137c-356f-81d6-4592-f5dfc68e8ea9@linux.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 18 Jul 2017 13:04:42 -0700
-Message-ID: <CAGXu5jL0bFpWqUm9d2X7zpTO_CwPp94ywcLYoFyNcLuiwX8qAQ@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or corruption
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Jul 2017 13:51:17 -0700 (PDT)
+Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170718141602.GB19133@dhcp22.suse.cz>
+In-Reply-To: <20170718141602.GB19133@dhcp22.suse.cz>
+Message-Id: <201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
+Date: Wed, 19 Jul 2017 05:51:03 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Popov <alex.popov@linux.com>
-Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-On Tue, Jul 18, 2017 at 12:56 PM, Alexander Popov <alex.popov@linux.com> wrote:
-> On 17.07.2017 22:11, Kees Cook wrote:
->> On Mon, Jul 17, 2017 at 12:01 PM, Alexander Popov <alex.popov@linux.com> wrote:
->>> Hello Christopher,
->>>
->>> Thanks for your reply.
->>>
->>> On 17.07.2017 21:04, Christopher Lameter wrote:
->>>> On Mon, 17 Jul 2017, Matthew Wilcox wrote:
->>>>
->>>>> On Mon, Jul 17, 2017 at 07:45:07PM +0300, Alexander Popov wrote:
->>>>>> Add an assertion similar to "fasttop" check in GNU C Library allocator:
->>>>>> an object added to a singly linked freelist should not point to itself.
->>>>>> That helps to detect some double free errors (e.g. CVE-2017-2636) without
->>>>>> slub_debug and KASAN. Testing with hackbench doesn't show any noticeable
->>>>>> performance penalty.
->>>>>
->>>>>>  {
->>>>>> +   BUG_ON(object == fp); /* naive detection of double free or corruption */
->>>>>>     *(void **)(object + s->offset) = fp;
->>>>>>  }
->>>>>
->>>>> Is BUG() the best response to this situation?  If it's a corruption, then
->>>>> yes, but if we spot a double-free, then surely we should WARN() and return
->>>>> without doing anything?
->>>>
->>>> The double free debug checking already does the same thing in a more
->>>> thourough way (this one only checks if the last free was the same
->>>> address). So its duplicating a check that already exists.
->>>
->>> Yes, absolutely. Enabled slub_debug (or KASAN with its quarantine) can detect
->>> more double-free errors. But it introduces much bigger performance penalty and
->>> it's disabled by default.
->>>
->>>> However, this one is always on.
->>>
->>> Yes, I would propose to have this relatively cheap check enabled by default. I
->>> think it will block a good share of double-free errors. Currently it's really
->>> easy to turn such a double-free into use-after-free and exploit it, since, as I
->>> wrote, next two kmalloc() calls return the same address. So we could make
->>> exploiting harder for a relatively low price.
->>>
->>> Christopher, if I change BUG_ON() to VM_BUG_ON(), it will be disabled by default
->>> again, right?
->>
->> Let's merge this with the proposed CONFIG_FREELIST_HARDENED, then the
->> performance change is behind a config, and we gain the rest of the
->> freelist protections at the same time:
->>
->> http://www.openwall.com/lists/kernel-hardening/2017/07/06/1
->
-> Hello Kees,
->
-> If I change BUG_ON() to VM_BUG_ON(), this check will work at least on Fedora
-> since it has CONFIG_DEBUG_VM enabled. Debian based distros have this option
-> disabled. Do you like that more than having this check under
-> CONFIG_FREELIST_HARDENED?
+Michal Hocko wrote:
+> On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:
+> > Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
+> > guarded whole OOM reaping operations using oom_lock. But there was no
+> > need to guard whole operations. We needed to guard only setting of
+> > MMF_OOM_REAPED flag because get_page_from_freelist() in
+> > __alloc_pages_may_oom() is called with oom_lock held.
+> > 
+> > If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
+> > can start reaping operations as soon as wake_oom_reaper() is called.
+> > But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
+> > oom_lock, guarding only the OOM reaper side is not sufficient.
+> > 
+> > If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
+> > there is no need to guard setting of MMF_OOM_SKIP flag, and we can
+> > guarantee a chance to call get_page_from_freelist() in
+> > __alloc_pages_may_oom() without depending on oom_lock serialization.
+> > 
+> > This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
+> > flag which acts as if MMF_OOM_SKIP, in order to close both race window
+> > (the OOM reaper side and __mmput() side) without using oom_lock.
+> 
+> Why do we need this patch when
+> http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
+> already removes the lock and solves another problem at once?
 
-I think there are two issues: first, this should likely be under
-CONFIG_FREELIST_HARDENED since Christoph hasn't wanted to make these
-changes enabled by default (if I'm understanding his earlier review
-comments to me). The second issue is what to DO when a double-free is
-discovered. Is there any way to make it safe/survivable? If not, I
-think it should just be BUG_ON(). If it can be made safe, then likely
-a WARN_ONCE and do whatever is needed to prevent the double-free.
-
-> If you insist on putting this check under CONFIG_FREELIST_HARDENED, should I
-> rebase onto your patch and send again?
-
-That would be preferred for me -- I'd like to have both checks. :)
-
--Kees
-
--- 
-Kees Cook
-Pixel Security
+We haven't got an answer from Hugh and/or Andrea whether that patch is safe.
+Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
