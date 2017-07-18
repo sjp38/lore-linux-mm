@@ -1,100 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF6A6B02F3
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:08:05 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id f1so15902169ioj.11
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:08:05 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id u126si2426045itg.48.2017.07.18.04.08.01
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B3486B0279
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:18:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g14so18029481pgu.9
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:18:35 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id x13si1547531pgq.222.2017.07.18.04.18.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Jul 2017 04:08:02 -0700 (PDT)
-From: =?gb2312?B?Wmhhb3lhbmcgSHVhbmcgKLvGs6/R9Ck=?=
-	<Zhaoyang.Huang@spreadtrum.com>
-Subject: RE: [PATCH v3] mm/vmalloc: terminate searching since one node found
-Date: Tue, 18 Jul 2017 11:07:24 +0000
-Message-ID: <db68f97e78b54398bd4719be5bc076ac@SHMBX03.spreadtrum.com>
-References: <1500366424-5882-1-git-send-email-zhaoyang.huang@spreadtrum.com>
- <f1b03267c7ac48c08270406dd3d9bf54@SHMBX03.spreadtrum.com>,<596DD399.3030906@zoho.com>
-In-Reply-To: <596DD399.3030906@zoho.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Jul 2017 04:18:33 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id z1so2481193pgs.0
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 04:18:33 -0700 (PDT)
+From: Pushkar Jambhlekar <pushkar.iit@gmail.com>
+Subject: [PATCH] mm: Fixing checkpatch errors
+Date: Tue, 18 Jul 2017 16:48:23 +0530
+Message-Id: <1500376703-2876-1-git-send-email-pushkar.iit@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "zijun_hu@htc.com" <zijun_hu@htc.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, =?gb2312?B?TWluZyBMaW5nICjB6MP3KQ==?= <Ming.Ling@spreadtrum.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Pushkar Jambhlekar <pushkar.iit@gmail.com>
 
-Cl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18KRnJvbTogemlqdW5faHUg
-PHppanVuX2h1QHpvaG8uY29tPgpTZW50OiBUdWVzZGF5LCBKdWx5IDE4LCAyMDE3IDU6MjMgUE0K
-VG86IFpoYW95YW5nIEh1YW5nICi7xrOv0fQpCkNjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4
-LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IHppanVuX2h1QGh0Yy5jb207IEFuZHJldyBNb3J0b247
-IE1pY2hhbCBIb2NrbzsgSW5nbyBNb2xuYXI7IFZsYXN0aW1pbCBCYWJrYTsgVGhvbWFzIEdhcm5p
-ZXI7IEtpcmlsbCBBLiBTaHV0ZW1vdjsgQW5kcmV5IFJ5YWJpbmluOyBsaW51eC1tbUBrdmFjay5v
-cmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmcKU3ViamVjdDogUmU6IFtQQVRDSCB2M10g
-bW0vdm1hbGxvYzogdGVybWluYXRlIHNlYXJjaGluZyBzaW5jZSBvbmUgbm9kZSBmb3VuZAoKT24g
-MDcvMTgvMjAxNyAwNDozMSBQTSwgWmhhb3lhbmcgSHVhbmcgKLvGs6/R9Ckgd3JvdGU6Cj4KPiBJ
-dCBpcyBubyBuZWVkIHRvIGZpbmQgdGhlIHZlcnkgYmVnaW5uaW5nIG9mIHRoZSBhcmVhIHdpdGhp
-bgo+IGFsbG9jX3ZtYXBfYXJlYSwgd2hpY2ggY2FuIGJlIGRvbmUgYnkganVkZ2luZyBlYWNoIG5v
-ZGUgZHVyaW5nIHRoZSBwcm9jZXNzCj4KaXQgc2VlbXMgdGhlIG9yaWdpbmFsIGNvZGUgaXMgd3Jv
-dGUgdG8gYWNoaWV2ZSB0aGUgZm9sbG93aW5nIHR3byBwdXJwb3NlcyA6CkEsIHRoZSByZXN1bHQg
-dmFtcF9hcmVhIGhhcyB0aGUgbG93ZXN0IGF2YWlsYWJsZSBhZGRyZXNzIGluIHRoZSByZXF1aXJl
-ZCByYW5nZSBbdnN0YXJ0LCB2ZW5kKQpCLCBpdCBtYXliZSB1cGRhdGUgdGhlIGNhY2hlZCB2YW1w
-X2FyZWEgbm9kZSBpbmZvIHdoaWNoIGNhbiBzcGVlZHVwIG90aGVyIHJlbGF0aXZlIGFsbG9jYXRp
-b25zCml0IGxvb2sgcmVkdW5kYW50IGJ1dCBjb252ZW50aW9uYWwgYW5kIG5lY2Vzc2FyeQp0aGlz
-IGFwcHJvYWNoIG1heWJlIGRlc3Ryb3kgdGhlIG9yaWdpbmFsIHB1cnBvc2VzCkluIHRlcm1zIG9m
-ICdBJywgSSBkb24ndCB0aGluayBpdCBpcyBuZWNjZXNhcnJ5LCBmb3IgdGhlICd2bWFwX2FyZWFf
-cm9vdCcgYW5kICd2bWFwX2ZyZWVfbGlzdCcgYXJlIGFsbCBzb3J0ZWQuCndoZW5ldmVyIHlvdSBp
-bnNlcnQgZGF0YSwgdGhleSB3aWxsIGJlIHdlbGwgc29ydGVkIGFjY29yZGluZyB0byB0aGUgYWRk
-cmVzcyByYW5nZS4KSW4gdGVybXMgb2YgJ0InLCB0aGUgY2hhbmdlcyBhcmUgd2l0aGluIHRoZSBw
-cm9jZXNzIG9mICd3YWxraW5nIHRoZSByYiB0cmVlJyB3aGVyZSB0aGUgJ2ZyZWVfdm1hcF9jYWNo
-ZScKaXMgTlVMTCwgd2hpY2ggbWVhbnMgdGhlIGNhY2hlIGhhdmUgdG8gYmUgdXBkYXRlZCBoZXJl
-LgoKPiBGb3IgY3VycmVudCBhcHByb2FjaCwgdGhlIHdvcnN0IGNhc2UgaXMgdGhhdCB0aGUgc3Rh
-cnRpbmcgbm9kZSB3aGljaCBiZSBmb3VuZAo+IGZvciBzZWFyY2hpbmcgdGhlICd2bWFwX2FyZWFf
-bGlzdCcgaXMgY2xvc2UgdG8gdGhlICd2c3RhcnQnLCB3aGlsZSB0aGUgZmluYWwKPiBhdmFpbGFi
-bGUgb25lIGlzIHJvdW5kIHRvIHRoZSB0YWlsKGVzcGVjaWFsbHkgZm9yIHRoZSBsZWZ0IGJyYW5j
-aCkuCj4gVGhpcyBjb21taXQgaGF2ZSB0aGUgbGlzdCBzZWFyY2hpbmcgc3RhcnQgYXQgdGhlIGZp
-cnN0IGF2YWlsYWJsZSBub2RlLCB3aGljaAo+IHdpbGwgc2F2ZSB0aGUgdGltZSBvZiB3YWxraW5n
-IHRoZSByYiB0cmVlJygxKScgYW5kIHdhbGtpbmcgdGhlIGxpc3QnKDIpJy4KPgo+ICAgICAgIHZt
-YXBfYXJlYV9yb290Cj4gICAgICAgICAgIC8gICAgICBcCj4gICAgICB0bXBfbmV4dCAgICAgVQo+
-ICAgICAgICAgLwo+ICAgICAgIHRtcAo+ICAgICAgICAvCj4gICAgICAuLi4gICgxKQo+ICAgICAg
-IC8KPiAgICAgZmlyc3QoY3VycmVudCBhcHByb2FjaCkKPgogQHRtcF9uZXh0IGlzIHRoZSBuZXh0
-IG5vZGUgb2YgQHRtcCBpbiB0aGUgb3JkZXJlZCBsaXN0X2hlYWQsIG5vdCBpbiB0aGUgcmJ0cmVl
-Cgo+IHZtYXBfYXJlYV9saXN0LT4uLi4tPmZpcnN0LT4uLi4tPnRtcC0+dG1wX25leHQKPiAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgKDIpCj4KPiBTaWduZWQtb2ZmLWJ5OiBaaGFveWFuZyBI
-dWFuZyA8emhhb3lhbmcuaHVhbmdAc3ByZWFkdHJ1bS5jb20+Cj4gLS0tCj4gIG1tL3ZtYWxsb2Mu
-YyB8IDkgKysrKysrKysrCj4gIDEgZmlsZSBjaGFuZ2VkLCA5IGluc2VydGlvbnMoKykKPgo+IGRp
-ZmYgLS1naXQgYS9tbS92bWFsbG9jLmMgYi9tbS92bWFsbG9jLmMKPiBpbmRleCAzNGExYzNlLi45
-YTVjMTc3IDEwMDY0NAo+IC0tLSBhL21tL3ZtYWxsb2MuYwo+ICsrKyBiL21tL3ZtYWxsb2MuYwo+
-IEBAIC00NTksOSArNDU5LDE4IEBAIHN0YXRpYyBzdHJ1Y3Qgdm1hcF9hcmVhICphbGxvY192bWFw
-X2FyZWEodW5zaWduZWQgbG9uZyBzaXplLAo+Cj4gICAgICAgICAgICAgICAgIHdoaWxlIChuKSB7
-Cj4gICAgICAgICAgICAgICAgICAgICAgICAgc3RydWN0IHZtYXBfYXJlYSAqdG1wOwo+ICsgICAg
-ICAgICAgICAgICAgICAgICAgIHN0cnVjdCB2bWFwX2FyZWEgKnRtcF9uZXh0Owo+ICAgICAgICAg
-ICAgICAgICAgICAgICAgIHRtcCA9IHJiX2VudHJ5KG4sIHN0cnVjdCB2bWFwX2FyZWEsIHJiX25v
-ZGUpOwo+ICsgICAgICAgICAgICAgICAgICAgICAgIHRtcF9uZXh0ID0gbGlzdF9uZXh0X2VudHJ5
-KHRtcCwgbGlzdCk7Cj4gICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRtcC0+dmFfZW5kID49
-IGFkZHIpIHsKPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpcnN0ID0gdG1wOwo+
-ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWYgKEFMSUdOKHRtcC0+dmFfZW5kLCBh
-bGlnbikgKyBzaXplCj4gKyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgPCB0bXBfbmV4dC0+dmFfc3RhcnQpIHsKaWYgQHRtcCBub2RlIGRvbid0IGxvY2F0ZSBp
-biB0aGUgcmVxdWlyZWQgcmFuZyBbdnN0YXJ0LCB2ZW5kKSwgYnV0IHRoZSByaWdodCBvZiB0aGUg
-cmFuZ2UgaXQgbWF5YmUKc2F0aXNmeSB0aGlzIGNvbmRpdGlvbiwgZXZlbiBpZiBpdCBsb2NhdGUg
-aXQgbG9jYXRlIHdpdGhpbiB0aGUgcmFuZ2UsIGl0IG1heWJlIGRvbid0IGhhdmUgdGhlIGxvd2Vz
-dCBmcmVlIGFkZHJlc3MuCmlmIEB0bXAgZG9uJ3QgaGF2ZSB0aGUgbmV4dCBub2RlLCB0bXBfbmV4
-dC0+dmFfc3RhcnQgd2lsbCBjYXVzZSBOVUxMIGRlcmVmZXJlbmNlCj4gKyAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgIGFkZHIgPSBBTElHTih0bXAtPnZhX2VuZCwgYWxpZ24p
-Owo+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZiAoY2FjaGVkX2hv
-bGVfc2l6ZSA+PSBzaXplKQo+ICsgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgIGNhY2hlZF9ob2xlX3NpemUgPSAwOwppdCBzZWVtcyBhIGxpdHRsZSByb3VnaCB0
-byByZXNldCB0aGUgQGNhY2hlZF9ob2xlX3NpemUgYnkgdGhpcyB3YXksICBpdCB3aWxsIGNhdXNl
-ZCB0aGUgY2FjaGVkIGluZm8gaXMgdXBkYXRlZCBpbiB0aGUgbmV4dAphbGxvY2F0aW9uIHJlZ2Fy
-ZGxlc3MgdGhlIGFsbG9jYXRpb24gYXJndW1lbnRzLgo+ICsgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICBnb3RvIGZvdW5kOwo+ICsgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgfQo+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaWYgKHRtcC0+dmFfc3Rh
-cnQgPD0gYWRkcikKPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYnJl
-YWs7Cj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBuID0gbi0+cmJfbGVmdDsKPiAt
-LQo+IDEuOS4xCj4KCgo=
+checkpath reports error for declaring the way code is handling pointer. Fixing those errors
+
+Signed-off-by: Pushkar Jambhlekar <pushkar.iit@gmail.com>
+---
+ mm/highmem.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/highmem.c b/mm/highmem.c
+index 50b4ca6..20ffba3 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -126,7 +126,7 @@ unsigned int nr_free_highpages (void)
+ static int pkmap_count[LAST_PKMAP];
+ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
+ 
+-pte_t * pkmap_page_table;
++pte_t *pkmap_page_table;
+ 
+ /*
+  * Most architectures have no use for kmap_high_get(), so let's abstract
+@@ -287,7 +287,7 @@ void *kmap_high(struct page *page)
+ 	pkmap_count[PKMAP_NR(vaddr)]++;
+ 	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+ 	unlock_kmap();
+-	return (void*) vaddr;
++	return (void *) vaddr;
+ }
+ 
+ EXPORT_SYMBOL(kmap_high);
+@@ -314,7 +314,7 @@ void *kmap_high_get(struct page *page)
+ 		pkmap_count[PKMAP_NR(vaddr)]++;
+ 	}
+ 	unlock_kmap_any(flags);
+-	return (void*) vaddr;
++	return (void *) vaddr;
+ }
+ #endif
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
