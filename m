@@ -1,130 +1,280 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 94B866B0292
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 15:15:31 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id n42so12801087qtn.10
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:15:31 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id x188si2899440qkc.108.2017.07.18.12.15.30
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A70526B02C3
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 15:26:05 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id o3so12881914qto.15
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:26:05 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id g124si2916814qkd.141.2017.07.18.12.26.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 12:15:30 -0700 (PDT)
-Received: by mail-qk0-x22f.google.com with SMTP id p126so19245326qkf.0
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:15:30 -0700 (PDT)
-Date: Tue, 18 Jul 2017 15:15:28 -0400
+        Tue, 18 Jul 2017 12:26:04 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id d136so3619508qkg.3
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:26:04 -0700 (PDT)
+Date: Tue, 18 Jul 2017 15:26:02 -0400
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: Re: [PATCH 00/10] percpu: replace percpu area map allocator with
- bitmap allocator
-Message-ID: <20170718191527.GA4009@destiny>
+Subject: Re: [PATCH 06/10] percpu: modify base_addr to be region specific
+Message-ID: <20170718192601.GB4009@destiny>
 References: <20170716022315.19892-1-dennisz@fb.com>
+ <20170716022315.19892-7-dennisz@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170716022315.19892-1-dennisz@fb.com>
+In-Reply-To: <20170716022315.19892-7-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dennis Zhou <dennisz@fb.com>
 Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
 
-On Sat, Jul 15, 2017 at 10:23:05PM -0400, Dennis Zhou wrote:
-> Hi everyone,
+On Sat, Jul 15, 2017 at 10:23:11PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 > 
-> The Linux kernel percpu memory allocator is responsible for managing
-> percpu memory. It allocates memory from chunks of percpu areas and uses a
-> simple first-fit area allocator to manage allocations inside each chunk.
-> There now exist use cases where allocating and deallocating a million or
-> more objects occurs making the current implementation inadequate.
+> Originally, the first chunk is served by up to three chunks, each given
+> a region they are responsible for. Despite this, the arithmetic was based
+> off of the base_addr making it require offsets or be overly inclusive.
+> This patch changes percpu checks for first chunk to consider the only
+> the dynamic region and the reserved check to be only the reserved
+> region. There is no impact here besides making these checks a little
+> more accurate.
 > 
-> The two primary problems with the current area map allocator are:
->   1. The backing data structure is an array of the areas. To manage this
->      array, it is possible to need to memmove a large portion of it.
->   2. On allocation, chunks are considered based on the contig_hint. It is
->      possible that the contig_hint may be large enough while the alignment 
->      could not meet the request. This causes scanning over every free
->      fragment that could spill over into scanning chunks.
+> This patch also adds the ground work increasing the minimum allocation
+> size to 4 bytes. The new field nr_pages in pcpu_chunk will be used to
+> keep track of the number of pages the bitmap serves. The arithmetic for
+> identifying first chunk and reserved chunk reflect this change.
 > 
-> The primary considerations for the new allocator were the following:
->  - Remove the memmove operation from the critical path
->  - Be conservative with additional use of memory
->  - Provide consistency in performance and memory footprint
->  - Focus on small allocations < 64 bytes
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
+> ---
+>  include/linux/percpu.h |   4 ++
+>  mm/percpu-internal.h   |  12 +++--
+>  mm/percpu.c            | 127 ++++++++++++++++++++++++++++++++++---------------
+>  3 files changed, 100 insertions(+), 43 deletions(-)
 > 
-> This patchset introduces a simple bitmap allocator backed by metadata
-> blocks as a replacement for the area map allocator for percpu memory. Each
-> chunk has an allocation bitmap, a boundary bitmap, and a set of metadata
-> blocks. The allocation map serves as the ground truth for allocations
-> while the boundary map serves as a way to distinguish between consecutive
-> allocations. The minimum allocation size has been increased to 4-bytes.
-> 
-> The key property behind the bitmap allocator is its static metadata. The
-> main problem it solves is that a memmove is no longer part of the critical
-> path for freeing, which was the primary source of latency. This also helps
-> bound the metadata overhead. The area map allocator prior required an
-> integer per allocation. This may be beneficial with larger allocations,
-> but as mentioned, allocating a significant number of small objects is
-> becoming more common. This causes worst-case scenarios for metadata
-> overhead.
-> 
-> There is one caveat with this implementation. In an effort to make freeing
-> fast, the only time metadata is updated on the free path is if a whole
-> block becomes free or the freed area spans across metadata blocks. This
-> causes the chunka??s contig_hint to be potentially smaller than what it
-> could allocate by up to a block. If the chunka??s contig_hint is smaller
-> than a block, a check occurs and the hint is kept accurate. Metadata is
-> always kept accurate on allocation and therefore the situation where a
-> chunk has a larger contig_hint than available will never occur.
-> 
-> I have primarily done testing against a simple workload of allocation of
-> 1 million objects of varying size. Deallocation was done by in order,
-> alternating, and in reverse. These numbers were collected after rebasing
-> ontop of a80099a152. I present the worst-case numbers here:
-> 
->   Area Map Allocator:
-> 
->         Object Size | Alloc Time (ms) | Free Time (ms)
->         ----------------------------------------------
->               4B    |        335      |     4960
->              16B    |        485      |     1150
->              64B    |        445      |      280
->             128B    |        505      |      177
->            1024B    |       3385      |      140
-> 
->   Bitmap Allocator:
-> 
->         Object Size | Alloc Time (ms) | Free Time (ms)
->         ----------------------------------------------
->               4B    |        725      |       70
->              16B    |        760      |       70
->              64B    |        855      |       80
->             128B    |        910      |       90
->            1024B    |       3770      |      260
-> 
-> This data demonstrates the inability for the area map allocator to
-> handle less than ideal situations. In the best case of reverse
-> deallocation, the area map allocator was able to perform within range
-> of the bitmap allocator. In the worst case situation, freeing took
-> nearly 5 seconds for 1 million 4-byte objects. The bitmap allocator
-> dramatically improves the consistency of the free path. The small
-> allocations performed nearly identical regardless of the freeing
-> pattern.
-> 
-> While it does add to the allocation latency, the allocation scenario
-> here is optimal for the area map allocator. The second problem of
-> additional scanning can result in the area map allocator completing in
-> 52 minutes. The same workload takes only 14 seconds to complete for the
-> bitmap allocator. This was produced under a more contrived scenario of
-> allocating 1 milion 4-byte objects with 8-byte alignment.
-> 
+> diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+> index 98a371c..a5cedcd 100644
+> --- a/include/linux/percpu.h
+> +++ b/include/linux/percpu.h
+> @@ -21,6 +21,10 @@
+>  /* minimum unit size, also is the maximum supported allocation size */
+>  #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
+>  
+> +/* minimum allocation size and shift in bytes */
+> +#define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
+> +#define PCPU_MIN_ALLOC_SHIFT		2
+> +
+>  /*
+>   * Percpu allocator can serve percpu allocations before slab is
+>   * initialized which allows slab to depend on the percpu allocator.
+> diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
+> index c9158a4..56e1aba 100644
+> --- a/mm/percpu-internal.h
+> +++ b/mm/percpu-internal.h
+> @@ -23,11 +23,12 @@ struct pcpu_chunk {
+>  	void			*data;		/* chunk data */
+>  	int			first_free;	/* no free below this */
+>  	bool			immutable;	/* no [de]population allowed */
+> -	bool			has_reserved;	/* Indicates if chunk has reserved space
+> -						   at the beginning. Reserved chunk will
+> -						   contain reservation for static chunk.
+> -						   Dynamic chunk will contain reservation
+> -						   for static and reserved chunks. */
+> +	bool			has_reserved;	/* indicates if the region this chunk
+> +						   is responsible for overlaps with
+> +						   the prior adjacent region */
+> +
+> +	int                     nr_pages;       /* # of PAGE_SIZE pages served
+> +						   by this chunk */
+>  	int			nr_populated;	/* # of populated pages */
+>  	unsigned long		populated[];	/* populated bitmap */
+>  };
+> @@ -40,6 +41,7 @@ extern int pcpu_nr_empty_pop_pages;
+>  
+>  extern struct pcpu_chunk *pcpu_first_chunk;
+>  extern struct pcpu_chunk *pcpu_reserved_chunk;
+> +extern unsigned long pcpu_reserved_offset;
+>  
+>  #ifdef CONFIG_PERCPU_STATS
+>  
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index 7704db9..c74ad68 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -144,14 +144,14 @@ static const size_t *pcpu_group_sizes __ro_after_init;
+>  struct pcpu_chunk *pcpu_first_chunk __ro_after_init;
+>  
+>  /*
+> - * Optional reserved chunk.  This chunk reserves part of the first
+> - * chunk and serves it for reserved allocations.  The amount of
+> - * reserved offset is in pcpu_reserved_chunk_limit.  When reserved
+> - * area doesn't exist, the following variables contain NULL and 0
+> - * respectively.
+> + * Optional reserved chunk.  This is the part of the first chunk that
+> + * serves reserved allocations.  The pcpu_reserved_offset is the amount
+> + * the pcpu_reserved_chunk->base_addr is push back into the static
+> + * region for the base_addr to be page aligned.  When the reserved area
+> + * doesn't exist, the following variables contain NULL and 0 respectively.
+>   */
+>  struct pcpu_chunk *pcpu_reserved_chunk __ro_after_init;
+> -static int pcpu_reserved_chunk_limit __ro_after_init;
+> +unsigned long pcpu_reserved_offset __ro_after_init;
+>  
+>  DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+>  static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
+> @@ -184,19 +184,32 @@ static void pcpu_schedule_balance_work(void)
+>  		schedule_work(&pcpu_balance_work);
+>  }
+>  
+> +/*
+> + * Static addresses should never be passed into the allocator.  They
+> + * are accessed using the group_offsets and therefore do not rely on
+> + * chunk->base_addr.
+> + */
+>  static bool pcpu_addr_in_first_chunk(void *addr)
+>  {
+>  	void *first_start = pcpu_first_chunk->base_addr;
+>  
+> -	return addr >= first_start && addr < first_start + pcpu_unit_size;
+> +	return addr >= first_start &&
+> +	       addr < first_start +
+> +	       pcpu_first_chunk->nr_pages * PAGE_SIZE;
+>  }
+>  
+>  static bool pcpu_addr_in_reserved_chunk(void *addr)
+>  {
+> -	void *first_start = pcpu_first_chunk->base_addr;
+> +	void *first_start;
+>  
+> -	return addr >= first_start &&
+> -		addr < first_start + pcpu_reserved_chunk_limit;
+> +	if (!pcpu_reserved_chunk)
+> +		return false;
+> +
+> +	first_start = pcpu_reserved_chunk->base_addr;
+> +
+> +	return addr >= first_start + pcpu_reserved_offset &&
+> +	       addr < first_start +
+> +	       pcpu_reserved_chunk->nr_pages * PAGE_SIZE;
+>  }
+>  
+>  static int __pcpu_size_to_slot(int size)
+> @@ -237,11 +250,16 @@ static int __maybe_unused pcpu_page_idx(unsigned int cpu, int page_idx)
+>  	return pcpu_unit_map[cpu] * pcpu_unit_pages + page_idx;
+>  }
+>  
+> +static unsigned long pcpu_unit_page_offset(unsigned int cpu, int page_idx)
+> +{
+> +	return pcpu_unit_offsets[cpu] + (page_idx << PAGE_SHIFT);
+> +}
+> +
+>  static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
+>  				     unsigned int cpu, int page_idx)
+>  {
+> -	return (unsigned long)chunk->base_addr + pcpu_unit_offsets[cpu] +
+> -		(page_idx << PAGE_SHIFT);
+> +	return (unsigned long)chunk->base_addr +
+> +		pcpu_unit_page_offset(cpu, page_idx);
+>  }
+>  
+>  static void __maybe_unused pcpu_next_unpop(struct pcpu_chunk *chunk,
+> @@ -737,6 +755,8 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
+>  	chunk->free_size = pcpu_unit_size;
+>  	chunk->contig_hint = pcpu_unit_size;
+>  
+> +	chunk->nr_pages = pcpu_unit_pages;
+> +
+>  	return chunk;
+>  }
+>  
+> @@ -824,18 +844,20 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
+>   * pcpu_chunk_addr_search - determine chunk containing specified address
+>   * @addr: address for which the chunk needs to be determined.
+>   *
+> + * This is an internal function that handles all but static allocations.
+> + * Static percpu address values should never be passed into the allocator.
+> + *
+>   * RETURNS:
+>   * The address of the found chunk.
+>   */
+>  static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
+>  {
+>  	/* is it in the first chunk? */
+> -	if (pcpu_addr_in_first_chunk(addr)) {
+> -		/* is it in the reserved area? */
+> -		if (pcpu_addr_in_reserved_chunk(addr))
+> -			return pcpu_reserved_chunk;
+> +	if (pcpu_addr_in_first_chunk(addr))
+>  		return pcpu_first_chunk;
+> -	}
+> +	/* is it in the reserved chunk? */
+> +	if (pcpu_addr_in_reserved_chunk(addr))
+> +		return pcpu_reserved_chunk;
+>  
+>  	/*
+>  	 * The address is relative to unit0 which might be unused and
+> @@ -1366,10 +1388,17 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
+>  	 * The following test on unit_low/high isn't strictly
+>  	 * necessary but will speed up lookups of addresses which
+>  	 * aren't in the first chunk.
+> +	 *
+> +	 * The address check is of high granularity checking against full
+> +	 * chunk sizes.  pcpu_base_addr points to the beginning of the first
+> +	 * chunk including the static region.  This allows us to examine all
+> +	 * regions of the first chunk. Assumes good intent as the first
+> +	 * chunk may not be full (ie. < pcpu_unit_pages in size).
+>  	 */
+> -	first_low = pcpu_chunk_addr(pcpu_first_chunk, pcpu_low_unit_cpu, 0);
+> -	first_high = pcpu_chunk_addr(pcpu_first_chunk, pcpu_high_unit_cpu,
+> -				     pcpu_unit_pages);
+> +	first_low = (unsigned long) pcpu_base_addr +
+> +		    pcpu_unit_page_offset(pcpu_low_unit_cpu, 0);
+> +	first_high = (unsigned long) pcpu_base_addr +
+> +		     pcpu_unit_page_offset(pcpu_high_unit_cpu, pcpu_unit_pages);
+>  	if ((unsigned long)addr >= first_low &&
+>  	    (unsigned long)addr < first_high) {
+>  		for_each_possible_cpu(cpu) {
+> @@ -1575,6 +1604,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+>  	unsigned int cpu;
+>  	int *unit_map;
+>  	int group, unit, i;
+> +	unsigned long tmp_addr, aligned_addr;
+> +	unsigned long map_size_bytes;
+>  
+>  #define PCPU_SETUP_BUG_ON(cond)	do {					\
+>  	if (unlikely(cond)) {						\
+> @@ -1678,46 +1709,66 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+>  		INIT_LIST_HEAD(&pcpu_slot[i]);
+>  
+>  	/*
+> -	 * Initialize static chunk.  If reserved_size is zero, the
+> -	 * static chunk covers static area + dynamic allocation area
+> -	 * in the first chunk.  If reserved_size is not zero, it
+> -	 * covers static area + reserved area (mostly used for module
+> -	 * static percpu allocation).
+> +	 * Initialize static chunk.
+> +	 * The static region is dropped as those addresses are already
+> +	 * allocated and do not rely on chunk->base_addr.
+> +	 * reserved_size == 0:
+> +	 *      the static chunk covers the dynamic area
+> +	 * reserved_size > 0:
+> +	 *      the static chunk covers the reserved area
+> +	 *
+> +	 * If the static area is not page aligned, the region adjacent
+> +	 * to the static area must have its base_addr be offset into
+> +	 * the static area to have it be page aligned.  The overlap is
+> +	 * then allocated preserving the alignment in the metadata for
+> +	 * the actual region.
+>  	 */
+> +	tmp_addr = (unsigned long)base_addr + ai->static_size;
+> +	aligned_addr = tmp_addr & PAGE_MASK;
+> +	pcpu_reserved_offset = tmp_addr - aligned_addr;
+> +
+> +	map_size_bytes = (ai->reserved_size ?: ai->dyn_size) +
+> +			 pcpu_reserved_offset;
 
-Ok so you say that this test is better for the area map allocator, so presumably
-this is worst case for the bitmap allocator?  What does the average case look
-like?  Trading 2x allocation latency for a pretty significant free latency
-reduction seems ok, but are we allocating or freeing more?  Are both allocations
-and free's done in performance critical areas, or do allocations only happen in
-performance critical areas, making the increased allocation latency hurt more?
-And lastly, why are we paying a 2x latency cost?  What is it about the bitmap
-allocator that makes it much worse than the area map allocator?  Thanks,
+This confused me for a second, better to be explicit with
+
+(ai->reserved_size ? 0 : ai->dyn_size) + pcpu_reserved_offset;
+
+Thanks,
 
 Josef
 
