@@ -1,85 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C32E6B02B4
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 11:38:24 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q66so10612148qki.1
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 08:38:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b24si2533798qkb.222.2017.07.18.08.38.20
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 344C36B0279
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:00:30 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l200so5549057lfb.6
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 09:00:30 -0700 (PDT)
+Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [87.250.241.190])
+        by mx.google.com with ESMTPS id u19si1181357lff.162.2017.07.18.09.00.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 08:38:20 -0700 (PDT)
-Date: Tue, 18 Jul 2017 11:38:16 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-Message-ID: <20170718153816.GA3135@redhat.com>
-References: <20170713211532.970-1-jglisse@redhat.com>
- <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
+        Tue, 18 Jul 2017 09:00:27 -0700 (PDT)
+Subject: [PATCH RFC] mm: allow isolation for pages not inserted into lru
+ lists yet
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Tue, 18 Jul 2017 19:00:23 +0300
+Message-ID: <150039362282.196778.7901790444249317003.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Shaohua Li <shli@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-kernel@vger.kernel.org
 
-On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
-> On 2017/7/14 5:15, Jerome Glisse wrote:
-> > Sorry i made horrible mistake on names in v4, i completly miss-
-> > understood the suggestion. So here i repost with proper naming.
-> > This is the only change since v3. Again sorry about the noise
-> > with v4.
-> > 
-> > Changes since v4:
-> >   - s/DEVICE_HOST/DEVICE_PUBLIC
-> > 
-> > Git tree:
-> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v5
-> > 
-> > 
-> > Cache coherent device memory apply to architecture with system bus
-> > like CAPI or CCIX. Device connected to such system bus can expose
-> > their memory to the system and allow cache coherent access to it
-> > from the CPU.
-> > 
-> > Even if for all intent and purposes device memory behave like regular
-> > memory, we still want to manage it in isolation from regular memory.
-> > Several reasons for that, first and foremost this memory is less
-> > reliable than regular memory if the device hangs because of invalid
-> > commands we can loose access to device memory. Second CPU access to
-> > this memory is expected to be slower than to regular memory. Third
-> > having random memory into device means that some of the bus bandwith
-> > wouldn't be available to the device but would be use by CPU access.
-> > 
-> > This is why we want to manage such memory in isolation from regular
-> > memory. Kernel should not try to use this memory even as last resort
-> > when running out of memory, at least for now.
-> >
-> 
-> I think set a very large node distance for "Cache Coherent Device Memory"
-> may be a easier way to address these concerns.
+Pages are added into lru lists via per-cpu page vectors in order
+to combine these insertions and reduce lru lock contention.
 
-Such approach was discuss at length in the past see links below. Outcome
-of discussion:
-  - CPU less node are bad
-  - device memory can be unreliable (device hang) no way for application
-    to understand that
-  - application and driver NUMA madvise/mbind/mempolicy ... can conflict
-    with each other and no way the kernel can figure out which should
-    apply
-  - NUMA as it is now would not work as we need further isolation that
-    what a large node distance would provide
+These pending pages cannot be isolated and moved into another lru.
+This breaks in some cases page activation and makes mlock-munlock
+much more complicated.
 
-Probably few others argument i forget.
+Also this breaks newly added swapless MADV_FREE: if it cannot move
+anon page into file lru then page could never be freed lazily.
 
-https://lists.gt.net/linux/kernel/2551369
-https://groups.google.com/forum/#!topic/linux.kernel/Za_e8C3XnRs%5B1-25%5D
-https://lwn.net/Articles/720380/
+This patch rearranges lru list handling to allow lru isolation for
+such pages. It set PageLRU earlier and initialize page->lru to mark
+pages still pending for lru insert.
 
-Cheers,
-Jerome
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ include/linux/mm_inline.h |   10 ++++++++--
+ mm/swap.c                 |   26 ++++++++++++++++++++++++--
+ 2 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index e030a68ead7e..6618c588ee40 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -60,8 +60,14 @@ static __always_inline void add_page_to_lru_list_tail(struct page *page,
+ static __always_inline void del_page_from_lru_list(struct page *page,
+ 				struct lruvec *lruvec, enum lru_list lru)
+ {
+-	list_del(&page->lru);
+-	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
++	/*
++	 * Empty list head means page is not drained to lru list yet.
++	 */
++	if (likely(!list_empty(&page->lru))) {
++		list_del(&page->lru);
++		update_lru_size(lruvec, lru, page_zonenum(page),
++				-hpage_nr_pages(page));
++	}
+ }
+ 
+ /**
+diff --git a/mm/swap.c b/mm/swap.c
+index 23fc6e049cda..ba4c98074a09 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -400,13 +400,35 @@ void mark_page_accessed(struct page *page)
+ }
+ EXPORT_SYMBOL(mark_page_accessed);
+ 
++static void __pagevec_lru_add_drain_fn(struct page *page, struct lruvec *lruvec,
++				       void *arg)
++{
++	/* Check for isolated or already added pages */
++	if (likely(PageLRU(page) && list_empty(&page->lru))) {
++		int file = page_is_file_cache(page);
++		int active = PageActive(page);
++		enum lru_list lru = page_lru(page);
++
++		add_page_to_lru_list(page, lruvec, lru);
++		update_page_reclaim_stat(lruvec, file, active);
++		trace_mm_lru_insertion(page, lru);
++	}
++}
++
+ static void __lru_cache_add(struct page *page)
+ {
+ 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
+ 
++	/*
++	 * Set PageLRU right here and initialize list head to
++	 * allow page isolation while it on the way to the LRU list.
++	 */
++	VM_BUG_ON_PAGE(PageLRU(page), page);
++	INIT_LIST_HEAD(&page->lru);
+ 	get_page(page);
++	SetPageLRU(page);
+ 	if (!pagevec_add(pvec, page) || PageCompound(page))
+-		__pagevec_lru_add(pvec);
++		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
+ 	put_cpu_var(lru_add_pvec);
+ }
+ 
+@@ -611,7 +633,7 @@ void lru_add_drain_cpu(int cpu)
+ 	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
+ 
+ 	if (pagevec_count(pvec))
+-		__pagevec_lru_add(pvec);
++		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
+ 
+ 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
+ 	if (pagevec_count(pvec)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
