@@ -1,118 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 344C36B0279
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 12:00:30 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l200so5549057lfb.6
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 09:00:30 -0700 (PDT)
-Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [87.250.241.190])
-        by mx.google.com with ESMTPS id u19si1181357lff.162.2017.07.18.09.00.27
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4276B0292
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 13:06:39 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 191so1832841oii.4
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:06:39 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id k27si2362013oiy.376.2017.07.18.10.06.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Jul 2017 09:00:27 -0700 (PDT)
-Subject: [PATCH RFC] mm: allow isolation for pages not inserted into lru
- lists yet
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Tue, 18 Jul 2017 19:00:23 +0300
-Message-ID: <150039362282.196778.7901790444249317003.stgit@buzz>
+        Tue, 18 Jul 2017 10:06:38 -0700 (PDT)
+Received: from mail-ua0-f182.google.com (mail-ua0-f182.google.com [209.85.217.182])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 38BE923693
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 17:06:37 +0000 (UTC)
+Received: by mail-ua0-f182.google.com with SMTP id y47so15958321uag.0
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:06:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170718085341.nlt35dph4oukb4tc@gmail.com>
+References: <cover.1498751203.git.luto@kernel.org> <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
+ <20170705121807.GF4941@worktop> <CALCETrWivSq=qSN6DMBLXVRCo-EBOx_xvnQYXHojYHuG7SaWnQ@mail.gmail.com>
+ <20170705170219.ogjnswef3ufgeklz@hirez.programming.kicks-ass.net> <20170718085341.nlt35dph4oukb4tc@gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 18 Jul 2017 10:06:15 -0700
+Message-ID: <CALCETrVyY-Bvh8GkwqpC9eL4D0QnkVEjpYmwvPhTJBa9evwqtQ@mail.gmail.com>
+Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using PCID
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Shaohua Li <shli@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-Pages are added into lru lists via per-cpu page vectors in order
-to combine these insertions and reduce lru lock contention.
+On Tue, Jul 18, 2017 at 1:53 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Peter Zijlstra <peterz@infradead.org> wrote:
+>
+>> On Wed, Jul 05, 2017 at 09:04:39AM -0700, Andy Lutomirski wrote:
+>> > On Wed, Jul 5, 2017 at 5:18 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+>> > > On Thu, Jun 29, 2017 at 08:53:22AM -0700, Andy Lutomirski wrote:
+>> > >> @@ -104,18 +140,20 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>> > >>
+>> > >>               /* Resume remote flushes and then read tlb_gen. */
+>> > >>               cpumask_set_cpu(cpu, mm_cpumask(next));
+>> > >
+>> > > Barriers should have a comment... what is being ordered here against
+>> > > what?
+>> >
+>> > How's this comment?
+>> >
+>> >         /*
+>> >          * Resume remote flushes and then read tlb_gen.  We need to do
+>> >          * it in this order: any inc_mm_tlb_gen() caller that writes a
+>> >          * larger tlb_gen than we read here must see our cpu set in
+>> >          * mm_cpumask() so that it will know to flush us.  The barrier
+>> >          * here synchronizes with inc_mm_tlb_gen().
+>> >          */
+>>
+>> Slightly confusing, you mean this, right?
+>>
+>>
+>>       cpumask_set_cpu(cpu, mm_cpumask());                     inc_mm_tlb_gen();
+>>
+>>       MB                                                      MB
+>>
+>>       next_tlb_gen = atomic64_read(&next->context.tlb_gen);   flush_tlb_others(mm_cpumask());
+>>
+>>
+>> which seems to make sense.
+>
+> Btw., I'll wait for a v5 iteration before applying this last patch to tip:x86/mm.
 
-These pending pages cannot be isolated and moved into another lru.
-This breaks in some cases page activation and makes mlock-munlock
-much more complicated.
+I'll send it shortly.  I think I'll also add a patch to factor out the
+flush calls a bit more to prepare for Mel's upcoming fix.
 
-Also this breaks newly added swapless MADV_FREE: if it cannot move
-anon page into file lru then page could never be freed lazily.
-
-This patch rearranges lru list handling to allow lru isolation for
-such pages. It set PageLRU earlier and initialize page->lru to mark
-pages still pending for lru insert.
-
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- include/linux/mm_inline.h |   10 ++++++++--
- mm/swap.c                 |   26 ++++++++++++++++++++++++--
- 2 files changed, 32 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index e030a68ead7e..6618c588ee40 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -60,8 +60,14 @@ static __always_inline void add_page_to_lru_list_tail(struct page *page,
- static __always_inline void del_page_from_lru_list(struct page *page,
- 				struct lruvec *lruvec, enum lru_list lru)
- {
--	list_del(&page->lru);
--	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
-+	/*
-+	 * Empty list head means page is not drained to lru list yet.
-+	 */
-+	if (likely(!list_empty(&page->lru))) {
-+		list_del(&page->lru);
-+		update_lru_size(lruvec, lru, page_zonenum(page),
-+				-hpage_nr_pages(page));
-+	}
- }
- 
- /**
-diff --git a/mm/swap.c b/mm/swap.c
-index 23fc6e049cda..ba4c98074a09 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -400,13 +400,35 @@ void mark_page_accessed(struct page *page)
- }
- EXPORT_SYMBOL(mark_page_accessed);
- 
-+static void __pagevec_lru_add_drain_fn(struct page *page, struct lruvec *lruvec,
-+				       void *arg)
-+{
-+	/* Check for isolated or already added pages */
-+	if (likely(PageLRU(page) && list_empty(&page->lru))) {
-+		int file = page_is_file_cache(page);
-+		int active = PageActive(page);
-+		enum lru_list lru = page_lru(page);
-+
-+		add_page_to_lru_list(page, lruvec, lru);
-+		update_page_reclaim_stat(lruvec, file, active);
-+		trace_mm_lru_insertion(page, lru);
-+	}
-+}
-+
- static void __lru_cache_add(struct page *page)
- {
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
- 
-+	/*
-+	 * Set PageLRU right here and initialize list head to
-+	 * allow page isolation while it on the way to the LRU list.
-+	 */
-+	VM_BUG_ON_PAGE(PageLRU(page), page);
-+	INIT_LIST_HEAD(&page->lru);
- 	get_page(page);
-+	SetPageLRU(page);
- 	if (!pagevec_add(pvec, page) || PageCompound(page))
--		__pagevec_lru_add(pvec);
-+		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
- 	put_cpu_var(lru_add_pvec);
- }
- 
-@@ -611,7 +633,7 @@ void lru_add_drain_cpu(int cpu)
- 	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
- 
- 	if (pagevec_count(pvec))
--		__pagevec_lru_add(pvec);
-+		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
- 
- 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
- 	if (pagevec_count(pvec)) {
+>
+> Thanks,
+>
+>         Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
