@@ -1,56 +1,283 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 818E06B02FA
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:17:59 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z48so2824354wrc.4
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:17:59 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id g6si2285997eda.41.2017.07.18.07.17.58
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63D916B0279
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:24:12 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w63so4914298wrc.5
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:24:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k23si1801191wre.305.2017.07.18.07.24.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 18 Jul 2017 07:17:58 -0700 (PDT)
-Date: Tue, 18 Jul 2017 10:17:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170718141754.GA6573@cmpxchg.org>
-References: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Jul 2017 07:24:11 -0700 (PDT)
+Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
+ with runtime-time
+References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+ <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
+Date: Tue, 18 Jul 2017 16:24:06 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, mhocko@kernel.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 18, 2017 at 11:06:50PM +0900, Tetsuo Handa wrote:
-> Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> guarded whole OOM reaping operations using oom_lock. But there was no
-> need to guard whole operations. We needed to guard only setting of
-> MMF_OOM_REAPED flag because get_page_from_freelist() in
-> __alloc_pages_may_oom() is called with oom_lock held.
->
-> If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
-> can start reaping operations as soon as wake_oom_reaper() is called.
-> But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
-> oom_lock, guarding only the OOM reaper side is not sufficient.
+On 18/07/17 16:15, Kirill A. Shutemov wrote:
+> This patch converts the of CONFIG_X86_5LEVEL check to runtime checks for
+> p4d folding.
 > 
-> If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
-> there is no need to guard setting of MMF_OOM_SKIP flag, and we can
-> guarantee a chance to call get_page_from_freelist() in
-> __alloc_pages_may_oom() without depending on oom_lock serialization.
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/mm/fault.c            |  2 +-
+>  arch/x86/mm/ident_map.c        |  2 +-
+>  arch/x86/mm/init_64.c          | 30 ++++++++++++++++++------------
+>  arch/x86/mm/kasan_init_64.c    |  8 ++++----
+>  arch/x86/mm/kaslr.c            |  6 +++---
+>  arch/x86/platform/efi/efi_64.c |  2 +-
+>  arch/x86/power/hibernate_64.c  |  6 +++---
+>  arch/x86/xen/mmu_pv.c          |  2 +-
+>  8 files changed, 32 insertions(+), 26 deletions(-)
 > 
-> This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
-> flag which acts as if MMF_OOM_SKIP, in order to close both race window
-> (the OOM reaper side and __mmput() side) without using oom_lock.
+> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> index 2a1fa10c6a98..d3d8f10f0c10 100644
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -459,7 +459,7 @@ static noinline int vmalloc_fault(unsigned long address)
+>  	if (pgd_none(*pgd)) {
+>  		set_pgd(pgd, *pgd_ref);
+>  		arch_flush_lazy_mmu_mode();
+> -	} else if (CONFIG_PGTABLE_LEVELS > 4) {
+> +	} else if (!p4d_folded) {
+>  		/*
+>  		 * With folded p4d, pgd_none() is always false, so the pgd may
+>  		 * point to an empty page table entry and pgd_page_vaddr()
+> diff --git a/arch/x86/mm/ident_map.c b/arch/x86/mm/ident_map.c
+> index adab1595f4bd..d2df33a2cbfb 100644
+> --- a/arch/x86/mm/ident_map.c
+> +++ b/arch/x86/mm/ident_map.c
+> @@ -115,7 +115,7 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
+>  		result = ident_p4d_init(info, p4d, addr, next);
+>  		if (result)
+>  			return result;
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> +		if (!p4d_folded) {
+>  			set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
+>  		} else {
+>  			/*
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 649b8df485ad..6b97f6c1bf77 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -88,12 +88,7 @@ static int __init nonx32_setup(char *str)
+>  }
+>  __setup("noexec32=", nonx32_setup);
+>  
+> -/*
+> - * When memory was added make sure all the processes MM have
+> - * suitable PGD entries in the local PGD level page.
+> - */
+> -#ifdef CONFIG_X86_5LEVEL
+> -void sync_global_pgds(unsigned long start, unsigned long end)
+> +static void sync_global_pgds_57(unsigned long start, unsigned long end)
+>  {
+>  	unsigned long addr;
+>  
+> @@ -129,8 +124,8 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+>  		spin_unlock(&pgd_lock);
+>  	}
+>  }
+> -#else
+> -void sync_global_pgds(unsigned long start, unsigned long end)
+> +
+> +static void sync_global_pgds_48(unsigned long start, unsigned long end)
+>  {
+>  	unsigned long addr;
+>  
+> @@ -173,7 +168,18 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+>  		spin_unlock(&pgd_lock);
+>  	}
+>  }
+> -#endif
+> +
+> +/*
+> + * When memory was added make sure all the processes MM have
+> + * suitable PGD entries in the local PGD level page.
+> + */
+> +void sync_global_pgds(unsigned long start, unsigned long end)
+> +{
+> +	if (!p4d_folded)
+> +		sync_global_pgds_57(start, end);
+> +	else
+> +		sync_global_pgds_48(start, end);
+> +}
+>  
+>  /*
+>   * NOTE: This function is marked __ref because it calls __init function
+> @@ -632,7 +638,7 @@ phys_p4d_init(p4d_t *p4d_page, unsigned long paddr, unsigned long paddr_end,
+>  	unsigned long vaddr = (unsigned long)__va(paddr);
+>  	int i = p4d_index(vaddr);
+>  
+> -	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
+> +	if (p4d_folded)
+>  		return phys_pud_init((pud_t *) p4d_page, paddr, paddr_end, page_size_mask);
+>  
+>  	for (; i < PTRS_PER_P4D; i++, paddr = paddr_next) {
+> @@ -712,7 +718,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+>  					   page_size_mask);
+>  
+>  		spin_lock(&init_mm.page_table_lock);
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> +		if (!p4d_folded)
+>  			pgd_populate(&init_mm, pgd, p4d);
+>  		else
+>  			p4d_populate(&init_mm, p4d_offset(pgd, vaddr), (pud_t *) p4d);
+> @@ -1078,7 +1084,7 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
+>  		 * 5-level case we should free them. This code will have to change
+>  		 * to adapt for boot-time switching between 4 and 5 level page tables.
+>  		 */
+> -		if (CONFIG_PGTABLE_LEVELS == 5)
+> +		if (!p4d_folded)
+>  			free_pud_table(pud_base, p4d);
+>  	}
+>  
+> diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+> index cff8d85fef7b..ee12861e0609 100644
+> --- a/arch/x86/mm/kasan_init_64.c
+> +++ b/arch/x86/mm/kasan_init_64.c
+> @@ -40,7 +40,7 @@ static void __init clear_pgds(unsigned long start,
+>  		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
+>  		 * instead.
+>  		 */
+> -		if (CONFIG_PGTABLE_LEVELS < 5)
+> +		if (p4d_folded)
+>  			p4d_clear(p4d_offset(pgd, start));
+>  		else
+>  			pgd_clear(pgd);
+> @@ -55,7 +55,7 @@ static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
+>  {
+>  	unsigned long p4d;
+>  
+> -	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
+> +	if (p4d_folded)
+>  		return (p4d_t *)pgd;
+>  
+>  	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
+> @@ -135,7 +135,7 @@ void __init kasan_early_init(void)
+>  	for (i = 0; i < PTRS_PER_PUD; i++)
+>  		kasan_zero_pud[i] = __pud(pud_val);
+>  
+> -	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
+> +	for (i = 0; !p4d_folded && i < PTRS_PER_P4D; i++)
+>  		kasan_zero_p4d[i] = __p4d(p4d_val);
+>  
+>  	kasan_map_early_shadow(early_top_pgt);
+> @@ -152,7 +152,7 @@ void __init kasan_init(void)
+>  
+>  	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
+>  
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> +	if (!p4d_folded) {
+>  		void *ptr;
+>  
+>  		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
+> diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
+> index 2f6ba5c72905..b70f86a2ce6a 100644
+> --- a/arch/x86/mm/kaslr.c
+> +++ b/arch/x86/mm/kaslr.c
+> @@ -139,7 +139,7 @@ void __init kernel_randomize_memory(void)
+>  		 */
+>  		entropy = remain_entropy / (ARRAY_SIZE(kaslr_regions) - i);
+>  		prandom_bytes_state(&rand_state, &rand, sizeof(rand));
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> +		if (!p4d_folded)
+>  			entropy = (rand % (entropy + 1)) & P4D_MASK;
+>  		else
+>  			entropy = (rand % (entropy + 1)) & PUD_MASK;
+> @@ -151,7 +151,7 @@ void __init kernel_randomize_memory(void)
+>  		 * randomization alignment.
+>  		 */
+>  		vaddr += get_padding(&kaslr_regions[i]);
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> +		if (!p4d_folded)
+>  			vaddr = round_up(vaddr + 1, P4D_SIZE);
+>  		else
+>  			vaddr = round_up(vaddr + 1, PUD_SIZE);
+> @@ -227,7 +227,7 @@ void __meminit init_trampoline(void)
+>  		return;
+>  	}
+>  
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> +	if (!p4d_folded)
+>  		init_trampoline_p4d();
+>  	else
+>  		init_trampoline_pud();
+> diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+> index 3cda4fd8ed2b..91d9076ee216 100644
+> --- a/arch/x86/platform/efi/efi_64.c
+> +++ b/arch/x86/platform/efi/efi_64.c
+> @@ -219,7 +219,7 @@ int __init efi_alloc_page_tables(void)
+>  
+>  	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
+>  	if (!pud) {
+> -		if (CONFIG_PGTABLE_LEVELS > 4)
+> +		if (!p4d_folded)
+>  			free_page((unsigned long) pgd_page_vaddr(*pgd));
+>  		free_page((unsigned long)efi_pgd);
+>  		return -ENOMEM;
+> diff --git a/arch/x86/power/hibernate_64.c b/arch/x86/power/hibernate_64.c
+> index f2598d81cd55..9b9bc2ef4321 100644
+> --- a/arch/x86/power/hibernate_64.c
+> +++ b/arch/x86/power/hibernate_64.c
+> @@ -50,7 +50,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
+>  {
+>  	pmd_t *pmd;
+>  	pud_t *pud;
+> -	p4d_t *p4d;
+> +	p4d_t *p4d = NULL;
+>  
+>  	/*
+>  	 * The new mapping only has to cover the page containing the image
+> @@ -66,7 +66,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
+>  	 * tables used by the image kernel.
+>  	 */
+>  
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> +	if (!p4d_folded) {
+>  		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);
+>  		if (!p4d)
+>  			return -ENOMEM;
+> @@ -84,7 +84,7 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
+>  		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
+>  	set_pud(pud + pud_index(restore_jump_address),
+>  		__pud(__pa(pmd) | _KERNPG_TABLE));
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> +	if (p4d) {
+>  		set_p4d(p4d + p4d_index(restore_jump_address), __p4d(__pa(pud) | _KERNPG_TABLE));
+>  		set_pgd(pgd + pgd_index(restore_jump_address), __pgd(__pa(p4d) | _KERNPG_TABLE));
+>  	} else {
+> diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+> index cab28cf2cffb..b0530184c637 100644
+> --- a/arch/x86/xen/mmu_pv.c
+> +++ b/arch/x86/xen/mmu_pv.c
+> @@ -1209,7 +1209,7 @@ static void __init xen_cleanmfnmap(unsigned long vaddr)
+>  			continue;
+>  		xen_cleanmfnmap_p4d(p4d + i, unpin);
+>  	}
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> +	if (!p4d_folded) {
+>  		set_pgd(pgd, __pgd(0));
+>  		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
+>  	}
 
-I have no idea what this is about - a race window fix? A performance
-optimization? A code simplification?
+Xen PV guests will never run with 5-level-paging enabled. So I guess you
+can drop the complete if (IS_ENABLED(CONFIG_X86_5LEVEL)) {} block.
 
-Users and vendors are later going to read through these changelogs and
-have to decide whether they want this patch or upgrade to a kernel
-containing it. Please keep these people in mind when writing the
-subject and first paragraph of the changelogs.
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
