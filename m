@@ -1,74 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FE9C6B02C3
-	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:02:22 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e199so20684162pfh.7
-        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:02:22 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0064.outbound.protection.outlook.com. [104.47.36.64])
-        by mx.google.com with ESMTPS id d70si1876193pgc.211.2017.07.18.07.02.19
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 77D076B02C3
+	for <linux-mm@kvack.org>; Tue, 18 Jul 2017 10:07:27 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id c135so1503257oih.3
+        for <linux-mm@kvack.org>; Tue, 18 Jul 2017 07:07:27 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id m96si1831234oik.294.2017.07.18.07.07.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 18 Jul 2017 07:02:20 -0700 (PDT)
-Subject: Re: [PATCH v10 00/38] x86: Secure Memory Encryption (AMD)
-References: <cover.1500319216.git.thomas.lendacky@amd.com>
- <alpine.DEB.2.20.1707181402340.1945@nanos>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <d43d315c-6797-b51e-58a8-05b5f98951d0@amd.com>
-Date: Tue, 18 Jul 2017 09:02:08 -0500
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1707181402340.1945@nanos>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Jul 2017 07:07:25 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] oom_reaper: close race without using oom_lock
+Date: Tue, 18 Jul 2017 23:06:50 +0900
+Message-Id: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, iommu@lists.linux-foundation.org, Joerg Roedel <joro@8bytes.org>, kexec@lists.infradead.org, xen-devel@lists.xen.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>
+To: linux-mm@kvack.org, mhocko@kernel.org, hannes@cmpxchg.org, rientjes@google.com
+Cc: linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On 7/18/2017 7:03 AM, Thomas Gleixner wrote:
-> On Mon, 17 Jul 2017, Tom Lendacky wrote:
->> This patch series provides support for AMD's new Secure Memory Encryption (SME)
->> feature.
->>
->> SME can be used to mark individual pages of memory as encrypted through the
->> page tables. A page of memory that is marked encrypted will be automatically
->> decrypted when read from DRAM and will be automatically encrypted when
->> written to DRAM. Details on SME can found in the links below.
->>
->> The SME feature is identified through a CPUID function and enabled through
->> the SYSCFG MSR. Once enabled, page table entries will determine how the
->> memory is accessed. If a page table entry has the memory encryption mask set,
->> then that memory will be accessed as encrypted memory. The memory encryption
->> mask (as well as other related information) is determined from settings
->> returned through the same CPUID function that identifies the presence of the
->> feature.
->>
->> The approach that this patch series takes is to encrypt everything possible
->> starting early in the boot where the kernel is encrypted. Using the page
->> table macros the encryption mask can be incorporated into all page table
->> entries and page allocations. By updating the protection map, userspace
->> allocations are also marked encrypted. Certain data must be accounted for
->> as having been placed in memory before SME was enabled (EFI, initrd, etc.)
->> and accessed accordingly.
->>
->> This patch series is a pre-cursor to another AMD processor feature called
->> Secure Encrypted Virtualization (SEV). The support for SEV will build upon
->> the SME support and will be submitted later. Details on SEV can be found
->> in the links below.
-> 
-> Well done series. Thanks to all people involved, especially Tom and Boris!
-> It was a pleasure to review that.
-> 
-> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
+guarded whole OOM reaping operations using oom_lock. But there was no
+need to guard whole operations. We needed to guard only setting of
+MMF_OOM_REAPED flag because get_page_from_freelist() in
+__alloc_pages_may_oom() is called with oom_lock held.
 
-A big thanks from me to everyone that helped review this.  I truly
-appreciate all the time that everyone put into this - especially Boris,
-who helped guide this series from the start.
+If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
+can start reaping operations as soon as wake_oom_reaper() is called.
+But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
+oom_lock, guarding only the OOM reaper side is not sufficient.
 
-Thanks,
-Tom
+If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
+there is no need to guard setting of MMF_OOM_SKIP flag, and we can
+guarantee a chance to call get_page_from_freelist() in
+__alloc_pages_may_oom() without depending on oom_lock serialization.
 
-> 
+This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
+flag which acts as if MMF_OOM_SKIP, in order to close both race window
+(the OOM reaper side and __mmput() side) without using oom_lock.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ include/linux/mm_types.h |  1 +
+ mm/oom_kill.c            | 42 +++++++++++++++---------------------------
+ 2 files changed, 16 insertions(+), 27 deletions(-)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index ff15181..3184b7a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -495,6 +495,7 @@ struct mm_struct {
+ 	 */
+ 	bool tlb_flush_pending;
+ #endif
++	bool oom_killer_synchronized;
+ 	struct uprobes_state uprobes_state;
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	atomic_long_t hugetlb_usage;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 9e8b4f0..1710133 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -300,11 +300,17 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+ 	 * This task already has access to memory reserves and is being killed.
+ 	 * Don't allow any other task to have access to the reserves unless
+ 	 * the task has MMF_OOM_SKIP because chances that it would release
+-	 * any memory is quite low.
++	 * any memory is quite low. But ignore MMF_OOM_SKIP once, for there is
++	 * still possibility that get_page_from_freelist() with oom_lock held
++	 * succeeds because MMF_OOM_SKIP is set without oom_lock held.
+ 	 */
+ 	if (!is_sysrq_oom(oc) && tsk_is_oom_victim(task)) {
+-		if (test_bit(MMF_OOM_SKIP, &task->signal->oom_mm->flags))
++		struct mm_struct *mm = task->signal->oom_mm;
++
++		if (mm->oom_killer_synchronized)
+ 			goto next;
++		if (test_bit(MMF_OOM_SKIP, &mm->flags))
++			mm->oom_killer_synchronized = true;
+ 		goto abort;
+ 	}
+ 
+@@ -470,28 +476,10 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+-	bool ret = true;
+-
+-	/*
+-	 * We have to make sure to not race with the victim exit path
+-	 * and cause premature new oom victim selection:
+-	 * __oom_reap_task_mm		exit_mm
+-	 *   mmget_not_zero
+-	 *				  mmput
+-	 *				    atomic_dec_and_test
+-	 *				  exit_oom_victim
+-	 *				[...]
+-	 *				out_of_memory
+-	 *				  select_bad_process
+-	 *				    # no TIF_MEMDIE task selects new victim
+-	 *  unmap_page_range # frees some memory
+-	 */
+-	mutex_lock(&oom_lock);
+ 
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+-		ret = false;
+ 		trace_skip_task_reaping(tsk->pid);
+-		goto unlock_oom;
++		return false;
+ 	}
+ 
+ 	/*
+@@ -502,7 +490,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	if (!mmget_not_zero(mm)) {
+ 		up_read(&mm->mmap_sem);
+ 		trace_skip_task_reaping(tsk->pid);
+-		goto unlock_oom;
++		return true;
+ 	}
+ 
+ 	trace_start_task_reaping(tsk->pid);
+@@ -549,9 +537,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	 */
+ 	mmput_async(mm);
+ 	trace_finish_task_reaping(tsk->pid);
+-unlock_oom:
+-	mutex_unlock(&oom_lock);
+-	return ret;
++	return true;
+ }
+ 
+ #define MAX_OOM_REAP_RETRIES 10
+@@ -661,8 +647,10 @@ static void mark_oom_victim(struct task_struct *tsk)
+ 		return;
+ 
+ 	/* oom_mm is bound to the signal struct life time. */
+-	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
+-		mmgrab(tsk->signal->oom_mm);
++	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
++		mmgrab(mm);
++		mm->oom_killer_synchronized = false;
++	}
+ 
+ 	/*
+ 	 * Make sure that the task is woken up from uninterruptible sleep
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
