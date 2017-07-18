@@ -1,60 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 852EF6B02FD
-	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 19:32:09 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id v76so2133626qka.5
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 16:32:09 -0700 (PDT)
-Received: from mail-qk0-x231.google.com (mail-qk0-x231.google.com. [2607:f8b0:400d:c09::231])
-        by mx.google.com with ESMTPS id z188si520476qke.98.2017.07.17.16.32.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 432B16B02F4
+	for <linux-mm@kvack.org>; Mon, 17 Jul 2017 20:00:21 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p10so5412639pgr.6
+        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 17:00:21 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id y16si420993pfi.434.2017.07.17.17.00.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Jul 2017 16:32:08 -0700 (PDT)
-Received: by mail-qk0-x231.google.com with SMTP id t2so921712qkc.1
-        for <linux-mm@kvack.org>; Mon, 17 Jul 2017 16:32:08 -0700 (PDT)
-Date: Mon, 17 Jul 2017 19:32:05 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 10/10] percpu: add optimizations on allocation path for
- the bitmap allocator
-Message-ID: <20170717233205.GD585283@devbig577.frc2.facebook.com>
-References: <20170716022315.19892-1-dennisz@fb.com>
- <20170716022315.19892-11-dennisz@fb.com>
+        Mon, 17 Jul 2017 17:00:20 -0700 (PDT)
+Date: Mon, 17 Jul 2017 17:00:18 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH 1/3] mm:hugetlb:  Define system call hugetlb size
+ encodings in single file
+Message-ID: <20170718000018.GD14983@bombadil.infradead.org>
+References: <20170328175408.GD7838@bombadil.infradead.org>
+ <1500330481-28476-1-git-send-email-mike.kravetz@oracle.com>
+ <1500330481-28476-2-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170716022315.19892-11-dennisz@fb.com>
+In-Reply-To: <1500330481-28476-2-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisz@fb.com>
-Cc: Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mhocko@suse.com, ak@linux.intel.com, mtk.manpages@gmail.com, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com
 
-On Sat, Jul 15, 2017 at 10:23:15PM -0400, Dennis Zhou wrote:
-> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
-> 
-> This patch adds two optimizations to the allocation path. The first is
-> to not consider a chunk if the requested allocation cannot fit in the
-> chunk's contig_hint. The benefit is that this avoids unncessary scanning
-> over a chunk as the assumption is memory pressure is high and creating a
-> new chunk has minimal consequences. This may fail when the contig_hint
-> has poor alignment, but again we fall back on the high memory pressure
-> argument.
-> 
-> The second is just a fail-fast mechanism. When allocating, a offset is
-> identified within a block and then scanning is used to see if it will
-> fit. An offset should never be returned unless it is known to fit, so
-> here we just bind the scanning to the size of a block.
-> 
-> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
+On Mon, Jul 17, 2017 at 03:27:59PM -0700, Mike Kravetz wrote:
+> +#define HUGETLB_FLAG_ENCODE_512KB	(19 << MAP_HUGE_SHIFT
+> +#define HUGETLB_FLAG_ENCODE_1MB		(20 << MAP_HUGE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_2MB		(21 << MAP_HUGE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_8MB		(23 << MAP_HUGE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_16MB	(24 << MAP_HUGE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_1GB		(30 << MAP_HUGE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE__16GB	(34 << MAP_HUGE_SHIFT)
 
-Looks good to me and there's nothing wrong with these two
-optimizations being in a separate patch but they might be too little
-to help reviewing / debugging in any noticeable way.  It'd be great if
-more significant parts can be separated out.  If not, this is fine
-too.
-
-Thanks.
-
--- 
-tejun
+The __ seems like a mistake?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
