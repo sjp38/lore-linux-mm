@@ -1,101 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D458A6B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:01:39 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e199so2529414pfh.7
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 08:01:39 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0103.outbound.protection.outlook.com. [104.47.42.103])
-        by mx.google.com with ESMTPS id n62si179709pfb.86.2017.07.19.08.01.37
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C7B26B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:25:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id c14so3665734pgn.11
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 08:25:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id f14si181516pgu.787.2017.07.19.08.25.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 08:01:38 -0700 (PDT)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH v9 06/10] mm: thp: check pmd migration entry in common
- path
-Date: Wed, 19 Jul 2017 11:01:33 -0400
-Message-ID: <DBF3E4FD-6CC8-41E3-8C20-466645BAFF7C@cs.rutgers.edu>
-In-Reply-To: <20170719080212.GB26779@dhcp22.suse.cz>
-References: <20170717193955.20207-1-zi.yan@sent.com>
- <20170717193955.20207-7-zi.yan@sent.com>
- <20170719080212.GB26779@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jul 2017 08:25:14 -0700 (PDT)
+Subject: Re: [RFC v2 0/5] surface heterogeneous memory performance information
+References: <20170706215233.11329-1-ross.zwisler@linux.intel.com>
+ <dc224433-3d09-8f2e-d278-fee98ada2afc@huawei.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <0e72ed92-75d0-3fe1-0ab7-ffa069d11b46@intel.com>
+Date: Wed, 19 Jul 2017 08:25:13 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+In-Reply-To: <dc224433-3d09-8f2e-d278-fee98ada2afc@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+To: Bob Liu <liubo95@huawei.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jerome Glisse <jglisse@redhat.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On 07/19/2017 02:48 AM, Bob Liu wrote:
+>> Option 2: Provide the user with HMAT performance data directly in
+>> sysfs, allowing applications to directly access it without the need
+>> for the library and daemon.
+>> 
+> Is it possible to do the memory allocation automatically by the
+> kernel and transparent to users? It sounds like unreasonable that
+> most users should aware this detail memory topology.
 
---=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=
-Content-Type: text/plain
+It's possible, but I'm not sure this is something we automatically want
+to see added to the kernel.
 
-On 19 Jul 2017, at 4:02, Michal Hocko wrote:
+I look at it like NUMA.  We have lots of details available about how
+things are connected.  But, "most users" are totally unaware of this.
+We give them decent default policies and the ones that need more can do
+so with the NUMA APIs.
 
-> On Mon 17-07-17 15:39:51, Zi Yan wrote:
->> From: Zi Yan <zi.yan@cs.rutgers.edu>
->>
->> If one of callers of page migration starts to handle thp,
->> memory management code start to see pmd migration entry, so we need
->> to prepare for it before enabling. This patch changes various code
->> point which checks the status of given pmds in order to prevent race
->> between thp migration and the pmd-related works.
->
-> I am sorry to nitpick on the changelog but the patch is scary large and
-> it would deserve much better description. What are those "various code
-> point" and how do you "prevent race". How can we double check that none
-> of them were missed?
-
-Thanks for pointing this out.
-
-Let me know if the following new description looks good to you:
-
-
-When THP migration is being used, memory management code needs to handle
-pmd migration entries properly. This patch uses !pmd_present() or is_swap_pmd()
-(depending on whether pmd_none() needs separate code or not) to
-check pmd migration entries at the places where a pmd entry is present.
-
-Since pmd-related code uses split_huge_page(), split_huge_pmd(), pmd_trans_huge(),
-pmd_trans_unstable(), or pmd_none_or_trans_huge_or_clear_bad(),
-this patch:
-1. adds pmd migration entry split code in split_huge_pmd(),
-2. takes care of pmd migration entries whenever pmd_trans_huge() is present,
-3. makes pmd_none_or_trans_huge_or_clear_bad() pmd migration entry aware.
-Since split_huge_page() uses split_huge_pmd() and pmd_trans_unstable() is equivalent
-to pmd_none_or_trans_huge_or_clear_bad(), we do not change them.
-
-Until this commit, a pmd entry should be:
-1. pointing to a pte page,
-2. is_swap_pmd(),
-3. pmd_trans_huge(),
-4. pmd_devmap(), or
-5. pmd_none().
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJZb3ROAAoJEEGLLxGcTqbMnM0IAIJk5fInIsfn5Ix/cfwDR1kS
-qt6scndZCaMoR+rEIRk8fcX4pwyXnWIW4LH1xl9w/+p6iYfWaCxellSeE5OHgiRL
-HGe3IJXfpTWOQfd8lT+qJbWWvNAOv7O12yBiF6IBu+kI3gI/syPAPjdHVmFTXM0a
-ds3IMwuc4d347SqKCbEbEndOSExa87IE6pcMKMtqvUxike3p1PJHdl0kIcki+iEV
-w2MhyAtvXJviZ+FKYsqGGvh8GgbND+HgC0d9+52QZ5hdoTUXyupQ9pPFk03eM6mw
-1iT8JdLI670sSGUQ6Fj45Jl9ljDxzrM8UUJMZrEj5MCLzZ07fxWikbS3NFsBkGE=
-=mylc
------END PGP SIGNATURE-----
-
---=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=--
+These patches provide the framework to help users/apps who *do* care and
+want to make intelligent, topology-aware decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
