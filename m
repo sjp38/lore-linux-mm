@@ -1,89 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5171F6B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 14:28:34 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z53so8863995wrz.10
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:28:34 -0700 (PDT)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id z37si5023149wrb.382.2017.07.19.11.28.32
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 657596B0292
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 14:39:54 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q1so2206675qkb.3
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:39:54 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0116.outbound.protection.outlook.com. [104.47.33.116])
+        by mx.google.com with ESMTPS id l67si481414qte.403.2017.07.19.11.39.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 11:28:32 -0700 (PDT)
-Received: by mail-wm0-x230.google.com with SMTP id k69so6157611wmc.1
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:28:32 -0700 (PDT)
-From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH] llist: clang: introduce member_address_is_nonnull()
-Date: Wed, 19 Jul 2017 20:27:30 +0200
-Message-Id: <20170719182730.65794-1-glider@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 19 Jul 2017 11:39:53 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
+Date: Wed, 19 Jul 2017 14:39:43 -0400
+Message-ID: <A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
+In-Reply-To: <201707191504.G4xCE7El%fengguang.wu@intel.com>
+References: <201707191504.G4xCE7El%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+ boundary="=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dvyukov@google.com, kcc@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, mingo@elte.hu
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, md@google.com, ndesaulniers@google.com, ghackmann@google.com, mka@google.com
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-Currently llist_for_each_entry() and llist_for_each_entry_safe() iterate
-until &pos->member != NULL.  But when building the kernel with Clang, the
-compiler assumes &pos->member cannot be NULL if the member's offset is
-greater than 0 (which would be equivalent to the object being
-non-contiguous in memory). Therefore the loop condition is always true,
-and the loops become infinite.
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-To work around this, introduce the member_address_is_nonnull() macro,
-which casts object pointer to uintptr_t, thus letting the member pointer
-to be NULL.
+--=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
----
- include/linux/llist.h | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+On 19 Jul 2017, at 4:04, kbuild test robot wrote:
 
-diff --git a/include/linux/llist.h b/include/linux/llist.h
-index d11738110a7a..a7cdaeddad35 100644
---- a/include/linux/llist.h
-+++ b/include/linux/llist.h
-@@ -92,6 +92,23 @@ static inline void init_llist_head(struct llist_head *list)
- #define llist_entry(ptr, type, member)		\
- 	container_of(ptr, type, member)
- 
-+/**
-+ * member_address_is_nonnull - check whether the member address is not NULL
-+ * @ptr:	the object pointer (struct type * that contains the llist_node)
-+ * @member:	the name of the llist_node within the struct.
-+ *
-+ * This macro is conceptually the same as
-+ *	&ptr->member != NULL
-+ * , but it works around the fact that compilers can decide that taking a member
-+ * address is never a NULL pointer.
-+ *
-+ * Real objects that start at a high address and have a member at NULL are
-+ * unlikely to exist, but such pointers may be returned e.g. by the
-+ * container_of() macro.
-+ */
-+#define member_address_is_nonnull(ptr, member)	\
-+	((uintptr_t)(ptr) + offsetof(typeof(*(ptr)), member) != 0)
-+
- /**
-  * llist_for_each - iterate over some deleted entries of a lock-less list
-  * @pos:	the &struct llist_node to use as a loop cursor
-@@ -145,7 +162,7 @@ static inline void init_llist_head(struct llist_head *list)
-  */
- #define llist_for_each_entry(pos, node, member)				\
- 	for ((pos) = llist_entry((node), typeof(*(pos)), member);	\
--	     &(pos)->member != NULL;					\
-+	     member_address_is_nonnull(pos, member);			\
- 	     (pos) = llist_entry((pos)->member.next, typeof(*(pos)), member))
- 
- /**
-@@ -167,7 +184,7 @@ static inline void init_llist_head(struct llist_head *list)
-  */
- #define llist_for_each_entry_safe(pos, n, node, member)			       \
- 	for (pos = llist_entry((node), typeof(*pos), member);		       \
--	     &pos->member != NULL &&					       \
-+	     member_address_is_nonnull(pos, member) &&			       \
- 	        (n = llist_entry(pos->member.next, typeof(*n), member), true); \
- 	     pos = n)
- 
--- 
-2.14.0.rc0.284.gd933b75aa4-goog
+> Hi Zi,
+>
+> [auto build test WARNING on mmotm/master]
+> [also build test WARNING on v4.13-rc1 next-20170718]
+> [if your patch is applied to the wrong git tree, please drop us a note =
+to help improve the system]
+>
+> url:    https://na01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2=
+F%2Fgithub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-e=
+nhancement-for-thp%2F20170718-095519&data=3D02%7C01%7Czi.yan%40cs.rutgers=
+=2Eedu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632=
+ffe%7C1%7C0%7C636360483431631457&sdata=3DNpxRpWbxe6o56xDJYpw1K6wgQo11IPCA=
+bG2tE8l%2BU6E%3D&reserved=3D0
+> base:   git://git.cmpxchg.org/linux-mmotm.git master
+> config: xtensa-common_defconfig (attached as .config)
+> compiler: xtensa-linux-gcc (GCC) 4.9.0
+> reproduce:
+>         wget https://na01.safelinks.protection.outlook.com/?url=3Dhttps=
+%3A%2F%2Fraw.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2F=
+make.cross&data=3D02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66=
+f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C63636048343163=
+1457&sdata=3DrBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&reser=
+ved=3D0 -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=3Dxtensa
+>
+> All warnings (new ones prefixed by >>):
+>
+>    In file included from mm/vmscan.c:55:0:
+>    include/linux/swapops.h: In function 'swp_entry_to_pmd':
+>>> include/linux/swapops.h:220:2: warning: missing braces around initial=
+izer [-Wmissing-braces]
+>      return (pmd_t){ 0 };
+>      ^
+>    include/linux/swapops.h:220:2: warning: (near initialization for '(a=
+nonymous).pud') [-Wmissing-braces]
+>
+> vim +220 include/linux/swapops.h
+>
+>    217	=
+
+>    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+>    219	{
+>> 220		return (pmd_t){ 0 };
+>    221	}
+>    222	=
+
+
+It is a GCC 4.9.0 bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=3D531=
+19
+
+Upgrading GCC can get rid of this warning.
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJZb6dvAAoJEEGLLxGcTqbMbcIIAKIkYbAJfMBbdUiQzsQ7erBR
++i1hWlMYX7cFZhn4xLlncyKIUcanhnu59ZbDlyAnhMgriUoKrqFPtOYNZQg82ZME
+3i3GxQU5RYt8cavwE+64xQ7XpKwpB/Bi8tYaiimzb3MiCaXV5PdhYOosjnFTubXW
+KTOrr6dTVFmT2PrCqG1M1DcWUul925Q9+7BraroYwBAU5xW50M2EGob65Oh4xcJU
+8MZ1uw+p0oDbKqCCLTwPsccOr6WbmBsTUSu7F5kBmETD1FGnFV5mP+Z8pNaZhvS5
+zJSeeEb5CfUwi7wGiecNEXbbW8OdoD/gvdMuEj+SwStvL2mHm4D/vF1LAIJ5UW8=
+=vSHK
+-----END PGP SIGNATURE-----
+
+--=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
