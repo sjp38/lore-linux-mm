@@ -1,113 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 657596B0292
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 14:39:54 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id q1so2206675qkb.3
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:39:54 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0116.outbound.protection.outlook.com. [104.47.33.116])
-        by mx.google.com with ESMTPS id l67si481414qte.403.2017.07.19.11.39.53
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7859F6B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 15:11:09 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id 2so7686796ybt.7
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 12:11:09 -0700 (PDT)
+Received: from mail-yb0-x22c.google.com (mail-yb0-x22c.google.com. [2607:f8b0:4002:c09::22c])
+        by mx.google.com with ESMTPS id w81si157447yww.327.2017.07.19.12.11.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 11:39:53 -0700 (PDT)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
-Date: Wed, 19 Jul 2017 14:39:43 -0400
-Message-ID: <A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
-In-Reply-To: <201707191504.G4xCE7El%fengguang.wu@intel.com>
-References: <201707191504.G4xCE7El%fengguang.wu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jul 2017 12:11:07 -0700 (PDT)
+Received: by mail-yb0-x22c.google.com with SMTP id c127so1480782ybf.4
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 12:11:07 -0700 (PDT)
+Date: Wed, 19 Jul 2017 19:11:06 +0000
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH 09/10] percpu: replace area map allocator with bitmap
+ allocator
+Message-ID: <20170719191105.GC23135@li70-116.members.linode.com>
+References: <20170716022315.19892-1-dennisz@fb.com>
+ <20170716022315.19892-10-dennisz@fb.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170716022315.19892-10-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On Sat, Jul 15, 2017 at 10:23:14PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
+> 
+> The percpu memory allocator is experiencing scalability issues when
+> allocating and freeing large numbers of counters as in BPF.
+> Additionally, there is a corner case where iteration is triggered over
+> all chunks if the contig_hint is the right size, but wrong alignment.
+> 
+> Implementation:
+> This patch removes the area map allocator in favor of a bitmap allocator
+> backed by metadata blocks. The primary goal is to provide consistency
+> in performance and memory footprint with a focus on small allocations
+> (< 64 bytes). The bitmap removes the heavy memmove from the freeing
+> critical path and provides a consistent memory footprint. The metadata
+> blocks provide a bound on the amount of scanning required by maintaining
+> a set of hints.
+> 
+> The chunks previously were managed by free_size, a value maintained in
+> bytes. Now, the chunks are managed in terms of bits, which is just a
+> scaled value of free_size down by PCPU_MIN_ALLOC_SIZE.
+> 
+> There is one caveat with this implementation. In an effort to make
+> freeing fast, the only time metadata is updated on the free path is if a
+> whole block becomes free or the freed area spans across metadata blocks.
+> This causes the chunka??s contig_hint to be potentially smaller than what
+> it could allocate by up to a block. If the chunka??s contig_hint is
+> smaller than a block, a check occurs and the hint is kept accurate.
+> Metadata is always kept accurate on allocation and therefore the
+> situation where a chunk has a larger contig_hint than available will
+> never occur.
+> 
+> Evaluation:
+> I have primarily done testing against a simple workload of allocation of
+> 1 million objects of varying size. Deallocation was done by in order,
+> alternating, and in reverse. These numbers were collected after rebasing
+> ontop of a80099a152. I present the worst-case numbers here:
+> 
+>   Area Map Allocator:
+> 
+>         Object Size | Alloc Time (ms) | Free Time (ms)
+>         ----------------------------------------------
+>               4B    |        335      |     4960
+>              16B    |        485      |     1150
+>              64B    |        445      |      280
+>             128B    |        505      |      177
+>            1024B    |       3385      |      140
+> 
+>   Bitmap Allocator:
+> 
+>         Object Size | Alloc Time (ms) | Free Time (ms)
+>         ----------------------------------------------
+>               4B    |        725      |       70
+>              16B    |        760      |       70
+>              64B    |        855      |       80
+>             128B    |        910      |       90
+>            1024B    |       3770      |      260
+> 
+> This data demonstrates the inability for the area map allocator to
+> handle less than ideal situations. In the best case of reverse
+> deallocation, the area map allocator was able to perform within range
+> of the bitmap allocator. In the worst case situation, freeing took
+> nearly 5 seconds for 1 million 4-byte objects. The bitmap allocator
+> dramatically improves the consistency of the free path. The small
+> allocations performed nearly identical regardless of the freeing
+> pattern.
+> 
+> While it does add to the allocation latency, the allocation scenario
+> here is optimal for the area map allocator. The second problem of
+> additional scanning can result in the area map allocator completing in
+> 52 minutes. The same workload takes only 14 seconds to complete for the
+> bitmap allocator. This was produced under a more contrived scenario of
+> allocating 1 milion 4-byte objects with 8-byte alignment.
+> 
 
---=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+This was a bear to review, I feel like it could be split into a few smaller
+pieces.  You are changing hinting, allocating/freeing, and how you find chunks.
+Those seem like good logical divisions to me.  Overall the design seems sound
+and I didn't spot any major problems.  Once you've split them up I'll do another
+thorough comb through and then add my reviewed by.  Thanks,
 
-On 19 Jul 2017, at 4:04, kbuild test robot wrote:
-
-> Hi Zi,
->
-> [auto build test WARNING on mmotm/master]
-> [also build test WARNING on v4.13-rc1 next-20170718]
-> [if your patch is applied to the wrong git tree, please drop us a note =
-to help improve the system]
->
-> url:    https://na01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2=
-F%2Fgithub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-e=
-nhancement-for-thp%2F20170718-095519&data=3D02%7C01%7Czi.yan%40cs.rutgers=
-=2Eedu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632=
-ffe%7C1%7C0%7C636360483431631457&sdata=3DNpxRpWbxe6o56xDJYpw1K6wgQo11IPCA=
-bG2tE8l%2BU6E%3D&reserved=3D0
-> base:   git://git.cmpxchg.org/linux-mmotm.git master
-> config: xtensa-common_defconfig (attached as .config)
-> compiler: xtensa-linux-gcc (GCC) 4.9.0
-> reproduce:
->         wget https://na01.safelinks.protection.outlook.com/?url=3Dhttps=
-%3A%2F%2Fraw.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2F=
-make.cross&data=3D02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66=
-f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C63636048343163=
-1457&sdata=3DrBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&reser=
-ved=3D0 -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         # save the attached .config to linux build tree
->         make.cross ARCH=3Dxtensa
->
-> All warnings (new ones prefixed by >>):
->
->    In file included from mm/vmscan.c:55:0:
->    include/linux/swapops.h: In function 'swp_entry_to_pmd':
->>> include/linux/swapops.h:220:2: warning: missing braces around initial=
-izer [-Wmissing-braces]
->      return (pmd_t){ 0 };
->      ^
->    include/linux/swapops.h:220:2: warning: (near initialization for '(a=
-nonymous).pud') [-Wmissing-braces]
->
-> vim +220 include/linux/swapops.h
->
->    217	=
-
->    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
->    219	{
->> 220		return (pmd_t){ 0 };
->    221	}
->    222	=
-
-
-It is a GCC 4.9.0 bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=3D531=
-19
-
-Upgrading GCC can get rid of this warning.
-
---
-Best Regards
-Yan Zi
-
---=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJZb6dvAAoJEEGLLxGcTqbMbcIIAKIkYbAJfMBbdUiQzsQ7erBR
-+i1hWlMYX7cFZhn4xLlncyKIUcanhnu59ZbDlyAnhMgriUoKrqFPtOYNZQg82ZME
-3i3GxQU5RYt8cavwE+64xQ7XpKwpB/Bi8tYaiimzb3MiCaXV5PdhYOosjnFTubXW
-KTOrr6dTVFmT2PrCqG1M1DcWUul925Q9+7BraroYwBAU5xW50M2EGob65Oh4xcJU
-8MZ1uw+p0oDbKqCCLTwPsccOr6WbmBsTUSu7F5kBmETD1FGnFV5mP+Z8pNaZhvS5
-zJSeeEb5CfUwi7wGiecNEXbbW8OdoD/gvdMuEj+SwStvL2mHm4D/vF1LAIJ5UW8=
-=vSHK
------END PGP SIGNATURE-----
-
---=_MailMate_9BA031C3-4E34-4828-991B-95D947D300EA_=--
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
