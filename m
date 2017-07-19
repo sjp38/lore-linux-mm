@@ -1,151 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6916B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 09:44:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p12so9304707wrc.8
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 06:44:26 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DE56B0279
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 10:17:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id x43so9418099wrb.9
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 07:17:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 93si337709wrr.466.2017.07.19.06.44.24
+        by mx.google.com with ESMTPS id w9si6694wmb.161.2017.07.19.07.17.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 06:44:25 -0700 (PDT)
-Date: Wed, 19 Jul 2017 15:44:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/9] mm, page_alloc: rip out ZONELIST_ORDER_ZONE
-Message-ID: <20170719134420.GA6170@dhcp22.suse.cz>
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-2-mhocko@kernel.org>
- <a4490c3e-9f7b-72b2-dfa3-80c054df6600@suse.cz>
+        Wed, 19 Jul 2017 07:17:02 -0700 (PDT)
+Date: Wed, 19 Jul 2017 16:16:59 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170719141659.GB15908@quack2.suse.cz>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-2-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a4490c3e-9f7b-72b2-dfa3-80c054df6600@suse.cz>
+In-Reply-To: <20170628220152.28161-2-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Wed 19-07-17 11:33:49, Vlastimil Babka wrote:
-> On 07/14/2017 09:59 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > Supporting zone ordered zonelists costs us just a lot of code while
-> > the usefulness is arguable if existent at all. Mel has already made
-> > node ordering default on 64b systems. 32b systems are still using
-> > ZONELIST_ORDER_ZONE because it is considered better to fallback to
-> > a different NUMA node rather than consume precious lowmem zones.
-> > 
-> > This argument is, however, weaken by the fact that the memory reclaim
-> > has been reworked to be node rather than zone oriented. This means
-> > that lowmem requests have to skip over all highmem pages on LRUs already
-> > and so zone ordering doesn't save the reclaim time much. So the only
-> > advantage of the zone ordering is under a light memory pressure when
-> > highmem requests do not ever hit into lowmem zones and the lowmem
-> > pressure doesn't need to reclaim.
-> > 
-> > Considering that 32b NUMA systems are rather suboptimal already and
-> > it is generally advisable to use 64b kernel on such a HW I believe we
-> > should rather care about the code maintainability and just get rid of
-> > ZONELIST_ORDER_ZONE altogether. Keep systcl in place and warn if
-> > somebody tries to set zone ordering either from kernel command line
-> > or the sysctl.
-> > 
-> > Cc: <linux-api@vger.kernel.org>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Wed 28-06-17 16:01:48, Ross Zwisler wrote:
+> To be able to use the common 4k zero page in DAX we need to have our PTE
+> fault path look more like our PMD fault path where a PTE entry can be
+> marked as dirty and writeable as it is first inserted, rather than waiting
+> for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
 > 
-> Found some leftovers to cleanup:
+> Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> distinguish between these two cases in do_wp_page():
 > 
-> include/linux/mmzone.h:
-> extern char numa_zonelist_order[];
-> #define NUMA_ZONELIST_ORDER_LEN 16      /* string buffer size */
+> 	case 1: 4k zero page => writable DAX storage
+> 	case 2: read-only DAX storage => writeable DAX storage
 > 
-> Also update docs?
-> Documentation/sysctl/vm.txt:zone.  Specify "[Zz]one" for zone order.
-> Documentation/admin-guide/kernel-parameters.txt:
-> numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
-> Documentation/vm/numa:a default zonelist order based on the sizes of the
-> various zone types relative
-> Documentation/vm/numa:default zonelist order may be overridden using the
-> numa_zonelist_order kernel
+> This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> false for the common 4k zero page, though, just as it does for DAX ptes.
+> Instead of special casing the DAX + 4k zero page case, we will simplify our
+> DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> get rid of dax_pfn_mkwrite() completely.
 > 
-> Otherwise,
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> will do the work that was previously done by wp_page_reuse() as part of the
+> dax_pfn_mkwrite() call path.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This?
----
-commit 06c69d6785447160717ca8cc476dc9cac7a3f964
-Author: Michal Hocko <mhocko@suse.com>
-Date:   Wed Jul 19 14:28:31 2017 +0200
+Just one small comment below.
 
-    fold me
-    
-    - update documentation as per Vlastimil
-    
-    Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> @@ -1658,14 +1658,26 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  	if (!pte)
+>  		goto out;
+>  	retval = -EBUSY;
+> -	if (!pte_none(*pte))
+> -		goto out_unlock;
+> +	if (!pte_none(*pte)) {
+> +		if (mkwrite) {
+> +			entry = *pte;
+> +			goto out_mkwrite;
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 60530c8490ff..28f1a0f84456 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2724,7 +2724,7 @@
- 			Allowed values are enable and disable
- 
- 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
--			one of ['zone', 'node', 'default'] can be specified
-+			'node', 'default' can be specified
- 			This can be set from sysctl after boot.
- 			See Documentation/sysctl/vm.txt for details.
- 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 48244c42ff52..9baf66a9ef4e 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -572,7 +572,9 @@ See Documentation/nommu-mmap.txt for more information.
- 
- numa_zonelist_order
- 
--This sysctl is only for NUMA.
-+This sysctl is only for NUMA and it is deprecated. Anything but
-+Node order will fail!
-+
- 'where the memory is allocated from' is controlled by zonelists.
- (This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
-  you may be able to read ZONE_DMA as ZONE_DMA32...)
-diff --git a/Documentation/vm/numa b/Documentation/vm/numa
-index a08f71647714..a31b85b9bb88 100644
---- a/Documentation/vm/numa
-+++ b/Documentation/vm/numa
-@@ -79,11 +79,8 @@ memory, Linux must decide whether to order the zonelists such that allocations
- fall back to the same zone type on a different node, or to a different zone
- type on the same node.  This is an important consideration because some zones,
- such as DMA or DMA32, represent relatively scarce resources.  Linux chooses
--a default zonelist order based on the sizes of the various zone types relative
--to the total memory of the node and the total memory of the system.  The
--default zonelist order may be overridden using the numa_zonelist_order kernel
--boot parameter or sysctl.  [see Documentation/admin-guide/kernel-parameters.rst and
--Documentation/sysctl/vm.txt]
-+a default Node ordered zonelist. This means it tries to fallback to other zones
-+from the same node before using remote nodes which are ordered by NUMA distance.
- 
- By default, Linux will attempt to satisfy memory allocation requests from the
- node to which the CPU that executes the request is assigned.  Specifically,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fc14b8b3f6ce..b849006b20d3 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -895,8 +895,6 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
- 
- extern int numa_zonelist_order_handler(struct ctl_table *, int,
- 			void __user *, size_t *, loff_t *);
--extern char numa_zonelist_order[];
--#define NUMA_ZONELIST_ORDER_LEN 16	/* string buffer size */
- 
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- 
+Can we maybe check here that (pte_pfn(*pte) == pfn_t_to_pfn(pfn)) and
+return -EBUSY otherwise? That way we are sure insert_pfn() isn't doing
+anything we don't expect and if I understand the code right, we need to
+invalidate all zero page mappings at given file offset (via
+unmap_mapping_range()) before mapping an allocated block there and thus the
+case of filling the hole won't be affected by this?
 
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
