@@ -1,60 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 72BC36B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 16:50:19 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k71so10576197wrc.15
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:50:19 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 844596B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 16:59:31 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 79so1012267wmr.0
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:59:31 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 32si4715030wrn.5.2017.07.19.13.50.17
+        by mx.google.com with ESMTPS id i13si527425wmd.88.2017.07.19.13.59.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 13:50:18 -0700 (PDT)
-Date: Wed, 19 Jul 2017 13:50:14 -0700
+        Wed, 19 Jul 2017 13:59:30 -0700 (PDT)
+Date: Wed, 19 Jul 2017 13:59:27 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/vmalloc: add vm_struct for vm_map_ram area
-Message-Id: <20170719135014.fdc882d1e28fd130104eff5d@linux-foundation.org>
-In-Reply-To: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-References: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
+Message-Id: <20170719135927.d553f5afe893ca43d70cbdc5@linux-foundation.org>
+In-Reply-To: <A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
+References: <201707191504.G4xCE7El%fengguang.wu@intel.com>
+	<A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: zhaoyang.huang@spreadtrum.com, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-On Wed, 19 Jul 2017 18:44:03 +0800 Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
+On Wed, 19 Jul 2017 14:39:43 -0400 "Zi Yan" <zi.yan@cs.rutgers.edu> wrote:
 
-> /proc/vmallocinfo will not show the area allocated by vm_map_ram, which
-> will make confusion when debug. Add vm_struct for them and show them in
-> proc.
+> On 19 Jul 2017, at 4:04, kbuild test robot wrote:
 > 
+> > Hi Zi,
+> >
+> > [auto build test WARNING on mmotm/master]
+> > [also build test WARNING on v4.13-rc1 next-20170718]
+> > [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> >
+> > url:    https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fgithub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-enhancement-for-thp%2F20170718-095519&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&sdata=NpxRpWbxe6o56xDJYpw1K6wgQo11IPCAbG2tE8l%2BU6E%3D&reserved=0
+> > base:   git://git.cmpxchg.org/linux-mmotm.git master
+> > config: xtensa-common_defconfig (attached as .config)
+> > compiler: xtensa-linux-gcc (GCC) 4.9.0
+> > reproduce:
+> >         wget https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fraw.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&sdata=rBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&reserved=0 -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         # save the attached .config to linux build tree
+> >         make.cross ARCH=xtensa
+> >
+> > All warnings (new ones prefixed by >>):
+> >
+> >    In file included from mm/vmscan.c:55:0:
+> >    include/linux/swapops.h: In function 'swp_entry_to_pmd':
+> >>> include/linux/swapops.h:220:2: warning: missing braces around initializer [-Wmissing-braces]
+> >      return (pmd_t){ 0 };
+> >      ^
+> >    include/linux/swapops.h:220:2: warning: (near initialization for '(anonymous).pud') [-Wmissing-braces]
+> >
+> > vim +220 include/linux/swapops.h
+> >
+> >    217	
+> >    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> >    219	{
+> >> 220		return (pmd_t){ 0 };
+> >    221	}
+> >    222	
+> 
+> It is a GCC 4.9.0 bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119
+> 
+> Upgrading GCC can get rid of this warning.
 
-Please provide sample /proc/vmallocinfo so we can better understand the
-proposal.  Is there a means by which people can determine that a
-particular area is from vm_map_ram()?  I don't think so.  Should there
-be?
+I think there was a workaround for this, but I don't recall what it
+was.
 
->
-> ...
->
-> @@ -1173,6 +1178,12 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
->  		addr = (unsigned long)mem;
->  	} else {
->  		struct vmap_area *va;
-> +		struct vm_struct *area;
-> +
-> +		area = kzalloc_node(sizeof(*area), GFP_KERNEL, node);
-> +		if (unlikely(!area))
-> +			return NULL;
+This suppressed the warning:
 
-Allocating a vm_struct for each vm_map_ram area is a cost.  And we're
-doing this purely for /proc/vmallocinfo.  I think I'll need more
-persuading to convince me that this is a good tradeoff, given that
-*every* user will incur this cost, and approximately 0% of them will
-ever use /proc/vmallocinfo.
+--- a/include/linux/swapops.h~a
++++ a/include/linux/swapops.h
+@@ -217,7 +217,7 @@ static inline swp_entry_t pmd_to_swp_ent
+ 
+ static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+ {
+-	return (pmd_t){ 0 };
++	return (pmd_t){};
+ }
+ 
+ static inline int is_pmd_migration_entry(pmd_t pmd)
 
-So... do we *really* need this?  If so, why?
+But I don't know if this is the approved workaround and I don't know
+what it will do at runtime!
+
+But we should fix this.  Expecting zillions of people to update their
+compiler version isn't nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
