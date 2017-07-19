@@ -1,115 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B834D6B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 06:44:12 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c23so46563137pfe.11
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 03:44:12 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id j4si4157286pgt.49.2017.07.19.03.44.11
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 71F8C6B02B4
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 07:53:15 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d77so3578024oig.7
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 04:53:15 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id g140si3962950oic.150.2017.07.19.04.53.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 03:44:11 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id d193so6477003pgc.2
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 03:44:11 -0700 (PDT)
-From: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Subject: [PATCH] mm/vmalloc: add vm_struct for vm_map_ram area
-Date: Wed, 19 Jul 2017 18:44:03 +0800
-Message-Id: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Jul 2017 04:53:14 -0700 (PDT)
+Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
+References: <20170628180047.5386-1-jglisse@redhat.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <19d4aa0e-a428-ed6d-c524-9b1cdcf6aa30@huawei.com>
+Date: Wed, 19 Jul 2017 19:48:08 +0800
+MIME-Version: 1.0
+In-Reply-To: <20170628180047.5386-1-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
 
-/proc/vmallocinfo will not show the area allocated by vm_map_ram, which
-will make confusion when debug. Add vm_struct for them and show them in
-proc.
+Hi JA(C)rA'me
 
-Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
----
- mm/vmalloc.c | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+On 2017/6/29 2:00, JA(C)rA'me Glisse wrote:
+> 
+> Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
+> test same kernel as kbuild system, git branch:
+> 
+> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v24
+> 
+> Change since v23 is code comment fixes, simplify kernel configuration and
+> improve allocation of new page on migration do device memory (last patch
+> in this patchset).
+> 
+> Everything else is the same. Below is the long description of what HMM
+> is about and why. At the end of this email i describe briefly each patch
+> and suggest reviewers for each of them.
+> 
+> 
+> Heterogeneous Memory Management (HMM) (description and justification)
+> 
+> Today device driver expose dedicated memory allocation API through their
+> device file, often relying on a combination of IOCTL and mmap calls. The
+> device can only access and use memory allocated through this API. This
+> effectively split the program address space into object allocated for the
+> device and useable by the device and other regular memory (malloc, mmap
+> of a file, share memory, Ac) only accessible by CPU (or in a very limited
+> way by a device by pinning memory).
+> 
+> Allowing different isolated component of a program to use a device thus
+> require duplication of the input data structure using device memory
+> allocator. This is reasonable for simple data structure (array, grid,
+> image, Ac) but this get extremely complex with advance data structure
+> (list, tree, graph, Ac) that rely on a web of memory pointers. This is
+> becoming a serious limitation on the kind of work load that can be
+> offloaded to device like GPU.
+> 
+> New industry standard like C++, OpenCL or CUDA are pushing to remove this
+> barrier. This require a shared address space between GPU device and CPU so
+> that GPU can access any memory of a process (while still obeying memory
+> protection like read only). This kind of feature is also appearing in
+> various other operating systems.
+> 
+> HMM is a set of helpers to facilitate several aspects of address space
+> sharing and device memory management. Unlike existing sharing mechanism
+> that rely on pining pages use by a device, HMM relies on mmu_notifier to
+> propagate CPU page table update to device page table.
+> 
+> Duplicating CPU page table is only one aspect necessary for efficiently
+> using device like GPU. GPU local memory have bandwidth in the TeraBytes/
+> second range but they are connected to main memory through a system bus
+> like PCIE that is limited to 32GigaBytes/second (PCIE 4.0 16x). Thus it
+> is necessary to allow migration of process memory from main system memory
+> to device memory. Issue is that on platform that only have PCIE the device
+> memory is not accessible by the CPU with the same properties as main
+> memory (cache coherency, atomic operations, ...).
+> 
+> To allow migration from main memory to device memory HMM provides a set
+> of helper to hotplug device memory as a new type of ZONE_DEVICE memory
+> which is un-addressable by CPU but still has struct page representing it.
+> This allow most of the core kernel logic that deals with a process memory
+> to stay oblivious of the peculiarity of device memory.
+> 
+> When page backing an address of a process is migrated to device memory
+> the CPU page table entry is set to a new specific swap entry. CPU access
+> to such address triggers a migration back to system memory, just like if
+> the page was swap on disk. 
+> [...]
+> To allow efficient migration between device memory and main memory a new
+> migrate_vma() helpers is added with this patchset. It allows to leverage
+> device DMA engine to perform the copy operation.
+> 
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 34a1c3e..4a2e93c 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -46,6 +46,9 @@ struct vfree_deferred {
- 
- static void __vunmap(const void *, int);
- 
-+static void setup_vmap_ram_vm(struct vm_struct *vm, struct vmap_area *va,
-+				unsigned long flags, const void *caller);
-+
- static void free_work(struct work_struct *w)
- {
- 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-@@ -315,6 +318,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
- /*** Global kva allocator ***/
- 
- #define VM_VM_AREA	0x04
-+#define VM_VM_RAM	0x08
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
-@@ -1141,6 +1145,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
- 
- 	va = find_vmap_area(addr);
- 	BUG_ON(!va);
-+	kfree(va->vm);
- 	free_unmap_vmap_area(va);
- }
- EXPORT_SYMBOL(vm_unmap_ram);
-@@ -1173,6 +1178,12 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
- 		addr = (unsigned long)mem;
- 	} else {
- 		struct vmap_area *va;
-+		struct vm_struct *area;
-+
-+		area = kzalloc_node(sizeof(*area), GFP_KERNEL, node);
-+		if (unlikely(!area))
-+			return NULL;
-+
- 		va = alloc_vmap_area(size, PAGE_SIZE,
- 				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
- 		if (IS_ERR(va))
-@@ -1180,6 +1191,7 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
- 
- 		addr = va->va_start;
- 		mem = (void *)addr;
-+		setup_vmap_ram_vm(area, va, 0, __builtin_return_address(0));
- 	}
- 	if (vmap_page_range(addr, addr + size, prot, pages) < 0) {
- 		vm_unmap_ram(mem, count);
-@@ -1362,6 +1374,19 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
- 	spin_unlock(&vmap_area_lock);
- }
- 
-+static void setup_vmap_ram_vm(struct vm_struct *vm, struct vmap_area *va,
-+			      unsigned long flags, const void *caller)
-+{
-+	spin_lock(&vmap_area_lock);
-+	vm->flags = flags;
-+	vm->addr = (void *)va->va_start;
-+	vm->size = va->va_end - va->va_start;
-+	vm->caller = caller;
-+	va->vm = vm;
-+	va->flags |= VM_VM_RAM;
-+	spin_unlock(&vmap_area_lock);
-+}
-+
- static void clear_vm_uninitialized_flag(struct vm_struct *vm)
- {
- 	/*
-@@ -2698,7 +2723,7 @@ static int s_show(struct seq_file *m, void *p)
- 	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
- 	 * behalf of vmap area is being tear down or vm_map_ram allocation.
- 	 */
--	if (!(va->flags & VM_VM_AREA))
-+	if (!(va->flags & (VM_VM_AREA | VM_VM_RAM)))
- 		return 0;
- 
- 	v = va->vm;
--- 
-1.9.1
+Is this means that when CPU access an address of a process is migrated to device
+memory, it should call migrate_vma() to migrate a range of address back to CPU ?
+If it is so, I think it should somewhere call this function in this patchset,
+however, I do not find anywhere in this patchset call this function.
+
+Or am I miss anything?
+
+Thanks
+Yisheng Xie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
