@@ -1,50 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8516B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 10:20:13 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id e190so1593090ybh.8
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 07:20:13 -0700 (PDT)
-Received: from mail-yw0-x234.google.com (mail-yw0-x234.google.com. [2607:f8b0:4002:c05::234])
-        by mx.google.com with ESMTPS id b203si29703ybc.506.2017.07.19.07.20.12
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D458A6B0279
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 11:01:39 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e199so2529414pfh.7
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 08:01:39 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0103.outbound.protection.outlook.com. [104.47.42.103])
+        by mx.google.com with ESMTPS id n62si179709pfb.86.2017.07.19.08.01.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 07:20:12 -0700 (PDT)
-Received: by mail-yw0-x234.google.com with SMTP id v193so1016241ywg.2
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 07:20:12 -0700 (PDT)
-Date: Wed, 19 Jul 2017 14:20:11 +0000
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: Re: [PATCH 06/10] percpu: modify base_addr to be region specific
-Message-ID: <20170719142010.GB23135@li70-116.members.linode.com>
-References: <20170716022315.19892-1-dennisz@fb.com>
- <20170716022315.19892-7-dennisz@fb.com>
- <20170718192601.GB4009@destiny>
- <20170718193627.GA18303@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 19 Jul 2017 08:01:38 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH v9 06/10] mm: thp: check pmd migration entry in common
+ path
+Date: Wed, 19 Jul 2017 11:01:33 -0400
+Message-ID: <DBF3E4FD-6CC8-41E3-8C20-466645BAFF7C@cs.rutgers.edu>
+In-Reply-To: <20170719080212.GB26779@dhcp22.suse.cz>
+References: <20170717193955.20207-1-zi.yan@sent.com>
+ <20170717193955.20207-7-zi.yan@sent.com>
+ <20170719080212.GB26779@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170718193627.GA18303@bombadil.infradead.org>
+Content-Type: multipart/signed;
+ boundary="=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Josef Bacik <josef@toxicpanda.com>, Dennis Zhou <dennisz@fb.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Jul 18, 2017 at 12:36:27PM -0700, Matthew Wilcox wrote:
-> On Tue, Jul 18, 2017 at 03:26:02PM -0400, Josef Bacik wrote:
-> > On Sat, Jul 15, 2017 at 10:23:11PM -0400, Dennis Zhou wrote:
-> > > +	map_size_bytes = (ai->reserved_size ?: ai->dyn_size) +
-> > > +			 pcpu_reserved_offset;
-> > 
-> > This confused me for a second, better to be explicit with
-> > 
-> > (ai->reserved_size ? 0 : ai->dyn_size) + pcpu_reserved_offset;
-> 
-> You're still confused ;-)  What Dennis wrote is equivalent to:
-> 
-> (ai->reserved_size ? ai->reserved_size : ai->dyn_size) + pcpu_reserved_offset;
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-Lol jesus, made my point even harder with me being an idiot.  Thanks,
+--=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=
+Content-Type: text/plain
 
-Josef
+On 19 Jul 2017, at 4:02, Michal Hocko wrote:
+
+> On Mon 17-07-17 15:39:51, Zi Yan wrote:
+>> From: Zi Yan <zi.yan@cs.rutgers.edu>
+>>
+>> If one of callers of page migration starts to handle thp,
+>> memory management code start to see pmd migration entry, so we need
+>> to prepare for it before enabling. This patch changes various code
+>> point which checks the status of given pmds in order to prevent race
+>> between thp migration and the pmd-related works.
+>
+> I am sorry to nitpick on the changelog but the patch is scary large and
+> it would deserve much better description. What are those "various code
+> point" and how do you "prevent race". How can we double check that none
+> of them were missed?
+
+Thanks for pointing this out.
+
+Let me know if the following new description looks good to you:
+
+
+When THP migration is being used, memory management code needs to handle
+pmd migration entries properly. This patch uses !pmd_present() or is_swap_pmd()
+(depending on whether pmd_none() needs separate code or not) to
+check pmd migration entries at the places where a pmd entry is present.
+
+Since pmd-related code uses split_huge_page(), split_huge_pmd(), pmd_trans_huge(),
+pmd_trans_unstable(), or pmd_none_or_trans_huge_or_clear_bad(),
+this patch:
+1. adds pmd migration entry split code in split_huge_pmd(),
+2. takes care of pmd migration entries whenever pmd_trans_huge() is present,
+3. makes pmd_none_or_trans_huge_or_clear_bad() pmd migration entry aware.
+Since split_huge_page() uses split_huge_pmd() and pmd_trans_unstable() is equivalent
+to pmd_none_or_trans_huge_or_clear_bad(), we do not change them.
+
+Until this commit, a pmd entry should be:
+1. pointing to a pte page,
+2. is_swap_pmd(),
+3. pmd_trans_huge(),
+4. pmd_devmap(), or
+5. pmd_none().
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJZb3ROAAoJEEGLLxGcTqbMnM0IAIJk5fInIsfn5Ix/cfwDR1kS
+qt6scndZCaMoR+rEIRk8fcX4pwyXnWIW4LH1xl9w/+p6iYfWaCxellSeE5OHgiRL
+HGe3IJXfpTWOQfd8lT+qJbWWvNAOv7O12yBiF6IBu+kI3gI/syPAPjdHVmFTXM0a
+ds3IMwuc4d347SqKCbEbEndOSExa87IE6pcMKMtqvUxike3p1PJHdl0kIcki+iEV
+w2MhyAtvXJviZ+FKYsqGGvh8GgbND+HgC0d9+52QZ5hdoTUXyupQ9pPFk03eM6mw
+1iT8JdLI670sSGUQ6Fj45Jl9ljDxzrM8UUJMZrEj5MCLzZ07fxWikbS3NFsBkGE=
+=mylc
+-----END PGP SIGNATURE-----
+
+--=_MailMate_B7607DC4-C4BD-4CC7-9C63-FB670B57C6D1_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
