@@ -1,84 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D656B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 12:39:59 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id u123so4529869itu.5
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 09:39:59 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h97si398954iod.343.2017.07.19.09.39.58
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 37BA26B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:37:12 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id b130so489434oii.9
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 10:37:12 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e200si4827779oih.79.2017.07.19.10.37.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 09:39:59 -0700 (PDT)
-Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
- mappings
-References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
- <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <fad64378-02d7-32c3-50c5-8b444a07d274@oracle.com>
-Date: Wed, 19 Jul 2017 09:39:50 -0700
-MIME-Version: 1.0
-In-Reply-To: <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        Wed, 19 Jul 2017 10:37:11 -0700 (PDT)
+From: Jeff Layton <jlayton@kernel.org>
+Subject: [PATCH] fs: convert sync_file_range to use errseq_t based error-tracking
+Date: Wed, 19 Jul 2017 13:37:07 -0400
+Message-Id: <20170719173707.21933-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
 
-On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
-> [+CC linux-api]
-> 
-> On 07/13/2017 05:58 PM, Mike Kravetz wrote:
->> mremap will create a 'duplicate' mapping if old_size == 0 is
->> specified.  Such duplicate mappings make no sense for private
->> mappings.  If duplication is attempted for a private mapping,
->> mremap creates a separate private mapping unrelated to the
->> original mapping and makes no modifications to the original.
->> This is contrary to the purpose of mremap which should return
->> a mapping which is in some way related to the original.
->>
->> Therefore, return EINVAL in the case where if an attempt is
->> made to duplicate a private mapping.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+From: Jeff Layton <jlayton@redhat.com>
 
-After considering Michal's concerns with follow on patch, it appears
-this patch provides the most desired behavior.  Any other concerns
-or issues with this patch?
+sync_file_range doesn't call down into the filesystem directly at all.
+It only kicks off writeback of pagecache pages and optionally waits
+on the result.
 
-If this moves forward, I will create man page updates to describe the
-mremap(old_size == 0) behavior.
+Convert sync_file_range to use errseq_t based error tracking, under the
+assumption that most users will prefer this behavior when errors occur.
 
+Signed-off-by: Jeff Layton <jlayton@redhat.com>
+---
+ fs/sync.c          |  4 ++--
+ include/linux/fs.h |  2 ++
+ mm/filemap.c       | 22 ++++++++++++++++++++++
+ 3 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/fs/sync.c b/fs/sync.c
+index 2a54c1f22035..27d6b8bbcb6a 100644
+--- a/fs/sync.c
++++ b/fs/sync.c
+@@ -342,7 +342,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
+ 
+ 	ret = 0;
+ 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
+-		ret = filemap_fdatawait_range(mapping, offset, endbyte);
++		ret = file_fdatawait_range(f.file, offset, endbyte);
+ 		if (ret < 0)
+ 			goto out_put;
+ 	}
+@@ -355,7 +355,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
+ 	}
+ 
+ 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
+-		ret = filemap_fdatawait_range(mapping, offset, endbyte);
++		ret = file_fdatawait_range(f.file, offset, endbyte);
+ 
+ out_put:
+ 	fdput(f);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 7b5d6816542b..fb615e1eb1d4 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2544,6 +2544,8 @@ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
+ 				   loff_t lend);
+ extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
+ 				  loff_t lend);
++extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
++						loff_t lend);
+ extern int filemap_write_and_wait(struct address_space *mapping);
+ extern int filemap_write_and_wait_range(struct address_space *mapping,
+ 				        loff_t lstart, loff_t lend);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a49702445ce0..bb17590d7c67 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -476,6 +476,28 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
+ EXPORT_SYMBOL(filemap_fdatawait_range);
+ 
+ /**
++ * file_fdatawait_range - wait for writeback to complete
++ * @file:		file pointing to address space structure to wait for
++ * @start_byte:		offset in bytes where the range starts
++ * @end_byte:		offset in bytes where the range ends (inclusive)
++ *
++ * Walk the list of under-writeback pages of the address space that file
++ * refers to, in the given range and wait for all of them.  Check error
++ * status of the address space vs. the file->f_wb_err cursor and return it.
++ *
++ * Since the error status of the file is advanced by this function,
++ * callers are responsible for checking the return value and handling and/or
++ * reporting the error.
++ */
++int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
++{
++	struct address_space *mapping = file->f_mapping;
++
++	__filemap_fdatawait_range(mapping, start_byte, end_byte);
++	return file_check_and_advance_wb_err(file);
++}
++
++/**
+  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
+  * @mapping: address space structure to wait for
+  *
 -- 
-Mike Kravetz
-
-> 
->> ---
->>  mm/mremap.c | 7 +++++++
->>  1 file changed, 7 insertions(+)
->>
->> diff --git a/mm/mremap.c b/mm/mremap.c
->> index cd8a1b1..076f506 100644
->> --- a/mm/mremap.c
->> +++ b/mm/mremap.c
->> @@ -383,6 +383,13 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
->>  	if (!vma || vma->vm_start > addr)
->>  		return ERR_PTR(-EFAULT);
->>  
->> +	/*
->> +	 * !old_len  is a special case where a mapping is 'duplicated'.
->> +	 * Do not allow this for private mappings.
->> +	 */
->> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
->> +		return ERR_PTR(-EINVAL);
->> +
->>  	if (is_vm_hugetlb_page(vma))
->>  		return ERR_PTR(-EINVAL);
->>  
->>
-> 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
