@@ -1,513 +1,274 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C1A46B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 04:02:19 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w126so2021610wme.10
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 01:02:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 76si14927520wmi.70.2017.07.19.01.02.17
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DC3D66B0279
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 04:05:40 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id c14so46704494pgn.11
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 01:05:40 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id b65si3720553pli.643.2017.07.19.01.05.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 01:02:17 -0700 (PDT)
-Date: Wed, 19 Jul 2017 10:02:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v9 06/10] mm: thp: check pmd migration entry in common
- path
-Message-ID: <20170719080212.GB26779@dhcp22.suse.cz>
-References: <20170717193955.20207-1-zi.yan@sent.com>
- <20170717193955.20207-7-zi.yan@sent.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jul 2017 01:05:39 -0700 (PDT)
+Date: Wed, 19 Jul 2017 16:04:48 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
+Message-ID: <201707191504.G4xCE7El%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="+QahgC5+KEYLbs62"
 Content-Disposition: inline
-In-Reply-To: <20170717193955.20207-7-zi.yan@sent.com>
+In-Reply-To: <20170717193955.20207-6-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zi Yan <zi.yan@sent.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+Cc: kbuild-all@01.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-On Mon 17-07-17 15:39:51, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
-> 
-> If one of callers of page migration starts to handle thp,
-> memory management code start to see pmd migration entry, so we need
-> to prepare for it before enabling. This patch changes various code
-> point which checks the status of given pmds in order to prevent race
-> between thp migration and the pmd-related works.
 
-I am sorry to nitpick on the changelog but the patch is scary large and
-it would deserve much better description. What are those "various code
-point" and how do you "prevent race". How can we double check that none
-of them were missed?
+--+QahgC5+KEYLbs62
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> ChangeLog v1 -> v2:
-> - introduce pmd_related() (I know the naming is not good, but can't
->   think up no better name. Any suggesntion is welcomed.)
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> 
-> ChangeLog v2 -> v3:
-> - add is_swap_pmd()
-> - a pmd entry should be pmd pointing to pte pages, is_swap_pmd(),
->   pmd_trans_huge(), pmd_devmap(), or pmd_none()
-> - pmd_none_or_trans_huge_or_clear_bad() and pmd_trans_unstable() return
->   true on pmd_migration_entry, so that migration entries are not
->   treated as pmd page table entries.
-> 
-> ChangeLog v4 -> v5:
-> - add explanation in pmd_none_or_trans_huge_or_clear_bad() to state
->   the equivalence of !pmd_present() and is_pmd_migration_entry()
-> - fix migration entry wait deadlock code (from v1) in follow_page_mask()
-> - remove unnecessary code (from v1) in follow_trans_huge_pmd()
-> - use is_swap_pmd() instead of !pmd_present() for pmd migration entry,
->   so it will not be confused with pmd_none()
-> - change author information
-> 
-> ChangeLog v5 -> v7
-> - use macro to disable the code when thp migration is not enabled
-> 
-> ChangeLog v7 -> v8
-> - remove not used code in do_huge_pmd_wp_page()
-> - copy the comment from change_pte_range() on downgrading
->   write migration entry to read to change_huge_pmd()
-> 
-> ChangeLog v8 -> v9
-> - fix VM_BUG_ON()s that trigger false alarms.
-> 
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/proc/task_mmu.c            | 32 +++++++++++++--------
->  include/asm-generic/pgtable.h | 18 +++++++++++-
->  include/linux/huge_mm.h       | 14 ++++++++--
->  mm/gup.c                      | 22 +++++++++++++--
->  mm/huge_memory.c              | 65 +++++++++++++++++++++++++++++++++++++++----
->  mm/memcontrol.c               |  5 ++++
->  mm/memory.c                   | 12 ++++++--
->  mm/mprotect.c                 |  4 +--
->  mm/mremap.c                   |  2 +-
->  9 files changed, 147 insertions(+), 27 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index b836fd61ed87..0f17a7cccb41 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -596,7 +596,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  
->  	ptl = pmd_trans_huge_lock(pmd, vma);
->  	if (ptl) {
-> -		smaps_pmd_entry(pmd, addr, walk);
-> +		if (pmd_present(*pmd))
-> +			smaps_pmd_entry(pmd, addr, walk);
->  		spin_unlock(ptl);
->  		return 0;
->  	}
-> @@ -938,6 +939,9 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
->  			goto out;
->  		}
->  
-> +		if (!pmd_present(*pmd))
-> +			goto out;
-> +
->  		page = pmd_page(*pmd);
->  
->  		/* Clear accessed and referenced bits. */
-> @@ -1217,27 +1221,33 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
->  	if (ptl) {
->  		u64 flags = 0, frame = 0;
->  		pmd_t pmd = *pmdp;
-> +		struct page *page = NULL;
->  
->  		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
->  			flags |= PM_SOFT_DIRTY;
->  
-> -		/*
-> -		 * Currently pmd for thp is always present because thp
-> -		 * can not be swapped-out, migrated, or HWPOISONed
-> -		 * (split in such cases instead.)
-> -		 * This if-check is just to prepare for future implementation.
-> -		 */
->  		if (pmd_present(pmd)) {
-> -			struct page *page = pmd_page(pmd);
-> -
-> -			if (page_mapcount(page) == 1)
-> -				flags |= PM_MMAP_EXCLUSIVE;
-> +			page = pmd_page(pmd);
->  
->  			flags |= PM_PRESENT;
->  			if (pm->show_pfn)
->  				frame = pmd_pfn(pmd) +
->  					((addr & ~PMD_MASK) >> PAGE_SHIFT);
->  		}
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +		else if (is_swap_pmd(pmd)) {
-> +			swp_entry_t entry = pmd_to_swp_entry(pmd);
-> +
-> +			frame = swp_type(entry) |
-> +				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
-> +			flags |= PM_SWAP;
-> +			VM_BUG_ON(!is_pmd_migration_entry(pmd));
-> +			page = migration_entry_to_page(entry);
-> +		}
-> +#endif
-> +
-> +		if (page && page_mapcount(page) == 1)
-> +			flags |= PM_MMAP_EXCLUSIVE;
->  
->  		for (; addr != end; addr += PAGE_SIZE) {
->  			pagemap_entry_t pme = make_pme(frame, flags);
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 7dfa767dc680..8937d51c2834 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -834,7 +834,23 @@ static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  	barrier();
->  #endif
-> -	if (pmd_none(pmdval) || pmd_trans_huge(pmdval))
-> +	/*
-> +	 * !pmd_present() checks for pmd migration entries
-> +	 *
-> +	 * The complete check uses is_pmd_migration_entry() in linux/swapops.h
-> +	 * But using that requires moving current function and pmd_trans_unstable()
-> +	 * to linux/swapops.h to resovle dependency, which is too much code move.
-> +	 *
-> +	 * !pmd_present() is equivalent to is_pmd_migration_entry() currently,
-> +	 * because !pmd_present() pages can only be under migration not swapped
-> +	 * out.
-> +	 *
-> +	 * pmd_none() is preseved for future condition checks on pmd migration
-> +	 * entries and not confusing with this function name, although it is
-> +	 * redundant with !pmd_present().
-> +	 */
-> +	if (pmd_none(pmdval) || pmd_trans_huge(pmdval) ||
-> +		(IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION) && !pmd_present(pmdval)))
->  		return 1;
->  	if (unlikely(pmd_bad(pmdval))) {
->  		pmd_clear_bad(pmd);
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index d8f35a0865dc..14bc21c2ee7f 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -147,7 +147,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  #define split_huge_pmd(__vma, __pmd, __address)				\
->  	do {								\
->  		pmd_t *____pmd = (__pmd);				\
-> -		if (pmd_trans_huge(*____pmd)				\
-> +		if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd)	\
->  					|| pmd_devmap(*____pmd))	\
->  			__split_huge_pmd(__vma, __pmd, __address,	\
->  						false, NULL);		\
-> @@ -178,12 +178,18 @@ extern spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma);
->  extern spinlock_t *__pud_trans_huge_lock(pud_t *pud,
->  		struct vm_area_struct *vma);
-> +
-> +static inline int is_swap_pmd(pmd_t pmd)
-> +{
-> +	return !pmd_none(pmd) && !pmd_present(pmd);
-> +}
-> +
->  /* mmap_sem must be held on entry */
->  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma)
->  {
->  	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
-> -	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-> +	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
->  		return __pmd_trans_huge_lock(pmd, vma);
->  	else
->  		return NULL;
-> @@ -299,6 +305,10 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
->  					 long adjust_next)
->  {
->  }
-> +static inline int is_swap_pmd(pmd_t pmd)
-> +{
-> +	return 0;
-> +}
->  static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
->  		struct vm_area_struct *vma)
->  {
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 23f01c40c88f..d81dd886d5d9 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -234,6 +234,16 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
->  			return page;
->  		return no_page_table(vma, flags);
->  	}
-> +retry:
-> +	if (!pmd_present(*pmd)) {
-> +		if (likely(!(flags & FOLL_MIGRATION)))
-> +			return no_page_table(vma, flags);
-> +		VM_BUG_ON(thp_migration_supported() &&
-> +				  !is_pmd_migration_entry(*pmd));
-> +		if (is_pmd_migration_entry(*pmd))
-> +			pmd_migration_entry_wait(mm, pmd);
-> +		goto retry;
-> +	}
->  	if (pmd_devmap(*pmd)) {
->  		ptl = pmd_lock(mm, pmd);
->  		page = follow_devmap_pmd(vma, address, pmd, flags);
-> @@ -247,7 +257,15 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
->  	if ((flags & FOLL_NUMA) && pmd_protnone(*pmd))
->  		return no_page_table(vma, flags);
->  
-> +retry_locked:
->  	ptl = pmd_lock(mm, pmd);
-> +	if (unlikely(!pmd_present(*pmd))) {
-> +		spin_unlock(ptl);
-> +		if (likely(!(flags & FOLL_MIGRATION)))
-> +			return no_page_table(vma, flags);
-> +		pmd_migration_entry_wait(mm, pmd);
-> +		goto retry_locked;
-> +	}
->  	if (unlikely(!pmd_trans_huge(*pmd))) {
->  		spin_unlock(ptl);
->  		return follow_page_pte(vma, address, pmd, flags);
-> @@ -424,7 +442,7 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
->  	pud = pud_offset(p4d, address);
->  	BUG_ON(pud_none(*pud));
->  	pmd = pmd_offset(pud, address);
-> -	if (pmd_none(*pmd))
-> +	if (!pmd_present(*pmd))
->  		return -EFAULT;
->  	VM_BUG_ON(pmd_trans_huge(*pmd));
->  	pte = pte_offset_map(pmd, address);
-> @@ -1534,7 +1552,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  		pmd_t pmd = READ_ONCE(*pmdp);
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		if (!pmd_present(pmd))
->  			return 0;
->  
->  		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 9668f8cb8317..dc7830e4993f 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -914,6 +914,23 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  
->  	ret = -EAGAIN;
->  	pmd = *src_pmd;
-> +
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +	if (unlikely(is_swap_pmd(pmd))) {
-> +		swp_entry_t entry = pmd_to_swp_entry(pmd);
-> +
-> +		VM_BUG_ON(!is_pmd_migration_entry(pmd));
-> +		if (is_write_migration_entry(entry)) {
-> +			make_migration_entry_read(&entry);
-> +			pmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(src_mm, addr, src_pmd, pmd);
-> +		}
-> +		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-> +		ret = 0;
-> +		goto out_unlock;
-> +	}
-> +#endif
-> +
->  	if (unlikely(!pmd_trans_huge(pmd))) {
->  		pte_free(dst_mm, pgtable);
->  		goto out_unlock;
-> @@ -1556,6 +1573,12 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	if (is_huge_zero_pmd(orig_pmd))
->  		goto out;
->  
-> +	if (unlikely(!pmd_present(orig_pmd))) {
-> +		VM_BUG_ON(thp_migration_supported() &&
-> +				  !is_pmd_migration_entry(orig_pmd));
-> +		goto out;
-> +	}
-> +
->  	page = pmd_page(orig_pmd);
->  	/*
->  	 * If other processes are mapping this page, we couldn't discard
-> @@ -1767,6 +1790,25 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  	preserve_write = prot_numa && pmd_write(*pmd);
->  	ret = 1;
->  
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +	if (is_swap_pmd(*pmd)) {
-> +		swp_entry_t entry = pmd_to_swp_entry(*pmd);
-> +
-> +		VM_BUG_ON(!is_pmd_migration_entry(*pmd));
-> +		if (is_write_migration_entry(entry)) {
-> +			pmd_t newpmd;
-> +			/*
-> +			 * A protection check is difficult so
-> +			 * just be safe and disable write
-> +			 */
-> +			make_migration_entry_read(&entry);
-> +			newpmd = swp_entry_to_pmd(entry);
-> +			set_pmd_at(mm, addr, pmd, newpmd);
-> +		}
-> +		goto unlock;
-> +	}
-> +#endif
-> +
->  	/*
->  	 * Avoid trapping faults against the zero page. The read-only
->  	 * data is likely to be read-cached on the local CPU and
-> @@ -1832,7 +1874,8 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
->  {
->  	spinlock_t *ptl;
->  	ptl = pmd_lock(vma->vm_mm, pmd);
-> -	if (likely(pmd_trans_huge(*pmd) || pmd_devmap(*pmd)))
-> +	if (likely(is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) ||
-> +			pmd_devmap(*pmd)))
->  		return ptl;
->  	spin_unlock(ptl);
->  	return NULL;
-> @@ -1950,14 +1993,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  	struct page *page;
->  	pgtable_t pgtable;
->  	pmd_t _pmd;
-> -	bool young, write, dirty, soft_dirty;
-> +	bool young, write, dirty, soft_dirty, pmd_migration = false;
->  	unsigned long addr;
->  	int i;
->  
->  	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
->  	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
->  	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
-> -	VM_BUG_ON(!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd));
-> +	VM_BUG_ON(!is_pmd_migration_entry(*pmd) && !pmd_trans_huge(*pmd)
-> +				&& !pmd_devmap(*pmd));
->  
->  	count_vm_event(THP_SPLIT_PMD);
->  
-> @@ -1982,7 +2026,16 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  		return __split_huge_zero_page_pmd(vma, haddr, pmd);
->  	}
->  
-> -	page = pmd_page(*pmd);
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +	pmd_migration = is_pmd_migration_entry(*pmd);
-> +	if (pmd_migration) {
-> +		swp_entry_t entry;
-> +
-> +		entry = pmd_to_swp_entry(*pmd);
-> +		page = pfn_to_page(swp_offset(entry));
-> +	} else
-> +#endif
-> +		page = pmd_page(*pmd);
->  	VM_BUG_ON_PAGE(!page_count(page), page);
->  	page_ref_add(page, HPAGE_PMD_NR - 1);
->  	write = pmd_write(*pmd);
-> @@ -2001,7 +2054,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  		 * transferred to avoid any possibility of altering
->  		 * permissions across VMAs.
->  		 */
-> -		if (freeze) {
-> +		if (freeze || pmd_migration) {
->  			swp_entry_t swp_entry;
->  			swp_entry = make_migration_entry(page + i, write);
->  			entry = swp_entry_to_pte(swp_entry);
-> @@ -2100,7 +2153,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  		page = pmd_page(*pmd);
->  		if (PageMlocked(page))
->  			clear_page_mlock(page);
-> -	} else if (!pmd_devmap(*pmd))
-> +	} else if (!(pmd_devmap(*pmd) || is_pmd_migration_entry(*pmd)))
->  		goto out;
->  	__split_huge_pmd_locked(vma, pmd, haddr, freeze);
->  out:
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 544d47e5cbbd..8d9e9c13fe4f 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4638,6 +4638,11 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
->  	struct page *page = NULL;
->  	enum mc_target_type ret = MC_TARGET_NONE;
->  
-> +	if (unlikely(is_swap_pmd(pmd))) {
-> +		VM_BUG_ON(thp_migration_supported() &&
-> +				  !is_pmd_migration_entry(pmd));
-> +		return ret;
-> +	}
->  	page = pmd_page(pmd);
->  	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
->  	if (!(mc.flags & MOVE_ANON))
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 0e517be91a89..000d54dc1c68 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1036,7 +1036,8 @@ static inline int copy_pmd_range(struct mm_struct *dst_mm, struct mm_struct *src
->  	src_pmd = pmd_offset(src_pud, addr);
->  	do {
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
-> +		if (is_swap_pmd(*src_pmd) || pmd_trans_huge(*src_pmd)
-> +			|| pmd_devmap(*src_pmd)) {
->  			int err;
->  			VM_BUG_ON_VMA(next-addr != HPAGE_PMD_SIZE, vma);
->  			err = copy_huge_pmd(dst_mm, src_mm,
-> @@ -1296,7 +1297,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
->  	pmd = pmd_offset(pud, addr);
->  	do {
->  		next = pmd_addr_end(addr, end);
-> -		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
-> +		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
->  			if (next - addr != HPAGE_PMD_SIZE) {
->  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
->  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
-> @@ -3804,6 +3805,13 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  		pmd_t orig_pmd = *vmf.pmd;
->  
->  		barrier();
-> +		if (unlikely(is_swap_pmd(orig_pmd))) {
-> +			VM_BUG_ON(thp_migration_supported() &&
-> +					  !is_pmd_migration_entry(orig_pmd));
-> +			if (is_pmd_migration_entry(orig_pmd))
-> +				pmd_migration_entry_wait(mm, vmf.pmd);
-> +			return 0;
-> +		}
->  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
->  			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
->  				return do_huge_pmd_numa_page(&vmf, orig_pmd);
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 1a8c9ca83e48..d60a1eedcc54 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -148,7 +148,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  		unsigned long this_pages;
->  
->  		next = pmd_addr_end(addr, end);
-> -		if (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
-> +		if (!is_swap_pmd(*pmd) && !pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
->  				&& pmd_none_or_clear_bad(pmd))
->  			continue;
->  
-> @@ -158,7 +158,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  			mmu_notifier_invalidate_range_start(mm, mni_start, end);
->  		}
->  
-> -		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
-> +		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
->  			if (next - addr != HPAGE_PMD_SIZE) {
->  				__split_huge_pmd(vma, pmd, addr, false, NULL);
->  			} else {
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b199ef9..1c49b9fb994a 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -222,7 +222,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
->  		if (!new_pmd)
->  			break;
-> -		if (pmd_trans_huge(*old_pmd)) {
-> +		if (is_swap_pmd(*old_pmd) || pmd_trans_huge(*old_pmd)) {
->  			if (extent == HPAGE_PMD_SIZE) {
->  				bool moved;
->  				/* See comment in move_ptes() */
-> -- 
-> 2.11.0
+Hi Zi,
 
--- 
-Michal Hocko
-SUSE Labs
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.13-rc1 next-20170718]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Zi-Yan/mm-page-migration-enhancement-for-thp/20170718-095519
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: xtensa-common_defconfig (attached as .config)
+compiler: xtensa-linux-gcc (GCC) 4.9.0
+reproduce:
+        wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=xtensa 
+
+All warnings (new ones prefixed by >>):
+
+   In file included from mm/vmscan.c:55:0:
+   include/linux/swapops.h: In function 'swp_entry_to_pmd':
+>> include/linux/swapops.h:220:2: warning: missing braces around initializer [-Wmissing-braces]
+     return (pmd_t){ 0 };
+     ^
+   include/linux/swapops.h:220:2: warning: (near initialization for '(anonymous).pud') [-Wmissing-braces]
+
+vim +220 include/linux/swapops.h
+
+   217	
+   218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+   219	{
+ > 220		return (pmd_t){ 0 };
+   221	}
+   222	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--+QahgC5+KEYLbs62
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--+QahgC5+KEYLbs62--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
