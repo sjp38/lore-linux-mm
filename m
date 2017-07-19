@@ -1,93 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 844596B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 16:59:31 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 79so1012267wmr.0
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:59:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i13si527425wmd.88.2017.07.19.13.59.30
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68FF66B02B4
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 17:47:11 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z36so2350482wrb.13
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 14:47:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j19si591482wmi.144.2017.07.19.14.47.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 13:59:30 -0700 (PDT)
-Date: Wed, 19 Jul 2017 13:59:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
-Message-Id: <20170719135927.d553f5afe893ca43d70cbdc5@linux-foundation.org>
-In-Reply-To: <A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
-References: <201707191504.G4xCE7El%fengguang.wu@intel.com>
-	<A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Jul 2017 14:47:10 -0700 (PDT)
+Date: Wed, 19 Jul 2017 22:47:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170719214708.wuzq3di6rt43txtn@suse.de>
+References: <20170712082733.ouf7yx2bnvwwcfms@suse.de>
+ <591A2865-13B8-4B3A-B094-8B83A7F9814B@gmail.com>
+ <20170713060706.o2cuko5y6irxwnww@suse.de>
+ <A9CB595E-7C6D-438F-9835-A9EB8DA90892@gmail.com>
+ <20170715155518.ok2q62efc2vurqk5@suse.de>
+ <F7E154AB-5C1D-477F-A6BF-EFCAE5381B2D@gmail.com>
+ <20170719074131.75wexoal3fiyoxw5@suse.de>
+ <E9EE838F-F1E3-43A8-BB87-8B5B8388FF61@gmail.com>
+ <20170719195820.drtfmweuhdc4eca6@suse.de>
+ <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Wed, 19 Jul 2017 14:39:43 -0400 "Zi Yan" <zi.yan@cs.rutgers.edu> wrote:
-
-> On 19 Jul 2017, at 4:04, kbuild test robot wrote:
+On Wed, Jul 19, 2017 at 01:20:01PM -0700, Nadav Amit wrote:
+> > From a PTE you cannot know the state of mmap_sem because you can rmap
+> > back to multiple mm's for shared mappings. It's also fairly heavy handed.
+> > Technically, you could lock on the basis of the VMA but that has other
+> > consequences for scalability. The staleness is also a factor because
+> > it's a case of "does the staleness matter". Sometimes it does, sometimes
+> > it doesn't.  mmap_sem even if it could be used does not always tell us
+> > the right information either because it can matter whether we are racing
+> > against a userspace reference or a kernel operation.
+> > 
+> > It's possible your idea could be made work, but right now I'm not seeing a
+> > solution that handles every corner case. I asked to hear what your ideas
+> > were because anything I thought of that could batch TLB flushing in the
+> > general case had flaws that did not improve over what is already there.
 > 
-> > Hi Zi,
-> >
-> > [auto build test WARNING on mmotm/master]
-> > [also build test WARNING on v4.13-rc1 next-20170718]
-> > [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> >
-> > url:    https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fgithub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-enhancement-for-thp%2F20170718-095519&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&sdata=NpxRpWbxe6o56xDJYpw1K6wgQo11IPCAbG2tE8l%2BU6E%3D&reserved=0
-> > base:   git://git.cmpxchg.org/linux-mmotm.git master
-> > config: xtensa-common_defconfig (attached as .config)
-> > compiler: xtensa-linux-gcc (GCC) 4.9.0
-> > reproduce:
-> >         wget https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fraw.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&sdata=rBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&reserved=0 -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         # save the attached .config to linux build tree
-> >         make.cross ARCH=xtensa
-> >
-> > All warnings (new ones prefixed by >>):
-> >
-> >    In file included from mm/vmscan.c:55:0:
-> >    include/linux/swapops.h: In function 'swp_entry_to_pmd':
-> >>> include/linux/swapops.h:220:2: warning: missing braces around initializer [-Wmissing-braces]
-> >      return (pmd_t){ 0 };
-> >      ^
-> >    include/linux/swapops.h:220:2: warning: (near initialization for '(anonymous).pud') [-Wmissing-braces]
-> >
-> > vim +220 include/linux/swapops.h
-> >
-> >    217	
-> >    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
-> >    219	{
-> >> 220		return (pmd_t){ 0 };
-> >    221	}
-> >    222	
+> I don???t disagree with what you say - perhaps my scheme is too simplistic.
+> But the bottom line, if you cannot form simple rules for when TLB needs to
+> be flushed, what are the chances others would get it right?
 > 
-> It is a GCC 4.9.0 bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119
+
+Broad rule is "flush before the page is freed/reallocated for clean pages
+or any IO is initiated for dirty pages" with a lot of details that are not
+documented. Often it's the PTL and flush with it held that protects the
+majority of cases but it's not universal as the page lock and mmap_sem
+play important rules depending ont the context and AFAIK, that's also
+not documented.
+
+> > shrink_page_list is the caller of try_to_unmap in reclaim context. It
+> > has this check
+> > 
+> >                if (!trylock_page(page))
+> >                        goto keep;
+> > 
+> > For pages it cannot lock, they get put back on the LRU and recycled instead
+> > of reclaimed. Hence, if KSM or anything else holds the page lock, reclaim
+> > can't unmap it.
 > 
-> Upgrading GCC can get rid of this warning.
+> Yes, of course, since KSM does not batch TLB flushes. I regarded the other
+> direction - first try_to_unmap() removes the PTE (but still does not flush),
+> unlocks the page, and then KSM acquires the page lock and calls
+> write_protect_page(). It finds out the PTE is not present and does not flush
+> the TLB.
+> 
 
-I think there was a workaround for this, but I don't recall what it
-was.
+When KSM acquires the page lock, it then acquires the PTL where the
+cleared PTE is observed directly and skipped.
 
-This suppressed the warning:
+> > There is no question that the area is complicated.
+> 
+> My comment was actually an unfunny joke... Never mind.
+> 
+> Thanks,
+> Nadav
+> 
+> p.s.: Thanks for your patience.
+> 
 
---- a/include/linux/swapops.h~a
-+++ a/include/linux/swapops.h
-@@ -217,7 +217,7 @@ static inline swp_entry_t pmd_to_swp_ent
- 
- static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
- {
--	return (pmd_t){ 0 };
-+	return (pmd_t){};
- }
- 
- static inline int is_pmd_migration_entry(pmd_t pmd)
+No need for thanks. As you pointed out yourself, you have been
+identifying races.
 
-But I don't know if this is the approved workaround and I don't know
-what it will do at runtime!
-
-But we should fix this.  Expecting zillions of people to update their
-compiler version isn't nice.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
