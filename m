@@ -1,109 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 37BA26B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:37:12 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id b130so489434oii.9
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 10:37:12 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e200si4827779oih.79.2017.07.19.10.37.10
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 129696B02B4
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 13:51:26 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u6so7850656pgc.13
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 10:51:26 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d16si178207pli.650.2017.07.19.10.51.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 10:37:11 -0700 (PDT)
-From: Jeff Layton <jlayton@kernel.org>
-Subject: [PATCH] fs: convert sync_file_range to use errseq_t based error-tracking
-Date: Wed, 19 Jul 2017 13:37:07 -0400
-Message-Id: <20170719173707.21933-1-jlayton@kernel.org>
+        Wed, 19 Jul 2017 10:51:25 -0700 (PDT)
+Date: Wed, 19 Jul 2017 11:51:12 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170719175112.GA24588@linux.intel.com>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-2-ross.zwisler@linux.intel.com>
+ <20170719141659.GB15908@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170719141659.GB15908@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>
-Cc: "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-From: Jeff Layton <jlayton@redhat.com>
+On Wed, Jul 19, 2017 at 04:16:59PM +0200, Jan Kara wrote:
+> On Wed 28-06-17 16:01:48, Ross Zwisler wrote:
+> > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > fault path look more like our PMD fault path where a PTE entry can be
+> > marked as dirty and writeable as it is first inserted, rather than waiting
+> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > 
+> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > distinguish between these two cases in do_wp_page():
+> > 
+> > 	case 1: 4k zero page => writable DAX storage
+> > 	case 2: read-only DAX storage => writeable DAX storage
+> > 
+> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > get rid of dax_pfn_mkwrite() completely.
+> > 
+> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > will do the work that was previously done by wp_page_reuse() as part of the
+> > dax_pfn_mkwrite() call path.
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> 
+> Just one small comment below.
+> 
+> > @@ -1658,14 +1658,26 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+> >  	if (!pte)
+> >  		goto out;
+> >  	retval = -EBUSY;
+> > -	if (!pte_none(*pte))
+> > -		goto out_unlock;
+> > +	if (!pte_none(*pte)) {
+> > +		if (mkwrite) {
+> > +			entry = *pte;
+> > +			goto out_mkwrite;
+> 
+> Can we maybe check here that (pte_pfn(*pte) == pfn_t_to_pfn(pfn)) and
+> return -EBUSY otherwise? That way we are sure insert_pfn() isn't doing
+> anything we don't expect 
 
-sync_file_range doesn't call down into the filesystem directly at all.
-It only kicks off writeback of pagecache pages and optionally waits
-on the result.
+Sure, that's fine.  I'll add it as a WARN_ON_ONCE() so it's a very loud
+failure.  If the pfns don't match I think we're insane (and would have been
+insane prior to this patch series as well) because we are getting a page fault
+and somehow have a different PFN already mapped at that location.
 
-Convert sync_file_range to use errseq_t based error tracking, under the
-assumption that most users will prefer this behavior when errors occur.
+> and if I understand the code right, we need to
+> invalidate all zero page mappings at given file offset (via
+> unmap_mapping_range()) before mapping an allocated block there and thus the
+> case of filling the hole won't be affected by this?
 
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- fs/sync.c          |  4 ++--
- include/linux/fs.h |  2 ++
- mm/filemap.c       | 22 ++++++++++++++++++++++
- 3 files changed, 26 insertions(+), 2 deletions(-)
+Correct.  Here's the call tree if we already have a zero page mapped and are
+now faulting in an allocated block:
 
-diff --git a/fs/sync.c b/fs/sync.c
-index 2a54c1f22035..27d6b8bbcb6a 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -342,7 +342,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
- 
- 	ret = 0;
- 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
--		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-+		ret = file_fdatawait_range(f.file, offset, endbyte);
- 		if (ret < 0)
- 			goto out_put;
- 	}
-@@ -355,7 +355,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
- 	}
- 
- 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
--		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-+		ret = file_fdatawait_range(f.file, offset, endbyte);
- 
- out_put:
- 	fdput(f);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 7b5d6816542b..fb615e1eb1d4 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2544,6 +2544,8 @@ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
- 				   loff_t lend);
- extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
- 				  loff_t lend);
-+extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-+						loff_t lend);
- extern int filemap_write_and_wait(struct address_space *mapping);
- extern int filemap_write_and_wait_range(struct address_space *mapping,
- 				        loff_t lstart, loff_t lend);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a49702445ce0..bb17590d7c67 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -476,6 +476,28 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
- EXPORT_SYMBOL(filemap_fdatawait_range);
- 
- /**
-+ * file_fdatawait_range - wait for writeback to complete
-+ * @file:		file pointing to address space structure to wait for
-+ * @start_byte:		offset in bytes where the range starts
-+ * @end_byte:		offset in bytes where the range ends (inclusive)
-+ *
-+ * Walk the list of under-writeback pages of the address space that file
-+ * refers to, in the given range and wait for all of them.  Check error
-+ * status of the address space vs. the file->f_wb_err cursor and return it.
-+ *
-+ * Since the error status of the file is advanced by this function,
-+ * callers are responsible for checking the return value and handling and/or
-+ * reporting the error.
-+ */
-+int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
-+{
-+	struct address_space *mapping = file->f_mapping;
-+
-+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-+	return file_check_and_advance_wb_err(file);
-+}
-+
-+/**
-  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
-  * @mapping: address space structure to wait for
-  *
--- 
-2.13.3
+dax_iomap_pte_fault()
+  dax_insert_mapping()
+    dax_insert_mapping_entry()
+      unmap_mapping_range() for our zero page
+    vm_insert_mixed_mkwrite() installs the new PTE. We have pte_none(), so we
+    				skip the new mkwrite goto in insert_pfn().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
