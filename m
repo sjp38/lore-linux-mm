@@ -1,120 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E512D6B0279
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 05:09:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id s70so44901333pfs.5
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 02:09:32 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id q7si3758083pgc.397.2017.07.19.02.09.31
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7B86B0279
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 05:33:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id g15so2324164wmi.11
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 02:33:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b31si3756718wrd.66.2017.07.19.02.33.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 02:09:31 -0700 (PDT)
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-References: <20170713211532.970-1-jglisse@redhat.com>
- <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
- <20170718153816.GA3135@redhat.com>
- <b6f9d812-a1f5-d647-0a6a-39a08023c3b4@huawei.com>
- <20170719022537.GA6911@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
-Date: Wed, 19 Jul 2017 17:09:04 +0800
+        Wed, 19 Jul 2017 02:33:51 -0700 (PDT)
+Subject: Re: [PATCH 1/9] mm, page_alloc: rip out ZONELIST_ORDER_ZONE
+References: <20170714080006.7250-1-mhocko@kernel.org>
+ <20170714080006.7250-2-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a4490c3e-9f7b-72b2-dfa3-80c054df6600@suse.cz>
+Date: Wed, 19 Jul 2017 11:33:49 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170719022537.GA6911@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170714080006.7250-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal
- Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-api@vger.kernel.org
 
-On 2017/7/19 10:25, Jerome Glisse wrote:
-> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
->> On 2017/7/18 23:38, Jerome Glisse wrote:
->>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
->>>> On 2017/7/14 5:15, Jerome Glisse wrote:
->>>>> Sorry i made horrible mistake on names in v4, i completly miss-
->>>>> understood the suggestion. So here i repost with proper naming.
->>>>> This is the only change since v3. Again sorry about the noise
->>>>> with v4.
->>>>>
->>>>> Changes since v4:
->>>>>   - s/DEVICE_HOST/DEVICE_PUBLIC
->>>>>
->>>>> Git tree:
->>>>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-cdm-v5
->>>>>
->>>>>
->>>>> Cache coherent device memory apply to architecture with system bus
->>>>> like CAPI or CCIX. Device connected to such system bus can expose
->>>>> their memory to the system and allow cache coherent access to it
->>>>> from the CPU.
->>>>>
->>>>> Even if for all intent and purposes device memory behave like regular
->>>>> memory, we still want to manage it in isolation from regular memory.
->>>>> Several reasons for that, first and foremost this memory is less
->>>>> reliable than regular memory if the device hangs because of invalid
->>>>> commands we can loose access to device memory. Second CPU access to
->>>>> this memory is expected to be slower than to regular memory. Third
->>>>> having random memory into device means that some of the bus bandwith
->>>>> wouldn't be available to the device but would be use by CPU access.
->>>>>
->>>>> This is why we want to manage such memory in isolation from regular
->>>>> memory. Kernel should not try to use this memory even as last resort
->>>>> when running out of memory, at least for now.
->>>>>
->>>>
->>>> I think set a very large node distance for "Cache Coherent Device Memory"
->>>> may be a easier way to address these concerns.
->>>
->>> Such approach was discuss at length in the past see links below. Outcome
->>> of discussion:
->>>   - CPU less node are bad
->>>   - device memory can be unreliable (device hang) no way for application
->>>     to understand that
->>
->> Device memory can also be more reliable if using high quality and expensive memory.
+On 07/14/2017 09:59 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Even ECC memory does not compensate for device hang. When your GPU lockups
-> you might need to re-init GPU from scratch after which the content of the
-> device memory is unreliable. During init the device memory might not get
-> proper clock or proper refresh cycle and thus is susceptible to corruption.
+> Supporting zone ordered zonelists costs us just a lot of code while
+> the usefulness is arguable if existent at all. Mel has already made
+> node ordering default on 64b systems. 32b systems are still using
+> ZONELIST_ORDER_ZONE because it is considered better to fallback to
+> a different NUMA node rather than consume precious lowmem zones.
 > 
->>
->>>   - application and driver NUMA madvise/mbind/mempolicy ... can conflict
->>>     with each other and no way the kernel can figure out which should
->>>     apply
->>>   - NUMA as it is now would not work as we need further isolation that
->>>     what a large node distance would provide
->>>
->>
->> Agree, that's where we need spend time on.
->>
->> One drawback of HMM-CDM I'm worry about is one more extra copy.
->> In the cache coherent case, CPU can write data to device memory
->> directly then start fpga/GPU/other accelerators.
+> This argument is, however, weaken by the fact that the memory reclaim
+> has been reworked to be node rather than zone oriented. This means
+> that lowmem requests have to skip over all highmem pages on LRUs already
+> and so zone ordering doesn't save the reclaim time much. So the only
+> advantage of the zone ordering is under a light memory pressure when
+> highmem requests do not ever hit into lowmem zones and the lowmem
+> pressure doesn't need to reclaim.
 > 
-> There is not necessarily an extra copy. Device driver can pre-allocate
-> virtual address range of a process with device memory. Device page fault
-
-Okay, I get your point.
-But the typical use case is CPU allocate a memory and prepare/write data then launch GPU "cuda kernel".
-How to control the allocation go to device memory e.g HBM or system DDR at the beginning without user explicit advise?
-If goes to DDR by default, there is an extra copy. If goes to HBM by default, the HBM may be waste.
-
-> can directly allocate device memory. Once allocated CPU access will use
-> the device memory.
+> Considering that 32b NUMA systems are rather suboptimal already and
+> it is generally advisable to use 64b kernel on such a HW I believe we
+> should rather care about the code maintainability and just get rid of
+> ZONELIST_ORDER_ZONE altogether. Keep systcl in place and warn if
+> somebody tries to set zone ordering either from kernel command line
+> or the sysctl.
 > 
+> Cc: <linux-api@vger.kernel.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Then it's more like replace the numa node solution(CDM) with ZONE_DEVICE(type MEMORY_DEVICE_PUBLIC).
-But the problem is the same, e.g how to make sure the device memory say HBM won't be occupied by normal CPU allocation.
-Things will be more complex if there are multi GPU connected by nvlink(also cache coherent) in a system, each GPU has their own HBM.
-How to decide allocate physical memory from local HBM/DDR or remote HBM/DDR? 
-If using numa(CDM) approach there are NUMA mempolicy and autonuma mechanism at least.
+Found some leftovers to cleanup:
 
-Thanks,
-Bob
+include/linux/mmzone.h:
+extern char numa_zonelist_order[];
+#define NUMA_ZONELIST_ORDER_LEN 16      /* string buffer size */
 
+Also update docs?
+Documentation/sysctl/vm.txt:zone.  Specify "[Zz]one" for zone order.
+Documentation/admin-guide/kernel-parameters.txt:
+numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
+Documentation/vm/numa:a default zonelist order based on the sizes of the
+various zone types relative
+Documentation/vm/numa:default zonelist order may be overridden using the
+numa_zonelist_order kernel
+
+Otherwise,
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
