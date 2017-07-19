@@ -1,109 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2228A6B02C3
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 04:23:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w126so2087538wme.10
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 01:23:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v128si3154042wmg.14.2017.07.19.01.23.17
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC176B02C3
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 04:39:09 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id k82so9887653lfg.13
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 01:39:09 -0700 (PDT)
+Received: from mail-lf0-f65.google.com (mail-lf0-f65.google.com. [209.85.215.65])
+        by mx.google.com with ESMTPS id l12si2114563lfg.180.2017.07.19.01.39.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 01:23:17 -0700 (PDT)
-Date: Wed, 19 Jul 2017 09:23:16 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: TLB batching breaks MADV_DONTNEED
-Message-ID: <20170719082316.ceuzf3wt34e6jy3s@suse.de>
-References: <B672524C-1D52-4215-89CB-9FF3477600C9@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jul 2017 01:39:08 -0700 (PDT)
+Received: by mail-lf0-f65.google.com with SMTP id p11so3848351lfd.1
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 01:39:07 -0700 (PDT)
+Reply-To: alex.popov@linux.com
+Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or
+ corruption
+References: <1500309907-9357-1-git-send-email-alex.popov@linux.com>
+ <20170717175459.GC14983@bombadil.infradead.org>
+ <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake>
+ <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com>
+ <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
+ <1edb137c-356f-81d6-4592-f5dfc68e8ea9@linux.com>
+ <CAGXu5jL0bFpWqUm9d2X7zpTO_CwPp94ywcLYoFyNcLuiwX8qAQ@mail.gmail.com>
+From: Alexander Popov <alex.popov@linux.com>
+Message-ID: <5f0ec56c-5cf1-58f7-5652-a5caedf3df88@linux.com>
+Date: Wed, 19 Jul 2017 11:38:57 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <B672524C-1D52-4215-89CB-9FF3477600C9@gmail.com>
+In-Reply-To: <CAGXu5jL0bFpWqUm9d2X7zpTO_CwPp94ywcLYoFyNcLuiwX8qAQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Tue, Jul 18, 2017 at 10:05:23PM -0700, Nadav Amit wrote:
-> Something seems to be really wrong with all these TLB flush batching
-> mechanisms that are all around kernel. Here is another example, which was
-> not addressed by the recently submitted patches.
+On 18.07.2017 23:04, Kees Cook wrote:
+> On Tue, Jul 18, 2017 at 12:56 PM, Alexander Popov <alex.popov@linux.com> wrote:
+>> On 17.07.2017 22:11, Kees Cook wrote:
+>>> Let's merge this with the proposed CONFIG_FREELIST_HARDENED, then the
+>>> performance change is behind a config, and we gain the rest of the
+>>> freelist protections at the same time:
+>>>
+>>> http://www.openwall.com/lists/kernel-hardening/2017/07/06/1
+>>
+>> Hello Kees,
+>>
+>> If I change BUG_ON() to VM_BUG_ON(), this check will work at least on Fedora
+>> since it has CONFIG_DEBUG_VM enabled. Debian based distros have this option
+>> disabled. Do you like that more than having this check under
+>> CONFIG_FREELIST_HARDENED?
 > 
-> Consider what happens when two MADV_DONTNEED run concurrently. According to
-> the man page "After a successful MADV_DONTNEED operation ??? subsequent
-> accesses of pages in the range will succeed, but will result in ???
-> zero-fill-on-demand pages for anonymous private mappings.???
+> I think there are two issues: first, this should likely be under
+> CONFIG_FREELIST_HARDENED since Christoph hasn't wanted to make these
+> changes enabled by default (if I'm understanding his earlier review
+> comments to me).
+
+Ok, I'll rebase onto FREELIST_HARDENED and test it all together.
+
+> The second issue is what to DO when a double-free is
+> discovered. Is there any way to make it safe/survivable? If not, I
+> think it should just be BUG_ON(). If it can be made safe, then likely
+> a WARN_ONCE and do whatever is needed to prevent the double-free.
+
+Please correct me if I'm wrong. It seems to me that double-free is a dangerous
+situation that indicates some serious kernel bug (which might be maliciously
+exploited). So I would not trust / rely on the process which experiences a
+double-free error in the kernel mode.
+
+But I guess the reaction to it should depend on the Linux kernel policy of
+handling faults. Is it defined explicitly?
+
+Anyway, if we try to mitigate the effect from a double-free error _here_ (for
+example, skip putting the duplicated object to the freelist), I think we should
+do the same for other cases of double-free and memory corruptions.
+
+>> If you insist on putting this check under CONFIG_FREELIST_HARDENED, should I
+>> rebase onto your patch and send again?
 > 
-> However, the test below, which does MADV_DONTNEED in two threads, reads ???8???
-> and not ???0??? when reading the memory following MADV_DONTNEED. It happens
-> since one of the threads clears the PTE, but defers the TLB flush for some
-> time (until it finishes changing 16k PTEs). The main thread sees the PTE
-> already non-present and does not flush the TLB.
-> 
-> I think there is a need for a batching scheme that considers whether
-> mmap_sem is taken for write/read/nothing and the change to the PTE.
-> Unfortunately, I do not have the time to do it right now.
-> 
-> Am I missing something? Thoughts?
-> 
+> That would be preferred for me -- I'd like to have both checks. :)
 
-You're right that in this case, there will be a short window when the old
-anonymous data is still available. Non-anonymous doesn't matter in this case
-as the if the data is unmapped but available from a stale TLB entry, all it
-means is that there is a delay in refetching the data from backing storage.
+Ok.
 
-Technically, DONTNEED is not required to zero-fill the data but in the
-case of Linux, it actually does matter because the stale entry is
-pointing to page that will be freed shortly. If a caller returns and
-uses a stale TLB entry to "reinitialise" the region then the writes may
-be lost.
-
-This is independent of the reclaim batching of flushes and specific to
-how madvise uses zap_page_range.
-
-The most straight-forward but overkill solution would be to take mmap_sem
-for write for madvise. That would have wide-ranging consequences and likely
-to be rejected.
-
-A more reasonable solution would be to always flush the TLB range being
-madvised when the VMA is a private anonymous mapping to guarantee that
-a zero-fill-on-demand region exists. Other mappings do not need special
-protection as a parallel access will either use a stale TLB (no permission
-change so no problem) or refault the data. Special casing based on
-mmap_sem does not make much sense but is also unnecessary.
-
-Something like this completely untested patch that would point in the
-general direction if a case can be found where this should be fixed. It
-could be optimised to only flush the local TLB but it's probably not worth
-the complexity.
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 9976852f1e1c..78bbe09e549e 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -497,6 +497,18 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
- 					unsigned long start, unsigned long end)
- {
- 	zap_page_range(vma, start, end - start);
-+
-+	/*
-+	 * A parallel madvise operation could have unmapped PTEs and deferred
-+	 * a flush before this madvise returns. Guarantee the TLB is flushed
-+	 * so that an immediate read after madvise will return zero's for
-+	 * private anonymous mappings. File-backed shared mappings do not
-+	 * matter as they will either use a stale TLB entry or refault the
-+	 * data in the event of a race.
-+	 */
-+	if (vma_is_anonymous(vma))
-+		flush_tlb_range(vma, start, end);
-+	
- 	return 0;
- }
- 
-
-
--- 
-Mel Gorman
-SUSE Labs
+Best regards,
+Alexander
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
