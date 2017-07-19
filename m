@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C426B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 12:26:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e3so4910381pfc.4
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 09:26:49 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id l15si313077pgs.91.2017.07.19.09.26.47
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D656B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 12:39:59 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u123so4529869itu.5
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 09:39:59 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id h97si398954iod.343.2017.07.19.09.39.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 09:26:47 -0700 (PDT)
-Date: Wed, 19 Jul 2017 10:26:45 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 3/5] dax: use common 4k zero page for dax mmap reads
-Message-ID: <20170719162645.GA26445@linux.intel.com>
-References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
- <20170628220152.28161-4-ross.zwisler@linux.intel.com>
- <20170719153314.GC15908@quack2.suse.cz>
+        Wed, 19 Jul 2017 09:39:59 -0700 (PDT)
+Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
+ mappings
+References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
+ <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <fad64378-02d7-32c3-50c5-8b444a07d274@oracle.com>
+Date: Wed, 19 Jul 2017 09:39:50 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170719153314.GC15908@quack2.suse.cz>
+In-Reply-To: <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Jul 19, 2017 at 05:33:14PM +0200, Jan Kara wrote:
-> On Wed 28-06-17 16:01:50, Ross Zwisler wrote:
-> > Another major change is that we remove dax_pfn_mkwrite() from our fault
-> > flow, and instead rely on the page fault itself to make the PTE dirty and
-> > writeable.  The following description from the patch adding the
-> > vm_insert_mixed_mkwrite() call explains this a little more:
-> > 
-> > ***
-> >   To be able to use the common 4k zero page in DAX we need to have our PTE
-> >   fault path look more like our PMD fault path where a PTE entry can be
-> >   marked as dirty and writeable as it is first inserted, rather than
-> >   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> > 
-> >   Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> >   distinguish between these two cases in do_wp_page():
-> > 
-> >   	case 1: 4k zero page => writable DAX storage
-> >   	case 2: read-only DAX storage => writeable DAX storage
-> > 
-> >   This distinction is made by via vm_normal_page().  vm_normal_page()
-> >   returns false for the common 4k zero page, though, just as it does for
-> >   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
-> >   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
-> >   sequence, and get rid of dax_pfn_mkwrite() completely.
-> > 
-> >   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> >   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
-> >   insert_pfn() will do the work that was previously done by wp_page_reuse()
-> >   as part of the dax_pfn_mkwrite() call path.
-> > ***
+On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
+> [+CC linux-api]
 > 
-> Hum, thinking about this in context of this patch... So what if we have
-> allocated storage, a process faults it read-only, we map it to page tables
-> writeprotected. Then the process writes through mmap to the area - the code
-> in handle_pte_fault() ends up in do_wp_page() if I'm reading it right.
+> On 07/13/2017 05:58 PM, Mike Kravetz wrote:
+>> mremap will create a 'duplicate' mapping if old_size == 0 is
+>> specified.  Such duplicate mappings make no sense for private
+>> mappings.  If duplication is attempted for a private mapping,
+>> mremap creates a separate private mapping unrelated to the
+>> original mapping and makes no modifications to the original.
+>> This is contrary to the purpose of mremap which should return
+>> a mapping which is in some way related to the original.
+>>
+>> Therefore, return EINVAL in the case where if an attempt is
+>> made to duplicate a private mapping.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Yep.
+After considering Michal's concerns with follow on patch, it appears
+this patch provides the most desired behavior.  Any other concerns
+or issues with this patch?
 
-> Then, since we are missing ->pfn_mkwrite() handlers, the PTE will be marked
-> writeable but radix tree entry stays clean - bug. Am I missing something?
+If this moves forward, I will create man page updates to describe the
+mremap(old_size == 0) behavior.
 
-I don't think we ever end up with a writeable PTE but with a clean radix tree
-entry.  When we get the write fault we do a full fault through
-dax_iomap_pte_fault() and dax_insert_mapping().
+-- 
+Mike Kravetz
 
-dax_insert_mapping() sets up the dirty radix tree entry via
-dax_insert_mapping_entry() before it does anything with the page tables via
-vm_insert_mixed_mkwrite().
-
-So, this mkwrite fault path is exactly the path we would have taken if the
-initial read to real storage hadn't happened, and we end up in the same end
-state - with a dirty DAX radix tree entry and a writeable PTE.
+> 
+>> ---
+>>  mm/mremap.c | 7 +++++++
+>>  1 file changed, 7 insertions(+)
+>>
+>> diff --git a/mm/mremap.c b/mm/mremap.c
+>> index cd8a1b1..076f506 100644
+>> --- a/mm/mremap.c
+>> +++ b/mm/mremap.c
+>> @@ -383,6 +383,13 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+>>  	if (!vma || vma->vm_start > addr)
+>>  		return ERR_PTR(-EFAULT);
+>>  
+>> +	/*
+>> +	 * !old_len  is a special case where a mapping is 'duplicated'.
+>> +	 * Do not allow this for private mappings.
+>> +	 */
+>> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
+>> +		return ERR_PTR(-EINVAL);
+>> +
+>>  	if (is_vm_hugetlb_page(vma))
+>>  		return ERR_PTR(-EINVAL);
+>>  
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
