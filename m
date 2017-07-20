@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 792A86B02F4
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:07 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 125so24355488pgi.2
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:57:07 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 76AC06B02FD
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:38 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g7so24591204pgp.1
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:57:38 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x84si1199417pgx.426.2017.07.19.22.57.06
+        by mx.google.com with ESMTPS id b8si1064364pli.24.2017.07.19.22.57.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 22:57:06 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6K5tEmB131076
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:06 -0400
+        Wed, 19 Jul 2017 22:57:37 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6K5s3fJ062890
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:37 -0400
 Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2btce3w46s-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2btjhmgcy8-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:05 -0400
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:36 -0400
 Received: from localhost
 	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 20 Jul 2017 15:57:03 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6K5v0if26673320
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:00 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6K5uxNM018543
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:00 +1000
+	Thu, 20 Jul 2017 15:57:34 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6K5vW5h22610086
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:32 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6K5vNoM019546
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:24 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 03/62] powerpc: introduce pte_set_hash_slot() helper
-In-Reply-To: <1500177424-13695-4-git-send-email-linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-4-git-send-email-linuxram@us.ibm.com>
-Date: Thu, 20 Jul 2017 11:26:53 +0530
+Subject: Re: [RFC v6 04/62] powerpc: introduce pte_get_hash_gslot() helper
+In-Reply-To: <1500177424-13695-5-git-send-email-linuxram@us.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-5-git-send-email-linuxram@us.ibm.com>
+Date: Thu, 20 Jul 2017 11:27:24 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
-Message-Id: <874lu7r6qi.fsf@skywalker.in.ibm.com>
+Message-Id: <871spbr6pn.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
@@ -41,85 +41,64 @@ Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@lin
 
 Ram Pai <linuxram@us.ibm.com> writes:
 
-> Introduce pte_set_hash_slot().It  sets the (H_PAGE_F_SECOND|H_PAGE_F_GIX)
-> bits at  the   appropriate   location   in   the   PTE  of  4K  PTE.  For
-> 64K PTE, it  sets  the  bits  in  the  second  part  of  the  PTE. Though
-> the implementation  for the former just needs the slot parameter, it does
-> take some additional parameters to keep the prototype consistent.
+> Introduce pte_get_hash_gslot()() which returns the slot number of the
+> HPTE in the global hash table.
 >
-> This function  will  be  handy  as  we   work   towards  re-arranging the
-> bits in the later patches.
+> This function will come in handy as we work towards re-arranging the
+> PTE bits in the later patches.
 >
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
 > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 > ---
->  arch/powerpc/include/asm/book3s/64/hash-4k.h  |   15 +++++++++++++++
->  arch/powerpc/include/asm/book3s/64/hash-64k.h |   25 +++++++++++++++++++++++++
->  2 files changed, 40 insertions(+), 0 deletions(-)
+>  arch/powerpc/include/asm/book3s/64/hash.h |    3 +++
+>  arch/powerpc/mm/hash_utils_64.c           |   18 ++++++++++++++++++
+>  2 files changed, 21 insertions(+), 0 deletions(-)
 >
-> diff --git a/arch/powerpc/include/asm/book3s/64/hash-4k.h b/arch/powerpc/include/asm/book3s/64/hash-4k.h
-> index d2cf949..dc153c6 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hash-4k.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hash-4k.h
-> @@ -53,6 +53,21 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
+> diff --git a/arch/powerpc/include/asm/book3s/64/hash.h b/arch/powerpc/include/asm/book3s/64/hash.h
+> index d27f885..277158c 100644
+> --- a/arch/powerpc/include/asm/book3s/64/hash.h
+> +++ b/arch/powerpc/include/asm/book3s/64/hash.h
+> @@ -156,6 +156,9 @@ static inline int hash__pte_none(pte_t pte)
+>  	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
+>  }
+>
+> +unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
+> +		int ssize, real_pte_t rpte, unsigned int subpg_index);
+> +
+>  /* This low level function performs the actual PTE insertion
+>   * Setting the PTE depends on the MMU type and other factors. It's
+>   * an horrible mess that I'm not going to try to clean up now but
+> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+> index 1b494d0..d3604da 100644
+> --- a/arch/powerpc/mm/hash_utils_64.c
+> +++ b/arch/powerpc/mm/hash_utils_64.c
+> @@ -1591,6 +1591,24 @@ static inline void tm_flush_hash_page(int local)
 >  }
 >  #endif
 >
 > +/*
-> + * 4k pte format is  different  from  64k  pte  format.  Saving  the
-> + * hash_slot is just a matter of returning the pte bits that need to
-> + * be modified. On 64k pte, things are a  little  more  involved and
-> + * hence  needs   many   more  parameters  to  accomplish  the  same.
-> + * However we  want  to abstract this out from the caller by keeping
-> + * the prototype consistent across the two formats.
+> + * return the global hash slot, corresponding to the given
+> + * pte, which contains the hpte.
 > + */
-> +static inline unsigned long pte_set_hash_slot(pte_t *ptep, real_pte_t rpte,
-> +			unsigned int subpg_index, unsigned long slot)
+> +unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
+> +		int ssize, real_pte_t rpte, unsigned int subpg_index)
 > +{
-> +	return (slot << H_PAGE_F_GIX_SHIFT) &
-> +		(H_PAGE_F_SECOND | H_PAGE_F_GIX);
+> +	unsigned long hash, slot, hidx;
+> +
+> +	hash = hpt_hash(vpn, shift, ssize);
+> +	hidx = __rpte_to_hidx(rpte, subpg_index);
+> +	if (hidx & _PTEIDX_SECONDARY)
+> +		hash = ~hash;
+> +	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+> +	slot += hidx & _PTEIDX_GROUP_IX;
+> +	return slot;
 > +}
 > +
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->
->  static inline char *get_hpte_slot_array(pmd_t *pmdp)
-> diff --git a/arch/powerpc/include/asm/book3s/64/hash-64k.h b/arch/powerpc/include/asm/book3s/64/hash-64k.h
-> index c281f18..89ef5a9 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hash-64k.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hash-64k.h
-> @@ -67,6 +67,31 @@ static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
->  	return ((rpte.hidx >> (index<<2)) & 0xfUL);
->  }
->
-> +/*
-> + * Commit the hash slot and return pte bits that needs to be modified.
-> + * The caller is expected to modify the pte bits accordingly and
-> + * commit the pte to memory.
-> + */
-> +static inline unsigned long pte_set_hash_slot(pte_t *ptep, real_pte_t rpte,
-> +		unsigned int subpg_index, unsigned long slot)
-> +{
-> +	unsigned long *hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
-> +
-> +	rpte.hidx &= ~(0xfUL << (subpg_index << 2));
-> +	*hidxp = rpte.hidx  | (slot << (subpg_index << 2));
-> +	/*
-> +	 * Commit the hidx bits to memory before returning.
-> +	 * Anyone reading  pte  must  ensure hidx bits are
-> +	 * read  only  after  reading the pte by using the
-> +	 * read-side  barrier  smp_rmb(). __real_pte() can
-> +	 * help ensure that.
-> +	 */
-> +	smp_wmb();
-> +
-> +	/* no pte bits to be modified, return 0x0UL */
-> +	return 0x0UL;
-> +}
-> +
->  #define __rpte_to_pte(r)	((r).pte)
->  extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
->  /*
+>  /* WARNING: This is called from hash_low_64.S, if you change this prototype,
+>   *          do not forget to update the assembly call site !
+>   */
 > -- 
 > 1.7.1
 
