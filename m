@@ -1,129 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FA516B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 09:05:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s79so2684261wma.15
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:05:46 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2126B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 09:22:29 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 143so2766895wmu.5
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:22:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v194si1611950wmv.209.2017.07.20.06.05.43
+        by mx.google.com with ESMTPS id 96si5976684wrk.320.2017.07.20.06.22.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 06:05:43 -0700 (PDT)
-Date: Thu, 20 Jul 2017 15:05:41 +0200
+        Thu, 20 Jul 2017 06:22:27 -0700 (PDT)
+Date: Thu, 20 Jul 2017 15:22:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170720130541.GH9058@dhcp22.suse.cz>
-References: <20170626130346.26314-1-mhocko@kernel.org>
- <20170629084621.GE31603@dhcp22.suse.cz>
- <20170719055542.GA22162@dhcp22.suse.cz>
- <alpine.LSU.2.11.1707191716030.2055@eggly.anvils>
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+Message-ID: <20170720132225.GI9058@dhcp22.suse.cz>
+References: <20170710074842.23175-1-mhocko@kernel.org>
+ <alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1707191716030.2055@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <andrea@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 19-07-17 18:18:27, Hugh Dickins wrote:
-> On Wed, 19 Jul 2017, Michal Hocko wrote:
-> > On Thu 29-06-17 10:46:21, Michal Hocko wrote:
-> > > Forgot to CC Hugh.
-> > > 
-> > > Hugh, Andrew, do you see this could cause any problem wrt.
-> > > ksm/khugepaged exit path?
-> > 
-> > ping. I would really appreciate some help here. I would like to resend
-> > the patch soon.
-> 
-> Sorry, Michal, I've been hiding from everyone.
-> 
-> No, I don't think your patch will cause any trouble for the ksm or
-> khugepaged exit path; but we'll find out for sure when akpm puts it
-> in mmotm - I doubt I'll get to trying it out in advance of that.
-> 
-> On the contrary, I think it will allow us to remove the peculiar
-> "down_write(mmap_sem); up_write(mmap_sem);" from those exit paths:
-> which were there to serialize, precisely because exit_mmap() did
-> not otherwise take mmap_sem; but you're now changing it to do so.
-
-I was actually suspecting this could be done but didn't get to study the
-code to be sure enough, your words are surely encouraging...
-
-> You could add a patch to remove those yourself, or any of us add
-> that on afterwards.
-
-I will add it on my todo list and let's see when I get there.
- 
-> But I don't entirely agree (or disagree) with your placement:
-> see comment below.
+On Wed 19-07-17 18:54:40, Hugh Dickins wrote:
 [...]
-> > > > diff --git a/mm/mmap.c b/mm/mmap.c
-> > > > index 3bd5ecd20d4d..253808e716dc 100644
-> > > > --- a/mm/mmap.c
-> > > > +++ b/mm/mmap.c
-> > > > @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)
-> > > >  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
-> > > >  	unmap_vmas(&tlb, vma, 0, -1);
-> > > >  
-> > > > +	/*
-> > > > +	 * oom reaper might race with exit_mmap so make sure we won't free
-> > > > +	 * page tables or unmap VMAs under its feet
-> > > > +	 */
-> > > > +	down_write(&mm->mmap_sem);
+> You probably won't welcome getting into alternatives at this late stage;
+> but after hacking around it one way or another because of its pointless
+> lockups, I lost patience with that too_many_isolated() loop a few months
+> back (on realizing the enormous number of pages that may be isolated via
+> migrate_pages(2)), and we've been running nicely since with something like:
 > 
-> Hmm.  I'm conflicted about this.  From a design point of view, I would
-> very much prefer you to take the mmap_sem higher up, maybe just before
-> or after the mmu_notifier_release() or arch_exit_mmap() (depends on
-> what those actually do): anyway before the unmap_vmas().
-
-This thing is that I _want_ unmap_vmas to race with the oom reaper so I
-cannot take the write log before unmap_vmas... If this whole area should
-be covered by the write lock then I would need a handshake mechanism
-between the oom reaper and the final unmap_vmas to know that oom reaper
-won't set MMF_OOM_SKIP prematurely (see more on that below).
-
-> Because the things which go on in exit_mmap() are things which we expect
-> mmap_sem to be held across, and we get caught out when it is not: it's
-> awkard and error-prone enough that MADV_DONTNEED and MADV_FREE (for
-> very good reason) do things with only down_read(mmap_sem).  But there's
-> a number of times (ksm exit being only one of them) when I've found it
-> a nuisance that we had no proper way of serializing against exit_mmap().
+> 	bool got_mutex = false;
 > 
-> I'm conflicted because, on the other hand, I'm staunchly against adding
-> obstructions ("robust" futexes? gah!) into the exit patch, or widening
-> the use of locks that are not strictly needed.  But wouldn't it be the
-> case here, that most contenders on the mmap_sem must hold a reference
-> to mm_users, and that prevents any possibility of racing exit_mmap();
-> only ksm and khugepaged, and any others who already need such mmap_sem
-> tricks to serialize against exit_mmap(), could offer any contention.
+> 	if (unlikely(too_many_isolated(pgdat, file, sc))) {
+> 		if (mutex_lock_killable(&pgdat->too_many_isolated))
+> 			return SWAP_CLUSTER_MAX;
+> 		got_mutex = true;
+> 	}
+> 	...
+> 	if (got_mutex)
+> 		mutex_unlock(&pgdat->too_many_isolated);
 > 
-> But I haven't looked at the oom_kill or oom_reaper end of it at all,
-> perhaps you have an overriding argument on the placement from that end.
-
-Well, the main problem here is that the oom_reaper tries to
-MADV_DONTNEED the oom victim and then hide it from the oom killer (by
-setting MMF_OOM_SKIP) to guarantee a forward progress. In order to do
-that it needs mmap_sem for read. Currently we try to avoid races with
-the eixt path by checking mm->mm_users and that can lead to premature
-MMF_OOM_SKIP and that in turn to additional oom victim(s) selection
-while the current one is still tearing the address space down.
-
-One way around that is to allow final unmap race with the oom_reaper
-tear down.
-
-I hope this clarify the motivation
-
-> Hugh
+> Using a mutex to provide the intended throttling, without an infinite
+> loop or an arbitrary delay; and without having to worry (as we often did)
+> about whether those numbers in too_many_isolated() are really appropriate.
+> No premature OOMs complained of yet.
 > 
-> [Not strictly relevant here, but a related note: I was very surprised
-> to discover, only quite recently, how handle_mm_fault() may be called
-> without down_read(mmap_sem) - when core dumping.  That seems a
-> misguided optimization to me, which would also be nice to correct;
-> but again I might not appreciate the full picture.]
+> But that was on a different kernel, and there I did have to make sure
+> that PF_MEMALLOC always prevented us from nesting: I'm not certain of
+> that in the current kernel (but do remember Johannes changing the memcg
+> end to make it use PF_MEMALLOC too).  I offer the preview above, to see
+> if you're interested in that alternative: if you are, then I'll go ahead
+> and make it into an actual patch against v4.13-rc.
 
-shrug
+I would rather get rid of any additional locking here and my ultimate
+goal is to make throttling at the page allocator layer rather than
+inside the reclaim.
 -- 
 Michal Hocko
 SUSE Labs
