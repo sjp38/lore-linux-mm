@@ -1,147 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F33C6B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 19:39:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u17so14573922pfa.6
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 16:39:10 -0700 (PDT)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id d190si743191pfa.7.2017.07.19.16.39.09
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 05E556B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 21:15:12 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id z37so13869691ybh.15
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 18:15:11 -0700 (PDT)
+Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
+        by mx.google.com with ESMTPS id h9si314315ybj.69.2017.07.19.18.15.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 16:39:09 -0700 (PDT)
-Received: by mail-pf0-x231.google.com with SMTP id s70so5503197pfs.0
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 16:39:09 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: Potential race in TLB flush batching?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170719225950.wfpfzpc6llwlyxdo@suse.de>
-Date: Wed, 19 Jul 2017 16:39:07 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
-References: <20170713060706.o2cuko5y6irxwnww@suse.de>
- <A9CB595E-7C6D-438F-9835-A9EB8DA90892@gmail.com>
- <20170715155518.ok2q62efc2vurqk5@suse.de>
- <F7E154AB-5C1D-477F-A6BF-EFCAE5381B2D@gmail.com>
- <20170719074131.75wexoal3fiyoxw5@suse.de>
- <E9EE838F-F1E3-43A8-BB87-8B5B8388FF61@gmail.com>
- <20170719195820.drtfmweuhdc4eca6@suse.de>
- <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
- <20170719214708.wuzq3di6rt43txtn@suse.de>
- <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
- <20170719225950.wfpfzpc6llwlyxdo@suse.de>
+        Wed, 19 Jul 2017 18:15:10 -0700 (PDT)
+Received: by mail-yw0-x242.google.com with SMTP id h189so614422ywf.4
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 18:15:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170719135014.fdc882d1e28fd130104eff5d@linux-foundation.org>
+References: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com> <20170719135014.fdc882d1e28fd130104eff5d@linux-foundation.org>
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Date: Thu, 20 Jul 2017 09:15:10 +0800
+Message-ID: <CAGWkznFjz_gsMxPD9QkPb930gvne0O2nGpguD7qLhVHUa+fU6Q@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmalloc: add vm_struct for vm_map_ram area
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: zhaoyang.huang@spreadtrum.com, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com, ming.ling@spreadtrum.com
 
-Mel Gorman <mgorman@suse.de> wrote:
-
-> On Wed, Jul 19, 2017 at 03:19:00PM -0700, Nadav Amit wrote:
->>>> Yes, of course, since KSM does not batch TLB flushes. I regarded =
-the other
->>>> direction - first try_to_unmap() removes the PTE (but still does =
-not flush),
->>>> unlocks the page, and then KSM acquires the page lock and calls
->>>> write_protect_page(). It finds out the PTE is not present and does =
-not flush
->>>> the TLB.
->>>=20
->>> When KSM acquires the page lock, it then acquires the PTL where the
->>> cleared PTE is observed directly and skipped.
->>=20
->> I don???t see why. Let???s try again - CPU0 reclaims while CPU1 =
-deduplicates:
->>=20
->> CPU0				CPU1
->> ----				----
->> shrink_page_list()
->>=20
->> =3D> try_to_unmap()
->> =3D=3D> try_to_unmap_one()
->> [ unmaps from some page-tables ]
->>=20
->> [ try_to_unmap returns false;
->>  page not reclaimed ]
->>=20
->> =3D> keep_locked: unlock_page()
->>=20
->> [ TLB flush deferred ]
->> 				try_to_merge_one_page()
->> 				=3D> trylock_page()
->> 				=3D> write_protect_page()
->> 				=3D=3D> acquire ptl
->> 				  [ PTE non-present ???> no PTE change
->> 				    and no flush ]
->> 				=3D=3D> release ptl
->> 				=3D=3D> replace_page()
->>=20
->>=20
->> At this point, while replace_page() is running, CPU0 may still not =
-have
->> flushed the TLBs. Another CPU (CPU2) may hold a stale PTE, which is =
-not
->> write-protected. It can therefore write to that page while =
-replace_page() is
->> running, resulting in memory corruption.
->>=20
->> No?
->=20
-> KSM is not my strong point so it's reaching the point where others =
-more
-> familiar with that code need to be involved.
-
-Do not assume for a second that I really know what is going on over =
-there.
-
-> If try_to_unmap returns false on CPU0 then at least one unmap attempt
-> failed and the page is not reclaimed.
-
-Actually, try_to_unmap() may even return true, and the page would still =
-not
-be reclaimed - for example if page_has_private() and freeing the buffers
-fails. In this case, the page would be unlocked as well.
-
-> For those that were unmapped, they
-> will get flushed in the near future. When KSM operates on CPU1, it'll =
-skip
-> the unmapped pages under the PTL so stale TLB entries are not relevant =
-as
-> the mapped entries are still pointing to a valid page and ksm misses a =
-merge
-> opportunity.
-
-This is the case I regarded, but I do not understand your point. The =
-whole
-problem is that CPU1 would skip the unmapped pages under the PTL. As it
-skips them it does not flush them from the TLB. And as a result,
-replace_page() may happen before the TLB is flushed by CPU0.
-
-> If it write protects a page, ksm unconditionally flushes the PTE
-> on clearing the PTE so again, there is no stale entry anywhere. For =
-CPU2,
-> it'll either reference a PTE that was unmapped in which case it'll =
-fault
-> once CPU0 flushes the TLB and until then it's safe to read and write =
-as
-> long as the TLB is flushed before the page is freed or IO is initiated =
-which
-> reclaim already handles.
-
-In my scenario the page is not freed and there is no I/O in the reclaim
-path. The TLB flush of CPU0 in my scenario is just deferred while the
-page-table lock is not held. As I mentioned before, this time-period can =
-be
-potentially very long in a virtual machine. CPU2 referenced a PTE that
-was unmapped by CPU0 (reclaim path) but not CPU1 (ksm path).
-
-ksm, IIUC, would not expect modifications of the page during =
-replace_page.
-Eventually it would flush the TLB (after changing the PTE to point to =
-the
-deduplicated page). But in the meanwhile, another CPU may use stale PTEs =
-for
-writes, and those writes would be lost after the page is deduplicated.
+On Thu, Jul 20, 2017 at 4:50 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 19 Jul 2017 18:44:03 +0800 Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
+>
+>> /proc/vmallocinfo will not show the area allocated by vm_map_ram, which
+>> will make confusion when debug. Add vm_struct for them and show them in
+>> proc.
+>>
+>
+> Please provide sample /proc/vmallocinfo so we can better understand the
+> proposal.  Is there a means by which people can determine that a
+> particular area is from vm_map_ram()?  I don't think so.  Should there
+> be?
+Here is the part of vmallocinfo, the line start with '>' are the ones
+allocated by vm_map_ram.
+xxxx:/ # cat /proc/vmallocinfo
+0xffffff8000a5f000-0xffffff8000abb000  376832
+load_module+0x1004/0x1e98 pages=91 vmalloc
+0xffffff8000ac6000-0xffffff8000ad2000   49152
+load_module+0x1004/0x1e98 pages=11 vmalloc
+0xffffff8000ad8000-0xffffff8000ade000   24576
+load_module+0x1004/0x1e98 pages=5 vmalloc
+0xffffff8008000000-0xffffff8008002000    8192 of_iomap+0x4c/0x68
+phys=12001000 ioremap
+0xffffff8008002000-0xffffff8008004000    8192 of_iomap+0x4c/0x68
+phys=40356000 ioremap
+0xffffff8008004000-0xffffff8008007000   12288 of_iomap+0x4c/0x68
+phys=12002000 ioremap
+0xffffff8008008000-0xffffff800800d000   20480
+of_sprd_gates_clk_setup_with_ops+0x88/0x2a8 phys=402b0000 ioremap
+0xffffff800800e000-0xffffff8008010000    8192 of_iomap+0x4c/0x68
+phys=40356000 ioremap
+...
+>0xffffff800c5a3000-0xffffff800c5ec000  299008 shmem_ram_vmap+0xe8/0x1a0
+0xffffff800c5fe000-0xffffff800c600000    8192
+kbasep_js_policy_ctx_has_priority+0x254/0xdb0 [mali_kbase] pages=1
+vmalloc
+0xffffff800c600000-0xffffff800c701000 1052672 of_iomap+0x4c/0x68
+phys=60d00000 ioremap
+>0xffffff800c701000-0xffffff800c742000  266240 shmem_ram_vmap+0xe8/0x1a0
+0xffffff800c74e000-0xffffff800c750000    8192
+kbasep_js_policy_ctx_has_priority+0x2cc/0xdb0 [mali_kbase] pages=1
+vmalloc
+...
+>
+>>
+>> ...
+>>
+>> @@ -1173,6 +1178,12 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
+>>               addr = (unsigned long)mem;
+>>       } else {
+>>               struct vmap_area *va;
+>> +             struct vm_struct *area;
+>> +
+>> +             area = kzalloc_node(sizeof(*area), GFP_KERNEL, node);
+>> +             if (unlikely(!area))
+>> +                     return NULL;
+>
+> Allocating a vm_struct for each vm_map_ram area is a cost.  And we're
+> doing this purely for /proc/vmallocinfo.  I think I'll need more
+> persuading to convince me that this is a good tradeoff, given that
+> *every* user will incur this cost, and approximately 0% of them will
+> ever use /proc/vmallocinfo.
+>
+> So... do we *really* need this?  If so, why?
+The motivation of this commit comes from one practical debug, that is,
+vmalloc failed by one driver's allocating a
+huge area by vm_map_ram, which can not be traced by cat
+/proc/vmallocinfo. We have to add a lot of printk and
+dump_stack to get more information.
+I don't think the vm_struct cost too much memory, just imagine that
+the area got by vmalloc or ioremap instead, you have
+to pay for it as well.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
