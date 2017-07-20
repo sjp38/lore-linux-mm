@@ -1,122 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 493D96B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 17:47:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id l28so40269823pfj.12
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 14:47:24 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u5si2168173pgc.766.2017.07.20.14.47.22
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 025186B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:04:21 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y3so26416541pgo.7
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:04:20 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m5si2090552pfb.609.2017.07.20.15.04.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 14:47:23 -0700 (PDT)
-Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170718141602.GB19133@dhcp22.suse.cz>
-	<201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
-	<20170720141138.GJ9058@dhcp22.suse.cz>
-In-Reply-To: <20170720141138.GJ9058@dhcp22.suse.cz>
-Message-Id: <201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
-Date: Fri, 21 Jul 2017 06:47:11 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jul 2017 15:04:20 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6KM4Ivn064519
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:04:19 -0400
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bu4mq8qnj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:04:18 -0400
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 20 Jul 2017 16:04:10 -0600
+Date: Thu, 20 Jul 2017 15:03:58 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v6 01/62] powerpc: Free up four 64K PTE bits in 4K backed
+ HPTE pages
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
+ <1500177424-13695-2-git-send-email-linuxram@us.ibm.com>
+ <87d18vr6yw.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87d18vr6yw.fsf@skywalker.in.ibm.com>
+Message-Id: <20170720220358.GH5487@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
 
-Michal Hocko wrote:
-> On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:
-> > > > Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> > > > guarded whole OOM reaping operations using oom_lock. But there was no
-> > > > need to guard whole operations. We needed to guard only setting of
-> > > > MMF_OOM_REAPED flag because get_page_from_freelist() in
-> > > > __alloc_pages_may_oom() is called with oom_lock held.
-> > > > 
-> > > > If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
-> > > > can start reaping operations as soon as wake_oom_reaper() is called.
-> > > > But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
-> > > > oom_lock, guarding only the OOM reaper side is not sufficient.
-> > > > 
-> > > > If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
-> > > > there is no need to guard setting of MMF_OOM_SKIP flag, and we can
-> > > > guarantee a chance to call get_page_from_freelist() in
-> > > > __alloc_pages_may_oom() without depending on oom_lock serialization.
-> > > > 
-> > > > This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
-> > > > flag which acts as if MMF_OOM_SKIP, in order to close both race window
-> > > > (the OOM reaper side and __mmput() side) without using oom_lock.
-> > > 
-> > > Why do we need this patch when
-> > > http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
-> > > already removes the lock and solves another problem at once?
-> > 
-> > We haven't got an answer from Hugh and/or Andrea whether that patch is safe.
+On Thu, Jul 20, 2017 at 11:21:51AM +0530, Aneesh Kumar K.V wrote:
 > 
-> So what? I haven't see anybody disputing the correctness. And to be
-> honest I really dislike your patch. Yet another round kind of solutions
-> are just very ugly hacks usually because they are highly timing
-> sensitive.
-
-Yes, OOM killer is highly timing sensitive.
-
+> .....
 > 
-> > Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.
+> >  	/*
+> > @@ -116,8 +104,8 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
+> >  		 * On hash insert failure we use old pte value and we don't
+> >  		 * want slot information there if we have a insert failure.
+> >  		 */
+> > -		old_pte &= ~(H_PAGE_HASHPTE | H_PAGE_F_GIX | H_PAGE_F_SECOND);
+> > -		new_pte &= ~(H_PAGE_HASHPTE | H_PAGE_F_GIX | H_PAGE_F_SECOND);
+> > +		old_pte &= ~(H_PAGE_HASHPTE);
+> > +		new_pte &= ~(H_PAGE_HASHPTE);
+> >  		goto htab_insert_hpte;
+> >  	}
 > 
-> Could you explain how?
+> With the current path order and above hunk we will breaks the bisect I guess. With the above, when
+> we convert a 64k hpte to 4khpte, since this is the first patch, we
+> should clear that H_PAGE_F_GIX and H_PAGE_F_SECOND. We still use them
+> for 64k. I guess you should move this hunk to second patch.
 
-Nothing prevents sequence below.
-
-    Process-1              Process-2
-
-    Takes oom_lock.
-    Fails get_page_from_freelist().
-    Enters out_of_memory().
-    Gets SIGKILL.
-    Gets TIF_MEMDIE.
-    Leaves out_of_memory().
-    Releases oom_lock.
-    Enters do_exit().
-    Calls __mmput().
-                           Takes oom_lock.
-                           Fails get_page_from_freelist().
-    Releases some memory.
-    Sets MMF_OOM_SKIP.
-                           Enters out_of_memory().
-                           Selects next victim because there is no !MMF_OOM_SKIP mm.
-                           Sends SIGKILL needlessly.
-
-If we ignore MMF_OOM_SKIP once, we can avoid sequence above.
-
-    Process-1              Process-2
-
-    Takes oom_lock.
-    Fails get_page_from_freelist().
-    Enters out_of_memory().
-    Get SIGKILL.
-    Get TIF_MEMDIE.
-    Leaves out_of_memory().
-    Releases oom_lock.
-    Enters do_exit().
-    Calls __mmput().
-                           Takes oom_lock.
-                           Fails get_page_from_freelist().
-    Releases some memory.
-    Sets MMF_OOM_SKIP.
-                           Enters out_of_memory().
-                           Ignores MMF_OOM_SKIP mm once.
-                           Leaves out_of_memory().
-                           Releases oom_lock.
-                           Succeeds get_page_from_freelist().
-
-Strictly speaking, this patch is independent with OOM reaper.
-This patch increases possibility of succeeding get_page_from_freelist()
-without sending SIGKILL. Your patch is trying to drop it silently.
-
-Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,
-and ignoring MMF_OOM_SKIP once without oom_lock is another approach.
+true. it should move to the next patch. Will fix it.
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
