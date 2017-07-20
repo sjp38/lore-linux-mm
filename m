@@ -1,39 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 76AC06B02FD
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:38 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g7so24591204pgp.1
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:57:38 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8249C6B037C
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:56 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id z1so23966865pgs.10
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:57:56 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b8si1064364pli.24.2017.07.19.22.57.37
+        by mx.google.com with ESMTPS id r1si1116558pfe.649.2017.07.19.22.57.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 22:57:37 -0700 (PDT)
+        Wed, 19 Jul 2017 22:57:55 -0700 (PDT)
 Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6K5s3fJ062890
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:37 -0400
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2btjhmgcy8-1
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6K5s66S063072
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:55 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2btjhmgd6a-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:36 -0400
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:57:54 -0400
 Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 20 Jul 2017 15:57:34 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6K5vW5h22610086
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:32 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6K5vNoM019546
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:57:24 +1000
+	Thu, 20 Jul 2017 15:57:52 +1000
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6K5uaGx24313890
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:56:36 +1000
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6K5uaq8026316
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:56:36 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 04/62] powerpc: introduce pte_get_hash_gslot() helper
-In-Reply-To: <1500177424-13695-5-git-send-email-linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-5-git-send-email-linuxram@us.ibm.com>
-Date: Thu, 20 Jul 2017 11:27:24 +0530
+Subject: Re: [RFC v6 05/62] powerpc: capture the PTE format changes in the dump pte report
+In-Reply-To: <1500177424-13695-6-git-send-email-linuxram@us.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-6-git-send-email-linuxram@us.ibm.com>
+Date: Thu, 20 Jul 2017 11:26:28 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
-Message-Id: <871spbr6pn.fsf@skywalker.in.ibm.com>
+Message-Id: <877ez3r6r7.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
@@ -41,64 +41,38 @@ Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@lin
 
 Ram Pai <linuxram@us.ibm.com> writes:
 
-> Introduce pte_get_hash_gslot()() which returns the slot number of the
-> HPTE in the global hash table.
->
-> This function will come in handy as we work towards re-arranging the
-> PTE bits in the later patches.
+> The H_PAGE_F_SECOND,H_PAGE_F_GIX are not in the 64K main-PTE.
+> capture these changes in the dump pte report.
 >
 
 Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 > ---
->  arch/powerpc/include/asm/book3s/64/hash.h |    3 +++
->  arch/powerpc/mm/hash_utils_64.c           |   18 ++++++++++++++++++
->  2 files changed, 21 insertions(+), 0 deletions(-)
+>  arch/powerpc/mm/dump_linuxpagetables.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
 >
-> diff --git a/arch/powerpc/include/asm/book3s/64/hash.h b/arch/powerpc/include/asm/book3s/64/hash.h
-> index d27f885..277158c 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hash.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hash.h
-> @@ -156,6 +156,9 @@ static inline int hash__pte_none(pte_t pte)
->  	return (pte_val(pte) & ~H_PTE_NONE_MASK) == 0;
->  }
->
-> +unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
-> +		int ssize, real_pte_t rpte, unsigned int subpg_index);
-> +
->  /* This low level function performs the actual PTE insertion
->   * Setting the PTE depends on the MMU type and other factors. It's
->   * an horrible mess that I'm not going to try to clean up now but
-> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-> index 1b494d0..d3604da 100644
-> --- a/arch/powerpc/mm/hash_utils_64.c
-> +++ b/arch/powerpc/mm/hash_utils_64.c
-> @@ -1591,6 +1591,24 @@ static inline void tm_flush_hash_page(int local)
->  }
+> diff --git a/arch/powerpc/mm/dump_linuxpagetables.c b/arch/powerpc/mm/dump_linuxpagetables.c
+> index 44fe483..5627edd 100644
+> --- a/arch/powerpc/mm/dump_linuxpagetables.c
+> +++ b/arch/powerpc/mm/dump_linuxpagetables.c
+> @@ -213,7 +213,7 @@ struct flag_info {
+>  		.val	= H_PAGE_4K_PFN,
+>  		.set	= "4K_pfn",
+>  	}, {
+> -#endif
+> +#else /* CONFIG_PPC_64K_PAGES */
+>  		.mask	= H_PAGE_F_GIX,
+>  		.val	= H_PAGE_F_GIX,
+>  		.set	= "f_gix",
+> @@ -224,6 +224,7 @@ struct flag_info {
+>  		.val	= H_PAGE_F_SECOND,
+>  		.set	= "f_second",
+>  	}, {
+> +#endif /* CONFIG_PPC_64K_PAGES */
 >  #endif
->
-> +/*
-> + * return the global hash slot, corresponding to the given
-> + * pte, which contains the hpte.
-> + */
-> +unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
-> +		int ssize, real_pte_t rpte, unsigned int subpg_index)
-> +{
-> +	unsigned long hash, slot, hidx;
-> +
-> +	hash = hpt_hash(vpn, shift, ssize);
-> +	hidx = __rpte_to_hidx(rpte, subpg_index);
-> +	if (hidx & _PTEIDX_SECONDARY)
-> +		hash = ~hash;
-> +	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-> +	slot += hidx & _PTEIDX_GROUP_IX;
-> +	return slot;
-> +}
-> +
->  /* WARNING: This is called from hash_low_64.S, if you change this prototype,
->   *          do not forget to update the assembly call site !
->   */
+>  		.mask	= _PAGE_SPECIAL,
+>  		.val	= _PAGE_SPECIAL,
 > -- 
 > 1.7.1
 
