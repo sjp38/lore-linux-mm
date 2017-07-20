@@ -1,159 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A9076B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:17:21 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 65so5721596lfa.1
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:17:21 -0700 (PDT)
-Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [2a02:6b8:0:1465::fd])
-        by mx.google.com with ESMTPS id s26si913238ljd.54.2017.07.20.03.17.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B55A6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:27:27 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id k69so2281419wmc.14
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:27:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e29si5884543wrc.308.2017.07.20.03.27.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jul 2017 03:17:19 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm: allow isolation for pages not inserted into lru
- lists yet
-References: <150039362282.196778.7901790444249317003.stgit@buzz>
- <9a95eec1-54c6-0c8d-101b-aa53e6af36e3@suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <866256fa-14a8-75ba-18e0-12c64d0f7a89@yandex-team.ru>
-Date: Thu, 20 Jul 2017 13:17:18 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Jul 2017 03:27:25 -0700 (PDT)
+Date: Thu, 20 Jul 2017 12:27:23 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 3/5] dax: use common 4k zero page for dax mmap reads
+Message-ID: <20170720102723.GB17689@quack2.suse.cz>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-4-ross.zwisler@linux.intel.com>
+ <20170719153314.GC15908@quack2.suse.cz>
+ <20170719162645.GA26445@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <9a95eec1-54c6-0c8d-101b-aa53e6af36e3@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: ru-RU
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170719162645.GA26445@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Shaohua Li <shli@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On 20.07.2017 12:45, Vlastimil Babka wrote:
-> On 07/18/2017 06:00 PM, Konstantin Khlebnikov wrote:
->> Pages are added into lru lists via per-cpu page vectors in order
->> to combine these insertions and reduce lru lock contention.
->>
->> These pending pages cannot be isolated and moved into another lru.
->> This breaks in some cases page activation and makes mlock-munlock
->> much more complicated.
->>
->> Also this breaks newly added swapless MADV_FREE: if it cannot move
->> anon page into file lru then page could never be freed lazily.
->>
->> This patch rearranges lru list handling to allow lru isolation for
->> such pages. It set PageLRU earlier and initialize page->lru to mark
->> pages still pending for lru insert.
->>
->> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+On Wed 19-07-17 10:26:45, Ross Zwisler wrote:
+> On Wed, Jul 19, 2017 at 05:33:14PM +0200, Jan Kara wrote:
+> > On Wed 28-06-17 16:01:50, Ross Zwisler wrote:
+> > > Another major change is that we remove dax_pfn_mkwrite() from our fault
+> > > flow, and instead rely on the page fault itself to make the PTE dirty and
+> > > writeable.  The following description from the patch adding the
+> > > vm_insert_mixed_mkwrite() call explains this a little more:
+> > > 
+> > > ***
+> > >   To be able to use the common 4k zero page in DAX we need to have our PTE
+> > >   fault path look more like our PMD fault path where a PTE entry can be
+> > >   marked as dirty and writeable as it is first inserted, rather than
+> > >   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > > 
+> > >   Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > >   distinguish between these two cases in do_wp_page():
+> > > 
+> > >   	case 1: 4k zero page => writable DAX storage
+> > >   	case 2: read-only DAX storage => writeable DAX storage
+> > > 
+> > >   This distinction is made by via vm_normal_page().  vm_normal_page()
+> > >   returns false for the common 4k zero page, though, just as it does for
+> > >   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
+> > >   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
+> > >   sequence, and get rid of dax_pfn_mkwrite() completely.
+> > > 
+> > >   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > >   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
+> > >   insert_pfn() will do the work that was previously done by wp_page_reuse()
+> > >   as part of the dax_pfn_mkwrite() call path.
+> > > ***
+> > 
+> > Hum, thinking about this in context of this patch... So what if we have
+> > allocated storage, a process faults it read-only, we map it to page tables
+> > writeprotected. Then the process writes through mmap to the area - the code
+> > in handle_pte_fault() ends up in do_wp_page() if I'm reading it right.
 > 
-> I think it's not so simple and won't work as you expect after this
-> patch. See below.
+> Yep.
 > 
->> ---
->>   include/linux/mm_inline.h |   10 ++++++++--
->>   mm/swap.c                 |   26 ++++++++++++++++++++++++--
->>   2 files changed, 32 insertions(+), 4 deletions(-)
->>
->> diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
->> index e030a68ead7e..6618c588ee40 100644
->> --- a/include/linux/mm_inline.h
->> +++ b/include/linux/mm_inline.h
->> @@ -60,8 +60,14 @@ static __always_inline void add_page_to_lru_list_tail(struct page *page,
->>   static __always_inline void del_page_from_lru_list(struct page *page,
->>   				struct lruvec *lruvec, enum lru_list lru)
->>   {
->> -	list_del(&page->lru);
->> -	update_lru_size(lruvec, lru, page_zonenum(page), -hpage_nr_pages(page));
->> +	/*
->> +	 * Empty list head means page is not drained to lru list yet.
->> +	 */
->> +	if (likely(!list_empty(&page->lru))) {
->> +		list_del(&page->lru);
->> +		update_lru_size(lruvec, lru, page_zonenum(page),
->> +				-hpage_nr_pages(page));
->> +	}
->>   }
->>   
->>   /**
->> diff --git a/mm/swap.c b/mm/swap.c
->> index 23fc6e049cda..ba4c98074a09 100644
->> --- a/mm/swap.c
->> +++ b/mm/swap.c
->> @@ -400,13 +400,35 @@ void mark_page_accessed(struct page *page)
->>   }
->>   EXPORT_SYMBOL(mark_page_accessed);
->>   
->> +static void __pagevec_lru_add_drain_fn(struct page *page, struct lruvec *lruvec,
->> +				       void *arg)
->> +{
->> +	/* Check for isolated or already added pages */
->> +	if (likely(PageLRU(page) && list_empty(&page->lru))) {
+> > Then, since we are missing ->pfn_mkwrite() handlers, the PTE will be marked
+> > writeable but radix tree entry stays clean - bug. Am I missing something?
 > 
-> I think it's now possible that page ends up on two (or more) cpu's
-> pagevecs, right. And they can race doing their local drains, and both
-> pass this check at the same moment. The lru lock should prevent at least
-> some disaster, but what if the first CPU succeeds, and then the page is
-> further isolated and e.g. reclaimed. Then the second CPU still assumes
-> it's PageLRU() etc, but it's not anymore...?
+> I don't think we ever end up with a writeable PTE but with a clean radix tree
+> entry.  When we get the write fault we do a full fault through
+> dax_iomap_pte_fault() and dax_insert_mapping().
+>
+> dax_insert_mapping() sets up the dirty radix tree entry via
+> dax_insert_mapping_entry() before it does anything with the page tables via
+> vm_insert_mixed_mkwrite().
+> 
+> So, this mkwrite fault path is exactly the path we would have taken if the
+> initial read to real storage hadn't happened, and we end up in the same end
+> state - with a dirty DAX radix tree entry and a writeable PTE.
 
-Reclaimer/isolate clears PageLRU under lru_lock and drain will skip that page.
-Duplicate inserts are catched by second check.
+Ah sorry, I have missed that it is not that you would not have
+->pfn_mkwrite() handler - you still have it but it is the same as standard
+fault handler now. So maybe can you rephrase the changelog a bit saying
+that: "We get rid of dax_pfn_mkwrite() helper and use dax_iomap_fault() to
+handle write-protection faults instead." Thanks!
 
-
-> 
->> +		int file = page_is_file_cache(page);
->> +		int active = PageActive(page);
->> +		enum lru_list lru = page_lru(page);
->> +
->> +		add_page_to_lru_list(page, lruvec, lru);
->> +		update_page_reclaim_stat(lruvec, file, active);
->> +		trace_mm_lru_insertion(page, lru);
->> +	}
->> +}
->> +
->>   static void __lru_cache_add(struct page *page)
->>   {
->>   	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
->>   
->> +	/*
->> +	 * Set PageLRU right here and initialize list head to
->> +	 * allow page isolation while it on the way to the LRU list.
->> +	 */
->> +	VM_BUG_ON_PAGE(PageLRU(page), page);
->> +	INIT_LIST_HEAD(&page->lru);
->>   	get_page(page);
-> 
-> This elevates the page count, I think at least some LRU isolators will
-> skip the pages anyway because of that.
-
-Yep, theoretically we could get rid of these references:
-memory offline must darain all these vectors before freeing stuct page.
-
-This will help memory migration and compaction a little.
-
-> 
->> +	SetPageLRU(page);
->>   	if (!pagevec_add(pvec, page) || PageCompound(page))
->> -		__pagevec_lru_add(pvec);
->> +		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
->>   	put_cpu_var(lru_add_pvec);
->>   }
->>   
->> @@ -611,7 +633,7 @@ void lru_add_drain_cpu(int cpu)
->>   	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
->>   
->>   	if (pagevec_count(pvec))
->> -		__pagevec_lru_add(pvec);
->> +		pagevec_lru_move_fn(pvec, __pagevec_lru_add_drain_fn, NULL);
->>   
->>   	pvec = &per_cpu(lru_rotate_pvecs, cpu);
->>   	if (pagevec_count(pvec)) {
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
-> 
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
