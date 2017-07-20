@@ -1,111 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 252216B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 05:21:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w126so2117638wme.10
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:21:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u107si1843465wrc.554.2017.07.20.02.21.27
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5A86B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 05:24:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e3so24223716pfc.4
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:24:26 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id u27si1348985pfg.100.2017.07.20.02.24.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 02:21:28 -0700 (PDT)
-Date: Thu, 20 Jul 2017 11:21:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
- build_all_zonelists
-Message-ID: <20170720092124.GG9058@dhcp22.suse.cz>
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-8-mhocko@kernel.org>
- <8d9d4eb5-eb7e-0422-0464-cdea9cb7e849@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8d9d4eb5-eb7e-0422-0464-cdea9cb7e849@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jul 2017 02:24:25 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id v190so2290600pgv.1
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:24:25 -0700 (PDT)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Subject: [PATCH v4] mm/vmalloc: terminate searching since one node found
+Date: Thu, 20 Jul 2017 17:24:16 +0800
+Message-Id: <1500542656-23332-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com
 
-On Thu 20-07-17 09:24:58, Vlastimil Babka wrote:
-> On 07/14/2017 10:00 AM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > build_all_zonelists has been (ab)using stop_machine to make sure that
-> > zonelists do not change while somebody is looking at them. This is
-> > is just a gross hack because a) it complicates the context from which
-> > we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
-> > switch locking to a percpu rwsem")) and b) is is not really necessary
-> > especially after "mm, page_alloc: simplify zonelist initialization".
-> > 
-> > Updates of the zonelists happen very seldom, basically only when a zone
-> > becomes populated during memory online or when it loses all the memory
-> > during offline. A racing iteration over zonelists could either miss a
-> > zone or try to work on one zone twice. Both of these are something we
-> > can live with occasionally because there will always be at least one
-> > zone visible so we are not likely to fail allocation too easily for
-> > example.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Some stress testing of this would still be worth, IMHO.
+It is no need to find the very beginning of the area within
+alloc_vmap_area, which can be done by judging each node during the process
 
-I have run the pathological online/offline of the single memblock in the
-movable zone while stressing the same small node with some memory pressure.
-Node 1, zone      DMA
-  pages free     0
-        min      0
-        low      0
-        high     0
-        spanned  0
-        present  0
-        managed  0
-        protection: (0, 943, 943, 943)
-Node 1, zone    DMA32
-  pages free     227310
-        min      8294
-        low      10367
-        high     12440
-        spanned  262112
-        present  262112
-        managed  241436
-        protection: (0, 0, 0, 0)
-Node 1, zone   Normal
-  pages free     0
-        min      0
-        low      0
-        high     0
-        spanned  0
-        present  0
-        managed  0
-        protection: (0, 0, 0, 1024)
-Node 1, zone  Movable
-  pages free     32722
-        min      85
-        low      117
-        high     149
-        spanned  32768
-        present  32768
-        managed  32768
-        protection: (0, 0, 0, 0)
+free_vmap_cache miss:
+      vmap_area_root
+          /      \
+     tmp_next     U
+        /  (T1)
+      tmp
+       /
+     ...   (T2)
+      /
+    first
 
-root@test1:/sys/devices/system/node/node1# while true
-do 
-echo offline > memory34/state
-echo online_movable > memory34/state
-done
+vmap_area_list->first->......->tmp->tmp_next->...->vmap_area_list
+                  |-----(T3)----|
 
-root@test1:/mnt/data/test/linux-3.7-rc5# numactl --preferred=1 make -j4
+Under the scenario of free_vmap_cache miss, total time consumption of finding
+the suitable hole is T = T1 + T2 + T3, while the commit decrease it to T1.
 
-and it survived without any unexpected behavior. While this is not
-really a great testing coverage it should exercise the allocation path
-quite a lot.
+In fact, 'vmalloc' always start from the fix address(VMALLOC_START),which will
+ cause the 'first' to be close to the begining of the list(vmap_area_list) and
+ make T3 to be big.
 
-I can add this to the changelog if you think it is worth it.
+The commit will especially help for a large and almost full vmalloc area.
+Whearas, it would NOT affect current quick approach such as free_vmap_cache, for
+it just take effect when free_vmap_cache miss and will reestablish it laterly.
+
+Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+---
+ mm/vmalloc.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8698c1c..f58f445 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -471,9 +471,20 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
  
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+ 		while (n) {
+ 			struct vmap_area *tmp;
++			struct vmap_area *tmp_next;
+ 			tmp = rb_entry(n, struct vmap_area, rb_node);
++			tmp_next = list_next_entry(tmp, list);
+ 			if (tmp->va_end >= addr) {
+ 				first = tmp;
++				if (ALIGN(tmp->va_end, align) + size
++						< tmp_next->va_start) {
++					/*
++					 * free_vmap_cache miss now,don't
++					 * update cached_hole_size here,
++					 * as __free_vmap_area does
++					 */
++					goto found;
++				}
+ 				if (tmp->va_start <= addr)
+ 					break;
+ 				n = n->rb_left;
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
