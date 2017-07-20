@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2896B0292
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 16:38:22 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id f68so1325072vkg.1
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 13:38:22 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c126si1091395vkg.228.2017.07.20.13.38.20
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD1816B0292
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 17:05:02 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u17so39587793pfa.6
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 14:05:02 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id q63si2049895pfb.694.2017.07.20.14.05.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jul 2017 13:38:20 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2] mm/mremap: Fail map duplication attempts for private mappings
-Date: Thu, 20 Jul 2017 13:37:59 -0700
-Message-Id: <1500583079-26504-1-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <20170720082058.GF9058@dhcp22.suse.cz>
-References: <20170720082058.GF9058@dhcp22.suse.cz>
+        Thu, 20 Jul 2017 14:05:01 -0700 (PDT)
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+References: <20170522165206.6284-1-jglisse@redhat.com>
+ <20170522165206.6284-13-jglisse@redhat.com>
+ <fa402b70fa9d418ebf58a26a454abd06@HQMAIL103.nvidia.com>
+ <5f476e8c-8256-13a8-2228-a2b9e5650586@nvidia.com>
+ <20170701005749.GA7232@redhat.com>
+ <f04a007d-fc34-fe3a-d366-1363248a609f@nvidia.com>
+ <20170710234339.GA15226@redhat.com>
+ <57146eb3-43bc-6e8b-4c8e-0632aa8ed577@nvidia.com>
+ <20170711005408.GA15896@redhat.com>
+From: Evgeny Baskakov <ebaskakov@nvidia.com>
+Message-ID: <d31b88e7-be7e-c1ca-513f-f12edb126eac@nvidia.com>
+Date: Thu, 20 Jul 2017 14:05:00 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170711005408.GA15896@redhat.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Linux API <linux-api@vger.kernel.org>, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-mremap will create a 'duplicate' mapping if old_size == 0 is
-specified.  Such duplicate mappings make no sense for private
-mappings.  If duplication is attempted for a private mapping,
-mremap creates a separate private mapping unrelated to the
-original mapping and makes no modifications to the original.
-This is contrary to the purpose of mremap which should return
-a mapping which is in some way related to the original.
+On 7/10/17 5:54 PM, Jerome Glisse wrote:
 
-Therefore, return EINVAL in the case where if an attempt is
-made to duplicate a private mapping.  Also, print a warning
-message (once) if such an attempt is made.
+> On Mon, Jul 10, 2017 at 05:17:23PM -0700, Evgeny Baskakov wrote:
+>> On 7/10/17 4:43 PM, Jerome Glisse wrote:
+>>
+>>> On Mon, Jul 10, 2017 at 03:59:37PM -0700, Evgeny Baskakov wrote:
+>>> ...
+>>> Horrible stupid bug in the code, most likely from cut and paste. Attach=
+ed
+>>> patch should fix it. I don't know how long it took for you to trigger i=
+t.
+>>>
+>>> J=C3=A9r=C3=B4me
+>> Thanks, this indeed fixes the problem! Yes, it took a nightly run before=
+ it
+>> triggered.
+>>
+>> One a side note, should this "return NULL" be replaced with "return
+>> ERR_PTR(-ENOMEM)"?
+> Or -EBUSY but yes sure.
+>
+> J=C3=A9r=C3=B4me
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/mremap.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+Hi Jerome,
 
-diff --git a/mm/mremap.c b/mm/mremap.c
-index cd8a1b1..949f6a7 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -383,6 +383,15 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- 	if (!vma || vma->vm_start > addr)
- 		return ERR_PTR(-EFAULT);
- 
-+	/*
-+	 * !old_len  is a special case where a mapping is 'duplicated'.
-+	 * Do not allow this for private mappings.
-+	 */
-+	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE))) {
-+		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is not supported.\n", current->comm, current->pid);
-+		return ERR_PTR(-EINVAL);
-+	}
-+
- 	if (is_vm_hugetlb_page(vma))
- 		return ERR_PTR(-EINVAL);
- 
--- 
-2.7.5
+Are these fixes in already (for the alloc_chrdev_region and "return=20
+NULL" issues)? I don't see them in hmm-next nor in hmm-v24.
+
+Can you please double check it?
+
+Thanks!
+
+--=20
+Evgeny Baskakov
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
