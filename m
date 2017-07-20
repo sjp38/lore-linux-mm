@@ -1,66 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2126B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 09:22:29 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 143so2766895wmu.5
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:22:29 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 895A86B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 09:40:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u89so13082054wrc.1
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:40:41 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 96si5976684wrk.320.2017.07.20.06.22.27
+        by mx.google.com with ESMTPS id x186si1710695wmb.93.2017.07.20.06.40.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 06:22:27 -0700 (PDT)
-Date: Thu, 20 Jul 2017 15:22:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-Message-ID: <20170720132225.GI9058@dhcp22.suse.cz>
-References: <20170710074842.23175-1-mhocko@kernel.org>
- <alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
+        Thu, 20 Jul 2017 06:40:40 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 0/4] page_ext/page_owner init fixes
+Date: Thu, 20 Jul 2017 15:40:25 +0200
+Message-Id: <20170720134029.25268-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Yang Shi <yang.shi@linaro.org>, Laura Abbott <labbott@redhat.com>, Vinayak Menon <vinmenon@codeaurora.org>, zhong jiang <zhongjiang@huawei.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed 19-07-17 18:54:40, Hugh Dickins wrote:
-[...]
-> You probably won't welcome getting into alternatives at this late stage;
-> but after hacking around it one way or another because of its pointless
-> lockups, I lost patience with that too_many_isolated() loop a few months
-> back (on realizing the enormous number of pages that may be isolated via
-> migrate_pages(2)), and we've been running nicely since with something like:
-> 
-> 	bool got_mutex = false;
-> 
-> 	if (unlikely(too_many_isolated(pgdat, file, sc))) {
-> 		if (mutex_lock_killable(&pgdat->too_many_isolated))
-> 			return SWAP_CLUSTER_MAX;
-> 		got_mutex = true;
-> 	}
-> 	...
-> 	if (got_mutex)
-> 		mutex_unlock(&pgdat->too_many_isolated);
-> 
-> Using a mutex to provide the intended throttling, without an infinite
-> loop or an arbitrary delay; and without having to worry (as we often did)
-> about whether those numbers in too_many_isolated() are really appropriate.
-> No premature OOMs complained of yet.
-> 
-> But that was on a different kernel, and there I did have to make sure
-> that PF_MEMALLOC always prevented us from nesting: I'm not certain of
-> that in the current kernel (but do remember Johannes changing the memcg
-> end to make it use PF_MEMALLOC too).  I offer the preview above, to see
-> if you're interested in that alternative: if you are, then I'll go ahead
-> and make it into an actual patch against v4.13-rc.
+This is a followup to the mail thread [1] where we discussed some issues with
+current page_owner (thus also page_ext) init code. Patch 1 should be a
+straightforward optimization found during the process. Patches 2 and 3 are
+preparation towards patch 4, with the main issue described in its commit log.
+It's a RFC because there may be other solutions possible.
 
-I would rather get rid of any additional locking here and my ultimate
-goal is to make throttling at the page allocator layer rather than
-inside the reclaim.
+[1] http://marc.info/?l=linux-mm&m=149883233221147&w=2
+
+Vlastimil Babka (4):
+  mm, page_owner: make init_pages_in_zone() faster
+  mm, page_ext: periodically reschedule during page_ext_init()
+  mm, page_owner: don't grab zone->lock for init_pages_in_zone()
+  mm, page_ext: move page_ext_init() after page_alloc_init_late()
+
+ init/main.c     |  3 ++-
+ mm/page_ext.c   |  5 ++---
+ mm/page_owner.c | 35 ++++++++++++++++++++++++++++-------
+ 3 files changed, 32 insertions(+), 11 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
