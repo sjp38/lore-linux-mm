@@ -1,326 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D974C6B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 04:47:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d18so23331319pfe.8
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:47:17 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id k24si1312276pfk.283.2017.07.20.01.47.15
-        for <linux-mm@kvack.org>;
-        Thu, 20 Jul 2017 01:47:16 -0700 (PDT)
-Date: Thu, 20 Jul 2017 17:47:11 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: zs_page_migrate: not check inuse if
- migrate_mode is not MIGRATE_ASYNC
-Message-ID: <20170720084711.GA8355@bbox>
-References: <1500018667-30175-1-git-send-email-zhuhui@xiaomi.com>
- <20170717053941.GA29581@bbox>
- <CANFwon3uY_G1RshS2-3ZQu5wCre5oK6kbBNxskKVNvB3NVPTBQ@mail.gmail.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 252216B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 05:21:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w126so2117638wme.10
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:21:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u107si1843465wrc.554.2017.07.20.02.21.27
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Jul 2017 02:21:28 -0700 (PDT)
+Date: Thu, 20 Jul 2017 11:21:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
+ build_all_zonelists
+Message-ID: <20170720092124.GG9058@dhcp22.suse.cz>
+References: <20170714080006.7250-1-mhocko@kernel.org>
+ <20170714080006.7250-8-mhocko@kernel.org>
+ <8d9d4eb5-eb7e-0422-0464-cdea9cb7e849@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANFwon3uY_G1RshS2-3ZQu5wCre5oK6kbBNxskKVNvB3NVPTBQ@mail.gmail.com>
+In-Reply-To: <8d9d4eb5-eb7e-0422-0464-cdea9cb7e849@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, "ngupta@vflare.org" <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Hui,
+On Thu 20-07-17 09:24:58, Vlastimil Babka wrote:
+> On 07/14/2017 10:00 AM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > build_all_zonelists has been (ab)using stop_machine to make sure that
+> > zonelists do not change while somebody is looking at them. This is
+> > is just a gross hack because a) it complicates the context from which
+> > we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
+> > switch locking to a percpu rwsem")) and b) is is not really necessary
+> > especially after "mm, page_alloc: simplify zonelist initialization".
+> > 
+> > Updates of the zonelists happen very seldom, basically only when a zone
+> > becomes populated during memory online or when it loses all the memory
+> > during offline. A racing iteration over zonelists could either miss a
+> > zone or try to work on one zone twice. Both of these are something we
+> > can live with occasionally because there will always be at least one
+> > zone visible so we are not likely to fail allocation too easily for
+> > example.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> Some stress testing of this would still be worth, IMHO.
 
-On Thu, Jul 20, 2017 at 02:39:17PM +0800, Hui Zhu wrote:
-> Hi Minchan,
-> 
-> I am sorry for answer late.
-> I spent some time on ubuntu 16.04 with mmtests in an old laptop.
-> 
-> 2017-07-17 13:39 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > Hello Hui,
-> >
-> > On Fri, Jul 14, 2017 at 03:51:07PM +0800, Hui Zhu wrote:
-> >> Got some -EBUSY from zs_page_migrate that will make migration
-> >> slow (retry) or fail (zs_page_putback will schedule_work free_work,
-> >> but it cannot ensure the success).
-> >
-> > I think EAGAIN(migration retrial) is better than EBUSY(bailout) because
-> > expectation is that zsmalloc will release the empty zs_page soon so
-> > at next retrial, it will be succeeded.
-> 
-> 
-> I am not sure.
-> 
-> This is the call trace of zs_page_migrate:
-> zs_page_migrate
-> mapping->a_ops->migratepage
-> move_to_new_page
-> __unmap_and_move
-> unmap_and_move
-> migrate_pages
-> 
-> In unmap_and_move will remove page from migration page list
-> and call putback_movable_page(will call mapping->a_ops->putback_page) if
-> return value of zs_page_migrate is not -EAGAIN.
-> The comments of this part:
-> After called mapping->a_ops->putback_page, zsmalloc can free the page
-> from ZS_EMPTY list.
-> 
-> If retrun -EAGAIN, the page will be not be put back.  EAGAIN page will
-> be try again in migrate_pages without re-isolate.
+I have run the pathological online/offline of the single memblock in the
+movable zone while stressing the same small node with some memory pressure.
+Node 1, zone      DMA
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 943, 943, 943)
+Node 1, zone    DMA32
+  pages free     227310
+        min      8294
+        low      10367
+        high     12440
+        spanned  262112
+        present  262112
+        managed  241436
+        protection: (0, 0, 0, 0)
+Node 1, zone   Normal
+  pages free     0
+        min      0
+        low      0
+        high     0
+        spanned  0
+        present  0
+        managed  0
+        protection: (0, 0, 0, 1024)
+Node 1, zone  Movable
+  pages free     32722
+        min      85
+        low      117
+        high     149
+        spanned  32768
+        present  32768
+        managed  32768
+        protection: (0, 0, 0, 0)
 
-You're right. With -EGAIN, it burns out CPU pointlessly.
+root@test1:/sys/devices/system/node/node1# while true
+do 
+echo offline > memory34/state
+echo online_movable > memory34/state
+done
 
-> 
-> > About schedule_work, as you said, we don't make sure when it happens but
-> > I believe it will happen in a migration iteration most of case.
-> > How often do you see that case?
-> 
-> I noticed this issue because my Kernel patch https://lkml.org/lkml/2014/5/28/113
-> that will remove retry in __alloc_contig_migrate_range.
-> This retry willhandle the -EBUSY because it will re-isolate the page
-> and re-call migrate_pages.
-> Without it will make cma_alloc fail at once with -EBUSY.
+root@test1:/mnt/data/test/linux-3.7-rc5# numactl --preferred=1 make -j4
 
-LKML.org server is not responding so hard to see patch you mentioned
-but I just got your point now so I don't care any more. Your patch is
-enough simple as considering the benefit.
-Just look at below comment.
+and it survived without any unexpected behavior. While this is not
+really a great testing coverage it should exercise the allocation path
+quite a lot.
 
-> 
-> >
-> >>
-> >> And I didn't find anything that make zs_page_migrate cannot work with
-> >> a ZS_EMPTY zspage.
-> >> So make the patch to not check inuse if migrate_mode is not
-> >> MIGRATE_ASYNC.
-> >
-> > At a first glance, I think it work but the question is that it a same problem
-> > ith schedule_work of zs_page_putback. IOW, Until the work is done, compaction
-> > cannot succeed. Do you have any number before and after?
-> >
-> 
-> 
-> Following is what I got with highalloc-performance in a vbox with 2
-> cpu 1G memory 512 zram as swap:
->                                    ori        afte
->                                   orig       after
-> Minor Faults                  50805113    50801261
-> Major Faults                     43918       46692
-> Swap Ins                         42087       46299
-> Swap Outs                        89718      105495
-> Allocation stalls                    0           0
-> DMA allocs                       57787       69787
-> DMA32 allocs                  47964599    47983772
-> Normal allocs                        0           0
-> Movable allocs                       0           0
-> Direct pages scanned             45493       28837
-> Kswapd pages scanned           1565222     1512947
-> Kswapd pages reclaimed         1342222     1334030
-> Direct pages reclaimed           45615       30174
-> Kswapd efficiency                  85%         88%
-> Kswapd velocity               1897.101    1708.309
-> Direct efficiency                 100%        104%
-> Direct velocity                 55.139      32.561
-> Percentage direct scans             2%          1%
-> Zone normal velocity          1952.240    1740.870
-> Zone dma32 velocity              0.000       0.000
-> Zone dma velocity                0.000       0.000
-> Page writes by reclaim       89764.000  106043.000
-> Page writes file                    46         548
-> Page writes anon                 89718      105495
-> Page reclaim immediate           21457        7269
-> Sector Reads                   3259688     3144160
-> Sector Writes                  3667252     3675528
-> Page rescued immediate               0           0
-> Slabs scanned                  1042872     1035438
-> Direct inode steals               8042        7772
-> Kswapd inode steals              54295       55075
-> Kswapd skipped wait                  0           0
-> THP fault alloc                    175         200
-> THP collapse alloc                 226         363
-> THP splits                           0           0
-> THP fault fallback                  11           1
-> THP collapse fail                    3           1
-> Compaction stalls                  536         647
-> Compaction success                 322         384
-> Compaction failures                214         263
-> Page migrate success            119608      127002
-> Page migrate failure              2723        2309
-> Compaction pages isolated       250179      265318
-> Compaction migrate scanned     9131832     9351314
-> Compaction free scanned        2093272     3059014
-> Compaction cost                    192         202
-> NUMA alloc hit                47124555    47086375
-> NUMA alloc miss                      0           0
-> NUMA interleave hit                  0           0
-> NUMA alloc local              47124555    47086375
-> NUMA base PTE updates                0           0
-> NUMA huge PMD updates                0           0
-> NUMA page range updates              0           0
-> NUMA hint faults                     0           0
-> NUMA hint local faults               0           0
-> NUMA hint local percent            100         100
-> NUMA pages migrated                  0           0
-> AutoNUMA cost                       0%          0%
-> 
-> It looks Page migrate success is increased.
-> 
-> Thanks,
-> Hui
-> 
-> 
-> > Thanks.
-> >
-> >>
-> >> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> >> ---
-> >>  mm/zsmalloc.c | 66 +++++++++++++++++++++++++++++++++--------------------------
-> >>  1 file changed, 37 insertions(+), 29 deletions(-)
-> >>
-> >> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> >> index d41edd2..c298e5c 100644
-> >> --- a/mm/zsmalloc.c
-> >> +++ b/mm/zsmalloc.c
-> >> @@ -1982,6 +1982,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-> >>       unsigned long old_obj, new_obj;
-> >>       unsigned int obj_idx;
-> >>       int ret = -EAGAIN;
-> >> +     int inuse;
-> >>
-> >>       VM_BUG_ON_PAGE(!PageMovable(page), page);
-> >>       VM_BUG_ON_PAGE(!PageIsolated(page), page);
-> >> @@ -1996,21 +1997,24 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-> >>       offset = get_first_obj_offset(page);
-> >>
-> >>       spin_lock(&class->lock);
-> >> -     if (!get_zspage_inuse(zspage)) {
-> >> +     inuse = get_zspage_inuse(zspage);
-> >> +     if (mode == MIGRATE_ASYNC && !inuse) {
-> >>               ret = -EBUSY;
-> >>               goto unlock_class;
-> >>       }
-> >>
-> >>       pos = offset;
-> >>       s_addr = kmap_atomic(page);
-> >> -     while (pos < PAGE_SIZE) {
-> >> -             head = obj_to_head(page, s_addr + pos);
-> >> -             if (head & OBJ_ALLOCATED_TAG) {
-> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
-> >> -                     if (!trypin_tag(handle))
-> >> -                             goto unpin_objects;
-> >> +     if (inuse) {
-
-I don't want to add inuse check for every loop. It might avoid unncessary
-looping in every loop of zs_page_migrate so it is for optimization, not
-correction. As I consider it would happen rarely, I think we don't need
-to add the check. Could you just remove get_zspage_inuse check, instead?
-
-like this.
-
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 013eea76685e..2d3d75fb0f16 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1980,14 +1980,9 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-        pool = mapping->private_data;
-        class = pool->size_class[class_idx];
-        offset = get_first_obj_offset(page);
-+       pos = offset;
+I can add this to the changelog if you think it is worth it.
  
-        spin_lock(&class->lock);
--       if (!get_zspage_inuse(zspage)) {
--               ret = -EBUSY;
--               goto unlock_class;
--       }
--
--       pos = offset;
-        s_addr = kmap_atomic(page);
-        while (pos < PAGE_SIZE) {
-                head = obj_to_head(page, s_addr + pos);
-
-
-
-> >> +             while (pos < PAGE_SIZE) {
-> >> +                     head = obj_to_head(page, s_addr + pos);
-> >> +                     if (head & OBJ_ALLOCATED_TAG) {
-> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
-> >> +                             if (!trypin_tag(handle))
-> >> +                                     goto unpin_objects;
-> >> +                     }
-> >> +                     pos += class->size;
-> >>               }
-> >> -             pos += class->size;
-> >>       }
-> >>
-> >>       /*
-> >> @@ -2020,20 +2024,22 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-> >>       memcpy(d_addr, s_addr, PAGE_SIZE);
-> >>       kunmap_atomic(d_addr);
-> >>
-> >> -     for (addr = s_addr + offset; addr < s_addr + pos;
-> >> -                                     addr += class->size) {
-> >> -             head = obj_to_head(page, addr);
-> >> -             if (head & OBJ_ALLOCATED_TAG) {
-> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
-> >> -                     if (!testpin_tag(handle))
-> >> -                             BUG();
-> >> -
-> >> -                     old_obj = handle_to_obj(handle);
-> >> -                     obj_to_location(old_obj, &dummy, &obj_idx);
-> >> -                     new_obj = (unsigned long)location_to_obj(newpage,
-> >> -                                                             obj_idx);
-> >> -                     new_obj |= BIT(HANDLE_PIN_BIT);
-> >> -                     record_obj(handle, new_obj);
-> >> +     if (inuse) {
-> >> +             for (addr = s_addr + offset; addr < s_addr + pos;
-> >> +                                             addr += class->size) {
-> >> +                     head = obj_to_head(page, addr);
-> >> +                     if (head & OBJ_ALLOCATED_TAG) {
-> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
-> >> +                             if (!testpin_tag(handle))
-> >> +                                     BUG();
-> >> +
-> >> +                             old_obj = handle_to_obj(handle);
-> >> +                             obj_to_location(old_obj, &dummy, &obj_idx);
-> >> +                             new_obj = (unsigned long)
-> >> +                                     location_to_obj(newpage, obj_idx);
-> >> +                             new_obj |= BIT(HANDLE_PIN_BIT);
-> >> +                             record_obj(handle, new_obj);
-> >> +                     }
-> >>               }
-> >>       }
-> >>
-> >> @@ -2055,14 +2061,16 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-> >>
-> >>       ret = MIGRATEPAGE_SUCCESS;
-> >>  unpin_objects:
-> >> -     for (addr = s_addr + offset; addr < s_addr + pos;
-> >> +     if (inuse) {
-> >> +             for (addr = s_addr + offset; addr < s_addr + pos;
-> >>                                               addr += class->size) {
-> >> -             head = obj_to_head(page, addr);
-> >> -             if (head & OBJ_ALLOCATED_TAG) {
-> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
-> >> -                     if (!testpin_tag(handle))
-> >> -                             BUG();
-> >> -                     unpin_tag(handle);
-> >> +                     head = obj_to_head(page, addr);
-> >> +                     if (head & OBJ_ALLOCATED_TAG) {
-> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
-> >> +                             if (!testpin_tag(handle))
-> >> +                                     BUG();
-> >> +                             unpin_tag(handle);
-> >> +                     }
-> >>               }
-> >>       }
-> >>       kunmap_atomic(s_addr);
-> >> --
-> >> 1.9.1
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
