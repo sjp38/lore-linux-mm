@@ -1,99 +1,326 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E42716B0292
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 04:21:02 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k69so1969063wmc.14
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:21:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 59si1755733wrm.398.2017.07.20.01.21.01
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 01:21:01 -0700 (PDT)
-Date: Thu, 20 Jul 2017 10:20:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/mremap: Fail map duplication attempts for private
- mappings
-Message-ID: <20170720082058.GF9058@dhcp22.suse.cz>
-References: <1499961495-8063-1-git-send-email-mike.kravetz@oracle.com>
- <4e921eb5-8741-3337-9a7d-5ec9473412da@suse.cz>
- <fad64378-02d7-32c3-50c5-8b444a07d274@oracle.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D974C6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 04:47:17 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d18so23331319pfe.8
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 01:47:17 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id k24si1312276pfk.283.2017.07.20.01.47.15
+        for <linux-mm@kvack.org>;
+        Thu, 20 Jul 2017 01:47:16 -0700 (PDT)
+Date: Thu, 20 Jul 2017 17:47:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: zs_page_migrate: not check inuse if
+ migrate_mode is not MIGRATE_ASYNC
+Message-ID: <20170720084711.GA8355@bbox>
+References: <1500018667-30175-1-git-send-email-zhuhui@xiaomi.com>
+ <20170717053941.GA29581@bbox>
+ <CANFwon3uY_G1RshS2-3ZQu5wCre5oK6kbBNxskKVNvB3NVPTBQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fad64378-02d7-32c3-50c5-8b444a07d274@oracle.com>
+In-Reply-To: <CANFwon3uY_G1RshS2-3ZQu5wCre5oK6kbBNxskKVNvB3NVPTBQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux API <linux-api@vger.kernel.org>
+To: Hui Zhu <teawater@gmail.com>
+Cc: Hui Zhu <zhuhui@xiaomi.com>, "ngupta@vflare.org" <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed 19-07-17 09:39:50, Mike Kravetz wrote:
-> On 07/13/2017 12:11 PM, Vlastimil Babka wrote:
-> > [+CC linux-api]
-> > 
-> > On 07/13/2017 05:58 PM, Mike Kravetz wrote:
-> >> mremap will create a 'duplicate' mapping if old_size == 0 is
-> >> specified.  Such duplicate mappings make no sense for private
-> >> mappings.  If duplication is attempted for a private mapping,
-> >> mremap creates a separate private mapping unrelated to the
-> >> original mapping and makes no modifications to the original.
-> >> This is contrary to the purpose of mremap which should return
-> >> a mapping which is in some way related to the original.
+Hi Hui,
+
+On Thu, Jul 20, 2017 at 02:39:17PM +0800, Hui Zhu wrote:
+> Hi Minchan,
+> 
+> I am sorry for answer late.
+> I spent some time on ubuntu 16.04 with mmtests in an old laptop.
+> 
+> 2017-07-17 13:39 GMT+08:00 Minchan Kim <minchan@kernel.org>:
+> > Hello Hui,
+> >
+> > On Fri, Jul 14, 2017 at 03:51:07PM +0800, Hui Zhu wrote:
+> >> Got some -EBUSY from zs_page_migrate that will make migration
+> >> slow (retry) or fail (zs_page_putback will schedule_work free_work,
+> >> but it cannot ensure the success).
+> >
+> > I think EAGAIN(migration retrial) is better than EBUSY(bailout) because
+> > expectation is that zsmalloc will release the empty zs_page soon so
+> > at next retrial, it will be succeeded.
+> 
+> 
+> I am not sure.
+> 
+> This is the call trace of zs_page_migrate:
+> zs_page_migrate
+> mapping->a_ops->migratepage
+> move_to_new_page
+> __unmap_and_move
+> unmap_and_move
+> migrate_pages
+> 
+> In unmap_and_move will remove page from migration page list
+> and call putback_movable_page(will call mapping->a_ops->putback_page) if
+> return value of zs_page_migrate is not -EAGAIN.
+> The comments of this part:
+> After called mapping->a_ops->putback_page, zsmalloc can free the page
+> from ZS_EMPTY list.
+> 
+> If retrun -EAGAIN, the page will be not be put back.  EAGAIN page will
+> be try again in migrate_pages without re-isolate.
+
+You're right. With -EGAIN, it burns out CPU pointlessly.
+
+> 
+> > About schedule_work, as you said, we don't make sure when it happens but
+> > I believe it will happen in a migration iteration most of case.
+> > How often do you see that case?
+> 
+> I noticed this issue because my Kernel patch https://lkml.org/lkml/2014/5/28/113
+> that will remove retry in __alloc_contig_migrate_range.
+> This retry willhandle the -EBUSY because it will re-isolate the page
+> and re-call migrate_pages.
+> Without it will make cma_alloc fail at once with -EBUSY.
+
+LKML.org server is not responding so hard to see patch you mentioned
+but I just got your point now so I don't care any more. Your patch is
+enough simple as considering the benefit.
+Just look at below comment.
+
+> 
+> >
 > >>
-> >> Therefore, return EINVAL in the case where if an attempt is
-> >> made to duplicate a private mapping.
+> >> And I didn't find anything that make zs_page_migrate cannot work with
+> >> a ZS_EMPTY zspage.
+> >> So make the patch to not check inuse if migrate_mode is not
+> >> MIGRATE_ASYNC.
+> >
+> > At a first glance, I think it work but the question is that it a same problem
+> > ith schedule_work of zs_page_putback. IOW, Until the work is done, compaction
+> > cannot succeed. Do you have any number before and after?
+> >
+> 
+> 
+> Following is what I got with highalloc-performance in a vbox with 2
+> cpu 1G memory 512 zram as swap:
+>                                    ori        afte
+>                                   orig       after
+> Minor Faults                  50805113    50801261
+> Major Faults                     43918       46692
+> Swap Ins                         42087       46299
+> Swap Outs                        89718      105495
+> Allocation stalls                    0           0
+> DMA allocs                       57787       69787
+> DMA32 allocs                  47964599    47983772
+> Normal allocs                        0           0
+> Movable allocs                       0           0
+> Direct pages scanned             45493       28837
+> Kswapd pages scanned           1565222     1512947
+> Kswapd pages reclaimed         1342222     1334030
+> Direct pages reclaimed           45615       30174
+> Kswapd efficiency                  85%         88%
+> Kswapd velocity               1897.101    1708.309
+> Direct efficiency                 100%        104%
+> Direct velocity                 55.139      32.561
+> Percentage direct scans             2%          1%
+> Zone normal velocity          1952.240    1740.870
+> Zone dma32 velocity              0.000       0.000
+> Zone dma velocity                0.000       0.000
+> Page writes by reclaim       89764.000  106043.000
+> Page writes file                    46         548
+> Page writes anon                 89718      105495
+> Page reclaim immediate           21457        7269
+> Sector Reads                   3259688     3144160
+> Sector Writes                  3667252     3675528
+> Page rescued immediate               0           0
+> Slabs scanned                  1042872     1035438
+> Direct inode steals               8042        7772
+> Kswapd inode steals              54295       55075
+> Kswapd skipped wait                  0           0
+> THP fault alloc                    175         200
+> THP collapse alloc                 226         363
+> THP splits                           0           0
+> THP fault fallback                  11           1
+> THP collapse fail                    3           1
+> Compaction stalls                  536         647
+> Compaction success                 322         384
+> Compaction failures                214         263
+> Page migrate success            119608      127002
+> Page migrate failure              2723        2309
+> Compaction pages isolated       250179      265318
+> Compaction migrate scanned     9131832     9351314
+> Compaction free scanned        2093272     3059014
+> Compaction cost                    192         202
+> NUMA alloc hit                47124555    47086375
+> NUMA alloc miss                      0           0
+> NUMA interleave hit                  0           0
+> NUMA alloc local              47124555    47086375
+> NUMA base PTE updates                0           0
+> NUMA huge PMD updates                0           0
+> NUMA page range updates              0           0
+> NUMA hint faults                     0           0
+> NUMA hint local faults               0           0
+> NUMA hint local percent            100         100
+> NUMA pages migrated                  0           0
+> AutoNUMA cost                       0%          0%
+> 
+> It looks Page migrate success is increased.
+> 
+> Thanks,
+> Hui
+> 
+> 
+> > Thanks.
+> >
 > >>
-> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> > 
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> After considering Michal's concerns with follow on patch, it appears
-> this patch provides the most desired behavior.  Any other concerns
-> or issues with this patch?
-
-Maybe we should add a pr_warn_once to make users aware that this is no
-longer supported.
-
-> If this moves forward, I will create man page updates to describe the
-> mremap(old_size == 0) behavior.
-> 
-> -- 
-> Mike Kravetz
-> 
-> > 
+> >> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
 > >> ---
-> >>  mm/mremap.c | 7 +++++++
-> >>  1 file changed, 7 insertions(+)
+> >>  mm/zsmalloc.c | 66 +++++++++++++++++++++++++++++++++--------------------------
+> >>  1 file changed, 37 insertions(+), 29 deletions(-)
 > >>
-> >> diff --git a/mm/mremap.c b/mm/mremap.c
-> >> index cd8a1b1..076f506 100644
-> >> --- a/mm/mremap.c
-> >> +++ b/mm/mremap.c
-> >> @@ -383,6 +383,13 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
-> >>  	if (!vma || vma->vm_start > addr)
-> >>  		return ERR_PTR(-EFAULT);
-> >>  
-> >> +	/*
-> >> +	 * !old_len  is a special case where a mapping is 'duplicated'.
-> >> +	 * Do not allow this for private mappings.
+> >> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> >> index d41edd2..c298e5c 100644
+> >> --- a/mm/zsmalloc.c
+> >> +++ b/mm/zsmalloc.c
+> >> @@ -1982,6 +1982,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+> >>       unsigned long old_obj, new_obj;
+> >>       unsigned int obj_idx;
+> >>       int ret = -EAGAIN;
+> >> +     int inuse;
+> >>
+> >>       VM_BUG_ON_PAGE(!PageMovable(page), page);
+> >>       VM_BUG_ON_PAGE(!PageIsolated(page), page);
+> >> @@ -1996,21 +1997,24 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+> >>       offset = get_first_obj_offset(page);
+> >>
+> >>       spin_lock(&class->lock);
+> >> -     if (!get_zspage_inuse(zspage)) {
+> >> +     inuse = get_zspage_inuse(zspage);
+> >> +     if (mode == MIGRATE_ASYNC && !inuse) {
+> >>               ret = -EBUSY;
+> >>               goto unlock_class;
+> >>       }
+> >>
+> >>       pos = offset;
+> >>       s_addr = kmap_atomic(page);
+> >> -     while (pos < PAGE_SIZE) {
+> >> -             head = obj_to_head(page, s_addr + pos);
+> >> -             if (head & OBJ_ALLOCATED_TAG) {
+> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
+> >> -                     if (!trypin_tag(handle))
+> >> -                             goto unpin_objects;
+> >> +     if (inuse) {
 
-Do not allow this for private mappings because we have never really
-duplicated the range for those so the new VMA is a fresh one unrelated
-to the original one which breaks mremap semantic. While we can do that
-there doesn't seem to be any existing usecase currently.
+I don't want to add inuse check for every loop. It might avoid unncessary
+looping in every loop of zs_page_migrate so it is for optimization, not
+correction. As I consider it would happen rarely, I think we don't need
+to add the check. Could you just remove get_zspage_inuse check, instead?
 
-> >> +	 */
-> >> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
-> >> +		return ERR_PTR(-EINVAL);
+like this.
+
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 013eea76685e..2d3d75fb0f16 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1980,14 +1980,9 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+        pool = mapping->private_data;
+        class = pool->size_class[class_idx];
+        offset = get_first_obj_offset(page);
++       pos = offset;
+ 
+        spin_lock(&class->lock);
+-       if (!get_zspage_inuse(zspage)) {
+-               ret = -EBUSY;
+-               goto unlock_class;
+-       }
+-
+-       pos = offset;
+        s_addr = kmap_atomic(page);
+        while (pos < PAGE_SIZE) {
+                head = obj_to_head(page, s_addr + pos);
+
+
+
+> >> +             while (pos < PAGE_SIZE) {
+> >> +                     head = obj_to_head(page, s_addr + pos);
+> >> +                     if (head & OBJ_ALLOCATED_TAG) {
+> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
+> >> +                             if (!trypin_tag(handle))
+> >> +                                     goto unpin_objects;
+> >> +                     }
+> >> +                     pos += class->size;
+> >>               }
+> >> -             pos += class->size;
+> >>       }
+> >>
+> >>       /*
+> >> @@ -2020,20 +2024,22 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+> >>       memcpy(d_addr, s_addr, PAGE_SIZE);
+> >>       kunmap_atomic(d_addr);
+> >>
+> >> -     for (addr = s_addr + offset; addr < s_addr + pos;
+> >> -                                     addr += class->size) {
+> >> -             head = obj_to_head(page, addr);
+> >> -             if (head & OBJ_ALLOCATED_TAG) {
+> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
+> >> -                     if (!testpin_tag(handle))
+> >> -                             BUG();
+> >> -
+> >> -                     old_obj = handle_to_obj(handle);
+> >> -                     obj_to_location(old_obj, &dummy, &obj_idx);
+> >> -                     new_obj = (unsigned long)location_to_obj(newpage,
+> >> -                                                             obj_idx);
+> >> -                     new_obj |= BIT(HANDLE_PIN_BIT);
+> >> -                     record_obj(handle, new_obj);
+> >> +     if (inuse) {
+> >> +             for (addr = s_addr + offset; addr < s_addr + pos;
+> >> +                                             addr += class->size) {
+> >> +                     head = obj_to_head(page, addr);
+> >> +                     if (head & OBJ_ALLOCATED_TAG) {
+> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
+> >> +                             if (!testpin_tag(handle))
+> >> +                                     BUG();
 > >> +
-> >>  	if (is_vm_hugetlb_page(vma))
-> >>  		return ERR_PTR(-EINVAL);
-> >>  
+> >> +                             old_obj = handle_to_obj(handle);
+> >> +                             obj_to_location(old_obj, &dummy, &obj_idx);
+> >> +                             new_obj = (unsigned long)
+> >> +                                     location_to_obj(newpage, obj_idx);
+> >> +                             new_obj |= BIT(HANDLE_PIN_BIT);
+> >> +                             record_obj(handle, new_obj);
+> >> +                     }
+> >>               }
+> >>       }
 > >>
-> > 
-
--- 
-Michal Hocko
-SUSE Labs
+> >> @@ -2055,14 +2061,16 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+> >>
+> >>       ret = MIGRATEPAGE_SUCCESS;
+> >>  unpin_objects:
+> >> -     for (addr = s_addr + offset; addr < s_addr + pos;
+> >> +     if (inuse) {
+> >> +             for (addr = s_addr + offset; addr < s_addr + pos;
+> >>                                               addr += class->size) {
+> >> -             head = obj_to_head(page, addr);
+> >> -             if (head & OBJ_ALLOCATED_TAG) {
+> >> -                     handle = head & ~OBJ_ALLOCATED_TAG;
+> >> -                     if (!testpin_tag(handle))
+> >> -                             BUG();
+> >> -                     unpin_tag(handle);
+> >> +                     head = obj_to_head(page, addr);
+> >> +                     if (head & OBJ_ALLOCATED_TAG) {
+> >> +                             handle = head & ~OBJ_ALLOCATED_TAG;
+> >> +                             if (!testpin_tag(handle))
+> >> +                                     BUG();
+> >> +                             unpin_tag(handle);
+> >> +                     }
+> >>               }
+> >>       }
+> >>       kunmap_atomic(s_addr);
+> >> --
+> >> 1.9.1
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
