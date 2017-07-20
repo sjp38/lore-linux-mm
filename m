@@ -1,71 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AF5DD6B02F4
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:13:18 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k71so11712552wrc.15
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 23:13:18 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 066A16B0313
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:16:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s79so1703017wma.15
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 23:16:51 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w20si1650193wrc.519.2017.07.19.23.13.17
+        by mx.google.com with ESMTPS id v39si5560182wrb.306.2017.07.19.23.16.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 23:13:17 -0700 (PDT)
-Subject: Re: [PATCH 5/9] mm, memory_hotplug: remove explicit
- build_all_zonelists from try_online_node
+        Wed, 19 Jul 2017 23:16:50 -0700 (PDT)
+Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
+ build_all_zonelists
 References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-6-mhocko@kernel.org>
+ <20170714080006.7250-8-mhocko@kernel.org>
+ <52b1af9a-a5a9-9157-8f0f-f17946aeb2da@suse.cz>
+ <20170714114321.GJ2618@dhcp22.suse.cz> <20170714114509.GK2618@dhcp22.suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <9f525686-0cad-0c8b-78a2-31d705d68828@suse.cz>
-Date: Thu, 20 Jul 2017 08:13:16 +0200
+Message-ID: <0d4c6dad-5a4f-fc67-d401-20e49805e773@suse.cz>
+Date: Thu, 20 Jul 2017 08:16:49 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170714080006.7250-6-mhocko@kernel.org>
+In-Reply-To: <20170714114509.GK2618@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hp.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/14/2017 10:00 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> try_online_node calls hotadd_new_pgdat which already calls
-> build_all_zonelists. So the additional call is redundant.  Even though
-> hotadd_new_pgdat will only initialize zonelists of the new node this is
-> the right thing to do because such a node doesn't have any memory so
-> other zonelists would ignore all the zones from this node anyway.
+On 07/14/2017 01:45 PM, Michal Hocko wrote:
+> On Fri 14-07-17 13:43:21, Michal Hocko wrote:
+>> On Fri 14-07-17 13:29:14, Vlastimil Babka wrote:
+>>> On 07/14/2017 10:00 AM, Michal Hocko wrote:
+>>>> From: Michal Hocko <mhocko@suse.com>
+>>>>
+>>>> build_all_zonelists has been (ab)using stop_machine to make sure that
+>>>> zonelists do not change while somebody is looking at them. This is
+>>>> is just a gross hack because a) it complicates the context from which
+>>>> we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
+>>>> switch locking to a percpu rwsem")) and b) is is not really necessary
+>>>> especially after "mm, page_alloc: simplify zonelist initialization".
+>>>>
+>>>> Updates of the zonelists happen very seldom, basically only when a zone
+>>>> becomes populated during memory online or when it loses all the memory
+>>>> during offline. A racing iteration over zonelists could either miss a
+>>>> zone or try to work on one zone twice. Both of these are something we
+>>>> can live with occasionally because there will always be at least one
+>>>> zone visible so we are not likely to fail allocation too easily for
+>>>> example.
+>>>
+>>> Given the experience with with cpusets and mempolicies, I would rather
+>>> avoid the risk of allocation not seeing the only zone(s) that are
+>>> allowed by its nodemask, and triggering premature OOM.
+>>
+>> I would argue, those are a different beast because they are directly
+>> under control of not fully priviledged user and change between the empty
+>> nodemask and cpusets very often. For this one to trigger we
+>> would have to online/offline the last memory block in the zone very
+>> often and that doesn't resemble a sensible usecase even remotely.
 
-Doesn't the "if (pgdat<...>zone == NULL) in fact mean, that this is just
-always dead code? Even more reason to remove it.
+OK.
 
-> Cc: Toshi Kani <toshi.kani@hp.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>> So maybe the
+>>> updates could be done in a way to avoid that, e.g. first append a copy
+>>> of the old zonelist to the end, then overwrite and terminate with NULL.
+>>> But if this requires any barriers or something similar on the iteration
+>>> site, which is performance critical, then it's bad.
+>>> Maybe a seqcount, that the iteration side only starts checking in the
+>>> slowpath? Like we have with cpusets now.
+>>> I know that Mel noted that stop_machine() also never had such guarantees
+>>> to prevent this, but it could have made the chances smaller.
+>>
+>> I think we can come up with some scheme but is this really worth it
+>> considering how unlikely the whole thing is? Well, if somebody hits a
+>> premature OOM killer or allocations failures it would have to be along
+>> with a heavy memory hotplug operations and then it would be quite easy
+>> to spot what is going on and try to fix it. I would rather not
+>> overcomplicate it, to be honest.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Fine, we can always add it later.
 
-> ---
->  mm/memory_hotplug.c | 7 -------
->  1 file changed, 7 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 639b8af37c45..0d2f6a11075c 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1104,13 +1104,6 @@ int try_online_node(int nid)
->  	node_set_online(nid);
->  	ret = register_one_node(nid);
->  	BUG_ON(ret);
-> -
-> -	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-> -		mutex_lock(&zonelists_mutex);
-> -		build_all_zonelists(NULL);
-> -		mutex_unlock(&zonelists_mutex);
-> -	}
-> -
->  out:
->  	mem_hotplug_done();
->  	return ret;
-> 
+> And one more thing, Mel has already brought this up in his response.
+> stop_machine haven't is very roughly same strenght wrt. double zone
+> visit or a missed zone because we do not restart zonelist iteration.
+
+I know, that's why I wrote "I know that Mel noted that stop_machine()
+also never had such guarantees to prevent this, but it could have made
+the chances smaller." But I don't have any good proof that your patch is
+indeed making things worse, so let's apply and see...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
