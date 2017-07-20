@@ -1,95 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B55A6B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:27:27 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id k69so2281419wmc.14
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:27:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e29si5884543wrc.308.2017.07.20.03.27.25
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC28D6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 06:44:22 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id j194so1993717oib.15
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:44:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d84si5824654oif.169.2017.07.20.03.44.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 03:27:25 -0700 (PDT)
-Date: Thu, 20 Jul 2017 12:27:23 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 3/5] dax: use common 4k zero page for dax mmap reads
-Message-ID: <20170720102723.GB17689@quack2.suse.cz>
-References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
- <20170628220152.28161-4-ross.zwisler@linux.intel.com>
- <20170719153314.GC15908@quack2.suse.cz>
- <20170719162645.GA26445@linux.intel.com>
-MIME-Version: 1.0
+        Thu, 20 Jul 2017 03:44:21 -0700 (PDT)
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170710074842.23175-1-mhocko@kernel.org>
+	<alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
+Message-Id: <201707201944.IJI05796.VLFJFFtSQMOOOH@I-love.SAKURA.ne.jp>
+Date: Thu, 20 Jul 2017 19:44:11 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170719162645.GA26445@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: hughd@google.com, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Wed 19-07-17 10:26:45, Ross Zwisler wrote:
-> On Wed, Jul 19, 2017 at 05:33:14PM +0200, Jan Kara wrote:
-> > On Wed 28-06-17 16:01:50, Ross Zwisler wrote:
-> > > Another major change is that we remove dax_pfn_mkwrite() from our fault
-> > > flow, and instead rely on the page fault itself to make the PTE dirty and
-> > > writeable.  The following description from the patch adding the
-> > > vm_insert_mixed_mkwrite() call explains this a little more:
-> > > 
-> > > ***
-> > >   To be able to use the common 4k zero page in DAX we need to have our PTE
-> > >   fault path look more like our PMD fault path where a PTE entry can be
-> > >   marked as dirty and writeable as it is first inserted, rather than
-> > >   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> > > 
-> > >   Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> > >   distinguish between these two cases in do_wp_page():
-> > > 
-> > >   	case 1: 4k zero page => writable DAX storage
-> > >   	case 2: read-only DAX storage => writeable DAX storage
-> > > 
-> > >   This distinction is made by via vm_normal_page().  vm_normal_page()
-> > >   returns false for the common 4k zero page, though, just as it does for
-> > >   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
-> > >   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
-> > >   sequence, and get rid of dax_pfn_mkwrite() completely.
-> > > 
-> > >   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> > >   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
-> > >   insert_pfn() will do the work that was previously done by wp_page_reuse()
-> > >   as part of the dax_pfn_mkwrite() call path.
-> > > ***
-> > 
-> > Hum, thinking about this in context of this patch... So what if we have
-> > allocated storage, a process faults it read-only, we map it to page tables
-> > writeprotected. Then the process writes through mmap to the area - the code
-> > in handle_pte_fault() ends up in do_wp_page() if I'm reading it right.
+Hugh Dickins wrote:
+> You probably won't welcome getting into alternatives at this late stage;
+> but after hacking around it one way or another because of its pointless
+> lockups, I lost patience with that too_many_isolated() loop a few months
+> back (on realizing the enormous number of pages that may be isolated via
+> migrate_pages(2)), and we've been running nicely since with something like:
 > 
-> Yep.
+> 	bool got_mutex = false;
 > 
-> > Then, since we are missing ->pfn_mkwrite() handlers, the PTE will be marked
-> > writeable but radix tree entry stays clean - bug. Am I missing something?
+> 	if (unlikely(too_many_isolated(pgdat, file, sc))) {
+> 		if (mutex_lock_killable(&pgdat->too_many_isolated))
+> 			return SWAP_CLUSTER_MAX;
+> 		got_mutex = true;
+> 	}
+> 	...
+> 	if (got_mutex)
+> 		mutex_unlock(&pgdat->too_many_isolated);
 > 
-> I don't think we ever end up with a writeable PTE but with a clean radix tree
-> entry.  When we get the write fault we do a full fault through
-> dax_iomap_pte_fault() and dax_insert_mapping().
->
-> dax_insert_mapping() sets up the dirty radix tree entry via
-> dax_insert_mapping_entry() before it does anything with the page tables via
-> vm_insert_mixed_mkwrite().
-> 
-> So, this mkwrite fault path is exactly the path we would have taken if the
-> initial read to real storage hadn't happened, and we end up in the same end
-> state - with a dirty DAX radix tree entry and a writeable PTE.
+> Using a mutex to provide the intended throttling, without an infinite
+> loop or an arbitrary delay; and without having to worry (as we often did)
+> about whether those numbers in too_many_isolated() are really appropriate.
+> No premature OOMs complained of yet.
 
-Ah sorry, I have missed that it is not that you would not have
-->pfn_mkwrite() handler - you still have it but it is the same as standard
-fault handler now. So maybe can you rephrase the changelog a bit saying
-that: "We get rid of dax_pfn_mkwrite() helper and use dax_iomap_fault() to
-handle write-protection faults instead." Thanks!
+Roughly speaking, there is a moment where shrink_inactive_list() acts
+like below.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+	bool got_mutex = false;
+
+	if (!current_is_kswapd()) {
+		if (mutex_lock_killable(&pgdat->too_many_isolated))
+			return SWAP_CLUSTER_MAX;
+		got_mutex = true;
+	}
+
+	// kswapd is blocked here waiting for !current_is_kswapd().
+
+	if (got_mutex)
+		mutex_unlock(&pgdat->too_many_isolated);
+
+> 
+> But that was on a different kernel, and there I did have to make sure
+> that PF_MEMALLOC always prevented us from nesting: I'm not certain of
+> that in the current kernel (but do remember Johannes changing the memcg
+> end to make it use PF_MEMALLOC too).  I offer the preview above, to see
+> if you're interested in that alternative: if you are, then I'll go ahead
+> and make it into an actual patch against v4.13-rc.
+
+I don't know what your actual patch looks like, but the problem is that
+pgdat->too_many_isolated waits for kswapd while kswapd waits for
+pgdat->too_many_isolated; nobody can unlock pgdat->too_many_isolated if
+once we hit it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
