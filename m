@@ -1,93 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 066A16B0313
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:16:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id s79so1703017wma.15
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 23:16:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v39si5560182wrb.306.2017.07.19.23.16.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A67B6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:28:13 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v68so20899289pfi.13
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 23:28:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id z15si1219033pgo.33.2017.07.19.23.28.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Jul 2017 23:16:50 -0700 (PDT)
-Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
- build_all_zonelists
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-8-mhocko@kernel.org>
- <52b1af9a-a5a9-9157-8f0f-f17946aeb2da@suse.cz>
- <20170714114321.GJ2618@dhcp22.suse.cz> <20170714114509.GK2618@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0d4c6dad-5a4f-fc67-d401-20e49805e773@suse.cz>
-Date: Thu, 20 Jul 2017 08:16:49 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Jul 2017 23:28:12 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6K6PlVu055099
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:28:12 -0400
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2btpjhsk7f-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 02:28:11 -0400
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 20 Jul 2017 16:28:09 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6K6S7SL29294698
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 16:28:07 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6K6RvqB003679
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 16:27:58 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC v6 26/62] powerpc: Program HPTE key protection bits
+In-Reply-To: <1500177424-13695-27-git-send-email-linuxram@us.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-27-git-send-email-linuxram@us.ibm.com>
+Date: Thu, 20 Jul 2017 11:58:02 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170714114509.GK2618@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <87pocvpqq5.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
 
-On 07/14/2017 01:45 PM, Michal Hocko wrote:
-> On Fri 14-07-17 13:43:21, Michal Hocko wrote:
->> On Fri 14-07-17 13:29:14, Vlastimil Babka wrote:
->>> On 07/14/2017 10:00 AM, Michal Hocko wrote:
->>>> From: Michal Hocko <mhocko@suse.com>
->>>>
->>>> build_all_zonelists has been (ab)using stop_machine to make sure that
->>>> zonelists do not change while somebody is looking at them. This is
->>>> is just a gross hack because a) it complicates the context from which
->>>> we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
->>>> switch locking to a percpu rwsem")) and b) is is not really necessary
->>>> especially after "mm, page_alloc: simplify zonelist initialization".
->>>>
->>>> Updates of the zonelists happen very seldom, basically only when a zone
->>>> becomes populated during memory online or when it loses all the memory
->>>> during offline. A racing iteration over zonelists could either miss a
->>>> zone or try to work on one zone twice. Both of these are something we
->>>> can live with occasionally because there will always be at least one
->>>> zone visible so we are not likely to fail allocation too easily for
->>>> example.
->>>
->>> Given the experience with with cpusets and mempolicies, I would rather
->>> avoid the risk of allocation not seeing the only zone(s) that are
->>> allowed by its nodemask, and triggering premature OOM.
->>
->> I would argue, those are a different beast because they are directly
->> under control of not fully priviledged user and change between the empty
->> nodemask and cpusets very often. For this one to trigger we
->> would have to online/offline the last memory block in the zone very
->> often and that doesn't resemble a sensible usecase even remotely.
+Ram Pai <linuxram@us.ibm.com> writes:
 
-OK.
+> Map the PTE protection key bits to the HPTE key protection bits,
+> while creating HPTE  entries.
+>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
->>> So maybe the
->>> updates could be done in a way to avoid that, e.g. first append a copy
->>> of the old zonelist to the end, then overwrite and terminate with NULL.
->>> But if this requires any barriers or something similar on the iteration
->>> site, which is performance critical, then it's bad.
->>> Maybe a seqcount, that the iteration side only starts checking in the
->>> slowpath? Like we have with cpusets now.
->>> I know that Mel noted that stop_machine() also never had such guarantees
->>> to prevent this, but it could have made the chances smaller.
->>
->> I think we can come up with some scheme but is this really worth it
->> considering how unlikely the whole thing is? Well, if somebody hits a
->> premature OOM killer or allocations failures it would have to be along
->> with a heavy memory hotplug operations and then it would be quite easy
->> to spot what is going on and try to fix it. I would rather not
->> overcomplicate it, to be honest.
-
-Fine, we can always add it later.
-
-> And one more thing, Mel has already brought this up in his response.
-> stop_machine haven't is very roughly same strenght wrt. double zone
-> visit or a missed zone because we do not restart zonelist iteration.
-
-I know, that's why I wrote "I know that Mel noted that stop_machine()
-also never had such guarantees to prevent this, but it could have made
-the chances smaller." But I don't have any good proof that your patch is
-indeed making things worse, so let's apply and see...
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> ---
+>  arch/powerpc/include/asm/book3s/64/mmu-hash.h |    5 +++++
+>  arch/powerpc/include/asm/pkeys.h              |   12 ++++++++++++
+>  arch/powerpc/mm/hash_utils_64.c               |    4 ++++
+>  3 files changed, 21 insertions(+), 0 deletions(-)
+>
+> diff --git a/arch/powerpc/include/asm/book3s/64/mmu-hash.h b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+> index 6981a52..f7a6ed3 100644
+> --- a/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+> +++ b/arch/powerpc/include/asm/book3s/64/mmu-hash.h
+> @@ -90,6 +90,8 @@
+>  #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
+>  #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
+>  #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
+> +#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
+> +#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
+>  #define HPTE_R_RPN_SHIFT	12
+>  #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
+>  #define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
+> @@ -104,6 +106,9 @@
+>  #define HPTE_R_C		ASM_CONST(0x0000000000000080)
+>  #define HPTE_R_R		ASM_CONST(0x0000000000000100)
+>  #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
+> +#define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
+> +#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
+> +#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
+>
+>  #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
+>  #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
+> diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
+> index ad39db0..bbb5d85 100644
+> --- a/arch/powerpc/include/asm/pkeys.h
+> +++ b/arch/powerpc/include/asm/pkeys.h
+> @@ -41,6 +41,18 @@ static inline u64 vmflag_to_page_pkey_bits(u64 vm_flags)
+>  		((vm_flags & VM_PKEY_BIT4) ? H_PAGE_PKEY_BIT0 : 0x0UL));
+>  }
+>
+> +static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
+> +{
+> +	if (!pkey_inited)
+> +		return 0x0UL;
+> +
+> +	return (((pteflags & H_PAGE_PKEY_BIT0) ? HPTE_R_KEY_BIT0 : 0x0UL) |
+> +		((pteflags & H_PAGE_PKEY_BIT1) ? HPTE_R_KEY_BIT1 : 0x0UL) |
+> +		((pteflags & H_PAGE_PKEY_BIT2) ? HPTE_R_KEY_BIT2 : 0x0UL) |
+> +		((pteflags & H_PAGE_PKEY_BIT3) ? HPTE_R_KEY_BIT3 : 0x0UL) |
+> +		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
+> +}
+> +
+>  static inline int vma_pkey(struct vm_area_struct *vma)
+>  {
+>  	if (!pkey_inited)
+> diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+> index f88423b..1e74529 100644
+> --- a/arch/powerpc/mm/hash_utils_64.c
+> +++ b/arch/powerpc/mm/hash_utils_64.c
+> @@ -231,6 +231,10 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
+>  		 */
+>  		rflags |= HPTE_R_M;
+>
+> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+> +	rflags |= pte_to_hpte_pkey_bits(pteflags);
+> +#endif
+> +
+>  	return rflags;
+>  }
+>
+> -- 
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
