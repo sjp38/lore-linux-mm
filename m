@@ -1,70 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 603EE6B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 10:11:42 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k71so13171845wrc.15
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 07:11:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b10si6061875wrc.20.2017.07.20.07.11.40
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A73F6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 10:28:43 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s4so35760359pgr.3
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 07:28:43 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id s64si1632209pfi.620.2017.07.20.07.28.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 07:11:40 -0700 (PDT)
-Date: Thu, 20 Jul 2017 16:11:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170720141138.GJ9058@dhcp22.suse.cz>
-References: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170718141602.GB19133@dhcp22.suse.cz>
- <201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Jul 2017 07:28:42 -0700 (PDT)
+Date: Thu, 20 Jul 2017 08:28:40 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 3/5] dax: use common 4k zero page for dax mmap reads
+Message-ID: <20170720142840.GB20414@linux.intel.com>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-4-ross.zwisler@linux.intel.com>
+ <20170719153314.GC15908@quack2.suse.cz>
+ <20170719162645.GA26445@linux.intel.com>
+ <20170720102723.GB17689@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170720102723.GB17689@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:
-> > > Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> > > guarded whole OOM reaping operations using oom_lock. But there was no
-> > > need to guard whole operations. We needed to guard only setting of
-> > > MMF_OOM_REAPED flag because get_page_from_freelist() in
-> > > __alloc_pages_may_oom() is called with oom_lock held.
+On Thu, Jul 20, 2017 at 12:27:23PM +0200, Jan Kara wrote:
+> On Wed 19-07-17 10:26:45, Ross Zwisler wrote:
+> > On Wed, Jul 19, 2017 at 05:33:14PM +0200, Jan Kara wrote:
+> > > On Wed 28-06-17 16:01:50, Ross Zwisler wrote:
+> > > > Another major change is that we remove dax_pfn_mkwrite() from our fault
+> > > > flow, and instead rely on the page fault itself to make the PTE dirty and
+> > > > writeable.  The following description from the patch adding the
+> > > > vm_insert_mixed_mkwrite() call explains this a little more:
+> > > > 
+> > > > ***
+> > > >   To be able to use the common 4k zero page in DAX we need to have our PTE
+> > > >   fault path look more like our PMD fault path where a PTE entry can be
+> > > >   marked as dirty and writeable as it is first inserted, rather than
+> > > >   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > > > 
+> > > >   Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > > >   distinguish between these two cases in do_wp_page():
+> > > > 
+> > > >   	case 1: 4k zero page => writable DAX storage
+> > > >   	case 2: read-only DAX storage => writeable DAX storage
+> > > > 
+> > > >   This distinction is made by via vm_normal_page().  vm_normal_page()
+> > > >   returns false for the common 4k zero page, though, just as it does for
+> > > >   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
+> > > >   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
+> > > >   sequence, and get rid of dax_pfn_mkwrite() completely.
+> > > > 
+> > > >   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > > >   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
+> > > >   insert_pfn() will do the work that was previously done by wp_page_reuse()
+> > > >   as part of the dax_pfn_mkwrite() call path.
+> > > > ***
 > > > 
-> > > If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
-> > > can start reaping operations as soon as wake_oom_reaper() is called.
-> > > But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
-> > > oom_lock, guarding only the OOM reaper side is not sufficient.
-> > > 
-> > > If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
-> > > there is no need to guard setting of MMF_OOM_SKIP flag, and we can
-> > > guarantee a chance to call get_page_from_freelist() in
-> > > __alloc_pages_may_oom() without depending on oom_lock serialization.
-> > > 
-> > > This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
-> > > flag which acts as if MMF_OOM_SKIP, in order to close both race window
-> > > (the OOM reaper side and __mmput() side) without using oom_lock.
+> > > Hum, thinking about this in context of this patch... So what if we have
+> > > allocated storage, a process faults it read-only, we map it to page tables
+> > > writeprotected. Then the process writes through mmap to the area - the code
+> > > in handle_pte_fault() ends up in do_wp_page() if I'm reading it right.
 > > 
-> > Why do we need this patch when
-> > http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
-> > already removes the lock and solves another problem at once?
+> > Yep.
+> > 
+> > > Then, since we are missing ->pfn_mkwrite() handlers, the PTE will be marked
+> > > writeable but radix tree entry stays clean - bug. Am I missing something?
+> > 
+> > I don't think we ever end up with a writeable PTE but with a clean radix tree
+> > entry.  When we get the write fault we do a full fault through
+> > dax_iomap_pte_fault() and dax_insert_mapping().
+> >
+> > dax_insert_mapping() sets up the dirty radix tree entry via
+> > dax_insert_mapping_entry() before it does anything with the page tables via
+> > vm_insert_mixed_mkwrite().
+> > 
+> > So, this mkwrite fault path is exactly the path we would have taken if the
+> > initial read to real storage hadn't happened, and we end up in the same end
+> > state - with a dirty DAX radix tree entry and a writeable PTE.
 > 
-> We haven't got an answer from Hugh and/or Andrea whether that patch is safe.
+> Ah sorry, I have missed that it is not that you would not have
+> ->pfn_mkwrite() handler - you still have it but it is the same as standard
+> fault handler now. So maybe can you rephrase the changelog a bit saying
+> that: "We get rid of dax_pfn_mkwrite() helper and use dax_iomap_fault() to
+> handle write-protection faults instead." Thanks!
 
-So what? I haven't see anybody disputing the correctness. And to be
-honest I really dislike your patch. Yet another round kind of solutions
-are just very ugly hacks usually because they are highly timing
-sensitive.
-
-> Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.
-
-Could you explain how?
--- 
-Michal Hocko
-SUSE Labs
+Ah, sure, will do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
