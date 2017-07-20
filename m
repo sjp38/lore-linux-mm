@@ -1,121 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F225D6B025F
-	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:37:34 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j194so1297840oib.15
-        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 19:37:34 -0700 (PDT)
-Received: from sender-pp-092.zoho.com ([135.84.80.237])
-        by mx.google.com with ESMTPS id c129si721556oib.292.2017.07.19.19.37.33
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A9D6B025F
+	for <linux-mm@kvack.org>; Wed, 19 Jul 2017 22:54:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e3so17793649pfc.4
+        for <linux-mm@kvack.org>; Wed, 19 Jul 2017 19:54:14 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0096.outbound.protection.outlook.com. [104.47.38.96])
+        by mx.google.com with ESMTPS id z35si811462plh.730.2017.07.19.19.54.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Jul 2017 19:37:34 -0700 (PDT)
-Subject: Re: [PATCH] mm/vmalloc: add vm_struct for vm_map_ram area
-References: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <59701734.5070001@zoho.com>
-Date: Thu, 20 Jul 2017 10:36:36 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 19 Jul 2017 19:54:13 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
+Date: Wed, 19 Jul 2017 22:54:04 -0400
+Message-ID: <A0ABA698-7486-46C3-B209-E95A9048B22C@cs.rutgers.edu>
+In-Reply-To: <20170719135927.d553f5afe893ca43d70cbdc5@linux-foundation.org>
+References: <201707191504.G4xCE7El%fengguang.wu@intel.com>
+ <A5D98DDB-2295-467D-8368-D0A037CC2DC7@cs.rutgers.edu>
+ <20170719135927.d553f5afe893ca43d70cbdc5@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1500461043-7414-1-git-send-email-zhaoyang.huang@spreadtrum.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>, zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org, khandual@linux.vnet.ibm.com, dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
 
-On 07/19/2017 06:44 PM, Zhaoyang Huang wrote:
-> /proc/vmallocinfo will not show the area allocated by vm_map_ram, which
-> will make confusion when debug. Add vm_struct for them and show them in
-> proc.
-> 
-> Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
-> ---
-another patch titled "vmalloc: show lazy-purged vma info in vmallocinfo" was phased-in to linux-next branch
-to resolve this problem.
->  mm/vmalloc.c | 27 ++++++++++++++++++++++++++-
->  1 file changed, 26 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 34a1c3e..4a2e93c 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -46,6 +46,9 @@ struct vfree_deferred {
->  
->  static void __vunmap(const void *, int);
->  
-> +static void setup_vmap_ram_vm(struct vm_struct *vm, struct vmap_area *va,
-> +				unsigned long flags, const void *caller);
-> +
->  static void free_work(struct work_struct *w)
->  {
->  	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-> @@ -315,6 +318,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
->  /*** Global kva allocator ***/
->  
->  #define VM_VM_AREA	0x04
-> +#define VM_VM_RAM	0x08
->  
->  static DEFINE_SPINLOCK(vmap_area_lock);
->  /* Export for kexec only */
-> @@ -1141,6 +1145,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
->  
->  	va = find_vmap_area(addr);
->  	BUG_ON(!va);
-> +	kfree(va->vm);
->  	free_unmap_vmap_area(va);
->  }
->  EXPORT_SYMBOL(vm_unmap_ram);
-> @@ -1173,6 +1178,12 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
->  		addr = (unsigned long)mem;
->  	} else {
->  		struct vmap_area *va;
-> +		struct vm_struct *area;
-> +
-> +		area = kzalloc_node(sizeof(*area), GFP_KERNEL, node);
-> +		if (unlikely(!area))
-> +			return NULL;
-> +
->  		va = alloc_vmap_area(size, PAGE_SIZE,
->  				VMALLOC_START, VMALLOC_END, node, GFP_KERNEL);
->  		if (IS_ERR(va))
-> @@ -1180,6 +1191,7 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
->  
->  		addr = va->va_start;
->  		mem = (void *)addr;
-> +		setup_vmap_ram_vm(area, va, 0, __builtin_return_address(0));
->  	}
->  	if (vmap_page_range(addr, addr + size, prot, pages) < 0) {
->  		vm_unmap_ram(mem, count);
-> @@ -1362,6 +1374,19 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
->  	spin_unlock(&vmap_area_lock);
->  }
->  
-> +static void setup_vmap_ram_vm(struct vm_struct *vm, struct vmap_area *va,
-> +			      unsigned long flags, const void *caller)
-> +{
-> +	spin_lock(&vmap_area_lock);
-> +	vm->flags = flags;
-> +	vm->addr = (void *)va->va_start;
-> +	vm->size = va->va_end - va->va_start;
-> +	vm->caller = caller;
-> +	va->vm = vm;
-> +	va->flags |= VM_VM_RAM;
-> +	spin_unlock(&vmap_area_lock);
-> +}
-> +
->  static void clear_vm_uninitialized_flag(struct vm_struct *vm)
->  {
->  	/*
-> @@ -2698,7 +2723,7 @@ static int s_show(struct seq_file *m, void *p)
->  	 * s_show can encounter race with remove_vm_area, !VM_VM_AREA on
->  	 * behalf of vmap area is being tear down or vm_map_ram allocation.
->  	 */
-> -	if (!(va->flags & VM_VM_AREA))
-> +	if (!(va->flags & (VM_VM_AREA | VM_VM_RAM)))
->  		return 0;
->  
->  	v = va->vm;
-> 
+On 19 Jul 2017, at 16:59, Andrew Morton wrote:
 
+> On Wed, 19 Jul 2017 14:39:43 -0400 "Zi Yan" <zi.yan@cs.rutgers.edu> =
+
+> wrote:
+>
+>> On 19 Jul 2017, at 4:04, kbuild test robot wrote:
+>>
+>>> Hi Zi,
+>>>
+>>> [auto build test WARNING on mmotm/master]
+>>> [also build test WARNING on v4.13-rc1 next-20170718]
+>>> [if your patch is applied to the wrong git tree, please drop us a =
+
+>>> note to help improve the system]
+>>>
+>>> url:    =
+
+>>> https://na01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2F%2Fgi=
+thub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-enhance=
+ment-for-thp%2F20170718-095519&data=3D02%7C01%7Czi.yan%40cs.rutgers.edu%7=
+Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%=
+7C0%7C636360483431631457&sdata=3DNpxRpWbxe6o56xDJYpw1K6wgQo11IPCAbG2tE8l%=
+2BU6E%3D&reserved=3D0
+>>> base:   git://git.cmpxchg.org/linux-mmotm.git master
+>>> config: xtensa-common_defconfig (attached as .config)
+>>> compiler: xtensa-linux-gcc (GCC) 4.9.0
+>>> reproduce:
+>>>         wget =
+
+>>> https://na01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2F%2Fra=
+w.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&=
+data=3D02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf3=
+0c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&sdata=3D=
+rBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&reserved=3D0 =
+
+>>> -O ~/bin/make.cross
+>>>         chmod +x ~/bin/make.cross
+>>>         # save the attached .config to linux build tree
+>>>         make.cross ARCH=3Dxtensa
+>>>
+>>> All warnings (new ones prefixed by >>):
+>>>
+>>>    In file included from mm/vmscan.c:55:0:
+>>>    include/linux/swapops.h: In function 'swp_entry_to_pmd':
+>>>>> include/linux/swapops.h:220:2: warning: missing braces around =
+
+>>>>> initializer [-Wmissing-braces]
+>>>      return (pmd_t){ 0 };
+>>>      ^
+>>>    include/linux/swapops.h:220:2: warning: (near initialization for =
+
+>>> '(anonymous).pud') [-Wmissing-braces]
+>>>
+>>> vim +220 include/linux/swapops.h
+>>>
+>>>    217	=
+
+>>>    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+>>>    219	{
+>>>> 220		return (pmd_t){ 0 };
+>>>    221	}
+>>>    222	=
+
+>>
+>> It is a GCC 4.9.0 bug: =
+
+>> https://na01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2F%2Fgcc=
+=2Egnu.org%2Fbugzilla%2Fshow_bug.cgi%3Fid%3D53119&data=3D02%7C01%7Czi.yan=
+%40cs.rutgers.edu%7C07c903c4f1444958942508d4cee90ca7%7Cb92d2b234d35447093=
+ff69aca6632ffe%7C1%7C0%7C636360947714283172&sdata=3D84%2BXG7hglTCsTjGA8G3=
+jyL7%2BFupkQaMkjAwzofffA5A%3D&reserved=3D0
+>>
+>> Upgrading GCC can get rid of this warning.
+>
+> I think there was a workaround for this, but I don't recall what it
+> was.
+>
+> This suppressed the warning:
+>
+> --- a/include/linux/swapops.h~a
+> +++ a/include/linux/swapops.h
+> @@ -217,7 +217,7 @@ static inline swp_entry_t pmd_to_swp_ent
+>
+>  static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+>  {
+> -	return (pmd_t){ 0 };
+> +	return (pmd_t){};
+>  }
+>
+>  static inline int is_pmd_migration_entry(pmd_t pmd)
+>
+> But I don't know if this is the approved workaround and I don't know
+> what it will do at runtime!
+>
+> But we should fix this.  Expecting zillions of people to update their
+> compiler version isn't nice.
+
+
+How about this one?
+
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -219,7 +219,7 @@ static inline swp_entry_t pmd_to_swp_entry(pmd_t =
+
+pmd)
+
+  static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+  {
+-       return (pmd_t){ 0 };
++       return __pmd(0);
+  }
+
+  static inline int is_pmd_migration_entry(pmd_t pmd)
+
+
+No warning or error was present during i386 kernel compilations
+with gcc-4.9.3 or gcc-6.4.0. i386 gcc should share the same front-end
+as xtensa-linux-gcc.
+
+__pmd() should be the standard way of making pmd entries, right?
+
+
+--
+Best Regards
+Yan Zi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
