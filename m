@@ -1,94 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C1C36B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:25:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s79so1832192wma.15
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 00:25:02 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 828556B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 03:43:45 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z36so3591794wrb.13
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 00:43:45 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q203si1228200wme.186.2017.07.20.00.25.00
+        by mx.google.com with ESMTPS id 52si1702326wrx.410.2017.07.20.00.43.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Jul 2017 00:25:00 -0700 (PDT)
-Subject: Re: [PATCH 7/9] mm, page_alloc: remove stop_machine from
- build_all_zonelists
-References: <20170714080006.7250-1-mhocko@kernel.org>
- <20170714080006.7250-8-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8d9d4eb5-eb7e-0422-0464-cdea9cb7e849@suse.cz>
-Date: Thu, 20 Jul 2017 09:24:58 +0200
+        Thu, 20 Jul 2017 00:43:44 -0700 (PDT)
+Date: Thu, 20 Jul 2017 08:43:42 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170720074342.otez35bme5gytnxl@suse.de>
+References: <20170715155518.ok2q62efc2vurqk5@suse.de>
+ <F7E154AB-5C1D-477F-A6BF-EFCAE5381B2D@gmail.com>
+ <20170719074131.75wexoal3fiyoxw5@suse.de>
+ <E9EE838F-F1E3-43A8-BB87-8B5B8388FF61@gmail.com>
+ <20170719195820.drtfmweuhdc4eca6@suse.de>
+ <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
+ <20170719214708.wuzq3di6rt43txtn@suse.de>
+ <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
+ <20170719225950.wfpfzpc6llwlyxdo@suse.de>
+ <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170714080006.7250-8-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 07/14/2017 10:00 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed, Jul 19, 2017 at 04:39:07PM -0700, Nadav Amit wrote:
+> > If try_to_unmap returns false on CPU0 then at least one unmap attempt
+> > failed and the page is not reclaimed.
 > 
-> build_all_zonelists has been (ab)using stop_machine to make sure that
-> zonelists do not change while somebody is looking at them. This is
-> is just a gross hack because a) it complicates the context from which
-> we can call build_all_zonelists (see 3f906ba23689 ("mm/memory-hotplug:
-> switch locking to a percpu rwsem")) and b) is is not really necessary
-> especially after "mm, page_alloc: simplify zonelist initialization".
+> Actually, try_to_unmap() may even return true, and the page would still not
+> be reclaimed - for example if page_has_private() and freeing the buffers
+> fails. In this case, the page would be unlocked as well.
 > 
-> Updates of the zonelists happen very seldom, basically only when a zone
-> becomes populated during memory online or when it loses all the memory
-> during offline. A racing iteration over zonelists could either miss a
-> zone or try to work on one zone twice. Both of these are something we
-> can live with occasionally because there will always be at least one
-> zone visible so we are not likely to fail allocation too easily for
-> example.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Some stress testing of this would still be worth, IMHO.
+I'm not seeing the relevance from the perspective of a stale TLB being
+used to corrupt memory or access the wrong data.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > For those that were unmapped, they
+> > will get flushed in the near future. When KSM operates on CPU1, it'll skip
+> > the unmapped pages under the PTL so stale TLB entries are not relevant as
+> > the mapped entries are still pointing to a valid page and ksm misses a merge
+> > opportunity.
+> 
+> This is the case I regarded, but I do not understand your point. The whole
+> problem is that CPU1 would skip the unmapped pages under the PTL. As it
+> skips them it does not flush them from the TLB. And as a result,
+> replace_page() may happen before the TLB is flushed by CPU0.
+> 
 
-> ---
->  mm/page_alloc.c | 9 ++-------
->  1 file changed, 2 insertions(+), 7 deletions(-)
+At the time of the unlock_page on the reclaim side, any unmapping that
+will happen before the flush has taken place. If KSM starts between the
+unlock_page and the tlb flush then it'll skip any of the PTEs that were
+previously unmapped with stale entries so there is no relevant stale TLB
+entry to work with.
+
+> > If it write protects a page, ksm unconditionally flushes the PTE
+> > on clearing the PTE so again, there is no stale entry anywhere. For CPU2,
+> > it'll either reference a PTE that was unmapped in which case it'll fault
+> > once CPU0 flushes the TLB and until then it's safe to read and write as
+> > long as the TLB is flushed before the page is freed or IO is initiated which
+> > reclaim already handles.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 78bd62418380..217889ecd13f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5066,8 +5066,7 @@ static DEFINE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
->   */
->  DEFINE_MUTEX(zonelists_mutex);
->  
-> -/* return values int ....just for stop_machine() */
-> -static int __build_all_zonelists(void *data)
-> +static void __build_all_zonelists(void *data)
->  {
->  	int nid;
->  	int cpu;
-> @@ -5103,8 +5102,6 @@ static int __build_all_zonelists(void *data)
->  			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
->  #endif
->  	}
-> -
-> -	return 0;
->  }
->  
->  static noinline void __init
-> @@ -5147,9 +5144,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
->  	if (system_state == SYSTEM_BOOTING) {
->  		build_all_zonelists_init();
->  	} else {
-> -		/* we have to stop all cpus to guarantee there is no user
-> -		   of zonelist */
-> -		stop_machine_cpuslocked(__build_all_zonelists, pgdat, NULL);
-> +		__build_all_zonelists(pgdat);
->  		/* cpuset refresh routine should be here */
->  	}
->  	vm_total_pages = nr_free_pagecache_pages();
+> In my scenario the page is not freed and there is no I/O in the reclaim
+> path. The TLB flush of CPU0 in my scenario is just deferred while the
+> page-table lock is not held. As I mentioned before, this time-period can be
+> potentially very long in a virtual machine. CPU2 referenced a PTE that
+> was unmapped by CPU0 (reclaim path) but not CPU1 (ksm path).
 > 
+> ksm, IIUC, would not expect modifications of the page during replace_page.
+
+Indeed not but it'll either find not PTE in which case it won't allow a
+stale PTE entry to exist and even when it finds a PTE, it flushes the
+TLB unconditionally to avoid any writes taking place. It holds the page
+lock while setting up the sharing so no parallel fault can reinsert the
+page and no parallel writes can take place that would result in false
+sharing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
