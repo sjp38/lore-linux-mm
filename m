@@ -1,94 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCDF6B025F
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:15:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e199so40687053pfh.7
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 15:15:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o5si2224234pgk.27.2017.07.20.15.15.21
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9861C6B025F
+	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 19:19:50 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id n43so24888111qtc.13
+        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 16:19:50 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z60si2684430qtc.86.2017.07.20.16.19.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jul 2017 15:15:21 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6KMEWrM022288
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:15:21 -0400
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bu01acdfb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 20 Jul 2017 18:15:18 -0400
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 20 Jul 2017 16:15:16 -0600
-Date: Thu, 20 Jul 2017 15:15:04 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v6 27/62] powerpc: helper to validate key-access
- permissions of a pte
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
- <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
- <87mv7zpq1k.fsf@skywalker.in.ibm.com>
+        Thu, 20 Jul 2017 16:19:49 -0700 (PDT)
+Subject: Re: [PATCH] selftests/vm: Add test to validate mirror functionality
+ with mremap
+References: <20170720093651.22106-1-khandual@linux.vnet.ibm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <965cf169-572c-537b-6784-766edcb4eb19@oracle.com>
+Date: Thu, 20 Jul 2017 16:19:31 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87mv7zpq1k.fsf@skywalker.in.ibm.com>
-Message-Id: <20170720221504.GJ5487@ram.oc3035372033.ibm.com>
+In-Reply-To: <20170720093651.22106-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org
 
-On Thu, Jul 20, 2017 at 12:12:47PM +0530, Aneesh Kumar K.V wrote:
-> Ram Pai <linuxram@us.ibm.com> writes:
+On 07/20/2017 02:36 AM, Anshuman Khandual wrote:
+> This adds a test to validate mirror functionality with mremap()
+> system call on shared anon mappings.
 > 
-> > helper function that checks if the read/write/execute is allowed
-> > on the pte.
-> >
-> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> > ---
-> >  arch/powerpc/include/asm/book3s/64/pgtable.h |    4 +++
-> >  arch/powerpc/include/asm/pkeys.h             |   12 +++++++++
-> >  arch/powerpc/mm/pkeys.c                      |   33 ++++++++++++++++++++++++++
-> >  3 files changed, 49 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > index 30d7f55..0056e58 100644
-> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> > @@ -472,6 +472,10 @@ static inline void write_uamor(u64 value)
-> >  	mtspr(SPRN_UAMOR, value);
-> >  }
-> >
-> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> > +extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
-> > +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
-> > +
-> >  #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-> >  static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
-> >  				       unsigned long addr, pte_t *ptep)
-> > diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-> > index bbb5d85..7a9aade 100644
-> > --- a/arch/powerpc/include/asm/pkeys.h
-> > +++ b/arch/powerpc/include/asm/pkeys.h
-> > @@ -53,6 +53,18 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
-> >  		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
-> >  }
-> >
-> > +static inline u16 pte_to_pkey_bits(u64 pteflags)
-> > +{
-> > +	if (!pkey_inited)
-> > +		return 0x0UL;
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> ---
+>  tools/testing/selftests/vm/Makefile                |  1 +
+>  .../selftests/vm/mremap_mirror_shared_anon.c       | 54 ++++++++++++++++++++++
+
+This may be a better fit in LTP where there are already several other
+mremap tests.  I honestly do not know the best place for such a test.
+
+>  2 files changed, 55 insertions(+)
+>  create mode 100644 tools/testing/selftests/vm/mremap_mirror_shared_anon.c
 > 
-> Do we really need that above check ? We should always find it
-> peky_inited to be set. 
+> diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+> index cbb29e4..11657ff5 100644
+> --- a/tools/testing/selftests/vm/Makefile
+> +++ b/tools/testing/selftests/vm/Makefile
+> @@ -17,6 +17,7 @@ TEST_GEN_FILES += transhuge-stress
+>  TEST_GEN_FILES += userfaultfd
+>  TEST_GEN_FILES += mlock-random-test
+>  TEST_GEN_FILES += virtual_address_range
+> +TEST_GEN_FILES += mremap_mirror_shared_anon
+>  
+>  TEST_PROGS := run_vmtests
+>  
+> diff --git a/tools/testing/selftests/vm/mremap_mirror_shared_anon.c b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+> new file mode 100644
+> index 0000000..b0adbb2
+> --- /dev/null
+> +++ b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+> @@ -0,0 +1,54 @@
+> +/*
+> + * Test to verify mirror functionality with mremap() system
+> + * call for shared anon mappings.
+> + *
+> + * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
+> + *
+> + * Licensed under GPL V2
+> + */
+> +#include <stdio.h>
+> +#include <string.h>
+> +#include <unistd.h>
+> +#include <errno.h>
+> +#include <sys/mman.h>
+> +#include <sys/time.h>
+> +
+> +#define PATTERN		0xbe
+> +#define ALLOC_SIZE	0x10000UL /* Works for 64K and 4K pages */
 
-Yes. there are cases where pkey_inited is not enabled. 
-a) if the MMU is radix.
-b) if the PAGE size is 4k.
-c) if the device tree says the feature is not available
-d) if the CPU is of a older generation. P6 and older.
+Why hardcode?  You could use sysconf to get page size and use some
+multiple of that.
 
-RP
+> +
+> +int test_mirror(char *old, char *new, unsigned long size)
+> +{
+> +	unsigned long i;
+> +
+> +	for (i = 0; i < size; i++) {
+> +		if (new[i] != old[i]) {
+> +			printf("Mismatch at new[%lu] expected "
+> +				"%d received %d\n", i, old[i], new[i]);
+> +			return 1;
+> +		}
+> +	}
+> +	return 0;
+> +}
+> +
+> +int main(int argc, char *argv[])
+> +{
+> +	char *ptr, *mirror_ptr;
+> +
+> +	ptr = mmap(NULL, ALLOC_SIZE, PROT_READ | PROT_WRITE,
+> +			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+> +	if (ptr == MAP_FAILED) {
+> +		perror("map() failed");
+> +		return -1;
+> +	}
+> +	memset(ptr, PATTERN, ALLOC_SIZE);
+> +
+> +	mirror_ptr =  (char *) mremap(ptr, 0, ALLOC_SIZE, 1);
+
+Why hardcode 1?  You really want the MREMAP_MAYMOVE flag.  Right?
+
+> +	if (mirror_ptr == MAP_FAILED) {
+> +		perror("mremap() failed");
+> +		return -1;
+> +	}
+> +
+> +	if (test_mirror(ptr, mirror_ptr, ALLOC_SIZE))
+> +		return 1;
+> +	return 0;
+> +}
+
+You may want to expand the test to make sure mremap(old_size == 0)
+fails for private mappings.  Of course, this assumes my proposed
+patch gets in.  Until then, it will succeed and create a new unrelated
+mapping.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
