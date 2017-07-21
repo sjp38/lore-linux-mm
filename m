@@ -1,124 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D61EF6B02C3
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:20:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z1so61093427pgs.10
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:20:55 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h32si2809702pld.843.2017.07.21.02.20.54
-        for <linux-mm@kvack.org>;
-        Fri, 21 Jul 2017 02:20:54 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [PATCH] mm/hugetlb: __get_user_pages ignores certain follow_hugetlb_page errors
-References: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
-Date: Fri, 21 Jul 2017 10:20:50 +0100
-In-Reply-To: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
-	(daniel m. jordan's message of "Tue, 18 Jul 2017 12:39:55 -0700")
-Message-ID: <87o9sekux9.fsf@e105922-lin.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7E06B025F
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 06:01:54 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id w72so11265907pfa.7
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 03:01:54 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id w64si1302935pfk.356.2017.07.21.03.01.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jul 2017 03:01:53 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id s4so5045198pgr.5
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 03:01:53 -0700 (PDT)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Subject: [PATCH v1] mm/vmalloc: add a node corresponding to cached_hole_size
+Date: Fri, 21 Jul 2017 18:01:41 +0800
+Message-Id: <1500631301-17444-1-git-send-email-zhaoyang.huang@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: daniel.m.jordan@oracle.com
-Cc: linux-mm@kvack.org, aarcange@redhat.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, james.morse@arm.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, zhongjiang@huawei.com, linux-kernel@vger.kernel.org
+To: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com
 
-Hi Daniel,
+we just record the cached_hole_size now, which will be used when
+the criteria meet both of 'free_vmap_cache == NULL' and 'size <
+cached_hole_size'. However, under above scenario, the search will
+start from the rb_root and then find the node which just in front
+of the cached hole.
 
-daniel.m.jordan@oracle.com writes:
+free_vmap_cache miss:
+      vmap_area_root
+          /      \
+       _next     U
+        /  (T1)
+ cached_hole_node
+       /
+     ...   (T2)
+      /
+    first
 
-> Commit 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when
-> FOLL_HWPOISON is specified") causes __get_user_pages to ignore certain
-> errors from follow_hugetlb_page.  After such error, __get_user_pages
-> subsequently calls faultin_page on the same VMA and start address that
-> follow_hugetlb_page failed on instead of returning the error immediately
-> as it should.
->
-> In follow_hugetlb_page, when hugetlb_fault returns a value covered under
-> VM_FAULT_ERROR, follow_hugetlb_page returns it without setting nr_pages
-> to 0 as __get_user_pages expects in this case, which causes the
-> following to happen in __get_user_pages: the "while (nr_pages)" check
-> succeeds, we skip the "if (!vma..." check because we got a VMA the last
-> time around, we find no page with follow_page_mask, and we call
-> faultin_page, which calls hugetlb_fault for the second time.
->
-> This issue also slightly changes how __get_user_pages works.  Before, it
-> only returned error if it had made no progress (i = 0).  But now,
-> follow_hugetlb_page can clobber "i" with an error code since its new
-> return path doesn't check for progress.  So if "i" is nonzero before a
-> failing call to follow_hugetlb_page, that indication of progress is lost
-> and __get_user_pages can return error even if some pages were
-> successfully pinned.
->
-> To fix this, change follow_hugetlb_page so that it updates nr_pages,
-> allowing __get_user_pages to fail immediately and restoring the "error
-> only if no progress" behavior to __get_user_pages.
->
-> Tested that __get_user_pages returns when expected on error from
-> hugetlb_fault in follow_hugetlb_page.
->
-> Fixes: 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when FOLL_HWPOISON is specified")
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: James Morse <james.morse@arm.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: zhong jiang <zhongjiang@huawei.com>
-> ---
->  mm/hugetlb.c | 9 +++------
->  1 file changed, 3 insertions(+), 6 deletions(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3eedb18..cc28993 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4095,6 +4095,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	unsigned long vaddr = *position;
->  	unsigned long remainder = *nr_pages;
->  	struct hstate *h = hstate_vma(vma);
-> +	int err = -EFAULT;
->  
->  	while (vaddr < vma->vm_end && remainder) {
->  		pte_t *pte;
-> @@ -4170,11 +4171,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			}
->  			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
->  			if (ret & VM_FAULT_ERROR) {
-> -				int err = vm_fault_to_errno(ret, flags);
-> -
-> -				if (err)
-> -					return err;
-> -
-> +				err = vm_fault_to_errno(ret, flags);
->  				remainder = 0;
->  				break;
->  			}
-> @@ -4229,7 +4226,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 */
->  	*position = vaddr;
->  
-> -	return i ? i : -EFAULT;
-> +	return i ? i : err;
->  }
->  
->  #ifndef __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
+vmap_area_list->first->......->cached_hole_node->cached_hole_node.list.next
+                  |-------(T3)-------| | <<< cached_hole_size >>> |
 
-The change makes sense.
+vmap_area_list->......->cached_hole_node->cached_hole_node.list.next
+                               | <<< cached_hole_size >>> |
 
-FWIW,
+The time cost to search the node now is T = T1 + T2 + T3.
+The commit add a cached_hole_node here to record the one just in front of
+the cached_hole_size, which can help to avoid walking the rb tree and
+the list and make the T = 0;
 
-Acked-by: Punit Agrawal <punit.agrawal@arm.com>
+Signed-off-by: Zhaoyang Huang <zhaoyang.huang@spreadtrum.com>
+---
+ mm/vmalloc.c | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
-I was wondering how you hit the issue. Is there a test case that could
-have spotted this earlier?
-
-Thanks,
-Punit
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8698c1c..4e76e7f 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -336,6 +336,7 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
+ 
+ /* The vmap cache globals are protected by vmap_area_lock */
+ static struct rb_node *free_vmap_cache;
++static struct vmap_area *cached_hole_node;
+ static unsigned long cached_hole_size;
+ static unsigned long cached_vstart;
+ static unsigned long cached_align;
+@@ -444,6 +445,12 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 			size < cached_hole_size ||
+ 			vstart < cached_vstart ||
+ 			align < cached_align) {
++	/*if we have a cached node, just use it*/
++	if ((size < cached_hole_size) && cached_hole_node != NULL) {
++		addr = ALIGN(cached_hole_node->va_end, align);
++		cached_hole_node = NULL;
++		goto found;
++	}
+ nocache:
+ 		cached_hole_size = 0;
+ 		free_vmap_cache = NULL;
+@@ -487,8 +494,13 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 
+ 	/* from the starting point, walk areas until a suitable hole is found */
+ 	while (addr + size > first->va_start && addr + size <= vend) {
+-		if (addr + cached_hole_size < first->va_start)
++		if (addr + cached_hole_size < first->va_start) {
+ 			cached_hole_size = first->va_start - addr;
++			/*record the node corresponding to the hole*/
++			cached_hole_node = (first->list.prev ==
++					    &vmap_area_list) ?
++					    NULL : list_prev_entry(first, list);
++		}
+ 		addr = ALIGN(first->va_end, align);
+ 		if (addr + size < addr)
+ 			goto overflow;
+@@ -571,10 +583,17 @@ static void __free_vmap_area(struct vmap_area *va)
+ 			}
+ 		}
+ 	}
++	if (va == cached_hole_node) {
++		/*cached node is freed, the hole get bigger*/
++		if (cached_hole_node->list.prev != &vmap_area_list)
++			cached_hole_node = list_prev_entry(cached_hole_node,
++							   list);
++		else
++			cached_hole_node = NULL;
++	}
+ 	rb_erase(&va->rb_node, &vmap_area_root);
+ 	RB_CLEAR_NODE(&va->rb_node);
+ 	list_del_rcu(&va->list);
+-
+ 	/*
+ 	 * Track the highest possible candidate for pcpu area
+ 	 * allocation.  Areas outside of vmalloc area can be returned
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
