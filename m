@@ -1,141 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C246B02FD
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 18:40:13 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id s70so68950492pfs.5
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 15:40:13 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id s27si3462068pfi.496.2017.07.21.15.40.12
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9EC6B02B4
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 18:44:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v190so76807147pgv.12
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 15:44:52 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id z8si503587pll.289.2017.07.21.15.44.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 15:40:12 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v4 5/5] dax: move all DAX radix tree defs to fs/dax.c
-Date: Fri, 21 Jul 2017 16:39:55 -0600
-Message-Id: <20170721223956.29485-6-ross.zwisler@linux.intel.com>
-In-Reply-To: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
-References: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
+        Fri, 21 Jul 2017 15:44:51 -0700 (PDT)
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Subject: [PATCH 1/2] mm/swap: Fix race conditions in swap_slots cache init
+Date: Fri, 21 Jul 2017 15:45:00 -0700
+Message-Id: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>, Ingo Molnar <mingo@redhat.com>, Inki Dae <inki.dae@samsung.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Joonyoung Shim <jy0922.shim@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>, Kukjin Kim <kgene@kernel.org>, Kyungmin Park <kyungmin.park@samsung.com>, Matthew Wilcox <mawilcox@microsoft.com>, Patrik Jakobsson <patrik.r.jakobsson@gmail.com>, Rob Clark <robdclark@gmail.com>, Seung-Woo Kim <sw0312.kim@samsung.com>, Steven Rostedt <rostedt@goodmis.org>, Tomi Valkeinen <tomi.valkeinen@ti.com>, dri-devel@lists.freedesktop.org, freedreno@lists.freedesktop.org, linux-arm-kernel@lists.infradead.org, linux-arm-msm@vger.kernel.org, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-samsung-soc@vger.kernel.org, linux-xfs@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Now that we no longer insert struct page pointers in DAX radix trees the
-page cache code no longer needs to know anything about DAX exceptional
-entries.  Move all the DAX exceptional entry definitions from dax.h to
-fs/dax.c.
+Memory allocations can happen before the swap_slots cache initialization
+is completed during cpu bring up.  If we are low on memory, we could call
+get_swap_page and access swap_slots_cache before it is fully initialized.
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Suggested-by: Jan Kara <jack@suse.cz>
+Add a check in get_swap_page for initialized swap_slots_cache
+to prevent this condition.  Similar check already exists in
+free_swap_slot.  Also annotate the checks to indicate the likely
+condition.
+
+We also added a memory barrier to make sure that the locks
+initialization are done before the assignment of cache->slots
+and cache->slots_ret pointers. This ensures the assumption
+that it is safe to acquire the slots cache locks and use the slots
+cache when the corresponding cache->slots or cache->slots_ret
+pointers are non null.
+
+Reported-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
+Acked-by: Ying Huang <ying.huang@intel.com>
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 ---
- fs/dax.c            | 34 ++++++++++++++++++++++++++++++++++
- include/linux/dax.h | 41 -----------------------------------------
- 2 files changed, 34 insertions(+), 41 deletions(-)
+ mm/swap_slots.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 0e27d90..e7acc45 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -54,6 +54,40 @@ static int __init init_dax_wait_table(void)
- }
- fs_initcall(init_dax_wait_table);
+diff --git a/mm/swap_slots.c b/mm/swap_slots.c
+index 58f6c78..4c5457c 100644
+--- a/mm/swap_slots.c
++++ b/mm/swap_slots.c
+@@ -148,6 +148,14 @@ static int alloc_swap_slot_cache(unsigned int cpu)
+ 	cache->nr = 0;
+ 	cache->cur = 0;
+ 	cache->n_ret = 0;
++	/*
++	 * We intialized alloc_lock and free_lock earlier.
++	 * We use !cache->slots or !cache->slots_ret
++	 * to know if it is safe to acquire the corresponding
++	 * lock and use the cache.  Memory barrier
++	 * below ensures the assumption.
++	 */
++	mb();
+ 	cache->slots = slots;
+ 	slots = NULL;
+ 	cache->slots_ret = slots_ret;
+@@ -273,7 +281,7 @@ int free_swap_slot(swp_entry_t entry)
+ 	struct swap_slots_cache *cache;
  
-+/*
-+ * We use lowest available bit in exceptional entry for locking, one bit for
-+ * the entry size (PMD) and two more to tell us if the entry is a zero page or
-+ * an empty entry that is just used for locking.  In total four special bits.
-+ *
-+ * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-+ * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-+ * block allocation.
-+ */
-+#define RADIX_DAX_SHIFT		(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
-+#define RADIX_DAX_ENTRY_LOCK	(1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
-+#define RADIX_DAX_PMD		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-+#define RADIX_DAX_ZERO_PAGE	(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-+#define RADIX_DAX_EMPTY		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
-+
-+static unsigned long dax_radix_sector(void *entry)
-+{
-+	return (unsigned long)entry >> RADIX_DAX_SHIFT;
-+}
-+
-+static void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
-+{
-+	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
-+			((unsigned long)sector << RADIX_DAX_SHIFT) |
-+			RADIX_DAX_ENTRY_LOCK);
-+}
-+
-+static unsigned int dax_radix_order(void *entry)
-+{
-+	if ((unsigned long)entry & RADIX_DAX_PMD)
-+		return PMD_SHIFT - PAGE_SHIFT;
-+	return 0;
-+}
-+
- static int dax_is_pmd_entry(void *entry)
- {
- 	return (unsigned long)entry & RADIX_DAX_PMD;
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index afa99bb..d0e3272 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -88,33 +88,6 @@ void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
- 		size_t size);
- void dax_write_cache(struct dax_device *dax_dev, bool wc);
+ 	cache = &get_cpu_var(swp_slots);
+-	if (use_swap_slot_cache && cache->slots_ret) {
++	if (likely(use_swap_slot_cache && cache->slots_ret)) {
+ 		spin_lock_irq(&cache->free_lock);
+ 		/* Swap slots cache may be deactivated before acquiring lock */
+ 		if (!use_swap_slot_cache) {
+@@ -318,7 +326,7 @@ swp_entry_t get_swap_page(void)
+ 	cache = raw_cpu_ptr(&swp_slots);
  
--/*
-- * We use lowest available bit in exceptional entry for locking, one bit for
-- * the entry size (PMD) and two more to tell us if the entry is a zero page or
-- * an empty entry that is just used for locking.  In total four special bits.
-- *
-- * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-- * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-- * block allocation.
-- */
--#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
--#define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
--#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
--#define RADIX_DAX_ZERO_PAGE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
--#define RADIX_DAX_EMPTY (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
--
--static inline unsigned long dax_radix_sector(void *entry)
--{
--	return (unsigned long)entry >> RADIX_DAX_SHIFT;
--}
--
--static inline void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
--{
--	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
--			((unsigned long)sector << RADIX_DAX_SHIFT) |
--			RADIX_DAX_ENTRY_LOCK);
--}
--
- ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
- 		const struct iomap_ops *ops);
- int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-@@ -136,20 +109,6 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
- }
- #endif
- 
--#ifdef CONFIG_FS_DAX_PMD
--static inline unsigned int dax_radix_order(void *entry)
--{
--	if ((unsigned long)entry & RADIX_DAX_PMD)
--		return PMD_SHIFT - PAGE_SHIFT;
--	return 0;
--}
--#else
--static inline unsigned int dax_radix_order(void *entry)
--{
--	return 0;
--}
--#endif
--
- static inline bool dax_mapping(struct address_space *mapping)
- {
- 	return mapping->host && IS_DAX(mapping->host);
+ 	entry.val = 0;
+-	if (check_cache_active()) {
++	if (likely(check_cache_active() && cache->slots)) {
+ 		mutex_lock(&cache->alloc_lock);
+ 		if (cache->slots) {
+ repeat:
 -- 
 2.9.4
 
