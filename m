@@ -1,140 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 502A46B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 11:00:07 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x43so17161354wrb.9
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 08:00:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d3si8342513wrb.215.2017.07.21.08.00.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BF416B025F
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 11:19:03 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u7so26529996pgo.6
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 08:19:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i14si3255887plk.148.2017.07.21.08.19.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 21 Jul 2017 08:00:05 -0700 (PDT)
-Date: Fri, 21 Jul 2017 17:00:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Fri, 21 Jul 2017 08:19:02 -0700 (PDT)
 Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170721150002.GF5944@dhcp22.suse.cz>
-References: <1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170718141602.GB19133@dhcp22.suse.cz>
- <201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
- <20170720141138.GJ9058@dhcp22.suse.cz>
- <201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170718141602.GB19133@dhcp22.suse.cz>
+	<201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
+	<20170720141138.GJ9058@dhcp22.suse.cz>
+	<201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
+	<20170721150002.GF5944@dhcp22.suse.cz>
+In-Reply-To: <20170721150002.GF5944@dhcp22.suse.cz>
+Message-Id: <201707220018.DAE21384.JQFLVMFHSFtOOO@I-love.SAKURA.ne.jp>
+Date: Sat, 22 Jul 2017 00:18:48 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: mhocko@kernel.org
 Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-On Fri 21-07-17 06:47:11, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:
-> > > > > Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> > > > > guarded whole OOM reaping operations using oom_lock. But there was no
-> > > > > need to guard whole operations. We needed to guard only setting of
-> > > > > MMF_OOM_REAPED flag because get_page_from_freelist() in
-> > > > > __alloc_pages_may_oom() is called with oom_lock held.
-> > > > > 
-> > > > > If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
-> > > > > can start reaping operations as soon as wake_oom_reaper() is called.
-> > > > > But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
-> > > > > oom_lock, guarding only the OOM reaper side is not sufficient.
-> > > > > 
-> > > > > If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
-> > > > > there is no need to guard setting of MMF_OOM_SKIP flag, and we can
-> > > > > guarantee a chance to call get_page_from_freelist() in
-> > > > > __alloc_pages_may_oom() without depending on oom_lock serialization.
-> > > > > 
-> > > > > This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
-> > > > > flag which acts as if MMF_OOM_SKIP, in order to close both race window
-> > > > > (the OOM reaper side and __mmput() side) without using oom_lock.
-> > > > 
-> > > > Why do we need this patch when
-> > > > http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
-> > > > already removes the lock and solves another problem at once?
-> > > 
-> > > We haven't got an answer from Hugh and/or Andrea whether that patch is safe.
-> > 
-> > So what? I haven't see anybody disputing the correctness. And to be
-> > honest I really dislike your patch. Yet another round kind of solutions
-> > are just very ugly hacks usually because they are highly timing
-> > sensitive.
+Michal Hocko wrote:
+> > If we ignore MMF_OOM_SKIP once, we can avoid sequence above.
 > 
-> Yes, OOM killer is highly timing sensitive.
+> But we set MMF_OOM_SKIP _after_ the process lost its address space (well
+> after the patch which allows to race oom reaper with the exit_mmap).
 > 
 > > 
-> > > Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.
+> >     Process-1              Process-2
 > > 
-> > Could you explain how?
+> >     Takes oom_lock.
+> >     Fails get_page_from_freelist().
+> >     Enters out_of_memory().
+> >     Get SIGKILL.
+> >     Get TIF_MEMDIE.
+> >     Leaves out_of_memory().
+> >     Releases oom_lock.
+> >     Enters do_exit().
+> >     Calls __mmput().
+> >                            Takes oom_lock.
+> >                            Fails get_page_from_freelist().
+> >     Releases some memory.
+> >     Sets MMF_OOM_SKIP.
+> >                            Enters out_of_memory().
+> >                            Ignores MMF_OOM_SKIP mm once.
+> >                            Leaves out_of_memory().
+> >                            Releases oom_lock.
+> >                            Succeeds get_page_from_freelist().
 > 
-> Nothing prevents sequence below.
-> 
->     Process-1              Process-2
-> 
->     Takes oom_lock.
->     Fails get_page_from_freelist().
->     Enters out_of_memory().
->     Gets SIGKILL.
->     Gets TIF_MEMDIE.
->     Leaves out_of_memory().
->     Releases oom_lock.
->     Enters do_exit().
->     Calls __mmput().
->                            Takes oom_lock.
->                            Fails get_page_from_freelist().
->     Releases some memory.
->     Sets MMF_OOM_SKIP.
->                            Enters out_of_memory().
->                            Selects next victim because there is no !MMF_OOM_SKIP mm.
->                            Sends SIGKILL needlessly.
-> 
-> If we ignore MMF_OOM_SKIP once, we can avoid sequence above.
+> OK, so let's say you have another task just about to jump into
+> out_of_memory and ... end up in the same situation.
 
-But we set MMF_OOM_SKIP _after_ the process lost its address space (well
-after the patch which allows to race oom reaper with the exit_mmap).
+Right.
 
 > 
->     Process-1              Process-2
+>                                                     This race is just
+> unavoidable.
+
+There is no perfect way (always timing dependent). But
+
 > 
->     Takes oom_lock.
->     Fails get_page_from_freelist().
->     Enters out_of_memory().
->     Get SIGKILL.
->     Get TIF_MEMDIE.
->     Leaves out_of_memory().
->     Releases oom_lock.
->     Enters do_exit().
->     Calls __mmput().
->                            Takes oom_lock.
->                            Fails get_page_from_freelist().
->     Releases some memory.
->     Sets MMF_OOM_SKIP.
->                            Enters out_of_memory().
->                            Ignores MMF_OOM_SKIP mm once.
->                            Leaves out_of_memory().
->                            Releases oom_lock.
->                            Succeeds get_page_from_freelist().
+> > Strictly speaking, this patch is independent with OOM reaper.
+> > This patch increases possibility of succeeding get_page_from_freelist()
+> > without sending SIGKILL. Your patch is trying to drop it silently.
 
-OK, so let's say you have another task just about to jump into
-out_of_memory and ... end up in the same situation. This race is just
-unavoidable.
+we can try to reduce possibility of ending up in the same situation by
+this proposal, and your proposal is irrelevant with reducing possibility of
+ending up in the same situation because
 
-> Strictly speaking, this patch is independent with OOM reaper.
-> This patch increases possibility of succeeding get_page_from_freelist()
-> without sending SIGKILL. Your patch is trying to drop it silently.
+> > 
+> > Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,
+> > and ignoring MMF_OOM_SKIP once without oom_lock is another approach.
 > 
-> Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,
-> and ignoring MMF_OOM_SKIP once without oom_lock is another approach.
+> Or simply making sure that we only set the flag _after_ the address
+> space is gone, which is what I am proposing.
 
-Or simply making sure that we only set the flag _after_ the address
-space is gone, which is what I am proposing.
-
--- 
-Michal Hocko
-SUSE Labs
+the address space being gone does not guarantee that get_page_from_freelist()
+shall be called before entering into out_of_memory() (e.g. preempted for seconds
+between "Fails get_page_from_freelist()." and "Enters out_of_memory().").
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
