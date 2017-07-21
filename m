@@ -1,134 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D6696B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:07:58 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id g5so3966064oic.10
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:07:58 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id f195si913301oih.311.2017.07.21.02.07.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 21 Jul 2017 02:07:57 -0700 (PDT)
-Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
-References: <20170628180047.5386-1-jglisse@redhat.com>
- <19d4aa0e-a428-ed6d-c524-9b1cdcf6aa30@huawei.com>
- <20170720171850.GC2767@redhat.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <40b9d534-4809-0a84-27dc-5c3faee3f69c@huawei.com>
-Date: Fri, 21 Jul 2017 17:03:22 +0800
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D61EF6B02C3
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:20:55 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z1so61093427pgs.10
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:20:55 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id h32si2809702pld.843.2017.07.21.02.20.54
+        for <linux-mm@kvack.org>;
+        Fri, 21 Jul 2017 02:20:54 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH] mm/hugetlb: __get_user_pages ignores certain follow_hugetlb_page errors
+References: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
+Date: Fri, 21 Jul 2017 10:20:50 +0100
+In-Reply-To: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
+	(daniel m. jordan's message of "Tue, 18 Jul 2017 12:39:55 -0700")
+Message-ID: <87o9sekux9.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170720171850.GC2767@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
+To: daniel.m.jordan@oracle.com
+Cc: linux-mm@kvack.org, aarcange@redhat.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, james.morse@arm.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, zhongjiang@huawei.com, linux-kernel@vger.kernel.org
 
-Hi Jerome,
+Hi Daniel,
 
-On 2017/7/21 1:18, Jerome Glisse wrote:
-> On Wed, Jul 19, 2017 at 07:48:08PM +0800, Yisheng Xie wrote:
->> Hi Jerome
->>
->> On 2017/6/29 2:00, Jerome Glisse wrote:
->>>
->>> Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
->>> test same kernel as kbuild system, git branch:
->>>
->>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v24
->>>
->>> Change since v23 is code comment fixes, simplify kernel configuration and
->>> improve allocation of new page on migration do device memory (last patch
->>> in this patchset).
->>>
->>> Everything else is the same. Below is the long description of what HMM
->>> is about and why. At the end of this email i describe briefly each patch
->>> and suggest reviewers for each of them.
->>>
->>>
->>> Heterogeneous Memory Management (HMM) (description and justification)
->>>
->>> Today device driver expose dedicated memory allocation API through their
->>> device file, often relying on a combination of IOCTL and mmap calls. The
->>> device can only access and use memory allocated through this API. This
->>> effectively split the program address space into object allocated for the
->>> device and useable by the device and other regular memory (malloc, mmap
->>> of a file, share memory, a) only accessible by CPU (or in a very limited
->>> way by a device by pinning memory).
->>>
->>> Allowing different isolated component of a program to use a device thus
->>> require duplication of the input data structure using device memory
->>> allocator. This is reasonable for simple data structure (array, grid,
->>> image, a) but this get extremely complex with advance data structure
->>> (list, tree, graph, a) that rely on a web of memory pointers. This is
->>> becoming a serious limitation on the kind of work load that can be
->>> offloaded to device like GPU.
->>>
->>> New industry standard like C++, OpenCL or CUDA are pushing to remove this
->>> barrier. This require a shared address space between GPU device and CPU so
->>> that GPU can access any memory of a process (while still obeying memory
->>> protection like read only). This kind of feature is also appearing in
->>> various other operating systems.
->>>
->>> HMM is a set of helpers to facilitate several aspects of address space
->>> sharing and device memory management. Unlike existing sharing mechanism
->>> that rely on pining pages use by a device, HMM relies on mmu_notifier to
->>> propagate CPU page table update to device page table.
->>>
->>> Duplicating CPU page table is only one aspect necessary for efficiently
->>> using device like GPU. GPU local memory have bandwidth in the TeraBytes/
->>> second range but they are connected to main memory through a system bus
->>> like PCIE that is limited to 32GigaBytes/second (PCIE 4.0 16x). Thus it
->>> is necessary to allow migration of process memory from main system memory
->>> to device memory. Issue is that on platform that only have PCIE the device
->>> memory is not accessible by the CPU with the same properties as main
->>> memory (cache coherency, atomic operations, ...).
->>>
->>> To allow migration from main memory to device memory HMM provides a set
->>> of helper to hotplug device memory as a new type of ZONE_DEVICE memory
->>> which is un-addressable by CPU but still has struct page representing it.
->>> This allow most of the core kernel logic that deals with a process memory
->>> to stay oblivious of the peculiarity of device memory.
->>>
->>> When page backing an address of a process is migrated to device memory
->>> the CPU page table entry is set to a new specific swap entry. CPU access
->>> to such address triggers a migration back to system memory, just like if
->>> the page was swap on disk. 
->>> [...]
->>> To allow efficient migration between device memory and main memory a new
->>> migrate_vma() helpers is added with this patchset. It allows to leverage
->>> device DMA engine to perform the copy operation.
->>>
->>
->> Is this means that when CPU access an address of a process is migrated to device
->> memory, it should call migrate_vma() to migrate a range of address back to CPU ?
->> If it is so, I think it should somewhere call this function in this patchset,
->> however, I do not find anywhere in this patchset call this function.
->>
->> Or am I miss anything?
-> 
-> There is a callback in struct dev_pagemap page_fault. Device driver will
-> set that callback to a device driver function that itself might call
-> migrate_vma(). It might call a different helper thought.
-> 
-> For instance GPU driver commonly use memory oversubscription, ie they
-> evict device memory to system page to make room for other stuff. If a
-> page fault happen while there is already a system page for that memory
-> than the device driver might only need to hand over that page and no
-> need to migrate anything.
-> 
-> That is why you do not see migrate_vma() call in this patchset. Calls
-> to that function will be inside the individual device driver.
-> 
+daniel.m.jordan@oracle.com writes:
 
-Get your point.
+> Commit 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when
+> FOLL_HWPOISON is specified") causes __get_user_pages to ignore certain
+> errors from follow_hugetlb_page.  After such error, __get_user_pages
+> subsequently calls faultin_page on the same VMA and start address that
+> follow_hugetlb_page failed on instead of returning the error immediately
+> as it should.
+>
+> In follow_hugetlb_page, when hugetlb_fault returns a value covered under
+> VM_FAULT_ERROR, follow_hugetlb_page returns it without setting nr_pages
+> to 0 as __get_user_pages expects in this case, which causes the
+> following to happen in __get_user_pages: the "while (nr_pages)" check
+> succeeds, we skip the "if (!vma..." check because we got a VMA the last
+> time around, we find no page with follow_page_mask, and we call
+> faultin_page, which calls hugetlb_fault for the second time.
+>
+> This issue also slightly changes how __get_user_pages works.  Before, it
+> only returned error if it had made no progress (i = 0).  But now,
+> follow_hugetlb_page can clobber "i" with an error code since its new
+> return path doesn't check for progress.  So if "i" is nonzero before a
+> failing call to follow_hugetlb_page, that indication of progress is lost
+> and __get_user_pages can return error even if some pages were
+> successfully pinned.
+>
+> To fix this, change follow_hugetlb_page so that it updates nr_pages,
+> allowing __get_user_pages to fail immediately and restoring the "error
+> only if no progress" behavior to __get_user_pages.
+>
+> Tested that __get_user_pages returns when expected on error from
+> hugetlb_fault in follow_hugetlb_page.
+>
+> Fixes: 9a291a7c9428 ("mm/hugetlb: report -EHWPOISON not -EFAULT when FOLL_HWPOISON is specified")
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: James Morse <james.morse@arm.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  mm/hugetlb.c | 9 +++------
+>  1 file changed, 3 insertions(+), 6 deletions(-)
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3eedb18..cc28993 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4095,6 +4095,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	unsigned long vaddr = *position;
+>  	unsigned long remainder = *nr_pages;
+>  	struct hstate *h = hstate_vma(vma);
+> +	int err = -EFAULT;
+>  
+>  	while (vaddr < vma->vm_end && remainder) {
+>  		pte_t *pte;
+> @@ -4170,11 +4171,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			}
+>  			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
+>  			if (ret & VM_FAULT_ERROR) {
+> -				int err = vm_fault_to_errno(ret, flags);
+> -
+> -				if (err)
+> -					return err;
+> -
+> +				err = vm_fault_to_errno(ret, flags);
+>  				remainder = 0;
+>  				break;
+>  			}
+> @@ -4229,7 +4226,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 */
+>  	*position = vaddr;
+>  
+> -	return i ? i : -EFAULT;
+> +	return i ? i : err;
+>  }
+>  
+>  #ifndef __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
 
-Without a open source driver, it makes hard to get the whole view of this solution.
-Hope can see your open source driver soon.
+The change makes sense.
 
-Thanks
-Yisheng Xie
+FWIW,
+
+Acked-by: Punit Agrawal <punit.agrawal@arm.com>
+
+I was wondering how you hit the issue. Is there a test case that could
+have spotted this earlier?
+
+Thanks,
+Punit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
