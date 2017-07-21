@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D69D56B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 10:36:48 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l81so5686230wmg.8
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 07:36:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k23si1145108wmi.62.2017.07.21.07.36.47
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B64E6B025F
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 10:39:25 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g28so17070425wrg.3
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 07:39:25 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id c19si7925550wre.235.2017.07.21.07.39.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 21 Jul 2017 07:36:47 -0700 (PDT)
-Date: Fri, 21 Jul 2017 16:36:44 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jul 2017 07:39:24 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id m75so893714wmb.2
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 07:39:24 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/mremap: Fail map duplication attempts for private
- mappings
-Message-ID: <20170721143644.GC5944@dhcp22.suse.cz>
-References: <20170720082058.GF9058@dhcp22.suse.cz>
- <1500583079-26504-1-git-send-email-mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1500583079-26504-1-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH -v1 0/9] cleanup zonelists initialization
+Date: Fri, 21 Jul 2017 16:39:06 +0200
+Message-Id: <20170721143915.14161-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, Linux API <linux-api@vger.kernel.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shaohua.li@intel.com>, Toshi Kani <toshi.kani@hpe.com>
 
-On Thu 20-07-17 13:37:59, Mike Kravetz wrote:
-> mremap will create a 'duplicate' mapping if old_size == 0 is
-> specified.  Such duplicate mappings make no sense for private
-> mappings.
+Hi,
+previous version of the series has been posted here [1]. I have hopefully
+addressed all review feedback. There are some small fixes/cleanups
+here and there but no fundamental changes since the last time.
 
-sorry for the nit picking but this is not true strictly speaking.
-It makes some sense, arguably (e.g. take an atomic snapshot of the
-mapping). It doesn't make any sense with the _current_ implementation.
+This is aimed at cleaning up the zonelists initialization code we have
+but the primary motivation was bug report [2] which got resolved but
+the usage of stop_machine is just too ugly to live. Most patches are
+straightforward but 3 of them need a special consideration.
 
-> If duplication is attempted for a private mapping,
-> mremap creates a separate private mapping unrelated to the
-> original mapping and makes no modifications to the original.
-> This is contrary to the purpose of mremap which should return
-> a mapping which is in some way related to the original.
-> 
-> Therefore, return EINVAL in the case where if an attempt is
-> made to duplicate a private mapping.  Also, print a warning
-> message (once) if such an attempt is made.
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Patch 1 removes zone ordered zonelists completely. I am CCing linux-api
+because this is a user visible change. As I argue in the patch
+description I do not think we have a strong usecase for it these days.
+I have kept sysctl in place and warn into the log if somebody tries to
+configure zone lists ordering. If somebody has a real usecase for it
+we can revert this patch but I do not expect anybody will actually notice
+runtime differences. This patch is not strictly needed for the rest but
+it made patch 6 easier to implement.
 
-I do not insist on the comment update suggested
-http://lkml.kernel.org/r/20170720082058.GF9058@dhcp22.suse.cz
-but I would appreciate it...
+Patch 7 removes stop_machine from build_all_zonelists without adding any
+special synchronization between iterators and updater which I _believe_
+is acceptable as explained in the changelog. I hope I am not missing
+anything.
 
-Other than that looks reasonably to me
+Patch 8 then removes zonelists_mutex which is kind of ugly as well and
+not really needed AFAICS but a care should be taken when double checking
+my thinking.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+This has passed my light testing but I currently do not have a HW to
+test hotadd_new_pgdat path (aka a completely new node added to the
+system in runtime).
 
-> ---
->  mm/mremap.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b1..949f6a7 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -383,6 +383,15 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
->  	if (!vma || vma->vm_start > addr)
->  		return ERR_PTR(-EFAULT);
->  
-> +	/*
-> +	 * !old_len  is a special case where a mapping is 'duplicated'.
-> +	 * Do not allow this for private mappings.
-> +	 */
-> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE))) {
-> +		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is not supported.\n", current->comm, current->pid);
-> +		return ERR_PTR(-EINVAL);
-> +	}
-> +
->  	if (is_vm_hugetlb_page(vma))
->  		return ERR_PTR(-EINVAL);
->  
-> -- 
-> 2.7.5
-> 
+This is based on the current mmomt git tree (mmotm-2017-07-12-15-11).
+Any feedback is highly appreciated.
 
--- 
-Michal Hocko
-SUSE Labs
+The diffstat looks really promissing
+ Documentation/admin-guide/kernel-parameters.txt |   2 +-
+ Documentation/sysctl/vm.txt                     |   4 +-
+ Documentation/vm/numa                           |   7 +-
+ include/linux/mmzone.h                          |   5 +-
+ init/main.c                                     |   2 +-
+ kernel/sysctl.c                                 |   2 -
+ mm/internal.h                                   |   1 +
+ mm/memory_hotplug.c                             |  27 +-
+ mm/page_alloc.c                                 | 335 +++++++-----------------
+ mm/page_ext.c                                   |   5 +-
+ mm/sparse-vmemmap.c                             |  11 +-
+ mm/sparse.c                                     |  10 +-
+ 12 files changed, 119 insertions(+), 292 deletions(-)
+
+Shortlog says
+Michal Hocko (9):
+      mm, page_alloc: rip out ZONELIST_ORDER_ZONE
+      mm, page_alloc: remove boot pageset initialization from memory hotplug
+      mm, page_alloc: do not set_cpu_numa_mem on empty nodes initialization
+      mm, memory_hotplug: drop zone from build_all_zonelists
+      mm, memory_hotplug: remove explicit build_all_zonelists from try_online_node
+      mm, page_alloc: simplify zonelist initialization
+      mm, page_alloc: remove stop_machine from build_all_zonelists
+      mm, memory_hotplug: get rid of zonelists_mutex
+      mm, sparse, page_ext: drop ugly N_HIGH_MEMORY branches for allocations
+
+[1] http://lkml.kernel.org/r/20170714080006.7250-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/alpine.DEB.2.20.1706291803380.1861@nanos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
