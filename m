@@ -1,89 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BF416B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 11:19:03 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u7so26529996pgo.6
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 08:19:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i14si3255887plk.148.2017.07.21.08.19.01
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CFEEC6B025F
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 11:21:12 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id u12so24024076qkl.13
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 08:21:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p66si3891251qka.162.2017.07.21.08.21.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 21 Jul 2017 08:19:02 -0700 (PDT)
-Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170718141602.GB19133@dhcp22.suse.cz>
-	<201707190551.GJE30718.OFHOQMFJtVSFOL@I-love.SAKURA.ne.jp>
-	<20170720141138.GJ9058@dhcp22.suse.cz>
-	<201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
-	<20170721150002.GF5944@dhcp22.suse.cz>
-In-Reply-To: <20170721150002.GF5944@dhcp22.suse.cz>
-Message-Id: <201707220018.DAE21384.JQFLVMFHSFtOOO@I-love.SAKURA.ne.jp>
-Date: Sat, 22 Jul 2017 00:18:48 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Jul 2017 08:21:12 -0700 (PDT)
+Date: Fri, 21 Jul 2017 11:21:07 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
+Message-ID: <20170721152107.GA3202@redhat.com>
+References: <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
+ <20170718153816.GA3135@redhat.com>
+ <b6f9d812-a1f5-d647-0a6a-39a08023c3b4@huawei.com>
+ <20170719022537.GA6911@redhat.com>
+ <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
+ <20170720150305.GA2767@redhat.com>
+ <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
+ <20170721014106.GB25991@redhat.com>
+ <052b3b89-6382-a1b8-270f-3a4e44158964@huawei.com>
+ <CAA_GA1du0qd8b8Eq2yVeULo6TxXw2YckABWiwY8RO5N7FB+Z=A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAA_GA1du0qd8b8Eq2yVeULo6TxXw2YckABWiwY8RO5N7FB+Z=A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Bob Liu <liubo95@huawei.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>
 
-Michal Hocko wrote:
-> > If we ignore MMF_OOM_SKIP once, we can avoid sequence above.
+On Fri, Jul 21, 2017 at 08:01:07PM +0800, Bob Liu wrote:
+> On Fri, Jul 21, 2017 at 10:10 AM, Bob Liu <liubo95@huawei.com> wrote:
+> > On 2017/7/21 9:41, Jerome Glisse wrote:
+> >> On Fri, Jul 21, 2017 at 09:15:29AM +0800, Bob Liu wrote:
+> >>> On 2017/7/20 23:03, Jerome Glisse wrote:
+> >>>> On Wed, Jul 19, 2017 at 05:09:04PM +0800, Bob Liu wrote:
+> >>>>> On 2017/7/19 10:25, Jerome Glisse wrote:
+> >>>>>> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
+> >>>>>>> On 2017/7/18 23:38, Jerome Glisse wrote:
+> >>>>>>>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
+> >>>>>>>>> On 2017/7/14 5:15, Jerome Glisse wrote:
+> >>
+> >> [...]
+> >>
+> >>>>> Then it's more like replace the numa node solution(CDM) with ZONE_DEVICE
+> >>>>> (type MEMORY_DEVICE_PUBLIC). But the problem is the same, e.g how to make
+> >>>>> sure the device memory say HBM won't be occupied by normal CPU allocation.
+> >>>>> Things will be more complex if there are multi GPU connected by nvlink
+> >>>>> (also cache coherent) in a system, each GPU has their own HBM.
+> >>>>>
+> >>>>> How to decide allocate physical memory from local HBM/DDR or remote HBM/
+> >>>>> DDR?
+> >>>>>
+> >>>>> If using numa(CDM) approach there are NUMA mempolicy and autonuma mechanism
+> >>>>> at least.
+> >>>>
+> >>>> NUMA is not as easy as you think. First like i said we want the device
+> >>>> memory to be isolated from most existing mm mechanism. Because memory
+> >>>> is unreliable and also because device might need to be able to evict
+> >>>> memory to make contiguous physical memory allocation for graphics.
+> >>>>
+> >>>
+> >>> Right, but we need isolation any way.
+> >>> For hmm-cdm, the isolation is not adding device memory to lru list, and many
+> >>> if (is_device_public_page(page)) ...
+> >>>
+> >>> But how to evict device memory?
+> >>
+> >> What you mean by evict ? Device driver can evict whenever they see the need
+> >> to do so. CPU page fault will evict too. Process exit or munmap() will free
+> >> the device memory.
+> >>
+> >> Are you refering to evict in the sense of memory reclaim under pressure ?
+> >>
+> >> So the way it flows for memory pressure is that if device driver want to
+> >> make room it can evict stuff to system memory and if there is not enough
+> >
+> > Yes, I mean this.
+> > So every driver have to maintain their own LRU-similar list instead of
+> > reuse what already in linux kernel.
+
+Regarding LRU it is again not as easy. First we do necessarily have access
+information like CPU page table for device page table. Second the mmu_notifier
+callback on per page basis is costly. Finaly device are use differently than
+CPU, usualy you schedule a job and once that job is done you can safely evict
+memory it was using. Existing device driver already have quite large memory
+management code of their own because of that different usage model.
+
+LRU might make sense at one point but so far i doubt it is the right solution
+for device memory.
+
 > 
-> But we set MMF_OOM_SKIP _after_ the process lost its address space (well
-> after the patch which allows to race oom reaper with the exit_mmap).
-> 
-> > 
-> >     Process-1              Process-2
-> > 
-> >     Takes oom_lock.
-> >     Fails get_page_from_freelist().
-> >     Enters out_of_memory().
-> >     Get SIGKILL.
-> >     Get TIF_MEMDIE.
-> >     Leaves out_of_memory().
-> >     Releases oom_lock.
-> >     Enters do_exit().
-> >     Calls __mmput().
-> >                            Takes oom_lock.
-> >                            Fails get_page_from_freelist().
-> >     Releases some memory.
-> >     Sets MMF_OOM_SKIP.
-> >                            Enters out_of_memory().
-> >                            Ignores MMF_OOM_SKIP mm once.
-> >                            Leaves out_of_memory().
-> >                            Releases oom_lock.
-> >                            Succeeds get_page_from_freelist().
-> 
-> OK, so let's say you have another task just about to jump into
-> out_of_memory and ... end up in the same situation.
+> And how HMM-CDM can handle multiple devices or device with multiple
+> device memories(may with different properties also)?
+> This kind of hardware platform would be very common when CCIX is out soon.
 
-Right.
+A) Multiple device is under control of device driver. Multiple devices link
+to each other through dedicated link can have themself a complex topology and
+remote access between device is highly tie to the device (how to program the
+device mmu and device registers) and thus to the device driver.
 
-> 
->                                                     This race is just
-> unavoidable.
+If we identify common design pattern between different hardware then we might
+start thinking about factoring out some common code to help those cases.
 
-There is no perfect way (always timing dependent). But
 
-> 
-> > Strictly speaking, this patch is independent with OOM reaper.
-> > This patch increases possibility of succeeding get_page_from_freelist()
-> > without sending SIGKILL. Your patch is trying to drop it silently.
+B) Multiple different device is an harder problem. Each device provide their
+own userspace API and that is through that API that you will get memory
+placement advise. If several device fight for placement of same chunk of
+memory one can argue that the application is broken or device is broken.
+But for now we assume that device and application will behave.
 
-we can try to reduce possibility of ending up in the same situation by
-this proposal, and your proposal is irrelevant with reducing possibility of
-ending up in the same situation because
+Rate limiting migration is hard, you need to keep migration statistics and
+that need memory. So unless we really need to do that i would rather avoid
+doing that. Again this is a thing for which we will have to wait and see
+how thing panout.
 
-> > 
-> > Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,
-> > and ignoring MMF_OOM_SKIP once without oom_lock is another approach.
-> 
-> Or simply making sure that we only set the flag _after_ the address
-> space is gone, which is what I am proposing.
 
-the address space being gone does not guarantee that get_page_from_freelist()
-shall be called before entering into out_of_memory() (e.g. preempted for seconds
-between "Fails get_page_from_freelist()." and "Enters out_of_memory().").
+Maybe i should stress that HMM is a set of helpers for device memory and it
+is not intended to be a policy maker or to manage device memory. Intention
+is that device driver will keep managing device memory as they already do
+today.
+
+A deeper integration with process memory management is probably bound to
+happen but for now it is just about having toolbox for device driver.
+
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
