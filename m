@@ -1,74 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 31EA66B039F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 18:44:57 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id a2so81183378pgn.15
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 15:44:57 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id z8si503587pll.289.2017.07.21.15.44.56
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F31A6B02B4
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 19:01:07 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 65so6584515wmf.2
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 16:01:07 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w2si4856247wra.504.2017.07.21.16.01.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 15:44:56 -0700 (PDT)
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: [PATCH 2/2] mm/swap: Remove lock_initialized flag from swap_slots_cache
-Date: Fri, 21 Jul 2017 15:45:01 -0700
-Message-Id: <867d1fb070644e6d5f0ac7780f63e75259b82cc3.1500677066.git.tim.c.chen@linux.intel.com>
-In-Reply-To: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-References: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-In-Reply-To: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-References: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
+        Fri, 21 Jul 2017 16:01:06 -0700 (PDT)
+Date: Fri, 21 Jul 2017 16:01:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+Message-Id: <20170721160104.9f6101b9e8de53638b3b853a@linux-foundation.org>
+In-Reply-To: <20170720065625.GB9058@dhcp22.suse.cz>
+References: <20170710074842.23175-1-mhocko@kernel.org>
+	<20170719152014.53a861c57bcb636d6cd9d002@linux-foundation.org>
+	<20170720065625.GB9058@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-We will only reach the lock initialization code
-in alloc_swap_slot_cache when the cpu's swap_slots_cache's slots
-have not been allocated and swap_slots_cache has not been initialized
-previously.  So the lock_initialized check is redundant and unnecessary.
-Remove lock_initialized flag from swap_slots_cache to save memory.
+On Thu, 20 Jul 2017 08:56:26 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -1713,9 +1713,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> > >  	int file = is_file_lru(lru);
+> > >  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> > >  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> > > +	bool stalled = false;
+> > >  
+> > >  	while (unlikely(too_many_isolated(pgdat, file, sc))) {
+> > > -		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > > +		if (stalled)
+> > > +			return 0;
+> > > +
+> > > +		/* wait a bit for the reclaimer. */
+> > > +		schedule_timeout_interruptible(HZ/10);
+> > 
+> > a) if this task has signal_pending(), this falls straight through
+> >    and I suspect the code breaks?
+> 
+> It will not break. It will return to the allocation path more quickly
+> but no over-reclaim will happen and it will/should get throttled there.
+> So nothing critical.
+> 
+> > b) replacing congestion_wait() with schedule_timeout_interruptible()
+> >    means this task no longer contributes to load average here and it's
+> >    a (slightly) user-visible change.
+> 
+> you are right. I am not sure it matters but it might be visible.
+>  
+> > c) msleep_interruptible() is nicer
+> > 
+> > d) IOW, methinks we should be using msleep() here?
+> 
+> OK, I do not have objections. Are you going to squash this in or want a
+> separate patch explaining all the above?
 
-Reported-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- include/linux/swap_slots.h | 1 -
- mm/swap_slots.c            | 9 ++++-----
- 2 files changed, 4 insertions(+), 6 deletions(-)
+I'd prefer to have a comment explaining why interruptible sleep is
+being used, because that "what if signal_pending()" case is rather a
+red flag.
 
-diff --git a/include/linux/swap_slots.h b/include/linux/swap_slots.h
-index 6ef92d1..a75c30b 100644
---- a/include/linux/swap_slots.h
-+++ b/include/linux/swap_slots.h
-@@ -10,7 +10,6 @@
- #define THRESHOLD_DEACTIVATE_SWAP_SLOTS_CACHE	(2*SWAP_SLOTS_CACHE_SIZE)
- 
- struct swap_slots_cache {
--	bool		lock_initialized;
- 	struct mutex	alloc_lock; /* protects slots, nr, cur */
- 	swp_entry_t	*slots;
- 	int		nr;
-diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-index 4c5457c..c039e6c 100644
---- a/mm/swap_slots.c
-+++ b/mm/swap_slots.c
-@@ -140,11 +140,10 @@ static int alloc_swap_slot_cache(unsigned int cpu)
- 	if (cache->slots || cache->slots_ret)
- 		/* cache already allocated */
- 		goto out;
--	if (!cache->lock_initialized) {
--		mutex_init(&cache->alloc_lock);
--		spin_lock_init(&cache->free_lock);
--		cache->lock_initialized = true;
--	}
-+
-+	mutex_init(&cache->alloc_lock);
-+	spin_lock_init(&cache->free_lock);
-+
- 	cache->nr = 0;
- 	cache->cur = 0;
- 	cache->n_ret = 0;
--- 
-2.9.4
+Is it the case that fall-through-if-signal_pending() is the
+*preferred* behaviour?  If so, the comment should explain this.  If it
+isn't the preferred behaviour then using uninterruptible sleep sounds
+better to me, if only because it saves us from having to test a rather
+tricky and rare case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
