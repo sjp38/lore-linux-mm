@@ -1,136 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A56246B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 12:42:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 79so5996847wmr.0
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 09:42:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v143si1278525wmd.52.2017.07.21.09.42.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14CB86B0292
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 13:44:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id l28so62725045pfj.12
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 10:44:10 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id d184si3349421pgc.158.2017.07.21.10.44.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 09:42:47 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6LGd4mu142897
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 12:42:46 -0400
-Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bujujy1u5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 12:42:45 -0400
-Received: from localhost
-	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Fri, 21 Jul 2017 12:42:45 -0400
-Date: Fri, 21 Jul 2017 09:42:30 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v6 27/62] powerpc: helper to validate key-access
- permissions of a pte
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
- <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
- <87mv7zpq1k.fsf@skywalker.in.ibm.com>
- <20170720221504.GJ5487@ram.oc3035372033.ibm.com>
- <87k232p9ix.fsf@skywalker.in.ibm.com>
+        Fri, 21 Jul 2017 10:44:08 -0700 (PDT)
+Date: Fri, 21 Jul 2017 11:44:05 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170721174405.GA18697@linux.intel.com>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-2-ross.zwisler@linux.intel.com>
+ <20170719141659.GB15908@quack2.suse.cz>
+ <20170719175112.GA24588@linux.intel.com>
+ <20170719215831.GC10923@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87k232p9ix.fsf@skywalker.in.ibm.com>
-Message-Id: <20170721164230.GK5487@ram.oc3035372033.ibm.com>
+In-Reply-To: <20170719215831.GC10923@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Fri, Jul 21, 2017 at 12:21:50PM +0530, Aneesh Kumar K.V wrote:
-> Ram Pai <linuxram@us.ibm.com> writes:
+On Wed, Jul 19, 2017 at 03:58:31PM -0600, Ross Zwisler wrote:
+> On Wed, Jul 19, 2017 at 11:51:12AM -0600, Ross Zwisler wrote:
+> > On Wed, Jul 19, 2017 at 04:16:59PM +0200, Jan Kara wrote:
+> > > On Wed 28-06-17 16:01:48, Ross Zwisler wrote:
+> > > > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > > > fault path look more like our PMD fault path where a PTE entry can be
+> > > > marked as dirty and writeable as it is first inserted, rather than waiting
+> > > > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > > > 
+> > > > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > > > distinguish between these two cases in do_wp_page():
+> > > > 
+> > > > 	case 1: 4k zero page => writable DAX storage
+> > > > 	case 2: read-only DAX storage => writeable DAX storage
+> > > > 
+> > > > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > > > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > > > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > > > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > > > get rid of dax_pfn_mkwrite() completely.
+> > > > 
+> > > > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > > > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > > > will do the work that was previously done by wp_page_reuse() as part of the
+> > > > dax_pfn_mkwrite() call path.
+> > > > 
+> > > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > > 
+> > > Just one small comment below.
+> > > 
+> > > > @@ -1658,14 +1658,26 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+> > > >  	if (!pte)
+> > > >  		goto out;
+> > > >  	retval = -EBUSY;
+> > > > -	if (!pte_none(*pte))
+> > > > -		goto out_unlock;
+> > > > +	if (!pte_none(*pte)) {
+> > > > +		if (mkwrite) {
+> > > > +			entry = *pte;
+> > > > +			goto out_mkwrite;
+> > > 
+> > > Can we maybe check here that (pte_pfn(*pte) == pfn_t_to_pfn(pfn)) and
+> > > return -EBUSY otherwise? That way we are sure insert_pfn() isn't doing
+> > > anything we don't expect 
+> > 
+> > Sure, that's fine.  I'll add it as a WARN_ON_ONCE() so it's a very loud
+> > failure.  If the pfns don't match I think we're insane (and would have been
+> > insane prior to this patch series as well) because we are getting a page fault
+> > and somehow have a different PFN already mapped at that location.
 > 
-> > On Thu, Jul 20, 2017 at 12:12:47PM +0530, Aneesh Kumar K.V wrote:
-> >> Ram Pai <linuxram@us.ibm.com> writes:
-> >> 
-> >> > helper function that checks if the read/write/execute is allowed
-> >> > on the pte.
-> >> >
-> >> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-> >> > ---
-> >> >  arch/powerpc/include/asm/book3s/64/pgtable.h |    4 +++
-> >> >  arch/powerpc/include/asm/pkeys.h             |   12 +++++++++
-> >> >  arch/powerpc/mm/pkeys.c                      |   33 ++++++++++++++++++++++++++
-> >> >  3 files changed, 49 insertions(+), 0 deletions(-)
-> >> >
-> >> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> >> > index 30d7f55..0056e58 100644
-> >> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> >> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> >> > @@ -472,6 +472,10 @@ static inline void write_uamor(u64 value)
-> >> >  	mtspr(SPRN_UAMOR, value);
-> >> >  }
-> >> >
-> >> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> >> > +extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
-> >> > +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
-> >> > +
-> >> >  #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-> >> >  static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
-> >> >  				       unsigned long addr, pte_t *ptep)
-> >> > diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-> >> > index bbb5d85..7a9aade 100644
-> >> > --- a/arch/powerpc/include/asm/pkeys.h
-> >> > +++ b/arch/powerpc/include/asm/pkeys.h
-> >> > @@ -53,6 +53,18 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
-> >> >  		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
-> >> >  }
-> >> >
-> >> > +static inline u16 pte_to_pkey_bits(u64 pteflags)
-> >> > +{
-> >> > +	if (!pkey_inited)
-> >> > +		return 0x0UL;
-> >> 
-> >> Do we really need that above check ? We should always find it
-> >> peky_inited to be set. 
-> >
-> > Yes. there are cases where pkey_inited is not enabled. 
-> > a) if the MMU is radix.
-> That should be be a feature check
+> Umm...well, I added the warning, and during my regression testing hit a case
+> where the PFNs didn't match.  (generic/437 with both ext4 & XFS)
 > 
-> > b) if the PAGE size is 4k.
+> I've verified that this behavior happens with vanilla v4.12, so it's not a new
+> condition introduced by my patch.
 > 
-> That is a kernel config change
-> 
-> > c) if the device tree says the feature is not available
-> > d) if the CPU is of a older generation. P6 and older.
-> 
-> Both feature check.
-> 
-> how about doing something like
-> 
-> static inline u16 pte_to_pkey_bits(u64 pteflags)
-> {
-> 	if (!(pteflags & H_PAGE_KEY_MASK))
-> 		return 0x0UL;
+> I'm off tracking that down - there's a bug lurking somewhere, I think.
 
-This check accomplishes the same thing as the return below.
-When (pteflag & H_PAGE_KEY_MASK) is 0,
-the code below returns the same 0x0UL. 
+Actually, I think we're fine.  What was happening was that two faults were
+racing for a private mapping.  One was installing a RW PTE for the COW page
+cache page via wp_page_copy(), and the second was trying to install a
+read-only PTE in insert_pfn().  The PFNs don't match because the two faults
+are trying to map very different PTEs - one for DAX storage, one for a page
+cache page.
 
+This collision is handled by insert_pfn() by just returning -EBUSY, which will
+bail out of the fault and either re-fault if necessary, or use the PTE that
+the other thread installed.  For the case I described above I think both
+faults will just happily use the page cache page, and the RO DAX fault won't
+be retried.
 
-
-> 
-> 	return (((pteflags & H_PAGE_PKEY_BIT0) ? 0x10 : 0x0UL) |
-> 		((pteflags & H_PAGE_PKEY_BIT1) ? 0x8 : 0x0UL) |
-> 		((pteflags & H_PAGE_PKEY_BIT2) ? 0x4 : 0x0UL) |
-> 		((pteflags & H_PAGE_PKEY_BIT3) ? 0x2 : 0x0UL) |
-> 		((pteflags & H_PAGE_PKEY_BIT4) ? 0x1 : 0x0UL));
-> }
-
-The idea  behind
-	       if (!pkey_inited)
-	               return 0x0UL;
-
-was to not interpret the ptebits if we knew they were not initialized
-to begin with. 
-
-
--- 
-Ram Pai
+I think this is fine, and I'll preserve this behavior as you suggest in the
+mkwrite case by validating that the PTE is what we think it should be after we
+grab the PTL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
