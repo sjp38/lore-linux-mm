@@ -1,121 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D8C6B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:52:04 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v31so15680139wrc.7
-        for <linux-mm@kvack.org>; Thu, 20 Jul 2017 23:52:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 45si7508024wrx.82.2017.07.20.23.52.03
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D6696B025F
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:07:58 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id g5so3966064oic.10
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:07:58 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id f195si913301oih.311.2017.07.21.02.07.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Jul 2017 23:52:03 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6L6mtlw060505
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:52:02 -0400
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2bu4ftg7n1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 02:52:01 -0400
-Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 21 Jul 2017 16:51:59 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6L6punX29819104
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 16:51:56 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6L6psJG019078
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 16:51:55 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 27/62] powerpc: helper to validate key-access permissions of a pte
-In-Reply-To: <20170720221504.GJ5487@ram.oc3035372033.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-28-git-send-email-linuxram@us.ibm.com> <87mv7zpq1k.fsf@skywalker.in.ibm.com> <20170720221504.GJ5487@ram.oc3035372033.ibm.com>
-Date: Fri, 21 Jul 2017 12:21:50 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 21 Jul 2017 02:07:57 -0700 (PDT)
+Subject: Re: [PATCH 00/15] HMM (Heterogeneous Memory Management) v24
+References: <20170628180047.5386-1-jglisse@redhat.com>
+ <19d4aa0e-a428-ed6d-c524-9b1cdcf6aa30@huawei.com>
+ <20170720171850.GC2767@redhat.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <40b9d534-4809-0a84-27dc-5c3faee3f69c@huawei.com>
+Date: Fri, 21 Jul 2017 17:03:22 +0800
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87k232p9ix.fsf@skywalker.in.ibm.com>
+In-Reply-To: <20170720171850.GC2767@redhat.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>
 
-Ram Pai <linuxram@us.ibm.com> writes:
+Hi Jerome,
 
-> On Thu, Jul 20, 2017 at 12:12:47PM +0530, Aneesh Kumar K.V wrote:
->> Ram Pai <linuxram@us.ibm.com> writes:
->> 
->> > helper function that checks if the read/write/execute is allowed
->> > on the pte.
->> >
->> > Signed-off-by: Ram Pai <linuxram@us.ibm.com>
->> > ---
->> >  arch/powerpc/include/asm/book3s/64/pgtable.h |    4 +++
->> >  arch/powerpc/include/asm/pkeys.h             |   12 +++++++++
->> >  arch/powerpc/mm/pkeys.c                      |   33 ++++++++++++++++++++++++++
->> >  3 files changed, 49 insertions(+), 0 deletions(-)
->> >
->> > diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > index 30d7f55..0056e58 100644
->> > --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> > @@ -472,6 +472,10 @@ static inline void write_uamor(u64 value)
->> >  	mtspr(SPRN_UAMOR, value);
->> >  }
->> >
->> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->> > +extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
->> > +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
->> > +
->> >  #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
->> >  static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
->> >  				       unsigned long addr, pte_t *ptep)
->> > diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
->> > index bbb5d85..7a9aade 100644
->> > --- a/arch/powerpc/include/asm/pkeys.h
->> > +++ b/arch/powerpc/include/asm/pkeys.h
->> > @@ -53,6 +53,18 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
->> >  		((pteflags & H_PAGE_PKEY_BIT4) ? HPTE_R_KEY_BIT4 : 0x0UL));
->> >  }
->> >
->> > +static inline u16 pte_to_pkey_bits(u64 pteflags)
->> > +{
->> > +	if (!pkey_inited)
->> > +		return 0x0UL;
->> 
->> Do we really need that above check ? We should always find it
->> peky_inited to be set. 
->
-> Yes. there are cases where pkey_inited is not enabled. 
-> a) if the MMU is radix.
-That should be be a feature check
+On 2017/7/21 1:18, Jerome Glisse wrote:
+> On Wed, Jul 19, 2017 at 07:48:08PM +0800, Yisheng Xie wrote:
+>> Hi Jerome
+>>
+>> On 2017/6/29 2:00, Jerome Glisse wrote:
+>>>
+>>> Patchset is on top of git://git.cmpxchg.org/linux-mmotm.git so i
+>>> test same kernel as kbuild system, git branch:
+>>>
+>>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v24
+>>>
+>>> Change since v23 is code comment fixes, simplify kernel configuration and
+>>> improve allocation of new page on migration do device memory (last patch
+>>> in this patchset).
+>>>
+>>> Everything else is the same. Below is the long description of what HMM
+>>> is about and why. At the end of this email i describe briefly each patch
+>>> and suggest reviewers for each of them.
+>>>
+>>>
+>>> Heterogeneous Memory Management (HMM) (description and justification)
+>>>
+>>> Today device driver expose dedicated memory allocation API through their
+>>> device file, often relying on a combination of IOCTL and mmap calls. The
+>>> device can only access and use memory allocated through this API. This
+>>> effectively split the program address space into object allocated for the
+>>> device and useable by the device and other regular memory (malloc, mmap
+>>> of a file, share memory, a) only accessible by CPU (or in a very limited
+>>> way by a device by pinning memory).
+>>>
+>>> Allowing different isolated component of a program to use a device thus
+>>> require duplication of the input data structure using device memory
+>>> allocator. This is reasonable for simple data structure (array, grid,
+>>> image, a) but this get extremely complex with advance data structure
+>>> (list, tree, graph, a) that rely on a web of memory pointers. This is
+>>> becoming a serious limitation on the kind of work load that can be
+>>> offloaded to device like GPU.
+>>>
+>>> New industry standard like C++, OpenCL or CUDA are pushing to remove this
+>>> barrier. This require a shared address space between GPU device and CPU so
+>>> that GPU can access any memory of a process (while still obeying memory
+>>> protection like read only). This kind of feature is also appearing in
+>>> various other operating systems.
+>>>
+>>> HMM is a set of helpers to facilitate several aspects of address space
+>>> sharing and device memory management. Unlike existing sharing mechanism
+>>> that rely on pining pages use by a device, HMM relies on mmu_notifier to
+>>> propagate CPU page table update to device page table.
+>>>
+>>> Duplicating CPU page table is only one aspect necessary for efficiently
+>>> using device like GPU. GPU local memory have bandwidth in the TeraBytes/
+>>> second range but they are connected to main memory through a system bus
+>>> like PCIE that is limited to 32GigaBytes/second (PCIE 4.0 16x). Thus it
+>>> is necessary to allow migration of process memory from main system memory
+>>> to device memory. Issue is that on platform that only have PCIE the device
+>>> memory is not accessible by the CPU with the same properties as main
+>>> memory (cache coherency, atomic operations, ...).
+>>>
+>>> To allow migration from main memory to device memory HMM provides a set
+>>> of helper to hotplug device memory as a new type of ZONE_DEVICE memory
+>>> which is un-addressable by CPU but still has struct page representing it.
+>>> This allow most of the core kernel logic that deals with a process memory
+>>> to stay oblivious of the peculiarity of device memory.
+>>>
+>>> When page backing an address of a process is migrated to device memory
+>>> the CPU page table entry is set to a new specific swap entry. CPU access
+>>> to such address triggers a migration back to system memory, just like if
+>>> the page was swap on disk. 
+>>> [...]
+>>> To allow efficient migration between device memory and main memory a new
+>>> migrate_vma() helpers is added with this patchset. It allows to leverage
+>>> device DMA engine to perform the copy operation.
+>>>
+>>
+>> Is this means that when CPU access an address of a process is migrated to device
+>> memory, it should call migrate_vma() to migrate a range of address back to CPU ?
+>> If it is so, I think it should somewhere call this function in this patchset,
+>> however, I do not find anywhere in this patchset call this function.
+>>
+>> Or am I miss anything?
+> 
+> There is a callback in struct dev_pagemap page_fault. Device driver will
+> set that callback to a device driver function that itself might call
+> migrate_vma(). It might call a different helper thought.
+> 
+> For instance GPU driver commonly use memory oversubscription, ie they
+> evict device memory to system page to make room for other stuff. If a
+> page fault happen while there is already a system page for that memory
+> than the device driver might only need to hand over that page and no
+> need to migrate anything.
+> 
+> That is why you do not see migrate_vma() call in this patchset. Calls
+> to that function will be inside the individual device driver.
+> 
 
-> b) if the PAGE size is 4k.
+Get your point.
 
-That is a kernel config change
+Without a open source driver, it makes hard to get the whole view of this solution.
+Hope can see your open source driver soon.
 
-> c) if the device tree says the feature is not available
-> d) if the CPU is of a older generation. P6 and older.
-
-Both feature check.
-
-how about doing something like
-
-static inline u16 pte_to_pkey_bits(u64 pteflags)
-{
-	if (!(pteflags & H_PAGE_KEY_MASK))
-		return 0x0UL;
-
-	return (((pteflags & H_PAGE_PKEY_BIT0) ? 0x10 : 0x0UL) |
-		((pteflags & H_PAGE_PKEY_BIT1) ? 0x8 : 0x0UL) |
-		((pteflags & H_PAGE_PKEY_BIT2) ? 0x4 : 0x0UL) |
-		((pteflags & H_PAGE_PKEY_BIT3) ? 0x2 : 0x0UL) |
-		((pteflags & H_PAGE_PKEY_BIT4) ? 0x1 : 0x0UL));
-}
-
-We still have to look at the code generated to see it is really saving
-something.
-
--aneesh
+Thanks
+Yisheng Xie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
