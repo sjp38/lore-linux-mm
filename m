@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB236B0292
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 14:02:22 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j79so63062781pfj.9
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 11:02:22 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id d10si3394563pln.411.2017.07.21.11.02.21
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE9F6B0292
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 17:02:56 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p12so18098308wrc.8
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 14:02:56 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.73])
+        by mx.google.com with ESMTPS id g2si8292617wrc.311.2017.07.21.14.02.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 11:02:21 -0700 (PDT)
-Date: Fri, 21 Jul 2017 12:02:19 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
-Message-ID: <20170721180219.GB18697@linux.intel.com>
-References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
- <20170628220152.28161-2-ross.zwisler@linux.intel.com>
- <20170720152616.GB6664@redhat.com>
- <20170720155922.GA21186@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170720155922.GA21186@linux.intel.com>
+        Fri, 21 Jul 2017 14:02:55 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] [v2] kasan: avoid -Wmaybe-uninitialized warning
+Date: Fri, 21 Jul 2017 23:02:37 +0200
+Message-Id: <20170721210251.3378996-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Vivek Goyal <vgoyal@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 20, 2017 at 09:59:22AM -0600, Ross Zwisler wrote:
-> On Thu, Jul 20, 2017 at 11:26:16AM -0400, Vivek Goyal wrote:
-<>
-> > Hi Ross,
-> > 
-> > vm_insert_mixed_mkwrite() is same as vm_insert_mixed() except this sets
-> > write parameter to inser_pfn() true. Will it make sense to just add
-> > mkwrite parameter to vm_insert_mixed() and not add a new helper function.
-> > (like insert_pfn()).
-> > 
-> > Vivek
-> 
-> Yep, this is how my initial implementation worked:
-> 
-> https://lkml.org/lkml/2017/6/7/907
-> 
-> vm_insert_mixed_mkwrite() was the new version that took an extra parameter,
-> and vm_insert_mixed() stuck around as a wrapper that supplied a default value
-> for the new parameter, so existing call sites didn't need to change and didn't
-> need to worry about the new parameter, but so that we didn't duplicate any
-> code.
-> 
-> I changed this to the way that it currently works based on Dan's feedback in
-> that same mail thread.
+gcc-7 produces this warning:
 
-Looking at this again, I agree that duplicating vm_insert_mixed() seems
-undesirable.  For v4 I'll add the flag to vm_insert_mixed() and just update
-all the call sites instead of adding a separate wrapper for the mkwrite case,
-which will fix this duplication and address Dan's naming concerns.
+mm/kasan/report.c: In function 'kasan_report':
+mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+   print_shadow_for_address(info->first_bad_addr);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
 
-Thanks for the review feedback.
+The code seems fine as we only print info.first_bad_addr when there is a shadow,
+and we always initialize it in that case, but this is relatively hard
+for gcc to figure out after the latest rework. Adding an intialization
+in the other code path gets rid of the warning.
+
+Fixes: b235b9808664 ("kasan: unify report headers")
+Link: https://patchwork.kernel.org/patch/9641417/
+Acked-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+Originally submitted on March 23, but unfortunately is still needed,
+as verified on 4.13-rc1, with aarch64-linux-gcc-7.1.1
+
+v2: add a comment as Andrew suggested
+---
+ mm/kasan/report.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 04bb1d3eb9ec..28fb222ab149 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -111,6 +111,9 @@ static const char *get_wild_bug_type(struct kasan_access_info *info)
+ {
+ 	const char *bug_type = "unknown-crash";
+ 
++	/* shut up spurious -Wmaybe-uninitialized warning */
++	info->first_bad_addr = (void *)(-1ul);
++
+ 	if ((unsigned long)info->access_addr < PAGE_SIZE)
+ 		bug_type = "null-ptr-deref";
+ 	else if ((unsigned long)info->access_addr < TASK_SIZE)
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
