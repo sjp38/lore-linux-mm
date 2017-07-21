@@ -1,60 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DF176B025F
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 07:40:05 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v190so59876083pgv.12
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 04:40:05 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g72si2920708pfd.25.2017.07.21.04.40.03
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6222A6B02C3
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 08:01:12 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id b127so12412536lfb.3
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:01:12 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id w15si1823950ljd.428.2017.07.21.05.01.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 04:40:03 -0700 (PDT)
-Date: Fri, 21 Jul 2017 04:39:48 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v1] mm/vmalloc: add a node corresponding to
- cached_hole_size
-Message-ID: <20170721113948.GB18303@bombadil.infradead.org>
-References: <1500631301-17444-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+        Fri, 21 Jul 2017 05:01:09 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id p11so3155174lfd.1
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 05:01:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1500631301-17444-1-git-send-email-zhaoyang.huang@spreadtrum.com>
+In-Reply-To: <052b3b89-6382-a1b8-270f-3a4e44158964@huawei.com>
+References: <20170713211532.970-1-jglisse@redhat.com> <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
+ <20170718153816.GA3135@redhat.com> <b6f9d812-a1f5-d647-0a6a-39a08023c3b4@huawei.com>
+ <20170719022537.GA6911@redhat.com> <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
+ <20170720150305.GA2767@redhat.com> <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
+ <20170721014106.GB25991@redhat.com> <052b3b89-6382-a1b8-270f-3a4e44158964@huawei.com>
+From: Bob Liu <lliubbo@gmail.com>
+Date: Fri, 21 Jul 2017 20:01:07 +0800
+Message-ID: <CAA_GA1du0qd8b8Eq2yVeULo6TxXw2YckABWiwY8RO5N7FB+Z=A@mail.gmail.com>
+Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: zhaoyang.huang@spreadtrum.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, zijun_hu <zijun_hu@htc.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Garnier <thgarnie@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@zoho.com
+To: Bob Liu <liubo95@huawei.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, Jul 21, 2017 at 06:01:41PM +0800, Zhaoyang Huang wrote:
-> we just record the cached_hole_size now, which will be used when
-> the criteria meet both of 'free_vmap_cache == NULL' and 'size <
-> cached_hole_size'. However, under above scenario, the search will
-> start from the rb_root and then find the node which just in front
-> of the cached hole.
-> 
-> free_vmap_cache miss:
->       vmap_area_root
->           /      \
->        _next     U
->         /  (T1)
->  cached_hole_node
->        /
->      ...   (T2)
->       /
->     first
-> 
-> vmap_area_list->first->......->cached_hole_node->cached_hole_node.list.next
->                   |-------(T3)-------| | <<< cached_hole_size >>> |
-> 
-> vmap_area_list->......->cached_hole_node->cached_hole_node.list.next
->                                | <<< cached_hole_size >>> |
-> 
-> The time cost to search the node now is T = T1 + T2 + T3.
-> The commit add a cached_hole_node here to record the one just in front of
-> the cached_hole_size, which can help to avoid walking the rb tree and
-> the list and make the T = 0;
+On Fri, Jul 21, 2017 at 10:10 AM, Bob Liu <liubo95@huawei.com> wrote:
+> On 2017/7/21 9:41, Jerome Glisse wrote:
+>> On Fri, Jul 21, 2017 at 09:15:29AM +0800, Bob Liu wrote:
+>>> On 2017/7/20 23:03, Jerome Glisse wrote:
+>>>> On Wed, Jul 19, 2017 at 05:09:04PM +0800, Bob Liu wrote:
+>>>>> On 2017/7/19 10:25, Jerome Glisse wrote:
+>>>>>> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
+>>>>>>> On 2017/7/18 23:38, Jerome Glisse wrote:
+>>>>>>>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
+>>>>>>>>> On 2017/7/14 5:15, J=C3=A9r=C3=B4me Glisse wrote:
+>>
+>> [...]
+>>
+>>>>> Then it's more like replace the numa node solution(CDM) with ZONE_DEV=
+ICE
+>>>>> (type MEMORY_DEVICE_PUBLIC). But the problem is the same, e.g how to =
+make
+>>>>> sure the device memory say HBM won't be occupied by normal CPU alloca=
+tion.
+>>>>> Things will be more complex if there are multi GPU connected by nvlin=
+k
+>>>>> (also cache coherent) in a system, each GPU has their own HBM.
+>>>>>
+>>>>> How to decide allocate physical memory from local HBM/DDR or remote H=
+BM/
+>>>>> DDR?
+>>>>>
+>>>>> If using numa(CDM) approach there are NUMA mempolicy and autonuma mec=
+hanism
+>>>>> at least.
+>>>>
+>>>> NUMA is not as easy as you think. First like i said we want the device
+>>>> memory to be isolated from most existing mm mechanism. Because memory
+>>>> is unreliable and also because device might need to be able to evict
+>>>> memory to make contiguous physical memory allocation for graphics.
+>>>>
+>>>
+>>> Right, but we need isolation any way.
+>>> For hmm-cdm, the isolation is not adding device memory to lru list, and=
+ many
+>>> if (is_device_public_page(page)) ...
+>>>
+>>> But how to evict device memory?
+>>
+>> What you mean by evict ? Device driver can evict whenever they see the n=
+eed
+>> to do so. CPU page fault will evict too. Process exit or munmap() will f=
+ree
+>> the device memory.
+>>
+>> Are you refering to evict in the sense of memory reclaim under pressure =
+?
+>>
+>> So the way it flows for memory pressure is that if device driver want to
+>> make room it can evict stuff to system memory and if there is not enough
+>
+> Yes, I mean this.
+> So every driver have to maintain their own LRU-similar list instead of re=
+use what already in linux kernel.
+>
 
-Yes, but does this matter in practice?  Are there any workloads where
-this makes a difference?  If so, how much?
+And how HMM-CDM can handle multiple devices or device with multiple
+device memories(may with different properties also)?
+This kind of hardware platform would be very common when CCIX is out soon.
+
+Thanks,
+Bob Liu
+
+
+
+>> system memory than thing get reclaim as usual before device driver can
+>> make progress on device memory reclaim.
+>>
+>>
+>>>> Second device driver are not integrated that closely within mm and the
+>>>> scheduler kernel code to allow to efficiently plug in device access
+>>>> notification to page (ie to update struct page so that numa worker
+>>>> thread can migrate memory base on accurate informations).
+>>>>
+>>>> Third it can be hard to decide who win between CPU and device access
+>>>> when it comes to updating thing like last CPU id.
+>>>>
+>>>> Fourth there is no such thing like device id ie equivalent of CPU id.
+>>>> If we were to add something the CPU id field in flags of struct page
+>>>> would not be big enough so this can have repercusion on struct page
+>>>> size. This is not an easy sell.
+>>>>
+>>>> They are other issues i can't think of right now. I think for now it
+>>>
+>>> My opinion is most of the issues are the same no matter use CDM or HMM-=
+CDM.
+>>> I just care about a more complete solution no matter CDM,HMM-CDM or oth=
+er ways.
+>>> HMM or HMM-CDM depends on device driver, but haven't see a public/full =
+driver to
+>>> demonstrate the whole solution works fine.
+>>
+>> I am working with NVidia close source driver team to make sure that it w=
+orks
+>> well for them. I am also working on nouveau open source driver for same =
+NVidia
+>> hardware thought it will be of less use as what is missing there is a so=
+lid
+>> open source userspace to leverage this. Nonetheless open source driver a=
+re in
+>> the work.
+>>
+>
+> Looking forward to see these drivers be public.
+>
+>> The way i see it is start with HMM-CDM which isolate most of the changes=
+ in
+>> hmm code. Once we get more experience with real workload and not with de=
+vice
+>> driver test suite then we can start revisiting NUMA and deeper integrati=
+on
+>> with the linux kernel. I rather grow organicaly toward that than trying =
+to
+>> design something that would make major changes all over the kernel witho=
+ut
+>> knowing for sure that we are going in the right direction. I hope that t=
+his
+>> make sense to others too.
+>>
+>
+> Make sense.
+>
+> Thanks,
+> Bob Liu
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
