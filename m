@@ -1,127 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4170D6B02C3
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 22:33:49 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n83so46217101pfa.3
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 19:33:49 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id r2si2096406plj.667.2017.07.21.19.33.48
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5FA6B0292
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 23:49:25 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id f67so31281107qkc.14
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 20:49:25 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id j8si2385893qtb.37.2017.07.21.20.49.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 19:33:48 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id y129so6622685pgy.3
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 19:33:48 -0700 (PDT)
-From: john.hubbard@gmail.com
-Subject: [PATCH 1/1] mm/hmm: Kconfig improvements for device memory and HMM interaction
-Date: Fri, 21 Jul 2017 19:33:33 -0700
-Message-Id: <20170722023333.6923-2-jhubbard@nvidia.com>
-In-Reply-To: <20170722023333.6923-1-jhubbard@nvidia.com>
-References: <20170722023333.6923-1-jhubbard@nvidia.com>
+        Fri, 21 Jul 2017 20:49:24 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id d145so3136918qkc.0
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 20:49:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170721161322.98c5cd44b5b3612be0f7fe14@linux-foundation.org>
+References: <20170626063833.11094-1-oohall@gmail.com> <20170721161322.98c5cd44b5b3612be0f7fe14@linux-foundation.org>
+From: Oliver <oohall@gmail.com>
+Date: Sat, 22 Jul 2017 13:49:23 +1000
+Message-ID: <CAOSf1CG+jc=Z64_5G4FyvhO5a9rfeOjdQXKNzgZFsKYVxramqg@mail.gmail.com>
+Subject: Re: [PATCH] mm/gup: Make __gup_device_* require THP
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-From: John Hubbard <jhubbard@nvidia.com>
+On Sat, Jul 22, 2017 at 9:13 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Mon, 26 Jun 2017 16:38:33 +1000 "Oliver O'Halloran" <oohall@gmail.com> wrote:
+>
+>> These functions are the only bits of generic code that use
+>> {pud,pmd}_pfn() without checking for CONFIG_TRANSPARENT_HUGEPAGE.
+>> This works fine on x86, the only arch with devmap support, since the
+>> *_pfn() functions are always defined there, but this isn't true for
+>> every architecture.
+>>
+>> Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
+>> ---
+>>  mm/gup.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/gup.c b/mm/gup.c
+>> index d9e6fddcc51f..04cf79291321 100644
+>> --- a/mm/gup.c
+>> +++ b/mm/gup.c
+>> @@ -1287,7 +1287,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+>>  }
+>>  #endif /* __HAVE_ARCH_PTE_SPECIAL */
+>>
+>> -#ifdef __HAVE_ARCH_PTE_DEVMAP
+>> +#if defined(__HAVE_ARCH_PTE_DEVMAP) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
+>>  static int __gup_device_huge(unsigned long pfn, unsigned long addr,
+>>               unsigned long end, struct page **pages, int *nr)
+>>  {
+>
+> (cc Kirill)
+>
+> Please provide a full description of the bug which is being fixed.  I
+> assume it's a build error.  What are the error messages and under what
+> circumstances.
+>
+> Etcetera.  Enough info for me (and others) to decide which kernel
+> version(s) need the fix.
 
-The kernel's configuration for HMM is not perfect. You have to
-select "device memory" in order to even see the HMM option, and
-then it appears much earlier in the "make menuconfig" settings,
-so it's easy to miss. Furthermore, the "device memory" option
-doesn't mention that HMM requires it. So basically, HMM is
-invisible unless You Know How To Reveal It.
+It fixes a build breakage that you will only ever see when enabling
+the devmap pte bit for another architecture. Given it requires new
+code to hit the bug I don't see much point in backporting it to 4.12,
+but taking it as a fix for 4.13 wouldn't hurt.
 
-Improve the kernel configuration experience for HMM, by:
-
-1) Moving the HMM section of mm/Kconfig down to just below the
-   ZONE_DEVICE option that is a prerequisite to HMM.
-
-2) Adding "HMM" to the one-line Kconfig summary in ZONE_DEVICE
-
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- mm/Kconfig | 52 ++++++++++++++++++++++++++--------------------------
- 1 file changed, 26 insertions(+), 26 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 424ef60547f8..12007400b7d7 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -262,31 +262,6 @@ config MIGRATION
- config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	bool
- 
--config ARCH_HAS_HMM
--	bool
--	default y
--	depends on X86_64
--	depends on ZONE_DEVICE
--	depends on MMU && 64BIT
--	depends on MEMORY_HOTPLUG
--	depends on MEMORY_HOTREMOVE
--	depends on SPARSEMEM_VMEMMAP
--
--config HMM
--	bool
--
--config HMM_MIRROR
--	bool "HMM mirror CPU page table into a device page table"
--	depends on ARCH_HAS_HMM
--	select MMU_NOTIFIER
--	select HMM
--	help
--	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
--	  process into a device page table. Here, mirror means "keep synchronized".
--	  Prerequisites: the device must provide the ability to write-protect its
--	  page tables (at PAGE_SIZE granularity), and must be able to recover from
--	  the resulting potential page faults.
--
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
- 
-@@ -698,7 +673,7 @@ config ARCH_HAS_ZONE_DEVICE
- 	bool
- 
- config ZONE_DEVICE
--	bool "Device memory (pmem, etc...) hotplug support"
-+	bool "Device memory (pmem, HMM, etc...) hotplug support"
- 	depends on MEMORY_HOTPLUG
- 	depends on MEMORY_HOTREMOVE
- 	depends on SPARSEMEM_VMEMMAP
-@@ -733,6 +708,31 @@ config DEVICE_PUBLIC
- 	  memory; i.e., memory that is accessible from both the device and
- 	  the CPU
- 
-+config ARCH_HAS_HMM
-+	bool
-+	default y
-+	depends on X86_64
-+	depends on ZONE_DEVICE
-+	depends on MMU && 64BIT
-+	depends on MEMORY_HOTPLUG
-+	depends on MEMORY_HOTREMOVE
-+	depends on SPARSEMEM_VMEMMAP
-+
-+config HMM
-+	bool
-+
-+config HMM_MIRROR
-+	bool "HMM mirror CPU page table into a device page table"
-+	depends on ARCH_HAS_HMM
-+	select MMU_NOTIFIER
-+	select HMM
-+	help
-+	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
-+	  process into a device page table. Here, mirror means "keep synchronized".
-+	  Prerequisites: the device must provide the ability to write-protect its
-+	  page tables (at PAGE_SIZE granularity), and must be able to recover from
-+	  the resulting potential page faults.
-+
- config FRAME_VECTOR
- 	bool
- 
--- 
-2.13.3
+The root problem is that the arch doesn't need to provide pmd_pfn()
+and friends when THP is disabled. They're provided unconditionally by
+x86 and ppc, but I did a cursory check and found that mips only
+defines pmd_pfn() when THP is enabled so I figured this should be
+fixed. Making each arch provide them unconditionally might be a better
+idea, but that seemed like it'd be a lot of churn for a minor bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
