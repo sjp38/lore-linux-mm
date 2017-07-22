@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DF096B0292
-	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 19:22:03 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u89so18417146wrc.1
-        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 16:22:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k96si8764519wrc.309.2017.07.21.16.21.31
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDF26B0292
+	for <linux-mm@kvack.org>; Fri, 21 Jul 2017 20:05:33 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id g6so29576120qkf.15
+        for <linux-mm@kvack.org>; Fri, 21 Jul 2017 17:05:33 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id n60si4438355qte.464.2017.07.21.17.05.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Jul 2017 16:21:32 -0700 (PDT)
-Date: Fri, 21 Jul 2017 16:21:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm -v2 00/12] mm, THP, swap: Delay splitting THP after
- swapped out
-Message-Id: <20170721162129.077f7d9b4c77c8593e47aed9@linux-foundation.org>
-In-Reply-To: <20170623071303.13469-1-ying.huang@intel.com>
-References: <20170623071303.13469-1-ying.huang@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Fri, 21 Jul 2017 17:05:32 -0700 (PDT)
+Subject: Re: [PATCH] mm/hugetlb: __get_user_pages ignores certain
+ follow_hugetlb_page errors
+References: <1500406795-58462-1-git-send-email-daniel.m.jordan@oracle.com>
+ <87o9sekux9.fsf@e105922-lin.cambridge.arm.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <d8abb8b3-2b0e-9d15-9315-7ed7250165f0@oracle.com>
+Date: Fri, 21 Jul 2017 20:05:02 -0400
+MIME-Version: 1.0
+In-Reply-To: <87o9sekux9.fsf@e105922-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@kernel.org>, Ming Lei <ming.lei@redhat.com>
+To: Punit Agrawal <punit.agrawal@arm.com>
+Cc: linux-mm@kvack.org, aarcange@redhat.com, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, james.morse@arm.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, zhongjiang@huawei.com, linux-kernel@vger.kernel.org
 
-On Fri, 23 Jun 2017 15:12:51 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+Hi Punit,
 
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> Hi, Andrew, could you help me to check whether the overall design is
-> reasonable?
-> 
-> Hi, Johannes and Minchan, Thanks a lot for your review to the first
-> step of the THP swap optimization!  Could you help me to review the
-> second step in this patchset?
-> 
-> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
-> swap part of the patchset?  Especially [01/12], [02/12], [03/12],
-> [04/12], [11/12], and [12/12].
-> 
-> Hi, Andrea and Kirill, could you help me to review the THP part of the
-> patchset?  Especially [01/12], [03/12], [07/12], [08/12], [09/12],
-> [11/12].
-> 
-> Hi, Johannes, Michal, could you help me to review the cgroup part of
-> the patchset?  Especially [08/12], [09/12], and [10/12].
-> 
-> And for all, Any comment is welcome!
+On 07/21/2017 05:20 AM, Punit Agrawal wrote:
+> The change makes sense.
+> FWIW,
+>
+> Acked-by: Punit Agrawal <punit.agrawal@arm.com>
 
-I guess it's time for a resend.  Folks, could we please get some more
-review&test going here?
+Thanks, I appreciate that.
 
-> Because the THP swap writing support patch [06/12] needs to be rebased
-> on multipage bvec patchset which hasn't been merged yet.  The [06/12]
-> in this patchset is just a test patch and will be rewritten later.
-> The patchset depends on multipage bvec patchset too.
+> I was wondering how you hit the issue. Is there a test case that could
+> have spotted this earlier?
 
-Are these dependency issues any simpler now?
+This was actually just by inspection.
 
-> This is the second step of THP (Transparent Huge Page) swap
-> optimization.  In the first step, the splitting huge page is delayed
-> from almost the first step of swapping out to after allocating the
-> swap space for the THP and adding the THP into the swap cache.  In the
-> second step, the splitting is delayed further to after the swapping
-> out finished.  The plan is to delay splitting THP step by step,
-> finally avoid splitting THP for the THP swapping out and swap out/in
-> the THP as a whole.
-> 
-> In the patchset, more operations for the anonymous THP reclaiming,
-> such as TLB flushing, writing the THP to the swap device, removing the
-> THP from the swap cache are batched.  So that the performance of
-> anonymous THP swapping out are improved.
-> 
+I checked selftests/vm, but there's nothing in there that would have 
+come close to spotting this, so unfortunately there's no existing test case.
+
+Thanks,
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
