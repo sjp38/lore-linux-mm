@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 89BAB6B02FA
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 713606B02F4
 	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h29so142239037pfd.2
+Received: by mail-wr0-f197.google.com with SMTP id r7so26292824wrb.0
         for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:43 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 4si7225290pfk.101.2017.07.24.16.02.42
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id p3si13514673wrd.273.2017.07.24.16.02.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:42 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:41 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 06/23] percpu: end chunk area maps page aligned for the populated bitmap
-Date: Mon, 24 Jul 2017 19:02:03 -0400
-Message-ID: <20170724230220.21774-7-dennisz@fb.com>
+Subject: [PATCH v2 03/23] percpu: remove has_reserved from pcpu_chunk
+Date: Mon, 24 Jul 2017 19:02:00 -0400
+Message-ID: <20170724230220.21774-4-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,95 +24,75 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-The area map allocator manages the first chunk area by hiding all but
-the region it is responsible for serving in the area map. To align this
-with the populated page bitmap, end_offset is introduced to keep track
-of the delta to end page aligned. The area map is appended with the
-page aligned end when necessary to be in line with how the bitmap
-allocator requires the ending to be aligned with the LCM of PAGE_SIZE
-and the size of each bitmap block. percpu_stats is updated to ignore
-this region when present.
+Prior this variable was used to manage statistics when the first chunk
+had a reserved region. The previous patch introduced start_offset to
+keep track of the offset by value rather than boolean. Therefore,
+has_reserved can be removed.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu-internal.h | 3 +++
- mm/percpu-stats.c    | 5 +++--
- mm/percpu.c          | 9 +++++++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ mm/percpu-internal.h | 5 -----
+ mm/percpu-stats.c    | 2 +-
+ mm/percpu.c          | 3 ---
+ 3 files changed, 1 insertion(+), 9 deletions(-)
 
 diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
-index c876b5b..f02f31c 100644
+index 92fc012..c876b5b 100644
 --- a/mm/percpu-internal.h
 +++ b/mm/percpu-internal.h
-@@ -26,6 +26,9 @@ struct pcpu_chunk {
+@@ -23,11 +23,6 @@ struct pcpu_chunk {
+ 	void			*data;		/* chunk data */
+ 	int			first_free;	/* no free below this */
+ 	bool			immutable;	/* no [de]population allowed */
+-	bool			has_reserved;	/* Indicates if chunk has reserved space
+-						   at the beginning. Reserved chunk will
+-						   contain reservation for static chunk.
+-						   Dynamic chunk will contain reservation
+-						   for static and reserved chunks. */
  	int			start_offset;	/* the overlap with the previous
  						   region to have a page aligned
  						   base_addr */
-+	int			end_offset;	/* additional area required to
-+						   have the region end page
-+						   aligned */
- 	int			nr_populated;	/* # of populated pages */
- 	unsigned long		populated[];	/* populated bitmap */
- };
 diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
-index 32f3550..ffbdb96 100644
+index 44e561d..32f3550 100644
 --- a/mm/percpu-stats.c
 +++ b/mm/percpu-stats.c
-@@ -51,7 +51,7 @@ static int find_max_map_used(void)
- static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
- 			    int *buffer)
- {
--	int i, s_index, last_alloc, alloc_sign, as_len;
-+	int i, s_index, e_index, last_alloc, alloc_sign, as_len;
- 	int *alloc_sizes, *p;
- 	/* statistics */
- 	int sum_frag = 0, max_frag = 0;
-@@ -59,10 +59,11 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
+@@ -58,7 +58,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
+ 	int cur_min_alloc = 0, cur_med_alloc = 0, cur_max_alloc = 0;
  
  	alloc_sizes = buffer;
- 	s_index = (chunk->start_offset) ? 1 : 0;
-+	e_index = chunk->map_used - ((chunk->end_offset) ? 1 : 0);
+-	s_index = chunk->has_reserved ? 1 : 0;
++	s_index = (chunk->start_offset) ? 1 : 0;
  
  	/* find last allocation */
  	last_alloc = -1;
--	for (i = chunk->map_used - 1; i >= s_index; i--) {
-+	for (i = e_index - 1; i >= s_index; i--) {
- 		if (chunk->map[i] & 1) {
- 			last_alloc = i;
- 			break;
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 2e785a7..1d2c980 100644
+index e94f0d1..470e1a0 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -715,12 +715,16 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(void *base_addr,
- 							 int init_map_size)
- {
- 	struct pcpu_chunk *chunk;
-+	int region_size;
-+
-+	region_size = PFN_ALIGN(start_offset + map_size);
+@@ -727,7 +727,6 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
+ 	chunk->map[0] = 0;
+ 	chunk->map[1] = pcpu_unit_size | 1;
+ 	chunk->map_used = 1;
+-	chunk->has_reserved = false;
  
- 	chunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
  	INIT_LIST_HEAD(&chunk->list);
  	INIT_LIST_HEAD(&chunk->map_extend_list);
- 	chunk->base_addr = base_addr;
- 	chunk->start_offset = start_offset;
-+	chunk->end_offset = region_size - chunk->start_offset - map_size;
- 	chunk->map = map;
- 	chunk->map_alloc = init_map_size;
+@@ -1704,7 +1703,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	schunk->map[1] = schunk->start_offset;
+ 	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
+ 	schunk->map_used = 2;
+-	schunk->has_reserved = true;
  
-@@ -735,6 +739,11 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(void *base_addr,
- 	chunk->map[2] = (chunk->start_offset + chunk->free_size) | 1;
- 	chunk->map_used = 2;
+ 	/* init dynamic chunk if necessary */
+ 	if (dyn_size) {
+@@ -1724,7 +1722,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 		dchunk->map[1] = dchunk->start_offset;
+ 		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
+ 		dchunk->map_used = 2;
+-		dchunk->has_reserved = true;
+ 	}
  
-+	if (chunk->end_offset) {
-+		/* hide the end of the bitmap */
-+		chunk->map[++chunk->map_used] = region_size | 1;
-+	}
-+
- 	return chunk;
- }
- 
+ 	/* link the first chunk in */
 -- 
 2.9.3
 
