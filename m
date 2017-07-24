@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB8D6B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:50:54 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x43so23949899wrb.9
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 01:50:54 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DB2536B02C3
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 05:00:51 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l3so23929523wrc.12
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:00:51 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y19si4727400wra.194.2017.07.24.01.50.53
+        by mx.google.com with ESMTPS id v7si8704156wrc.439.2017.07.24.02.00.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 01:50:53 -0700 (PDT)
-Date: Mon, 24 Jul 2017 10:50:46 +0200
+        Mon, 24 Jul 2017 02:00:50 -0700 (PDT)
+Date: Mon, 24 Jul 2017 11:00:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/mremap: Fail map duplication attempts for private
- mappings
-Message-ID: <20170724085045.GD25221@dhcp22.suse.cz>
-References: <20170720082058.GF9058@dhcp22.suse.cz>
- <1500583079-26504-1-git-send-email-mike.kravetz@oracle.com>
- <20170721143644.GC5944@dhcp22.suse.cz>
- <cb9d9f6a-7095-582f-15a5-62643d65c736@oracle.com>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170724090042.GF25221@dhcp22.suse.cz>
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+ <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
+ <20170714123023.GA2624@dhcp22.suse.cz>
+ <20170714181523-mutt-send-email-mst@kernel.org>
+ <20170717152448.GN12888@dhcp22.suse.cz>
+ <596D6E7E.4070700@intel.com>
+ <20170719081311.GC26779@dhcp22.suse.cz>
+ <596F4A0E.4010507@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cb9d9f6a-7095-582f-15a5-62643d65c736@oracle.com>
+In-Reply-To: <596F4A0E.4010507@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, Linux API <linux-api@vger.kernel.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Fri 21-07-17 14:18:31, Mike Kravetz wrote:
-[...]
-> >From 5c4a1602bd6a942544ed011dc0a72fd258e874b2 Mon Sep 17 00:00:00 2001
-> From: Mike Kravetz <mike.kravetz@oracle.com>
-> Date: Wed, 12 Jul 2017 13:52:47 -0700
-> Subject: [PATCH] mm/mremap: Fail map duplication attempts for private mappings
+On Wed 19-07-17 20:01:18, Wei Wang wrote:
+> On 07/19/2017 04:13 PM, Michal Hocko wrote:
+[...
+> >All you should need is the check for the page reference count, no?  I
+> >assume you do some sort of pfn walk and so you should be able to get an
+> >access to the struct page.
 > 
-> mremap will attempt to create a 'duplicate' mapping if old_size
-> == 0 is specified.  In the case of private mappings, mremap
-> will actually create a fresh separate private mapping unrelated
-> to the original.  This does not fit with the design semantics of
-> mremap as the intention is to create a new mapping based on the
-> original.
-> 
-> Therefore, return EINVAL in the case where an attempt is made
-> to duplicate a private mapping.  Also, print a warning message
-> (once) if such an attempt is made.
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Not necessarily - the guest struct page is not seen by the hypervisor. The
+> hypervisor only gets those guest pfns which are hinted as unused. From the
+> hypervisor (host) point of view, a guest physical address corresponds to a
+> virtual address of a host process. So, once the hypervisor knows a guest
+> physical page is unsued, it knows that the corresponding virtual memory of
+> the process doesn't need to be transferred in the 1st round.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  mm/mremap.c | 13 +++++++++++++
->  1 file changed, 13 insertions(+)
-> 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index cd8a1b1..75b167d 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -383,6 +383,19 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
->  	if (!vma || vma->vm_start > addr)
->  		return ERR_PTR(-EFAULT);
->  
-> +	/*
-> +	 * !old_len is a special case where an attempt is made to 'duplicate'
-> +	 * a mapping.  This makes no sense for private mappings as it will
-> +	 * instead create a fresh/new mapping unrelated to the original.  This
-> +	 * is contrary to the basic idea of mremap which creates new mappings
-> +	 * based on the original.  There are no known use cases for this
-> +	 * behavior.  As a result, fail such attempts.
-> +	 */
-> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE))) {
-> +		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is not supported.\n", current->comm, current->pid);
-> +		return ERR_PTR(-EINVAL);
-> +	}
-> +
->  	if (is_vm_hugetlb_page(vma))
->  		return ERR_PTR(-EINVAL);
->  
-> -- 
-> 2.7.5
+I am sorry, but I do not understand. Why cannot _guest_ simply check the
+struct page ref count and send them to the hypervisor? Is there any
+documentation which describes the workflow or code which would use your
+new API?
 
 -- 
 Michal Hocko
