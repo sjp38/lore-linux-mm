@@ -1,96 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 227C16B0292
-	for <linux-mm@kvack.org>; Sun, 23 Jul 2017 22:15:33 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q87so117683174pfk.15
-        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 19:15:33 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u2si6063646pfa.28.2017.07.23.19.15.32
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8DA6B0292
+	for <linux-mm@kvack.org>; Sun, 23 Jul 2017 22:46:45 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id r14so59038798qte.11
+        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 19:46:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f37si7972827qta.510.2017.07.23.19.46.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jul 2017 19:15:32 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 2/2] mm/swap: Remove lock_initialized flag from swap_slots_cache
-References: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-	<867d1fb070644e6d5f0ac7780f63e75259b82cc3.1500677066.git.tim.c.chen@linux.intel.com>
-Date: Mon, 24 Jul 2017 10:15:29 +0800
-In-Reply-To: <867d1fb070644e6d5f0ac7780f63e75259b82cc3.1500677066.git.tim.c.chen@linux.intel.com>
-	(Tim Chen's message of "Fri, 21 Jul 2017 15:45:01 -0700")
-Message-ID: <878tjeh96m.fsf@yhuang-dev.intel.com>
+        Sun, 23 Jul 2017 19:46:44 -0700 (PDT)
+Date: Mon, 24 Jul 2017 10:46:27 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH -mm -v2 00/12] mm, THP, swap: Delay splitting THP after
+ swapped out
+Message-ID: <20170724024622.GB12871@ming.t460p>
+References: <20170623071303.13469-1-ying.huang@intel.com>
+ <20170721162129.077f7d9b4c77c8593e47aed9@linux-foundation.org>
+ <874lu2ircj.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <874lu2ircj.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm@lists.01.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Jens Axboe <axboe@fb.com>, Michal Hocko <mhocko@kernel.org>
 
-Hi, Tim,
+On Mon, Jul 24, 2017 at 08:57:48AM +0800, Huang, Ying wrote:
+> Andrew Morton <akpm@linux-foundation.org> writes:
+> 
+> > On Fri, 23 Jun 2017 15:12:51 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+> >
+> >> From: Huang Ying <ying.huang@intel.com>
+> >> 
+> >> Hi, Andrew, could you help me to check whether the overall design is
+> >> reasonable?
+> >> 
+> >> Hi, Johannes and Minchan, Thanks a lot for your review to the first
+> >> step of the THP swap optimization!  Could you help me to review the
+> >> second step in this patchset?
+> >> 
+> >> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+> >> swap part of the patchset?  Especially [01/12], [02/12], [03/12],
+> >> [04/12], [11/12], and [12/12].
+> >> 
+> >> Hi, Andrea and Kirill, could you help me to review the THP part of the
+> >> patchset?  Especially [01/12], [03/12], [07/12], [08/12], [09/12],
+> >> [11/12].
+> >> 
+> >> Hi, Johannes, Michal, could you help me to review the cgroup part of
+> >> the patchset?  Especially [08/12], [09/12], and [10/12].
+> >> 
+> >> And for all, Any comment is welcome!
+> >
+> > I guess it's time for a resend.  Folks, could we please get some more
+> > review&test going here?
+> 
+> Sure.  Will resend it ASAP.  And Thanks for reminding!
+> 
+> >> Because the THP swap writing support patch [06/12] needs to be rebased
+> >> on multipage bvec patchset which hasn't been merged yet.  The [06/12]
+> >> in this patchset is just a test patch and will be rewritten later.
+> >> The patchset depends on multipage bvec patchset too.
+> >
+> > Are these dependency issues any simpler now?
+> 
+> Ming Lei has sent the v2 of multipage bvec patchset on June 26th.  Jens
+> Axboe thinks the patchset will target v4.14.
+> 
+> https://lkml.org/lkml/2017/6/26/538
 
-Tim Chen <tim.c.chen@linux.intel.com> writes:
+I will rebase the patchset against v4.13-rcX and send v3 out later.
 
-> We will only reach the lock initialization code
-> in alloc_swap_slot_cache when the cpu's swap_slots_cache's slots
-> have not been allocated and swap_slots_cache has not been initialized
-> previously.  So the lock_initialized check is redundant and unnecessary.
-> Remove lock_initialized flag from swap_slots_cache to save memory.
 
-Is there a race condition with CPU offline/online when preempt is enabled?
-
-CPU A                                   CPU B
------                                   -----
-                                        get_swap_page()
-                                          get cache[B], cache[B]->slots != NULL
-                                          preempted and moved to CPU A
-                                        be offlined
-                                        be onlined
-                                          alloc_swap_slot_cache()
-mutex_lock(cache[B]->alloc_lock)
-                                            mutex_init(cache[B]->alloc_lock) !!!
-
-The cache[B]->alloc_lock will be reinitialized when it is still held.
-
-Best Regards,
-Huang, Ying
-
-> Reported-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
-> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
-> ---
->  include/linux/swap_slots.h | 1 -
->  mm/swap_slots.c            | 9 ++++-----
->  2 files changed, 4 insertions(+), 6 deletions(-)
->
-> diff --git a/include/linux/swap_slots.h b/include/linux/swap_slots.h
-> index 6ef92d1..a75c30b 100644
-> --- a/include/linux/swap_slots.h
-> +++ b/include/linux/swap_slots.h
-> @@ -10,7 +10,6 @@
->  #define THRESHOLD_DEACTIVATE_SWAP_SLOTS_CACHE	(2*SWAP_SLOTS_CACHE_SIZE)
->  
->  struct swap_slots_cache {
-> -	bool		lock_initialized;
->  	struct mutex	alloc_lock; /* protects slots, nr, cur */
->  	swp_entry_t	*slots;
->  	int		nr;
-> diff --git a/mm/swap_slots.c b/mm/swap_slots.c
-> index 4c5457c..c039e6c 100644
-> --- a/mm/swap_slots.c
-> +++ b/mm/swap_slots.c
-> @@ -140,11 +140,10 @@ static int alloc_swap_slot_cache(unsigned int cpu)
->  	if (cache->slots || cache->slots_ret)
->  		/* cache already allocated */
->  		goto out;
-> -	if (!cache->lock_initialized) {
-> -		mutex_init(&cache->alloc_lock);
-> -		spin_lock_init(&cache->free_lock);
-> -		cache->lock_initialized = true;
-> -	}
-> +
-> +	mutex_init(&cache->alloc_lock);
-> +	spin_lock_init(&cache->free_lock);
-> +
->  	cache->nr = 0;
->  	cache->cur = 0;
->  	cache->n_ret = 0;
+Thanks,
+Ming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
