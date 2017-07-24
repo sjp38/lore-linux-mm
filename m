@@ -1,190 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F71D6B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 03:23:42 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k71so23630853wrc.15
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:23:42 -0700 (PDT)
-Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com. [209.85.128.194])
-        by mx.google.com with ESMTPS id 69si915059wme.212.2017.07.24.00.23.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AB8D6B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:50:54 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id x43so23949899wrb.9
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 01:50:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y19si4727400wra.194.2017.07.24.01.50.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 00:23:41 -0700 (PDT)
-Received: by mail-wr0-f194.google.com with SMTP id y43so16718325wrd.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:23:40 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Jul 2017 01:50:53 -0700 (PDT)
+Date: Mon, 24 Jul 2017 10:50:46 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Date: Mon, 24 Jul 2017 09:23:32 +0200
-Message-Id: <20170724072332.31903-1-mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/mremap: Fail map duplication attempts for private
+ mappings
+Message-ID: <20170724085045.GD25221@dhcp22.suse.cz>
+References: <20170720082058.GF9058@dhcp22.suse.cz>
+ <1500583079-26504-1-git-send-email-mike.kravetz@oracle.com>
+ <20170721143644.GC5944@dhcp22.suse.cz>
+ <cb9d9f6a-7095-582f-15a5-62643d65c736@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cb9d9f6a-7095-582f-15a5-62643d65c736@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, Linux API <linux-api@vger.kernel.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Aaron Lu <aaron.lu@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Fri 21-07-17 14:18:31, Mike Kravetz wrote:
+[...]
+> >From 5c4a1602bd6a942544ed011dc0a72fd258e874b2 Mon Sep 17 00:00:00 2001
+> From: Mike Kravetz <mike.kravetz@oracle.com>
+> Date: Wed, 12 Jul 2017 13:52:47 -0700
+> Subject: [PATCH] mm/mremap: Fail map duplication attempts for private mappings
+> 
+> mremap will attempt to create a 'duplicate' mapping if old_size
+> == 0 is specified.  In the case of private mappings, mremap
+> will actually create a fresh separate private mapping unrelated
+> to the original.  This does not fit with the design semantics of
+> mremap as the intention is to create a new mapping based on the
+> original.
+> 
+> Therefore, return EINVAL in the case where an attempt is made
+> to duplicate a private mapping.  Also, print a warning message
+> (once) if such an attempt is made.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-David has noticed that the oom killer might kill additional tasks while
-the exiting oom victim hasn't terminated yet because the oom_reaper marks
-the curent victim MMF_OOM_SKIP too early when mm->mm_users dropped down
-to 0. The race is as follows
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-oom_reap_task				do_exit
-					  exit_mm
-  __oom_reap_task_mm
-					    mmput
-					      __mmput
-    mmget_not_zero # fails
-    						exit_mmap # frees memory
-  set_bit(MMF_OOM_SKIP)
+Thanks!
 
-The victim is still visible to the OOM killer until it is unhashed.
+> ---
+>  mm/mremap.c | 13 +++++++++++++
+>  1 file changed, 13 insertions(+)
+> 
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index cd8a1b1..75b167d 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -383,6 +383,19 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+>  	if (!vma || vma->vm_start > addr)
+>  		return ERR_PTR(-EFAULT);
+>  
+> +	/*
+> +	 * !old_len is a special case where an attempt is made to 'duplicate'
+> +	 * a mapping.  This makes no sense for private mappings as it will
+> +	 * instead create a fresh/new mapping unrelated to the original.  This
+> +	 * is contrary to the basic idea of mremap which creates new mappings
+> +	 * based on the original.  There are no known use cases for this
+> +	 * behavior.  As a result, fail such attempts.
+> +	 */
+> +	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE))) {
+> +		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is not supported.\n", current->comm, current->pid);
+> +		return ERR_PTR(-EINVAL);
+> +	}
+> +
+>  	if (is_vm_hugetlb_page(vma))
+>  		return ERR_PTR(-EINVAL);
+>  
+> -- 
+> 2.7.5
 
-Currently we try to reduce a risk of this race by taking oom_lock
-and wait for out_of_memory sleep while holding the lock to give the
-victim some time to exit. This is quite suboptimal approach because
-there is no guarantee the victim (especially a large one) will manage
-to unmap its address space and free enough memory to the particular oom
-domain which needs a memory (e.g. a specific NUMA node).
-
-Fix this problem by allowing __oom_reap_task_mm and __mmput path to
-race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed
-to run in parallel with other unmappers (hence the mmap_sem for read).
-
-The only tricky part is to exclude page tables tear down and all
-operations which modify the address space in the __mmput path. exit_mmap
-doesn't expect any other users so it doesn't use any locking. Nothing
-really forbids us to use mmap_sem for write, though. In fact we are
-already relying on this lock earlier in the __mmput path to synchronize
-with ksm and khugepaged.
-
-Take the exclusive mmap_sem when calling free_pgtables and destroying
-vmas to sync with __oom_reap_task_mm which take the lock for read. All
-other operations can safely race with the parallel unmap.
-
-Changes
-- bail on null mm->mmap early as per David Rientjes
-
-Reported-by: David Rientjes <rientjes@google.com>
-Fixes: 26db62f179d1 ("oom: keep mm of the killed task available")
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I've sent this as an RFC [1] previously and it seems that the original
-issue has been resolved [2], although an explicit tested-by would be
-appreciated of course. Hugh has pointed out [3] that using mmap_sem
-in exit_mmap will allow to drop the tricky
-	down_write(mmap_sem);
-	up_write(mmap_sem);
-in both paths. I hope I will get to that in a forseeable future.
-
-I am not yet sure this is important enough to merge to stable trees,
-I would rather wait for a report to show up.
-
-[1] http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/alpine.DEB.2.10.1707111336250.60183@chino.kir.corp.google.com
-[3] http://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
-
- mm/mmap.c     |  7 +++++++
- mm/oom_kill.c | 45 +++++++--------------------------------------
- 2 files changed, 14 insertions(+), 38 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 24e9261bdcc0..0eeb658caa30 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2993,6 +2993,11 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
- 
-+	/*
-+	 * oom reaper might race with exit_mmap so make sure we won't free
-+	 * page tables or unmap VMAs under its feet
-+	 */
-+	down_write(&mm->mmap_sem);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
-@@ -3005,7 +3010,9 @@ void exit_mmap(struct mm_struct *mm)
- 			nr_accounted += vma_pages(vma);
- 		vma = remove_vma(vma);
- 	}
-+	mm->mmap = NULL;
- 	vm_unacct_memory(nr_accounted);
-+	up_write(&mm->mmap_sem);
- }
- 
- /* Insert vm structure into process list sorted by address
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 9e8b4f030c1c..a6dabe3691c1 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -470,40 +470,15 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
--	bool ret = true;
--
--	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * __oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
--	 */
--	mutex_lock(&oom_lock);
- 
- 	if (!down_read_trylock(&mm->mmap_sem)) {
--		ret = false;
- 		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
-+		return false;
- 	}
- 
--	/*
--	 * increase mm_users only after we know we will reap something so
--	 * that the mmput_async is called only when we have reaped something
--	 * and delayed __mmput doesn't matter that much
--	 */
--	if (!mmget_not_zero(mm)) {
--		up_read(&mm->mmap_sem);
--		trace_skip_task_reaping(tsk->pid);
--		goto unlock_oom;
--	}
-+	/* There is nothing to reap so bail out without signs in the log */
-+	if (!mm->mmap)
-+		goto unlock;
- 
- 	trace_start_task_reaping(tsk->pid);
- 
-@@ -540,17 +515,11 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 			K(get_mm_counter(mm, MM_ANONPAGES)),
- 			K(get_mm_counter(mm, MM_FILEPAGES)),
- 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
--	up_read(&mm->mmap_sem);
- 
--	/*
--	 * Drop our reference but make sure the mmput slow path is called from a
--	 * different context because we shouldn't risk we get stuck there and
--	 * put the oom_reaper out of the way.
--	 */
--	mmput_async(mm);
- 	trace_finish_task_reaping(tsk->pid);
--unlock_oom:
--	mutex_unlock(&oom_lock);
-+unlock:
-+	up_read(&mm->mmap_sem);
-+
- 	return ret;
- }
- 
 -- 
-2.13.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
