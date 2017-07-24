@@ -1,63 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3796B02C3
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 09:06:24 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v102so24666920wrb.2
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 06:06:24 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C7FEA6B02C3
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 09:42:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 79so11014790wmr.0
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 06:42:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c6si12001219wrb.310.2017.07.24.06.06.23
+        by mx.google.com with ESMTPS id k82si5530247wmk.67.2017.07.24.06.42.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 06:06:23 -0700 (PDT)
-Date: Mon, 24 Jul 2017 15:06:13 +0200
+        Mon, 24 Jul 2017 06:42:45 -0700 (PDT)
+Date: Mon, 24 Jul 2017 15:42:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 4/4] mm, page_ext: move page_ext_init() after
- page_alloc_init_late()
-Message-ID: <20170724130613.GK25221@dhcp22.suse.cz>
-References: <20170720134029.25268-1-vbabka@suse.cz>
- <20170720134029.25268-5-vbabka@suse.cz>
+Subject: pcpu allocator on large NUMA machines
+Message-ID: <20170724134240.GL25221@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170720134029.25268-5-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Yang Shi <yang.shi@linaro.org>, Laura Abbott <labbott@redhat.com>, Vinayak Menon <vinmenon@codeaurora.org>, zhong jiang <zhongjiang@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 20-07-17 15:40:29, Vlastimil Babka wrote:
-> Commit b8f1a75d61d8 ("mm: call page_ext_init() after all struct pages are
-> initialized") has avoided a a NULL pointer dereference due to
-> DEFERRED_STRUCT_PAGE_INIT clashing with page_ext, by calling page_ext_init()
-> only after the deferred struct page init has finished. Later commit
-> fe53ca54270a ("mm: use early_pfn_to_nid in page_ext_init") avoided the
-> underlying issue differently and moved the page_ext_init() call back to where
-> it was before.
-> 
-> However, there are two problems with the current code:
-> - on very large machines, page_ext_init() may fail to allocate the page_ext
-> structures, because deferred struct page init hasn't yet started, and the
-> pre-inited part might be too small.
-> This has been observed with a 3TB machine with page_owner=on. Although it
-> was an older kernel where page_owner hasn't yet been converted to stack depot,
-> thus page_ext was larger, the fundamental problem is still in mainline.
+Hi Tejun,
+we are seeing a strange pcpu allocation failures on a large ppc machine
+on our older distribution kernel. Please note that I am not yet sure
+this is the case with the current up-to-date kernel and I do not have
+direct access to the machine but it seems there were not many changes in
+the pcpu area since 4.4 that would make any difference.
 
-I was about to suggest using memblock/bootmem allocator but it seems
-that page_ext_init is called passed mm_init. Is there any specific
-reason why we cannot do the per-section initialization along with the
-rest of the memory section init code which should have an early
-allocator available?
+The machine has 32TB of memory and 192 cores.
 
-> - page_owner's init_pages_in_zone() is called before deferred struct page init
-> has started, so it will encounter unitialized struct pages. This currently
-> happens to cause no harm, because the memmap array is are pre-zeroed on
-> allocation and thus the "if (page_zone(page) != zone)" check is negative, but
-> that pre-zeroing guarantee might change soon.
+Warnings are as follows:
+WARNING: at ../mm/vmalloc.c:2423
+[...]
+NIP [c00000000028e048] pcpu_get_vm_areas+0x698/0x6d0
+LR [c000000000268be0] pcpu_create_chunk+0xb0/0x160
+Call Trace:
+[c000106c3948f900] [c000000000268684] pcpu_mem_zalloc+0x54/0xd0 (unreliable)
+[c000106c3948f9d0] [c000000000268be0] pcpu_create_chunk+0xb0/0x160
+[c000106c3948fa00] [c000000000269dc4] pcpu_alloc+0x284/0x740
+[c000106c3948faf0] [c00000000017ac90] hotplug_cfd+0x100/0x150
+[c000106c3948fb30] [c0000000000eabf8] notifier_call_chain+0x98/0x110
+[c000106c3948fb80] [c0000000000bdae0] _cpu_up+0x150/0x210
+[c000106c3948fc30] [c0000000000bdcbc] cpu_up+0x11c/0x140
+[c000106c3948fcb0] [c000000000ac47dc] smp_init+0x110/0x118
+[c000106c3948fd00] [c000000000aa4228] kernel_init_freeable+0x19c/0x364
+[c000106c3948fdc0] [c00000000000bf58] kernel_init+0x28/0x150
+[c000106c3948fe30] [c000000000009538] ret_from_kernel_thread+0x5c/0xa4
 
-Yes this is annoying and the bug IMHO. We shouldn't consider spanned
-pages but rather the maximum valid pfn for the zone. The rest simply
-cannot by used by anybody so there shouldn't be any page_ext work due.
-Or am I missing something?
+And the kernel log complains about the max_distance.
+PERCPU: max_distance=0x1d452f940000 too large for vmalloc space 0x80000000000
+
+The boot dies eventually...
+
+Reducing the number of cores doesn't help but reducing the size of
+memory does.  Increasing the vmalloc space (to 56TB) helps as well. Our
+older kernels (based on 4.4) booted just fine and it seems that
+ba4a648f12f4 ("powerpc/numa: Fix percpu allocations to be NUMA aware")
+(which went to stable) changed the picture. Previously the same machine
+consumed ~400MB vmalloc area per NUMA node.
+0xd00007ffb8000000-0xd00007ffd0000000 402653184 pcpu_get_vm_areas+0x0/0x6d0 vmalloc
+0xd00007ffd0000000-0xd00007ffe8000000 402653184 pcpu_get_vm_areas+0x0/0x6d0 vmalloc
+0xd00007ffe8000000-0xd000080000000000 402653184 pcpu_get_vm_areas+0x0/0x6d0 vmalloc
+
+My understanding of the pcpu allocator is basically close to zero but it
+seems weird to me that we would need many TB of vmalloc address space
+just to allocate vmalloc areas that are in range of hundreds of MB. So I
+am wondering whether this is an expected behavior of the allocator or
+there is a problem somwehere else.
+
+Michael has noted
+: On powerpc we use pcpu_embed_first_chunk(). That means we use the 1:1 linear
+: mapping of kernel virtual to physical for the first per-cpu chunk (kernel 
+: static percpu vars).
+:
+: Because of that, and because the percpu allocator wants to do node local
+: allocations, the distance between the percpu areas ends up being dictated by 
+: the distance between the real addresses of our NUMA nodes.
+: 
+: So if you boot a system with a lot of NUMA nodes, or with a very large
+: distance between nodes, then you can hit the bug we have here.
+: 
+: Of course things have been complicated by the fact that the node-local
+: part of the percpu allocation was broken until recently, and because
+: most of us don't have access to these really large memory systems.
+
+Let me know if you need further details.
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
