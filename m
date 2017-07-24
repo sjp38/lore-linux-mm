@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1B06B03B4
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:54 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r7so26293517wrb.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:54 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id n8si13633811wra.23.2017.07.24.16.02.52
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BF026B03B5
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u7so121962683pgo.6
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:56 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id y11si7721975plg.62.2017.07.24.16.02.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:53 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:55 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 13/23] percpu: generalize bitmap (un)populated iterators
-Date: Mon, 24 Jul 2017 19:02:10 -0400
-Message-ID: <20170724230220.21774-14-dennisz@fb.com>
+Subject: [PATCH v2 17/23] percpu: skip chunks if the alloc does not fit in the contig hint
+Date: Mon, 24 Jul 2017 19:02:14 -0400
+Message-ID: <20170724230220.21774-18-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,115 +24,79 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-The area map allocator only used a bitmap for the backing page state.
-The new bitmap allocator will use bitmaps to manage the allocation
-region in addition to this.
-
-This patch generalizes the bitmap iterators so they can be reused with
-the bitmap allocator.
+This patch adds chunk->contig_bits_start to keep track of the contig
+hint's offset and the check to skip the chunk if it does not fit. If
+the chunk's contig hint starting offset cannot satisfy an allocation,
+the allocator assumes there is enough memory pressure in this chunk to
+either use a different chunk or create a new one. This accepts a less
+tight packing for a smoother latency curve.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu.c | 49 +++++++++++++++++++++++++------------------------
- 1 file changed, 25 insertions(+), 24 deletions(-)
+ mm/percpu-internal.h |  2 ++
+ mm/percpu.c          | 18 ++++++++++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)
 
+diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
+index e60e049..7065faf 100644
+--- a/mm/percpu-internal.h
++++ b/mm/percpu-internal.h
+@@ -29,6 +29,8 @@ struct pcpu_chunk {
+ 	struct list_head	list;		/* linked to pcpu_slot lists */
+ 	int			free_bytes;	/* free bytes in the chunk */
+ 	int			contig_bits;	/* max contiguous size hint */
++	int			contig_bits_start; /* contig_bits starting
++						      offset */
+ 	void			*base_addr;	/* base address of this chunk */
+ 
+ 	unsigned long		*alloc_map;	/* allocation map */
 diff --git a/mm/percpu.c b/mm/percpu.c
-index dc755721..84cc255 100644
+index ad70c67..3732373 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -253,35 +253,32 @@ static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
- 	       pcpu_unit_page_offset(cpu, page_idx);
- }
- 
--static void __maybe_unused pcpu_next_unpop(struct pcpu_chunk *chunk,
--					   int *rs, int *re, int end)
-+static void pcpu_next_unpop(unsigned long *bitmap, int *rs, int *re, int end)
- {
--	*rs = find_next_zero_bit(chunk->populated, end, *rs);
--	*re = find_next_bit(chunk->populated, end, *rs + 1);
-+	*rs = find_next_zero_bit(bitmap, end, *rs);
-+	*re = find_next_bit(bitmap, end, *rs + 1);
- }
- 
--static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
--					 int *rs, int *re, int end)
-+static void pcpu_next_pop(unsigned long *bitmap, int *rs, int *re, int end)
- {
--	*rs = find_next_bit(chunk->populated, end, *rs);
--	*re = find_next_zero_bit(chunk->populated, end, *rs + 1);
-+	*rs = find_next_bit(bitmap, end, *rs);
-+	*re = find_next_zero_bit(bitmap, end, *rs + 1);
- }
- 
- /*
-- * (Un)populated page region iterators.  Iterate over (un)populated
-- * page regions between @start and @end in @chunk.  @rs and @re should
-- * be integer variables and will be set to start and end page index of
-- * the current region.
-+ * Bitmap region iterators.  Iterates over the bitmap between
-+ * [@start, @end) in @chunk.  @rs and @re should be integer variables
-+ * and will be set to start and end index of the current free region.
+@@ -393,12 +393,14 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
+  * @bit_off: chunk offset
+  * @bits: size of free area
+  *
+- * This updates the chunk's contig hint given a free area.
++ * This updates the chunk's contig hint and starting offset given a free area.
   */
--#define pcpu_for_each_unpop_region(chunk, rs, re, start, end)		    \
--	for ((rs) = (start), pcpu_next_unpop((chunk), &(rs), &(re), (end)); \
--	     (rs) < (re);						    \
--	     (rs) = (re) + 1, pcpu_next_unpop((chunk), &(rs), &(re), (end)))
-+#define pcpu_for_each_unpop_region(bitmap, rs, re, start, end)		     \
-+	for ((rs) = (start), pcpu_next_unpop((bitmap), &(rs), &(re), (end)); \
-+	     (rs) < (re);						     \
-+	     (rs) = (re) + 1, pcpu_next_unpop((bitmap), &(rs), &(re), (end)))
- 
--#define pcpu_for_each_pop_region(chunk, rs, re, start, end)		    \
--	for ((rs) = (start), pcpu_next_pop((chunk), &(rs), &(re), (end));   \
--	     (rs) < (re);						    \
--	     (rs) = (re) + 1, pcpu_next_pop((chunk), &(rs), &(re), (end)))
-+#define pcpu_for_each_pop_region(bitmap, rs, re, start, end)		     \
-+	for ((rs) = (start), pcpu_next_pop((bitmap), &(rs), &(re), (end));   \
-+	     (rs) < (re);						     \
-+	     (rs) = (re) + 1, pcpu_next_pop((bitmap), &(rs), &(re), (end)))
+ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
+ {
+-	if (bits > chunk->contig_bits)
++	if (bits > chunk->contig_bits) {
++		chunk->contig_bits_start = bit_off;
+ 		chunk->contig_bits = bits;
++	}
+ }
  
  /**
-  * pcpu_mem_zalloc - allocate memory
-@@ -521,7 +518,8 @@ static int pcpu_fit_in_area(struct pcpu_chunk *chunk, int off, int this_size,
- 		page_end = PFN_UP(head + off + size);
+@@ -409,6 +411,7 @@ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
+  *
+  * Updates:
+  *      chunk->contig_bits
++ *      chunk->contig_bits_start
+  *      nr_empty_pop_pages
+  */
+ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
+@@ -639,6 +642,17 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
+ 	int bit_off, bits;
+ 	int re; /* region end */
  
- 		rs = page_start;
--		pcpu_next_unpop(chunk, &rs, &re, PFN_UP(off + this_size));
-+		pcpu_next_unpop(chunk->populated, &rs, &re,
-+				PFN_UP(off + this_size));
- 		if (rs >= page_end)
- 			return head;
- 		cand_off = re * PAGE_SIZE;
-@@ -1071,7 +1069,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 		page_start = PFN_DOWN(off);
- 		page_end = PFN_UP(off + size);
- 
--		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
-+		pcpu_for_each_unpop_region(chunk->populated, rs, re,
-+					   page_start, page_end) {
- 			WARN_ON(chunk->immutable);
- 
- 			ret = pcpu_populate_chunk(chunk, rs, re);
-@@ -1221,7 +1220,8 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 	list_for_each_entry_safe(chunk, next, &to_free, list) {
- 		int rs, re;
- 
--		pcpu_for_each_pop_region(chunk, rs, re, 0, chunk->nr_pages) {
-+		pcpu_for_each_pop_region(chunk->populated, rs, re, 0,
-+					 chunk->nr_pages) {
- 			pcpu_depopulate_chunk(chunk, rs, re);
- 			spin_lock_irq(&pcpu_lock);
- 			pcpu_chunk_depopulated(chunk, rs, re);
-@@ -1288,7 +1288,8 @@ static void pcpu_balance_workfn(struct work_struct *work)
- 			continue;
- 
- 		/* @chunk can't go away while pcpu_alloc_mutex is held */
--		pcpu_for_each_unpop_region(chunk, rs, re, 0, chunk->nr_pages) {
-+		pcpu_for_each_unpop_region(chunk->populated, rs, re, 0,
-+					   chunk->nr_pages) {
- 			int nr = min(re - rs, nr_to_pop);
- 
- 			ret = pcpu_populate_chunk(chunk, rs, rs + nr);
++	/*
++	 * Check to see if the allocation can fit in the chunk's contig hint.
++	 * This is an optimization to prevent scanning by assuming if it
++	 * cannot fit in the global hint, there is memory pressure and creating
++	 * a new chunk would happen soon.
++	 */
++	bit_off = ALIGN(chunk->contig_bits_start, align) -
++		  chunk->contig_bits_start;
++	if (bit_off + alloc_bits > chunk->contig_bits)
++		return -1;
++
+ 	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re,
+ 				   chunk->first_bit,
+ 				   pcpu_chunk_map_bits(chunk)) {
 -- 
 2.9.3
 
