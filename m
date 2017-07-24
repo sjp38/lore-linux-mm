@@ -1,222 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0406B02F3
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:35:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p12so24400659wrc.8
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:35:49 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DA2C6B02B4
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:46:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g28so24423577wrg.3
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:46:29 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p39si6483127wrc.318.2017.07.24.04.35.47
+        by mx.google.com with ESMTPS id k39si9146164wrc.533.2017.07.24.04.46.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 04:35:47 -0700 (PDT)
-Date: Mon, 24 Jul 2017 13:35:42 +0200
+        Mon, 24 Jul 2017 04:46:28 -0700 (PDT)
+Date: Mon, 24 Jul 2017 13:46:22 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 2/5] dax: relocate some dax functions
-Message-ID: <20170724113542.GJ652@quack2.suse.cz>
+Subject: Re: [PATCH v4 3/5] dax: use common 4k zero page for dax mmap reads
+Message-ID: <20170724114622.GK652@quack2.suse.cz>
 References: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
- <20170721223956.29485-3-ross.zwisler@linux.intel.com>
+ <20170721223956.29485-4-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170721223956.29485-3-ross.zwisler@linux.intel.com>
+In-Reply-To: <20170721223956.29485-4-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>, Ingo Molnar <mingo@redhat.com>, Inki Dae <inki.dae@samsung.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Joonyoung Shim <jy0922.shim@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>, Kukjin Kim <kgene@kernel.org>, Kyungmin Park <kyungmin.park@samsung.com>, Matthew Wilcox <mawilcox@microsoft.com>, Patrik Jakobsson <patrik.r.jakobsson@gmail.com>, Rob Clark <robdclark@gmail.com>, Seung-Woo Kim <sw0312.kim@samsung.com>, Steven Rostedt <rostedt@goodmis.org>, Tomi Valkeinen <tomi.valkeinen@ti.com>, dri-devel@lists.freedesktop.org, freedreno@lists.freedesktop.org, linux-arm-kernel@lists.infradead.org, linux-arm-msm@vger.kernel.org, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-samsung-soc@vger.kernel.org, linux-xfs@vger.kernel.org
 
-On Fri 21-07-17 16:39:52, Ross Zwisler wrote:
-> dax_load_hole() will soon need to call dax_insert_mapping_entry(), so it
-> needs to be moved lower in dax.c so the definition exists.
+On Fri 21-07-17 16:39:53, Ross Zwisler wrote:
+> When servicing mmap() reads from file holes the current DAX code allocates
+> a page cache page of all zeroes and places the struct page pointer in the
+> mapping->page_tree radix tree.  This has three major drawbacks:
 > 
-> dax_wake_mapping_entry_waiter() will soon be removed from dax.h and be made
-> static to dax.c, so we need to move its definition above all its callers.
+> 1) It consumes memory unnecessarily.  For every 4k page that is read via a
+> DAX mmap() over a hole, we allocate a new page cache page.  This means that
+> if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
+> This is easily visible by looking at the overall memory consumption of the
+> system or by looking at /proc/[pid]/smaps:
+> 
+> 	7f62e72b3000-7f63272b3000 rw-s 00000000 103:00 12   /root/dax/data
+> 	Size:            1048576 kB
+> 	Rss:             1048576 kB
+> 	Pss:             1048576 kB
+> 	Shared_Clean:          0 kB
+> 	Shared_Dirty:          0 kB
+> 	Private_Clean:   1048576 kB
+> 	Private_Dirty:         0 kB
+> 	Referenced:      1048576 kB
+> 	Anonymous:             0 kB
+> 	LazyFree:              0 kB
+> 	AnonHugePages:         0 kB
+> 	ShmemPmdMapped:        0 kB
+> 	Shared_Hugetlb:        0 kB
+> 	Private_Hugetlb:       0 kB
+> 	Swap:                  0 kB
+> 	SwapPss:               0 kB
+> 	KernelPageSize:        4 kB
+> 	MMUPageSize:           4 kB
+> 	Locked:                0 kB
+> 
+> 2) It is slower than using a common zero page because each page fault has
+> more work to do.  Instead of just inserting a common zero page we have to
+> allocate a page cache page, zero it, and then insert it.  Here are the
+> average latencies of dax_load_hole() as measured by ftrace on a random test
+> box:
+> 
+> Old method, using zeroed page cache pages:	3.4 us
+> New method, using the common 4k zero page:	0.8 us
+> 
+> This was the average latency over 1 GiB of sequential reads done by this
+> simple fio script:
+> 
+>   [global]
+>   size=1G
+>   filename=/root/dax/data
+>   fallocate=none
+>   [io]
+>   rw=read
+>   ioengine=mmap
+> 
+> 3) The fact that we had to check for both DAX exceptional entries and for
+> page cache pages in the radix tree made the DAX code more complex.
+> 
+> Solve these issues by following the lead of the DAX PMD code and using a
+> common 4k zero page instead.  As with the PMD code we will now insert a DAX
+> exceptional entry into the radix tree instead of a struct page pointer
+> which allows us to remove all the special casing in the DAX code.
+> 
+> Note that we do still pretty aggressively check for regular pages in the
+> DAX radix tree, especially where we take action based on the bits set in
+> the page.  If we ever find a regular page in our radix tree now that most
+> likely means that someone besides DAX is inserting pages (which has
+> happened lots of times in the past), and we want to find that out early and
+> fail loudly.
+> 
+> This solution also removes the extra memory consumption.  Here is that same
+> /proc/[pid]/smaps after 1GiB of reading from a hole with the new code:
+> 
+> 	7f2054a74000-7f2094a74000 rw-s 00000000 103:00 12   /root/dax/data
+> 	Size:            1048576 kB
+> 	Rss:                   0 kB
+> 	Pss:                   0 kB
+> 	Shared_Clean:          0 kB
+> 	Shared_Dirty:          0 kB
+> 	Private_Clean:         0 kB
+> 	Private_Dirty:         0 kB
+> 	Referenced:            0 kB
+> 	Anonymous:             0 kB
+> 	LazyFree:              0 kB
+> 	AnonHugePages:         0 kB
+> 	ShmemPmdMapped:        0 kB
+> 	Shared_Hugetlb:        0 kB
+> 	Private_Hugetlb:       0 kB
+> 	Swap:                  0 kB
+> 	SwapPss:               0 kB
+> 	KernelPageSize:        4 kB
+> 	MMUPageSize:           4 kB
+> 	Locked:                0 kB
+> 
+> Overall system memory consumption is similarly improved.
+> 
+> Another major change is that we remove dax_pfn_mkwrite() from our fault
+> flow, and instead rely on the page fault itself to make the PTE dirty and
+> writeable.  The following description from the patch adding the
+> vm_insert_mixed_mkwrite() call explains this a little more:
+> 
+> ***
+>   To be able to use the common 4k zero page in DAX we need to have our PTE
+>   fault path look more like our PMD fault path where a PTE entry can be
+>   marked as dirty and writeable as it is first inserted, rather than
+>   waiting for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> 
+>   Right now we can rely on having a dax_pfn_mkwrite() call because we can
+>   distinguish between these two cases in do_wp_page():
+> 
+>           case 1: 4k zero page => writable DAX storage
+>           case 2: read-only DAX storage => writeable DAX storage
+> 
+>   This distinction is made by via vm_normal_page().  vm_normal_page()
+>   returns false for the common 4k zero page, though, just as it does for
+>   DAX ptes.  Instead of special casing the DAX + 4k zero page case, we will
+>   simplify our DAX PTE page fault sequence so that it matches our DAX PMD
+>   sequence, and get rid of the dax_pfn_mkwrite() helper.  We will instead
+>   use dax_iomap_fault() to handle write-protection faults.
+> 
+>   This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+>   and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set
+>   insert_pfn() will do the work that was previously done by wp_page_reuse()
+>   as part of the dax_pfn_mkwrite() call path.
+> ***
 > 
 > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Looks good. You can add:
+The patch looks good to me. You can add:
 
 Reviewed-by: Jan Kara <jack@suse.cz>
 
+And I really like that we've got rid of these pagecache hole pages!
+
 								Honza
-
-
-> ---
->  fs/dax.c | 138 +++++++++++++++++++++++++++++++--------------------------------
->  1 file changed, 69 insertions(+), 69 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index c844a51..779dc5e 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -121,6 +121,31 @@ static int wake_exceptional_entry_func(wait_queue_entry_t *wait, unsigned int mo
->  }
->  
->  /*
-> + * We do not necessarily hold the mapping->tree_lock when we call this
-> + * function so it is possible that 'entry' is no longer a valid item in the
-> + * radix tree.  This is okay because all we really need to do is to find the
-> + * correct waitqueue where tasks might be waiting for that old 'entry' and
-> + * wake them.
-> + */
-> +void dax_wake_mapping_entry_waiter(struct address_space *mapping,
-> +		pgoff_t index, void *entry, bool wake_all)
-> +{
-> +	struct exceptional_entry_key key;
-> +	wait_queue_head_t *wq;
-> +
-> +	wq = dax_entry_waitqueue(mapping, index, entry, &key);
-> +
-> +	/*
-> +	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-> +	 * under mapping->tree_lock, ditto for entry handling in our callers.
-> +	 * So at this point all tasks that could have seen our entry locked
-> +	 * must be in the waitqueue and the following check will see them.
-> +	 */
-> +	if (waitqueue_active(wq))
-> +		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
-> +}
-> +
-> +/*
->   * Check whether the given slot is locked. The function must be called with
->   * mapping->tree_lock held
->   */
-> @@ -392,31 +417,6 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
->  	return entry;
->  }
->  
-> -/*
-> - * We do not necessarily hold the mapping->tree_lock when we call this
-> - * function so it is possible that 'entry' is no longer a valid item in the
-> - * radix tree.  This is okay because all we really need to do is to find the
-> - * correct waitqueue where tasks might be waiting for that old 'entry' and
-> - * wake them.
-> - */
-> -void dax_wake_mapping_entry_waiter(struct address_space *mapping,
-> -		pgoff_t index, void *entry, bool wake_all)
-> -{
-> -	struct exceptional_entry_key key;
-> -	wait_queue_head_t *wq;
-> -
-> -	wq = dax_entry_waitqueue(mapping, index, entry, &key);
-> -
-> -	/*
-> -	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-> -	 * under mapping->tree_lock, ditto for entry handling in our callers.
-> -	 * So at this point all tasks that could have seen our entry locked
-> -	 * must be in the waitqueue and the following check will see them.
-> -	 */
-> -	if (waitqueue_active(wq))
-> -		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
-> -}
-> -
->  static int __dax_invalidate_mapping_entry(struct address_space *mapping,
->  					  pgoff_t index, bool trunc)
->  {
-> @@ -468,50 +468,6 @@ int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
->  	return __dax_invalidate_mapping_entry(mapping, index, false);
->  }
->  
-> -/*
-> - * The user has performed a load from a hole in the file.  Allocating
-> - * a new page in the file would cause excessive storage usage for
-> - * workloads with sparse files.  We allocate a page cache page instead.
-> - * We'll kick it out of the page cache if it's ever written to,
-> - * otherwise it will simply fall out of the page cache under memory
-> - * pressure without ever having been dirtied.
-> - */
-> -static int dax_load_hole(struct address_space *mapping, void **entry,
-> -			 struct vm_fault *vmf)
-> -{
-> -	struct inode *inode = mapping->host;
-> -	struct page *page;
-> -	int ret;
-> -
-> -	/* Hole page already exists? Return it...  */
-> -	if (!radix_tree_exceptional_entry(*entry)) {
-> -		page = *entry;
-> -		goto finish_fault;
-> -	}
-> -
-> -	/* This will replace locked radix tree entry with a hole page */
-> -	page = find_or_create_page(mapping, vmf->pgoff,
-> -				   vmf->gfp_mask | __GFP_ZERO);
-> -	if (!page) {
-> -		ret = VM_FAULT_OOM;
-> -		goto out;
-> -	}
-> -
-> -finish_fault:
-> -	vmf->page = page;
-> -	ret = finish_fault(vmf);
-> -	vmf->page = NULL;
-> -	*entry = page;
-> -	if (!ret) {
-> -		/* Grab reference for PTE that is now referencing the page */
-> -		get_page(page);
-> -		ret = VM_FAULT_NOPAGE;
-> -	}
-> -out:
-> -	trace_dax_load_hole(inode, vmf, ret);
-> -	return ret;
-> -}
-> -
->  static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
->  		sector_t sector, size_t size, struct page *to,
->  		unsigned long vaddr)
-> @@ -938,6 +894,50 @@ int dax_pfn_mkwrite(struct vm_fault *vmf)
->  }
->  EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
->  
-> +/*
-> + * The user has performed a load from a hole in the file.  Allocating
-> + * a new page in the file would cause excessive storage usage for
-> + * workloads with sparse files.  We allocate a page cache page instead.
-> + * We'll kick it out of the page cache if it's ever written to,
-> + * otherwise it will simply fall out of the page cache under memory
-> + * pressure without ever having been dirtied.
-> + */
-> +static int dax_load_hole(struct address_space *mapping, void **entry,
-> +			 struct vm_fault *vmf)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	struct page *page;
-> +	int ret;
-> +
-> +	/* Hole page already exists? Return it...  */
-> +	if (!radix_tree_exceptional_entry(*entry)) {
-> +		page = *entry;
-> +		goto finish_fault;
-> +	}
-> +
-> +	/* This will replace locked radix tree entry with a hole page */
-> +	page = find_or_create_page(mapping, vmf->pgoff,
-> +				   vmf->gfp_mask | __GFP_ZERO);
-> +	if (!page) {
-> +		ret = VM_FAULT_OOM;
-> +		goto out;
-> +	}
-> +
-> +finish_fault:
-> +	vmf->page = page;
-> +	ret = finish_fault(vmf);
-> +	vmf->page = NULL;
-> +	*entry = page;
-> +	if (!ret) {
-> +		/* Grab reference for PTE that is now referencing the page */
-> +		get_page(page);
-> +		ret = VM_FAULT_NOPAGE;
-> +	}
-> +out:
-> +	trace_dax_load_hole(inode, vmf, ret);
-> +	return ret;
-> +}
-> +
->  static bool dax_range_is_aligned(struct block_device *bdev,
->  				 unsigned int offset, unsigned int length)
->  {
-> -- 
-> 2.9.4
-> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
