@@ -1,89 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D96C56B03A1
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 01:19:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c23so120468868pfe.11
-        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 22:19:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id f8si6429674pgr.494.2017.07.23.22.19.10
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 430806B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:38:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w63so23532134wrc.5
+        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 23:38:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y197si5111646wmc.123.2017.07.23.23.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jul 2017 22:19:11 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v3 12/12] mm, THP, swap: Add THP swapping out fallback counting
-Date: Mon, 24 Jul 2017 13:18:40 +0800
-Message-Id: <20170724051840.2309-13-ying.huang@intel.com>
-In-Reply-To: <20170724051840.2309-1-ying.huang@intel.com>
-References: <20170724051840.2309-1-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 23 Jul 2017 23:38:48 -0700 (PDT)
+Date: Mon, 24 Jul 2017 08:38:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
+Message-ID: <20170724063844.GA25221@dhcp22.suse.cz>
+References: <20170720141138.GJ9058@dhcp22.suse.cz>
+ <201707210647.BDH57894.MQOtFFOJHLSOFV@I-love.SAKURA.ne.jp>
+ <20170721150002.GF5944@dhcp22.suse.cz>
+ <201707220018.DAE21384.JQFLVMFHSFtOOO@I-love.SAKURA.ne.jp>
+ <20170721153353.GG5944@dhcp22.suse.cz>
+ <201707230941.BFG30203.OFHSJtFFVQLOMO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201707230941.BFG30203.OFHSJtFFVQLOMO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
+On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Sat 22-07-17 00:18:48, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > OK, so let's say you have another task just about to jump into
+> > > > out_of_memory and ... end up in the same situation.
+> > > 
+> > > Right.
+> > > 
+> > > > 
+> > > >                                                     This race is just
+> > > > unavoidable.
+> > > 
+> > > There is no perfect way (always timing dependent). But
+> > 
+> > I would rather not add a code which _pretends_ it solves something. If
+> > we see the above race a real problem in out there then we should think
+> > about how to fix it. I definitely do not want to add more hack into an
+> > already complicated code base.
+> 
+> So, how can we verify the above race a real problem?
 
-When swapping out THP (Transparent Huge Page), instead of swapping out
-the THP as a whole, sometimes we have to fallback to split the THP
-into normal pages before swapping, because no free swap clusters are
-available, or cgroup limit is exceeded, etc.  To count the number of
-the fallback, a new VM event THP_SWPOUT_FALLBACK is added, and counted
-when we fallback to split the THP.
+Try to simulate a _real_ workload and see whether we kill more tasks
+than necessary. 
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>
----
- include/linux/vm_event_item.h | 1 +
- mm/vmscan.c                   | 3 +++
- mm/vmstat.c                   | 1 +
- 3 files changed, 5 insertions(+)
+> I consider that
+> it is impossible. The " free:%lukB" field by show_free_areas() is too
+> random/inaccurate/racy/outdated for evaluating this race window.
+> 
+> Only actually calling alloc_page_from_freelist() immediately after
+> MMF_OOM_SKIP test (like Patch1 shown below) can evaluate this race window,
+> but I know that you won't allow me to add such code to the OOM killer layer.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index c75024e80eed..e02820fc2861 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -86,6 +86,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
- 		THP_SWPOUT,
-+		THP_SWPOUT_FALLBACK,
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 		BALLOON_INFLATE,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7472ddafc14a..4f7212f8ca00 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1153,6 +1153,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					if (split_huge_page_to_list(page,
- 								    page_list))
- 						goto activate_locked;
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+					count_vm_event(THP_SWPOUT_FALLBACK);
-+#endif
- 					if (!add_to_swap(page))
- 						goto activate_locked;
- 				}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index bccf426453cd..e131b51654c7 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1072,6 +1072,7 @@ const char * const vmstat_text[] = {
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
- 	"thp_swpout",
-+	"thp_swpout_fallback",
- #endif
- #ifdef CONFIG_MEMORY_BALLOON
- 	"balloon_inflate",
+Sigh. It is not about _me_ allowing you something or not. It is about
+what makes sense and under which circumstances and usual cost benefit
+evaluation. In other words, any patch has to be _justified_. I am really
+tired of repeating this simple thing over and over again.
+
+Anyway, the change you are proposing is wrong for two reasons. First,
+you are in non-preemptible context in oom_evaluate_task so you cannot
+call into get_page_from_freelist (node_reclaim) and secondly it is a
+very specific hack while there is a whole category of possible races
+where someone frees memory (e.g. and exiting task which smells like what
+you see in your testing) while we are selecting an oom victim which
+can be quite an expensive operation. Such races are unfortunate but
+unavoidable unless we synchronize oom kill with any memory freeing which
+smells like a no-go to me. We can try a last allocation attempt right
+before we go and kill something (which still wouldn't be race free) but
+that might cause other issues - e.g. prolonged trashing without ever
+killing something - but I haven't evaluated those to be honest.
+
+[...]
+
+> The result shows that this race is highly timing dependent, but it
+> at least shows that it is not rare case that get_page_from_freelist()
+> can succeed after we checked that victim's mm already has MMF_OOM_SKIP.
+
+It might be not rare for the extreme test case you are using. Do not
+forget you spawn many tasks and them exiting might race with the oom
+selection. I am really skeptical this reflects a real usecase.
+
+> So, how can we check the above race a real problem? I consider that
+> it is impossible.
+
+And so I would be rather reluctant to add more hacks^Wheuristics...
+
 -- 
-2.13.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
