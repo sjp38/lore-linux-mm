@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 884116B0491
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u17so142036764pfa.6
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:58 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 68si7555361pgc.96.2017.07.24.16.02.57
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A59C6B0492
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:03:00 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p17so3422031wmd.5
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:03:00 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id f40si10433052wra.464.2017.07.24.16.02.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:57 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:59 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 19/23] percpu: update alloc path to only scan if contig hints are broken
-Date: Mon, 24 Jul 2017 19:02:16 -0400
-Message-ID: <20170724230220.21774-20-dennisz@fb.com>
+Subject: [PATCH v2 18/23] percpu: keep track of the best offset for contig hints
+Date: Mon, 24 Jul 2017 19:02:15 -0400
+Message-ID: <20170724230220.21774-19-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,108 +24,62 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-Metadata is kept per block to keep track of where the contig hints are.
-Scanning can be avoided when the contig hints are not broken. In that
-case, left and right contigs have to be managed manually.
+This patch makes the contig hint starting offset optimization from the
+previous patch as honest as it can be. For both chunk and block starting
+offsets, make sure it keeps the starting offset with the best alignment.
 
-This patch changes the allocation path hint updating to only scan when
-contig hints are broken.
+The block skip optimization is added in a later patch when the
+pcpu_find_block_fit iterator is swapped in.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 56 insertions(+), 3 deletions(-)
+ mm/percpu.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/mm/percpu.c b/mm/percpu.c
-index aaad747..2bf2cfc 100644
+index 3732373..aaad747 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -514,6 +514,10 @@ static void pcpu_block_refresh_hint(struct pcpu_chunk *chunk, int index)
-  * @chunk: chunk of interest
-  * @bit_off: chunk offset
-  * @bits: size of request
-+ *
-+ * Updates metadata for the allocation path.  The metadata only has to be
-+ * refreshed by a full scan iff the chunk's contig hint is broken.  Block level
-+ * scans are required if the block's contig hint is broken.
+@@ -394,12 +394,18 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
+  * @bits: size of free area
+  *
+  * This updates the chunk's contig hint and starting offset given a free area.
++ * Choose the best starting offset if the contig hint is equal.
   */
- static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
- 					 int bits)
-@@ -538,14 +542,56 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
- 
- 	/*
- 	 * Update s_block.
-+	 * block->first_free must be updated if the allocation takes its place.
-+	 * If the allocation breaks the contig_hint, a scan is required to
-+	 * restore this hint.
- 	 */
--	pcpu_block_refresh_hint(chunk, s_index);
-+	if (s_off == s_block->first_free)
-+		s_block->first_free = find_next_zero_bit(
-+					pcpu_index_alloc_map(chunk, s_index),
-+					PCPU_BITMAP_BLOCK_BITS,
-+					s_off + bits);
-+
-+	if (s_off >= s_block->contig_hint_start &&
-+	    s_off < s_block->contig_hint_start + s_block->contig_hint) {
-+		/* block contig hint is broken - scan to fix it */
-+		pcpu_block_refresh_hint(chunk, s_index);
-+	} else {
-+		/* update left and right contig manually */
-+		s_block->left_free = min(s_block->left_free, s_off);
-+		if (s_index == e_index)
-+			s_block->right_free = min_t(int, s_block->right_free,
-+					PCPU_BITMAP_BLOCK_BITS - e_off);
-+		else
-+			s_block->right_free = 0;
-+	}
- 
- 	/*
- 	 * Update e_block.
- 	 */
- 	if (s_index != e_index) {
--		pcpu_block_refresh_hint(chunk, e_index);
-+		/*
-+		 * When the allocation is across blocks, the end is along
-+		 * the left part of the e_block.
-+		 */
-+		e_block->first_free = find_next_zero_bit(
-+				pcpu_index_alloc_map(chunk, e_index),
-+				PCPU_BITMAP_BLOCK_BITS, e_off);
-+
-+		if (e_off == PCPU_BITMAP_BLOCK_BITS) {
-+			/* reset the block */
-+			e_block++;
-+		} else {
-+			if (e_off > e_block->contig_hint_start) {
-+				/* contig hint is broken - scan to fix it */
-+				pcpu_block_refresh_hint(chunk, e_index);
-+			} else {
-+				e_block->left_free = 0;
-+				e_block->right_free =
-+					min_t(int, e_block->right_free,
-+					      PCPU_BITMAP_BLOCK_BITS - e_off);
-+			}
-+		}
- 
- 		/* update in-between md_blocks */
- 		for (block = s_block + 1; block < e_block; block++) {
-@@ -555,7 +601,14 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
- 		}
+ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
+ {
+ 	if (bits > chunk->contig_bits) {
+ 		chunk->contig_bits_start = bit_off;
+ 		chunk->contig_bits = bits;
++	} else if (bits == chunk->contig_bits && chunk->contig_bits_start &&
++		   (!bit_off ||
++		    __ffs(bit_off) > __ffs(chunk->contig_bits_start))) {
++		/* use the start with the best alignment */
++		chunk->contig_bits_start = bit_off;
  	}
- 
--	pcpu_chunk_refresh_hint(chunk);
-+	/*
-+	 * The only time a full chunk scan is required is if the chunk
-+	 * contig hint is broken.  Otherwise, it means a smaller space
-+	 * was used and therefore the chunk contig hint is still correct.
-+	 */
-+	if (bit_off >= chunk->contig_bits_start  &&
-+	    bit_off < chunk->contig_bits_start + chunk->contig_bits)
-+		pcpu_chunk_refresh_hint(chunk);
  }
  
- /**
+@@ -454,7 +460,8 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
+  * @end: end offset in block
+  *
+  * Updates a block given a known free area.  The region [start, end) is
+- * expected to be the entirety of the free area within a block.
++ * expected to be the entirety of the free area within a block.  Chooses
++ * the best starting offset if the contig hints are equal.
+  */
+ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
+ {
+@@ -470,6 +477,10 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
+ 	if (contig > block->contig_hint) {
+ 		block->contig_hint_start = start;
+ 		block->contig_hint = contig;
++	} else if (block->contig_hint_start && contig == block->contig_hint &&
++		   (!start || __ffs(start) > __ffs(block->contig_hint_start))) {
++		/* use the start with the best alignment */
++		block->contig_hint_start = start;
+ 	}
+ }
+ 
 -- 
 2.9.3
 
