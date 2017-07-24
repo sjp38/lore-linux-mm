@@ -1,31 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 183176B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 03:01:18 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 125so141962511pgi.2
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:01:18 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id u15si5018001plk.932.2017.07.24.00.01.16
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 80F126B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 03:03:36 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id v17so82360390ywh.15
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:03:36 -0700 (PDT)
+Received: from mail-yw0-x22d.google.com (mail-yw0-x22d.google.com. [2607:f8b0:4002:c05::22d])
+        by mx.google.com with ESMTPS id h64si2454732ybc.279.2017.07.24.00.03.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 00:01:16 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id s70so43555387pfs.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:01:16 -0700 (PDT)
-Date: Mon, 24 Jul 2017 00:01:13 -0700 (PDT)
+        Mon, 24 Jul 2017 00:03:35 -0700 (PDT)
+Received: by mail-yw0-x22d.google.com with SMTP id i6so9486087ywb.1
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 00:03:35 -0700 (PDT)
+Date: Mon, 24 Jul 2017 00:03:32 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-In-Reply-To: <201707201944.IJI05796.VLFJFFtSQMOOOH@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.LSU.2.11.1707232339430.2154@eggly.anvils>
-References: <20170710074842.23175-1-mhocko@kernel.org> <alpine.LSU.2.11.1707191823190.2445@eggly.anvils> <201707201944.IJI05796.VLFJFFtSQMOOOH@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170720132225.GI9058@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1707240001210.2154@eggly.anvils>
+References: <20170710074842.23175-1-mhocko@kernel.org> <alpine.LSU.2.11.1707191823190.2445@eggly.anvils> <20170720132225.GI9058@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: hughd@google.com, mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 20 Jul 2017, Tetsuo Handa wrote:
-> Hugh Dickins wrote:
+On Thu, 20 Jul 2017, Michal Hocko wrote:
+> On Wed 19-07-17 18:54:40, Hugh Dickins wrote:
+> [...]
 > > You probably won't welcome getting into alternatives at this late stage;
 > > but after hacking around it one way or another because of its pointless
 > > lockups, I lost patience with that too_many_isolated() loop a few months
@@ -47,38 +48,6 @@ On Thu, 20 Jul 2017, Tetsuo Handa wrote:
 > > loop or an arbitrary delay; and without having to worry (as we often did)
 > > about whether those numbers in too_many_isolated() are really appropriate.
 > > No premature OOMs complained of yet.
-> 
-> Roughly speaking, there is a moment where shrink_inactive_list() acts
-> like below.
-> 
-> 	bool got_mutex = false;
-> 
-> 	if (!current_is_kswapd()) {
-> 		if (mutex_lock_killable(&pgdat->too_many_isolated))
-> 			return SWAP_CLUSTER_MAX;
-> 		got_mutex = true;
-> 	}
-> 
-> 	// kswapd is blocked here waiting for !current_is_kswapd().
-
-That would be a shame, for kswapd to wait for !current_is_kswapd()!
-
-But seriously, I think I understand what you mean by that, you're
-thinking that kswapd would be waiting on some other task to clear
-the too_many_isolated() condition?
-
-No, it does not work that way: kswapd (never seeing too_many_isolated()
-because that always says false when current_is_kswapd()) never tries to
-take the pgdat->too_many_isolated mutex itself: it does not wait there
-at all, although other tasks may be waiting there at the time.
-
-Perhaps my naming the mutex "too_many_isolated", same as the function,
-is actually confusing, when I had intended it to be helpful.
-
-> 
-> 	if (got_mutex)
-> 		mutex_unlock(&pgdat->too_many_isolated);
-> 
 > > 
 > > But that was on a different kernel, and there I did have to make sure
 > > that PF_MEMALLOC always prevented us from nesting: I'm not certain of
@@ -87,12 +56,12 @@ is actually confusing, when I had intended it to be helpful.
 > > if you're interested in that alternative: if you are, then I'll go ahead
 > > and make it into an actual patch against v4.13-rc.
 > 
-> I don't know what your actual patch looks like, but the problem is that
-> pgdat->too_many_isolated waits for kswapd while kswapd waits for
-> pgdat->too_many_isolated; nobody can unlock pgdat->too_many_isolated if
-> once we hit it.
+> I would rather get rid of any additional locking here and my ultimate
+> goal is to make throttling at the page allocator layer rather than
+> inside the reclaim.
 
-Not so (and we'd hardly be finding it a useful patch if that were so).
+Fair enough, I'm certainly in no hurry to send the patch,
+but thought it worth mentioning.
 
 Hugh
 
