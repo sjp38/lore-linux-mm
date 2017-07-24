@@ -1,66 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EB7546B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 12:55:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id d5so12867159pfg.3
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 09:55:11 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p5si7057509pgk.204.2017.07.24.09.55.10
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1355B6B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 13:06:22 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c23so134486741pfe.11
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 10:06:22 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id r2si5515156pgo.574.2017.07.24.10.06.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 09:55:11 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm/swap: Remove lock_initialized flag from
- swap_slots_cache
-References: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
- <867d1fb070644e6d5f0ac7780f63e75259b82cc3.1500677066.git.tim.c.chen@linux.intel.com>
- <878tjeh96m.fsf@yhuang-dev.intel.com>
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Message-ID: <e6445164-ab4b-86cc-731f-5f6509a7449d@linux.intel.com>
-Date: Mon, 24 Jul 2017 09:54:50 -0700
-MIME-Version: 1.0
-In-Reply-To: <878tjeh96m.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Mon, 24 Jul 2017 10:06:20 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v5 0/5] DAX common 4k zero page
+Date: Mon, 24 Jul 2017 11:06:11 -0600
+Message-Id: <20170724170616.25810-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On 07/23/2017 07:15 PM, Huang, Ying wrote:
-> Hi, Tim,
-> 
-> Tim Chen <tim.c.chen@linux.intel.com> writes:
-> 
->> We will only reach the lock initialization code
->> in alloc_swap_slot_cache when the cpu's swap_slots_cache's slots
->> have not been allocated and swap_slots_cache has not been initialized
->> previously.  So the lock_initialized check is redundant and unnecessary.
->> Remove lock_initialized flag from swap_slots_cache to save memory.
-> 
-> Is there a race condition with CPU offline/online when preempt is enabled?
-> 
-> CPU A                                   CPU B
-> -----                                   -----
->                                         get_swap_page()
->                                           get cache[B], cache[B]->slots != NULL
->                                           preempted and moved to CPU A
->                                         be offlined
->                                         be onlined
->                                           alloc_swap_slot_cache()
-> mutex_lock(cache[B]->alloc_lock)
->                                             mutex_init(cache[B]->alloc_lock) !!!
-> 
-> The cache[B]->alloc_lock will be reinitialized when it is still held.
+Changes since v4:
+ - Added static __vm_insert_mixed() to mm/memory.c that holds the common
+   code for both vm_insert_mixed() and vm_insert_mixed_mkwrite() so we
+   don't have duplicate code and we don't have to pass boolean flags
+   around.  (Dan & Jan)
 
-Looks like for this case the lock_initialized flag is still needed
-to prevent such races and prevent re-initialization of taken locks.
+ - Added a comment for the PFN sanity checking done in the mkwrite case of
+   insert_pfn().
 
-Okay, let's scrap patch 2.
+ - Added Jan's reviewed-by tags.
 
-Thanks.
+This series has passed a full xfstests run on both XFS and ext4.
 
-Tim
+---
+
+When servicing mmap() reads from file holes the current DAX code allocates
+a page cache page of all zeroes and places the struct page pointer in the
+mapping->page_tree radix tree.  This has three major drawbacks:
+
+1) It consumes memory unnecessarily.  For every 4k page that is read via a
+DAX mmap() over a hole, we allocate a new page cache page.  This means that
+if you read 1GiB worth of pages, you end up using 1GiB of zeroed memory.
+
+2) It is slower than using a common zero page because each page fault has
+more work to do.  Instead of just inserting a common zero page we have to
+allocate a page cache page, zero it, and then insert it.
+
+3) The fact that we had to check for both DAX exceptional entries and for
+page cache pages in the radix tree made the DAX code more complex.
+
+This series solves these issues by following the lead of the DAX PMD code
+and using a common 4k zero page instead.  This reduces memory usage and
+decreases latencies for some workloads, and it simplifies the DAX code,
+removing over 100 lines in total.
+
+Ross Zwisler (5):
+  mm: add vm_insert_mixed_mkwrite()
+  dax: relocate some dax functions
+  dax: use common 4k zero page for dax mmap reads
+  dax: remove DAX code from page_cache_tree_insert()
+  dax: move all DAX radix tree defs to fs/dax.c
+
+ Documentation/filesystems/dax.txt |   5 +-
+ fs/dax.c                          | 345 ++++++++++++++++----------------------
+ fs/ext2/file.c                    |  25 +--
+ fs/ext4/file.c                    |  32 +---
+ fs/xfs/xfs_file.c                 |   2 +-
+ include/linux/dax.h               |  45 -----
+ include/linux/mm.h                |   2 +
+ include/trace/events/fs_dax.h     |   2 -
+ mm/filemap.c                      |  13 +-
+ mm/memory.c                       |  50 +++++-
+ 10 files changed, 196 insertions(+), 325 deletions(-)
+
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
