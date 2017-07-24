@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 713606B02F4
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:43 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r7so26292824wrb.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:43 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id p3si13514673wrd.273.2017.07.24.16.02.41
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9B96B02FD
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p17so3421276wmd.5
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:45 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id f185si1962699wmg.188.2017.07.24.16.02.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:41 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:44 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 03/23] percpu: remove has_reserved from pcpu_chunk
-Date: Mon, 24 Jul 2017 19:02:00 -0400
-Message-ID: <20170724230220.21774-4-dennisz@fb.com>
+Subject: [PATCH v2 05/23] percpu: unify allocation of schunk and dchunk
+Date: Mon, 24 Jul 2017 19:02:02 -0400
+Message-ID: <20170724230220.21774-6-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,72 +24,115 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-Prior this variable was used to manage statistics when the first chunk
-had a reserved region. The previous patch introduced start_offset to
-keep track of the offset by value rather than boolean. Therefore,
-has_reserved can be removed.
+Create a common allocator for first chunk initialization,
+pcpu_alloc_first_chunk. Comments for this function will be added in a
+later patch once the bitmap allocator is added.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu-internal.h | 5 -----
- mm/percpu-stats.c    | 2 +-
- mm/percpu.c          | 3 ---
- 3 files changed, 1 insertion(+), 9 deletions(-)
+ mm/percpu.c | 73 +++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 40 insertions(+), 33 deletions(-)
 
-diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
-index 92fc012..c876b5b 100644
---- a/mm/percpu-internal.h
-+++ b/mm/percpu-internal.h
-@@ -23,11 +23,6 @@ struct pcpu_chunk {
- 	void			*data;		/* chunk data */
- 	int			first_free;	/* no free below this */
- 	bool			immutable;	/* no [de]population allowed */
--	bool			has_reserved;	/* Indicates if chunk has reserved space
--						   at the beginning. Reserved chunk will
--						   contain reservation for static chunk.
--						   Dynamic chunk will contain reservation
--						   for static and reserved chunks. */
- 	int			start_offset;	/* the overlap with the previous
- 						   region to have a page aligned
- 						   base_addr */
-diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
-index 44e561d..32f3550 100644
---- a/mm/percpu-stats.c
-+++ b/mm/percpu-stats.c
-@@ -58,7 +58,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
- 	int cur_min_alloc = 0, cur_med_alloc = 0, cur_max_alloc = 0;
- 
- 	alloc_sizes = buffer;
--	s_index = chunk->has_reserved ? 1 : 0;
-+	s_index = (chunk->start_offset) ? 1 : 0;
- 
- 	/* find last allocation */
- 	last_alloc = -1;
 diff --git a/mm/percpu.c b/mm/percpu.c
-index e94f0d1..470e1a0 100644
+index 851aa81..2e785a7 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -727,7 +727,6 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
- 	chunk->map[0] = 0;
- 	chunk->map[1] = pcpu_unit_size | 1;
- 	chunk->map_used = 1;
--	chunk->has_reserved = false;
+@@ -708,6 +708,36 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
+ 	pcpu_chunk_relocate(chunk, oslot);
+ }
  
- 	INIT_LIST_HEAD(&chunk->list);
- 	INIT_LIST_HEAD(&chunk->map_extend_list);
-@@ -1704,7 +1703,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	schunk->map[1] = schunk->start_offset;
- 	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
- 	schunk->map_used = 2;
--	schunk->has_reserved = true;
++static struct pcpu_chunk * __init pcpu_alloc_first_chunk(void *base_addr,
++							 int start_offset,
++							 int map_size,
++							 int *map,
++							 int init_map_size)
++{
++	struct pcpu_chunk *chunk;
++
++	chunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
++	INIT_LIST_HEAD(&chunk->list);
++	INIT_LIST_HEAD(&chunk->map_extend_list);
++	chunk->base_addr = base_addr;
++	chunk->start_offset = start_offset;
++	chunk->map = map;
++	chunk->map_alloc = init_map_size;
++
++	/* manage populated page bitmap */
++	chunk->immutable = true;
++	bitmap_fill(chunk->populated, pcpu_unit_pages);
++	chunk->nr_populated = pcpu_unit_pages;
++
++	chunk->contig_hint = chunk->free_size = map_size;
++	chunk->map[0] = 1;
++	chunk->map[1] = chunk->start_offset;
++	chunk->map[2] = (chunk->start_offset + chunk->free_size) | 1;
++	chunk->map_used = 2;
++
++	return chunk;
++}
++
+ static struct pcpu_chunk *pcpu_alloc_chunk(void)
+ {
+ 	struct pcpu_chunk *chunk;
+@@ -1570,6 +1600,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	unsigned int cpu;
+ 	int *unit_map;
+ 	int group, unit, i;
++	int map_size, start_offset;
+ 
+ #define PCPU_SETUP_BUG_ON(cond)	do {					\
+ 	if (unlikely(cond)) {						\
+@@ -1678,44 +1709,20 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	 * covers static area + reserved area (mostly used for module
+ 	 * static percpu allocation).
+ 	 */
+-	schunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
+-	INIT_LIST_HEAD(&schunk->list);
+-	INIT_LIST_HEAD(&schunk->map_extend_list);
+-	schunk->base_addr = base_addr;
+-	schunk->start_offset = ai->static_size;
+-	schunk->map = smap;
+-	schunk->map_alloc = ARRAY_SIZE(smap);
+-	schunk->immutable = true;
+-	bitmap_fill(schunk->populated, pcpu_unit_pages);
+-	schunk->nr_populated = pcpu_unit_pages;
+-
+-	schunk->free_size = ai->reserved_size ?: ai->dyn_size;
+-	schunk->contig_hint = schunk->free_size;
+-	schunk->map[0] = 1;
+-	schunk->map[1] = schunk->start_offset;
+-	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
+-	schunk->map_used = 2;
++	start_offset = ai->static_size;
++	map_size = ai->reserved_size ?: ai->dyn_size;
++	schunk = pcpu_alloc_first_chunk(base_addr, start_offset, map_size,
++					smap, ARRAY_SIZE(smap));
  
  	/* init dynamic chunk if necessary */
- 	if (dyn_size) {
-@@ -1724,7 +1722,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 		dchunk->map[1] = dchunk->start_offset;
- 		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
- 		dchunk->map_used = 2;
--		dchunk->has_reserved = true;
+ 	if (ai->reserved_size) {
+ 		pcpu_reserved_chunk = schunk;
+ 
+-		dchunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
+-		INIT_LIST_HEAD(&dchunk->list);
+-		INIT_LIST_HEAD(&dchunk->map_extend_list);
+-		dchunk->base_addr = base_addr;
+-		dchunk->start_offset = ai->static_size + ai->reserved_size;
+-		dchunk->map = dmap;
+-		dchunk->map_alloc = ARRAY_SIZE(dmap);
+-		dchunk->immutable = true;
+-		bitmap_fill(dchunk->populated, pcpu_unit_pages);
+-		dchunk->nr_populated = pcpu_unit_pages;
+-
+-		dchunk->contig_hint = dchunk->free_size = ai->dyn_size;
+-		dchunk->map[0] = 1;
+-		dchunk->map[1] = dchunk->start_offset;
+-		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
+-		dchunk->map_used = 2;
++		start_offset = ai->static_size + ai->reserved_size;
++		map_size = ai->dyn_size;
++		dchunk = pcpu_alloc_first_chunk(base_addr, start_offset,
++						map_size, dmap,
++						ARRAY_SIZE(dmap));
  	}
  
  	/* link the first chunk in */
