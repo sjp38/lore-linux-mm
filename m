@@ -1,122 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 041976B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 05:45:57 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a186so5415621wmh.9
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:45:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e70si626551wme.194.2017.07.24.02.45.55
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB096B02B4
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 05:46:13 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t187so75954525pfb.0
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:46:13 -0700 (PDT)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.124])
+        by mx.google.com with ESMTPS id q3si6740398pgf.182.2017.07.24.02.46.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 02:45:55 -0700 (PDT)
-Date: Mon, 24 Jul 2017 10:45:53 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: Always flush VMA ranges affected by zap_page_range
-Message-ID: <20170724094553.zf6jq3yjvkn5mfcr@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 24 Jul 2017 02:46:12 -0700 (PDT)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [PATCH] zsmalloc: zs_page_migrate: skip unnecessary loops but not return -EBUSY if zspage is not inuse
+Date: Mon, 24 Jul 2017 17:45:35 +0800
+Message-ID: <1500889535-19648-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-Nadav Amit report zap_page_range only specifies that the caller protect
-the VMA list but does not specify whether it is held for read or write
-with callers using either. madvise holds mmap_sem for read meaning that a
-parallel zap operation can unmap PTEs which are then potentially skipped
-by madvise which potentially returns with stale TLB entries present. While
-the API could be extended, it would be a difficult API to use. This patch
-causes zap_page_range() to always consider flushing the full affected
-range. For small ranges or sparsely populated mappings, this may result
-in one additional spurious TLB flush. For larger ranges, it is possible
-that the TLB has already been flushed and the overhead is negligible.
-Either way, this approach is safer overall and avoids stale entries being
-present when madvise returns.
+The first version is in [1].
 
-This can be illustrated with the following, slightly modified, program
-provided by Nadav Amit. With the patch applied, it has an exit code of 0
-indicating a stale TLB entry did not leak to userspace.
+Got -EBUSY from zs_page_migrate will make migration
+slow (retry) or fail (zs_page_putback will schedule_work free_work,
+but it cannot ensure the success).
 
----8<---
+I noticed this issue because my Kernel patched [2]
+that will remove retry in __alloc_contig_migrate_range.
+This retry willhandle the -EBUSY because it will re-isolate the page
+and re-call migrate_pages.
+Without it will make cma_alloc fail at once with -EBUSY.
 
-volatile int sync_step = 0;
-volatile char *p;
+According to the review from Minchan Kim in [3], I update the patch
+to skip unnecessary loops but not return -EBUSY if zspage is not inuse.
 
-static inline unsigned long rdtsc()
-{
-	unsigned long hi, lo;
-	__asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
-	 return lo | (hi << 32);
-}
+Following is what I got with highalloc-performance in a vbox with 2
+cpu 1G memory 512 zram as swap.  And the swappiness is set to 100.
+                                   ori          ne
+                                  orig         new
+Minor Faults                  50805113    50830235
+Major Faults                     43918       56530
+Swap Ins                         42087       55680
+Swap Outs                        89718      104700
+Allocation stalls                    0           0
+DMA allocs                       57787       52364
+DMA32 allocs                  47964599    48043563
+Normal allocs                        0           0
+Movable allocs                       0           0
+Direct pages scanned             45493       23167
+Kswapd pages scanned           1565222     1725078
+Kswapd pages reclaimed         1342222     1503037
+Direct pages reclaimed           45615       25186
+Kswapd efficiency                  85%         87%
+Kswapd velocity               1897.101    1949.042
+Direct efficiency                 100%        108%
+Direct velocity                 55.139      26.175
+Percentage direct scans             2%          1%
+Zone normal velocity          1952.240    1975.217
+Zone dma32 velocity              0.000       0.000
+Zone dma velocity                0.000       0.000
+Page writes by reclaim       89764.000  105233.000
+Page writes file                    46         533
+Page writes anon                 89718      104700
+Page reclaim immediate           21457        3699
+Sector Reads                   3259688     3441368
+Sector Writes                  3667252     3754836
+Page rescued immediate               0           0
+Slabs scanned                  1042872     1160855
+Direct inode steals               8042       10089
+Kswapd inode steals              54295       29170
+Kswapd skipped wait                  0           0
+THP fault alloc                    175         154
+THP collapse alloc                 226         289
+THP splits                           0           0
+THP fault fallback                  11          14
+THP collapse fail                    3           2
+Compaction stalls                  536         646
+Compaction success                 322         358
+Compaction failures                214         288
+Page migrate success            119608      111063
+Page migrate failure              2723        2593
+Compaction pages isolated       250179      232652
+Compaction migrate scanned     9131832     9942306
+Compaction free scanned        2093272     2613998
+Compaction cost                    192         189
+NUMA alloc hit                47124555    47193990
+NUMA alloc miss                      0           0
+NUMA interleave hit                  0           0
+NUMA alloc local              47124555    47193990
+NUMA base PTE updates                0           0
+NUMA huge PMD updates                0           0
+NUMA page range updates              0           0
+NUMA hint faults                     0           0
+NUMA hint local faults               0           0
+NUMA hint local percent            100         100
+NUMA pages migrated                  0           0
+AutoNUMA cost                       0%          0%
 
-static inline void wait_rdtsc(unsigned long cycles)
-{
-	unsigned long tsc = rdtsc();
+[1]: https://lkml.org/lkml/2017/7/14/93
+[2]: https://lkml.org/lkml/2014/5/28/113
+[3]: https://lkml.org/lkml/2017/7/21/10
 
-	while (rdtsc() - tsc < cycles);
-}
-
-void *big_madvise_thread(void *ign)
-{
-	sync_step = 1;
-	while (sync_step != 2);
-	madvise((void*)p, PAGE_SIZE * N_PAGES, MADV_DONTNEED);
-}
-
-int main(void)
-{
-	pthread_t aux_thread;
-
-	p = mmap(0, PAGE_SIZE * N_PAGES, PROT_READ|PROT_WRITE,
-		 MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-
-	memset((void*)p, 8, PAGE_SIZE * N_PAGES);
-
-	pthread_create(&aux_thread, NULL, big_madvise_thread, NULL);
-	while (sync_step != 1);
-
-	*p = 8;		// Cache in TLB
-	sync_step = 2;
-	wait_rdtsc(100000);
-	madvise((void*)p, PAGE_SIZE, MADV_DONTNEED);
-	printf("data: %d (%s)\n", *p, (*p == 8 ? "stale, broken" : "cleared, fine"));
-	return *p == 8 ? -1 : 0;
-}
----8<---
-
-Reported-by: Nadav Amit <nadav.amit@gmail.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
 ---
- mm/memory.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ mm/zsmalloc.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index bb11c474857e..b93b51f56ee4 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1483,8 +1483,20 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
- 	tlb_gather_mmu(&tlb, mm, start, end);
- 	update_hiwater_rss(mm);
- 	mmu_notifier_invalidate_range_start(mm, start, end);
--	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
-+	for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
- 		unmap_single_vma(&tlb, vma, start, end, NULL);
-+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index d41edd2..c2c7ba9 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1997,8 +1997,11 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 
+ 	spin_lock(&class->lock);
+ 	if (!get_zspage_inuse(zspage)) {
+-		ret = -EBUSY;
+-		goto unlock_class;
 +		/*
-+		 * zap_page_range does not specify whether mmap_sem should be
-+		 * held for read or write. That allows parallel zap_page_range
-+		 * operations to unmap a PTE and defer a flush meaning that
-+		 * this call observes pte_none and fails to flush the TLB.
-+		 * Rather than adding a complex API, ensure that no stale
-+		 * TLB entries exist when this call returns.
++		 * Set "offset" to end of the page so that every loops
++		 * skips unnecessary object scanning.
 +		 */
-+		__tlb_adjust_range(&tlb, start, end);
-+	}
++		offset = PAGE_SIZE;
+ 	}
+ 
+ 	pos = offset;
+@@ -2066,7 +2069,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 		}
+ 	}
+ 	kunmap_atomic(s_addr);
+-unlock_class:
 +
- 	mmu_notifier_invalidate_range_end(mm, start, end);
- 	tlb_finish_mmu(&tlb, start, end);
- }
+ 	spin_unlock(&class->lock);
+ 	migrate_write_unlock(zspage);
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
