@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A59C6B0492
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A946B0493
 	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:03:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p17so3422031wmd.5
+Received: by mail-pg0-f69.google.com with SMTP id c14so165083678pgn.11
         for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:03:00 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id f40si10433052wra.464.2017.07.24.16.02.58
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id y2si7533629pgr.803.2017.07.24.16.02.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 24 Jul 2017 16:02:59 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 18/23] percpu: keep track of the best offset for contig hints
-Date: Mon, 24 Jul 2017 19:02:15 -0400
-Message-ID: <20170724230220.21774-19-dennisz@fb.com>
+Subject: [PATCH v2 21/23] percpu: use metadata blocks to update the chunk contig hint
+Date: Mon, 24 Jul 2017 19:02:18 -0400
+Message-ID: <20170724230220.21774-22-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,62 +24,127 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-This patch makes the contig hint starting offset optimization from the
-previous patch as honest as it can be. For both chunk and block starting
-offsets, make sure it keeps the starting offset with the best alignment.
-
-The block skip optimization is added in a later patch when the
-pcpu_find_block_fit iterator is swapped in.
+The largest free region will either be a block level contig hint or an
+aggregate over the left_free and right_free areas of blocks. This is a
+much smaller set of free areas that need to be checked than a full
+traverse.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu.c | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ mm/percpu.c | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 70 insertions(+), 10 deletions(-)
 
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 3732373..aaad747 100644
+index 426548a..9e4192c 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -394,12 +394,18 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
-  * @bits: size of free area
-  *
-  * This updates the chunk's contig hint and starting offset given a free area.
-+ * Choose the best starting offset if the contig hint is equal.
-  */
- static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
- {
- 	if (bits > chunk->contig_bits) {
- 		chunk->contig_bits_start = bit_off;
- 		chunk->contig_bits = bits;
-+	} else if (bits == chunk->contig_bits && chunk->contig_bits_start &&
-+		   (!bit_off ||
-+		    __ffs(bit_off) > __ffs(chunk->contig_bits_start))) {
-+		/* use the start with the best alignment */
-+		chunk->contig_bits_start = bit_off;
- 	}
+@@ -306,6 +306,67 @@ static unsigned long pcpu_block_off_to_off(int index, int off)
  }
  
-@@ -454,7 +460,8 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
-  * @end: end offset in block
+ /**
++ * pcpu_next_md_free_region - finds the next hint free area
++ * @chunk: chunk of interest
++ * @bit_off: chunk offset
++ * @bits: size of free area
++ *
++ * Helper function for pcpu_for_each_md_free_region.  It checks
++ * block->contig_hint and performs aggregation across blocks to find the
++ * next hint.  It modifies bit_off and bits in-place to be consumed in the
++ * loop.
++ */
++static void pcpu_next_md_free_region(struct pcpu_chunk *chunk, int *bit_off,
++				     int *bits)
++{
++	int i = pcpu_off_to_block_index(*bit_off);
++	int block_off = pcpu_off_to_block_off(*bit_off);
++	struct pcpu_block_md *block;
++
++	*bits = 0;
++	for (block = chunk->md_blocks + i; i < pcpu_chunk_nr_blocks(chunk);
++	     block++, i++) {
++		/* handles contig area across blocks */
++		if (*bits) {
++			*bits += block->left_free;
++			if (block->left_free == PCPU_BITMAP_BLOCK_BITS)
++				continue;
++			return;
++		}
++
++		/*
++		 * This checks three things.  First is there a contig_hint to
++		 * check.  Second, have we checked this hint before by
++		 * comparing the block_off.  Third, is this the same as the
++		 * right contig hint.  In the last case, it spills over into
++		 * the next block and should be handled by the contig area
++		 * across blocks code.
++		 */
++		*bits = block->contig_hint;
++		if (*bits && block->contig_hint_start >= block_off &&
++		    *bits + block->contig_hint_start < PCPU_BITMAP_BLOCK_BITS) {
++			*bit_off = pcpu_block_off_to_off(i,
++					block->contig_hint_start);
++			return;
++		}
++
++		*bits = block->right_free;
++		*bit_off = (i + 1) * PCPU_BITMAP_BLOCK_BITS - block->right_free;
++	}
++}
++
++/*
++ * Metadata free area iterators.  These perform aggregation of free areas
++ * based on the metadata blocks and return the offset @bit_off and size in
++ * bits of the free area @bits.
++ */
++#define pcpu_for_each_md_free_region(chunk, bit_off, bits)		\
++	for (pcpu_next_md_free_region((chunk), &(bit_off), &(bits));	\
++	     (bit_off) < pcpu_chunk_map_bits((chunk));			\
++	     (bit_off) += (bits) + 1,					\
++	     pcpu_next_md_free_region((chunk), &(bit_off), &(bits)))
++
++/**
+  * pcpu_mem_zalloc - allocate memory
+  * @size: bytes to allocate
   *
-  * Updates a block given a known free area.  The region [start, end) is
-- * expected to be the entirety of the free area within a block.
-+ * expected to be the entirety of the free area within a block.  Chooses
-+ * the best starting offset if the contig hints are equal.
+@@ -418,29 +479,28 @@ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
+  * pcpu_chunk_refresh_hint - updates metadata about a chunk
+  * @chunk: chunk of interest
+  *
+- * Iterates over the chunk to find the largest free area.
++ * Iterates over the metadata blocks to find the largest contig area.
++ * It also counts the populated pages and uses the delta to update the
++ * global count.
+  *
+  * Updates:
+  *      chunk->contig_bits
+  *      chunk->contig_bits_start
+- *      nr_empty_pop_pages
++ *      nr_empty_pop_pages (chunk and global)
   */
- static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
+ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
  {
-@@ -470,6 +477,10 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
- 	if (contig > block->contig_hint) {
- 		block->contig_hint_start = start;
- 		block->contig_hint = contig;
-+	} else if (block->contig_hint_start && contig == block->contig_hint &&
-+		   (!start || __ffs(start) > __ffs(block->contig_hint_start))) {
-+		/* use the start with the best alignment */
-+		block->contig_hint_start = start;
- 	}
- }
+-	int bits, nr_empty_pop_pages;
+-	int rs, re; /* region start, region end */
++	int bit_off, bits, nr_empty_pop_pages;
  
+ 	/* clear metadata */
+ 	chunk->contig_bits = 0;
+ 
++	bit_off = chunk->first_bit;
+ 	bits = nr_empty_pop_pages = 0;
+-	pcpu_for_each_unpop_region(chunk->alloc_map, rs, re, chunk->first_bit,
+-				   pcpu_chunk_map_bits(chunk)) {
+-		bits = re - rs;
+-
+-		pcpu_chunk_update(chunk, rs, bits);
++	pcpu_for_each_md_free_region(chunk, bit_off, bits) {
++		pcpu_chunk_update(chunk, bit_off, bits);
+ 
+-		nr_empty_pop_pages += pcpu_cnt_pop_pages(chunk, rs, bits);
++		nr_empty_pop_pages += pcpu_cnt_pop_pages(chunk, bit_off, bits);
+ 	}
+ 
+ 	/*
 -- 
 2.9.3
 
