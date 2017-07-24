@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B64A86B02F4
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 13:34:00 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v68so135075316pfi.13
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 10:34:00 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k1si6876623pfe.614.2017.07.24.10.33.59
-        for <linux-mm@kvack.org>;
-        Mon, 24 Jul 2017 10:33:59 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [RFC PATCH 2/2] mm/hugetlb: Support swap entries in huge_pte_offset()
-Date: Mon, 24 Jul 2017 18:33:18 +0100
-Message-Id: <20170724173318.966-3-punit.agrawal@arm.com>
-In-Reply-To: <20170724173318.966-1-punit.agrawal@arm.com>
-References: <20170724173318.966-1-punit.agrawal@arm.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F72E6B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 14:12:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i187so4387267wma.15
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 11:12:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 90si4743993wri.179.2017.07.24.11.12.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Jul 2017 11:12:33 -0700 (PDT)
+Date: Mon, 24 Jul 2017 20:12:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170724181228.GA27811@dhcp22.suse.cz>
+References: <20170724072332.31903-1-mhocko@kernel.org>
+ <201707250036.3NQRglrp%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201707250036.3NQRglrp%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Punit Agrawal <punit.agrawal@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, steve.capper@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Although huge_pte_offset() returns NULL when encountering swap page
-table entries, the callers of huge_pte_offset() correctly handling swap
-entries.
+On Tue 25-07-17 00:42:05, kbuild test robot wrote:
+> Hi Michal,
+> 
+> [auto build test ERROR on mmotm/master]
+> [also build test ERROR on v4.13-rc2 next-20170724]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/mm-oom-allow-oom-reaper-to-race-with-exit_mmap/20170724-233159
+> base:   git://git.cmpxchg.org/linux-mmotm.git master
+> config: x86_64-randconfig-x016-201730 (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    mm/oom_kill.c: In function '__oom_reap_task_mm':
+> >> mm/oom_kill.c:523:9: error: 'ret' undeclared (first use in this function)
+>      return ret;
+>             ^~~
 
-Add support to the huge_pte_offset() to return the swap entries when it
-encounters them during the page table walks.
-
-Also update the function documentation to explicitly state this
-behaviour. This is to help clarify expectations for architecture
-specific implementations of huge_pte_offset().
-
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
----
- mm/hugetlb.c | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 686eb6fa9eb1..72dd1139a8e4 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4607,8 +4607,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
-  * huge_pte_offset() - Walk the page table to resolve the hugepage
-  * entry at address @addr
-  *
-- * Return: Pointer to page table entry (PUD or PMD) for address @addr
-- * or NULL if the entry is not present.
-+ * Return: Pointer to page table or swap entry (PUD or PMD) for address @addr
-+ * or NULL if the entry is p*d_none().
-  */
- pte_t *huge_pte_offset(struct mm_struct *mm,
- 		       unsigned long addr, unsigned long sz)
-@@ -4626,15 +4626,17 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
- 		return NULL;
- 
- 	pud = pud_offset(p4d, addr);
--	if (!pud_present(*pud))
-+	if (pud_none(*pud))
- 		return NULL;
--	if (pud_huge(*pud))
-+	/* hugepage or swap? */
-+	if (pud_huge(*pud) || !pud_present(*pud))
- 		return (pte_t *)pud;
- 
- 	pmd = pmd_offset(pud, addr);
--	if (!pmd_present(*pmd))
-+	if (pmd_none(*pmd))
- 		return NULL;
--	if (pmd_huge(*pmd))
-+	/* hugepage or swap? */
-+	if (pmd_huge(*pmd) || !pmd_present(*pmd))
- 		return (pte_t *) pmd;
- 
- 	return NULL;
+Fixed by http://lkml.kernel.org/r/20170724152703.GP25221@dhcp22.suse.cz
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
