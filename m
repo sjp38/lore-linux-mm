@@ -1,73 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13BCE6B02FA
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:13:54 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id d193so159698840pgc.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 13:13:54 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l16si2378483pfb.191.2017.07.24.13.13.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9386B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 17:15:02 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 184so11931218wmo.7
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 14:15:02 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id l81si1785291wrc.33.2017.07.24.14.15.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 13:13:53 -0700 (PDT)
-Date: Mon, 24 Jul 2017 16:13:42 -0400
+        Mon, 24 Jul 2017 14:15:00 -0700 (PDT)
+Date: Mon, 24 Jul 2017 17:14:41 -0400
 From: Dennis Zhou <dennisz@fb.com>
-Subject: Re: [PATCH 08/10] percpu: change the number of pages marked in the
- first_chunk bitmaps
-Message-ID: <20170724201341.GC91613@dennisz-mbp.dhcp.thefacebook.com>
+Subject: Re: [PATCH 00/10] percpu: replace percpu area map allocator with
+ bitmap allocator
+Message-ID: <20170724211440.GD91613@dennisz-mbp.dhcp.thefacebook.com>
 References: <20170716022315.19892-1-dennisz@fb.com>
- <20170716022315.19892-9-dennisz@fb.com>
- <20170717192602.GB585283@devbig577.frc2.facebook.com>
+ <20170718191527.GA4009@destiny>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170717192602.GB585283@devbig577.frc2.facebook.com>
+In-Reply-To: <20170718191527.GA4009@destiny>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dennis Zhou <dennisszhou@gmail.com>
 
-On Mon, Jul 17, 2017 at 03:26:02PM -0400, Tejun Heo wrote:
-> > This patch changes the allocator to only mark allocated pages for the
-> > region the population bitmap is used for. Prior, the bitmap was marked
-> > completely used as the first chunk was allocated and immutable. This is
-> > misleading because the first chunk may not be completely filled.
-> > Additionally, with moving the base_addr up in the previous patch, the
-> > population map no longer corresponds to what is being checked.
-> 
-> This in isolation makes sense although the rationale isn't clear from
-> the description.  Is it a mere cleanup or is this needed to enable
-> further changes?
+Hi Josef,
 
-This change is clean up to make sure there is no misunderstanding
-between what part of the bitmap actually is meaningful and the actual
-size of the bitmap.
+On Tue, Jul 18, 2017 at 03:15:28PM -0400, Josef Bacik wrote:
+ 
+> Ok so you say that this test is better for the area map allocator, so presumably
+> this is worst case for the bitmap allocator?  What does the average case look
+> like?
 
+The bitmap allocator should perform relatively consistent in most
+allocation schemes. The worst case would be where constant scanning is
+required like the allocation scenario of 4-bytes with 8-byte alignment.
+As far as average case, I would expect similar performance on average.
+These are updated values with v2.
 
-> > pcpu_nr_empty_pop_pages is used to ensure there are a handful of free
-> > pages around to serve atomic allocations. A new field, nr_empty_pop_pages,
-> > is added to the pcpu_chunk struct to keep track of the number of empty
-> > pages. This field is needed as the number of empty populated pages is
-> > globally kept track of and deltas are used to update it. This new field
-> > is exposed in percpu_stats.
-> 
-> But I can't see why this is being added or why this is in the same
-> patch with the previous change.
-> 
+  Area Map Allocator:
 
-I've split this out into another patch.
+        Object Size | Alloc Time (ms) | Free Time (ms)
+        ----------------------------------------------
+              4B    |        310      |     4770
+             16B    |        557      |     1325
+             64B    |        436      |      273
+            256B    |        776      |      131
+           1024B    |       3280      |      122
 
-> > Now that chunk->nr_pages is the number of pages the chunk is serving, it
-> > is nice to use this in the work function for population and freeing of
-> > chunks rather than use the global variable pcpu_unit_pages.
-> 
-> The same goes for the above part.  It's fine to collect misc changes
-> into a patch when they're trivial and related in some ways but the
-> content of this patch seems a bit random.
+  Bitmap Allocator:
 
-This change is needed in the same patch because chunk->nr_populated no
-longer is set to pcpu_unit_pages. The checks would check the dynamic
-chunk and then try to populate. Those checks should be checking against
-the size of the region being served which is nr_pages.
+        Object Size | Alloc Time (ms) | Free Time (ms)
+        ----------------------------------------------
+              4B    |        490      |       70
+             16B    |        515      |       75
+             64B    |        610      |       80
+            256B    |        950      |      100
+           1024B    |       3520      |      200
+
+> Trading 2x allocation latency for a pretty significant free latency
+> reduction seems ok, but are we allocating or freeing more?  Are both allocations
+> and free's done in performance critical areas, or do allocations only happen in
+> performance critical areas, making the increased allocation latency hurt more?
+
+I unfortunately do not have any data to support whether we are
+allocating or freeing more in critical areas. I would defer use case
+questions to those consuming percpu memory. There is one issue that
+stood out though with BPF that is causing the cpu to hang due to the
+percpu allocator. This leads me to believe that freeing is of more
+concern. I would believe that if allocation latency is a major problem,
+it is easier for the user to preallocate than it is for them to manage
+delayed freeing.
+
+> And lastly, why are we paying a 2x latency cost?  What is it about the bitmap
+> allocator that makes it much worse than the area map allocator?
+
+So it turns out v1 was making poor use of control logic and the
+compiler wasn't doing me any favors. I've since done a rather large
+refactor with v2 which shows better performance overall. The bitmap
+allocator is paying more in that it has to manage metadata that the area
+map allocator does not. In the optimal case, the area map allocator is
+just an append without any heavy operations.
+
+A worse performing scenario for the area map allocator is when the
+second half of a chunk is occupied by a lot of small allocations. In
+that case, each allocation has to memmove the rest of the area map. This
+scenario is nontrivial to reproduce, so I provide data below for a
+similar scenario where the second half of each page is filled.
+
+  Area Map Allocator:
+
+        Object Size | Alloc Time (ms) | Free Time (ms)
+        ----------------------------------------------
+              4B    |       4118      |     4892
+             16B    |       1651      |     1163
+             64B    |        598      |      285
+            256B    |        771      |      158
+           1024B    |       3034      |      160
+
+  Bitmap Allocator:
+
+        Object Size | Alloc Time (ms) | Free Time (ms)
+        ----------------------------------------------
+              4B    |        481      |       67
+             16B    |        506      |       69
+             64B    |        636      |       75
+            256B    |        892      |       90
+           1024B    |       3262      |      147
+
+This shows that in less ideal chunk states, the allocation path can fail
+just like the freeing path can with non-ideal deallocation patterns.
 
 Thanks,
 Dennis
