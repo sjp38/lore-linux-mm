@@ -1,160 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BAA6B02FD
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:49:03 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x43so24472391wrb.9
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:49:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m29si5435555wmh.22.2017.07.24.04.49.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 40D7D6B02F3
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 08:13:38 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id h126so2546220wmf.10
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 05:13:38 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id y88si9073581wrc.529.2017.07.24.05.13.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 04:49:02 -0700 (PDT)
-Date: Mon, 24 Jul 2017 13:48:59 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 5/5] dax: move all DAX radix tree defs to fs/dax.c
-Message-ID: <20170724114859.GM652@quack2.suse.cz>
-References: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
- <20170721223956.29485-6-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Jul 2017 05:13:36 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id c184so29922297wmd.0
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 05:13:36 -0700 (PDT)
+Date: Mon, 24 Jul 2017 15:13:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: KASAN vs. boot-time switching between 4- and 5-level paging
+Message-ID: <20170724121331.k3fl4xjrsmznqk2t@node.shutemov.name>
+References: <CALCETrVpNUq3-zEu1Q1O77N8r4kv4kFdefXp7XEs3Hpf-JPAjg@mail.gmail.com>
+ <d3caf8c4-4575-c1b5-6b0f-95527efaf2f9@virtuozzo.com>
+ <f11d9e07-6b31-1add-7677-6a29d15ab608@virtuozzo.com>
+ <20170711170332.wlaudicepkg35dmm@node.shutemov.name>
+ <e9a395f4-018e-4c8c-2098-170172e438f3@virtuozzo.com>
+ <20170711190554.zxkpjeg2bt65wtir@black.fi.intel.com>
+ <20939b37-efd8-2d32-0040-3682fff927c2@virtuozzo.com>
+ <20170713135228.vhvpe7mqdcqzpslw@node.shutemov.name>
+ <20170713141528.rwuz5n2p57omq6wi@node.shutemov.name>
+ <e201423e-5f4e-8bd6-144a-2374f7b7bb3f@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170721223956.29485-6-ross.zwisler@linux.intel.com>
+In-Reply-To: <e201423e-5f4e-8bd6-144a-2374f7b7bb3f@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>, Ingo Molnar <mingo@redhat.com>, Inki Dae <inki.dae@samsung.com>, Jan Kara <jack@suse.cz>, Jonathan Corbet <corbet@lwn.net>, Joonyoung Shim <jy0922.shim@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>, Kukjin Kim <kgene@kernel.org>, Kyungmin Park <kyungmin.park@samsung.com>, Matthew Wilcox <mawilcox@microsoft.com>, Patrik Jakobsson <patrik.r.jakobsson@gmail.com>, Rob Clark <robdclark@gmail.com>, Seung-Woo Kim <sw0312.kim@samsung.com>, Steven Rostedt <rostedt@goodmis.org>, Tomi Valkeinen <tomi.valkeinen@ti.com>, dri-devel@lists.freedesktop.org, freedreno@lists.freedesktop.org, linux-arm-kernel@lists.infradead.org, linux-arm-msm@vger.kernel.org, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-samsung-soc@vger.kernel.org, linux-xfs@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "x86@kernel.org" <x86@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Fri 21-07-17 16:39:55, Ross Zwisler wrote:
-> Now that we no longer insert struct page pointers in DAX radix trees the
-> page cache code no longer needs to know anything about DAX exceptional
-> entries.  Move all the DAX exceptional entry definitions from dax.h to
-> fs/dax.c.
+On Thu, Jul 13, 2017 at 05:19:22PM +0300, Andrey Ryabinin wrote:
+> >> https://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git/commit/?h=la57/boot-switching/v2&id=13327fec85ffe95d9c8a3f57ba174bf5d5c1fb01
+> >>
+> >>> As for KASAN, I think it would be better just to make it work faster,
+> >>> the patch below demonstrates the idea.
+> >>
+> >> Okay, let me test this.
+> > 
+> > The patch works for me.
+> > 
+> > The problem is not exclusive to 5-level paging, so could you prepare and
+> > push proper patch upstream?
+> > 
 > 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Suggested-by: Jan Kara <jack@suse.cz>
+> Sure, will do
 
-Looks good. You can add:
+Andrey, any follow up on this?
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-
-> ---
->  fs/dax.c            | 34 ++++++++++++++++++++++++++++++++++
->  include/linux/dax.h | 41 -----------------------------------------
->  2 files changed, 34 insertions(+), 41 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 0e27d90..e7acc45 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -54,6 +54,40 @@ static int __init init_dax_wait_table(void)
->  }
->  fs_initcall(init_dax_wait_table);
->  
-> +/*
-> + * We use lowest available bit in exceptional entry for locking, one bit for
-> + * the entry size (PMD) and two more to tell us if the entry is a zero page or
-> + * an empty entry that is just used for locking.  In total four special bits.
-> + *
-> + * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-> + * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-> + * block allocation.
-> + */
-> +#define RADIX_DAX_SHIFT		(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
-> +#define RADIX_DAX_ENTRY_LOCK	(1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
-> +#define RADIX_DAX_PMD		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-> +#define RADIX_DAX_ZERO_PAGE	(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-> +#define RADIX_DAX_EMPTY		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
-> +
-> +static unsigned long dax_radix_sector(void *entry)
-> +{
-> +	return (unsigned long)entry >> RADIX_DAX_SHIFT;
-> +}
-> +
-> +static void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
-> +{
-> +	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
-> +			((unsigned long)sector << RADIX_DAX_SHIFT) |
-> +			RADIX_DAX_ENTRY_LOCK);
-> +}
-> +
-> +static unsigned int dax_radix_order(void *entry)
-> +{
-> +	if ((unsigned long)entry & RADIX_DAX_PMD)
-> +		return PMD_SHIFT - PAGE_SHIFT;
-> +	return 0;
-> +}
-> +
->  static int dax_is_pmd_entry(void *entry)
->  {
->  	return (unsigned long)entry & RADIX_DAX_PMD;
-> diff --git a/include/linux/dax.h b/include/linux/dax.h
-> index afa99bb..d0e3272 100644
-> --- a/include/linux/dax.h
-> +++ b/include/linux/dax.h
-> @@ -88,33 +88,6 @@ void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
->  		size_t size);
->  void dax_write_cache(struct dax_device *dax_dev, bool wc);
->  
-> -/*
-> - * We use lowest available bit in exceptional entry for locking, one bit for
-> - * the entry size (PMD) and two more to tell us if the entry is a zero page or
-> - * an empty entry that is just used for locking.  In total four special bits.
-> - *
-> - * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
-> - * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
-> - * block allocation.
-> - */
-> -#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 4)
-> -#define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
-> -#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-> -#define RADIX_DAX_ZERO_PAGE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-> -#define RADIX_DAX_EMPTY (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
-> -
-> -static inline unsigned long dax_radix_sector(void *entry)
-> -{
-> -	return (unsigned long)entry >> RADIX_DAX_SHIFT;
-> -}
-> -
-> -static inline void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
-> -{
-> -	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
-> -			((unsigned long)sector << RADIX_DAX_SHIFT) |
-> -			RADIX_DAX_ENTRY_LOCK);
-> -}
-> -
->  ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
->  		const struct iomap_ops *ops);
->  int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-> @@ -136,20 +109,6 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
->  }
->  #endif
->  
-> -#ifdef CONFIG_FS_DAX_PMD
-> -static inline unsigned int dax_radix_order(void *entry)
-> -{
-> -	if ((unsigned long)entry & RADIX_DAX_PMD)
-> -		return PMD_SHIFT - PAGE_SHIFT;
-> -	return 0;
-> -}
-> -#else
-> -static inline unsigned int dax_radix_order(void *entry)
-> -{
-> -	return 0;
-> -}
-> -#endif
-> -
->  static inline bool dax_mapping(struct address_space *mapping)
->  {
->  	return mapping->host && IS_DAX(mapping->host);
-> -- 
-> 2.9.4
-> 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
