@@ -1,98 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8676B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:15:38 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m75so10609225wmb.12
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:15:38 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C02F6B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:20:34 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z36so15975606wrb.13
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:20:34 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u88si9018098wrc.546.2017.07.24.04.15.36
+        by mx.google.com with ESMTPS id n66si13646707wrb.360.2017.07.24.04.20.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 04:15:37 -0700 (PDT)
-Date: Mon, 24 Jul 2017 13:15:31 +0200
+        Mon, 24 Jul 2017 04:20:33 -0700 (PDT)
+Date: Mon, 24 Jul 2017 13:20:30 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 1/5] mm: add mkwrite param to vm_insert_mixed()
-Message-ID: <20170724111531.GG652@quack2.suse.cz>
-References: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
- <20170721223956.29485-2-ross.zwisler@linux.intel.com>
- <CAA9_cmdoEVx88FCuCSOB1Qmom_X8uJPB4-uUx7MA3X5H4fZ=GQ@mail.gmail.com>
+Subject: Re: [PATCH v3 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170724112030.GH652@quack2.suse.cz>
+References: <20170628220152.28161-1-ross.zwisler@linux.intel.com>
+ <20170628220152.28161-2-ross.zwisler@linux.intel.com>
+ <20170719141659.GB15908@quack2.suse.cz>
+ <20170719175112.GA24588@linux.intel.com>
+ <20170719215831.GC10923@linux.intel.com>
+ <20170721174405.GA18697@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA9_cmdoEVx88FCuCSOB1Qmom_X8uJPB4-uUx7MA3X5H4fZ=GQ@mail.gmail.com>
+In-Reply-To: <20170721174405.GA18697@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@gmail.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, linux-doc@vger.kernel.org, David Airlie <airlied@linux.ie>, Dave Chinner <david@fromorbit.com>, dri-devel@lists.freedesktop.org, linux-mm <linux-mm@kvack.org>, Andreas Dilger <adilger.kernel@dilger.ca>, Patrik Jakobsson <patrik.r.jakobsson@gmail.com>, Christoph Hellwig <hch@lst.de>, linux-samsung-soc <linux-samsung-soc@vger.kernel.org>, Joonyoung Shim <jy0922.shim@samsung.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Kyungmin Park <kyungmin.park@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>, Ingo Molnar <mingo@redhat.com>, ext4 hackers <linux-ext4@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arm-msm@vger.kernel.org, Steven Rostedt <rostedt@goodmis.org>, Inki Dae <inki.dae@samsung.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jonathan Corbet <corbet@lwn.net>, Seung-Woo Kim <sw0312.kim@samsung.com>, linux-xfs@vger.kernel.org, Rob Clark <robdclark@gmail.com>, Kukjin Kim <kgene@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, freedreno@lists.freedesktop.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Sat 22-07-17 09:21:31, Dan Williams wrote:
-> On Fri, Jul 21, 2017 at 3:39 PM, Ross Zwisler
-> <ross.zwisler@linux.intel.com> wrote:
-> > To be able to use the common 4k zero page in DAX we need to have our PTE
-> > fault path look more like our PMD fault path where a PTE entry can be
-> > marked as dirty and writeable as it is first inserted, rather than waiting
-> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
-> >
-> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
-> > distinguish between these two cases in do_wp_page():
-> >
-> >         case 1: 4k zero page => writable DAX storage
-> >         case 2: read-only DAX storage => writeable DAX storage
-> >
-> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
-> > false for the common 4k zero page, though, just as it does for DAX ptes.
-> > Instead of special casing the DAX + 4k zero page case, we will simplify our
-> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
-> > get rid of the dax_pfn_mkwrite() helper.  We will instead use
-> > dax_iomap_fault() to handle write-protection faults.
-> >
-> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
-> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
-> > will do the work that was previously done by wp_page_reuse() as part of the
-> > dax_pfn_mkwrite() call path.
-> >
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  drivers/dax/device.c                    |  2 +-
-> >  drivers/gpu/drm/exynos/exynos_drm_gem.c |  3 ++-
-> >  drivers/gpu/drm/gma500/framebuffer.c    |  2 +-
-> >  drivers/gpu/drm/msm/msm_gem.c           |  3 ++-
-> >  drivers/gpu/drm/omapdrm/omap_gem.c      |  6 ++++--
-> >  drivers/gpu/drm/ttm/ttm_bo_vm.c         |  2 +-
-> >  fs/dax.c                                |  2 +-
-> >  include/linux/mm.h                      |  2 +-
-> >  mm/memory.c                             | 27 +++++++++++++++++++++------
-> >  9 files changed, 34 insertions(+), 15 deletions(-)
-> >
-> > diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> > index e9f3b3e..3973521 100644
-> > --- a/drivers/dax/device.c
-> > +++ b/drivers/dax/device.c
-> > @@ -273,7 +273,7 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
-> >
-> >         pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
-> >
-> > -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
-> > +       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn, false);
+On Fri 21-07-17 11:44:05, Ross Zwisler wrote:
+> On Wed, Jul 19, 2017 at 03:58:31PM -0600, Ross Zwisler wrote:
+> > On Wed, Jul 19, 2017 at 11:51:12AM -0600, Ross Zwisler wrote:
+> > > On Wed, Jul 19, 2017 at 04:16:59PM +0200, Jan Kara wrote:
+> > > > On Wed 28-06-17 16:01:48, Ross Zwisler wrote:
+> > > > > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > > > > fault path look more like our PMD fault path where a PTE entry can be
+> > > > > marked as dirty and writeable as it is first inserted, rather than waiting
+> > > > > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> > > > > 
+> > > > > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > > > > distinguish between these two cases in do_wp_page():
+> > > > > 
+> > > > > 	case 1: 4k zero page => writable DAX storage
+> > > > > 	case 2: read-only DAX storage => writeable DAX storage
+> > > > > 
+> > > > > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > > > > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > > > > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > > > > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > > > > get rid of dax_pfn_mkwrite() completely.
+> > > > > 
+> > > > > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > > > > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > > > > will do the work that was previously done by wp_page_reuse() as part of the
+> > > > > dax_pfn_mkwrite() call path.
+> > > > > 
+> > > > > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > > > 
+> > > > Just one small comment below.
+> > > > 
+> > > > > @@ -1658,14 +1658,26 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+> > > > >  	if (!pte)
+> > > > >  		goto out;
+> > > > >  	retval = -EBUSY;
+> > > > > -	if (!pte_none(*pte))
+> > > > > -		goto out_unlock;
+> > > > > +	if (!pte_none(*pte)) {
+> > > > > +		if (mkwrite) {
+> > > > > +			entry = *pte;
+> > > > > +			goto out_mkwrite;
+> > > > 
+> > > > Can we maybe check here that (pte_pfn(*pte) == pfn_t_to_pfn(pfn)) and
+> > > > return -EBUSY otherwise? That way we are sure insert_pfn() isn't doing
+> > > > anything we don't expect 
+> > > 
+> > > Sure, that's fine.  I'll add it as a WARN_ON_ONCE() so it's a very loud
+> > > failure.  If the pfns don't match I think we're insane (and would have been
+> > > insane prior to this patch series as well) because we are getting a page fault
+> > > and somehow have a different PFN already mapped at that location.
+> > 
+> > Umm...well, I added the warning, and during my regression testing hit a case
+> > where the PFNs didn't match.  (generic/437 with both ext4 & XFS)
+> > 
+> > I've verified that this behavior happens with vanilla v4.12, so it's not a new
+> > condition introduced by my patch.
+> > 
+> > I'm off tracking that down - there's a bug lurking somewhere, I think.
 > 
-> Ugh, I generally find bool flags unreadable. They place a tax on
-> jumping to function definition to recall what true and false mean. If
-> we want to go this 'add an argument' route can we at least add an enum
-> like:
-> 
-> enum {
->     PTE_MKDIRTY,
->     PTE_MKCLEAN,
-> };
-> 
-> ...to differentiate the two cases?
+> Actually, I think we're fine.  What was happening was that two faults were
+> racing for a private mapping.  One was installing a RW PTE for the COW page
+> cache page via wp_page_copy(), and the second was trying to install a
+> read-only PTE in insert_pfn().  The PFNs don't match because the two faults
+> are trying to map very different PTEs - one for DAX storage, one for a page
+> cache page.
 
-So how I usually deal with this is that I create e.g.:
+OK, so two threads (sharing page tables) were doing read and write fault at
+the same offset of a private mapping. OK, makes sense.
 
-__vm_insert_mixed() that takes the bool argument, make vm_insert_mixed()
-pass false, and vm_insert_mixed_mkwrite() pass true. That way there's no
-code duplication, old call sites can stay unchanged, the naming clearly
-says what's going on...
+> This collision is handled by insert_pfn() by just returning -EBUSY, which will
+> bail out of the fault and either re-fault if necessary, or use the PTE that
+> the other thread installed.  For the case I described above I think both
+> faults will just happily use the page cache page, and the RO DAX fault won't
+> be retried.
+> 
+> I think this is fine, and I'll preserve this behavior as you suggest in the
+> mkwrite case by validating that the PTE is what we think it should be after we
+> grab the PTL.
+
+Yeah, that seems to essential for the races of faults in private mappings
+to work as they should. Thanks for analysing this!
 
 								Honza
 -- 
