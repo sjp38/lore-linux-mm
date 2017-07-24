@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 366336B039F
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:50 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y129so92600113pgy.1
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:50 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id z5si7218791pfd.320.2017.07.24.16.02.49
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D95096B03A1
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:51 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 184so12096905wmo.7
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:51 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id e35si12629163wre.324.2017.07.24.16.02.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:49 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:50 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 12/23] percpu: increase minimum percpu allocation size and align first regions
-Date: Mon, 24 Jul 2017 19:02:09 -0400
-Message-ID: <20170724230220.21774-13-dennisz@fb.com>
+Subject: [PATCH v2 11/23] percpu: introduce nr_empty_pop_pages to help empty page accounting
+Date: Mon, 24 Jul 2017 19:02:08 -0400
+Message-ID: <20170724230220.21774-12-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,116 +24,100 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-This patch increases the minimum allocation size of percpu memory to
-4-bytes. This change will help minimize the metadata overhead
-associated with the bitmap allocator. The assumption is that most
-allocations will be of objects or structs greater than 2 bytes with
-integers or longs being used rather than shorts.
-
-The first chunk regions are now aligned with the minimum allocation
-size. The reserved region is expected to be set as a multiple of the
-minimum allocation size. The static region is aligned up and the delta
-is removed from the dynamic size. This works because the dynamic size is
-increased to be page aligned. If the static size is not minimum
-allocation size aligned, then there must be a gap that is added to the
-dynamic size. The dynamic size will never be smaller than the set value.
+pcpu_nr_empty_pop_pages is used to ensure there are a handful of free
+pages around to serve atomic allocations. A new field, nr_empty_pop_pages,
+is added to the pcpu_chunk struct to keep track of the number of empty
+pages. This field is needed as the number of empty populated pages is
+globally tracked and deltas are used to update in the bitmap allocator.
+Pages that contain a hidden area are not considered to be empty. This
+new field is exposed in percpu_stats.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- include/linux/percpu.h |  4 ++++
- mm/percpu.c            | 27 ++++++++++++++++++++-------
- 2 files changed, 24 insertions(+), 7 deletions(-)
+ mm/percpu-internal.h |  1 +
+ mm/percpu-stats.c    |  1 +
+ mm/percpu.c          | 11 ++++++++---
+ 3 files changed, 10 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/percpu.h b/include/linux/percpu.h
-index 491b3f5..90e0cb0 100644
---- a/include/linux/percpu.h
-+++ b/include/linux/percpu.h
-@@ -21,6 +21,10 @@
- /* minimum unit size, also is the maximum supported allocation size */
- #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
+diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
+index 34cb979..c4c8fc4 100644
+--- a/mm/percpu-internal.h
++++ b/mm/percpu-internal.h
+@@ -32,6 +32,7 @@ struct pcpu_chunk {
  
-+/* minimum allocation size and shift in bytes */
-+#define PCPU_MIN_ALLOC_SHIFT		2
-+#define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
-+
- /*
-  * Percpu allocator can serve percpu allocations before slab is
-  * initialized which allows slab to depend on the percpu allocator.
+ 	int			nr_pages;	/* # of pages served by this chunk */
+ 	int			nr_populated;	/* # of populated pages */
++	int                     nr_empty_pop_pages; /* # of empty populated pages */
+ 	unsigned long		populated[];	/* populated bitmap */
+ };
+ 
+diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
+index ffbdb96..e146b58 100644
+--- a/mm/percpu-stats.c
++++ b/mm/percpu-stats.c
+@@ -100,6 +100,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
+ 
+ 	P("nr_alloc", chunk->nr_alloc);
+ 	P("max_alloc_size", chunk->max_alloc_size);
++	P("empty_pop_pages", chunk->nr_empty_pop_pages);
+ 	P("free_size", chunk->free_size);
+ 	P("contig_hint", chunk->contig_hint);
+ 	P("sum_frag", sum_frag);
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 657ab08..dc755721 100644
+index 773dafe..657ab08 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -956,10 +956,10 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
- 	 * We want the lowest bit of offset available for in-use/free
- 	 * indicator, so force >= 16bit alignment and make size even.
- 	 */
--	if (unlikely(align < 2))
--		align = 2;
-+	if (unlikely(align < PCPU_MIN_ALLOC_SIZE))
-+		align = PCPU_MIN_ALLOC_SIZE;
+@@ -757,11 +757,14 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 	chunk->immutable = true;
+ 	bitmap_fill(chunk->populated, chunk->nr_pages);
+ 	chunk->nr_populated = chunk->nr_pages;
++	chunk->nr_empty_pop_pages = chunk->nr_pages;
  
--	size = ALIGN(size, 2);
-+	size = ALIGN(size, PCPU_MIN_ALLOC_SIZE);
+ 	chunk->contig_hint = chunk->free_size = map_size;
  
- 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE ||
- 		     !is_power_of_2(align))) {
-@@ -1653,6 +1653,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
- 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
- 	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
-+	size_t static_size, dyn_size;
- 	struct pcpu_chunk *chunk;
- 	unsigned long *group_offsets;
- 	size_t *group_sizes;
-@@ -1686,6 +1687,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
- 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
- 	PCPU_SETUP_BUG_ON(!ai->dyn_size);
-+	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
- 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
- 
- 	/* process group information and build config tables accordingly */
-@@ -1764,6 +1766,17 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 		INIT_LIST_HEAD(&pcpu_slot[i]);
- 
- 	/*
-+	 * The end of the static region needs to be aligned with the
-+	 * minimum allocation size as this offsets the reserved and
-+	 * dynamic region.  The first chunk ends page aligned by
-+	 * expanding the dynamic region, therefore the dynamic region
-+	 * can be shrunk to compensate while still staying above the
-+	 * configured sizes.
-+	 */
-+	static_size = ALIGN(ai->static_size, PCPU_MIN_ALLOC_SIZE);
-+	dyn_size = ai->dyn_size - (static_size - ai->static_size);
+ 	if (chunk->start_offset) {
+ 		/* hide the beginning of the bitmap */
++		chunk->nr_empty_pop_pages--;
 +
-+	/*
- 	 * Initialize first chunk.
- 	 * If the reserved_size is non-zero, this initializes the reserved
- 	 * chunk.  If the reserved_size is zero, the reserved chunk is NULL
-@@ -1771,8 +1784,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	 * pcpu_first_chunk, will always point to the chunk that serves
- 	 * the dynamic region.
- 	 */
--	tmp_addr = (unsigned long)base_addr + ai->static_size;
--	map_size = ai->reserved_size ?: ai->dyn_size;
-+	tmp_addr = (unsigned long)base_addr + static_size;
-+	map_size = ai->reserved_size ?: dyn_size;
- 	chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, smap,
- 				       ARRAY_SIZE(smap));
+ 		chunk->map[0] = 1;
+ 		chunk->map[1] = chunk->start_offset;
+ 		chunk->map_used = 1;
+@@ -773,6 +776,8 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
  
-@@ -1780,9 +1793,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
- 	if (ai->reserved_size) {
- 		pcpu_reserved_chunk = chunk;
- 
--		tmp_addr = (unsigned long)base_addr + ai->static_size +
-+		tmp_addr = (unsigned long)base_addr + static_size +
- 			   ai->reserved_size;
--		map_size = ai->dyn_size;
-+		map_size = dyn_size;
- 		chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, dmap,
- 					       ARRAY_SIZE(dmap));
+ 	if (chunk->end_offset) {
+ 		/* hide the end of the bitmap */
++		chunk->nr_empty_pop_pages--;
++
+ 		chunk->map[++chunk->map_used] = region_size | 1;
  	}
+ 
+@@ -836,6 +841,7 @@ static void pcpu_chunk_populated(struct pcpu_chunk *chunk,
+ 
+ 	bitmap_set(chunk->populated, page_start, nr);
+ 	chunk->nr_populated += nr;
++	chunk->nr_empty_pop_pages += nr;
+ 	pcpu_nr_empty_pop_pages += nr;
+ }
+ 
+@@ -858,6 +864,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
+ 
+ 	bitmap_clear(chunk->populated, page_start, nr);
+ 	chunk->nr_populated -= nr;
++	chunk->nr_empty_pop_pages -= nr;
+ 	pcpu_nr_empty_pop_pages -= nr;
+ }
+ 
+@@ -1782,9 +1789,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 
+ 	/* link the first chunk in */
+ 	pcpu_first_chunk = chunk;
+-	i = (pcpu_first_chunk->start_offset) ? 1 : 0;
+-	pcpu_nr_empty_pop_pages +=
+-		pcpu_count_occupied_pages(pcpu_first_chunk, i);
++	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
+ 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+ 
+ 	pcpu_stats_chunk_alloc();
 -- 
 2.9.3
 
