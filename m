@@ -1,122 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9226B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:12:28 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l190so96480106iol.1
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:12:28 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id s7si6675050itd.78.2017.07.24.04.12.26
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D8676B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 07:15:38 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m75so10609225wmb.12
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 04:15:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u88si9018098wrc.546.2017.07.24.04.15.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Jul 2017 04:12:26 -0700 (PDT)
-Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170710074842.23175-1-mhocko@kernel.org>
-	<alpine.LSU.2.11.1707191823190.2445@eggly.anvils>
-	<201707201944.IJI05796.VLFJFFtSQMOOOH@I-love.SAKURA.ne.jp>
-	<alpine.LSU.2.11.1707232339430.2154@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1707232339430.2154@eggly.anvils>
-Message-Id: <201707242012.CJJ06237.tVFQSOFFJMOHOL@I-love.SAKURA.ne.jp>
-Date: Mon, 24 Jul 2017 20:12:13 +0900
-Mime-Version: 1.0
+        Mon, 24 Jul 2017 04:15:37 -0700 (PDT)
+Date: Mon, 24 Jul 2017 13:15:31 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 1/5] mm: add mkwrite param to vm_insert_mixed()
+Message-ID: <20170724111531.GG652@quack2.suse.cz>
+References: <20170721223956.29485-1-ross.zwisler@linux.intel.com>
+ <20170721223956.29485-2-ross.zwisler@linux.intel.com>
+ <CAA9_cmdoEVx88FCuCSOB1Qmom_X8uJPB4-uUx7MA3X5H4fZ=GQ@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA9_cmdoEVx88FCuCSOB1Qmom_X8uJPB4-uUx7MA3X5H4fZ=GQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Dan Williams <dan.j.williams@gmail.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, linux-doc@vger.kernel.org, David Airlie <airlied@linux.ie>, Dave Chinner <david@fromorbit.com>, dri-devel@lists.freedesktop.org, linux-mm <linux-mm@kvack.org>, Andreas Dilger <adilger.kernel@dilger.ca>, Patrik Jakobsson <patrik.r.jakobsson@gmail.com>, Christoph Hellwig <hch@lst.de>, linux-samsung-soc <linux-samsung-soc@vger.kernel.org>, Joonyoung Shim <jy0922.shim@samsung.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Tomi Valkeinen <tomi.valkeinen@ti.com>, Kyungmin Park <kyungmin.park@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>, Ingo Molnar <mingo@redhat.com>, ext4 hackers <linux-ext4@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>, linux-arm-msm@vger.kernel.org, Steven Rostedt <rostedt@goodmis.org>, Inki Dae <inki.dae@samsung.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Theodore Ts'o <tytso@mit.edu>, Jonathan Corbet <corbet@lwn.net>, Seung-Woo Kim <sw0312.kim@samsung.com>, linux-xfs@vger.kernel.org, Rob Clark <robdclark@gmail.com>, Kukjin Kim <kgene@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, freedreno@lists.freedesktop.org
 
-Hugh Dickins wrote:
-> On Thu, 20 Jul 2017, Tetsuo Handa wrote:
-> > Hugh Dickins wrote:
-> > > You probably won't welcome getting into alternatives at this late stage;
-> > > but after hacking around it one way or another because of its pointless
-> > > lockups, I lost patience with that too_many_isolated() loop a few months
-> > > back (on realizing the enormous number of pages that may be isolated via
-> > > migrate_pages(2)), and we've been running nicely since with something like:
-> > > 
-> > > 	bool got_mutex = false;
-> > > 
-> > > 	if (unlikely(too_many_isolated(pgdat, file, sc))) {
-> > > 		if (mutex_lock_killable(&pgdat->too_many_isolated))
-> > > 			return SWAP_CLUSTER_MAX;
-> > > 		got_mutex = true;
-> > > 	}
-> > > 	...
-> > > 	if (got_mutex)
-> > > 		mutex_unlock(&pgdat->too_many_isolated);
-> > > 
-> > > Using a mutex to provide the intended throttling, without an infinite
-> > > loop or an arbitrary delay; and without having to worry (as we often did)
-> > > about whether those numbers in too_many_isolated() are really appropriate.
-> > > No premature OOMs complained of yet.
-> > 
-> > Roughly speaking, there is a moment where shrink_inactive_list() acts
-> > like below.
-> > 
-> > 	bool got_mutex = false;
-> > 
-> > 	if (!current_is_kswapd()) {
-> > 		if (mutex_lock_killable(&pgdat->too_many_isolated))
-> > 			return SWAP_CLUSTER_MAX;
-> > 		got_mutex = true;
-> > 	}
-> > 
-> > 	// kswapd is blocked here waiting for !current_is_kswapd().
+On Sat 22-07-17 09:21:31, Dan Williams wrote:
+> On Fri, Jul 21, 2017 at 3:39 PM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+> > To be able to use the common 4k zero page in DAX we need to have our PTE
+> > fault path look more like our PMD fault path where a PTE entry can be
+> > marked as dirty and writeable as it is first inserted, rather than waiting
+> > for a follow-up dax_pfn_mkwrite() => finish_mkwrite_fault() call.
+> >
+> > Right now we can rely on having a dax_pfn_mkwrite() call because we can
+> > distinguish between these two cases in do_wp_page():
+> >
+> >         case 1: 4k zero page => writable DAX storage
+> >         case 2: read-only DAX storage => writeable DAX storage
+> >
+> > This distinction is made by via vm_normal_page().  vm_normal_page() returns
+> > false for the common 4k zero page, though, just as it does for DAX ptes.
+> > Instead of special casing the DAX + 4k zero page case, we will simplify our
+> > DAX PTE page fault sequence so that it matches our DAX PMD sequence, and
+> > get rid of the dax_pfn_mkwrite() helper.  We will instead use
+> > dax_iomap_fault() to handle write-protection faults.
+> >
+> > This means that insert_pfn() needs to follow the lead of insert_pfn_pmd()
+> > and allow us to pass in a 'mkwrite' flag.  If 'mkwrite' is set insert_pfn()
+> > will do the work that was previously done by wp_page_reuse() as part of the
+> > dax_pfn_mkwrite() call path.
+> >
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > ---
+> >  drivers/dax/device.c                    |  2 +-
+> >  drivers/gpu/drm/exynos/exynos_drm_gem.c |  3 ++-
+> >  drivers/gpu/drm/gma500/framebuffer.c    |  2 +-
+> >  drivers/gpu/drm/msm/msm_gem.c           |  3 ++-
+> >  drivers/gpu/drm/omapdrm/omap_gem.c      |  6 ++++--
+> >  drivers/gpu/drm/ttm/ttm_bo_vm.c         |  2 +-
+> >  fs/dax.c                                |  2 +-
+> >  include/linux/mm.h                      |  2 +-
+> >  mm/memory.c                             | 27 +++++++++++++++++++++------
+> >  9 files changed, 34 insertions(+), 15 deletions(-)
+> >
+> > diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+> > index e9f3b3e..3973521 100644
+> > --- a/drivers/dax/device.c
+> > +++ b/drivers/dax/device.c
+> > @@ -273,7 +273,7 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
+> >
+> >         pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+> >
+> > -       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
+> > +       rc = vm_insert_mixed(vmf->vma, vmf->address, pfn, false);
 > 
-> That would be a shame, for kswapd to wait for !current_is_kswapd()!
-
-Yes, but current code (not about your patch) does allow kswapd to wait
-for memory allocations of !current_is_kswapd() thread to complete.
-
+> Ugh, I generally find bool flags unreadable. They place a tax on
+> jumping to function definition to recall what true and false mean. If
+> we want to go this 'add an argument' route can we at least add an enum
+> like:
 > 
-> But seriously, I think I understand what you mean by that, you're
-> thinking that kswapd would be waiting on some other task to clear
-> the too_many_isolated() condition?
-
-Yes.
-
+> enum {
+>     PTE_MKDIRTY,
+>     PTE_MKCLEAN,
+> };
 > 
-> No, it does not work that way: kswapd (never seeing too_many_isolated()
-> because that always says false when current_is_kswapd()) never tries to
-> take the pgdat->too_many_isolated mutex itself: it does not wait there
-> at all, although other tasks may be waiting there at the time.
+> ...to differentiate the two cases?
 
-I know. I wrote behavior of your patch if my guess (your "..." part
-corresponds to kswapd doing writepage) is correct.
+So how I usually deal with this is that I create e.g.:
 
-> 
-> Perhaps my naming the mutex "too_many_isolated", same as the function,
-> is actually confusing, when I had intended it to be helpful.
+__vm_insert_mixed() that takes the bool argument, make vm_insert_mixed()
+pass false, and vm_insert_mixed_mkwrite() pass true. That way there's no
+code duplication, old call sites can stay unchanged, the naming clearly
+says what's going on...
 
-Not confusing at all. It is helpful.
-I just wanted to confirm what comes in your "..." part.
-
-> 
-> > 
-> > 	if (got_mutex)
-> > 		mutex_unlock(&pgdat->too_many_isolated);
-> > 
-> > > 
-> > > But that was on a different kernel, and there I did have to make sure
-> > > that PF_MEMALLOC always prevented us from nesting: I'm not certain of
-> > > that in the current kernel (but do remember Johannes changing the memcg
-> > > end to make it use PF_MEMALLOC too).  I offer the preview above, to see
-> > > if you're interested in that alternative: if you are, then I'll go ahead
-> > > and make it into an actual patch against v4.13-rc.
-> > 
-> > I don't know what your actual patch looks like, but the problem is that
-> > pgdat->too_many_isolated waits for kswapd while kswapd waits for
-> > pgdat->too_many_isolated; nobody can unlock pgdat->too_many_isolated if
-> > once we hit it.
-> 
-> Not so (and we'd hardly be finding it a useful patch if that were so).
-
-Current code allows kswapd to wait for memory allocation of !current_is_kswapd()
-threads, and thus !current_is_kswapd() threads wait for current_is_kswapd() threads
-while current_is_kswapd() threads wait for !current_is_kswapd() threads; nobody can
-make too_many_isolated() false if once we hit it. Hence, this patch is proposed.
-
-Thanks.
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
