@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BF026B03B5
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E99AF6B03BD
 	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:56 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u7so121962683pgo.6
+Received: by mail-wr0-f199.google.com with SMTP id z48so24248962wrc.4
         for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:56 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id y11si7721975plg.62.2017.07.24.16.02.55
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id u62si6274342wmd.112.2017.07.24.16.02.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 24 Jul 2017 16:02:55 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 17/23] percpu: skip chunks if the alloc does not fit in the contig hint
-Date: Mon, 24 Jul 2017 19:02:14 -0400
-Message-ID: <20170724230220.21774-18-dennisz@fb.com>
+Subject: [PATCH v2 16/23] percpu: add first_bit to keep track of the first free in the bitmap
+Date: Mon, 24 Jul 2017 19:02:13 -0400
+Message-ID: <20170724230220.21774-17-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,79 +24,97 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-This patch adds chunk->contig_bits_start to keep track of the contig
-hint's offset and the check to skip the chunk if it does not fit. If
-the chunk's contig hint starting offset cannot satisfy an allocation,
-the allocator assumes there is enough memory pressure in this chunk to
-either use a different chunk or create a new one. This accepts a less
-tight packing for a smoother latency curve.
+This patch adds first_bit to keep track of the first free bit in the
+bitmap. This hint helps prevent scanning of fully allocated blocks.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu-internal.h |  2 ++
- mm/percpu.c          | 18 ++++++++++++++++--
- 2 files changed, 18 insertions(+), 2 deletions(-)
+ mm/percpu-internal.h |  2 +-
+ mm/percpu-stats.c    |  1 +
+ mm/percpu.c          | 17 +++++++++++++++--
+ 3 files changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h
-index e60e049..7065faf 100644
+index 252ae9e..e60e049 100644
 --- a/mm/percpu-internal.h
 +++ b/mm/percpu-internal.h
-@@ -29,6 +29,8 @@ struct pcpu_chunk {
- 	struct list_head	list;		/* linked to pcpu_slot lists */
- 	int			free_bytes;	/* free bytes in the chunk */
- 	int			contig_bits;	/* max contiguous size hint */
-+	int			contig_bits_start; /* contig_bits starting
-+						      offset */
- 	void			*base_addr;	/* base address of this chunk */
+@@ -36,7 +36,7 @@ struct pcpu_chunk {
+ 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
  
- 	unsigned long		*alloc_map;	/* allocation map */
+ 	void			*data;		/* chunk data */
+-	int			first_free;	/* no free below this */
++	int			first_bit;	/* no free below this */
+ 	bool			immutable;	/* no [de]population allowed */
+ 	int			start_offset;	/* the overlap with the previous
+ 						   region to have a page aligned
+diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c
+index ad03d73..6142484 100644
+--- a/mm/percpu-stats.c
++++ b/mm/percpu-stats.c
+@@ -121,6 +121,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
+ 	P("nr_alloc", chunk->nr_alloc);
+ 	P("max_alloc_size", chunk->max_alloc_size);
+ 	P("empty_pop_pages", chunk->nr_empty_pop_pages);
++	P("first_bit", chunk->first_bit);
+ 	P("free_bytes", chunk->free_bytes);
+ 	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+ 	P("sum_frag", sum_frag);
 diff --git a/mm/percpu.c b/mm/percpu.c
-index ad70c67..3732373 100644
+index 6bddc02..ad70c67 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -393,12 +393,14 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
-  * @bit_off: chunk offset
-  * @bits: size of free area
-  *
-- * This updates the chunk's contig hint given a free area.
-+ * This updates the chunk's contig hint and starting offset given a free area.
-  */
- static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
- {
--	if (bits > chunk->contig_bits)
-+	if (bits > chunk->contig_bits) {
-+		chunk->contig_bits_start = bit_off;
- 		chunk->contig_bits = bits;
-+	}
- }
+@@ -420,7 +420,7 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
+ 	chunk->contig_bits = 0;
  
- /**
-@@ -409,6 +411,7 @@ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
-  *
-  * Updates:
-  *      chunk->contig_bits
-+ *      chunk->contig_bits_start
-  *      nr_empty_pop_pages
-  */
- static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
-@@ -639,6 +642,17 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
+ 	bits = nr_empty_pop_pages = 0;
+-	pcpu_for_each_unpop_region(chunk->alloc_map, rs, re, 0,
++	pcpu_for_each_unpop_region(chunk->alloc_map, rs, re, chunk->first_bit,
+ 				   pcpu_chunk_map_bits(chunk)) {
+ 		bits = re - rs;
+ 
+@@ -639,7 +639,8 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
  	int bit_off, bits;
  	int re; /* region end */
  
-+	/*
-+	 * Check to see if the allocation can fit in the chunk's contig hint.
-+	 * This is an optimization to prevent scanning by assuming if it
-+	 * cannot fit in the global hint, there is memory pressure and creating
-+	 * a new chunk would happen soon.
-+	 */
-+	bit_off = ALIGN(chunk->contig_bits_start, align) -
-+		  chunk->contig_bits_start;
-+	if (bit_off + alloc_bits > chunk->contig_bits)
-+		return -1;
-+
- 	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re,
- 				   chunk->first_bit,
+-	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re, 0,
++	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re,
++				   chunk->first_bit,
  				   pcpu_chunk_map_bits(chunk)) {
+ 		bits = re - bit_off;
+ 
+@@ -708,6 +709,13 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
+ 
+ 	chunk->free_bytes -= alloc_bits * PCPU_MIN_ALLOC_SIZE;
+ 
++	/* update first free bit */
++	if (bit_off == chunk->first_bit)
++		chunk->first_bit = find_next_zero_bit(
++					chunk->alloc_map,
++					pcpu_chunk_map_bits(chunk),
++					bit_off + alloc_bits);
++
+ 	pcpu_block_update_hint_alloc(chunk, bit_off, alloc_bits);
+ 
+ 	pcpu_chunk_relocate(chunk, oslot);
+@@ -743,6 +751,9 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
+ 	/* update metadata */
+ 	chunk->free_bytes += bits * PCPU_MIN_ALLOC_SIZE;
+ 
++	/* update first free bit */
++	chunk->first_bit = min(chunk->first_bit, bit_off);
++
+ 	pcpu_block_update_hint_free(chunk, bit_off, bits);
+ 
+ 	pcpu_chunk_relocate(chunk, oslot);
+@@ -834,6 +845,8 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
+ 		set_bit(0, chunk->bound_map);
+ 		set_bit(offset_bits, chunk->bound_map);
+ 
++		chunk->first_bit = offset_bits;
++
+ 		pcpu_block_update_hint_alloc(chunk, 0, offset_bits);
+ 	}
+ 
 -- 
 2.9.3
 
