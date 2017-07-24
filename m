@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D85566B0387
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p43so21719834wrb.6
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:49 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id z37si14766006wrb.382.2017.07.24.16.02.48
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 366336B039F
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:02:50 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y129so92600113pgy.1
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 16:02:50 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id z5si7218791pfd.320.2017.07.24.16.02.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 16:02:48 -0700 (PDT)
+        Mon, 24 Jul 2017 16:02:49 -0700 (PDT)
 From: Dennis Zhou <dennisz@fb.com>
-Subject: [PATCH v2 09/23] percpu: combine percpu address checks
-Date: Mon, 24 Jul 2017 19:02:06 -0400
-Message-ID: <20170724230220.21774-10-dennisz@fb.com>
+Subject: [PATCH v2 12/23] percpu: increase minimum percpu allocation size and align first regions
+Date: Mon, 24 Jul 2017 19:02:09 -0400
+Message-ID: <20170724230220.21774-13-dennisz@fb.com>
 In-Reply-To: <20170724230220.21774-1-dennisz@fb.com>
 References: <20170724230220.21774-1-dennisz@fb.com>
 MIME-Version: 1.0
@@ -24,96 +24,116 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis
 
 From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 
-The percpu address checks for the reserved and dynamic region chunks are
-now specific to each region. The address checking logic can be combined
-taking advantage of the global references to the dynamic and static
-region chunks.
+This patch increases the minimum allocation size of percpu memory to
+4-bytes. This change will help minimize the metadata overhead
+associated with the bitmap allocator. The assumption is that most
+allocations will be of objects or structs greater than 2 bytes with
+integers or longs being used rather than shorts.
+
+The first chunk regions are now aligned with the minimum allocation
+size. The reserved region is expected to be set as a multiple of the
+minimum allocation size. The static region is aligned up and the delta
+is removed from the dynamic size. This works because the dynamic size is
+increased to be page aligned. If the static size is not minimum
+allocation size aligned, then there must be a gap that is added to the
+dynamic size. The dynamic size will never be smaller than the set value.
 
 Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 ---
- mm/percpu.c | 51 +++++++++++----------------------------------------
- 1 file changed, 11 insertions(+), 40 deletions(-)
+ include/linux/percpu.h |  4 ++++
+ mm/percpu.c            | 27 ++++++++++++++++++++-------
+ 2 files changed, 24 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/percpu.h b/include/linux/percpu.h
+index 491b3f5..90e0cb0 100644
+--- a/include/linux/percpu.h
++++ b/include/linux/percpu.h
+@@ -21,6 +21,10 @@
+ /* minimum unit size, also is the maximum supported allocation size */
+ #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
+ 
++/* minimum allocation size and shift in bytes */
++#define PCPU_MIN_ALLOC_SHIFT		2
++#define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
++
+ /*
+  * Percpu allocator can serve percpu allocations before slab is
+  * initialized which allows slab to depend on the percpu allocator.
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 7c9f0d3..5b1fcef 100644
+index 657ab08..dc755721 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -182,52 +182,23 @@ static void pcpu_schedule_balance_work(void)
- }
+@@ -956,10 +956,10 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 	 * We want the lowest bit of offset available for in-use/free
+ 	 * indicator, so force >= 16bit alignment and make size even.
+ 	 */
+-	if (unlikely(align < 2))
+-		align = 2;
++	if (unlikely(align < PCPU_MIN_ALLOC_SIZE))
++		align = PCPU_MIN_ALLOC_SIZE;
  
- /**
-- * pcpu_addr_in_first_chunk - address check for first chunk's dynamic region
-- * @addr: percpu address of interest
-- *
-- * The first chunk is considered to be the dynamic region of the first chunk.
-- * While the true first chunk is composed of the static, dynamic, and
-- * reserved regions, it is the chunk that serves the dynamic region that is
-- * circulated in the chunk slots.
-- *
-- * The reserved chunk has a separate check and the static region addresses
-- * should never be passed into the percpu allocator.
-- *
-- * RETURNS:
-- * True if the address is in the dynamic region of the first chunk.
-- */
--static bool pcpu_addr_in_first_chunk(void *addr)
--{
--	void *start_addr = pcpu_first_chunk->base_addr +
--			   pcpu_first_chunk->start_offset;
--	void *end_addr = pcpu_first_chunk->base_addr +
--			 pcpu_first_chunk->nr_pages * PAGE_SIZE -
--			 pcpu_first_chunk->end_offset;
--
--	return addr >= start_addr && addr < end_addr;
--}
--
--/**
-- * pcpu_addr_in_reserved_chunk - address check for reserved region
-- *
-- * The reserved region is a part of the first chunk and primarily serves
-- * static percpu variables from kernel modules.
-+ * pcpu_addr_in_chunk - check if the address is served from this chunk
-+ * @chunk: chunk of interest
-+ * @addr: percpu address
-  *
-  * RETURNS:
-- * True if the address is in the reserved region.
-+ * True if the address is served from this chunk.
-  */
--static bool pcpu_addr_in_reserved_chunk(void *addr)
-+static bool pcpu_addr_in_chunk(struct pcpu_chunk *chunk, void *addr)
- {
- 	void *start_addr, *end_addr;
+-	size = ALIGN(size, 2);
++	size = ALIGN(size, PCPU_MIN_ALLOC_SIZE);
  
--	if (!pcpu_reserved_chunk)
-+	if (!chunk)
- 		return false;
+ 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE ||
+ 		     !is_power_of_2(align))) {
+@@ -1653,6 +1653,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+ 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+ 	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
++	size_t static_size, dyn_size;
+ 	struct pcpu_chunk *chunk;
+ 	unsigned long *group_offsets;
+ 	size_t *group_sizes;
+@@ -1686,6 +1687,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+ 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+ 	PCPU_SETUP_BUG_ON(!ai->dyn_size);
++	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
+ 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
  
--	start_addr = pcpu_reserved_chunk->base_addr +
--		     pcpu_reserved_chunk->start_offset;
--	end_addr = pcpu_reserved_chunk->base_addr +
--		   pcpu_reserved_chunk->nr_pages * PAGE_SIZE -
--		   pcpu_reserved_chunk->end_offset;
-+	start_addr = chunk->base_addr + chunk->start_offset;
-+	end_addr = chunk->base_addr + chunk->nr_pages * PAGE_SIZE -
-+		   chunk->end_offset;
- 
- 	return addr >= start_addr && addr < end_addr;
- }
-@@ -929,11 +900,11 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
- static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
- {
- 	/* is it in the dynamic region (first chunk)? */
--	if (pcpu_addr_in_first_chunk(addr))
-+	if (pcpu_addr_in_chunk(pcpu_first_chunk, addr))
- 		return pcpu_first_chunk;
- 
- 	/* is it in the reserved region? */
--	if (pcpu_addr_in_reserved_chunk(addr))
-+	if (pcpu_addr_in_chunk(pcpu_reserved_chunk, addr))
- 		return pcpu_reserved_chunk;
+ 	/* process group information and build config tables accordingly */
+@@ -1764,6 +1766,17 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 		INIT_LIST_HEAD(&pcpu_slot[i]);
  
  	/*
++	 * The end of the static region needs to be aligned with the
++	 * minimum allocation size as this offsets the reserved and
++	 * dynamic region.  The first chunk ends page aligned by
++	 * expanding the dynamic region, therefore the dynamic region
++	 * can be shrunk to compensate while still staying above the
++	 * configured sizes.
++	 */
++	static_size = ALIGN(ai->static_size, PCPU_MIN_ALLOC_SIZE);
++	dyn_size = ai->dyn_size - (static_size - ai->static_size);
++
++	/*
+ 	 * Initialize first chunk.
+ 	 * If the reserved_size is non-zero, this initializes the reserved
+ 	 * chunk.  If the reserved_size is zero, the reserved chunk is NULL
+@@ -1771,8 +1784,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	 * pcpu_first_chunk, will always point to the chunk that serves
+ 	 * the dynamic region.
+ 	 */
+-	tmp_addr = (unsigned long)base_addr + ai->static_size;
+-	map_size = ai->reserved_size ?: ai->dyn_size;
++	tmp_addr = (unsigned long)base_addr + static_size;
++	map_size = ai->reserved_size ?: dyn_size;
+ 	chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, smap,
+ 				       ARRAY_SIZE(smap));
+ 
+@@ -1780,9 +1793,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 	if (ai->reserved_size) {
+ 		pcpu_reserved_chunk = chunk;
+ 
+-		tmp_addr = (unsigned long)base_addr + ai->static_size +
++		tmp_addr = (unsigned long)base_addr + static_size +
+ 			   ai->reserved_size;
+-		map_size = ai->dyn_size;
++		map_size = dyn_size;
+ 		chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, dmap,
+ 					       ARRAY_SIZE(dmap));
+ 	}
 -- 
 2.9.3
 
