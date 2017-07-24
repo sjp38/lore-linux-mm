@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 16D436B02B4
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:39:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v62so121870502pfd.10
-        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 23:39:25 -0700 (PDT)
-Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
-        by mx.google.com with ESMTPS id q6si6523479pgn.509.2017.07.23.23.39.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DDF76B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 02:50:53 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w63so23563348wrc.5
+        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 23:50:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w67si1684573wmg.179.2017.07.23.23.50.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 23 Jul 2017 23:39:24 -0700 (PDT)
-Received: by mail-pg0-x22d.google.com with SMTP id g14so4225943pgu.0
-        for <linux-mm@kvack.org>; Sun, 23 Jul 2017 23:39:24 -0700 (PDT)
-Date: Sun, 23 Jul 2017 23:39:15 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
-In-Reply-To: <20170720130541.GH9058@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1707232331250.2154@eggly.anvils>
-References: <20170626130346.26314-1-mhocko@kernel.org> <20170629084621.GE31603@dhcp22.suse.cz> <20170719055542.GA22162@dhcp22.suse.cz> <alpine.LSU.2.11.1707191716030.2055@eggly.anvils> <20170720130541.GH9058@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 23 Jul 2017 23:50:51 -0700 (PDT)
+Date: Mon, 24 Jul 2017 08:50:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, vmscan: do not loop on too_many_isolated for ever
+Message-ID: <20170724065048.GB25221@dhcp22.suse.cz>
+References: <20170710074842.23175-1-mhocko@kernel.org>
+ <20170719152014.53a861c57bcb636d6cd9d002@linux-foundation.org>
+ <20170720065625.GB9058@dhcp22.suse.cz>
+ <20170721160104.9f6101b9e8de53638b3b853a@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170721160104.9f6101b9e8de53638b3b853a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <andrea@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 20 Jul 2017, Michal Hocko wrote:
-> On Wed 19-07-17 18:18:27, Hugh Dickins wrote:
+On Fri 21-07-17 16:01:04, Andrew Morton wrote:
+> On Thu, 20 Jul 2017 08:56:26 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > 
-> > But I haven't looked at the oom_kill or oom_reaper end of it at all,
-> > perhaps you have an overriding argument on the placement from that end.
+> > > > --- a/mm/vmscan.c
+> > > > +++ b/mm/vmscan.c
+> > > > @@ -1713,9 +1713,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> > > >  	int file = is_file_lru(lru);
+> > > >  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> > > >  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> > > > +	bool stalled = false;
+> > > >  
+> > > >  	while (unlikely(too_many_isolated(pgdat, file, sc))) {
+> > > > -		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > > > +		if (stalled)
+> > > > +			return 0;
+> > > > +
+> > > > +		/* wait a bit for the reclaimer. */
+> > > > +		schedule_timeout_interruptible(HZ/10);
+> > > 
+> > > a) if this task has signal_pending(), this falls straight through
+> > >    and I suspect the code breaks?
+> > 
+> > It will not break. It will return to the allocation path more quickly
+> > but no over-reclaim will happen and it will/should get throttled there.
+> > So nothing critical.
+> > 
+> > > b) replacing congestion_wait() with schedule_timeout_interruptible()
+> > >    means this task no longer contributes to load average here and it's
+> > >    a (slightly) user-visible change.
+> > 
+> > you are right. I am not sure it matters but it might be visible.
+> >  
+> > > c) msleep_interruptible() is nicer
+> > > 
+> > > d) IOW, methinks we should be using msleep() here?
+> > 
+> > OK, I do not have objections. Are you going to squash this in or want a
+> > separate patch explaining all the above?
 > 
-> Well, the main problem here is that the oom_reaper tries to
-> MADV_DONTNEED the oom victim and then hide it from the oom killer (by
-> setting MMF_OOM_SKIP) to guarantee a forward progress. In order to do
-> that it needs mmap_sem for read. Currently we try to avoid races with
-> the eixt path by checking mm->mm_users and that can lead to premature
-> MMF_OOM_SKIP and that in turn to additional oom victim(s) selection
-> while the current one is still tearing the address space down.
-> 
-> One way around that is to allow final unmap race with the oom_reaper
-> tear down.
-> 
-> I hope this clarify the motivation
+> I'd prefer to have a comment explaining why interruptible sleep is
+> being used, because that "what if signal_pending()" case is rather a
+> red flag.
 
-Thanks, yes, if you have a good reason of that kind, then I agree that
-it's appropriate to leave the down_write(mmap_sem) until reaching the
-free_pgtables() stage.
+I didn't really consider interruptible vs. uninterruptible sleep so it
+wasn't really a deliberate decision. Now, that you have brought up the
+above points I am OK changing that the uninterruptible.
 
-Hugh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Here is a fix up. I am fine with this either folded in or as a separate
+patch.
+---
