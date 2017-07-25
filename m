@@ -1,133 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A71BA6B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:10:49 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id p62so11013243oih.12
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:10:49 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k205si6762429oih.431.2017.07.25.07.10.48
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E24A96B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:17:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u7so141128752pgo.6
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:17:30 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id h4si6481870pfe.672.2017.07.25.07.17.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 07:10:48 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v6] x86/mm: Improve TLB flush documentation
-Date: Tue, 25 Jul 2017 07:10:44 -0700
-Message-Id: <b994bd38fd8dbed15e3bf8a0a23dde207b2297c0.1500991817.git.luto@kernel.org>
+        Tue, 25 Jul 2017 07:17:29 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id 123so4015040pgj.0
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:17:29 -0700 (PDT)
+Date: Tue, 25 Jul 2017 17:17:23 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170725141723.ivukwhddk2voyhuc@node.shutemov.name>
+References: <20170724072332.31903-1-mhocko@kernel.org>
+ <20170724140008.sd2n6af6izjyjtda@node.shutemov.name>
+ <20170724141526.GM25221@dhcp22.suse.cz>
+ <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
+ <20170724161146.GQ25221@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170724161146.GQ25221@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Improve comments as requested by PeterZ and also add some
-documentation at the top of the file.
+On Mon, Jul 24, 2017 at 06:11:47PM +0200, Michal Hocko wrote:
+> On Mon 24-07-17 17:51:42, Kirill A. Shutemov wrote:
+> > On Mon, Jul 24, 2017 at 04:15:26PM +0200, Michal Hocko wrote:
+> [...]
+> > > What kind of scalability implication you have in mind? There is
+> > > basically a zero contention on the mmap_sem that late in the exit path
+> > > so this should be pretty much a fast path of the down_write. I agree it
+> > > is not 0 cost but the cost of the address space freeing should basically
+> > > make it a noise.
+> > 
+> > Even in fast path case, it adds two atomic operation per-process. If the
+> > cache line is not exclusive to the core by the time of exit(2) it can be
+> > noticible.
+> > 
+> > ... but I guess it's not very hot scenario.
+> > 
+> > I guess I'm just too cautious here. :)
+> 
+> I definitely did not want to handwave your concern. I just think we can
+> rule out the slow path and didn't think about the fast path overhead.
+> 
+> > > > Should we do performance/scalability evaluation of the patch before
+> > > > getting it applied?
+> > > 
+> > > What kind of test(s) would you be interested in?
+> > 
+> > Can we at lest check that number of /bin/true we can spawn per second
+> > wouldn't be harmed by the patch? ;)
+> 
+> OK, so measuring a single /bin/true doesn't tell anything so I've done
+> root@test1:~# cat a.sh 
+> #!/bin/sh
+> 
+> NR=$1
+> for i in $(seq $NR)
+> do
+>         /bin/true
+> done
+> 
+> in my virtual machine (on a otherwise idle host) with 4 cpus and 2GB of
+> RAM
+> 
+> Unpatched kernel
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 53.57
+>         System time (seconds): 26.12
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:19.46
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 53.90
+>         System time (seconds): 26.23
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:19.77
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 54.02
+>         System time (seconds): 26.18
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:19.92
+> 
+> patched kernel
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 53.81
+>         System time (seconds): 26.55
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:19.99
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 53.78
+>         System time (seconds): 26.15
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:19.67
+> root@test1:~# /usr/bin/time -v ./a.sh 100000 
+>         Command being timed: "./a.sh 100000"
+>         User time (seconds): 54.08
+>         System time (seconds): 26.87
+>         Percent of CPU this job got: 100%
+>         Elapsed (wall clock) time (h:mm:ss or m:ss): 1:20.52
+> 
+> the results very quite a lot (have a look at the user time which
+> shouldn't have no reason to vary at all - maybe the virtual machine
+> aspect?). I would say that we are still reasonably close to a noise
+> here. Considering that /bin/true would close to the worst case I think
+> this looks reasonably. What do you think?
+> 
+> If you absolutely insist, I can make the lock conditional only for oom
+> victims. That would still mean current->signal->oom_mm pointers fetches
+> and a 2 branches.
 
-This adds and removes some smp_mb__after_atomic() calls to make the
-code correct even in the absence of x86's extra-strong atomics.
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
+Below are numbers for the same test case, but from bigger machine (48
+threads, 64GiB of RAM).
 
-Changes from v5:
- - Fix blatantly wrong docs (PeterZ, Nadav)
- - Remove the smp_mb__...._atomic() I was supposed to remove, not the one
-   I did remove (found by turning on brain and re-reading PeterZ's email)
+v4.13-rc2:
 
-arch/x86/include/asm/tlbflush.h |  2 --
- arch/x86/mm/tlb.c               | 45 ++++++++++++++++++++++++++++++++---------
- 2 files changed, 35 insertions(+), 12 deletions(-)
+ Performance counter stats for './a.sh 100000' (5 runs):
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index d23e61dc0640..eb2b44719d57 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -67,9 +67,7 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
- 	 * their read of mm_cpumask after their writes to the paging
- 	 * structures.
- 	 */
--	smp_mb__before_atomic();
- 	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
--	smp_mb__after_atomic();
- 
- 	return new_tlb_gen;
- }
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index ce104b962a17..0a2e9d0b5503 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -15,17 +15,24 @@
- #include <linux/debugfs.h>
- 
- /*
-- *	TLB flushing, formerly SMP-only
-- *		c/o Linus Torvalds.
-+ * The code in this file handles mm switches and TLB flushes.
-  *
-- *	These mean you can really definitely utterly forget about
-- *	writing to user space from interrupts. (Its not allowed anyway).
-+ * An mm's TLB state is logically represented by a totally ordered sequence
-+ * of TLB flushes.  Each flush increments the mm's tlb_gen.
-  *
-- *	Optimizations Manfred Spraul <manfred@colorfullife.com>
-+ * Each CPU that might have an mm in its TLB (and that might ever use
-+ * those TLB entries) will have an entry for it in its cpu_tlbstate.ctxs
-+ * array.  The kernel maintains the following invariant: for each CPU and
-+ * for each mm in its cpu_tlbstate.ctxs array, the CPU has performed all
-+ * flushes in that mms history up to the tlb_gen in cpu_tlbstate.ctxs
-+ * or the CPU has performed an equivalent set of flushes.
-  *
-- *	More scalable flush, from Andi Kleen
-- *
-- *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
-+ * For this purpose, an equivalent set is a set that is at least as strong.
-+ * So, for example, if the flush history is a full flush at time 1,
-+ * a full flush after time 1 is sufficient, but a full flush before time 1
-+ * is not.  Similarly, any number of flushes can be replaced by a single
-+ * full flush so long as that replacement flush is after all the flushes
-+ * that it's replacing.
-  */
- 
- atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
-@@ -138,8 +145,18 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 			return;
- 		}
- 
--		/* Resume remote flushes and then read tlb_gen. */
-+		/*
-+		 * Resume remote flushes and then read tlb_gen.  The
-+		 * barrier synchronizes with inc_mm_tlb_gen() like
-+		 * this:
-+		 *
-+		 * switch_mm_irqs_off():	flush request:
-+		 *  cpumask_set_cpu(...);	 inc_mm_tlb_gen();
-+		 *  MB				 MB
-+		 *  atomic64_read(.tlb_gen);	 flush_tlb_others(mm_cpumask());
-+		 */
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
-+		smp_mb__after_atomic();
- 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
- 
- 		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
-@@ -186,9 +203,17 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
- 
- 		/*
--		 * Start remote flushes and then read tlb_gen.
-+		 * Start remote flushes and then read tlb_gen.  As
-+		 * above, the barrier synchronizes with
-+		 * inc_mm_tlb_gen() like this:
-+		 *
-+		 * switch_mm_irqs_off():	flush request:
-+		 *  cpumask_set_cpu(...);	 inc_mm_tlb_gen();
-+		 *  MB				 MB
-+		 *  atomic64_read(.tlb_gen);	 flush_tlb_others(mm_cpumask());
- 		 */
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
-+		smp_mb__after_atomic();
- 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
- 
- 		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
+     159857.233790      task-clock:u (msec)       #    1.000 CPUs utilized            ( +-  3.21% )
+                 0      context-switches:u        #    0.000 K/sec
+                 0      cpu-migrations:u          #    0.000 K/sec
+         8,761,843      page-faults:u             #    0.055 M/sec                    ( +-  0.64% )
+    38,725,763,026      cycles:u                  #    0.242 GHz                      ( +-  0.18% )
+   272,691,643,016      stalled-cycles-frontend:u #  704.16% frontend cycles idle     ( +-  3.16% )
+    22,221,416,575      instructions:u            #    0.57  insn per cycle
+                                                  #   12.27  stalled cycles per insn  ( +-  0.00% )
+     5,306,829,649      branches:u                #   33.197 M/sec                    ( +-  0.00% )
+       240,783,599      branch-misses:u           #    4.54% of all branches          ( +-  0.15% )
+
+     159.808721098 seconds time elapsed                                          ( +-  3.15% )
+
+v4.13-rc2 + the patch:
+
+ Performance counter stats for './a.sh 100000' (5 runs):
+
+     167628.094556      task-clock:u (msec)       #    1.007 CPUs utilized            ( +-  1.63% )
+                 0      context-switches:u        #    0.000 K/sec
+                 0      cpu-migrations:u          #    0.000 K/sec
+         8,838,314      page-faults:u             #    0.053 M/sec                    ( +-  0.26% )
+    38,862,240,137      cycles:u                  #    0.232 GHz                      ( +-  0.10% )
+   282,105,057,553      stalled-cycles-frontend:u #  725.91% frontend cycles idle     ( +-  1.64% )
+    22,219,273,623      instructions:u            #    0.57  insn per cycle
+                                                  #   12.70  stalled cycles per insn  ( +-  0.00% )
+     5,306,165,194      branches:u                #   31.654 M/sec                    ( +-  0.00% )
+       240,473,075      branch-misses:u           #    4.53% of all branches          ( +-  0.07% )
+
+     166.497005412 seconds time elapsed                                          ( +-  1.61% )
+
+IMO, there is something to think about. ~4% slowdown is not insignificant.
+I expect effect to be bigger for larger machines.
+
 -- 
-2.9.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
