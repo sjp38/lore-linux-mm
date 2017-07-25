@@ -1,62 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C0F6B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:50:45 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r7so28217696wrb.0
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:50:45 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C4C6B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 09:36:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l81so13705701wmg.8
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 06:36:08 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u74si7353056wmf.54.2017.07.25.05.50.43
+        by mx.google.com with ESMTPS id h3si2159341wmd.176.2017.07.25.06.36.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 05:50:44 -0700 (PDT)
-Date: Tue, 25 Jul 2017 14:50:37 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v5 1/5] mm: add vm_insert_mixed_mkwrite()
-Message-ID: <20170725125037.GH19943@quack2.suse.cz>
-References: <20170724170616.25810-1-ross.zwisler@linux.intel.com>
- <20170724170616.25810-2-ross.zwisler@linux.intel.com>
- <20170724221400.pcq5zvke7w2yfkxi@node.shutemov.name>
- <20170725080158.GA5374@lst.de>
- <20170725093508.GA19943@quack2.suse.cz>
- <20170725121522.GA13457@lst.de>
+        Tue, 25 Jul 2017 06:36:06 -0700 (PDT)
+Date: Tue, 25 Jul 2017 15:36:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V2] selftests/vm: Add tests to validate mirror
+ functionality with mremap
+Message-ID: <20170725133604.GA27322@dhcp22.suse.cz>
+References: <20170725063657.3915-1-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170725121522.GA13457@lst.de>
+In-Reply-To: <20170725063657.3915-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-On Tue 25-07-17 14:15:22, Christoph Hellwig wrote:
-> On Tue, Jul 25, 2017 at 11:35:08AM +0200, Jan Kara wrote:
-> > On Tue 25-07-17 10:01:58, Christoph Hellwig wrote:
-> > > On Tue, Jul 25, 2017 at 01:14:00AM +0300, Kirill A. Shutemov wrote:
-> > > > I guess it's up to filesystem if it wants to reuse the same spot to write
-> > > > data or not. I think your assumptions works for ext4 and xfs. I wouldn't
-> > > > be that sure for btrfs or other filesystems with CoW support.
-> > > 
-> > > Or XFS with reflinks for that matter.  Which currently can't be
-> > > combined with DAX, but I had a somewhat working version a few month
-> > > ago.
-> > 
-> > But in cases like COW when the block mapping changes, the process
-> > must run unmap_mapping_range() before installing the new PTE so that all
-> > processes mapping this file offset actually refault and see the new
-> > mapping. So this would go through pte_none() case. Am I missing something?
-> 
-> Yes, for DAX COW mappings we'd probably need something like this, unlike
-> the pagecache COW handling for which only the underlying block change,
-> but not the page.
+On Tue 25-07-17 12:06:57, Anshuman Khandual wrote:
+[...]
+> diff --git a/tools/testing/selftests/vm/mremap_mirror_private_anon.c b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
+[...]
+> +	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
+> +			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+> +	if (ptr == MAP_FAILED) {
+> +		perror("map() failed");
+> +		return -1;
+> +	}
+> +	memset(ptr, PATTERN, alloc_size);
+> +
+> +	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
+> +	if (mirror_ptr == MAP_FAILED) {
+> +		perror("mremap() failed");
+> +		return -1;
+> +	}
 
-Right. So again nothing where the WARN_ON should trigger. That being said I
-don't care about the WARN_ON too deeply but it can help to catch DAX bugs
-so if we can keep it I'd prefer to do so...
-
-								Honza
+What is the point of this test? It will break with Mike's patch very
+soon. Btw. it never worked. 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
