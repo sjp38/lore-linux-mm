@@ -1,127 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 776626B02B4
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:06:13 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w63so28102081wrc.5
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:06:13 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n198si7295433wmg.221.2017.07.25.05.06.11
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F3396B0292
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:07:05 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id a2so181123506pgn.15
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:07:05 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id a64si8013037pfj.160.2017.07.25.05.07.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 05:06:11 -0700 (PDT)
-Date: Tue, 25 Jul 2017 14:06:09 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] fs: convert sync_file_range to use errseq_t based
- error-tracking
-Message-ID: <20170725120609.GE19943@quack2.suse.cz>
-References: <20170719173707.21933-1-jlayton@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 05:07:04 -0700 (PDT)
+Date: Tue, 25 Jul 2017 13:06:42 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH] mm, memcg: reset low limit during memcg offlining
+Message-ID: <20170725120642.GA12635@castle.DHCP.thefacebook.com>
+References: <20170725114047.4073-1-guro@fb.com>
+ <20170725115808.GE26723@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170719173707.21933-1-jlayton@kernel.org>
+In-Reply-To: <20170725115808.GE26723@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 19-07-17 13:37:07, Jeff Layton wrote:
-> From: Jeff Layton <jlayton@redhat.com>
+On Tue, Jul 25, 2017 at 01:58:08PM +0200, Michal Hocko wrote:
+> On Tue 25-07-17 12:40:47, Roman Gushchin wrote:
+> > A removed memory cgroup with a defined low limit and some belonging
+> > pagecache has very low chances to be freed.
+> > 
+> > If a cgroup has been removed, there is likely no memory pressure inside
+> > the cgroup, and the pagecache is protected from the external pressure
+> > by the defined low limit. The cgroup will be freed only after
+> > the reclaim of all belonging pages. And it will not happen until
+> > there are any reclaimable memory in the system. That means,
+> > there is a good chance, that a cold pagecache will reside
+> > in the memory for an undefined amount of time, wasting
+> > system resources.
+> > 
+> > Fix this issue by zeroing memcg->low during memcg offlining.
 > 
-> sync_file_range doesn't call down into the filesystem directly at all.
-> It only kicks off writeback of pagecache pages and optionally waits
-> on the result.
-> 
-> Convert sync_file_range to use errseq_t based error tracking, under the
-> assumption that most users will prefer this behavior when errors occur.
-> 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> Very well spotted! This goes all the way down to low limit inclusion
+> AFAICS. I would be even tempted to mark it for stable because hiding
+> some memory from reclaim basically indefinitely is not good. We might
+> have been just lucky nobody has noticed that yet.
 
-Looks good. You can add:
+I believe it's because there are not so many actual low limit users,
+and those who do, are using some offstream patches to mitigate this issue.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+Thanks!
 
-								Honza
-
-> ---
->  fs/sync.c          |  4 ++--
->  include/linux/fs.h |  2 ++
->  mm/filemap.c       | 22 ++++++++++++++++++++++
->  3 files changed, 26 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/sync.c b/fs/sync.c
-> index 2a54c1f22035..27d6b8bbcb6a 100644
-> --- a/fs/sync.c
-> +++ b/fs/sync.c
-> @@ -342,7 +342,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
->  
->  	ret = 0;
->  	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-> -		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-> +		ret = file_fdatawait_range(f.file, offset, endbyte);
->  		if (ret < 0)
->  			goto out_put;
->  	}
-> @@ -355,7 +355,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
->  	}
->  
->  	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
-> -		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-> +		ret = file_fdatawait_range(f.file, offset, endbyte);
->  
->  out_put:
->  	fdput(f);
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 7b5d6816542b..fb615e1eb1d4 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2544,6 +2544,8 @@ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
->  				   loff_t lend);
->  extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
->  				  loff_t lend);
-> +extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-> +						loff_t lend);
->  extern int filemap_write_and_wait(struct address_space *mapping);
->  extern int filemap_write_and_wait_range(struct address_space *mapping,
->  				        loff_t lstart, loff_t lend);
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index a49702445ce0..bb17590d7c67 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -476,6 +476,28 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
->  EXPORT_SYMBOL(filemap_fdatawait_range);
->  
->  /**
-> + * file_fdatawait_range - wait for writeback to complete
-> + * @file:		file pointing to address space structure to wait for
-> + * @start_byte:		offset in bytes where the range starts
-> + * @end_byte:		offset in bytes where the range ends (inclusive)
-> + *
-> + * Walk the list of under-writeback pages of the address space that file
-> + * refers to, in the given range and wait for all of them.  Check error
-> + * status of the address space vs. the file->f_wb_err cursor and return it.
-> + *
-> + * Since the error status of the file is advanced by this function,
-> + * callers are responsible for checking the return value and handling and/or
-> + * reporting the error.
-> + */
-> +int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
-> +{
-> +	struct address_space *mapping = file->f_mapping;
-> +
-> +	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-> +	return file_check_and_advance_wb_err(file);
-> +}
-> +
-> +/**
->   * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
->   * @mapping: address space structure to wait for
->   *
-> -- 
-> 2.13.3
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
