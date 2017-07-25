@@ -1,76 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E24D06B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 17:05:58 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id q1so77984687qkb.3
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 14:05:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p1si4663617qkb.79.2017.07.25.14.05.58
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C0B76B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 18:45:17 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 125so196998799pgi.2
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 15:45:17 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 1si8793337pgo.618.2017.07.25.15.45.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 14:05:58 -0700 (PDT)
-Message-ID: <1501016754.26846.22.camel@redhat.com>
-Subject: Re: [PATCH -mm -v3 1/6] mm, swap: Add swap cache statistics sysfs
- interface
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 25 Jul 2017 17:05:54 -0400
-In-Reply-To: <20170725015151.19502-2-ying.huang@intel.com>
-References: <20170725015151.19502-1-ying.huang@intel.com>
-	 <20170725015151.19502-2-ying.huang@intel.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-INkesESSrJ3PGz9r/mlf"
-Mime-Version: 1.0
+        Tue, 25 Jul 2017 15:45:16 -0700 (PDT)
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+References: <20170701005749.GA7232@redhat.com>
+ <ff6cb2b9-b930-afad-1a1f-1c437eced3cf@nvidia.com>
+ <20170711182922.GC5347@redhat.com>
+ <7a4478cb-7eb6-2546-e707-1b0f18e3acd4@nvidia.com>
+ <20170711184919.GD5347@redhat.com>
+ <84d83148-41a3-d0e8-be80-56187a8e8ccc@nvidia.com>
+ <20170713201620.GB1979@redhat.com>
+ <ca12b033-8ec5-84b0-c2aa-ea829e1194fa@nvidia.com>
+ <20170715005554.GA12694@redhat.com>
+ <cfba9bfb-5178-bcae-0fa9-ef66e2a871d5@nvidia.com>
+ <20170721013303.GA25991@redhat.com>
+From: Evgeny Baskakov <ebaskakov@nvidia.com>
+Message-ID: <5602b0e5-0051-f726-420e-7013446d3f42@nvidia.com>
+Date: Tue, 25 Jul 2017 15:45:14 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170721013303.GA25991@redhat.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
+On 7/20/17 6:33 PM, Jerome Glisse wrote:
 
---=-INkesESSrJ3PGz9r/mlf
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+> So i pushed an updated hmm-next branch it should have all fixes so far, i=
+ncluding
+> something that should fix this issue. I still want to go over all emails =
+again
+> to make sure i am not forgetting anything.
+>
+> Cheers,
+> J=C3=A9r=C3=B4me
 
-On Tue, 2017-07-25 at 09:51 +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
->=20
-> The swap cache stats could be gotten only via sysrq, which isn't
-> convenient in some situation.=C2=A0=C2=A0So the sysfs interface of swap c=
-ache
-> stats is added for that.=C2=A0=C2=A0The added sysfs directories/files are=
- as
-> follow,
->=20
-> /sys/kernel/mm/swap
-> /sys/kernel/mm/swap/cache_find_total
-> /sys/kernel/mm/swap/cache_find_success
-> /sys/kernel/mm/swap/cache_add
-> /sys/kernel/mm/swap/cache_del
-> /sys/kernel/mm/swap/cache_pages
->=20
-What is the advantage of this vs new fields in
-/proc/vmstat, which is where most of the VM
-statistics seem to live?
+Hi Jerome,
+
+Thanks for updating the documentation for hmm_devmem_ops.
+
+I have an inquiry about the "fault" callback, though. The documentation=20
+says "Returns: 0 on success", but can the driver set any VM_FAULT_*=20
+flags? For instance, the driver might want to set the VM_FAULT_MAJOR=20
+flag to indicate that a heavy-weight page migration has happened on the=20
+page fault.
+
+If that is possible, can you please update the documentation and list=20
+the flags that are permitted in the callback's return value?
+
+Thanks!
 
 --=20
-All rights reversed
---=-INkesESSrJ3PGz9r/mlf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJZd7KyAAoJEM553pKExN6DXxUH/2ogC9QtKGIySHKTSlNUWdvc
-cUIDMVKvQUjW0LcxNuHPJlxhkeLSO7pp3REmlgS7jQaTRh4Y2gEhn4nR5Q0+VKTY
-Inbmplg1n+avlBkvCkenpeCRGY2amVx19LqKxV/WY7SU6XCY7KhgJWYgduw9B+//
-y4hQiSf2XUxtr9iYJ/tY/rsoa+xLaO97yrO/qaP6ai36hceecikuCnCOGBfKP/zW
-t3Mjai1gQ56rK2LMTW1eFIrFo3UmqqFR+VIo1/TvNoCMx9VIg9QfcPJWKZ+CdrMX
-TidmoF2IKxEA9NjEv9WfYYFmm0qNvKzz/vP6F82CeBvLs3WgGG7xz95vAvzGgBk=
-=11TG
------END PGP SIGNATURE-----
-
---=-INkesESSrJ3PGz9r/mlf--
+Evgeny Baskakov
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
