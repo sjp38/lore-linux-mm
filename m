@@ -1,53 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2FB6B02C3
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 11:29:04 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t187so111184956pfb.0
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:29:04 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0096.outbound.protection.outlook.com. [104.47.0.96])
-        by mx.google.com with ESMTPS id f7si1018436pgr.285.2017.07.25.08.29.02
+	by kanga.kvack.org (Postfix) with ESMTP id F10766B02C3
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 11:31:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u17so159934843pfa.6
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:31:16 -0700 (PDT)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id m3si5663779pgc.963.2017.07.25.08.31.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 08:29:03 -0700 (PDT)
-Subject: Re: [PATCH] [v3] kasan: avoid -Wmaybe-uninitialized warning
-References: <20170725152739.4176967-1-arnd@arndb.de>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <467b0241-da9a-6e91-d7be-b72618a24306@virtuozzo.com>
-Date: Tue, 25 Jul 2017 18:31:23 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 08:31:16 -0700 (PDT)
+Received: by mail-pg0-x234.google.com with SMTP id y129so71542500pgy.4
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:31:15 -0700 (PDT)
+Date: Tue, 25 Jul 2017 18:31:10 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name>
+References: <20170724072332.31903-1-mhocko@kernel.org>
+ <20170724140008.sd2n6af6izjyjtda@node.shutemov.name>
+ <20170724141526.GM25221@dhcp22.suse.cz>
+ <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
+ <20170724161146.GQ25221@dhcp22.suse.cz>
+ <20170725142626.GJ26723@dhcp22.suse.cz>
+ <20170725151754.3txp44a2kbffsxdg@node.shutemov.name>
+ <20170725152300.GM26723@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170725152739.4176967-1-arnd@arndb.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170725152300.GM26723@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 07/25/2017 06:27 PM, Arnd Bergmann wrote:
-> gcc-7 produces this warning:
-> 
-> mm/kasan/report.c: In function 'kasan_report':
-> mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
->    print_shadow_for_address(info->first_bad_addr);
->    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
-> 
-> The code seems fine as we only print info.first_bad_addr when there is a shadow,
-> and we always initialize it in that case, but this is relatively hard
-> for gcc to figure out after the latest rework. Adding an intialization
-> to the most likely value together with the other struct members
-> shuts up that warning.
-> 
-> Fixes: b235b9808664 ("kasan: unify report headers")
-> Link: https://patchwork.kernel.org/patch/9641417/
-> Suggested-by: Alexander Potapenko <glider@google.com>
-> Suggested-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-> ---
+On Tue, Jul 25, 2017 at 05:23:00PM +0200, Michal Hocko wrote:
+> what is stdev?
 
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Updated tables:
+
+3 runs before the patch:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.  Stdev
+ 177200  205000  212900  217800  223700 2377000  32868
+ 172400  201700  209700  214300  220600 1343000  31191
+ 175700  203800  212300  217100  223000 1061000  31195
+
+3 runs after the patch:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.  Stdev
+ 175900  204800  213000  216400  223600 1989000  27210
+ 180300  210900  219600  223600  230200 3184000  32609
+ 182100  212500  222000  226200  232700 1473000  32138
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
