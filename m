@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C17DC6B02C3
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 21:52:05 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d193so167143261pgc.0
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 18:52:05 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 098556B02F3
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 21:52:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k190so168670254pgk.8
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 18:52:06 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id s10si7722046pgc.281.2017.07.24.18.52.03
+        by mx.google.com with ESMTPS id s10si7722046pgc.281.2017.07.24.18.52.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 18:52:04 -0700 (PDT)
+        Mon, 24 Jul 2017 18:52:05 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v3 2/6] mm, swap: Add swap readahead hit statistics
-Date: Tue, 25 Jul 2017 09:51:47 +0800
-Message-Id: <20170725015151.19502-3-ying.huang@intel.com>
+Subject: [PATCH -mm -v3 3/6] mm, swap: Fix swap readahead marking
+Date: Tue, 25 Jul 2017 09:51:48 +0800
+Message-Id: <20170725015151.19502-4-ying.huang@intel.com>
 In-Reply-To: <20170725015151.19502-1-ying.huang@intel.com>
 References: <20170725015151.19502-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,15 +22,16 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
-The statistics for total readahead pages and total readahead hits are
-recorded and exported via the following sysfs interface.
+In the original implementation, it is possible that the existing pages
+in the swap cache (not newly readahead) could be marked as the
+readahead pages.  This will cause the statistics of swap readahead be
+wrong and influence the swap readahead algorithm too.
 
-/sys/kernel/mm/swap/ra_hits
-/sys/kernel/mm/swap/ra_total
+This is fixed via marking a page as the readahead page only if it is
+newly allocated and read from the disk.
 
-With them, the efficiency of the swap readahead could be measured, so
-that the swap readahead algorithm and parameters could be tuned
-accordingly.
+When testing with linpack, after the fixing the swap readahead hit
+rate increased from ~66% to ~86%.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -42,94 +43,47 @@ Cc: Fengguang Wu <fengguang.wu@intel.com>
 Cc: Tim Chen <tim.c.chen@intel.com>
 Cc: Dave Hansen <dave.hansen@intel.com>
 ---
- mm/swap_state.c | 38 ++++++++++++++++++++++++++++++++++++--
- 1 file changed, 36 insertions(+), 2 deletions(-)
+ mm/swap_state.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
 
 diff --git a/mm/swap_state.c b/mm/swap_state.c
-index a13bbf504e93..8be7153967ed 100644
+index 8be7153967ed..d4d33c43ed36 100644
 --- a/mm/swap_state.c
 +++ b/mm/swap_state.c
-@@ -20,6 +20,7 @@
- #include <linux/vmalloc.h>
- #include <linux/swap_slots.h>
- #include <linux/huge_mm.h>
-+#include <linux/percpu_counter.h>
+@@ -508,7 +508,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	unsigned long start_offset, end_offset;
+ 	unsigned long mask;
+ 	struct blk_plug plug;
+-	bool do_poll = true;
++	bool do_poll = true, page_allocated;
  
- #include <asm/pgtable.h>
- 
-@@ -74,6 +75,15 @@ unsigned long total_swapcache_pages(void)
- }
- 
- static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
-+static struct percpu_counter swapin_readahead_hits_total;
-+static struct percpu_counter swapin_readahead_total;
-+
-+static int __init swap_init(void)
-+{
-+	percpu_counter_init(&swapin_readahead_hits_total, 0, GFP_KERNEL);
-+	percpu_counter_init(&swapin_readahead_total, 0, GFP_KERNEL);
-+}
-+subsys_initcall(swap_init);
- 
- void show_swap_cache_info(void)
- {
-@@ -305,8 +315,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
- 
- 	if (page && likely(!PageTransCompound(page))) {
- 		INC_CACHE_INFO(find_success);
--		if (TestClearPageReadahead(page))
-+		if (TestClearPageReadahead(page)) {
- 			atomic_inc(&swapin_readahead_hits);
-+			percpu_counter_inc(&swapin_readahead_hits_total);
-+		}
- 	}
- 
- 	INC_CACHE_INFO(find_total);
-@@ -516,8 +528,11 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 						gfp_mask, vma, addr, false);
+ 	mask = swapin_nr_pages(offset) - 1;
+ 	if (!mask)
+@@ -524,14 +524,18 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	blk_start_plug(&plug);
+ 	for (offset = start_offset; offset <= end_offset ; offset++) {
+ 		/* Ok, do the async read-ahead now */
+-		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+-						gfp_mask, vma, addr, false);
++		page = __read_swap_cache_async(
++			swp_entry(swp_type(entry), offset),
++			gfp_mask, vma, addr, &page_allocated);
  		if (!page)
  			continue;
--		if (offset != entry_offset && likely(!PageTransCompound(page)))
-+		if (offset != entry_offset &&
-+		    likely(!PageTransCompound(page))) {
- 			SetPageReadahead(page);
-+			percpu_counter_inc(&swapin_readahead_total);
-+		}
+-		if (offset != entry_offset &&
+-		    likely(!PageTransCompound(page))) {
+-			SetPageReadahead(page);
+-			percpu_counter_inc(&swapin_readahead_total);
++		if (page_allocated) {
++			swap_readpage(page, false);
++			if (offset != entry_offset &&
++			    likely(!PageTransCompound(page))) {
++				SetPageReadahead(page);
++				percpu_counter_inc(&swapin_readahead_total);
++			}
+ 		}
  		put_page(page);
  	}
- 	blk_finish_plug(&plug);
-@@ -603,12 +618,31 @@ static ssize_t swap_cache_find_total_show(
- static struct kobj_attribute swap_cache_find_total_attr =
- 	__ATTR(cache_find_total, 0444, swap_cache_find_total_show, NULL);
- 
-+static ssize_t swap_readahead_hits_show(
-+	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lld\n",
-+		       percpu_counter_sum(&swapin_readahead_hits_total));
-+}
-+static struct kobj_attribute swap_readahead_hits_attr =
-+	__ATTR(ra_hits, 0444, swap_readahead_hits_show, NULL);
-+
-+static ssize_t swap_readahead_total_show(
-+	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lld\n", percpu_counter_sum(&swapin_readahead_total));
-+}
-+static struct kobj_attribute swap_readahead_total_attr =
-+	__ATTR(ra_total, 0444, swap_readahead_total_show, NULL);
-+
- static struct attribute *swap_attrs[] = {
- 	&swap_cache_pages_attr.attr,
- 	&swap_cache_add_attr.attr,
- 	&swap_cache_del_attr.attr,
- 	&swap_cache_find_success_attr.attr,
- 	&swap_cache_find_total_attr.attr,
-+	&swap_readahead_hits_attr.attr,
-+	&swap_readahead_total_attr.attr,
- 	NULL,
- };
- 
 -- 
 2.13.2
 
