@@ -1,94 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C958B6B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:38:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v68so158562876pfi.13
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:38:01 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e126si8117551pfh.616.2017.07.25.07.38.00
-        for <linux-mm@kvack.org>;
-        Tue, 25 Jul 2017 07:38:00 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: Re: [RFC PATCH 1/2] mm/hugetlb: Make huge_pte_offset() consistent between PUD and PMD entries
-References: <20170724173318.966-1-punit.agrawal@arm.com>
-	<20170724173318.966-2-punit.agrawal@arm.com>
-	<20170725122907.bvmubwcfmqalp6r3@localhost>
-Date: Tue, 25 Jul 2017 15:37:57 +0100
-In-Reply-To: <20170725122907.bvmubwcfmqalp6r3@localhost> (Catalin Marinas's
-	message of "Tue, 25 Jul 2017 13:29:07 +0100")
-Message-ID: <87k22wk2ey.fsf@e105922-lin.cambridge.arm.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A36756B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:44:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v68so158677725pfi.13
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:44:20 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m88si5768237pfa.226.2017.07.25.07.44.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 07:44:19 -0700 (PDT)
+Date: Tue, 25 Jul 2017 16:44:12 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v6] x86/mm: Improve TLB flush documentation
+Message-ID: <20170725144412.iaxl4um6c42ydtbw@hirez.programming.kicks-ass.net>
+References: <b994bd38fd8dbed15e3bf8a0a23dde207b2297c0.1500991817.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b994bd38fd8dbed15e3bf8a0a23dde207b2297c0.1500991817.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, steve.capper@arm.com, will.deacon@arm.com, kirill.shutemov@linux.intel.com, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-Catalin Marinas <catalin.marinas@arm.com> writes:
+On Tue, Jul 25, 2017 at 07:10:44AM -0700, Andy Lutomirski wrote:
+> Improve comments as requested by PeterZ and also add some
+> documentation at the top of the file.
+> 
+> This adds and removes some smp_mb__after_atomic() calls to make the
+> code correct even in the absence of x86's extra-strong atomics.
 
-> Hi Punit,
->
-> On Mon, Jul 24, 2017 at 06:33:17PM +0100, Punit Agrawal wrote:
->> When walking the page tables to resolve an address that points to
->> !present_p*d() entry, huge_pte_offset() returns inconsistent values
->> depending on the level of page table (PUD or PMD).
->> 
->> In the case of a PUD entry, it returns NULL while in the case of a PMD
->> entry, it returns a pointer to the page table entry.
->> 
->> Make huge_pte_offset() consistent by always returning NULL on
->> encountering a !present_p*d() entry. Document the behaviour to clarify
->> the expected semantics of this function.
->
-> Nitpick: "p*d_present" instead of "present_p*d".
+The main point being that this better documents on which specific
+ordering we rely.
 
-Thanks for spotting. Fixed both the instances locally.
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> ---
+> 
+> Changes from v5:
+>  - Fix blatantly wrong docs (PeterZ, Nadav)
+>  - Remove the smp_mb__...._atomic() I was supposed to remove, not the one
+>    I did remove (found by turning on brain and re-reading PeterZ's email)
+> 
+> arch/x86/include/asm/tlbflush.h |  2 --
+>  arch/x86/mm/tlb.c               | 45 ++++++++++++++++++++++++++++++++---------
+>  2 files changed, 35 insertions(+), 12 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+> index d23e61dc0640..eb2b44719d57 100644
+> --- a/arch/x86/include/asm/tlbflush.h
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -67,9 +67,7 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+>  	 * their read of mm_cpumask after their writes to the paging
+>  	 * structures.
+>  	 */
+> -	smp_mb__before_atomic();
+>  	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
+> -	smp_mb__after_atomic();
+>  
+>  	return new_tlb_gen;
+>  }
 
->
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index bc48ee783dd9..686eb6fa9eb1 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -4603,6 +4603,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
->>  	return pte;
->>  }
->>  
->> +/*
->> + * huge_pte_offset() - Walk the page table to resolve the hugepage
->> + * entry at address @addr
->> + *
->> + * Return: Pointer to page table entry (PUD or PMD) for address @addr
->> + * or NULL if the entry is not present.
->> + */
->>  pte_t *huge_pte_offset(struct mm_struct *mm,
->>  		       unsigned long addr, unsigned long sz)
->>  {
->> @@ -4617,13 +4624,20 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
->>  	p4d = p4d_offset(pgd, addr);
->>  	if (!p4d_present(*p4d))
->>  		return NULL;
->> +
->>  	pud = pud_offset(p4d, addr);
->>  	if (!pud_present(*pud))
->>  		return NULL;
->>  	if (pud_huge(*pud))
->>  		return (pte_t *)pud;
->> +
->>  	pmd = pmd_offset(pud, addr);
->> -	return (pte_t *) pmd;
->> +	if (!pmd_present(*pmd))
->> +		return NULL;
->
-> This breaks the current behaviour for swap entries in the pmd (for pud
-> is already broken but maybe no-one uses them). It is fixed in the
-> subsequent patch together with the pud but the series is no longer
-> bisectable. Maybe it's better if you fold the two patches together (or
-> change the order, though I'm not sure how readable it is).
+Right, as atomic*_inc_return() already implies a MB on either side.
 
-I missed the change in behaviour for pmd swap entries. I'll squash the
-two patches and re-post.
+> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+> index ce104b962a17..0a2e9d0b5503 100644
+> --- a/arch/x86/mm/tlb.c
+> +++ b/arch/x86/mm/tlb.c
+> @@ -15,17 +15,24 @@
+>  #include <linux/debugfs.h>
+>  
+>  /*
+> + * The code in this file handles mm switches and TLB flushes.
+>   *
+> + * An mm's TLB state is logically represented by a totally ordered sequence
+> + * of TLB flushes.  Each flush increments the mm's tlb_gen.
+>   *
+> + * Each CPU that might have an mm in its TLB (and that might ever use
+> + * those TLB entries) will have an entry for it in its cpu_tlbstate.ctxs
+> + * array.  The kernel maintains the following invariant: for each CPU and
+> + * for each mm in its cpu_tlbstate.ctxs array, the CPU has performed all
+> + * flushes in that mms history up to the tlb_gen in cpu_tlbstate.ctxs
+> + * or the CPU has performed an equivalent set of flushes.
+>   *
+> + * For this purpose, an equivalent set is a set that is at least as strong.
+> + * So, for example, if the flush history is a full flush at time 1,
+> + * a full flush after time 1 is sufficient, but a full flush before time 1
+> + * is not.  Similarly, any number of flushes can be replaced by a single
+> + * full flush so long as that replacement flush is after all the flushes
+> + * that it's replacing.
+>   */
+>  
+>  atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+> @@ -138,8 +145,18 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>  			return;
+>  		}
+>  
+> +		/*
+> +		 * Resume remote flushes and then read tlb_gen.  The
+> +		 * barrier synchronizes with inc_mm_tlb_gen() like
+> +		 * this:
+> +		 *
+> +		 * switch_mm_irqs_off():	flush request:
+> +		 *  cpumask_set_cpu(...);	 inc_mm_tlb_gen();
+> +		 *  MB				 MB
+> +		 *  atomic64_read(.tlb_gen);	 flush_tlb_others(mm_cpumask());
+> +		 */
+>  		cpumask_set_cpu(cpu, mm_cpumask(next));
+> +		smp_mb__after_atomic();
+>  		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+>  
+>  		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
+> @@ -186,9 +203,17 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+>  		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+>  
+>  		/*
+> +		 * Start remote flushes and then read tlb_gen.  As
+> +		 * above, the barrier synchronizes with
+> +		 * inc_mm_tlb_gen() like this:
+> +		 *
+> +		 * switch_mm_irqs_off():	flush request:
+> +		 *  cpumask_set_cpu(...);	 inc_mm_tlb_gen();
+> +		 *  MB				 MB
+> +		 *  atomic64_read(.tlb_gen);	 flush_tlb_others(mm_cpumask());
+>  		 */
+>  		cpumask_set_cpu(cpu, mm_cpumask(next));
+> +		smp_mb__after_atomic();
+>  		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+>  
+>  		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
 
-Thanks for the review.
+Arguably one could make a helper function of those few lines, not sure
+it makes sense, but this duplication seems wasteful.
+
+So we either see the increment or the CPU set, but can not have neither.
+
+Should not arch_tlbbatch_add_mm() also have this same comment? It too
+seems to increment and then read the mask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
