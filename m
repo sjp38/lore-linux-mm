@@ -1,80 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91C426B02C3
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:25:20 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r7so27970012wrb.0
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:25:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o107si14641875wrc.134.2017.07.25.04.25.19
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC066B0292
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:41:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id q50so28004713wrb.14
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:41:50 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 77si7353767wmi.90.2017.07.25.04.41.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 04:25:19 -0700 (PDT)
-Date: Tue, 25 Jul 2017 13:25:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
-Message-ID: <20170725112513.GD26723@dhcp22.suse.cz>
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
- <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
- <20170714123023.GA2624@dhcp22.suse.cz>
- <20170714181523-mutt-send-email-mst@kernel.org>
- <20170717152448.GN12888@dhcp22.suse.cz>
- <596D6E7E.4070700@intel.com>
- <20170719081311.GC26779@dhcp22.suse.cz>
- <596F4A0E.4010507@intel.com>
- <20170724090042.GF25221@dhcp22.suse.cz>
- <59771010.6080108@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 04:41:48 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH] mm, memcg: reset low limit during memcg offlining
+Date: Tue, 25 Jul 2017 12:40:47 +0100
+Message-ID: <20170725114047.4073-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <59771010.6080108@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 25-07-17 17:32:00, Wei Wang wrote:
-> On 07/24/2017 05:00 PM, Michal Hocko wrote:
-> >On Wed 19-07-17 20:01:18, Wei Wang wrote:
-> >>On 07/19/2017 04:13 PM, Michal Hocko wrote:
-> >[...
-> >>>All you should need is the check for the page reference count, no?  I
-> >>>assume you do some sort of pfn walk and so you should be able to get an
-> >>>access to the struct page.
-> >>Not necessarily - the guest struct page is not seen by the hypervisor. The
-> >>hypervisor only gets those guest pfns which are hinted as unused. From the
-> >>hypervisor (host) point of view, a guest physical address corresponds to a
-> >>virtual address of a host process. So, once the hypervisor knows a guest
-> >>physical page is unsued, it knows that the corresponding virtual memory of
-> >>the process doesn't need to be transferred in the 1st round.
-> >I am sorry, but I do not understand. Why cannot _guest_ simply check the
-> >struct page ref count and send them to the hypervisor?
-> 
-> Were you suggesting the following?
-> 1) get a free page block from the page list using the API;
+A removed memory cgroup with a defined low limit and some belonging
+pagecache has very low chances to be freed.
 
-No. Use a pfn walk, check the reference count and skip those pages which
-have 0 ref count. I suspected that you need to do some sort of the pfn
-walk anyway because you somehow have to evaluate a memory to migrate,
-right?
+If a cgroup has been removed, there is likely no memory pressure inside
+the cgroup, and the pagecache is protected from the external pressure
+by the defined low limit. The cgroup will be freed only after
+the reclaim of all belonging pages. And it will not happen until
+there are any reclaimable memory in the system. That means,
+there is a good chance, that a cold pagecache will reside
+in the memory for an undefined amount of time, wasting
+system resources.
 
-> 2) if page->ref_count == 0, send it to the hypervisor
+Fix this issue by zeroing memcg->low during memcg offlining.
 
-yes
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: kernel-team@fb.com
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/memcontrol.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-> Btw, ref_count may also change at any time.
-> 
-> >Is there any
-> >documentation which describes the workflow or code which would use your
-> >new API?
-> >
-> 
-> It's used in the balloon driver (patch 8). We don't have any docs yet, but
-> I think the high level workflow is the two steps above.
-
-I will have a look.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index aed11b2d0251..2aa204b8f9fd 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4300,6 +4300,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	}
+ 	spin_unlock(&memcg->event_list_lock);
+ 
++	memcg->low = 0;
++
+ 	memcg_offline_kmem(memcg);
+ 	wb_memcg_offline(memcg);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
