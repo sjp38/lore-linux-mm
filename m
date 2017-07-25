@@ -1,93 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E286B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:31:40 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r123so13598408wmb.1
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:31:40 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id h6si6810747wrh.400.2017.07.25.05.31.38
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F916B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:41:49 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r7so28192992wrb.0
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:41:49 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p82si609823wma.239.2017.07.25.05.41.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 05:31:38 -0700 (PDT)
-Date: Tue, 25 Jul 2017 13:31:13 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] mm, memcg: reset low limit during memcg offlining
-Message-ID: <20170725123113.GB12635@castle.DHCP.thefacebook.com>
-References: <20170725114047.4073-1-guro@fb.com>
- <20170725120537.o4kgzjhcjcjmopzc@esperanza>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Jul 2017 05:41:46 -0700 (PDT)
+Date: Tue, 25 Jul 2017 14:41:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170725124141.GF26723@dhcp22.suse.cz>
+References: <20170714123023.GA2624@dhcp22.suse.cz>
+ <20170714181523-mutt-send-email-mst@kernel.org>
+ <20170717152448.GN12888@dhcp22.suse.cz>
+ <596D6E7E.4070700@intel.com>
+ <20170719081311.GC26779@dhcp22.suse.cz>
+ <596F4A0E.4010507@intel.com>
+ <20170724090042.GF25221@dhcp22.suse.cz>
+ <59771010.6080108@intel.com>
+ <20170725112513.GD26723@dhcp22.suse.cz>
+ <597731E8.9040803@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170725120537.o4kgzjhcjcjmopzc@esperanza>
+In-Reply-To: <597731E8.9040803@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Tue, Jul 25, 2017 at 03:05:37PM +0300, Vladimir Davydov wrote:
-> On Tue, Jul 25, 2017 at 12:40:47PM +0100, Roman Gushchin wrote:
-> > A removed memory cgroup with a defined low limit and some belonging
-> > pagecache has very low chances to be freed.
-> > 
-> > If a cgroup has been removed, there is likely no memory pressure inside
-> > the cgroup, and the pagecache is protected from the external pressure
-> > by the defined low limit. The cgroup will be freed only after
-> > the reclaim of all belonging pages. And it will not happen until
-> > there are any reclaimable memory in the system. That means,
-> > there is a good chance, that a cold pagecache will reside
-> > in the memory for an undefined amount of time, wasting
-> > system resources.
-> > 
-> > Fix this issue by zeroing memcg->low during memcg offlining.
-> > 
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: kernel-team@fb.com
-> > Cc: cgroups@vger.kernel.org
-> > Cc: linux-mm@kvack.org
-> > Cc: linux-kernel@vger.kernel.org
-> > ---
-> >  mm/memcontrol.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index aed11b2d0251..2aa204b8f9fd 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -4300,6 +4300,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
-> >  	}
-> >  	spin_unlock(&memcg->event_list_lock);
-> >  
-> > +	memcg->low = 0;
-> > +
-> >  	memcg_offline_kmem(memcg);
-> >  	wb_memcg_offline(memcg);
-> >  
+On Tue 25-07-17 19:56:24, Wei Wang wrote:
+> On 07/25/2017 07:25 PM, Michal Hocko wrote:
+> >On Tue 25-07-17 17:32:00, Wei Wang wrote:
+> >>On 07/24/2017 05:00 PM, Michal Hocko wrote:
+> >>>On Wed 19-07-17 20:01:18, Wei Wang wrote:
+> >>>>On 07/19/2017 04:13 PM, Michal Hocko wrote:
+> >>>[...
+> >>>>>All you should need is the check for the page reference count, no?  I
+> >>>>>assume you do some sort of pfn walk and so you should be able to get an
+> >>>>>access to the struct page.
+> >>>>Not necessarily - the guest struct page is not seen by the hypervisor. The
+> >>>>hypervisor only gets those guest pfns which are hinted as unused. From the
+> >>>>hypervisor (host) point of view, a guest physical address corresponds to a
+> >>>>virtual address of a host process. So, once the hypervisor knows a guest
+> >>>>physical page is unsued, it knows that the corresponding virtual memory of
+> >>>>the process doesn't need to be transferred in the 1st round.
+> >>>I am sorry, but I do not understand. Why cannot _guest_ simply check the
+> >>>struct page ref count and send them to the hypervisor?
+> >>Were you suggesting the following?
+> >>1) get a free page block from the page list using the API;
+> >No. Use a pfn walk, check the reference count and skip those pages which
+> >have 0 ref count.
 > 
-> We already have that - see mem_cgroup_css_reset().
+> 
+> "pfn walk" - do you mean start from the first pfn, and scan all the pfns
+> that the VM has?
 
-Hm, I see...
+yes
 
-But are you sure, that calling mem_cgroup_css_reset() from offlining path
-is always a good idea?
+> >I suspected that you need to do some sort of the pfn
+> >walk anyway because you somehow have to evaluate a memory to migrate,
+> >right?
+> 
+> We don't need to do the pfn walk in the guest kernel. When the API
+> reports, for example, a 2MB free page block, the API caller offers to
+> the hypervisor the base address of the page block, and size=2MB, to
+> the hypervisor.
 
-As I understand, css_reset() callback is intended to _completely_ disable all
-limits, as if there were no cgroup at all. And it's main purpose to be called
-when controllers are detached from the hierarhy.
+So you want to skip pfn walks by regularly calling into the page
+allocator to update your bitmap. If that is the case then would an API
+that would allow you to update your bitmap via a callback be s
+sufficient? Something like
+	void walk_free_mem(int node, int min_order,
+			void (*visit)(unsigned long pfn, unsigned long nr_pages))
 
-Offlining is different: some limits make perfect sence after offlining
-(e.g. we want to limit the writeback speed), and other might be tweaked
-(e.g. we can set soft limit to prioritize reclaiming of abandoned cgroups).
+The function will call the given callback for each free memory block on
+the given node starting from the given min_order. The callback will be
+strictly an atomic and very light context. You can update your bitmap
+from there.
 
-So, I'd prefer to move this code to the offlining callback,
-and not to call css_reset.
+This would address my main concern that the allocator internals would
+get outside of the allocator proper. A nasty callback which would be too
+expensive could still stall other allocations and cause latencies but
+the locking will be under mm core control at least.
 
-But, anyway, thanks for pointing at the mem_cgroup_css_reset().
-
-Roman
+Does that sound useful?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
