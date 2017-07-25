@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A96036B02C3
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 11:26:45 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q198so36942492qke.13
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:26:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k27si6652228qtf.130.2017.07.25.08.26.44
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E0FBF6B02F3
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 11:27:44 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id q50so28715996wrb.14
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:27:44 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id 61si8997182wrg.24.2017.07.25.08.27.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 08:26:44 -0700 (PDT)
-Date: Tue, 25 Jul 2017 17:26:39 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170725152639.GP29716@redhat.com>
-References: <20170724072332.31903-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170724072332.31903-1-mhocko@kernel.org>
+        Tue, 25 Jul 2017 08:27:43 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] [v3] kasan: avoid -Wmaybe-uninitialized warning
+Date: Tue, 25 Jul 2017 17:27:29 +0200
+Message-Id: <20170725152739.4176967-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Konovalov <andreyknvl@google.com>, Mark Rutland <mark.rutland@arm.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 24, 2017 at 09:23:32AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> David has noticed that the oom killer might kill additional tasks while
-> the exiting oom victim hasn't terminated yet because the oom_reaper marks
-> the curent victim MMF_OOM_SKIP too early when mm->mm_users dropped down
-> to 0. The race is as follows
-> 
-> oom_reap_task				do_exit
-> 					  exit_mm
->   __oom_reap_task_mm
-> 					    mmput
-> 					      __mmput
->     mmget_not_zero # fails
->     						exit_mmap # frees memory
->   set_bit(MMF_OOM_SKIP)
-> 
-> The victim is still visible to the OOM killer until it is unhashed.
+gcc-7 produces this warning:
 
-I think this is a very minor problem, in the worst case you get a
-false positive oom kill, and it requires a race condition for it to
-happen. I wouldn't add mmap_sem in exit_mmap just for this considering
-the mmget_not_zero is already enough to leave exit_mmap alone.
+mm/kasan/report.c: In function 'kasan_report':
+mm/kasan/report.c:351:3: error: 'info.first_bad_addr' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+   print_shadow_for_address(info->first_bad_addr);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+mm/kasan/report.c:360:27: note: 'info.first_bad_addr' was declared here
 
-Could you first clarify these points then I'll understand better what
-the above is about:
+The code seems fine as we only print info.first_bad_addr when there is a shadow,
+and we always initialize it in that case, but this is relatively hard
+for gcc to figure out after the latest rework. Adding an intialization
+to the most likely value together with the other struct members
+shuts up that warning.
 
-1) if exit_mmap runs for a long time with terabytes of RAM with
-   mmap_sem held for writing like your patch does, wouldn't then
-   oom_reap_task_mm fail the same way after a few tries on
-   down_read_trylock? Despite your patch got applied? Isn't that
-   simply moving the failure that leads to set_bit(MMF_OOM_SKIP) from
-   mmget_not_zero to down_read_trylock?
+Fixes: b235b9808664 ("kasan: unify report headers")
+Link: https://patchwork.kernel.org/patch/9641417/
+Suggested-by: Alexander Potapenko <glider@google.com>
+Suggested-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+Originally submitted on March 23, but unfortunately is still needed,
+as verified on 4.13-rc1, with aarch64-linux-gcc-7.1.1
 
-2) why isn't __oom_reap_task_mm returning different retvals in case
-   mmget_not_zero fails? What is the point to schedule_timeout
-   and retry MAX_OOM_REAP_RETRIES times if mmget_not_zero caused it to
-   return null as it can't do anything about such task anymore? Why
-   are we scheduling those RETRIES times if mm_users is 0?
+v2: add a comment as Andrew suggested
+v3: move initialization as Alexander and Andrey suggested
+---
+ mm/kasan/report.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-3) if exit_mmap is freeing lots of memory already, why should there be
-   another OOM immediately? I thought oom reaper only was needed when
-   the task on the right column couldn't reach the final mmput to set
-   mm_users to 0. Why exactly is a problem that MMF_OOM_SKIP gets set
-   on the mm, if exit_mmap is already guaranteed to be running? Why
-   isn't the oom reaper happy to just stop in such case and wait it to
-   complete? exit_mmap doesn't even take the mmap_sem and it's running
-   in R state, how would it block in a way that requires the OOM
-   reaper to free memory from another process to complete?
-
-4) how is it safe to overwrite a VM_FAULT_RETRY that returns without
-   mmap_sem and then the arch code will release the mmap_sem despite
-   it was already released by handle_mm_fault? Anonymous memory faults
-   aren't common to return VM_FAULT_RETRY but an userfault
-   can. Shouldn't there be a block that prevents overwriting if
-   VM_FAULT_RETRY is set below? (not only VM_FAULT_ERROR)
-
-	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
-				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
-		ret = VM_FAULT_SIGBUS;
-
-Thanks,
-Andrea
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 04bb1d3eb9ec..6bcfb01ba038 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -401,6 +401,7 @@ void kasan_report(unsigned long addr, size_t size,
+ 	disable_trace_on_warning();
+ 
+ 	info.access_addr = (void *)addr;
++	info.first_bad_addr = (void *)addr;
+ 	info.access_size = size;
+ 	info.is_write = is_write;
+ 	info.ip = ip;
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
