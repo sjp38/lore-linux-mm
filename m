@@ -1,123 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D6B6B0292
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 21:51:58 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y129so96125311pgy.1
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 18:51:58 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C8F866B02B4
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 21:52:00 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 83so87486087pgb.14
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 18:52:00 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id s10si7722046pgc.281.2017.07.24.18.51.57
+        by mx.google.com with ESMTPS id s10si7722046pgc.281.2017.07.24.18.51.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 18:51:57 -0700 (PDT)
+        Mon, 24 Jul 2017 18:51:59 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v3 0/6] mm, swap: VMA based swap readahead
-Date: Tue, 25 Jul 2017 09:51:45 +0800
-Message-Id: <20170725015151.19502-1-ying.huang@intel.com>
+Subject: [PATCH -mm -v3 1/6] mm, swap: Add swap cache statistics sysfs interface
+Date: Tue, 25 Jul 2017 09:51:46 +0800
+Message-Id: <20170725015151.19502-2-ying.huang@intel.com>
+In-Reply-To: <20170725015151.19502-1-ying.huang@intel.com>
+References: <20170725015151.19502-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Huang, Ying" <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-The swap readahead is an important mechanism to reduce the swap in
-latency.  Although pure sequential memory access pattern isn't very
-popular for anonymous memory, the space locality is still considered
-valid.
+From: Huang Ying <ying.huang@intel.com>
 
-In the original swap readahead implementation, the consecutive blocks
-in swap device are readahead based on the global space locality
-estimation.  But the consecutive blocks in swap device just reflect
-the order of page reclaiming, don't necessarily reflect the access
-pattern in virtual memory space.  And the different tasks in the
-system may have different access patterns, which makes the global
-space locality estimation incorrect.
+The swap cache stats could be gotten only via sysrq, which isn't
+convenient in some situation.  So the sysfs interface of swap cache
+stats is added for that.  The added sysfs directories/files are as
+follow,
 
-In this patchset, when page fault occurs, the virtual pages near the
-fault address will be readahead instead of the swap slots near the
-fault swap slot in swap device.  This avoid to readahead the unrelated
-swap slots.  At the same time, the swap readahead is changed to work
-on per-VMA from globally.  So that the different access patterns of
-the different VMAs could be distinguished, and the different readahead
-policy could be applied accordingly.  The original core readahead
-detection and scaling algorithm is reused, because it is an effect
-algorithm to detect the space locality.
+/sys/kernel/mm/swap
+/sys/kernel/mm/swap/cache_find_total
+/sys/kernel/mm/swap/cache_find_success
+/sys/kernel/mm/swap/cache_add
+/sys/kernel/mm/swap/cache_del
+/sys/kernel/mm/swap/cache_pages
 
-In addition to the swap readahead changes, some new sysfs interface is
-added to show the efficiency of the readahead algorithm and some other
-swap statistics.
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Tim Chen <tim.c.chen@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+---
+ mm/swap_state.c | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 78 insertions(+)
 
-This new implementation will incur more small random read, on SSD, the
-improved correctness of estimation and readahead target should beat
-the potential increased overhead, this is also illustrated in the test
-results below.  But on HDD, the overhead may beat the benefit, so the
-original implementation will be used by default.
-
-The test and result is as follow,
-
-Common test condition
-=====================
-
-Test Machine: Xeon E5 v3 (2 sockets, 72 threads, 32G RAM)
-Swap device: NVMe disk
-
-Micro-benchmark with combined access pattern
-============================================
-
-vm-scalability, sequential swap test case, 4 processes to eat 50G
-virtual memory space, repeat the sequential memory writing until 300
-seconds.  The first round writing will trigger swap out, the following
-rounds will trigger sequential swap in and out.
-
-At the same time, run vm-scalability random swap test case in
-background, 8 processes to eat 30G virtual memory space, repeat the
-random memory write until 300 seconds.  This will trigger random
-swap-in in the background.
-
-This is a combined workload with sequential and random memory
-accessing at the same time.  The result (for sequential workload) is
-as follow,
-
-			Base		Optimized
-			----		---------
-throughput		345413 KB/s	414029 KB/s (+19.9%)
-latency.average		97.14 us	61.06 us (-37.1%)
-latency.50th		2 us		1 us
-latency.60th		2 us		1 us
-latency.70th		98 us		2 us
-latency.80th		160 us		2 us
-latency.90th		260 us		217 us
-latency.95th		346 us		369 us
-latency.99th		1.34 ms		1.09 ms
-ra_hit%			52.69%		99.98%
-
-The original swap readahead algorithm is confused by the background
-random access workload, so readahead hit rate is lower.  The VMA-base
-readahead algorithm works much better.
-
-Linpack
-=======
-
-The test memory size is bigger than RAM to trigger swapping.
-
-			Base		Optimized
-			----		---------
-elapsed_time		393.49 s	329.88 s (-16.2%)
-ra_hit%			86.21%		98.82%
-
-The score of base and optimized kernel hasn't visible changes.  But
-the elapsed time reduced and readahead hit rate improved, so the
-optimized kernel runs better for startup and tear down stages.  And
-the absolute value of readahead hit rate is high, shows that the space
-locality is still valid in some practical workloads.
-
-Changelogs:
-
-v3:
-
-- Rebased on latest -mm tree
-- Use percpu_counter for swap readahead statistics per Dave Hansen's comment.
-
-Best Regards,
-Huang, Ying
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index b68c93014f50..a13bbf504e93 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -561,3 +561,81 @@ void exit_swap_address_space(unsigned int type)
+ 	synchronize_rcu();
+ 	kvfree(spaces);
+ }
++
++#ifdef CONFIG_SYSFS
++static ssize_t swap_cache_pages_show(
++	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%lu\n", total_swapcache_pages());
++}
++static struct kobj_attribute swap_cache_pages_attr =
++	__ATTR(cache_pages, 0444, swap_cache_pages_show, NULL);
++
++static ssize_t swap_cache_add_show(
++	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%lu\n", swap_cache_info.add_total);
++}
++static struct kobj_attribute swap_cache_add_attr =
++	__ATTR(cache_add, 0444, swap_cache_add_show, NULL);
++
++static ssize_t swap_cache_del_show(
++	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%lu\n", swap_cache_info.del_total);
++}
++static struct kobj_attribute swap_cache_del_attr =
++	__ATTR(cache_del, 0444, swap_cache_del_show, NULL);
++
++static ssize_t swap_cache_find_success_show(
++	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%lu\n", swap_cache_info.find_success);
++}
++static struct kobj_attribute swap_cache_find_success_attr =
++	__ATTR(cache_find_success, 0444, swap_cache_find_success_show, NULL);
++
++static ssize_t swap_cache_find_total_show(
++	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%lu\n", swap_cache_info.find_total);
++}
++static struct kobj_attribute swap_cache_find_total_attr =
++	__ATTR(cache_find_total, 0444, swap_cache_find_total_show, NULL);
++
++static struct attribute *swap_attrs[] = {
++	&swap_cache_pages_attr.attr,
++	&swap_cache_add_attr.attr,
++	&swap_cache_del_attr.attr,
++	&swap_cache_find_success_attr.attr,
++	&swap_cache_find_total_attr.attr,
++	NULL,
++};
++
++static struct attribute_group swap_attr_group = {
++	.attrs = swap_attrs,
++};
++
++static int __init swap_init_sysfs(void)
++{
++	int err;
++	struct kobject *swap_kobj;
++
++	swap_kobj = kobject_create_and_add("swap", mm_kobj);
++	if (!swap_kobj) {
++		pr_err("failed to create swap kobject\n");
++		return -ENOMEM;
++	}
++	err = sysfs_create_group(swap_kobj, &swap_attr_group);
++	if (err) {
++		pr_err("failed to register swap group\n");
++		goto delete_obj;
++	}
++	return 0;
++
++delete_obj:
++	kobject_put(swap_kobj);
++	return err;
++}
++subsys_initcall(swap_init_sysfs);
++#endif
+-- 
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
