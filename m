@@ -1,115 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D89EB6B02FD
-	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 21:52:14 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a2so168871383pgn.15
-        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 18:52:14 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id d3si7512619pgc.726.2017.07.24.18.52.12
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A3C86B0292
+	for <linux-mm@kvack.org>; Mon, 24 Jul 2017 22:30:43 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id f132so146655815ywa.1
+        for <linux-mm@kvack.org>; Mon, 24 Jul 2017 19:30:43 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id g2si3060403ybb.711.2017.07.24.19.30.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Jul 2017 18:52:13 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v3 6/6] mm, swap: Don't use VMA based swap readahead if HDD is used as swap
-Date: Tue, 25 Jul 2017 09:51:51 +0800
-Message-Id: <20170725015151.19502-7-ying.huang@intel.com>
-In-Reply-To: <20170725015151.19502-1-ying.huang@intel.com>
-References: <20170725015151.19502-1-ying.huang@intel.com>
+        Mon, 24 Jul 2017 19:30:42 -0700 (PDT)
+From: prakash.sangappa@oracle.com
+Subject: [PATCH 1/2] userfaultfd: Add feature to request for a signal delivery
+Date: Mon, 24 Jul 2017 22:30:21 -0400
+Message-Id: <1500949822-949266-2-git-send-email-prakash.sangappa@oracle.com>
+In-Reply-To: <1500949822-949266-1-git-send-email-prakash.sangappa@oracle.com>
+References: <1500949822-949266-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: inux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+Cc: aarcange@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, xemul@parallels.com, mike.kravetz@oracle.com
 
-From: Huang Ying <ying.huang@intel.com>
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
 
-VMA based swap readahead will readahead the virtual pages that is
-continuous in the virtual address space.  While the original swap
-readahead will readahead the swap slots that is continuous in the swap
-device.  Although VMA based swap readahead is more correct for the
-swap slots to be readahead, it will trigger more small random
-readings, which may cause the performance of HDD (hard disk) to
-degrade heavily, and may finally exceed the benefit.
+In some cases, userfaultfd mechanism should just deliver a SIGBUS signal
+to the faulting process, instead of the page-fault event. Dealing with
+page-fault event using a monitor thread can be an overhead in these
+cases. For example applications like the database could use the signaling
+mechanism for robustness purpose.
 
-To avoid the issue, in this patch, if the HDD is used as swap, the VMA
-based swap readahead will be disabled, and the original swap readahead
-will be used instead.
+Database uses hugetlbfs for performance reason. Files on hugetlbfs
+filesystem are created and huge pages allocated using fallocate() API.
+Pages are deallocated/freed using fallocate() hole punching support.
+These files are mmapped and accessed by many processes as shared memory.
+The database keeps track of which offsets in the hugetlbfs file have
+pages allocated.
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
+Any access to mapped address over holes in the file, which can occur due
+to bugs in the application, is considered invalid and expect the process
+to simply receive a SIGBUS.  However, currently when a hole in the file is
+accessed via the mapped address, kernel/mm attempts to automatically
+allocate a page at page fault time, resulting in implicitly filling the
+hole in the file. This may not be the desired behavior for applications
+like the database that want to explicitly manage page allocations of
+hugetlbfs files.
+
+Using userfaultfd mechanism with this support to get a signal, database
+application can prevent pages from being allocated implicitly when
+processes access mapped address over holes in the file.
+
+This patch adds UFFD_FEATURE_SIGBUS feature to userfaultfd mechnism to
+request for a SIGBUS signal.
+
+See following for previous discussion about the database requirement
+leading to this proposal as suggested by Andrea.
+
+http://www.spinics.net/lists/linux-mm/msg129224.html
+
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
 ---
- include/linux/swap.h | 11 ++++++-----
- mm/swapfile.c        |  8 +++++++-
- 2 files changed, 13 insertions(+), 6 deletions(-)
+ fs/userfaultfd.c                 |    3 +++
+ include/uapi/linux/userfaultfd.h |   10 +++++++++-
+ 2 files changed, 12 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 9e5cfb64b5e8..633bf6c5bac8 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -399,16 +399,17 @@ extern struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 					   struct vm_fault *vmf,
- 					   struct vma_swap_readahead *swap_ra);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 1d622f2..0bbe7df 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -371,6 +371,9 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+ 	VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+ 	VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
  
--static inline bool swap_use_vma_readahead(void)
--{
--	return READ_ONCE(swap_vma_readahead);
--}
--
- /* linux/mm/swapfile.c */
- extern atomic_long_t nr_swap_pages;
- extern long total_swap_pages;
-+extern atomic_t nr_rotate_swap;
- extern bool has_usable_swap(void);
- 
-+static inline bool swap_use_vma_readahead(void)
-+{
-+	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
-+}
++	if (ctx->features & UFFD_FEATURE_SIGBUS)
++		goto out;
 +
- /* Swap 50% full? Release swapcache more aggressively.. */
- static inline bool vm_swap_full(void)
- {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6ba4aab2db0b..2685b9951cc1 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -96,6 +96,8 @@ static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
- /* Activity counter to indicate that a swapon or swapoff has occurred */
- static atomic_t proc_poll_event = ATOMIC_INIT(0);
+ 	/*
+ 	 * If it's already released don't get it. This avoids to loop
+ 	 * in __get_user_pages if userfaultfd_release waits on the
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 3b05953..d39d5db 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -23,7 +23,8 @@
+ 			   UFFD_FEATURE_EVENT_REMOVE |	\
+ 			   UFFD_FEATURE_EVENT_UNMAP |		\
+ 			   UFFD_FEATURE_MISSING_HUGETLBFS |	\
+-			   UFFD_FEATURE_MISSING_SHMEM)
++			   UFFD_FEATURE_MISSING_SHMEM |		\
++			   UFFD_FEATURE_SIGBUS)
+ #define UFFD_API_IOCTLS				\
+ 	((__u64)1 << _UFFDIO_REGISTER |		\
+ 	 (__u64)1 << _UFFDIO_UNREGISTER |	\
+@@ -153,6 +154,12 @@ struct uffdio_api {
+ 	 * UFFD_FEATURE_MISSING_SHMEM works the same as
+ 	 * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
+ 	 * (i.e. tmpfs and other shmem based APIs).
++	 *
++	 * UFFD_FEATURE_SIGBUS feature means no page-fault
++	 * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
++	 * a SIGBUS signal will be sent to the faulting process.
++	 * The application process can enable this behavior by adding
++	 * it to uffdio_api.features.
+ 	 */
+ #define UFFD_FEATURE_PAGEFAULT_FLAG_WP		(1<<0)
+ #define UFFD_FEATURE_EVENT_FORK			(1<<1)
+@@ -161,6 +168,7 @@ struct uffdio_api {
+ #define UFFD_FEATURE_MISSING_HUGETLBFS		(1<<4)
+ #define UFFD_FEATURE_MISSING_SHMEM		(1<<5)
+ #define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
++#define UFFD_FEATURE_SIGBUS			(1<<7)
+ 	__u64 features;
  
-+atomic_t nr_rotate_swap = ATOMIC_INIT(0);
-+
- static inline unsigned char swap_count(unsigned char ent)
- {
- 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
-@@ -2387,6 +2389,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (p->flags & SWP_CONTINUED)
- 		free_swap_count_continuations(p);
- 
-+	if (!p->bdev || !blk_queue_nonrot(bdev_get_queue(p->bdev)))
-+		atomic_dec(&nr_rotate_swap);
-+
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
- 	spin_lock(&p->lock);
-@@ -2963,7 +2968,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
- 			cluster_set_null(&cluster->index);
- 		}
--	}
-+	} else
-+		atomic_inc(&nr_rotate_swap);
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
- 	if (error)
+ 	__u64 ioctls;
 -- 
-2.13.2
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
