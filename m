@@ -1,74 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D85CD6B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:15:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q87so154033469pfk.15
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:15:50 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id b8si8784829plk.35.2017.07.25.04.15.48
-        for <linux-mm@kvack.org>;
-        Tue, 25 Jul 2017 04:15:49 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: Drop useless local parameters of
- __register_one_node()
-References: <1498013846-20149-1-git-send-email-douly.fnst@cn.fujitsu.com>
- <87d18o7uie.fsf@concordia.ellerman.id.au>
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Message-ID: <96d20c3c-8f4f-416e-edb7-7bc36fc3827b@cn.fujitsu.com>
-Date: Tue, 25 Jul 2017 19:15:42 +0800
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C426B02C3
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:25:20 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r7so27970012wrb.0
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:25:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o107si14641875wrc.134.2017.07.25.04.25.19
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Jul 2017 04:25:19 -0700 (PDT)
+Date: Tue, 25 Jul 2017 13:25:13 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170725112513.GD26723@dhcp22.suse.cz>
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com>
+ <1499863221-16206-7-git-send-email-wei.w.wang@intel.com>
+ <20170714123023.GA2624@dhcp22.suse.cz>
+ <20170714181523-mutt-send-email-mst@kernel.org>
+ <20170717152448.GN12888@dhcp22.suse.cz>
+ <596D6E7E.4070700@intel.com>
+ <20170719081311.GC26779@dhcp22.suse.cz>
+ <596F4A0E.4010507@intel.com>
+ <20170724090042.GF25221@dhcp22.suse.cz>
+ <59771010.6080108@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <87d18o7uie.fsf@concordia.ellerman.id.au>
-Content-Type: text/plain; charset="gbk"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <59771010.6080108@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, isimatu.yasuaki@jp.fujitsu.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-Hi Michael,
+On Tue 25-07-17 17:32:00, Wei Wang wrote:
+> On 07/24/2017 05:00 PM, Michal Hocko wrote:
+> >On Wed 19-07-17 20:01:18, Wei Wang wrote:
+> >>On 07/19/2017 04:13 PM, Michal Hocko wrote:
+> >[...
+> >>>All you should need is the check for the page reference count, no?  I
+> >>>assume you do some sort of pfn walk and so you should be able to get an
+> >>>access to the struct page.
+> >>Not necessarily - the guest struct page is not seen by the hypervisor. The
+> >>hypervisor only gets those guest pfns which are hinted as unused. From the
+> >>hypervisor (host) point of view, a guest physical address corresponds to a
+> >>virtual address of a host process. So, once the hypervisor knows a guest
+> >>physical page is unsued, it knows that the corresponding virtual memory of
+> >>the process doesn't need to be transferred in the 1st round.
+> >I am sorry, but I do not understand. Why cannot _guest_ simply check the
+> >struct page ref count and send them to the hypervisor?
+> 
+> Were you suggesting the following?
+> 1) get a free page block from the page list using the API;
 
-At 07/25/2017 05:09 PM, Michael Ellerman wrote:
-> Dou Liyang <douly.fnst@cn.fujitsu.com> writes:
->
->> ... initializes local parameters "p_node" & "parent" for
->> register_node().
->>
->> But, register_node() does not use them.
->>
->> Remove the related code of "parent" node, cleanup __register_one_node()
->> and register_node().
->>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: isimatu.yasuaki@jp.fujitsu.com
->> Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
->> Acked-by: David Rientjes <rientjes@google.com>
->> ---
->> V1 --> V2:
->> Rebase it on
->> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
->>
->>  drivers/base/node.c | 9 ++-------
->>  1 file changed, 2 insertions(+), 7 deletions(-)
->
-> That appears to be the last user of parent_node().
+No. Use a pfn walk, check the reference count and skip those pages which
+have 0 ref count. I suspected that you need to do some sort of the pfn
+walk anyway because you somehow have to evaluate a memory to migrate,
+right?
 
-Oops, yes, it is the last one.
+> 2) if page->ref_count == 0, send it to the hypervisor
 
->
-> Can we start removing it from the topology.h headers for each arch?
->
+yes
 
-Yes, I think so.
+> Btw, ref_count may also change at any time.
+> 
+> >Is there any
+> >documentation which describes the workflow or code which would use your
+> >new API?
+> >
+> 
+> It's used in the balloon driver (patch 8). We don't have any docs yet, but
+> I think the high level workflow is the two steps above.
 
-Thanks,
-	dou.
-
-> cheers
->
->
->
-
+I will have a look.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
