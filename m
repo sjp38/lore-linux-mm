@@ -1,148 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EB26A6B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 03:26:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r187so915374pfr.8
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 00:26:52 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t17si1294705pfi.134.2017.07.25.00.26.51
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 16D246B0292
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 03:37:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q87so150223241pfk.15
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 00:37:52 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id t17si1105871pfg.662.2017.07.25.00.37.50
         for <linux-mm@kvack.org>;
-        Tue, 25 Jul 2017 00:26:51 -0700 (PDT)
-Date: Tue, 25 Jul 2017 16:26:49 +0900
+        Tue, 25 Jul 2017 00:37:50 -0700 (PDT)
+Date: Tue, 25 Jul 2017 16:37:48 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: zs_page_migrate: skip unnecessary loops but
- not return -EBUSY if zspage is not inuse
-Message-ID: <20170725072649.GA22652@bbox>
-References: <1500889535-19648-1-git-send-email-zhuhui@xiaomi.com>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170725073748.GB22652@bbox>
+References: <E9EE838F-F1E3-43A8-BB87-8B5B8388FF61@gmail.com>
+ <20170719195820.drtfmweuhdc4eca6@suse.de>
+ <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
+ <20170719214708.wuzq3di6rt43txtn@suse.de>
+ <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
+ <20170719225950.wfpfzpc6llwlyxdo@suse.de>
+ <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
+ <20170720074342.otez35bme5gytnxl@suse.de>
+ <BD3A0EBE-ECF4-41D4-87FA-C755EA9AB6BD@gmail.com>
+ <20170724095832.vgvku6vlxkv75r3k@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1500889535-19648-1-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <20170724095832.vgvku6vlxkv75r3k@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Mon, Jul 24, 2017 at 05:45:35PM +0800, Hui Zhu wrote:
-> The first version is in [1].
-> 
-> Got -EBUSY from zs_page_migrate will make migration
-> slow (retry) or fail (zs_page_putback will schedule_work free_work,
-> but it cannot ensure the success).
-> 
-> I noticed this issue because my Kernel patched [2]
-> that will remove retry in __alloc_contig_migrate_range.
-> This retry willhandle the -EBUSY because it will re-isolate the page
-> and re-call migrate_pages.
-> Without it will make cma_alloc fail at once with -EBUSY.
-> 
-> According to the review from Minchan Kim in [3], I update the patch
-> to skip unnecessary loops but not return -EBUSY if zspage is not inuse.
-> 
-> Following is what I got with highalloc-performance in a vbox with 2
-> cpu 1G memory 512 zram as swap.  And the swappiness is set to 100.
->                                    ori          ne
->                                   orig         new
-> Minor Faults                  50805113    50830235
-> Major Faults                     43918       56530
-> Swap Ins                         42087       55680
-> Swap Outs                        89718      104700
-> Allocation stalls                    0           0
-> DMA allocs                       57787       52364
-> DMA32 allocs                  47964599    48043563
-> Normal allocs                        0           0
-> Movable allocs                       0           0
-> Direct pages scanned             45493       23167
-> Kswapd pages scanned           1565222     1725078
-> Kswapd pages reclaimed         1342222     1503037
-> Direct pages reclaimed           45615       25186
-> Kswapd efficiency                  85%         87%
-> Kswapd velocity               1897.101    1949.042
-> Direct efficiency                 100%        108%
-> Direct velocity                 55.139      26.175
-> Percentage direct scans             2%          1%
-> Zone normal velocity          1952.240    1975.217
-> Zone dma32 velocity              0.000       0.000
-> Zone dma velocity                0.000       0.000
-> Page writes by reclaim       89764.000  105233.000
-> Page writes file                    46         533
-> Page writes anon                 89718      104700
-> Page reclaim immediate           21457        3699
-> Sector Reads                   3259688     3441368
-> Sector Writes                  3667252     3754836
-> Page rescued immediate               0           0
-> Slabs scanned                  1042872     1160855
-> Direct inode steals               8042       10089
-> Kswapd inode steals              54295       29170
-> Kswapd skipped wait                  0           0
-> THP fault alloc                    175         154
-> THP collapse alloc                 226         289
-> THP splits                           0           0
-> THP fault fallback                  11          14
-> THP collapse fail                    3           2
-> Compaction stalls                  536         646
-> Compaction success                 322         358
-> Compaction failures                214         288
-> Page migrate success            119608      111063
-> Page migrate failure              2723        2593
-> Compaction pages isolated       250179      232652
-> Compaction migrate scanned     9131832     9942306
-> Compaction free scanned        2093272     2613998
-> Compaction cost                    192         189
-> NUMA alloc hit                47124555    47193990
-> NUMA alloc miss                      0           0
-> NUMA interleave hit                  0           0
-> NUMA alloc local              47124555    47193990
-> NUMA base PTE updates                0           0
-> NUMA huge PMD updates                0           0
-> NUMA page range updates              0           0
-> NUMA hint faults                     0           0
-> NUMA hint local faults               0           0
-> NUMA hint local percent            100         100
-> NUMA pages migrated                  0           0
-> AutoNUMA cost                       0%          0%
-> 
-> [1]: https://lkml.org/lkml/2017/7/14/93
-> [2]: https://lkml.org/lkml/2014/5/28/113
-> [3]: https://lkml.org/lkml/2017/7/21/10
-> 
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> ---
->  mm/zsmalloc.c | 9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index d41edd2..c2c7ba9 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1997,8 +1997,11 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  
->  	spin_lock(&class->lock);
->  	if (!get_zspage_inuse(zspage)) {
-> -		ret = -EBUSY;
-> -		goto unlock_class;
-> +		/*
-> +		 * Set "offset" to end of the page so that every loops
-> +		 * skips unnecessary object scanning.
-> +		 */
-> +		offset = PAGE_SIZE;
->  	}
->  
->  	pos = offset;
-> @@ -2066,7 +2069,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  		}
->  	}
->  	kunmap_atomic(s_addr);
-> -unlock_class:
-> +
+Hi Mel,
 
-Unncessary newline.
+On Mon, Jul 24, 2017 at 10:58:32AM +0100, Mel Gorman wrote:
+> On Fri, Jul 21, 2017 at 06:19:22PM -0700, Nadav Amit wrote:
+> > > At the time of the unlock_page on the reclaim side, any unmapping that
+> > > will happen before the flush has taken place. If KSM starts between the
+> > > unlock_page and the tlb flush then it'll skip any of the PTEs that were
+> > > previously unmapped with stale entries so there is no relevant stale TLB
+> > > entry to work with.
+> > 
+> > I don???t see where this skipping happens, but let???s put this scenario aside
+> > for a second. Here is a similar scenario that causes memory corruption. I
+> > actually created and tested it (although I needed to hack the kernel to add
+> > some artificial latency before the actual flushes and before the actual
+> > dedupliaction of KSM).
+> > 
+> > We are going to cause KSM to deduplicate a page, and after page comparison
+> > but before the page is actually replaced, to use a stale PTE entry to 
+> > overwrite the page. As a result KSM will lose a write, causing memory
+> > corruption.
+> > 
+> > For this race we need 4 CPUs:
+> > 
+> > CPU0: Caches a writable and dirty PTE entry, and uses the stale value for
+> > write later.
+> > 
+> > CPU1: Runs madvise_free on the range that includes the PTE. It would clear
+> > the dirty-bit. It batches TLB flushes.
+> > 
+> > CPU2: Writes 4 to /proc/PID/clear_refs , clearing the PTEs soft-dirty. We
+> > care about the fact that it clears the PTE write-bit, and of course, batches
+> > TLB flushes.
+> > 
+> > CPU3: Runs KSM. Our purpose is to pass the following test in
+> > write_protect_page():
+> > 
+> > 	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
+> > 	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte)))
+> > 
+> > Since it will avoid TLB flush. And we want to do it while the PTE is stale.
+> > Later, and before replacing the page, we would be able to change the page.
+> > 
+> > Note that all the operations the CPU1-3 perform canhappen in parallel since
+> > they only acquire mmap_sem for read.
+> > 
+> > We start with two identical pages. Everything below regards the same
+> > page/PTE.
+> > 
+> > CPU0		CPU1		CPU2		CPU3
+> > ----		----		----		----
+> > Write the same
+> > value on page
+> > 
+> > [cache PTE as
+> >  dirty in TLB]
+> > 
+> > 		MADV_FREE
+> > 		pte_mkclean()
+> > 							
+> > 				4 > clear_refs
+> > 				pte_wrprotect()
+> > 
+> > 						write_protect_page()
+> > 						[ success, no flush ]
+> > 
+> > 						pages_indentical()
+> > 						[ ok ]
+> > 
+> > Write to page
+> > different value
+> > 
+> > [Ok, using stale
+> >  PTE]
+> > 
+> > 						replace_page()
+> > 
+> > 
+> > Later, CPU1, CPU2 and CPU3 would flush the TLB, but that is too late. CPU0
+> > already wrote on the page, but KSM ignored this write, and it got lost.
+> > 
+> 
+> Ok, as you say you have reproduced this with corruption, I would suggest
+> one path for dealing with it although you'll need to pass it by the
+> original authors.
+> 
+> When unmapping ranges, there is a check for dirty PTEs in
+> zap_pte_range() that forces a flush for dirty PTEs which aims to avoid
+> writable stale PTEs from CPU0 in a scenario like you laid out above.
+> 
+> madvise_free misses a similar class of check so I'm adding Minchan Kim
+> to the cc as the original author of much of that code. Minchan Kim will
+> need to confirm but it appears that two modifications would be required.
+> The first should pass in the mmu_gather structure to
+> madvise_free_pte_range (at minimum) and force flush the TLB under the
+> PTL if a dirty PTE is encountered. The second is that it should consider
 
-Other than that, Looks good to me.
+OTL: I couldn't read this lengthy discussion so I miss miss something.
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+About MADV_FREE, I do not understand why it should flush TLB in MADV_FREE
+context. MADV_FREE's semantic allows "write(ie, dirty)" so if other thread
+in parallel which has stale pte does "store" to make the pte dirty,
+it's okay since try_to_unmap_one in shrink_page_list catches the dirty.
 
-Thanks!
+In above example, I think KSM should flush the TLB, not MADV_FREE and
+soft dirty page hander.
+
+Maybe, I miss something clear, Could you explain it in detail?
+
+> flushing the full affected range as madvise_free holds mmap_sem for
+> read-only to avoid problems with two parallel madv_free operations. The
+> second is optional because there are other ways it could also be handled
+> that may have lower overhead.
+
+Ditto. I cannot understand. Why does two parallel MADV_FREE have a problem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
