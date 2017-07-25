@@ -1,79 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C23F6B02FA
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:53:41 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w63so28624331wrc.5
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:53:41 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i65si7976740wme.37.2017.07.25.07.53.39
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AC3CE6B02F4
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 11:07:26 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q15so13774947pgc.3
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:07:26 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id r19si8330267pgj.246.2017.07.25.08.07.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 07:53:40 -0700 (PDT)
-Date: Tue, 25 Jul 2017 16:53:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
-Message-ID: <20170725145333.GK26723@dhcp22.suse.cz>
-References: <20170717152448.GN12888@dhcp22.suse.cz>
- <596D6E7E.4070700@intel.com>
- <20170719081311.GC26779@dhcp22.suse.cz>
- <596F4A0E.4010507@intel.com>
- <20170724090042.GF25221@dhcp22.suse.cz>
- <59771010.6080108@intel.com>
- <20170725112513.GD26723@dhcp22.suse.cz>
- <597731E8.9040803@intel.com>
- <20170725124141.GF26723@dhcp22.suse.cz>
- <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 08:07:25 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id g14so10076819pgu.4
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:07:25 -0700 (PDT)
+Date: Tue, 25 Jul 2017 18:07:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170725150719.74j7fbfzagrn7olb@node.shutemov.name>
+References: <20170724072332.31903-1-mhocko@kernel.org>
+ <20170724140008.sd2n6af6izjyjtda@node.shutemov.name>
+ <20170724141526.GM25221@dhcp22.suse.cz>
+ <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
+ <20170724161146.GQ25221@dhcp22.suse.cz>
+ <20170725141723.ivukwhddk2voyhuc@node.shutemov.name>
+ <20170725142617.GI26723@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <20170725142617.GI26723@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 25-07-17 14:47:16, Wang, Wei W wrote:
-> On Tuesday, July 25, 2017 8:42 PM, hal Hocko wrote:
-> > On Tue 25-07-17 19:56:24, Wei Wang wrote:
-> > > On 07/25/2017 07:25 PM, Michal Hocko wrote:
-> > > >On Tue 25-07-17 17:32:00, Wei Wang wrote:
-> > > >>On 07/24/2017 05:00 PM, Michal Hocko wrote:
-> > > >>>On Wed 19-07-17 20:01:18, Wei Wang wrote:
-> > > >>>>On 07/19/2017 04:13 PM, Michal Hocko wrote:
-> > > >>>[...
-> > > We don't need to do the pfn walk in the guest kernel. When the API
-> > > reports, for example, a 2MB free page block, the API caller offers to
-> > > the hypervisor the base address of the page block, and size=2MB, to
-> > > the hypervisor.
+On Tue, Jul 25, 2017 at 04:26:17PM +0200, Michal Hocko wrote:
+> On Tue 25-07-17 17:17:23, Kirill A. Shutemov wrote:
+> [...]
+> > Below are numbers for the same test case, but from bigger machine (48
+> > threads, 64GiB of RAM).
 > > 
-> > So you want to skip pfn walks by regularly calling into the page allocator to
-> > update your bitmap. If that is the case then would an API that would allow you
-> > to update your bitmap via a callback be s sufficient? Something like
-> > 	void walk_free_mem(int node, int min_order,
-> > 			void (*visit)(unsigned long pfn, unsigned long nr_pages))
+> > v4.13-rc2:
 > > 
-> > The function will call the given callback for each free memory block on the given
-> > node starting from the given min_order. The callback will be strictly an atomic
-> > and very light context. You can update your bitmap from there.
+> >  Performance counter stats for './a.sh 100000' (5 runs):
+> > 
+> >      159857.233790      task-clock:u (msec)       #    1.000 CPUs utilized            ( +-  3.21% )
+> >                  0      context-switches:u        #    0.000 K/sec
+> >                  0      cpu-migrations:u          #    0.000 K/sec
+> >          8,761,843      page-faults:u             #    0.055 M/sec                    ( +-  0.64% )
+> >     38,725,763,026      cycles:u                  #    0.242 GHz                      ( +-  0.18% )
+> >    272,691,643,016      stalled-cycles-frontend:u #  704.16% frontend cycles idle     ( +-  3.16% )
+> >     22,221,416,575      instructions:u            #    0.57  insn per cycle
+> >                                                   #   12.27  stalled cycles per insn  ( +-  0.00% )
+> >      5,306,829,649      branches:u                #   33.197 M/sec                    ( +-  0.00% )
+> >        240,783,599      branch-misses:u           #    4.54% of all branches          ( +-  0.15% )
+> > 
+> >      159.808721098 seconds time elapsed                                          ( +-  3.15% )
+> > 
+> > v4.13-rc2 + the patch:
+> > 
+> >  Performance counter stats for './a.sh 100000' (5 runs):
+> > 
+> >      167628.094556      task-clock:u (msec)       #    1.007 CPUs utilized            ( +-  1.63% )
+> >                  0      context-switches:u        #    0.000 K/sec
+> >                  0      cpu-migrations:u          #    0.000 K/sec
+> >          8,838,314      page-faults:u             #    0.053 M/sec                    ( +-  0.26% )
+> >     38,862,240,137      cycles:u                  #    0.232 GHz                      ( +-  0.10% )
+> >    282,105,057,553      stalled-cycles-frontend:u #  725.91% frontend cycles idle     ( +-  1.64% )
+> >     22,219,273,623      instructions:u            #    0.57  insn per cycle
+> >                                                   #   12.70  stalled cycles per insn  ( +-  0.00% )
+> >      5,306,165,194      branches:u                #   31.654 M/sec                    ( +-  0.00% )
+> >        240,473,075      branch-misses:u           #    4.53% of all branches          ( +-  0.07% )
+> > 
+> >      166.497005412 seconds time elapsed                                          ( +-  1.61% )
+> > 
+> > IMO, there is something to think about. ~4% slowdown is not insignificant.
+> > I expect effect to be bigger for larger machines.
 > 
-> I would need to introduce more about the background here:
-> The hypervisor and the guest live in their own address space. The hypervisor's bitmap
-> isn't seen by the guest. I think we also wouldn't be able to give a callback function 
-> from the hypervisor to the guest in this case.
+> Thanks for retesting Kirill. Are those numbers stable over runs? E.g.
+> the run without the patch has ~3% variance while the one with the patch
+> has it smaller. This sounds suspicious to me. There shouldn't be any
+> lock contention (except for the oom killer) so the lock shouldn't make
+> any difference wrt. variability.
 
-How did you plan to use your original API which export struct page array
-then?
+There's run-to-tun variability. I'll post new numbers for your new test.
 
-> > This would address my main concern that the allocator internals would get
-> > outside of the allocator proper. 
-> 
-> What issue would it have to expose the internal, for_each_zone()?
-
-zone is a MM internal concept. No code outside of the MM proper should
-really care about zones. 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
