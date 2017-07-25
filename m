@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9126B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:49:19 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l3so27692434wrc.12
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 02:49:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b37si14879818wrb.338.2017.07.25.02.49.17
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7327D6B0292
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 06:02:49 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id c196so62153937itc.2
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 03:02:49 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id k82si1477406itb.186.2017.07.25.03.02.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 02:49:17 -0700 (PDT)
-Date: Tue, 25 Jul 2017 10:49:15 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Prevent racy access to tlb_flush_pending
-Message-ID: <20170725094915.uldl43aazfbvdl7f@suse.de>
-References: <20170717180246.62277-1-namit@vmware.com>
- <20170724165449.1a51b34d22ee4a9b54ce2652@linux-foundation.org>
- <1A44338A-C667-4D63-A93F-EBBF6C9226D2@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 03:02:48 -0700 (PDT)
+Date: Tue, 25 Jul 2017 12:02:34 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v5 2/2] x86/mm: Improve TLB flush documentation
+Message-ID: <20170725100234.qbsuphozotivan3c@hirez.programming.kicks-ass.net>
+References: <cover.1500957502.git.luto@kernel.org>
+ <695299daa67239284e8db5a60d4d7eb88c914e0a.1500957502.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1A44338A-C667-4D63-A93F-EBBF6C9226D2@gmail.com>
+In-Reply-To: <695299daa67239284e8db5a60d4d7eb88c914e0a.1500957502.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nadav Amit <namit@vmware.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
 
-On Mon, Jul 24, 2017 at 05:27:47PM -0700, Nadav Amit wrote:
-> > Do we still need the barrier()s or is it OK to let the atomic op do
-> > that for us (with a suitable code comment).
-> 
-> I will submit v2. However, I really don???t understand the comment on
-> mm_tlb_flush_pending():
-> 
-> /*              
->  * Memory barriers to keep this state in sync are graciously provided by
->  * the page table locks, outside of which no page table modifications happen.
->  * The barriers below prevent the compiler from re-ordering the instructions
->  * around the memory barriers that are already present in the code.
->  */
-> 
-> But IIUC migrate_misplaced_transhuge_page() does not call
-> mm_tlb_flush_pending() while the ptl is taken.
-> 
-> Mel, can I bother you again? Should I move the flush in
-> migrate_misplaced_transhuge_page() till after the ptl is taken?
-> 
+On Mon, Jul 24, 2017 at 09:41:39PM -0700, Andy Lutomirski wrote:
+> +		/*
+> +		 * Resume remote flushes and then read tlb_gen.  The
+> +		 * implied barrier in atomic64_read() synchronizes
 
-The flush, if it's necessary, needs to happen before the copy. However,
-in this particular context it shouldn't matter.  In this specific context,
-we must be dealing with a NUMA hinting fault which means the original PTE
-is PROT_NONE, flushed and no writes are possible.  If a protection update
-happens during the copy in migrate_misplaced_transhuge_page then it'll
-be detected in migrate_misplaced_transhuge_page by the pmd_same check and
-the page copy was a waste of time but otherwise harmless.
+There is no barrier in atomic64_read().
 
--- 
-Mel Gorman
-SUSE Labs
+> +		 * with inc_mm_tlb_gen() like this:
+> +		 *
+> +		 * switch_mm_irqs_off():	flush request:
+> +		 *  cpumask_set_cpu(...);	 inc_mm_tlb_gen();
+> +		 *  MB				 MB
+> +		 *  atomic64_read(.tlb_gen);	 flush_tlb_others(mm_cpumask());
+> +		 */
+>  		cpumask_set_cpu(cpu, mm_cpumask(next));
+>  		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
