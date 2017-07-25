@@ -1,109 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A436B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:45:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 72so73700400pfl.12
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 01:45:25 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 17si7200350pft.341.2017.07.25.01.45.24
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A5CAF6B0292
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 04:51:35 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l3so27511177wrc.12
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 01:51:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k62si7035979wmb.117.2017.07.25.01.51.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 01:45:24 -0700 (PDT)
-Date: Tue, 25 Jul 2017 10:45:21 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v7 06/16] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170725084521.hazqpckbpg4rrucf@hirez.programming.kicks-ass.net>
-References: <20170713081442.GA439@worktop>
- <20170713085746.GH20323@X58A-UD3R>
- <20170713095052.dssev34f7c43vlok@hirez.programming.kicks-ass.net>
- <20170713100953.GI20323@X58A-UD3R>
- <20170713102905.ysrvn7td6ryt4jaj@hirez.programming.kicks-ass.net>
- <20170713111209.ji6w3trt45icpuf6@hirez.programming.kicks-ass.net>
- <CANrsvRMZ=i+L1sQzPiMVzpTOduNnTw_gKqcNkBVWPdpDs5fQZA@mail.gmail.com>
- <20170714064210.GK20323@X58A-UD3R>
- <20170721135420.gadjqv6hian4yzgq@hirez.programming.kicks-ass.net>
- <20170725062945.GM20323@X58A-UD3R>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Jul 2017 01:51:34 -0700 (PDT)
+Date: Tue, 25 Jul 2017 09:51:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170725085132.iysanhtqkgopegob@suse.de>
+References: <20170719195820.drtfmweuhdc4eca6@suse.de>
+ <4BD983A1-724B-4FD7-B502-55351717BC5F@gmail.com>
+ <20170719214708.wuzq3di6rt43txtn@suse.de>
+ <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
+ <20170719225950.wfpfzpc6llwlyxdo@suse.de>
+ <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
+ <20170720074342.otez35bme5gytnxl@suse.de>
+ <BD3A0EBE-ECF4-41D4-87FA-C755EA9AB6BD@gmail.com>
+ <20170724095832.vgvku6vlxkv75r3k@suse.de>
+ <20170725073748.GB22652@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170725062945.GM20323@X58A-UD3R>
+In-Reply-To: <20170725073748.GB22652@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Byungchul Park <max.byungchul.park@gmail.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, Michel Lespinasse <walken@google.com>, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Tue, Jul 25, 2017 at 03:29:45PM +0900, Byungchul Park wrote:
+On Tue, Jul 25, 2017 at 04:37:48PM +0900, Minchan Kim wrote:
+> > Ok, as you say you have reproduced this with corruption, I would suggest
+> > one path for dealing with it although you'll need to pass it by the
+> > original authors.
+> > 
+> > When unmapping ranges, there is a check for dirty PTEs in
+> > zap_pte_range() that forces a flush for dirty PTEs which aims to avoid
+> > writable stale PTEs from CPU0 in a scenario like you laid out above.
+> > 
+> > madvise_free misses a similar class of check so I'm adding Minchan Kim
+> > to the cc as the original author of much of that code. Minchan Kim will
+> > need to confirm but it appears that two modifications would be required.
+> > The first should pass in the mmu_gather structure to
+> > madvise_free_pte_range (at minimum) and force flush the TLB under the
+> > PTL if a dirty PTE is encountered. The second is that it should consider
+> 
+> OTL: I couldn't read this lengthy discussion so I miss miss something.
+> 
+> About MADV_FREE, I do not understand why it should flush TLB in MADV_FREE
+> context. MADV_FREE's semantic allows "write(ie, dirty)" so if other thread
+> in parallel which has stale pte does "store" to make the pte dirty,
+> it's okay since try_to_unmap_one in shrink_page_list catches the dirty.
+> 
 
-> _No_, as I already said.
-> 
-> > (/me copy paste from older email)
-> > 
-> > That gives:
-> > 
-> >         xhist[ 0] = A1
-> >         xhist[ 1] = B1
-> >         ...
-> >         xhist[63] = B63
-> > 
-> > then we wrap and have:
-> > 
-> >         xhist[0] = B64
-> > 
-> > then we rewind to 1 and invalidate to arrive at:
-> 
-> We invalidate xhist[_0_], as I already said.
-> 
-> >         xhist[ 0] = B64
-> >         xhist[ 1] = NULL   <-- idx
-> >         xhist[ 2] = B2
-> >         ...
-> >         xhist[63] = B63
-> > 
-> > 
-> > Then we do D and get
-> > 
-> >         xhist[ 0] = B64
-> >         xhist[ 1] = D   <-- idx
-> >         xhist[ 2] = B2
-> >         ...
-> >         xhist[63] = B63
-> 
-> We should get
-> 
->          xhist[ 0] = NULL
->          xhist[ 1] = D   <-- idx
->          xhist[ 2] = B2
->          ...
->          xhist[63] = B63
-> 
-> By the way, did not you get my reply? I did exactly same answer.
-> Perhaps You have not received or read my replies.
-> 
-> > And now there is nothing that will invalidate B*, after all, the
-> > gen_id's are all after C's stamp, and the same_context_xhlock() test
-> > will also pass because they're all from IRQ context (albeit not the
-> > same, but it cannot tell).
-> 
-> It will stop at xhist[0] because it has been invalidated.
-> 
-> > Does this explain? Or am I still missing something?
-> 
-> Could you read the following reply? Not enough?
-> 
-> https://lkml.org/lkml/2017/7/13/214
-> 
-> I am sorry if my english makes you hard to understand. But I already
-> answered all you asked.
+In try_to_unmap_one it's fine. It's not necessarily fine in KSM. Given
+that the key is that data corruption is avoided, you could argue with a
+comment that madv_free doesn't necesssarily have to flush it as long as
+KSM does even if it's clean due to batching.
 
-Ah, I think I see. It works because you commit backwards and terminate
-on the invalidate.
+> In above example, I think KSM should flush the TLB, not MADV_FREE and
+> soft dirty page hander.
+> 
 
-Yes I had seen your emails, but the penny hadn't dropped, the light bulb
-didn't switch on, etc.. sometimes I'm a little dense and need a little
-more help.
+That would also be acceptable.
 
-Thanks, I'll go look at your latest posting now.
+> > flushing the full affected range as madvise_free holds mmap_sem for
+> > read-only to avoid problems with two parallel madv_free operations. The
+> > second is optional because there are other ways it could also be handled
+> > that may have lower overhead.
+> 
+> Ditto. I cannot understand. Why does two parallel MADV_FREE have a problem?
+> 
+
+Like madvise(), madv_free can potentially return with a stale PTE visible
+to the caller that observed a pte_none at the time of madv_free and uses
+a stale PTE that potentially allows a lost write. It's debatable whether
+this matters considering that madv_free to a region means that parallel
+writers can lose their update anyway. It's less of a concern than the
+KSM angle outlined in Nadav's example which he was able to artifically
+reproduce by slowing operations to increase the race window.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
