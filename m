@@ -1,149 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 634B96B0292
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:26:30 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p43so23965806wrb.6
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:26:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r17si15306321wrc.279.2017.07.25.07.26.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CFD76B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 10:31:31 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h29so158579234pfd.2
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:31:31 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id p129si8143549pfp.193.2017.07.25.07.31.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 07:26:29 -0700 (PDT)
-Date: Tue, 25 Jul 2017 16:26:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170725142626.GJ26723@dhcp22.suse.cz>
-References: <20170724072332.31903-1-mhocko@kernel.org>
- <20170724140008.sd2n6af6izjyjtda@node.shutemov.name>
- <20170724141526.GM25221@dhcp22.suse.cz>
- <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
- <20170724161146.GQ25221@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Jul 2017 07:31:30 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id v190so14659526pgv.1
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 07:31:30 -0700 (PDT)
+Date: Tue, 25 Jul 2017 17:31:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v5 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170725143120.fyjcxwsoff34vqoj@node.shutemov.name>
+References: <20170724170616.25810-1-ross.zwisler@linux.intel.com>
+ <20170724170616.25810-2-ross.zwisler@linux.intel.com>
+ <20170724221400.pcq5zvke7w2yfkxi@node.shutemov.name>
+ <20170725080158.GA5374@lst.de>
+ <20170725093508.GA19943@quack2.suse.cz>
+ <20170725121522.GA13457@lst.de>
+ <20170725125037.GH19943@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="VrqPEDrXMn8OVzN4"
-Content-Disposition: inline
-In-Reply-To: <20170724161146.GQ25221@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-
-
---VrqPEDrXMn8OVzN4
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170725125037.GH19943@quack2.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@lst.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Mon 24-07-17 18:11:46, Michal Hocko wrote:
-> On Mon 24-07-17 17:51:42, Kirill A. Shutemov wrote:
-> > On Mon, Jul 24, 2017 at 04:15:26PM +0200, Michal Hocko wrote:
-> [...]
-> > > What kind of scalability implication you have in mind? There is
-> > > basically a zero contention on the mmap_sem that late in the exit path
-> > > so this should be pretty much a fast path of the down_write. I agree it
-> > > is not 0 cost but the cost of the address space freeing should basically
-> > > make it a noise.
-> > 
-> > Even in fast path case, it adds two atomic operation per-process. If the
-> > cache line is not exclusive to the core by the time of exit(2) it can be
-> > noticible.
-> > 
-> > ... but I guess it's not very hot scenario.
-> > 
-> > I guess I'm just too cautious here. :)
-> 
-> I definitely did not want to handwave your concern. I just think we can
-> rule out the slow path and didn't think about the fast path overhead.
-> 
-> > > > Should we do performance/scalability evaluation of the patch before
-> > > > getting it applied?
+On Tue, Jul 25, 2017 at 02:50:37PM +0200, Jan Kara wrote:
+> On Tue 25-07-17 14:15:22, Christoph Hellwig wrote:
+> > On Tue, Jul 25, 2017 at 11:35:08AM +0200, Jan Kara wrote:
+> > > On Tue 25-07-17 10:01:58, Christoph Hellwig wrote:
+> > > > On Tue, Jul 25, 2017 at 01:14:00AM +0300, Kirill A. Shutemov wrote:
+> > > > > I guess it's up to filesystem if it wants to reuse the same spot to write
+> > > > > data or not. I think your assumptions works for ext4 and xfs. I wouldn't
+> > > > > be that sure for btrfs or other filesystems with CoW support.
+> > > > 
+> > > > Or XFS with reflinks for that matter.  Which currently can't be
+> > > > combined with DAX, but I had a somewhat working version a few month
+> > > > ago.
 > > > 
-> > > What kind of test(s) would you be interested in?
+> > > But in cases like COW when the block mapping changes, the process
+> > > must run unmap_mapping_range() before installing the new PTE so that all
+> > > processes mapping this file offset actually refault and see the new
+> > > mapping. So this would go through pte_none() case. Am I missing something?
 > > 
-> > Can we at lest check that number of /bin/true we can spawn per second
-> > wouldn't be harmed by the patch? ;)
+> > Yes, for DAX COW mappings we'd probably need something like this, unlike
+> > the pagecache COW handling for which only the underlying block change,
+> > but not the page.
 > 
-> OK, so measuring a single /bin/true doesn't tell anything so I've done
-> root@test1:~# cat a.sh 
-> #!/bin/sh
-> 
-> NR=$1
-> for i in $(seq $NR)
-> do
->         /bin/true
-> done
+> Right. So again nothing where the WARN_ON should trigger.
 
-I wanted to reduce a potential shell side effects so I've come with a
-simple program which forks and saves the timestamp before child exit and
-right after waitpid (see attached) and then measured it 100k times. Sure
-this still measures waitpid overhead and the signal delivery but this
-should be more or less constant on an idle system, right? See attached.
+Yes. I was confused on how COW is handled.
 
-before the patch
-min: 306300.00 max: 6731916.00 avg: 437962.07 std: 92898.30 nr: 100000
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-after
-min: 303196.00 max: 5728080.00 avg: 436081.87 std: 96165.98 nr: 100000
-
-The results are well withing noise as I would expect.
 -- 
-Michal Hocko
-SUSE Labs
-
---VrqPEDrXMn8OVzN4
-Content-Type: text/x-csrc; charset=us-ascii
-Content-Disposition: attachment; filename="exit_time.c"
-
-#include <sys/mman.h>
-#include <sys/wait.h>
-#include <sys/time.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <inttypes.h>
-#include <unistd.h>
-
-#define NR_FORKS 100000
-
-static inline uint64_t get_cycles(void)
-{
-	uint64_t t;
-	volatile int dont_remove __attribute__((unused));
-	unsigned tmp;
-
-	__asm volatile ("cpuid" : "=a"(tmp), "=b"(tmp), "=c"(tmp), "=d"(tmp): "a" (0));
-
-	dont_remove = tmp; 
-	__asm volatile ("rdtsc" : "=A"(t));
-	return t;
-}
-
-int main(int argc, char **argv)
-{
-	void *addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED, -1, 0);
-	int i = NR_FORKS, j = 1;
-
-	assert(addr != MAP_FAILED);
-
-	while (i-- > 0) {
-		pid_t child = fork();
-		uint64_t before, after;
-
-		assert(child != -1);
-		if (!child) {
-			*(uint64_t *)addr = get_cycles();
-			return 0;
-		}
-		assert(child == waitpid(child, NULL, 0));
-		before = *(uint64_t *)addr;
-		after = get_cycles();
-
-		printf("%u\n", (unsigned)(after - before));
-		fflush(stdout);
-	}
-
-	return 0;
-}
-
---VrqPEDrXMn8OVzN4--
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
