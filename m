@@ -1,100 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A196E6B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:44:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z53so26903035wrz.10
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:44:26 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63C0F6B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 08:50:45 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id r7so28217696wrb.0
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 05:50:45 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e6si16105642wrc.122.2017.07.25.05.44.25
+        by mx.google.com with ESMTPS id u74si7353056wmf.54.2017.07.25.05.50.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Jul 2017 05:44:25 -0700 (PDT)
-Date: Tue, 25 Jul 2017 14:44:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memcg: reset low limit during memcg offlining
-Message-ID: <20170725124419.GG26723@dhcp22.suse.cz>
-References: <20170725114047.4073-1-guro@fb.com>
- <20170725120537.o4kgzjhcjcjmopzc@esperanza>
- <20170725123113.GB12635@castle.DHCP.thefacebook.com>
+        Tue, 25 Jul 2017 05:50:44 -0700 (PDT)
+Date: Tue, 25 Jul 2017 14:50:37 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v5 1/5] mm: add vm_insert_mixed_mkwrite()
+Message-ID: <20170725125037.GH19943@quack2.suse.cz>
+References: <20170724170616.25810-1-ross.zwisler@linux.intel.com>
+ <20170724170616.25810-2-ross.zwisler@linux.intel.com>
+ <20170724221400.pcq5zvke7w2yfkxi@node.shutemov.name>
+ <20170725080158.GA5374@lst.de>
+ <20170725093508.GA19943@quack2.suse.cz>
+ <20170725121522.GA13457@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170725123113.GB12635@castle.DHCP.thefacebook.com>
+In-Reply-To: <20170725121522.GA13457@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Matthew Wilcox <mawilcox@microsoft.com>, Steven Rostedt <rostedt@goodmis.org>, linux-doc@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Tue 25-07-17 13:31:13, Roman Gushchin wrote:
-> On Tue, Jul 25, 2017 at 03:05:37PM +0300, Vladimir Davydov wrote:
-> > On Tue, Jul 25, 2017 at 12:40:47PM +0100, Roman Gushchin wrote:
-> > > A removed memory cgroup with a defined low limit and some belonging
-> > > pagecache has very low chances to be freed.
+On Tue 25-07-17 14:15:22, Christoph Hellwig wrote:
+> On Tue, Jul 25, 2017 at 11:35:08AM +0200, Jan Kara wrote:
+> > On Tue 25-07-17 10:01:58, Christoph Hellwig wrote:
+> > > On Tue, Jul 25, 2017 at 01:14:00AM +0300, Kirill A. Shutemov wrote:
+> > > > I guess it's up to filesystem if it wants to reuse the same spot to write
+> > > > data or not. I think your assumptions works for ext4 and xfs. I wouldn't
+> > > > be that sure for btrfs or other filesystems with CoW support.
 > > > 
-> > > If a cgroup has been removed, there is likely no memory pressure inside
-> > > the cgroup, and the pagecache is protected from the external pressure
-> > > by the defined low limit. The cgroup will be freed only after
-> > > the reclaim of all belonging pages. And it will not happen until
-> > > there are any reclaimable memory in the system. That means,
-> > > there is a good chance, that a cold pagecache will reside
-> > > in the memory for an undefined amount of time, wasting
-> > > system resources.
-> > > 
-> > > Fix this issue by zeroing memcg->low during memcg offlining.
-> > > 
-> > > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > > Cc: Tejun Heo <tj@kernel.org>
-> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > > Cc: kernel-team@fb.com
-> > > Cc: cgroups@vger.kernel.org
-> > > Cc: linux-mm@kvack.org
-> > > Cc: linux-kernel@vger.kernel.org
-> > > ---
-> > >  mm/memcontrol.c | 2 ++
-> > >  1 file changed, 2 insertions(+)
-> > > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index aed11b2d0251..2aa204b8f9fd 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -4300,6 +4300,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
-> > >  	}
-> > >  	spin_unlock(&memcg->event_list_lock);
-> > >  
-> > > +	memcg->low = 0;
-> > > +
-> > >  	memcg_offline_kmem(memcg);
-> > >  	wb_memcg_offline(memcg);
-> > >  
+> > > Or XFS with reflinks for that matter.  Which currently can't be
+> > > combined with DAX, but I had a somewhat working version a few month
+> > > ago.
 > > 
-> > We already have that - see mem_cgroup_css_reset().
+> > But in cases like COW when the block mapping changes, the process
+> > must run unmap_mapping_range() before installing the new PTE so that all
+> > processes mapping this file offset actually refault and see the new
+> > mapping. So this would go through pte_none() case. Am I missing something?
 > 
-> Hm, I see...
-> 
-> But are you sure, that calling mem_cgroup_css_reset() from offlining path
-> is always a good idea?
+> Yes, for DAX COW mappings we'd probably need something like this, unlike
+> the pagecache COW handling for which only the underlying block change,
+> but not the page.
 
-Well, originally I wanted to suggest the same but then I asked the very
-same question and couldn't answer it myself. memcg_offline_kmem feels
-much more generic.
+Right. So again nothing where the WARN_ON should trigger. That being said I
+don't care about the WARN_ON too deeply but it can help to catch DAX bugs
+so if we can keep it I'd prefer to do so...
 
-> As I understand, css_reset() callback is intended to _completely_ disable all
-> limits, as if there were no cgroup at all. And it's main purpose to be called
-> when controllers are detached from the hierarhy.
-
-yes, that is my understanding as well.
- 
-> Offlining is different: some limits make perfect sence after offlining
-> (e.g. we want to limit the writeback speed), and other might be tweaked
-> (e.g. we can set soft limit to prioritize reclaiming of abandoned cgroups).
-
-and the writeback path was exactly the one that triggered my
-suspicious...
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
