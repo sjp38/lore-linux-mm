@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DDD5B6B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 17:07:24 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o5so90535632qki.2
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:07:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i188si13734439qkf.93.2017.07.26.14.07.23
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 50FDD6B02B4
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 17:23:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p17so8682129wmd.5
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:23:13 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y199si9995093wme.208.2017.07.26.14.23.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 14:07:24 -0700 (PDT)
-Date: Wed, 26 Jul 2017 17:06:59 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20170726210657.GE21717@redhat.com>
-References: <20170726083333.17754-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170726083333.17754-1-mhocko@kernel.org>
+        Wed, 26 Jul 2017 14:23:12 -0700 (PDT)
+Date: Wed, 26 Jul 2017 14:23:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: memcontrol: Cast mismatched enum types passed to
+ memcg state and event functions
+Message-Id: <20170726142309.ac40faf5eb99568e6edb064c@linux-foundation.org>
+In-Reply-To: <20170726192356.18420-1-mka@chromium.org>
+References: <20170726192356.18420-1-mka@chromium.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>
+To: Matthias Kaehlcke <mka@chromium.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
 
-On Wed, Jul 26, 2017 at 10:33:28AM +0200, Michal Hocko wrote:
-> Hi,
-> this is another step to make the memory hotplug more usable. The primary
-> goal of this patchset is to reduce memory overhead of the hot added
-> memory (at least for SPARSE_VMEMMAP memory model). Currently we use
-> kmalloc to poppulate memmap (struct page array) which has two main
-> drawbacks a) it consumes an additional memory until the hotadded memory
-> itslef is onlined and b) memmap might end up on a different numa node
-> which is especially true for movable_node configuration.
-> 
-> a) is problem especially for memory hotplug based memory "ballooning"
-> solutions when the delay between physical memory hotplug and the
-> onlining can lead to OOM and that led to introduction of hacks like auto
-> onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
-> policy for the newly added memory")).
-> b) can have performance drawbacks.
-> 
-> One way to mitigate both issues is to simply allocate memmap array
-> (which is the largest memory footprint of the physical memory hotplug)
-> from the hotadded memory itself. VMEMMAP memory model allows us to map
-> any pfn range so the memory doesn't need to be online to be usable
-> for the array. See patch 3 for more details. In short I am reusing an
-> existing vmem_altmap which wants to achieve the same thing for nvdim
-> device memory.
-> 
-> I am sending this as an RFC because this has seen only a very limited
-> testing and I am mostly interested about opinions on the chosen
-> approach. I had to touch some arch code and I have no idea whether my
-> changes make sense there (especially ppc). Therefore I would highly
-> appreciate arch maintainers to check patch 2.
-> 
-> Patches 4 and 5 should be straightforward cleanups.
-> 
-> There is also one potential drawback, though. If somebody uses memory
-> hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
-> for them obviously because each memory section will contain 2MB reserved
-> area.  I am not really sure somebody does that and how reliable that
-> can work actually. Nevertheless, I _believe_ that onlining more memory
-> into virtual machines is much more common usecase. Anyway if there ever
-> is a strong demand for such a usecase we have basically 3 options a)
-> enlarge memory sections b) enhance altmap allocation strategy and reuse
-> low memory sections to host memmaps of other sections on the same NUMA
-> node c) have the memmap allocation strategy configurable to fallback to
-> the current allocation.
-> 
-> Are there any other concerns, ideas, comments?
-> 
+On Wed, 26 Jul 2017 12:23:56 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
 
-This does not seems to be an opt-in change ie if i am reading patch 3
-correctly if an altmap is not provided to __add_pages() you fallback
-to allocating from begining of zone. This will not work with HMM ie
-device private memory. So at very least i would like to see some way
-to opt-out of this. Maybe a new argument like bool forbid_altmap ?
+> In multiple instances enum values of an incorrect type are passed to
+> mod_memcg_state() and other memcg functions. Apparently this is
+> intentional, however clang rightfully generates tons of warnings about
+> the mismatched types. Cast the offending values to the type expected
+> by the called function. The casts add noise, but this seems preferable
+> over losing the typesafe interface or/and disabling the warning.
+> 
+> ...
+>
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -576,7 +576,7 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+> -	__mod_memcg_state(pn->memcg, idx, val);
+> +	__mod_memcg_state(pn->memcg, (enum memcg_stat_item)idx, val);
+>  	__this_cpu_add(pn->lruvec_stat->count[idx], val);
+>  }
 
-Cheers,
-Jerome
+__mod_memcg_state()'s `idx' arg can be either enum memcg_stat_item or
+enum memcg_stat_item.  I think it would be better to just admit to
+ourselves that __mod_memcg_state() is more general than it appears, and
+change it to take `int idx'.  I assume that this implicit cast of an
+enum to an int will not trigger a clang warning?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
