@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F266B03A1
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:55:10 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a186so11167968wmh.9
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:55:10 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 36si12660559wrv.297.2017.07.26.04.55.09
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F4FB6B0491
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 08:06:52 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o65so74610151qkl.12
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 05:06:52 -0700 (PDT)
+Received: from mail-qk0-x235.google.com (mail-qk0-x235.google.com. [2607:f8b0:400d:c09::235])
+        by mx.google.com with ESMTPS id c123si12716314qkd.376.2017.07.26.05.06.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 04:55:09 -0700 (PDT)
-Date: Wed, 26 Jul 2017 13:55:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
-Message-ID: <20170726115506.GM2981@dhcp22.suse.cz>
-References: <20170724090042.GF25221@dhcp22.suse.cz>
- <59771010.6080108@intel.com>
- <20170725112513.GD26723@dhcp22.suse.cz>
- <597731E8.9040803@intel.com>
- <20170725124141.GF26723@dhcp22.suse.cz>
- <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
- <20170725145333.GK26723@dhcp22.suse.cz>
- <5977FCDF.7040606@intel.com>
- <20170726102458.GH2981@dhcp22.suse.cz>
- <59788097.6010402@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jul 2017 05:06:51 -0700 (PDT)
+Received: by mail-qk0-x235.google.com with SMTP id k2so46224117qkf.0
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 05:06:51 -0700 (PDT)
+Date: Wed, 26 Jul 2017 08:06:46 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm, memcg: reset low limit during memcg offlining
+Message-ID: <20170726120646.GA742618@devbig577.frc2.facebook.com>
+References: <20170725114047.4073-1-guro@fb.com>
+ <20170725120537.o4kgzjhcjcjmopzc@esperanza>
+ <20170725123113.GB12635@castle.DHCP.thefacebook.com>
+ <20170726083017.3yzeucmi7lcj46qd@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <59788097.6010402@intel.com>
+In-Reply-To: <20170726083017.3yzeucmi7lcj46qd@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 26-07-17 19:44:23, Wei Wang wrote:
-[...]
-> I thought about it more. Probably we can use the callback function with a
-> little change like this:
-> 
-> void walk_free_mem(void *opaque1, void (*visit)(void *opaque2, unsigned long
-> pfn,
->            unsigned long nr_pages))
-> {
->     ...
->     for_each_populated_zone(zone) {
->                    for_each_migratetype_order(order, type) {
->                         report_unused_page_block(zone, order, type, &page);
-> // from patch 6
->                         pfn = page_to_pfn(page);
->                         visit(opaque1, pfn, 1 << order);
->                     }
->     }
-> }
-> 
-> The above function scans all the free list and directly sends each free page
-> block to the
-> hypervisor via the virtio_balloon callback below. No need to implement a
-> bitmap.
-> 
-> In virtio-balloon, we have the callback:
-> void *virtio_balloon_report_unused_pages(void *opaque,  unsigned long pfn,
-> unsigned long nr_pages)
-> {
->     struct virtio_balloon *vb = (struct virtio_balloon *)opaque;
->     ...put the free page block to the the ring of vb;
-> }
-> 
-> 
-> What do you think?
+Hello, Vladimir.
 
-I do not mind conveying a context to the callback. I would still prefer
-to keep the original min_order to check semantic though. Why? Well,
-it doesn't make much sense to scan low order free blocks all the time
-because they are simply too volatile. Larger blocks tend to surivive for
-longer. So I assume you would only care about larger free blocks. This
-will also make the call cheaper.
+On Wed, Jul 26, 2017 at 11:30:17AM +0300, Vladimir Davydov wrote:
+> > As I understand, css_reset() callback is intended to _completely_ disable all
+> > limits, as if there were no cgroup at all.
+> 
+> But that's exactly what cgroup offline is: deletion of a cgroup as if it
+> never existed. The fact that we leave the zombie dangling until all
+> pages charged to the cgroup are gone is an implementation detail. IIRC
+> we would "reparent" those charges and delete the mem_cgroup right away
+> if it were not inherently racy.
+
+That may be true for memcg but not in general.  Think about writeback
+IOs servicing dirty pages of a removed cgroup.  Removing a cgroup
+shouldn't grant it more resources than when it was alive and changing
+the membership to the parent will break that.  For memcg, they seem
+the same just because no new major consumption can be generated after
+removal.
+
+> The user can't tweak limits of an offline cgroup, because the cgroup
+> directory no longer exist. So IMHO resetting all limits is reasonable.
+> If you want to keep the cgroup limits effective, you shouldn't have
+> deleted it in the first place, I suppose.
+
+I don't think that's the direction we wanna go.  Granting more
+resources on removal is surprising.
+
+Thanks.
+
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
