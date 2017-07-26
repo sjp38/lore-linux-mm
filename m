@@ -1,213 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 20CA16B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:43:12 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 125so204637443pgi.2
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 22:43:12 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id q26si8948517pfi.408.2017.07.25.22.43.10
-        for <linux-mm@kvack.org>;
-        Tue, 25 Jul 2017 22:43:10 -0700 (PDT)
-Date: Wed, 26 Jul 2017 14:43:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Potential race in TLB flush batching?
-Message-ID: <20170726054306.GA11100@bbox>
-References: <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
- <20170719225950.wfpfzpc6llwlyxdo@suse.de>
- <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
- <20170720074342.otez35bme5gytnxl@suse.de>
- <BD3A0EBE-ECF4-41D4-87FA-C755EA9AB6BD@gmail.com>
- <20170724095832.vgvku6vlxkv75r3k@suse.de>
- <20170725073748.GB22652@bbox>
- <20170725085132.iysanhtqkgopegob@suse.de>
- <20170725091115.GA22920@bbox>
- <20170725100722.2dxnmgypmwnrfawp@suse.de>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B546B02C3
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:45:37 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u89so30610916wrc.1
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 22:45:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 71si8726378wms.268.2017.07.25.22.45.36
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 25 Jul 2017 22:45:36 -0700 (PDT)
+Date: Wed, 26 Jul 2017 07:45:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170726054533.GA960@dhcp22.suse.cz>
+References: <20170724072332.31903-1-mhocko@kernel.org>
+ <20170725152639.GP29716@redhat.com>
+ <20170725154514.GN26723@dhcp22.suse.cz>
+ <20170725182619.GQ29716@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170725100722.2dxnmgypmwnrfawp@suse.de>
+In-Reply-To: <20170725182619.GQ29716@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 25, 2017 at 11:10:06AM +0100, Mel Gorman wrote:
-> On Tue, Jul 25, 2017 at 06:11:15PM +0900, Minchan Kim wrote:
-> > On Tue, Jul 25, 2017 at 09:51:32AM +0100, Mel Gorman wrote:
-> > > On Tue, Jul 25, 2017 at 04:37:48PM +0900, Minchan Kim wrote:
-> > > > > Ok, as you say you have reproduced this with corruption, I would suggest
-> > > > > one path for dealing with it although you'll need to pass it by the
-> > > > > original authors.
-> > > > > 
-> > > > > When unmapping ranges, there is a check for dirty PTEs in
-> > > > > zap_pte_range() that forces a flush for dirty PTEs which aims to avoid
-> > > > > writable stale PTEs from CPU0 in a scenario like you laid out above.
-> > > > > 
-> > > > > madvise_free misses a similar class of check so I'm adding Minchan Kim
-> > > > > to the cc as the original author of much of that code. Minchan Kim will
-> > > > > need to confirm but it appears that two modifications would be required.
-> > > > > The first should pass in the mmu_gather structure to
-> > > > > madvise_free_pte_range (at minimum) and force flush the TLB under the
-> > > > > PTL if a dirty PTE is encountered. The second is that it should consider
-> > > > 
-> > > > OTL: I couldn't read this lengthy discussion so I miss miss something.
-> > > > 
-> > > > About MADV_FREE, I do not understand why it should flush TLB in MADV_FREE
-> > > > context. MADV_FREE's semantic allows "write(ie, dirty)" so if other thread
-> > > > in parallel which has stale pte does "store" to make the pte dirty,
-> > > > it's okay since try_to_unmap_one in shrink_page_list catches the dirty.
-> > > > 
+On Tue 25-07-17 20:26:19, Andrea Arcangeli wrote:
+> On Tue, Jul 25, 2017 at 05:45:14PM +0200, Michal Hocko wrote:
+> > That problem is real though as reported by David.
+> 
+> I'm not against fixing it, I just think it's not a major concern, and
+> the solution doesn't seem optimal as measured by Kirill.
+> 
+> I'm just skeptical it's the best to solve that tiny race, 99.9% of the
+> time such down_write is unnecessary.
+> 
+> > it is not only about exit_mmap. __mmput calls into exit_aio and that can
+> > wait for completion and there is no way to guarantee this will finish in
+> > finite time.
+> 
+> exit_aio blocking is actually the only good point for wanting this
+> concurrency where exit_mmap->unmap_vmas and
+> oom_reap_task->unmap_page_range have to run concurrently on the same
+> mm.
+
+Yes, exit_aio is the only blocking call I know of currently. But I would
+like this to be as robust as possible and so I do not want to rely on
+the current implementation. This can change in future and I can
+guarantee that nobody will think about the oom path when adding
+something to the final __mmput path.
+
+> exit_mmap would have no issue, if there was enough time in the
+> lifetime CPU to allocate the memory, sure the memory will also be
+> freed in finite amount of time by exit_mmap.
+
+I am not sure I understand. Say that any call prior to unmap_vmas blocks
+on a lock which is held by another call path which cannot proceed with
+the allocation...
+ 
+> In fact you mentioned multiple OOM in the NUMA case, exit_mmap may not
+> solve that, so depending on the runtime it may have been better not to
+> wait all memory of the process to be freed before moving to the next
+> task, but only a couple of seconds before the OOM reaper moves to a
+> new candidate. Again this is only a tradeoff between solving the OOM
+> faster vs risk of false positives OOM.
+
+I really do not want to rely on any timing. This just too fragile. Once
+we have killed a task then we shouldn't pick another victim until it
+passed exit_mmap or the oom_reaper did its job. Otherwise we just risk
+false positives while we have already disrupted the workload.
+ 
+> If it wasn't because of exit_aio (which may have to wait I/O
+> completion), changing the OOM reaper to return "false" if
+> mmget_not_zero returns zero and MMF_OOM_SKIP is not set yet, would
+> have been enough (and depending on the runtime it may have solved OOM
+> faster in NUMA) and there would be absolutely no need to run OOM
+> reaper and exit_mmap concurrently on the same mm. However there's such
+> exit_aio..
+> 
+> Raw I/O mempools never require memory allocations, although aio if it
+> involves a filesystem to complete may run into filesystem or buffering
+> locks which are known to loop forever or depend on other tasks stuck
+> in kernel allocations, so I didn't go down that chain too long.
+
+Exactly. We simply cannot assume anything here because veryfying this
+basically impossible.
+ 
+[...]
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index f19efcf75418..615133762b99 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2993,6 +2993,11 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+>  
+> +	if (test_and_set_bit(MMF_OOM_SKIP, &mm->flags)) {
+> +		/* wait the OOM reaper to stop working on this mm */
+> +		down_write(&mm->mmap_sem);
+> +		up_write(&mm->mmap_sem);
+> +	}
+>  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, 0, -1);
+>  
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 9e8b4f030c1c..2a7000995784 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -471,6 +471,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	struct mmu_gather tlb;
+>  	struct vm_area_struct *vma;
+>  	bool ret = true;
+> +	bool mmgot = true;
+>  
+>  	/*
+>  	 * We have to make sure to not race with the victim exit path
+> @@ -500,9 +501,16 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>  	 * and delayed __mmput doesn't matter that much
+>  	 */
+>  	if (!mmget_not_zero(mm)) {
+> -		up_read(&mm->mmap_sem);
+>  		trace_skip_task_reaping(tsk->pid);
+> -		goto unlock_oom;
+> +		/*
+> +		 * MMF_OOM_SKIP is set by exit_mmap when the OOM
+> +		 * reaper can't work on the mm anymore.
+> +		 */
+> +		if (test_and_set_bit(MMF_OOM_SKIP, &mm->flags)) {
+> +			up_read(&mm->mmap_sem);
+> +			goto unlock_oom;
+> +		}
+> +		mmgot = false;
+>  	}
+
+This will work more or less the same to what we have currently.
+
+[victim]		[oom reaper]				[oom killer]
+do_exit			__oom_reap_task_mm
+  mmput
+    __mmput
+			  mmget_not_zero
+			    test_and_set_bit(MMF_OOM_SKIP)
+			    					oom_evaluate_task
+								   # select next victim 
+			  # reap the mm
+      unmap_vmas
+
+so we can select a next victim while the current one is still not
+completely torn down.
+
+> > > 4) how is it safe to overwrite a VM_FAULT_RETRY that returns without
+> > >    mmap_sem and then the arch code will release the mmap_sem despite
+> > >    it was already released by handle_mm_fault? Anonymous memory faults
+> > >    aren't common to return VM_FAULT_RETRY but an userfault
+> > >    can. Shouldn't there be a block that prevents overwriting if
+> > >    VM_FAULT_RETRY is set below? (not only VM_FAULT_ERROR)
 > > > 
-> > > In try_to_unmap_one it's fine. It's not necessarily fine in KSM. Given
-> > > that the key is that data corruption is avoided, you could argue with a
-> > > comment that madv_free doesn't necesssarily have to flush it as long as
-> > > KSM does even if it's clean due to batching.
+> > > 	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
+> > > 				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
+> > > 		ret = VM_FAULT_SIGBUS;
 > > 
-> > Yes, I think it should be done in side where have a concern.
-> > Maybe, mm_struct can carry a flag which indicates someone is
-> > doing the TLB bacthing and then KSM side can flush it by the flag.
-> > It would reduce unncessary flushing.
-> > 
+> > I am not sure I understand what you mean and how this is related to the
+> > patch?
 > 
-> If you're confident that it's only necessary on the KSM side to avoid the
-> problem then I'm ok with that. Update KSM in that case with a comment
-> explaining the madv_free race and why the flush is unconditionally
-> necessary. madv_free only came up because it was a critical part of having
-> KSM miss a TLB flush.
-> 
-> > > Like madvise(), madv_free can potentially return with a stale PTE visible
-> > > to the caller that observed a pte_none at the time of madv_free and uses
-> > > a stale PTE that potentially allows a lost write. It's debatable whether
-> > 
-> > That is the part I cannot understand.
-> > How does it lost "the write"? MADV_FREE doesn't discard the memory so
-> > finally, the write should be done sometime.
-> > Could you tell me more?
-> > 
-> 
-> I'm relying on the fact you are the madv_free author to determine if
-> it's really necessary. The race in question is CPU 0 running madv_free
-> and updating some PTEs while CPU 1 is also running madv_free and looking
-> at the same PTEs. CPU 1 may have writable TLB entries for a page but fail
-> the pte_dirty check (because CPU 0 has updated it already) and potentially
-> fail to flush. Hence, when madv_free on CPU 1 returns, there are still
-> potentially writable TLB entries and the underlying PTE is still present
-> so that a subsequent write does not necessarily propagate the dirty bit
-> to the underlying PTE any more. Reclaim at some unknown time at the future
-> may then see that the PTE is still clean and discard the page even though
-> a write has happened in the meantime. I think this is possible but I could
-> have missed some protection in madv_free that prevents it happening.
+> It's not related to the patch but it involves the OOM reaper as it
+> only happens when MMF_UNSTABLE is set which is set only by the OOM
+> reaper. I was simply reading the OOM reaper code and following up what
+> MMF_UNSTABLE does and it ringed a bell.
 
-Thanks for the detail. You didn't miss anything. It can happen and then
-it's really bug. IOW, if application does write something after madv_free,
-it must see the written value, not zero.
+I hope 3f70dc38cec2 ("mm: make sure that kthreads will not refault oom
+reaped memory") will clarify this code. If not please start a new thread
+so that we do not conflate different things together.
 
-How about adding [set|clear]_tlb_flush_pending in tlb batchin interface?
-With it, when tlb_finish_mmu is called, we can know we skip the flush
-but there is pending flush, so flush focefully to avoid madv_dontneed
-as well as madv_free scenario.
-
-Also, KSM can know it through mm_tlb_flush_pending?
-If it's acceptable, need to look into soft dirty to use [set|clear]_tlb
-_flush_pending or TLB gathering API.
-
-To show my intention:
-
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index 8afa4335e5b2..fffd4d86d0c4 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -113,7 +113,7 @@ struct mmu_gather {
- #define HAVE_GENERIC_MMU_GATHER
- 
- void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end);
--void tlb_flush_mmu(struct mmu_gather *tlb);
-+bool tlb_flush_mmu(struct mmu_gather *tlb);
- void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start,
- 							unsigned long end);
- extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 4dc92f138786..0fbbd5d234d5 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1037,8 +1037,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 	if (WARN_ONCE(!pvmw.pte, "Unexpected PMD mapping?"))
- 		goto out_unlock;
- 
--	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
--	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) {
-+	if ((pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
-+	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) ||
-+		mm_tlb_flush_pending(mm)) {
- 		pte_t entry;
- 
- 		swapped = PageSwapCache(page);
-diff --git a/mm/memory.c b/mm/memory.c
-index ea9f28e44b81..d5c5e6497c70 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -239,12 +239,13 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long
- 	tlb->page_size = 0;
- 
- 	__tlb_reset_range(tlb);
-+	set_tlb_flush_pending(tlb->mm);
- }
- 
--static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
-+static bool tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
- {
- 	if (!tlb->end)
--		return;
-+		return false;
- 
- 	tlb_flush(tlb);
- 	mmu_notifier_invalidate_range(tlb->mm, tlb->start, tlb->end);
-@@ -252,6 +253,7 @@ static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
- 	tlb_table_flush(tlb);
- #endif
- 	__tlb_reset_range(tlb);
-+	return true;
- }
- 
- static void tlb_flush_mmu_free(struct mmu_gather *tlb)
-@@ -265,10 +267,16 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
- 	tlb->active = &tlb->local;
- }
- 
--void tlb_flush_mmu(struct mmu_gather *tlb)
-+/*
-+ * returns true if tlb flush really happens
-+ */
-+bool tlb_flush_mmu(struct mmu_gather *tlb)
- {
--	tlb_flush_mmu_tlbonly(tlb);
-+	bool ret;
-+
-+	ret = tlb_flush_mmu_tlbonly(tlb);
- 	tlb_flush_mmu_free(tlb);
-+	return ret;
- }
- 
- /* tlb_finish_mmu
-@@ -278,8 +286,11 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
- void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
- {
- 	struct mmu_gather_batch *batch, *next;
-+	bool flushed = tlb_flush_mmu(tlb);
- 
--	tlb_flush_mmu(tlb);
-+	clear_tlb_flush_pending(tlb->mm);
-+	if (!flushed && mm_tlb_flush_pending(tlb->mm))
-+		flush_tlb_mm_range(tlb->mm, start, end, 0UL);
- 
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
-
-
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
