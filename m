@@ -1,79 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 466436B03A1
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 458906B02FD
 	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:47:28 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r7so31535626wrb.0
+Received: by mail-wm0-f72.google.com with SMTP id z195so267819wmz.8
         for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:47:28 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si12083049wra.364.2017.07.26.04.47.26
+        by mx.google.com with ESMTPS id c74si1312585wme.10.2017.07.26.04.47.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 04:47:26 -0700 (PDT)
+        Wed, 26 Jul 2017 04:47:27 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 07/10] hugetlbfs: Use pagevec_lookup_range() in remove_inode_hugepages()
-Date: Wed, 26 Jul 2017 13:47:01 +0200
-Message-Id: <20170726114704.7626-8-jack@suse.cz>
+Subject: [PATCH 05/10] ext4: Use pagevec_lookup_range() in ext4_find_unwritten_pgoff()
+Date: Wed, 26 Jul 2017 13:46:59 +0200
+Message-Id: <20170726114704.7626-6-jack@suse.cz>
 In-Reply-To: <20170726114704.7626-1-jack@suse.cz>
 References: <20170726114704.7626-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>
 
-We want only pages from given range in remove_inode_hugepages(). Use
-pagevec_lookup_range() instead of pagevec_lookup().
+Use pagevec_lookup_range() in ext4_find_unwritten_pgoff() since we are
+interested only in pages in the given range. Simplify the logic as a
+result of not getting pages out of range and index getting automatically
+advanced.
 
-CC: Nadia Yvette Chambers <nyc@holomorphy.com>
+CC: linux-ext4@vger.kernel.org
+CC: "Theodore Ts'o" <tytso@mit.edu>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/hugetlbfs/inode.c | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
+ fs/ext4/file.c | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index b9678ce91e25..8931236f3ef4 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -403,7 +403,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 	struct pagevec pvec;
- 	pgoff_t next, index;
- 	int i, freed = 0;
--	long lookup_nr = PAGEVEC_SIZE;
- 	bool truncate_op = (lend == LLONG_MAX);
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index ab09cb6fcce3..ac39a6a1ea5d 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -494,12 +494,11 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
  
- 	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
-@@ -412,30 +411,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 	next = start;
- 	while (next < end) {
- 		/*
--		 * Don't grab more pages than the number left in the range.
--		 */
--		if (end - next < lookup_nr)
--			lookup_nr = end - next;
--
--		/*
- 		 * When no more pages are found, we are done.
- 		 */
--		if (!pagevec_lookup(&pvec, mapping, &next, lookup_nr))
-+		if (!pagevec_lookup_range(&pvec, mapping, &next, end - 1,
-+					  PAGEVEC_SIZE))
+ 	pagevec_init(&pvec, 0);
+ 	do {
+-		int i, num;
++		int i;
+ 		unsigned long nr_pages;
+ 
+-		num = min_t(pgoff_t, end - index, PAGEVEC_SIZE - 1) + 1;
+-		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, &index,
+-					  (pgoff_t)num);
++		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping,
++					&index, end, PAGEVEC_SIZE);
+ 		if (nr_pages == 0)
  			break;
  
- 		for (i = 0; i < pagevec_count(&pvec); ++i) {
- 			struct page *page = pvec.pages[i];
- 			u32 hash;
+@@ -518,9 +517,6 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
+ 				goto out;
+ 			}
  
--			/*
--			 * The page (index) could be beyond end.  This is
--			 * only possible in the punch hole case as end is
--			 * max page offset in the truncate case.
--			 */
- 			index = page->index;
--			if (index >= end)
--				break;
+-			if (page->index > end)
+-				goto out;
 -
- 			hash = hugetlb_fault_mutex_hash(h, current->mm,
- 							&pseudo_vma,
- 							mapping, index, 0);
+ 			lock_page(page);
+ 
+ 			if (unlikely(page->mapping != inode->i_mapping)) {
+@@ -560,12 +556,10 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
+ 			unlock_page(page);
+ 		}
+ 
+-		/* The no. of pages is less than our desired, we are done. */
+-		if (nr_pages < num)
+-			break;
+ 		pagevec_release(&pvec);
+ 	} while (index <= end);
+ 
++	/* There are no pages upto endoff - that would be a hole in there. */
+ 	if (whence == SEEK_HOLE && lastoff < endoff) {
+ 		found = 1;
+ 		*offset = lastoff;
 -- 
 2.12.3
 
