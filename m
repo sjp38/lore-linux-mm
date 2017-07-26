@@ -1,58 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 932806B02B4
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 08:47:08 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u89so31716076wrc.1
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 05:47:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 200si8843626wmf.64.2017.07.26.05.47.06
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 189A16B02C3
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 08:48:12 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c23so183597748pfe.11
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 05:48:12 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id c14si2764077pfl.436.2017.07.26.05.48.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 05:47:07 -0700 (PDT)
-Date: Wed, 26 Jul 2017 14:47:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] mm/hugetlb: Make huge_pte_offset() consistent and
- document behaviour
-Message-ID: <20170726124704.GQ2981@dhcp22.suse.cz>
-References: <20170725154114.24131-1-punit.agrawal@arm.com>
- <20170725154114.24131-2-punit.agrawal@arm.com>
- <20170726085038.GB2981@dhcp22.suse.cz>
- <20170726085325.GC2981@dhcp22.suse.cz>
- <87bmo7jt31.fsf@e105922-lin.cambridge.arm.com>
- <20170726123357.GP2981@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jul 2017 05:48:11 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v12 6/8] mm: support reporting free page blocks
+Date: Wed, 26 Jul 2017 12:47:47 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F739285191@shsmsx102.ccr.corp.intel.com>
+References: <20170724090042.GF25221@dhcp22.suse.cz>
+ <59771010.6080108@intel.com> <20170725112513.GD26723@dhcp22.suse.cz>
+ <597731E8.9040803@intel.com> <20170725124141.GF26723@dhcp22.suse.cz>
+ <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
+ <20170725145333.GK26723@dhcp22.suse.cz> <5977FCDF.7040606@intel.com>
+ <20170726102458.GH2981@dhcp22.suse.cz> <59788097.6010402@intel.com>
+ <20170726115506.GM2981@dhcp22.suse.cz>
+In-Reply-To: <20170726115506.GM2981@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170726123357.GP2981@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, steve.capper@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, kirill.shutemov@linux.intel.com, Mike Kravetz <mike.kravetz@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-On Wed 26-07-17 14:33:57, Michal Hocko wrote:
-> On Wed 26-07-17 13:11:46, Punit Agrawal wrote:
-[...]
-> > I've been running tests from mce-test suite and libhugetlbfs for similar
-> > changes we did on arm64. There could be assumptions that were not
-> > exercised but I'm not sure how to check for all the possible usages.
-> > 
-> > Do you have any other suggestions that can help improve confidence in
-> > the patch?
-> 
-> Unfortunatelly I don't. I just know there were many subtle assumptions
-> all over the place so I am rather careful to not touch the code unless
-> really necessary.
-> 
-> That being said, I am not opposing your patch.
+On Wednesday, July 26, 2017 7:55 PM, Michal Hocko wrote:
+> On Wed 26-07-17 19:44:23, Wei Wang wrote:
+> [...]
+> > I thought about it more. Probably we can use the callback function
+> > with a little change like this:
+> >
+> > void walk_free_mem(void *opaque1, void (*visit)(void *opaque2,
+> > unsigned long pfn,
+> >            unsigned long nr_pages))
+> > {
+> >     ...
+> >     for_each_populated_zone(zone) {
+> >                    for_each_migratetype_order(order, type) {
+> >                         report_unused_page_block(zone, order, type,
+> > &page); // from patch 6
+> >                         pfn =3D page_to_pfn(page);
+> >                         visit(opaque1, pfn, 1 << order);
+> >                     }
+> >     }
+> > }
+> >
+> > The above function scans all the free list and directly sends each
+> > free page block to the hypervisor via the virtio_balloon callback
+> > below. No need to implement a bitmap.
+> >
+> > In virtio-balloon, we have the callback:
+> > void *virtio_balloon_report_unused_pages(void *opaque,  unsigned long
+> > pfn, unsigned long nr_pages) {
+> >     struct virtio_balloon *vb =3D (struct virtio_balloon *)opaque;
+> >     ...put the free page block to the the ring of vb; }
+> >
+> >
+> > What do you think?
+>=20
+> I do not mind conveying a context to the callback. I would still prefer
+> to keep the original min_order to check semantic though. Why? Well,
+> it doesn't make much sense to scan low order free blocks all the time
+> because they are simply too volatile. Larger blocks tend to surivive for
+> longer. So I assume you would only care about larger free blocks. This
+> will also make the call cheaper.
+> --
 
-Let me be more specific. I am not opposing your patch but we should
-definitely need more reviewers to have a look. I am not seeing any
-immediate problems with it but I do not see a large improvements either
-(slightly less nightmare doesn't make me sleep all that well ;)). So I
-will leave the decisions to others.
--- 
-Michal Hocko
-SUSE Labs
+OK, I will keep min order there in the next version.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
