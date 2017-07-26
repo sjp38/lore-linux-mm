@@ -1,106 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 335EF6B02FD
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:45:53 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z48so29482803wrc.4
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:45:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m29si9204531wmh.171.2017.07.26.04.45.51
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B9CE6B0311
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:46:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 184so16132648wmo.7
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:46:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q23si17058456wrc.56.2017.07.26.04.46.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 04:45:52 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6QBipuH059003
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:45:50 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bxpk2bsk1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:45:50 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Wed, 26 Jul 2017 12:45:48 +0100
-Date: Wed, 26 Jul 2017 13:45:39 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [RFC PATCH 3/5] mm, memory_hotplug: allocate memmap from the
- added memory range for sparse-vmemmap
-References: <20170726083333.17754-1-mhocko@kernel.org>
- <20170726083333.17754-4-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 26 Jul 2017 04:46:45 -0700 (PDT)
+Date: Wed, 26 Jul 2017 13:46:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
+Message-ID: <20170726114638.GL2981@dhcp22.suse.cz>
+References: <20170721150002.GF5944@dhcp22.suse.cz>
+ <201707220018.DAE21384.JQFLVMFHSFtOOO@I-love.SAKURA.ne.jp>
+ <20170721153353.GG5944@dhcp22.suse.cz>
+ <201707230941.BFG30203.OFHSJtFFVQLOMO@I-love.SAKURA.ne.jp>
+ <20170724063844.GA25221@dhcp22.suse.cz>
+ <201707262033.JGE65600.MOtQFFLOJOSFVH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170726083333.17754-4-mhocko@kernel.org>
-Message-Id: <20170726114539.GG3218@osiris>
+In-Reply-To: <201707262033.JGE65600.MOtQFFLOJOSFVH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dan Williams <dan.j.williams@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-On Wed, Jul 26, 2017 at 10:33:31AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
+> > > So, how can we verify the above race a real problem?
+> > 
+> > Try to simulate a _real_ workload and see whether we kill more tasks
+> > than necessary. 
 > 
-> Physical memory hotadd has to allocate a memmap (struct page array) for
-> the newly added memory section. kmalloc is currantly used for those
-> allocations.
+> Whether it is a _real_ workload or not cannot become an answer.
 > 
-> This has some disadvantages a) an existing memory is consumed for
-> that purpose (~2MB per 128MB memory section) and b) if the whole node
-> is movable then we have off-node struct pages which has performance
-> drawbacks.
-> 
-> a) has turned out to be a problem for memory hotplug based ballooning
-> because the userspace might not react in time to online memory while
-> to memory consumed during physical hotadd consumes enough memory to push
-> system to OOM. 31bc3858ea3e ("memory-hotplug: add automatic onlining
-> policy for the newly added memory") has been added to workaround that
-> problem.
-> 
-> We can do much better when CONFIG_SPARSEMEM_VMEMMAP=y because vmemap
-> page tables can map arbitrary memory. That means that we can simply
-> use the beginning of each memory section and map struct pages there.
-> struct pages which back the allocated space then just need to be treated
-> carefully so that we know they are not usable.
-> 
-> Add {_Set,_Clear}PageVmemmap helpers to distinguish those pages in pfn
-> walkers. We do not have any spare page flag for this purpose so use the
-> combination of PageReserved bit which already tells that the page should
-> be ignored by the core mm code and store VMEMMAP_PAGE (which sets all
-> bits but PAGE_MAPPING_FLAGS) into page->mapping.
-> 
-> On the memory hotplug front reuse vmem_altmap infrastructure to override
-> the default allocator used by __vmemap_populate. Once the memmap is
-> allocated we need a way to mark altmap pfns used for the allocation
-> and this is done by a new vmem_altmap::flush_alloc_pfns callback.
-> mark_vmemmap_pages implementation then simply __SetPageVmemmap all
-> struct pages backing those pfns. The callback is called from
-> sparse_add_one_section after the memmap has been initialized to 0.
-> 
-> We also have to be careful about those pages during online and offline
-> operations. They are simply ignored.
-> 
-> Finally __ClearPageVmemmap is called when the vmemmap page tables are
-> torn down.
-> 
-> Please note that only the memory hotplug is currently using this
-> allocation scheme. The boot time memmap allocation could use the same
-> trick as well but this is not done yet.
+> If somebody is trying to allocate hundreds/thousands of pages after memory of
+> an OOM victim was reaped, avoiding this race window makes no sense; next OOM
+> victim will be selected anyway. But if somebody is trying to allocate only one
+> page and then is planning to release a lot of memory, avoiding this race window
+> can save somebody from being OOM-killed needlessly. This race window depends on
+> what the threads are about to do, not whether the workload is natural or
+> artificial.
 
-Which kernel are these patches based on? I tried linux-next and Linus'
-vanilla tree, however the series does not apply.
+And with a desparate lack of crystal ball we cannot do much about that
+really.
 
-In general I do like your idea, however if I understand your patches
-correctly we might have an ordering problem on s390: it is not possible to
-access hot-added memory on s390 before it is online (MEM_GOING_ONLINE
-succeeded).
+> My question is, how can users know it if somebody was OOM-killed needlessly
+> by allowing MMF_OOM_SKIP to race.
 
-On MEM_GOING_ONLINE we ask the hypervisor to back the potential available
-hot-added memory region with physical pages. Accessing those ranges before
-that will result in an exception.
+Is it really important to know that the race is due to MMF_OOM_SKIP?
+Isn't it sufficient to see that we kill too many tasks and then debug it
+further once something hits that?
 
-However with your approach the memory is still allocated when add_memory()
-is being called, correct? That wouldn't be a change to the current
-behaviour; except for the ordering problem outlined above.
-Just trying to make sure I get this right :)
+[...]
+> Is it guaranteed that __node_reclaim() never (even indirectly) waits for
+> __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation?
+
+this is a direct reclaim which can go down to slab shrinkers with all
+the usual fun...
+
+> >                                      Such races are unfortunate but
+> > unavoidable unless we synchronize oom kill with any memory freeing which
+> > smells like a no-go to me. We can try a last allocation attempt right
+> > before we go and kill something (which still wouldn't be race free) but
+> > that might cause other issues - e.g. prolonged trashing without ever
+> > killing something - but I haven't evaluated those to be honest.
+> 
+> Yes, postpone last get_page_from_freelist() attempt till oom_kill_process()
+> will be what we would afford at best.
+
+as I've said this would have to be evaluated very carefully and a strong
+usecase would have to be shown.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
