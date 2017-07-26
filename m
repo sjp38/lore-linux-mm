@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0266B02F4
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 13:55:47 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id p62so13537715oih.12
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:55:47 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD126B02F4
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 13:55:48 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p62so13537753oih.12
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:55:48 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z126si8861971oiz.119.2017.07.26.10.55.46
+        by mx.google.com with ESMTPS id q189si9179913oih.549.2017.07.26.10.55.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 10:55:46 -0700 (PDT)
+        Wed, 26 Jul 2017 10:55:48 -0700 (PDT)
 From: Jeff Layton <jlayton@kernel.org>
-Subject: [PATCH v2 3/4] fs: convert sync_file_range to use errseq_t based error-tracking
-Date: Wed, 26 Jul 2017 13:55:37 -0400
-Message-Id: <20170726175538.13885-4-jlayton@kernel.org>
+Subject: [PATCH v2 4/4] gfs2: convert to errseq_t based writeback error reporting for fsync
+Date: Wed, 26 Jul 2017 13:55:38 -0400
+Message-Id: <20170726175538.13885-5-jlayton@kernel.org>
 In-Reply-To: <20170726175538.13885-1-jlayton@kernel.org>
 References: <20170726175538.13885-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,41 +22,37 @@ Cc: "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundat
 
 From: Jeff Layton <jlayton@redhat.com>
 
-sync_file_range doesn't call down into the filesystem directly at all.
-It only kicks off writeback of pagecache pages and optionally waits
-on the result.
+This means that we need to export the new file_fdatawait_range symbol.
 
-Convert sync_file_range to use errseq_t based error tracking, under the
-assumption that most users will prefer this behavior when errors occur.
+Also, fix a place where a writeback error might get dropped in the
+gfs2_is_jdata case.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- fs/sync.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/gfs2/file.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/fs/sync.c b/fs/sync.c
-index 2a54c1f22035..27d6b8bbcb6a 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -342,7 +342,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
- 
- 	ret = 0;
- 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
--		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-+		ret = file_fdatawait_range(f.file, offset, endbyte);
- 		if (ret < 0)
- 			goto out_put;
+diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
+index c2062a108d19..c53ac6efd04c 100644
+--- a/fs/gfs2/file.c
++++ b/fs/gfs2/file.c
+@@ -668,12 +668,14 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
+ 		if (ret)
+ 			return ret;
+ 		if (gfs2_is_jdata(ip))
+-			filemap_write_and_wait(mapping);
++			ret = file_write_and_wait(file);
++		if (ret)
++			return ret;
+ 		gfs2_ail_flush(ip->i_gl, 1);
  	}
-@@ -355,7 +355,7 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
- 	}
  
- 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
--		ret = filemap_fdatawait_range(mapping, offset, endbyte);
-+		ret = file_fdatawait_range(f.file, offset, endbyte);
+ 	if (mapping->nrpages)
+-		ret = filemap_fdatawait_range(mapping, start, end);
++		ret = file_fdatawait_range(file, start, end);
  
- out_put:
- 	fdput(f);
+ 	return ret ? ret : ret1;
+ }
 -- 
 2.13.3
 
