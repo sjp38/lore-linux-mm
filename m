@@ -1,82 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C29F6B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 22:19:48 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id k72so70340470pfj.1
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 19:19:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D41ED6B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 23:46:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s70so174067023pfs.5
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 20:46:14 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id q85si8859181pfa.458.2017.07.25.19.19.46
+        by mx.google.com with ESMTPS id a6si9534437pll.653.2017.07.25.20.46.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 19:19:46 -0700 (PDT)
-Message-ID: <5977FCDF.7040606@intel.com>
-Date: Wed, 26 Jul 2017 10:22:23 +0800
+        Tue, 25 Jul 2017 20:46:13 -0700 (PDT)
+Message-ID: <59781119.8010200@intel.com>
+Date: Wed, 26 Jul 2017 11:48:41 +0800
 From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
-References: <20170717152448.GN12888@dhcp22.suse.cz> <596D6E7E.4070700@intel.com> <20170719081311.GC26779@dhcp22.suse.cz> <596F4A0E.4010507@intel.com> <20170724090042.GF25221@dhcp22.suse.cz> <59771010.6080108@intel.com> <20170725112513.GD26723@dhcp22.suse.cz> <597731E8.9040803@intel.com> <20170725124141.GF26723@dhcp22.suse.cz> <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com> <20170725145333.GK26723@dhcp22.suse.cz>
-In-Reply-To: <20170725145333.GK26723@dhcp22.suse.cz>
+Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-6-git-send-email-wei.w.wang@intel.com> <20170712160129-mutt-send-email-mst@kernel.org> <5966241C.9060503@intel.com> <20170712163746-mutt-send-email-mst@kernel.org> <5967246B.9030804@intel.com> <20170713210819-mutt-send-email-mst@kernel.org> <59686EEB.8080805@intel.com> <20170723044036-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170723044036-mutt-send-email-mst@kernel.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 07/25/2017 10:53 PM, Michal Hocko wrote:
-> On Tue 25-07-17 14:47:16, Wang, Wei W wrote:
->> On Tuesday, July 25, 2017 8:42 PM, hal Hocko wrote:
->>> On Tue 25-07-17 19:56:24, Wei Wang wrote:
->>>> On 07/25/2017 07:25 PM, Michal Hocko wrote:
->>>>> On Tue 25-07-17 17:32:00, Wei Wang wrote:
->>>>>> On 07/24/2017 05:00 PM, Michal Hocko wrote:
->>>>>>> On Wed 19-07-17 20:01:18, Wei Wang wrote:
->>>>>>>> On 07/19/2017 04:13 PM, Michal Hocko wrote:
->>>>>>> [...
->>>> We don't need to do the pfn walk in the guest kernel. When the API
->>>> reports, for example, a 2MB free page block, the API caller offers to
->>>> the hypervisor the base address of the page block, and size=2MB, to
->>>> the hypervisor.
->>> So you want to skip pfn walks by regularly calling into the page allocator to
->>> update your bitmap. If that is the case then would an API that would allow you
->>> to update your bitmap via a callback be s sufficient? Something like
->>> 	void walk_free_mem(int node, int min_order,
->>> 			void (*visit)(unsigned long pfn, unsigned long nr_pages))
->>>
->>> The function will call the given callback for each free memory block on the given
->>> node starting from the given min_order. The callback will be strictly an atomic
->>> and very light context. You can update your bitmap from there.
->> I would need to introduce more about the background here:
->> The hypervisor and the guest live in their own address space. The hypervisor's bitmap
->> isn't seen by the guest. I think we also wouldn't be able to give a callback function
->> from the hypervisor to the guest in this case.
-> How did you plan to use your original API which export struct page array
-> then?
+On 07/23/2017 09:45 AM, Michael S. Tsirkin wrote:
+> On Fri, Jul 14, 2017 at 03:12:43PM +0800, Wei Wang wrote:
+>> On 07/14/2017 04:19 AM, Michael S. Tsirkin wrote:
+>>> On Thu, Jul 13, 2017 at 03:42:35PM +0800, Wei Wang wrote:
+>>>> On 07/12/2017 09:56 PM, Michael S. Tsirkin wrote:
+>>>>> So the way I see it, there are several issues:
+>>>>>
+>>>>> - internal wait - forces multiple APIs like kick/kick_sync
+>>>>>      note how kick_sync can fail but your code never checks return code
+>>>>> - need to re-write the last descriptor - might not work
+>>>>>      for alternative layouts which always expose descriptors
+>>>>>      immediately
+>>>> Probably it wasn't clear. Please let me explain the two functions here:
+>>>>
+>>>> 1) virtqueue_add_chain_desc(vq, head_id, prev_id,..):
+>>>> grabs a desc from the vq and inserts it to the chain tail (which is indexed
+>>>> by
+>>>> prev_id, probably better to call it tail_id). Then, the new added desc
+>>>> becomes
+>>>> the tail (i.e. the last desc). The _F_NEXT flag is cleared for each desc
+>>>> when it's
+>>>> added to the chain, and set when another desc comes to follow later.
+>>> And this only works if there are multiple rings like
+>>> avail + descriptor ring.
+>>> It won't work e.g. with the proposed new layout where
+>>> writing out a descriptor exposes it immediately.
+>> I think it can support the 1.1 proposal, too. But before getting
+>> into that, I think we first need to deep dive into the implementation
+>> and usage of _first/next/last. The usage would need to lock the vq
+>> from the first to the end (otherwise, the returned info about the number
+>> of available desc in the vq, i.e. num_free, would be invalid):
+>>
+>> lock(vq);
+>> add_first();
+>> add_next();
+>> add_last();
+>> unlock(vq);
+>>
+>> However, I think the case isn't this simple, since we need to check more
+>> things
+>> after each add_xx() step. For example, if only one entry is available at the
+>> time
+>> we start to use the vq, that is, num_free is 0 after add_first(), we
+>> wouldn't be
+>> able to add_next and add_last. So, it would work like this:
+>>
+>> start:
+>>      ...get free page block..
+>>      lock(vq)
+>> retry:
+>>      ret = add_first(..,&num_free,);
+>>      if(ret == -ENOSPC) {
+>>          goto retry;
+>>      } else if (!num_free) {
+>>          add_chain_head();
+>>          unlock(vq);
+>>          kick & wait;
+>>          goto start;
+>>      }
+>> next_one:
+>>      ...get free page block..
+>>      add_next(..,&num_free,);
+>>      if (!num_free) {
+>>          add_chain_head();
+>>          unlock(vq);
+>>          kick & wait;
+>>          goto start;
+>>      } if (num_free == 1) {
+>>          ...get free page block..
+>>          add_last(..);
+>>          unlock(vq);
+>>          kick & wait;
+>>          goto start;
+>>      } else {
+>>          goto next_one;
+>>      }
+>>
+>> The above seems unnecessary to me to have three different APIs.
+>> That's the reason to combine them into one virtqueue_add_chain_desc().
+>>
+>> -- or, do you have a different thought about using the three APIs?
+>>
+>>
+>> Implementation Reference:
+>>
+>> struct desc_iterator {
+>>      unsigned int head;
+>>      unsigned int tail;
+>> };
+>>
+>> add_first(*vq, *desc_iterator, *num_free, ..)
+>> {
+>>      if (vq->vq.num_free < 1)
+>>          return -ENOSPC;
+>>      get_desc(&desc_id);
+>>      desc[desc_id].flag &= ~_F_NEXT;
+>>      desc_iterator->head = desc_id
+>>      desc_iterator->tail = desc_iterator->head;
+>>      *num_free = vq->vq.num_free;
+>> }
+>>
+>> add_next(vq, desc_iterator, *num_free,..)
+>> {
+>>      get_desc(&desc_id);
+>>      desc[desc_id].flag &= ~_F_NEXT;
+>>      desc[desc_iterator.tail].next = desc_id;
+>>      desc[desc_iterator->tail].flag |= _F_NEXT;
+>>      desc_iterator->tail = desc_id;
+>>      *num_free = vq->vq.num_free;
+>> }
+>>
+>> add_last(vq, desc_iterator,..)
+>> {
+>>      get_desc(&desc_id);
+>>      desc[desc_id].flag &= ~_F_NEXT;
+>>      desc[desc_iterator.tail].next = desc_id;
+>>      desc_iterator->tail = desc_id;
+>>
+>>      add_chain_head(); // put the desc_iterator.head to the ring
+>> }
+>>
+>>
+>> Best,
+>> Wei
+> OK I thought this over. While we might need these new APIs in
+> the future, I think that at the moment, there's a way to implement
+> this feature that is significantly simpler. Just add each s/g
+> as a separate input buffer.
 
 
-That's where the virtio-balloon driver comes in. It uses a shared ring 
-mechanism to
-send the guest memory info to the hypervisor.
-
-We didn't expose the struct page array from the guest to the hypervisor. 
-For example, when
-a 2MB free page block is reported from the free page list, the info put 
-on the ring is just
-(base address of the 2MB continuous memory, size=2M).
-
+Should it be an output buffer? I think output means from the
+driver to device (i.e. DMA_TO_DEVICE).
 
 >
->>> This would address my main concern that the allocator internals would get
->>> outside of the allocator proper.
->> What issue would it have to expose the internal, for_each_zone()?
-> zone is a MM internal concept. No code outside of the MM proper should
-> really care about zones.
+> This needs zero new APIs.
+>
+> I know that follow-up patches need to add a header in front
+> so you might be thinking: how am I going to add this
+> header? The answer is quite simple - add it as a separate
+> out header.
+>
+> Host will be able to distinguish between header and pages
+> by looking at the direction, and - should we want to add
+> IN data to header - additionally size (<4K => header).
 
-I think this is also what Andrew suggested in the previous discussion:
-https://lkml.org/lkml/2017/3/16/951
 
-Move the code to virtio-balloon and a little layering violation seems 
-acceptable.
+I think this works fine when the cmdq is only used for
+reporting the unused pages. It would be an issue
+if there are other usages (e.g. report memory statistics)
+interleaving. I think one solution would be to lock the cmdq until
+a cmd usage is done ((e.g. all the unused pages are reported) ) -
+in this case, the periodically updated guest memory statistics
+may be delayed for a while occasionally when live migration starts.
+Would this be acceptable? If not, probably we can have the cmdq
+for one usage only.
 
 
 Best,
