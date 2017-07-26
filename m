@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 889706B0292
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 13:55:44 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id b184so12561787oih.9
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:55:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0FE3E6B02B4
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 13:55:46 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id v68so13992964oia.14
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:55:46 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y206si8767777oig.366.2017.07.26.10.55.43
+        by mx.google.com with ESMTPS id p131si653186oib.339.2017.07.26.10.55.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 10:55:43 -0700 (PDT)
+        Wed, 26 Jul 2017 10:55:45 -0700 (PDT)
 From: Jeff Layton <jlayton@kernel.org>
-Subject: [PATCH v2 1/4] mm: consolidate dax / non-dax checks for writeback
-Date: Wed, 26 Jul 2017 13:55:35 -0400
-Message-Id: <20170726175538.13885-2-jlayton@kernel.org>
+Subject: [PATCH v2 2/4] mm: add file_fdatawait_range and file_write_and_wait
+Date: Wed, 26 Jul 2017 13:55:36 -0400
+Message-Id: <20170726175538.13885-3-jlayton@kernel.org>
 In-Reply-To: <20170726175538.13885-1-jlayton@kernel.org>
 References: <20170726175538.13885-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,117 @@ Cc: "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundat
 
 From: Jeff Layton <jlayton@redhat.com>
 
-We have this complex conditional copied to several places. Turn it into
-a helper function.
+Some filesystem fsync routines will need these.
 
 Signed-off-by: Jeff Layton <jlayton@redhat.com>
 ---
- mm/filemap.c | 15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
+ include/linux/fs.h |  7 ++++++-
+ mm/filemap.c       | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 21e7df1ad613..bc57a79294f0 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2544,6 +2544,8 @@ extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
+ 				   loff_t lend);
+ extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
+ 				  loff_t lend);
++extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
++						loff_t lend);
+ extern int filemap_write_and_wait(struct address_space *mapping);
+ extern int filemap_write_and_wait_range(struct address_space *mapping,
+ 				        loff_t lstart, loff_t lend);
+@@ -2552,11 +2554,14 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
+ extern int filemap_fdatawrite_range(struct address_space *mapping,
+ 				loff_t start, loff_t end);
+ extern int filemap_check_errors(struct address_space *mapping);
+-
+ extern void __filemap_set_wb_err(struct address_space *mapping, int err);
++
++extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
++						loff_t lend);
+ extern int __must_check file_check_and_advance_wb_err(struct file *file);
+ extern int __must_check file_write_and_wait_range(struct file *file,
+ 						loff_t start, loff_t end);
++extern int __must_check file_write_and_wait(struct file *file);
+ 
+ /**
+  * filemap_set_wb_err - set a writeback error on an address_space
 diff --git a/mm/filemap.c b/mm/filemap.c
-index e1cca770688f..72e46e6f0d9a 100644
+index 72e46e6f0d9a..b904a8dfa43d 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -522,12 +522,17 @@ int filemap_fdatawait(struct address_space *mapping)
- }
- EXPORT_SYMBOL(filemap_fdatawait);
+@@ -476,6 +476,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
+ EXPORT_SYMBOL(filemap_fdatawait_range);
  
-+static bool mapping_needs_writeback(struct address_space *mapping)
+ /**
++ * file_fdatawait_range - wait for writeback to complete
++ * @file:		file pointing to address space structure to wait for
++ * @start_byte:		offset in bytes where the range starts
++ * @end_byte:		offset in bytes where the range ends (inclusive)
++ *
++ * Walk the list of under-writeback pages of the address space that file
++ * refers to, in the given range and wait for all of them.  Check error
++ * status of the address space vs. the file->f_wb_err cursor and return it.
++ *
++ * Since the error status of the file is advanced by this function,
++ * callers are responsible for checking the return value and handling and/or
++ * reporting the error.
++ */
++int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
 +{
-+	return (!dax_mapping(mapping) && mapping->nrpages) ||
-+	    (dax_mapping(mapping) && mapping->nrexceptional);
-+}
++	struct address_space *mapping = file->f_mapping;
 +
- int filemap_write_and_wait(struct address_space *mapping)
- {
- 	int err = 0;
++	__filemap_fdatawait_range(mapping, start_byte, end_byte);
++	return file_check_and_advance_wb_err(file);
++}
++EXPORT_SYMBOL(file_fdatawait_range);
++
++/**
+  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
+  * @mapping: address space structure to wait for
+  *
+@@ -675,6 +698,39 @@ int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
+ EXPORT_SYMBOL(file_write_and_wait_range);
  
--	if ((!dax_mapping(mapping) && mapping->nrpages) ||
--	    (dax_mapping(mapping) && mapping->nrexceptional)) {
-+	if (mapping_needs_writeback(mapping)) {
- 		err = filemap_fdatawrite(mapping);
- 		/*
- 		 * Even if the above returned error, the pages may be
-@@ -566,8 +571,7 @@ int filemap_write_and_wait_range(struct address_space *mapping,
- {
- 	int err = 0;
- 
--	if ((!dax_mapping(mapping) && mapping->nrpages) ||
--	    (dax_mapping(mapping) && mapping->nrexceptional)) {
-+	if (mapping_needs_writeback(mapping)) {
- 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
- 						 WB_SYNC_ALL);
- 		/* See comment of filemap_write_and_wait() */
-@@ -656,8 +660,7 @@ int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
- 	int err = 0, err2;
- 	struct address_space *mapping = file->f_mapping;
- 
--	if ((!dax_mapping(mapping) && mapping->nrpages) ||
--	    (dax_mapping(mapping) && mapping->nrexceptional)) {
-+	if (mapping_needs_writeback(mapping)) {
- 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
- 						 WB_SYNC_ALL);
- 		/* See comment of filemap_write_and_wait() */
+ /**
++ * file_write_and_wait - write out whole file and wait on it and return any
++ * 			 writeback errors since we last checked
++ * @file: file to write back and wait on
++ *
++ * Write back the whole file and wait on its mapping. Afterward, check for
++ * errors that may have occurred since our file->f_wb_err cursor was last
++ * updated.
++ */
++int file_write_and_wait(struct file *file)
++{
++	int err = 0, err2;
++	struct address_space *mapping = file->f_mapping;
++
++	if ((!dax_mapping(mapping) && mapping->nrpages) ||
++	    (dax_mapping(mapping) && mapping->nrexceptional)) {
++		err = filemap_fdatawrite(mapping);
++		/* See comment of filemap_write_and_wait() */
++		if (err != -EIO) {
++			loff_t i_size = i_size_read(mapping->host);
++
++			if (i_size != 0)
++				__filemap_fdatawait_range(mapping, 0,
++							  i_size - 1);
++		}
++	}
++	err2 = file_check_and_advance_wb_err(file);
++	if (!err)
++		err = err2;
++	return err;
++}
++EXPORT_SYMBOL(file_write_and_wait);
++
++/**
+  * replace_page_cache_page - replace a pagecache page with a new one
+  * @old:	page to be replaced
+  * @new:	page to replace with
 -- 
 2.13.3
 
