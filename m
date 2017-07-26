@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D32F06B0311
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:33:55 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id q50so30987646wrb.14
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:33:55 -0700 (PDT)
-Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
-        by mx.google.com with ESMTPS id i4si17479985wra.237.2017.07.26.01.33.54
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DB136B0313
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:33:57 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r123so15760303wmb.1
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:33:57 -0700 (PDT)
+Received: from mail-wr0-f195.google.com (mail-wr0-f195.google.com. [209.85.128.195])
+        by mx.google.com with ESMTPS id 9si17081414wra.123.2017.07.26.01.33.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 01:33:54 -0700 (PDT)
-Received: by mail-wr0-f193.google.com with SMTP id y43so21538222wrd.0
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:33:54 -0700 (PDT)
+        Wed, 26 Jul 2017 01:33:56 -0700 (PDT)
+Received: by mail-wr0-f195.google.com with SMTP id o33so14071735wrb.1
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:33:56 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 4/5] mm, sparse: complain about implicit altmap usage in vmemmap_populate
-Date: Wed, 26 Jul 2017 10:33:32 +0200
-Message-Id: <20170726083333.17754-5-mhocko@kernel.org>
+Subject: [RFC PATCH 5/5] mm, sparse: rename kmalloc_section_memmap, __kfree_section_memmap
+Date: Wed, 26 Jul 2017 10:33:33 +0200
+Message-Id: <20170726083333.17754-6-mhocko@kernel.org>
 In-Reply-To: <20170726083333.17754-1-mhocko@kernel.org>
 References: <20170726083333.17754-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,36 +24,84 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vla
 
 From: Michal Hocko <mhocko@suse.com>
 
-All current users of the altmap are in the memory hotplug code and
-they use __vmemmap_populate explicitly (via __sparse_mem_map_populate).
-Complain if somebody uses vmemmap_populate with altmap registered
-because that could be an unexpected usage. Also call __vmemmap_populate
-with NULL from that code path.
+Both functions will use altmap rather than kmalloc for sparsemem-vmemmap
+so rename them to alloc_section_memmap/free_section_memmap which better
+reflect the functionality.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/mm.h | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ mm/sparse.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3ce673570fb8..ae1fa053d09e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2456,8 +2456,12 @@ int __vmemmap_populate(unsigned long start, unsigned long end, int node,
- static inline int vmemmap_populate(unsigned long start, unsigned long end,
- 		int node)
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 8460ecb9e69b..eb2e45b35a28 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -667,13 +667,13 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ #endif
+ 
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
++static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
+ 		struct vmem_altmap *altmap)
  {
--	struct vmem_altmap *altmap = to_vmem_altmap(start);
--	return __vmemmap_populate(start, end, node, altmap);
-+	/*
-+	 * All users of the altmap have to be explicit and use
-+	 * __vmemmap_populate directly
-+	 */
-+	WARN_ON(to_vmem_altmap(start));
-+	return __vmemmap_populate(start, end, node, NULL);
+ 	/* This will make the necessary allocations eventually. */
+ 	return __sparse_mem_map_populate(pnum, nid, altmap);
+ }
+-static void __kfree_section_memmap(struct page *memmap)
++static void free_section_memmap(struct page *memmap)
+ {
+ 	unsigned long start = (unsigned long)memmap;
+ 	unsigned long end = (unsigned long)(memmap + PAGES_PER_SECTION);
+@@ -711,13 +711,13 @@ static struct page *__kmalloc_section_memmap(void)
+ 	return ret;
  }
  
- void vmemmap_populate_print_last(void);
+-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
++static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
+ 		struct vmem_altmap *altmap)
+ {
+ 	return __kmalloc_section_memmap();
+ }
+ 
+-static void __kfree_section_memmap(struct page *memmap)
++static void free_section_memmap(struct page *memmap)
+ {
+ 	if (is_vmalloc_addr(memmap))
+ 		vfree(memmap);
+@@ -781,12 +781,12 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
+ 	ret = sparse_index_init(section_nr, pgdat->node_id);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
++	memmap = alloc_section_memmap(section_nr, pgdat->node_id, altmap);
+ 	if (!memmap)
+ 		return -ENOMEM;
+ 	usemap = __kmalloc_section_usemap();
+ 	if (!usemap) {
+-		__kfree_section_memmap(memmap);
++		free_section_memmap(memmap);
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -820,7 +820,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
+ 	pgdat_resize_unlock(pgdat, &flags);
+ 	if (ret <= 0) {
+ 		kfree(usemap);
+-		__kfree_section_memmap(memmap);
++		free_section_memmap(memmap);
+ 	}
+ 	return ret;
+ }
+@@ -861,7 +861,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ 	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
+ 		kfree(usemap);
+ 		if (memmap)
+-			__kfree_section_memmap(memmap);
++			free_section_memmap(memmap);
+ 		return;
+ 	}
+ 
 -- 
 2.13.2
 
