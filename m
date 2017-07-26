@@ -1,74 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAD356B03B5
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CBD116B03BD
 	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:47:35 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 92so31557811wra.11
+Received: by mail-wr0-f200.google.com with SMTP id u89so31541358wrc.1
         for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:47:35 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si8449918wrp.425.2017.07.26.04.47.26
+        by mx.google.com with ESMTPS id q21si13387412wra.478.2017.07.26.04.47.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 26 Jul 2017 04:47:27 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/10] ext4: Use pagevec_lookup_range() in writeback code
-Date: Wed, 26 Jul 2017 13:47:00 +0200
-Message-Id: <20170726114704.7626-7-jack@suse.cz>
+Subject: [PATCH 09/10] mm: Use find_get_pages_range() in filemap_range_has_page()
+Date: Wed, 26 Jul 2017 13:47:03 +0200
+Message-Id: <20170726114704.7626-10-jack@suse.cz>
 In-Reply-To: <20170726114704.7626-1-jack@suse.cz>
 References: <20170726114704.7626-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 
-Both occurences of pagevec_lookup() actually want only pages from a
-given range. Use pagevec_lookup_range() for the lookup.
+We want only pages from given range in filemap_range_has_page(),
+furthermore we want at most a single page. So use find_get_pages_range()
+instead of pagevec_lookup() and remove unnecessary code.
 
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: linux-ext4@vger.kernel.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/inode.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ mm/filemap.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 68d0166d5ebc..eb86c1baf40c 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -1676,13 +1676,13 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index b02be926a115..871c974f0bb3 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -402,8 +402,7 @@ bool filemap_range_has_page(struct address_space *mapping,
+ {
+ 	pgoff_t index = start_byte >> PAGE_SHIFT;
+ 	pgoff_t end = end_byte >> PAGE_SHIFT;
+-	struct pagevec pvec;
+-	bool ret;
++	struct page *page;
  
- 	pagevec_init(&pvec, 0);
- 	while (index <= end) {
--		nr_pages = pagevec_lookup(&pvec, mapping, &index, PAGEVEC_SIZE);
-+		nr_pages = pagevec_lookup_range(&pvec, mapping, &index, end,
-+						PAGEVEC_SIZE);
- 		if (nr_pages == 0)
- 			break;
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
--			if (page->index > end)
--				break;
-+
- 			BUG_ON(!PageLocked(page));
- 			BUG_ON(PageWriteback(page));
- 			if (invalidate) {
-@@ -2303,15 +2303,13 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
+ 	if (end_byte < start_byte)
+ 		return false;
+@@ -411,12 +410,10 @@ bool filemap_range_has_page(struct address_space *mapping,
+ 	if (mapping->nrpages == 0)
+ 		return false;
  
- 	pagevec_init(&pvec, 0);
- 	while (start <= end) {
--		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, &start,
--					  PAGEVEC_SIZE);
-+		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping,
-+						&start, end, PAGEVEC_SIZE);
- 		if (nr_pages == 0)
- 			break;
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
+-	pagevec_init(&pvec, 0);
+-	if (!pagevec_lookup(&pvec, mapping, &index, 1))
++	if (!find_get_pages_range(mapping, &index, end, 1, &page))
+ 		return false;
+-	ret = (pvec.pages[0]->index <= end);
+-	pagevec_release(&pvec);
+-	return ret;
++	put_page(page);
++	return true;
+ }
+ EXPORT_SYMBOL(filemap_range_has_page);
  
--			if (page->index > end)
--				break;
- 			bh = head = page_buffers(page);
- 			do {
- 				if (lblk < mpd->map.m_lblk)
 -- 
 2.12.3
 
