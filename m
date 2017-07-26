@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B9CE6B0311
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:46:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 184so16132648wmo.7
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:46:46 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C7FBF6B02FD
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:47:27 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z36so23163425wrb.13
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:47:27 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q23si17058456wrc.56.2017.07.26.04.46.44
+        by mx.google.com with ESMTPS id 34si17022560wrg.43.2017.07.26.04.47.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 04:46:45 -0700 (PDT)
-Date: Wed, 26 Jul 2017 13:46:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170726114638.GL2981@dhcp22.suse.cz>
-References: <20170721150002.GF5944@dhcp22.suse.cz>
- <201707220018.DAE21384.JQFLVMFHSFtOOO@I-love.SAKURA.ne.jp>
- <20170721153353.GG5944@dhcp22.suse.cz>
- <201707230941.BFG30203.OFHSJtFFVQLOMO@I-love.SAKURA.ne.jp>
- <20170724063844.GA25221@dhcp22.suse.cz>
- <201707262033.JGE65600.MOtQFFLOJOSFVH@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201707262033.JGE65600.MOtQFFLOJOSFVH@I-love.SAKURA.ne.jp>
+        Wed, 26 Jul 2017 04:47:26 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 04/10] fs: Fix performance regression in clean_bdev_aliases()
+Date: Wed, 26 Jul 2017 13:46:58 +0200
+Message-Id: <20170726114704.7626-5-jack@suse.cz>
+In-Reply-To: <20170726114704.7626-1-jack@suse.cz>
+References: <20170726114704.7626-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 
-On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
-> > > So, how can we verify the above race a real problem?
-> > 
-> > Try to simulate a _real_ workload and see whether we kill more tasks
-> > than necessary. 
-> 
-> Whether it is a _real_ workload or not cannot become an answer.
-> 
-> If somebody is trying to allocate hundreds/thousands of pages after memory of
-> an OOM victim was reaped, avoiding this race window makes no sense; next OOM
-> victim will be selected anyway. But if somebody is trying to allocate only one
-> page and then is planning to release a lot of memory, avoiding this race window
-> can save somebody from being OOM-killed needlessly. This race window depends on
-> what the threads are about to do, not whether the workload is natural or
-> artificial.
+Commit e64855c6cfaa "fs: Add helper to clean bdev aliases under a bh and
+use it" added a wrapper for clean_bdev_aliases() that invalidates bdev
+aliases underlying a single buffer head. However this has caused a
+performance regression for bonnie++ benchmark on ext4 filesystem when
+delayed allocation is turned off (ext3 mode) - average of 3 runs:
 
-And with a desparate lack of crystal ball we cannot do much about that
-really.
+Hmean SeqOut Char  164787.55 (  0.00%) 107189.06 (-34.95%)
+Hmean SeqOut Block 219883.89 (  0.00%) 168870.32 (-23.20%)
 
-> My question is, how can users know it if somebody was OOM-killed needlessly
-> by allowing MMF_OOM_SKIP to race.
+The reason for this regression is that clean_bdev_aliases() is slower
+when called for a single block because pagevec_lookup() it uses will end
+up iterating through the radix tree until it finds a page (which may
+take a while) but we are only interested whether there's a page at a
+particular index.
 
-Is it really important to know that the race is due to MMF_OOM_SKIP?
-Isn't it sufficient to see that we kill too many tasks and then debug it
-further once something hits that?
+Fix the problem by using pagevec_lookup_range() instead which avoids the
+needless iteration.
 
-[...]
-> Is it guaranteed that __node_reclaim() never (even indirectly) waits for
-> __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation?
+Fixes: e64855c6cfaa0a80c1b71c5f647cb792dc436668
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/buffer.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-this is a direct reclaim which can go down to slab shrinkers with all
-the usual fun...
-
-> >                                      Such races are unfortunate but
-> > unavoidable unless we synchronize oom kill with any memory freeing which
-> > smells like a no-go to me. We can try a last allocation attempt right
-> > before we go and kill something (which still wouldn't be race free) but
-> > that might cause other issues - e.g. prolonged trashing without ever
-> > killing something - but I haven't evaluated those to be honest.
-> 
-> Yes, postpone last get_page_from_freelist() attempt till oom_kill_process()
-> will be what we would afford at best.
-
-as I've said this would have to be evaluated very carefully and a strong
-usecase would have to be shown.
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 5b20893708e2..7e531bb356bd 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1627,19 +1627,18 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
+ 	struct pagevec pvec;
+ 	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+ 	pgoff_t end;
+-	int i;
++	int i, count;
+ 	struct buffer_head *bh;
+ 	struct buffer_head *head;
+ 
+ 	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+ 	pagevec_init(&pvec, 0);
+-	while (index <= end && pagevec_lookup(&pvec, bd_mapping, &index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+-		for (i = 0; i < pagevec_count(&pvec); i++) {
++	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end,
++				    PAGEVEC_SIZE)) {
++		count = pagevec_count(&pvec);
++		for (i = 0; i < count; i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+-			if (page->index > end)
+-				break;
+ 			if (!page_has_buffers(page))
+ 				continue;
+ 			/*
+@@ -1669,6 +1668,9 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
+ 		}
+ 		pagevec_release(&pvec);
+ 		cond_resched();
++		/* End of range already reached? */
++		if (index > end || !index)
++			break;
+ 	}
+ }
+ EXPORT_SYMBOL(clean_bdev_aliases);
 -- 
-Michal Hocko
-SUSE Labs
+2.12.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
