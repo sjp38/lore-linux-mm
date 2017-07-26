@@ -1,59 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D8F736B02FD
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:07:22 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g71so10281477wmg.13
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 03:07:22 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 551196B0313
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:25:04 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g32so6888581wrd.8
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 03:25:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t109si4176029wrc.548.2017.07.26.03.07.21
+        by mx.google.com with ESMTPS id a186si5469595wmd.270.2017.07.26.03.25.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 03:07:21 -0700 (PDT)
-Date: Wed, 26 Jul 2017 12:07:18 +0200
+        Wed, 26 Jul 2017 03:25:03 -0700 (PDT)
+Date: Wed, 26 Jul 2017 12:24:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 3/3] mm: shm: Use new hugetlb size encoding
- definitions
-Message-ID: <20170726100718.GG2981@dhcp22.suse.cz>
-References: <20170328175408.GD7838@bombadil.infradead.org>
- <1500330481-28476-1-git-send-email-mike.kravetz@oracle.com>
- <1500330481-28476-4-git-send-email-mike.kravetz@oracle.com>
- <20170726095338.GF2981@dhcp22.suse.cz>
+Subject: Re: [PATCH v12 6/8] mm: support reporting free page blocks
+Message-ID: <20170726102458.GH2981@dhcp22.suse.cz>
+References: <20170719081311.GC26779@dhcp22.suse.cz>
+ <596F4A0E.4010507@intel.com>
+ <20170724090042.GF25221@dhcp22.suse.cz>
+ <59771010.6080108@intel.com>
+ <20170725112513.GD26723@dhcp22.suse.cz>
+ <597731E8.9040803@intel.com>
+ <20170725124141.GF26723@dhcp22.suse.cz>
+ <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
+ <20170725145333.GK26723@dhcp22.suse.cz>
+ <5977FCDF.7040606@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170726095338.GF2981@dhcp22.suse.cz>
+In-Reply-To: <5977FCDF.7040606@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, akpm@linux-foundation.org, ak@linux.intel.com, mtk.manpages@gmail.com, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-On Wed 26-07-17 11:53:38, Michal Hocko wrote:
-> On Mon 17-07-17 15:28:01, Mike Kravetz wrote:
-> > Use the common definitions from hugetlb_encode.h header file for
-> > encoding hugetlb size definitions in shmget system call flags.  In
-> > addition, move these definitions to the from the internal to user
-> > (uapi) header file.
+On Wed 26-07-17 10:22:23, Wei Wang wrote:
+> On 07/25/2017 10:53 PM, Michal Hocko wrote:
+> >On Tue 25-07-17 14:47:16, Wang, Wei W wrote:
+> >>On Tuesday, July 25, 2017 8:42 PM, hal Hocko wrote:
+> >>>On Tue 25-07-17 19:56:24, Wei Wang wrote:
+> >>>>On 07/25/2017 07:25 PM, Michal Hocko wrote:
+> >>>>>On Tue 25-07-17 17:32:00, Wei Wang wrote:
+> >>>>>>On 07/24/2017 05:00 PM, Michal Hocko wrote:
+> >>>>>>>On Wed 19-07-17 20:01:18, Wei Wang wrote:
+> >>>>>>>>On 07/19/2017 04:13 PM, Michal Hocko wrote:
+> >>>>>>>[...
+> >>>>We don't need to do the pfn walk in the guest kernel. When the API
+> >>>>reports, for example, a 2MB free page block, the API caller offers to
+> >>>>the hypervisor the base address of the page block, and size=2MB, to
+> >>>>the hypervisor.
+> >>>So you want to skip pfn walks by regularly calling into the page allocator to
+> >>>update your bitmap. If that is the case then would an API that would allow you
+> >>>to update your bitmap via a callback be s sufficient? Something like
+> >>>	void walk_free_mem(int node, int min_order,
+> >>>			void (*visit)(unsigned long pfn, unsigned long nr_pages))
+> >>>
+> >>>The function will call the given callback for each free memory block on the given
+> >>>node starting from the given min_order. The callback will be strictly an atomic
+> >>>and very light context. You can update your bitmap from there.
+> >>I would need to introduce more about the background here:
+> >>The hypervisor and the guest live in their own address space. The hypervisor's bitmap
+> >>isn't seen by the guest. I think we also wouldn't be able to give a callback function
+> >>from the hypervisor to the guest in this case.
+> >How did you plan to use your original API which export struct page array
+> >then?
 > 
-> s@to the from@from@
 > 
-> > 
-> > Suggested-by: Matthew Wilcox <willy@infradead.org>
-> > Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> That's where the virtio-balloon driver comes in. It uses a shared ring
+> mechanism to
+> send the guest memory info to the hypervisor.
 > 
-> with s@HUGETLB_FLAG_ENCODE__16GB@HUGETLB_FLAG_ENCODE_16GB@
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> We didn't expose the struct page array from the guest to the hypervisor. For
+> example, when
+> a 2MB free page block is reported from the free page list, the info put on
+> the ring is just
+> (base address of the 2MB continuous memory, size=2M).
 
-Btw. man page mentions only 2MB and 1GB, we should document others and
-note that each arch might support only subset of them
+So what exactly prevents virtio-balloon from using the above proposed
+callback mechanism and export what is needed to the hypervisor?
+ 
+> >>>This would address my main concern that the allocator internals would get
+> >>>outside of the allocator proper.
+> >>What issue would it have to expose the internal, for_each_zone()?
+> >zone is a MM internal concept. No code outside of the MM proper should
+> >really care about zones.
+> 
+> I think this is also what Andrew suggested in the previous discussion:
+> https://lkml.org/lkml/2017/3/16/951
+> 
+> Move the code to virtio-balloon and a little layering violation seems
+> acceptable.
 
-> > +#define MAP_HUGE_512KB	HUGETLB_FLAG_ENCODE_512KB
-> > +#define MAP_HUGE_1MB	HUGETLB_FLAG_ENCODE_1MB
-> > +#define MAP_HUGE_2MB	HUGETLB_FLAG_ENCODE_2MB
-> > +#define MAP_HUGE_8MB	HUGETLB_FLAG_ENCODE_8MB
-> > +#define MAP_HUGE_16MB	HUGETLB_FLAG_ENCODE_16MB
-> > +#define MAP_HUGE_1GB	HUGETLB_FLAG_ENCODE_1GB
-> > +#define MAP_HUGE_16GB	HUGETLB_FLAG_ENCODE__16GB
+Andrew didn't suggest to expose zones to modules. If I read his words
+properly he said that a functionality which "provides a snapshot of the
+present system unused pages" is just too specific for virtio usecase
+to be a generic function and as such it should be in virtio. I tend
+to agree. Even the proposed callback API is a layer violation. We
+should just make sure that the API is not inherently dangerous. That
+is why I have chosen to give only pfn and nr_pages to the caller. Sure
+somebody could argue that the caller could do pfn_to_page and do nasty
+things. That would be a fair argument but nothing really prevents
+anybody to do th pfn walk already so there shouldn't inherently more
+risk. We can document what we expect from the API user and that would be
+much easier to describe than struct page API IMHO.
 -- 
 Michal Hocko
 SUSE Labs
