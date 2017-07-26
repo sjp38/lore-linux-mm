@@ -1,81 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 189A16B02C3
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 08:48:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c23so183597748pfe.11
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 05:48:12 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c14si2764077pfl.436.2017.07.26.05.48.10
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 317256B02B4
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:07:54 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id v11so6392812oif.2
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:07:54 -0700 (PDT)
+Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
+        by mx.google.com with ESMTPS id u67si8668544oif.435.2017.07.26.06.07.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 05:48:11 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v12 6/8] mm: support reporting free page blocks
-Date: Wed, 26 Jul 2017 12:47:47 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F739285191@shsmsx102.ccr.corp.intel.com>
-References: <20170724090042.GF25221@dhcp22.suse.cz>
- <59771010.6080108@intel.com> <20170725112513.GD26723@dhcp22.suse.cz>
- <597731E8.9040803@intel.com> <20170725124141.GF26723@dhcp22.suse.cz>
- <286AC319A985734F985F78AFA26841F739283F62@shsmsx102.ccr.corp.intel.com>
- <20170725145333.GK26723@dhcp22.suse.cz> <5977FCDF.7040606@intel.com>
- <20170726102458.GH2981@dhcp22.suse.cz> <59788097.6010402@intel.com>
- <20170726115506.GM2981@dhcp22.suse.cz>
-In-Reply-To: <20170726115506.GM2981@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Wed, 26 Jul 2017 06:07:52 -0700 (PDT)
+Received: by mail-oi0-x242.google.com with SMTP id q70so9163600oic.2
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:07:52 -0700 (PDT)
+From: Wenwei Tao <wenwei.tww@gmail.com>
+Subject: [RFC PATCH] mm: memcg: fix css double put in mem_cgroup_iter
+Date: Wed, 26 Jul 2017 21:07:42 +0800
+Message-Id: <20170726130742.5976-1-wenwei.tww@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: yuwang.yuwang@alibaba-inc.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wenwei Tao <wenwei.tww@alibaba-inc.com>
 
-On Wednesday, July 26, 2017 7:55 PM, Michal Hocko wrote:
-> On Wed 26-07-17 19:44:23, Wei Wang wrote:
-> [...]
-> > I thought about it more. Probably we can use the callback function
-> > with a little change like this:
-> >
-> > void walk_free_mem(void *opaque1, void (*visit)(void *opaque2,
-> > unsigned long pfn,
-> >            unsigned long nr_pages))
-> > {
-> >     ...
-> >     for_each_populated_zone(zone) {
-> >                    for_each_migratetype_order(order, type) {
-> >                         report_unused_page_block(zone, order, type,
-> > &page); // from patch 6
-> >                         pfn =3D page_to_pfn(page);
-> >                         visit(opaque1, pfn, 1 << order);
-> >                     }
-> >     }
-> > }
-> >
-> > The above function scans all the free list and directly sends each
-> > free page block to the hypervisor via the virtio_balloon callback
-> > below. No need to implement a bitmap.
-> >
-> > In virtio-balloon, we have the callback:
-> > void *virtio_balloon_report_unused_pages(void *opaque,  unsigned long
-> > pfn, unsigned long nr_pages) {
-> >     struct virtio_balloon *vb =3D (struct virtio_balloon *)opaque;
-> >     ...put the free page block to the the ring of vb; }
-> >
-> >
-> > What do you think?
->=20
-> I do not mind conveying a context to the callback. I would still prefer
-> to keep the original min_order to check semantic though. Why? Well,
-> it doesn't make much sense to scan low order free blocks all the time
-> because they are simply too volatile. Larger blocks tend to surivive for
-> longer. So I assume you would only care about larger free blocks. This
-> will also make the call cheaper.
-> --
+From: Wenwei Tao <wenwei.tww@alibaba-inc.com>
 
-OK, I will keep min order there in the next version.
+By removing the child cgroup while the parent cgroup is
+under reclaim, we could trigger the following kernel panic
+on kernel 3.10:
+------------------------------------------------------------------------
+kernel BUG at kernel/cgroup.c:893!
+ invalid opcode: 0000 [#1] SMP
+ CPU: 1 PID: 22477 Comm: kworker/1:1 Not tainted 3.10.107 #1
+ Workqueue: cgroup_destroy css_dput_fn
+ task: ffff8817959a5780 ti: ffff8817e8886000 task.ti: ffff8817e8886000
+ RIP: 0010:[<ffffffff810cd6e0>]  [<ffffffff810cd6e0>]
+cgroup_diput+0xc0/0xf0
+ RSP: 0000:ffff8817e8887da0  EFLAGS: 00010246
+ RAX: 0000000000000000 RBX: ffff8817a5dd5d40 RCX: dead000000000200
+ RDX: 0000000000000000 RSI: ffff8817973a6910 RDI: ffff8817f54c2a00
+ RBP: ffff8817e8887dc8 R08: ffff8817a5dd5dd0 R09: df9fb35794b01820
+ R10: df9fb35794b01820 R11: 00007fa95b1efcda R12: ffff8817a5dd5d9c
+ R13: ffff8817f38b3a40 R14: ffff8817973a6910 R15: ffff8817973a6910
+ FS:  0000000000000000(0000) GS:ffff88181f220000(0000)
+knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ CR2: 00007fa6e6234000 CR3: 000000179f19d000 CR4: 00000000000407e0
+ DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+ DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+ Stack:
+  ffff8817a5dd5d40 ffff8817a5dd5d9c ffff8817f38b3a40 ffff8817973a6910
+  0000000000000040 ffff8817e8887df8 ffffffff811b37c2 ffff8817fa23c000
+  ffff8817f57dbb80 ffff88181f232ac0 ffff88181f237500 ffff8817e8887e10
+ Call Trace:
+  [<ffffffff811b37c2>] dput+0x1a2/0x2f0
+  [<ffffffff810cbacc>] cgroup_dput.isra.21+0x1c/0x30
+  [<ffffffff810cbafd>] css_dput_fn+0x1d/0x20
+  [<ffffffff81078ebc>] process_one_work+0x17c/0x460
+  [<ffffffff81079b66>] worker_thread+0x116/0x3b0
+  [<ffffffff81079a50>] ? manage_workers.isra.25+0x290/0x290
+  [<ffffffff81080330>] kthread+0xc0/0xd0
+  [<ffffffff81080270>] ? insert_kthread_work+0x40/0x40
+  [<ffffffff815b1e08>] ret_from_fork+0x58/0x90
+  [<ffffffff81080270>] ? insert_kthread_work+0x40/0x40
+ Code: 41 5e 41 5f 5d c3 0f 1f 44 00 00 48 8b 7f 78 48 8b 07 a8 01 74 15
+48 81 c7 30 01 00 00 48 c7 c6 a0 a7 0c 81 e8 b2 83 02 00 eb c8 <0f> 0b
+49 8b 4e 18 48 c7 c2 7e f1 7a 81 be 85 03 00 00 48 c7 c7
+ RIP  [<ffffffff810cd6e0>] cgroup_diput+0xc0/0xf0
+ RSP <ffff8817e8887da0>
+ ---[ end trace 85eeea5212c44f51 ]---
+------------------------------------------------------------------------
 
-Best,
-Wei
+I think there is a css double put in mem_cgroup_iter. Under reclaim,
+we call mem_cgroup_iter the first time with prev == NULL, and we get
+last_visited memcg from per zone's reclaim_iter then call __mem_cgroup_iter_next
+try to get next alive memcg, __mem_cgroup_iter_next could return NULL
+if last_visited is already the last one so we put the last_visited's
+memcg css and continue to the next while loop, this time we might not
+do css_tryget(&last_visited->css) if the dead_count is changed, but
+we still do css_put(&last_visited->css), we put it twice, this could
+trigger the BUG_ON at kernel/cgroup.c:893.
+
+Reported-by: Wang Yu <yuwang.yuwang@alibaba-inc.com>
+Tested-by: Wang Yu <yuwang.yuwang@alibaba-inc.com>
+Signed-off-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
+---
+ mm/memcontrol.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 437ae2c..3d7a046 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1230,8 +1230,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		memcg = __mem_cgroup_iter_next(root, last_visited);
+ 
+ 		if (reclaim) {
+-			if (last_visited && last_visited != root)
++			if (last_visited && last_visited != root) {
+ 				css_put(&last_visited->css);
++				last_visited = NULL;
++			}
+ 
+ 			iter->last_visited = memcg;
+ 			smp_wmb();
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
