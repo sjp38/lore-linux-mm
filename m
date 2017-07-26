@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 69B236B0292
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:06:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 77so868326wms.0
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:06:39 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id v35si17765017wrb.15.2017.07.26.07.06.37
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B76C6B0292
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 10:08:49 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d136so34989020qkg.11
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:08:49 -0700 (PDT)
+Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
+        by mx.google.com with ESMTPS id e32si12616875qtb.177.2017.07.26.07.08.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 07:06:38 -0700 (PDT)
-Date: Wed, 26 Jul 2017 15:06:07 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v4 1/4] mm, oom: refactor the TIF_MEMDIE usage
-Message-ID: <20170726140607.GA20062@castle.DHCP.thefacebook.com>
-References: <20170726132718.14806-1-guro@fb.com>
- <20170726132718.14806-2-guro@fb.com>
- <20170726135622.GS2981@dhcp22.suse.cz>
+        Wed, 26 Jul 2017 07:08:48 -0700 (PDT)
+Received: by mail-qk0-x242.google.com with SMTP id d136so15498133qkg.3
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:08:48 -0700 (PDT)
+Date: Wed, 26 Jul 2017 10:08:44 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2 13/23] percpu: generalize bitmap (un)populated
+ iterators
+Message-ID: <20170726140844.GB742618@devbig577.frc2.facebook.com>
+References: <20170724230220.21774-1-dennisz@fb.com>
+ <20170724230220.21774-14-dennisz@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170726135622.GS2981@dhcp22.suse.cz>
+In-Reply-To: <20170724230220.21774-14-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Christoph Lameter <cl@linux.com>, Josef Bacik <josef@toxicpanda.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis Zhou <dennisszhou@gmail.com>
 
-On Wed, Jul 26, 2017 at 03:56:22PM +0200, Michal Hocko wrote:
-> On Wed 26-07-17 14:27:15, Roman Gushchin wrote:
-> [...]
-> > @@ -656,13 +658,24 @@ static void mark_oom_victim(struct task_struct *tsk)
-> >  	struct mm_struct *mm = tsk->mm;
-> >  
-> >  	WARN_ON(oom_killer_disabled);
-> > -	/* OOM killer might race with memcg OOM */
-> > -	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-> > +
-> > +	if (!cmpxchg(&tif_memdie_owner, NULL, current)) {
-> > +		struct task_struct *t;
-> > +
-> > +		rcu_read_lock();
-> > +		for_each_thread(current, t)
-> > +			set_tsk_thread_flag(t, TIF_MEMDIE);
-> > +		rcu_read_unlock();
-> > +	}
+On Mon, Jul 24, 2017 at 07:02:10PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
 > 
-> I would realy much rather see we limit the amount of memory reserves oom
-> victims can consume rather than build on top of the current hackish
-> approach of limiting the number of tasks because the fundamental problem
-> is still there (a heavy multithreaded process can still deplete the
-> reserves completely).
+> The area map allocator only used a bitmap for the backing page state.
+> The new bitmap allocator will use bitmaps to manage the allocation
+> region in addition to this.
 > 
-> Is there really any reason to not go with the existing patch I've
-> pointed to the last time around? You didn't seem to have any objects
-> back then.
+> This patch generalizes the bitmap iterators so they can be reused with
+> the bitmap allocator.
+> 
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 
-Hi Michal!
+Applied 1-13 to percpu/for-4.14.
 
-I had this patch in mind and mentioned in the commit log, that TIF_MEMDIE
-as an memory reserves access indicator will probably be eliminated later.
+Nice cleanups.  Thanks.
 
-But that patch is not upstream yet, and it's directly related to the theme.
-The proposed refactoring of TIF_MEMDIE usage is not against your approach,
-and will not make harder to go this way further.
-
-I'm slightly concerned about an idea to give TIF_MEMDIE to all tasks
-in case we're killing a really large cgroup. But it's only a theoretical
-concern, maybe it's fine.
-
-So, I'd keep the existing approach for this patchset, and then we can follow
-your approach and we will have a better test case for it.
-
-Thanks!
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
