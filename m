@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 767F16B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 17:31:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c184so16930803wmd.6
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:31:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k88si9986204wmh.170.2017.07.26.14.31.55
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A926B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 17:42:55 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id j124so70174772qke.6
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:42:55 -0700 (PDT)
+Received: from mail-qk0-x232.google.com (mail-qk0-x232.google.com. [2607:f8b0:400d:c09::232])
+        by mx.google.com with ESMTPS id q24si8973708qkl.177.2017.07.26.14.42.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 14:31:55 -0700 (PDT)
-Date: Wed, 26 Jul 2017 14:31:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] swap: fix oops during block io poll in swapin path
-Message-Id: <20170726143153.4b74dad79efb13480c728c04@linux-foundation.org>
-In-Reply-To: <20170726163349.GA51657@MacBook-Pro.dhcp.thefacebook.com>
-References: <1501064703-5888-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170726163349.GA51657@MacBook-Pro.dhcp.thefacebook.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 26 Jul 2017 14:42:54 -0700 (PDT)
+Received: by mail-qk0-x232.google.com with SMTP id x191so26971011qka.5
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:42:54 -0700 (PDT)
+Date: Wed, 26 Jul 2017 17:42:45 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2 23/23] percpu: update header to contain bitmap
+ allocator explanation.
+Message-ID: <20170726214245.GD742618@devbig577.frc2.facebook.com>
+References: <20170724230220.21774-1-dennisz@fb.com>
+ <20170724230220.21774-24-dennisz@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170724230220.21774-24-dennisz@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tim Chen <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, Jens Axboe <axboe@fb.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Dennis Zhou <dennisz@fb.com>
+Cc: Christoph Lameter <cl@linux.com>, Josef Bacik <josef@toxicpanda.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Dennis Zhou <dennisszhou@gmail.com>
 
-On Wed, 26 Jul 2017 09:33:50 -0700 Shaohua Li <shli@fb.com> wrote:
+On Mon, Jul 24, 2017 at 07:02:20PM -0400, Dennis Zhou wrote:
+> From: "Dennis Zhou (Facebook)" <dennisszhou@gmail.com>
+> 
+> The other patches contain a lot of information, so adding this
+> information in a separate patch. It adds my copyright and a brief
+> explanation of how the bitmap allocator works. There is a minor typo as
+> well in the prior explanation so that is fixed.
+> 
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
 
-> On Wed, Jul 26, 2017 at 07:25:03PM +0900, Tetsuo Handa wrote:
-> > When a thread is OOM-killed during swap_readpage() operation, an oops
-> > occurs because end_swap_bio_read() is calling wake_up_process() based on
-> > an assumption that the thread which called swap_readpage() is still alive.
-> > 
->
-> ...
->
-> > 
-> > Fix it by holding a reference to the thread.
-> 
-> Ok, so the task is killed in the page fault retry time check, thanks!
-> 
-> Reviewed-by: Shaohua Li <shli@fb.com>
-> 
+Applied 14-23 to percpu/for-4.14.
 
-The original patch didn't appear in my inbox and marc.info doesn't
-appear to have received it either.    Can we please have a resend?
+Great work, thanks!
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
