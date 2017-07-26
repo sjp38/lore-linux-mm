@@ -1,65 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 622046B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 15:13:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id k72so89952678pfj.1
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:13:12 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id c9si10159724pgt.207.2017.07.26.12.13.10
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0FC6B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 15:14:37 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q1so90241890qkb.3
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:14:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g63si15271420qkg.528.2017.07.26.12.14.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 12:13:11 -0700 (PDT)
-Date: Wed, 26 Jul 2017 12:13:05 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 2/4] mm: add file_fdatawait_range and
- file_write_and_wait
-Message-ID: <20170726191305.GC15980@bombadil.infradead.org>
-References: <20170726175538.13885-1-jlayton@kernel.org>
- <20170726175538.13885-3-jlayton@kernel.org>
+        Wed, 26 Jul 2017 12:14:36 -0700 (PDT)
+Date: Wed, 26 Jul 2017 15:14:32 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM 12/15] mm/migrate: new memory migration helper for use with
+ device memory v4
+Message-ID: <20170726191432.GC21717@redhat.com>
+References: <20170711182922.GC5347@redhat.com>
+ <7a4478cb-7eb6-2546-e707-1b0f18e3acd4@nvidia.com>
+ <20170711184919.GD5347@redhat.com>
+ <84d83148-41a3-d0e8-be80-56187a8e8ccc@nvidia.com>
+ <20170713201620.GB1979@redhat.com>
+ <ca12b033-8ec5-84b0-c2aa-ea829e1194fa@nvidia.com>
+ <20170715005554.GA12694@redhat.com>
+ <cfba9bfb-5178-bcae-0fa9-ef66e2a871d5@nvidia.com>
+ <20170721013303.GA25991@redhat.com>
+ <5602b0e5-0051-f726-420e-7013446d3f42@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170726175538.13885-3-jlayton@kernel.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <5602b0e5-0051-f726-420e-7013446d3f42@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
+To: Evgeny Baskakov <ebaskakov@nvidia.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-On Wed, Jul 26, 2017 at 01:55:36PM -0400, Jeff Layton wrote:
-> +int file_write_and_wait(struct file *file)
-> +{
-> +	int err = 0, err2;
-> +	struct address_space *mapping = file->f_mapping;
-> +
-> +	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-> +	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+On Tue, Jul 25, 2017 at 03:45:14PM -0700, Evgeny Baskakov wrote:
+> On 7/20/17 6:33 PM, Jerome Glisse wrote:
+> 
+> > So i pushed an updated hmm-next branch it should have all fixes so far, including
+> > something that should fix this issue. I still want to go over all emails again
+> > to make sure i am not forgetting anything.
+> > 
+> > Cheers,
+> > Jerome
+> 
+> Hi Jerome,
+> 
+> Thanks for updating the documentation for hmm_devmem_ops.
+> 
+> I have an inquiry about the "fault" callback, though. The documentation says
+> "Returns: 0 on success", but can the driver set any VM_FAULT_* flags? For
+> instance, the driver might want to set the VM_FAULT_MAJOR flag to indicate
+> that a heavy-weight page migration has happened on the page fault.
+> 
+> If that is possible, can you please update the documentation and list the
+> flags that are permitted in the callback's return value?
 
-Since patch 1 exists, shouldn't this use the new helper?
+Yes you can.
 
-> +		err = filemap_fdatawrite(mapping);
-> +		/* See comment of filemap_write_and_wait() */
-> +		if (err != -EIO) {
-> +			loff_t i_size = i_size_read(mapping->host);
-> +
-> +			if (i_size != 0)
-> +				__filemap_fdatawait_range(mapping, 0,
-> +							  i_size - 1);
-> +		}
-> +	}
-> +	err2 = file_check_and_advance_wb_err(file);
-> +	if (!err)
-> +		err = err2;
-> +	return err;
-
-Would this be clearer written as:
-
-	if (err)
-		return err;
-	return err2;
-
-or even ...
-
-	return err ? err : err2;
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
