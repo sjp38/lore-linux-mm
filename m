@@ -1,58 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B1BE96B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:43:25 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 6so10838711qts.7
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:43:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g185si14724036qka.540.2017.07.26.09.43.25
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 294A26B02F3
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:43:39 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x64so10293249wmg.11
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:43:39 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id o128si278047wmd.102.2017.07.26.09.43.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 09:43:25 -0700 (PDT)
-Date: Wed, 26 Jul 2017 18:43:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170726164319.GC29716@redhat.com>
-References: <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
- <20170724161146.GQ25221@dhcp22.suse.cz>
- <20170725142626.GJ26723@dhcp22.suse.cz>
- <20170725151754.3txp44a2kbffsxdg@node.shutemov.name>
- <20170725152300.GM26723@dhcp22.suse.cz>
- <20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name>
- <20170725160359.GO26723@dhcp22.suse.cz>
- <20170725191952.GR29716@redhat.com>
- <20170726054557.GB960@dhcp22.suse.cz>
- <20170726162912.GA29716@redhat.com>
+        Wed, 26 Jul 2017 09:43:37 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id c184so8067653wmd.1
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:43:37 -0700 (PDT)
+Date: Wed, 26 Jul 2017 19:43:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
+ with runtime-time
+Message-ID: <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
+References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+ <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
+ <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
+ <20170725090538.26sbgb4npkztsqj3@black.fi.intel.com>
+ <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170726162912.GA29716@redhat.com>
+In-Reply-To: <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Juergen Gross <jgross@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 26, 2017 at 06:29:12PM +0200, Andrea Arcangeli wrote:
-> From 3d9001490ee1a71f39c7bfaf19e96821f9d3ff16 Mon Sep 17 00:00:00 2001
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Date: Tue, 25 Jul 2017 20:02:27 +0200
-> Subject: [PATCH 1/1] mm: oom: let oom_reap_task and exit_mmap to run
->  concurrently
+On Wed, Jul 26, 2017 at 09:28:16AM +0200, Juergen Gross wrote:
+> On 25/07/17 11:05, Kirill A. Shutemov wrote:
+> > On Tue, Jul 18, 2017 at 04:24:06PM +0200, Juergen Gross wrote:
+> >> Xen PV guests will never run with 5-level-paging enabled. So I guess you
+> >> can drop the complete if (IS_ENABLED(CONFIG_X86_5LEVEL)) {} block.
+> > 
+> > There is more code to drop from mmu_pv.c.
+> > 
+> > But while there, I thought if with boot-time 5-level paging switching we
+> > can allow kernel to compile with XEN_PV and XEN_PVH, so the kernel image
+> > can be used in these XEN modes with 4-level paging.
+> > 
+> > Could you check if with the patch below we can boot in XEN_PV and XEN_PVH
+> > modes?
+> 
+> We can't. I have used your branch:
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git
+> la57/boot-switching/v2
+> 
+> with this patch applied on top.
+> 
+> Doesn't boot PV guest with X86_5LEVEL configured (very early crash).
 
-This needs an incremental one liner...
+Hm. Okay.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index bdab595ce25c..fd16996ee0a8 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -44,6 +44,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/moduleparam.h>
- #include <linux/pkeys.h>
-+#include <linux/oom.h>
- 
- #include <linux/uaccess.h>
- #include <asm/cacheflush.h>
+Have you tried PVH?
+
+> Doesn't build with X86_5LEVEL not configured:
+> 
+>   AS      arch/x86/kernel/head_64.o
+
+I've fixed the patch and split the patch into two parts: cleanup and
+re-enabling XEN_PV and XEN_PVH for X86_5LEVEL.
+
+There's chance that I screw somthing up in clenaup part. Could you check
+that?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
