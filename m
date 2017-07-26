@@ -1,93 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCD136B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 15:50:27 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id o5so89849795qki.2
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:50:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k30si3318001qtb.392.2017.07.26.12.50.27
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 68AD86B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 15:52:59 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id z195so1358246wmz.8
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:52:59 -0700 (PDT)
+Received: from mail-wr0-x22d.google.com (mail-wr0-x22d.google.com. [2a00:1450:400c:c0c::22d])
+        by mx.google.com with ESMTPS id q15si9855400wmb.13.2017.07.26.12.52.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 12:50:27 -0700 (PDT)
-Date: Wed, 26 Jul 2017 15:50:22 -0400 (EDT)
-From: Bob Peterson <rpeterso@redhat.com>
-Message-ID: <4829887.34737343.1501098622466.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20170726175538.13885-3-jlayton@kernel.org>
-References: <20170726175538.13885-1-jlayton@kernel.org> <20170726175538.13885-3-jlayton@kernel.org>
-Subject: Re: [PATCH v2 2/4] mm: add file_fdatawait_range and
- file_write_and_wait
+        Wed, 26 Jul 2017 12:52:58 -0700 (PDT)
+Received: by mail-wr0-x22d.google.com with SMTP id 12so135852252wrb.1
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:52:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Reply-To: dmitriyz@waymo.com
+In-Reply-To: <alpine.DEB.2.20.1707261158560.9311@nuc-kabylake>
+References: <20170726165022.10326-1-dmitriyz@waymo.com> <alpine.DEB.2.20.1707261158560.9311@nuc-kabylake>
+From: Dima Zavin <dmitriyz@waymo.com>
+Date: Wed, 26 Jul 2017 12:52:56 -0700
+Message-ID: <CAPz4a6AtLNf8sJzA2Ux-ta4B+_YLdG7OWEMvJij_Zguo0Q1sjw@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm/slub: fix a deadlock due to incomplete patching of cpusets_enabled()
+Content-Type: multipart/alternative; boundary="001a114b42406c89a005553dcb01"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
+To: Christopher Lameter <cl@linux.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cliff Spradlin <cspradlin@waymo.com>
 
------ Original Message -----
-| From: Jeff Layton <jlayton@redhat.com>
-| 
-| Some filesystem fsync routines will need these.
-| 
-| Signed-off-by: Jeff Layton <jlayton@redhat.com>
-| ---
-|  include/linux/fs.h |  7 ++++++-
-|  mm/filemap.c       | 56
-|  ++++++++++++++++++++++++++++++++++++++++++++++++++++++
-|  2 files changed, 62 insertions(+), 1 deletion(-)
-(snip)
-| diff --git a/mm/filemap.c b/mm/filemap.c
-| index 72e46e6f0d9a..b904a8dfa43d 100644
-| --- a/mm/filemap.c
-| +++ b/mm/filemap.c
-(snip)
-| @@ -675,6 +698,39 @@ int file_write_and_wait_range(struct file *file, loff_t
-| lstart, loff_t lend)
-|  EXPORT_SYMBOL(file_write_and_wait_range);
-|  
-|  /**
-| + * file_write_and_wait - write out whole file and wait on it and return any
-| + * 			 writeback errors since we last checked
-| + * @file: file to write back and wait on
-| + *
-| + * Write back the whole file and wait on its mapping. Afterward, check for
-| + * errors that may have occurred since our file->f_wb_err cursor was last
-| + * updated.
-| + */
-| +int file_write_and_wait(struct file *file)
-| +{
-| +	int err = 0, err2;
-| +	struct address_space *mapping = file->f_mapping;
-| +
-| +	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-| +	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+--001a114b42406c89a005553dcb01
+Content-Type: text/plain; charset="UTF-8"
 
-Seems like we should make the new function mapping_needs_writeback more
-central (mm.h or fs.h?) and call it here ^.
+On Wed, Jul 26, 2017 at 10:02 AM, Christopher Lameter <cl@linux.com> wrote:
 
-| +		err = filemap_fdatawrite(mapping);
-| +		/* See comment of filemap_write_and_wait() */
-| +		if (err != -EIO) {
-| +			loff_t i_size = i_size_read(mapping->host);
-| +
-| +			if (i_size != 0)
-| +				__filemap_fdatawait_range(mapping, 0,
-| +							  i_size - 1);
-| +		}
-| +	}
-| +	err2 = file_check_and_advance_wb_err(file);
-| +	if (!err)
-| +		err = err2;
-| +	return err;
+> On Wed, 26 Jul 2017, Dima Zavin wrote:
+>
+> > The fix is to cache the value that's returned by cpusets_enabled() at the
+> > top of the loop, and only operate on the seqlock (both begin and retry)
+> if
+> > it was true.
+>
+> I think the proper fix would be to ensure that the calls to
+> read_mems_allowed_{begin,retry} cannot cause the deadlock. Otherwise you
+> have to fix this in multiple places.
+>
+> Maybe read_mems_allowed_* can do some form of synchronization or *_retry
+> can implictly rely on the results of cpusets_enabled() by *_begin?
+>
 
-In the past, I've seen more elegant constructs like:
-        return (err ? err : err2);
-but I don't know what's considered more ugly or hackish.
+Thanks for the quick reply!
 
-Regards,
+I can turn the cookie into a uint64, put the sequence into the low order 32
+bits and put the enabled state into bit 33 (or 63 :) ). Then retry will not
+query cpusets_enabled() and will just look at the enabled bit. This means
+that *_retry will always have a conditional jump (i.e. lose the whole
+static_branch optimization) but maybe that's ok since that's pretty rare
+and the *_begin() will still benefit from it?
 
-Bob Peterson
-Red Hat File Systems
+--Dima
+
+--001a114b42406c89a005553dcb01
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><div class=3D"gmail_quo=
+te">On Wed, Jul 26, 2017 at 10:02 AM, Christopher Lameter <span dir=3D"ltr"=
+>&lt;<a href=3D"mailto:cl@linux.com" target=3D"_blank">cl@linux.com</a>&gt;=
+</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .=
+8ex;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Wed, 2=
+6 Jul 2017, Dima Zavin wrote:<br>
+<br>
+&gt; The fix is to cache the value that&#39;s returned by cpusets_enabled()=
+ at the<br>
+&gt; top of the loop, and only operate on the seqlock (both begin and retry=
+) if<br>
+&gt; it was true.<br>
+<br>
+</span>I think the proper fix would be to ensure that the calls to<br>
+read_mems_allowed_{begin,<wbr>retry} cannot cause the deadlock. Otherwise y=
+ou<br>
+have to fix this in multiple places.<br>
+<br>
+Maybe read_mems_allowed_* can do some form of synchronization or *_retry<br=
+>
+can implictly rely on the results of cpusets_enabled() by *_begin?<br></blo=
+ckquote><div><br></div><div>Thanks for the quick reply!</div><div><br></div=
+><div>I can turn the cookie into a uint64, put the sequence into the low or=
+der 32 bits and put the enabled state into bit 33 (or 63 :) ). Then retry w=
+ill not query cpusets_enabled() and will just look at the enabled bit. This=
+ means that *_retry will always have a conditional jump (i.e. lose the whol=
+e static_branch optimization) but maybe that&#39;s ok since that&#39;s pret=
+ty rare and the *_begin() will still benefit from it?</div><div><br></div><=
+div>--Dima</div></div></div></div>
+
+--001a114b42406c89a005553dcb01--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
