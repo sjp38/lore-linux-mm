@@ -1,135 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B12FC6B0311
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:28:15 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r7so31842095wrb.0
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:28:15 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id w20si13404448wrc.519.2017.07.26.06.28.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 06:28:14 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [v4 4/4] mm, oom, docs: describe the cgroup-aware OOM killer
-Date: Wed, 26 Jul 2017 14:27:18 +0100
-Message-ID: <20170726132718.14806-5-guro@fb.com>
-In-Reply-To: <20170726132718.14806-1-guro@fb.com>
-References: <20170726132718.14806-1-guro@fb.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DE9516B0387
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:34:31 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k190so215151404pgk.8
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 06:34:31 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a8si10232318ple.118.2017.07.26.06.34.30
+        for <linux-mm@kvack.org>;
+        Wed, 26 Jul 2017 06:34:31 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH 1/1] mm/hugetlb: Make huge_pte_offset() consistent and document behaviour
+References: <20170725154114.24131-1-punit.agrawal@arm.com>
+	<20170725154114.24131-2-punit.agrawal@arm.com>
+	<20170726085038.GB2981@dhcp22.suse.cz>
+	<20170726085325.GC2981@dhcp22.suse.cz>
+	<87bmo7jt31.fsf@e105922-lin.cambridge.arm.com>
+	<20170726123357.GP2981@dhcp22.suse.cz>
+	<20170726124704.GQ2981@dhcp22.suse.cz>
+Date: Wed, 26 Jul 2017 14:34:27 +0100
+In-Reply-To: <20170726124704.GQ2981@dhcp22.suse.cz> (Michal Hocko's message of
+	"Wed, 26 Jul 2017 14:47:04 +0200")
+Message-ID: <8760efjp98.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir
- Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, steve.capper@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, kirill.shutemov@linux.intel.com, Mike Kravetz <mike.kravetz@oracle.com>
 
-Update cgroups v2 docs.
+Michal Hocko <mhocko@kernel.org> writes:
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: kernel-team@fb.com
-Cc: cgroups@vger.kernel.org
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
----
- Documentation/cgroup-v2.txt | 62 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 62 insertions(+)
+> On Wed 26-07-17 14:33:57, Michal Hocko wrote:
+>> On Wed 26-07-17 13:11:46, Punit Agrawal wrote:
+> [...]
+>> > I've been running tests from mce-test suite and libhugetlbfs for similar
+>> > changes we did on arm64. There could be assumptions that were not
+>> > exercised but I'm not sure how to check for all the possible usages.
+>> > 
+>> > Do you have any other suggestions that can help improve confidence in
+>> > the patch?
+>> 
+>> Unfortunatelly I don't. I just know there were many subtle assumptions
+>> all over the place so I am rather careful to not touch the code unless
+>> really necessary.
+>> 
+>> That being said, I am not opposing your patch.
+>
+> Let me be more specific. I am not opposing your patch but we should
+> definitely need more reviewers to have a look. I am not seeing any
+> immediate problems with it but I do not see a large improvements either
+> (slightly less nightmare doesn't make me sleep all that well ;)). So I
+> will leave the decisions to others.
 
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-index cb9ea281ab72..bf106b6b6b52 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -48,6 +48,7 @@ v1 is available under Documentation/cgroup-v1/.
-        5-2-1. Memory Interface Files
-        5-2-2. Usage Guidelines
-        5-2-3. Memory Ownership
-+       5-2-4. Cgroup-aware OOM Killer
-      5-3. IO
-        5-3-1. IO Interface Files
-        5-3-2. Writeback
-@@ -1001,6 +1002,37 @@ PAGE_SIZE multiple when read back.
- 	high limit is used and monitored properly, this limit's
- 	utility is limited to providing the final safety net.
- 
-+  memory.oom_kill_all_tasks
-+
-+	A read-write single value file which exits on non-root
-+	cgroups.  The default is "0".
-+
-+	Defines whether the OOM killer should treat the cgroup
-+	as a single entity during the victim selection.
-+
-+	If set, OOM killer will kill all belonging tasks in
-+	corresponding cgroup is selected as an OOM victim.
-+
-+	Be default, OOM killer respect /proc/pid/oom_score_adj value
-+	-1000, and will never kill the task, unless oom_kill_all_tasks
-+	is set.
-+
-+  memory.oom_priority
-+
-+	A read-write single value file which exits on non-root
-+	cgroups.  The default is "0".
-+
-+	An integer number within the [-10000, 10000] range,
-+	which defines the order in which the OOM killer selects victim
-+	memory cgroups.
-+
-+	OOM killer prefers memory cgroups with larger priority if they
-+	are populated with elegible tasks.
-+
-+	The oom_priority value is compared within sibling cgroups.
-+
-+	The root cgroup has the oom_priority 0, which cannot be changed.
-+
-   memory.events
- 	A read-only flat-keyed file which exists on non-root cgroups.
- 	The following entries are defined.  Unless specified
-@@ -1205,6 +1237,36 @@ POSIX_FADV_DONTNEED to relinquish the ownership of memory areas
- belonging to the affected files to ensure correct memory ownership.
- 
- 
-+Cgroup-aware OOM Killer
-+~~~~~~~~~~~~~~~~~~~~~~~
-+
-+Cgroup v2 memory controller implements a cgroup-aware OOM killer.
-+It means that it treats memory cgroups as first class OOM entities.
-+
-+Under OOM conditions the memory controller tries to make the best
-+choise of a victim, hierarchically looking for the largest memory
-+consumer. By default, it will look for the biggest task in the
-+biggest leaf cgroup.
-+
-+Be default, all cgroups have oom_priority 0, and OOM killer will
-+chose the largest cgroup recursively on each level. For non-root
-+cgroups it's possible to change the oom_priority, and it will cause
-+the OOM killer to look athe the priority value first, and compare
-+sizes only of cgroups with equal priority.
-+
-+But a user can change this behavior by enabling the per-cgroup
-+oom_kill_all_tasks option. If set, it causes the OOM killer treat
-+the whole cgroup as an indivisible memory consumer. In case if it's
-+selected as on OOM victim, all belonging tasks will be killed.
-+
-+Tasks in the root cgroup are treated as independent memory consumers,
-+and are compared with other memory consumers (e.g. leaf cgroups).
-+The root cgroup doesn't support the oom_kill_all_tasks feature.
-+
-+This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
-+the memory controller considers only cgroups belonging to the sub-tree
-+of the OOM'ing cgroup.
-+
- IO
- --
- 
--- 
-2.13.3
+I hear you - I'd definitely appreciate more eyes on the code change and
+description.
+
+Thanks for taking a look.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
