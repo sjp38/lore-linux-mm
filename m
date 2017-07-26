@@ -1,100 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E3046B025F
-	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 20:21:18 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 7so144462600ita.0
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 17:21:18 -0700 (PDT)
-Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
-        by mx.google.com with ESMTPS id a186si3853021ith.28.2017.07.25.17.21.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0457F6B025F
+	for <linux-mm@kvack.org>; Tue, 25 Jul 2017 21:17:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t25so15842778pfg.15
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 18:17:09 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id k128si642899pgk.840.2017.07.25.18.17.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 17:21:16 -0700 (PDT)
-Received: by mail-io0-x22b.google.com with SMTP id j32so41428166iod.0
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 17:21:16 -0700 (PDT)
+        Tue, 25 Jul 2017 18:17:08 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -v3 6/6] mm, swap: Don't use VMA based swap readahead if HDD is used as swap
+References: <20170725015151.19502-1-ying.huang@intel.com>
+	<20170725015151.19502-7-ying.huang@intel.com>
+	<20170725135059.11d65c1f6f17101e977f2b59@linux-foundation.org>
+Date: Wed, 26 Jul 2017 09:17:04 +0800
+In-Reply-To: <20170725135059.11d65c1f6f17101e977f2b59@linux-foundation.org>
+	(Andrew Morton's message of "Tue, 25 Jul 2017 13:50:59 -0700")
+Message-ID: <87pocogfov.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com>
-References: <20170706002718.GA102852@beast> <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 25 Jul 2017 17:21:15 -0700
-Message-ID: <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com>
-Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Popov <alex.popov@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, Jul 24, 2017 at 2:17 PM, Alexander Popov <alex.popov@linux.com> wrote:
-> From 86f4f1f6deb76849e00c761fa30eeb479f789c35 Mon Sep 17 00:00:00 2001
-> From: Alexander Popov <alex.popov@linux.com>
-> Date: Mon, 24 Jul 2017 23:16:28 +0300
-> Subject: [PATCH 2/2] mm/slub.c: add a naive detection of double free or
->  corruption
+Hi, Andrew,
+
+Andrew Morton <akpm@linux-foundation.org> writes:
+
+> On Tue, 25 Jul 2017 09:51:51 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
 >
-> On 06.07.2017 03:27, Kees Cook wrote:
->> This SLUB free list pointer obfuscation code is modified from Brad
->> Spengler/PaX Team's code in the last public patch of grsecurity/PaX based
->> on my understanding of the code. Changes or omissions from the original
->> code are mine and don't reflect the original grsecurity/PaX code.
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> VMA based swap readahead will readahead the virtual pages that is
+>> continuous in the virtual address space.  While the original swap
+>> readahead will readahead the swap slots that is continuous in the swap
+>> device.  Although VMA based swap readahead is more correct for the
+>> swap slots to be readahead, it will trigger more small random
+>> readings, which may cause the performance of HDD (hard disk) to
+>> degrade heavily, and may finally exceed the benefit.
+>> 
+>> To avoid the issue, in this patch, if the HDD is used as swap, the VMA
+>> based swap readahead will be disabled, and the original swap readahead
+>> will be used instead.
 >>
->> This adds a per-cache random value to SLUB caches that is XORed with
->> their freelist pointer address and value. This adds nearly zero overhead
->> and frustrates the very common heap overflow exploitation method of
->> overwriting freelist pointers. A recent example of the attack is written
->> up here: http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
->>
->> This is based on patches by Daniel Micay, and refactored to minimize the
->> use of #ifdef.
+>> ...
+>> 
+>> --- a/include/linux/swap.h
+>> +++ b/include/linux/swap.h
+>> @@ -399,16 +399,17 @@ extern struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+>>  					   struct vm_fault *vmf,
+>>  					   struct vma_swap_readahead *swap_ra);
+>>  
+>> -static inline bool swap_use_vma_readahead(void)
+>> -{
+>> -	return READ_ONCE(swap_vma_readahead);
+>> -}
+>> -
+>>  /* linux/mm/swapfile.c */
+>>  extern atomic_long_t nr_swap_pages;
+>>  extern long total_swap_pages;
+>> +extern atomic_t nr_rotate_swap;
 >
-> Hello!
->
-> This is an addition to the SLAB_FREELIST_HARDENED feature. I'm sending it
-> according the discussion here:
-> http://www.openwall.com/lists/kernel-hardening/2017/07/17/9
->
-> -- >8 --
->
-> Add an assertion similar to "fasttop" check in GNU C Library allocator
-> as a part of SLAB_FREELIST_HARDENED feature. An object added to a singly
-> linked freelist should not point to itself. That helps to detect some
-> double free errors (e.g. CVE-2017-2636) without slub_debug and KASAN.
->
-> Signed-off-by: Alexander Popov <alex.popov@linux.com>
-> ---
->  mm/slub.c | 4 ++++
->  1 file changed, 4 insertions(+)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index c92d636..f39d06e 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -290,6 +290,10 @@ static inline void set_freepointer(struct kmem_cache *s,
-> void *object, void *fp)
->  {
->         unsigned long freeptr_addr = (unsigned long)object + s->offset;
->
-> +#ifdef CONFIG_SLAB_FREELIST_HARDENED
-> +       BUG_ON(object == fp); /* naive detection of double free or corruption */
-> +#endif
-> +
->         *(void **)freeptr_addr = freelist_ptr(s, fp, freeptr_addr);
+> This is rather ugly.  If the system is swapping to both an SSD and to a
+> spinning disk, we'll treat the spinning disk as SSD.
 
-What happens if, instead of BUG_ON, we do:
+In this patch, if the system is swapping to both a SSD and to a spinning
+disk, we'll treat SSD as spinning disk.  That is, to use original swap
+readahead algorithm instead of new proposed VMA based swap readahead
+algorithm.
 
-if (unlikely(WARN_RATELIMIT(object == fp, "double-free detected"))
-        return;
+> Surely this decision can be made in a per-device fashion?
 
-That would ignore adding it back to the list, since it's already
-there, yes? Or would this make SLUB go crazy? I can't tell from the
-accounting details around callers to set_freepointer(). I assume it's
-correct, since it's close to the same effect as BUG (i.e. we don't do
-the update, but the cache remains visible to the system)
+It's hard for VMA based swap readahead algorithm.  With that algorithm,
+the PTEs near the fault address will be checked, some of them may come
+from SSD and the others come from spinning disk, it is hard to choose
+which algorithm to use for this situation.
 
--Kees
+So I choose a simple solution to use original swap readahead algorithm
+if there is one spinning disk is used as swap, and hope most people
+will not use both the spinning disk and SSD as swap at the same time.
 
--- 
-Kees Cook
-Pixel Security
+>>  extern bool has_usable_swap(void);
+>>  
+>> +static inline bool swap_use_vma_readahead(void)
+>> +{
+>> +	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
+>> +}
+>> +
+>>  /* Swap 50% full? Release swapcache more aggressively.. */
+>>  static inline bool vm_swap_full(void)
+>>  {
+>> diff --git a/mm/swapfile.c b/mm/swapfile.c
+>> index 6ba4aab2db0b..2685b9951cc1 100644
+>> --- a/mm/swapfile.c
+>> +++ b/mm/swapfile.c
+>> @@ -96,6 +96,8 @@ static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
+>>  /* Activity counter to indicate that a swapon or swapoff has occurred */
+>>  static atomic_t proc_poll_event = ATOMIC_INIT(0);
+>>  
+>> +atomic_t nr_rotate_swap = ATOMIC_INIT(0);
+>> +
+>>  static inline unsigned char swap_count(unsigned char ent)
+>>  {
+>>  	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
+>> @@ -2387,6 +2389,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>>  	if (p->flags & SWP_CONTINUED)
+>>  		free_swap_count_continuations(p);
+>>  
+>> +	if (!p->bdev || !blk_queue_nonrot(bdev_get_queue(p->bdev)))
+>> +		atomic_dec(&nr_rotate_swap);
+>
+> What's that p->bdev test for?  It's not symmetrical with the
+> sys_swapon() change and one wonders if the counter can get out of sync.
+
+There is such test in sys_swapon()
+
+	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
+                ...
+        } else
+                atomic_inc(&nr_rotate_swap);
+
+
+
+I use it in swapoff to try to make counting symmetrical.  Do I
+misunderstand the code?
+
+Best Regards,
+Huang, Ying
+
+>
+>>  	mutex_lock(&swapon_mutex);
+>>  	spin_lock(&swap_lock);
+>>  	spin_lock(&p->lock);
+>> @@ -2963,7 +2968,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>>  			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
+>>  			cluster_set_null(&cluster->index);
+>>  		}
+>> -	}
+>> +	} else
+>> +		atomic_inc(&nr_rotate_swap);
+>>  
+>>  	error = swap_cgroup_swapon(p->type, maxpages);
+>>  	if (error)
+>> -- 
+>> 2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
