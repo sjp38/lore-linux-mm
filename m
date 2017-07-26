@@ -1,32 +1,27 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
-Date: Wed, 26 Jul 2017 11:55:44 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1707261154140.9167@nuc-kabylake>
-References: <20170706002718.GA102852@beast> <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com> <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com> <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
- <CAGXu5jLkOjDKSZ48jOyh2voP17xXMeEnqzV_=8dGSvFmqdCZCA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm/slub: fix a deadlock due to incomplete patching
+ of cpusets_enabled()
+Date: Wed, 26 Jul 2017 12:02:17 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1707261158560.9311@nuc-kabylake>
+References: <20170726165022.10326-1-dmitriyz@waymo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <CAGXu5jLkOjDKSZ48jOyh2voP17xXMeEnqzV_=8dGSvFmqdCZCA@mail.gmail.com>
+In-Reply-To: <20170726165022.10326-1-dmitriyz@waymo.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Popov <alex.popov@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>"kernel-hardening@lists.openwall.com" <ke>
+To: Dima Zavin <dmitriyz@waymo.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Cliff Spradlin <cspradlin@waymo.com>
 List-Id: linux-mm.kvack.org
 
-On Wed, 26 Jul 2017, Kees Cook wrote:
+On Wed, 26 Jul 2017, Dima Zavin wrote:
 
-> >> What happens if, instead of BUG_ON, we do:
-> >>
-> >> if (unlikely(WARN_RATELIMIT(object == fp, "double-free detected"))
-> >>         return;
-> >
-> > This may work for the free fastpath but the set_freepointer function is
-> > use in multiple other locations. Maybe just add this to the fastpath
-> > instead of to this fucnction?
->
-> Do you mean do_slab_free()?
+> The fix is to cache the value that's returned by cpusets_enabled() at the
+> top of the loop, and only operate on the seqlock (both begin and retry) if
+> it was true.
 
-Yes inserting these lines into do_slab_free() would simple ignore the
-double free operation in the fast path and that would be safe.
+I think the proper fix would be to ensure that the calls to
+read_mems_allowed_{begin,retry} cannot cause the deadlock. Otherwise you
+have to fix this in multiple places.
 
-Although in either case we are adding code to the fastpath...
+Maybe read_mems_allowed_* can do some form of synchronization or *_retry
+can implictly rely on the results of cpusets_enabled() by *_begin?
