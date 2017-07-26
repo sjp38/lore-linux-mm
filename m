@@ -1,207 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5358E6B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:12:54 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r187so25350567pfr.8
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 21:12:54 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id y37si3249917plh.1037.2017.07.25.21.12.52
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE9BC6B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:26:24 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v102so30478536wrb.2
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 21:26:24 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 50si4459290wrx.410.2017.07.25.21.26.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 21:12:53 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id h29so30982827pfd.2
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 21:12:52 -0700 (PDT)
-Date: Tue, 25 Jul 2017 21:12:50 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v4] mm: Add SLUB free list pointer obfuscation
-Message-ID: <20170726041250.GA76741@beast>
+        Tue, 25 Jul 2017 21:26:23 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6Q4QFQk145857
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:26:22 -0400
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bxc1g3um0-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:26:22 -0400
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 26 Jul 2017 14:25:18 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6Q4PGIX11468962
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:25:16 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6Q4P748011871
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:25:07 +1000
+Subject: Re: [PATCH V2] selftests/vm: Add tests to validate mirror
+ functionality with mremap
+References: <20170725063657.3915-1-khandual@linux.vnet.ibm.com>
+ <20170725133604.GA27322@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 26 Jul 2017 09:54:26 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20170725133604.GA27322@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <32236948-422c-3519-7be3-88527895bf92@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Tejun Heo <tj@kernel.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Tycho Andersen <tycho@docker.com>, Alexander Popov <alex.popov@linux.com>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-This SLUB free list pointer obfuscation code is modified from Brad
-Spengler/PaX Team's code in the last public patch of grsecurity/PaX based
-on my understanding of the code. Changes or omissions from the original
-code are mine and don't reflect the original grsecurity/PaX code.
+On 07/25/2017 07:06 PM, Michal Hocko wrote:
+> On Tue 25-07-17 12:06:57, Anshuman Khandual wrote:
+> [...]
+>> diff --git a/tools/testing/selftests/vm/mremap_mirror_private_anon.c b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
+> [...]
+>> +	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
+>> +			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+>> +	if (ptr == MAP_FAILED) {
+>> +		perror("map() failed");
+>> +		return -1;
+>> +	}
+>> +	memset(ptr, PATTERN, alloc_size);
+>> +
+>> +	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
+>> +	if (mirror_ptr == MAP_FAILED) {
+>> +		perror("mremap() failed");
+>> +		return -1;
+>> +	}
+> 
+> What is the point of this test? It will break with Mike's patch very
+> soon. Btw. it never worked.
 
-This adds a per-cache random value to SLUB caches that is XORed with
-their freelist pointer address and value. This adds nearly zero overhead
-and frustrates the very common heap overflow exploitation method of
-overwriting freelist pointers. A recent example of the attack is written
-up here: http://cyseclabs.com/blog/cve-2016-6187-heap-off-by-one-exploit
-and there is a section dedicated to the technique the book "A Guide to
-Kernel Exploitation: Attacking the Core", from 2010.
+It works now. The new 'mirrored' buffer does not have same elements
+as that of the original one. Yes, once Mike's patch is merged, it
+will fail during the mremap() call itself IIUC. I can change this
+test to verify that mremap() call failure then but now the mismatch
+of elements between the buffers is what is expected and is happening.
 
-This is based on patches by Daniel Micay, and refactored to minimize the
-use of #ifdef.
-
-Under 200-count cycles of "hackbench -g 20 -l 1000" I saw the following
-run times:
-
-before:
-	mean 10.11882499999999999995
-	variance .03320378329145728642
-	stdev .18221905304181911048
-
-after:
-	mean 10.12654000000000000014
-	variance .04700556623115577889
-	stdev .21680767106160192064
-
-The difference gets lost in the noise, but if the above is to be taken
-literally, using CONFIG_FREELIST_HARDENED is 0.07% slower.
-
-Suggested-by: Daniel Micay <danielmicay@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Tycho Andersen <tycho@docker.com>
-Cc: Alexander Popov <alex.popov@linux.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-v4:
-- add another reference to how common this exploit technique is.
-v3:
-- use static inlines instead of macros (akpm).
-v2:
-- rename CONFIG_SLAB_HARDENED to CONFIG_FREELIST_HARDENED (labbott).
----
- include/linux/slub_def.h |  4 ++++
- init/Kconfig             |  9 +++++++++
- mm/slub.c                | 42 +++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 50 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index cc0faf3a90be..0783b622311e 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -115,6 +115,10 @@ struct kmem_cache {
- #endif
- #endif
- 
-+#ifdef CONFIG_SLAB_FREELIST_HARDENED
-+	unsigned long random;
-+#endif
-+
- #ifdef CONFIG_NUMA
- 	/*
- 	 * Defragmentation by allocating from a remote node.
-diff --git a/init/Kconfig b/init/Kconfig
-index 8514b25db21c..3dbb980cb70b 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1571,6 +1571,15 @@ config SLAB_FREELIST_RANDOM
- 	  security feature reduces the predictability of the kernel slab
- 	  allocator against heap overflows.
- 
-+config SLAB_FREELIST_HARDENED
-+	bool "Harden slab freelist metadata"
-+	depends on SLUB
-+	help
-+	  Many kernel heap attacks try to target slab cache metadata and
-+	  other infrastructure. This options makes minor performance
-+	  sacrifies to harden the kernel slab allocator against common
-+	  freelist exploit methods.
-+
- config SLUB_CPU_PARTIAL
- 	default y
- 	depends on SLUB && SMP
-diff --git a/mm/slub.c b/mm/slub.c
-index 1d3f9835f4ea..c92d6369f5e0 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -34,6 +34,7 @@
- #include <linux/stacktrace.h>
- #include <linux/prefetch.h>
- #include <linux/memcontrol.h>
-+#include <linux/random.h>
- 
- #include <trace/events/kmem.h>
- 
-@@ -238,30 +239,58 @@ static inline void stat(const struct kmem_cache *s, enum stat_item si)
-  * 			Core slab cache functions
-  *******************************************************************/
- 
-+/*
-+ * Returns freelist pointer (ptr). With hardening, this is obfuscated
-+ * with an XOR of the address where the pointer is held and a per-cache
-+ * random number.
-+ */
-+static inline void *freelist_ptr(const struct kmem_cache *s, void *ptr,
-+				 unsigned long ptr_addr)
-+{
-+#ifdef CONFIG_SLAB_FREELIST_HARDENED
-+	return (void *)((unsigned long)ptr ^ s->random ^ ptr_addr);
-+#else
-+	return ptr;
-+#endif
-+}
-+
-+/* Returns the freelist pointer recorded at location ptr_addr. */
-+static inline void *freelist_dereference(const struct kmem_cache *s,
-+					 void *ptr_addr)
-+{
-+	return freelist_ptr(s, (void *)*(unsigned long *)(ptr_addr),
-+			    (unsigned long)ptr_addr);
-+}
-+
- static inline void *get_freepointer(struct kmem_cache *s, void *object)
- {
--	return *(void **)(object + s->offset);
-+	return freelist_dereference(s, object + s->offset);
- }
- 
- static void prefetch_freepointer(const struct kmem_cache *s, void *object)
- {
--	prefetch(object + s->offset);
-+	if (object)
-+		prefetch(freelist_dereference(s, object + s->offset));
- }
- 
- static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
- {
-+	unsigned long freepointer_addr;
- 	void *p;
- 
- 	if (!debug_pagealloc_enabled())
- 		return get_freepointer(s, object);
- 
--	probe_kernel_read(&p, (void **)(object + s->offset), sizeof(p));
--	return p;
-+	freepointer_addr = (unsigned long)object + s->offset;
-+	probe_kernel_read(&p, (void **)freepointer_addr, sizeof(p));
-+	return freelist_ptr(s, p, freepointer_addr);
- }
- 
- static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
- {
--	*(void **)(object + s->offset) = fp;
-+	unsigned long freeptr_addr = (unsigned long)object + s->offset;
-+
-+	*(void **)freeptr_addr = freelist_ptr(s, fp, freeptr_addr);
- }
- 
- /* Loop over all objects in a slab */
-@@ -3563,6 +3592,9 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
- {
- 	s->flags = kmem_cache_flags(s->size, flags, s->name, s->ctor);
- 	s->reserved = 0;
-+#ifdef CONFIG_SLAB_FREELIST_HARDENED
-+	s->random = get_random_long();
-+#endif
- 
- 	if (need_reserve_slab_rcu && (s->flags & SLAB_TYPESAFE_BY_RCU))
- 		s->reserved = sizeof(struct rcu_head);
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+But if you would like I can change the test to check for mremap()
+failure in this case (which will fail in the current mainline but
+will pass eventually when Mike's patch is in). Please do suggest.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
