@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD116B03BD
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:47:35 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id u89so31541358wrc.1
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:47:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q21si13387412wra.478.2017.07.26.04.47.27
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 265376B0493
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:48:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id k68so3296120wmd.14
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 04:48:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r1si12859217wrc.496.2017.07.26.04.48.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 04:47:27 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 09/10] mm: Use find_get_pages_range() in filemap_range_has_page()
-Date: Wed, 26 Jul 2017 13:47:03 +0200
-Message-Id: <20170726114704.7626-10-jack@suse.cz>
-In-Reply-To: <20170726114704.7626-1-jack@suse.cz>
-References: <20170726114704.7626-1-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Jul 2017 04:48:20 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6QBiqPi059047
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:48:18 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2bxpk2bvrv-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 07:48:18 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Wed, 26 Jul 2017 12:48:16 +0100
+Date: Wed, 26 Jul 2017 13:48:12 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [PATCH] mm: take memory hotplug lock within
+ numa_zonelist_order_handler()
+References: <20170726111738.38768-1-heiko.carstens@de.ibm.com>
+ <20170726113112.GJ2981@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170726113112.GJ2981@dhcp22.suse.cz>
+Message-Id: <20170726114812.GH3218@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org, Andre Wild <wild@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>
 
-We want only pages from given range in filemap_range_has_page(),
-furthermore we want at most a single page. So use find_get_pages_range()
-instead of pagevec_lookup() and remove unnecessary code.
+On Wed, Jul 26, 2017 at 01:31:12PM +0200, Michal Hocko wrote:
+> On Wed 26-07-17 13:17:38, Heiko Carstens wrote:
+> [...]
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6d30e914afb6..fc32aa81f359 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4891,9 +4891,11 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
+> >  				NUMA_ZONELIST_ORDER_LEN);
+> >  			user_zonelist_order = oldval;
+> >  		} else if (oldval != user_zonelist_order) {
+> > +			mem_hotplug_begin();
+> >  			mutex_lock(&zonelists_mutex);
+> >  			build_all_zonelists(NULL, NULL);
+> >  			mutex_unlock(&zonelists_mutex);
+> > +			mem_hotplug_done();
+> >  		}
+> >  	}
+> >  out:
+> 
+> Please note that this code has been removed by
+> http://lkml.kernel.org/r/20170721143915.14161-2-mhocko@kernel.org. It
+> will get to linux-next as soon as Andrew releases a new version mmotm
+> tree.
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/filemap.c | 11 ++++-------
- 1 file changed, 4 insertions(+), 7 deletions(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b02be926a115..871c974f0bb3 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -402,8 +402,7 @@ bool filemap_range_has_page(struct address_space *mapping,
- {
- 	pgoff_t index = start_byte >> PAGE_SHIFT;
- 	pgoff_t end = end_byte >> PAGE_SHIFT;
--	struct pagevec pvec;
--	bool ret;
-+	struct page *page;
- 
- 	if (end_byte < start_byte)
- 		return false;
-@@ -411,12 +410,10 @@ bool filemap_range_has_page(struct address_space *mapping,
- 	if (mapping->nrpages == 0)
- 		return false;
- 
--	pagevec_init(&pvec, 0);
--	if (!pagevec_lookup(&pvec, mapping, &index, 1))
-+	if (!find_get_pages_range(mapping, &index, end, 1, &page))
- 		return false;
--	ret = (pvec.pages[0]->index <= end);
--	pagevec_release(&pvec);
--	return ret;
-+	put_page(page);
-+	return true;
- }
- EXPORT_SYMBOL(filemap_range_has_page);
- 
--- 
-2.12.3
+We still would need something for 4.13, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
