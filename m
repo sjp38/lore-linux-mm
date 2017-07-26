@@ -1,63 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C06A96B0292
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:20:59 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id q64so153129604ioi.6
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:20:59 -0700 (PDT)
-Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
-        by mx.google.com with ESMTPS id e127si1966475itc.179.2017.07.26.09.20.58
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 519216B02C3
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 12:29:17 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p48so47676776qtf.1
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:29:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m21si14086551qkm.345.2017.07.26.09.29.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 09:20:58 -0700 (PDT)
-Received: by mail-io0-x232.google.com with SMTP id m88so60981498iod.2
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 09:20:58 -0700 (PDT)
+        Wed, 26 Jul 2017 09:29:16 -0700 (PDT)
+Date: Wed, 26 Jul 2017 18:29:12 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170726162912.GA29716@redhat.com>
+References: <20170724141526.GM25221@dhcp22.suse.cz>
+ <20170724145142.i5xqpie3joyxbnck@node.shutemov.name>
+ <20170724161146.GQ25221@dhcp22.suse.cz>
+ <20170725142626.GJ26723@dhcp22.suse.cz>
+ <20170725151754.3txp44a2kbffsxdg@node.shutemov.name>
+ <20170725152300.GM26723@dhcp22.suse.cz>
+ <20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name>
+ <20170725160359.GO26723@dhcp22.suse.cz>
+ <20170725191952.GR29716@redhat.com>
+ <20170726054557.GB960@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
-References: <20170706002718.GA102852@beast> <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com>
- <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com> <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 26 Jul 2017 09:20:56 -0700
-Message-ID: <CAGXu5jLkOjDKSZ48jOyh2voP17xXMeEnqzV_=8dGSvFmqdCZCA@mail.gmail.com>
-Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170726054557.GB960@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Alexander Popov <alex.popov@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 26, 2017 at 7:08 AM, Christopher Lameter <cl@linux.com> wrote:
-> On Tue, 25 Jul 2017, Kees Cook wrote:
->
->> > @@ -290,6 +290,10 @@ static inline void set_freepointer(struct kmem_cache *s,
->> > void *object, void *fp)
->> >  {
->> >         unsigned long freeptr_addr = (unsigned long)object + s->offset;
->> >
->> > +#ifdef CONFIG_SLAB_FREELIST_HARDENED
->> > +       BUG_ON(object == fp); /* naive detection of double free or corruption */
->> > +#endif
->> > +
->> >         *(void **)freeptr_addr = freelist_ptr(s, fp, freeptr_addr);
->>
->> What happens if, instead of BUG_ON, we do:
->>
->> if (unlikely(WARN_RATELIMIT(object == fp, "double-free detected"))
->>         return;
->
-> This may work for the free fastpath but the set_freepointer function is
-> use in multiple other locations. Maybe just add this to the fastpath
-> instead of to this fucnction?
+On Wed, Jul 26, 2017 at 07:45:57AM +0200, Michal Hocko wrote:
+> On Tue 25-07-17 21:19:52, Andrea Arcangeli wrote:
+> > On Tue, Jul 25, 2017 at 06:04:00PM +0200, Michal Hocko wrote:
+> > > -	down_write(&mm->mmap_sem);
+> > > +	if (tsk_is_oom_victim(current))
+> > > +		down_write(&mm->mmap_sem);
+> > >  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+> > >  	tlb_finish_mmu(&tlb, 0, -1);
+> > >  
+> > > @@ -3012,7 +3014,8 @@ void exit_mmap(struct mm_struct *mm)
+> > >  	}
+> > >  	mm->mmap = NULL;
+> > >  	vm_unacct_memory(nr_accounted);
+> > > -	up_write(&mm->mmap_sem);
+> > > +	if (tsk_is_oom_victim(current))
+> > > +		up_write(&mm->mmap_sem);
+> > 
+> > How is this possibly safe? mark_oom_victim can run while exit_mmap is
+> > running.
+> 
+> I believe it cannot. We always call mark_oom_victim (on !current) with
+> task_lock held and check task->mm != NULL and we call do_exit->mmput after
+> mm is set to NULL under the same lock.
 
-Do you mean do_slab_free()?
+Holding the mmap_sem for writing and setting mm->mmap to NULL to
+filter which tasks already released the mmap_sem for writing post
+free_pgtables still look unnecessary to solve this.
 
--Kees
+Using MMF_OOM_SKIP as flag had side effects of oom_badness() skipping
+it, but we can use the same tsk_is_oom_victim instead and relay on the
+locking in mark_oom_victim you pointed out above instead of the
+test_and_set_bit of my patch, because current->mm is already NULL at
+that point.
 
--- 
-Kees Cook
-Pixel Security
+A race at the light of the above now is, because current->mm is NULL by the
+time mmput is called, how can you start the oom_reap_task on a process
+with current->mm NULL that called the last mmput and is blocked
+in exit_aio? It looks like no false positive can get fixed until this
+is solved first because 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Isn't this enough? If this is enough it avoids other modification to
+the exit_mmap runtime that looks unnecessary: mm->mmap = NULL replaced
+by MMF_OOM_SKIP that has to be set anyway by __mmput later and one
+unnecessary branch to call the up_write.
