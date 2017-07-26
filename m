@@ -1,27 +1,35 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/1] mm/slub.c: add a naive detection of double free or
- corruption
-Date: Wed, 19 Jul 2017 09:02:27 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1707190901260.17716@nuc-kabylake>
-References: <1500309907-9357-1-git-send-email-alex.popov@linux.com> <20170717175459.GC14983@bombadil.infradead.org> <alpine.DEB.2.20.1707171303230.12109@nuc-kabylake> <c86c66c3-29d8-0b04-b4d1-f9f8192d8c4a@linux.com> <CAGXu5jK5j2pSVca9XGJhJ6pnF04p7S=K1Z432nzG2y4LfKhYjg@mail.gmail.com>
- <1edb137c-356f-81d6-4592-f5dfc68e8ea9@linux.com> <CAGXu5jL0bFpWqUm9d2X7zpTO_CwPp94ywcLYoFyNcLuiwX8qAQ@mail.gmail.com>
+Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
+Date: Wed, 26 Jul 2017 09:08:01 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
+References: <20170706002718.GA102852@beast> <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com> <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <CAGXu5jL0bFpWqUm9d2X7zpTO_CwPp94ywcLYoFyNcLuiwX8qAQ@mail.gmail.com>
+In-Reply-To: <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
 To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Popov <alex.popov@linux.com>, Matthew Wilcox <willy@infradead.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+Cc: Alexander Popov <alex.popov@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>"kernel-hardening@lists.openwall.com" <ke>
 List-Id: linux-mm.kvack.org
 
-On Tue, 18 Jul 2017, Kees Cook wrote:
+On Tue, 25 Jul 2017, Kees Cook wrote:
 
-> I think there are two issues: first, this should likely be under
-> CONFIG_FREELIST_HARDENED since Christoph hasn't wanted to make these
-> changes enabled by default (if I'm understanding his earlier review
-> comments to me). The second issue is what to DO when a double-free is
-> discovered. Is there any way to make it safe/survivable? If not, I
+> > @@ -290,6 +290,10 @@ static inline void set_freepointer(struct kmem_cache *s,
+> > void *object, void *fp)
+> >  {
+> >         unsigned long freeptr_addr = (unsigned long)object + s->offset;
+> >
+> > +#ifdef CONFIG_SLAB_FREELIST_HARDENED
+> > +       BUG_ON(object == fp); /* naive detection of double free or corruption */
+> > +#endif
+> > +
+> >         *(void **)freeptr_addr = freelist_ptr(s, fp, freeptr_addr);
+>
+> What happens if, instead of BUG_ON, we do:
+>
+> if (unlikely(WARN_RATELIMIT(object == fp, "double-free detected"))
+>         return;
 
-The simple thing is to not free the object when you discover this. That is
-what the existing debugging code does. But you do not have an easy way to
-fail at the point in the code that is patched here.
+This may work for the free fastpath but the set_freepointer function is
+use in multiple other locations. Maybe just add this to the fastpath
+instead of to this fucnction?
