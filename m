@@ -1,105 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A46236B025F
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:35:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v62so175167905pfd.10
-        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 21:35:57 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i5si9210597pgk.54.2017.07.25.21.35.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Jul 2017 21:35:56 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6Q4YAaA038429
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:35:56 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2bxm0kgcnc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 00:35:55 -0400
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 26 Jul 2017 14:35:53 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6Q4ZpQC28573716
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:35:51 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6Q4Znoa004729
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 14:35:49 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [ltc-interlock] [PATCH] hugetlb: Fix hot remove for PowerVM
-In-Reply-To: <1500997831-19173-1-git-send-email-diegodo@linux.vnet.ibm.com>
-References: <1500997831-19173-1-git-send-email-diegodo@linux.vnet.ibm.com>
-Date: Wed, 26 Jul 2017 10:05:42 +0530
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 20CA16B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 01:43:12 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 125so204637443pgi.2
+        for <linux-mm@kvack.org>; Tue, 25 Jul 2017 22:43:12 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id q26si8948517pfi.408.2017.07.25.22.43.10
+        for <linux-mm@kvack.org>;
+        Tue, 25 Jul 2017 22:43:10 -0700 (PDT)
+Date: Wed, 26 Jul 2017 14:43:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170726054306.GA11100@bbox>
+References: <3D1386AD-7875-40B9-8C6F-DE02CF8A45A1@gmail.com>
+ <20170719225950.wfpfzpc6llwlyxdo@suse.de>
+ <4DC97890-9FFA-4BA4-B300-B679BAB2136D@gmail.com>
+ <20170720074342.otez35bme5gytnxl@suse.de>
+ <BD3A0EBE-ECF4-41D4-87FA-C755EA9AB6BD@gmail.com>
+ <20170724095832.vgvku6vlxkv75r3k@suse.de>
+ <20170725073748.GB22652@bbox>
+ <20170725085132.iysanhtqkgopegob@suse.de>
+ <20170725091115.GA22920@bbox>
+ <20170725100722.2dxnmgypmwnrfawp@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87r2x324td.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170725100722.2dxnmgypmwnrfawp@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Diego Domingos <diegodo@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: ltc-interlock@lists.linux.ibm.com, linuxppc-dev@lists.ozlabs.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Diego Domingos <diegodo@linux.vnet.ibm.com> writes:
+On Tue, Jul 25, 2017 at 11:10:06AM +0100, Mel Gorman wrote:
+> On Tue, Jul 25, 2017 at 06:11:15PM +0900, Minchan Kim wrote:
+> > On Tue, Jul 25, 2017 at 09:51:32AM +0100, Mel Gorman wrote:
+> > > On Tue, Jul 25, 2017 at 04:37:48PM +0900, Minchan Kim wrote:
+> > > > > Ok, as you say you have reproduced this with corruption, I would suggest
+> > > > > one path for dealing with it although you'll need to pass it by the
+> > > > > original authors.
+> > > > > 
+> > > > > When unmapping ranges, there is a check for dirty PTEs in
+> > > > > zap_pte_range() that forces a flush for dirty PTEs which aims to avoid
+> > > > > writable stale PTEs from CPU0 in a scenario like you laid out above.
+> > > > > 
+> > > > > madvise_free misses a similar class of check so I'm adding Minchan Kim
+> > > > > to the cc as the original author of much of that code. Minchan Kim will
+> > > > > need to confirm but it appears that two modifications would be required.
+> > > > > The first should pass in the mmu_gather structure to
+> > > > > madvise_free_pte_range (at minimum) and force flush the TLB under the
+> > > > > PTL if a dirty PTE is encountered. The second is that it should consider
+> > > > 
+> > > > OTL: I couldn't read this lengthy discussion so I miss miss something.
+> > > > 
+> > > > About MADV_FREE, I do not understand why it should flush TLB in MADV_FREE
+> > > > context. MADV_FREE's semantic allows "write(ie, dirty)" so if other thread
+> > > > in parallel which has stale pte does "store" to make the pte dirty,
+> > > > it's okay since try_to_unmap_one in shrink_page_list catches the dirty.
+> > > > 
+> > > 
+> > > In try_to_unmap_one it's fine. It's not necessarily fine in KSM. Given
+> > > that the key is that data corruption is avoided, you could argue with a
+> > > comment that madv_free doesn't necesssarily have to flush it as long as
+> > > KSM does even if it's clean due to batching.
+> > 
+> > Yes, I think it should be done in side where have a concern.
+> > Maybe, mm_struct can carry a flag which indicates someone is
+> > doing the TLB bacthing and then KSM side can flush it by the flag.
+> > It would reduce unncessary flushing.
+> > 
+> 
+> If you're confident that it's only necessary on the KSM side to avoid the
+> problem then I'm ok with that. Update KSM in that case with a comment
+> explaining the madv_free race and why the flush is unconditionally
+> necessary. madv_free only came up because it was a critical part of having
+> KSM miss a TLB flush.
+> 
+> > > Like madvise(), madv_free can potentially return with a stale PTE visible
+> > > to the caller that observed a pte_none at the time of madv_free and uses
+> > > a stale PTE that potentially allows a lost write. It's debatable whether
+> > 
+> > That is the part I cannot understand.
+> > How does it lost "the write"? MADV_FREE doesn't discard the memory so
+> > finally, the write should be done sometime.
+> > Could you tell me more?
+> > 
+> 
+> I'm relying on the fact you are the madv_free author to determine if
+> it's really necessary. The race in question is CPU 0 running madv_free
+> and updating some PTEs while CPU 1 is also running madv_free and looking
+> at the same PTEs. CPU 1 may have writable TLB entries for a page but fail
+> the pte_dirty check (because CPU 0 has updated it already) and potentially
+> fail to flush. Hence, when madv_free on CPU 1 returns, there are still
+> potentially writable TLB entries and the underlying PTE is still present
+> so that a subsequent write does not necessarily propagate the dirty bit
+> to the underlying PTE any more. Reclaim at some unknown time at the future
+> may then see that the PTE is still clean and discard the page even though
+> a write has happened in the meantime. I think this is possible but I could
+> have missed some protection in madv_free that prevents it happening.
 
-> PowerVM has support for 16G huge pages, so the function
-> gigantic_page_supported needs to check if the running system
-> is a pseries and check if there are some gigantic page
-> registered. Then, we must return true - avoiding Segmentation
-> Fault when hot removing memory sections within huge pages.
+Thanks for the detail. You didn't miss anything. It can happen and then
+it's really bug. IOW, if application does write something after madv_free,
+it must see the written value, not zero.
 
-That is not correct. Those pages are not in zone/buddy. What
-gigantic_page_supported checks is whether we can allocate pages runtime.
-We scan the zones, check if we have the range that we are looking for
-free for allocation, if so we do runtime allocation of those pages. This
-may include page migration too. But these pages comes from buddy. We
-don't do buddy allocator directly here, because the order of allocation
-we are looking is more than max order.
+How about adding [set|clear]_tlb_flush_pending in tlb batchin interface?
+With it, when tlb_finish_mmu is called, we can know we skip the flush
+but there is pending flush, so flush focefully to avoid madv_dontneed
+as well as madv_free scenario.
 
->
-> Signed-off-by: Diego Domingos <diegodo@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/include/asm/book3s/64/hugetlb.h | 14 +++++++++++++-
->  1 file changed, 13 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> index 5c28bd6..49e43dd 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> @@ -1,3 +1,5 @@
-> +#include <asm/machdep.h>
-> +
->  #ifndef _ASM_POWERPC_BOOK3S_64_HUGETLB_H
->  #define _ASM_POWERPC_BOOK3S_64_HUGETLB_H
->  /*
-> @@ -54,9 +56,19 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
->  #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
->  static inline bool gigantic_page_supported(void)
->  {
-> +        struct hstate *h;
-> +
->  	if (radix_enabled())
->  		return true;
-> -	return false;
-> +
-> +        /* PowerVM can support 16GB hugepages (requested at boot time) */
-> +        if(machine_is(pseries))
-> +            for_each_hstate(h) {
-> +                if (hstate_get_psize(h) == MMU_PAGE_16G)
-> +                    return true;
-> +            }
-> +        
-> +        return false;
->  }
->  #endif
->
+Also, KSM can know it through mm_tlb_flush_pending?
+If it's acceptable, need to look into soft dirty to use [set|clear]_tlb
+_flush_pending or TLB gathering API.
+
+To show my intention:
+
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index 8afa4335e5b2..fffd4d86d0c4 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -113,7 +113,7 @@ struct mmu_gather {
+ #define HAVE_GENERIC_MMU_GATHER
+ 
+ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end);
+-void tlb_flush_mmu(struct mmu_gather *tlb);
++bool tlb_flush_mmu(struct mmu_gather *tlb);
+ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start,
+ 							unsigned long end);
+ extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 4dc92f138786..0fbbd5d234d5 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1037,8 +1037,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 	if (WARN_ONCE(!pvmw.pte, "Unexpected PMD mapping?"))
+ 		goto out_unlock;
+ 
+-	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
+-	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) {
++	if ((pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
++	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) ||
++		mm_tlb_flush_pending(mm)) {
+ 		pte_t entry;
+ 
+ 		swapped = PageSwapCache(page);
+diff --git a/mm/memory.c b/mm/memory.c
+index ea9f28e44b81..d5c5e6497c70 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -239,12 +239,13 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long
+ 	tlb->page_size = 0;
+ 
+ 	__tlb_reset_range(tlb);
++	set_tlb_flush_pending(tlb->mm);
+ }
+ 
+-static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
++static bool tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+ {
+ 	if (!tlb->end)
+-		return;
++		return false;
+ 
+ 	tlb_flush(tlb);
+ 	mmu_notifier_invalidate_range(tlb->mm, tlb->start, tlb->end);
+@@ -252,6 +253,7 @@ static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+ 	tlb_table_flush(tlb);
+ #endif
+ 	__tlb_reset_range(tlb);
++	return true;
+ }
+ 
+ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
+@@ -265,10 +267,16 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)
+ 	tlb->active = &tlb->local;
+ }
+ 
+-void tlb_flush_mmu(struct mmu_gather *tlb)
++/*
++ * returns true if tlb flush really happens
++ */
++bool tlb_flush_mmu(struct mmu_gather *tlb)
+ {
+-	tlb_flush_mmu_tlbonly(tlb);
++	bool ret;
++
++	ret = tlb_flush_mmu_tlbonly(tlb);
+ 	tlb_flush_mmu_free(tlb);
++	return ret;
+ }
+ 
+ /* tlb_finish_mmu
+@@ -278,8 +286,11 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
+ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+ {
+ 	struct mmu_gather_batch *batch, *next;
++	bool flushed = tlb_flush_mmu(tlb);
+ 
+-	tlb_flush_mmu(tlb);
++	clear_tlb_flush_pending(tlb->mm);
++	if (!flushed && mm_tlb_flush_pending(tlb->mm))
++		flush_tlb_mm_range(tlb->mm, start, end, 0UL);
+ 
+ 	/* keep the page table cache within bounds */
+ 	check_pgt_cache();
+
+
+> 
 > -- 
-> 1.8.3.1
->
-> _______________________________________________________
-> ltc-interlock mailing list <ltc-interlock@lists.linux.ibm.com>
-> To unsubscribe from the list, change your list options
-> or if you have forgotten your list password visit:
-> https://w3-01.ibm.com/stg/linux/ltc/mailinglists/listinfo/ltc-interlock
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
