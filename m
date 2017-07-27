@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E8F776B025F
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:23:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 185so7090094wmk.12
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 01:23:01 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E95AD6B025F
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:27:20 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r123so18462790wmb.1
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 01:27:20 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f126si10451093wmg.81.2017.07.27.01.23.00
+        by mx.google.com with ESMTPS id q11si6579502wrd.353.2017.07.27.01.27.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 01:23:00 -0700 (PDT)
-Date: Thu, 27 Jul 2017 10:22:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: gigantic hugepages vs. movable zones
-Message-ID: <20170727082258.GL20970@dhcp22.suse.cz>
-References: <20170726105004.GI2981@dhcp22.suse.cz>
- <87inie1uwf.fsf@linux.vnet.ibm.com>
- <20170727072857.GI20970@dhcp22.suse.cz>
- <1529e986-5f28-35dd-c82e-a4b5801b4afd@linux.vnet.ibm.com>
- <20170727081236.GK20970@dhcp22.suse.cz>
+        Thu, 27 Jul 2017 01:27:19 -0700 (PDT)
+Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
+ with runtime-time
+References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+ <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
+ <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
+ <20170725090538.26sbgb4npkztsqj3@black.fi.intel.com>
+ <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
+ <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <c225cead-70e7-86fb-c754-053bbc3e2b7f@suse.com>
+Date: Thu, 27 Jul 2017 10:27:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170727081236.GK20970@dhcp22.suse.cz>
+In-Reply-To: <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[CC for real]
-
-On Thu 27-07-17 10:12:36, Michal Hocko wrote:
-> On Thu 27-07-17 13:30:31, Aneesh Kumar K.V wrote:
-> > 
-> > 
-> > On 07/27/2017 12:58 PM, Michal Hocko wrote:
-> > >On Thu 27-07-17 07:52:08, Aneesh Kumar K.V wrote:
-> > >>Michal Hocko <mhocko@kernel.org> writes:
-> > >>
-> > >>>Hi,
-> > >>>I've just noticed that alloc_gigantic_page ignores movability of the
-> > >>>gigantic page and it uses any existing zone. Considering that
-> > >>>hugepage_migration_supported only supports 2MB and pgd level hugepages
-> > >>>then 1GB pages are not migratable and as such allocating them from a
-> > >>>movable zone will break the basic expectation of this zone. Standard
-> > >>>hugetlb allocations try to avoid that by using htlb_alloc_mask and I
-> > >>>believe we should do the same for gigantic pages as well.
-> > >>>
-> > >>>I suspect this behavior is not intentional. What do you think about the
-> > >>>following untested patch?
-> > >>
-> > >>
-> > >>I also noticed an unrelated issue with the usage of
-> > >>start_isolate_page_range. On error we set the migrate type to
-> > >>MIGRATE_MOVABLE.
-> > >
-> > >Why that should be a problem? I think it is perfectly OK to have
-> > >MIGRATE_MOVABLE pageblocks inside kernel zones.
-> > >
-> > 
-> > we can pick pages with migrate type movable and if we fail to isolate won't
-> > we set the migrate type of that pages to MOVABLE ?
+On 26/07/17 18:43, Kirill A. Shutemov wrote:
+> On Wed, Jul 26, 2017 at 09:28:16AM +0200, Juergen Gross wrote:
+>> On 25/07/17 11:05, Kirill A. Shutemov wrote:
+>>> On Tue, Jul 18, 2017 at 04:24:06PM +0200, Juergen Gross wrote:
+>>>> Xen PV guests will never run with 5-level-paging enabled. So I guess you
+>>>> can drop the complete if (IS_ENABLED(CONFIG_X86_5LEVEL)) {} block.
+>>>
+>>> There is more code to drop from mmu_pv.c.
+>>>
+>>> But while there, I thought if with boot-time 5-level paging switching we
+>>> can allow kernel to compile with XEN_PV and XEN_PVH, so the kernel image
+>>> can be used in these XEN modes with 4-level paging.
+>>>
+>>> Could you check if with the patch below we can boot in XEN_PV and XEN_PVH
+>>> modes?
+>>
+>> We can't. I have used your branch:
+>>
+>> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git
+>> la57/boot-switching/v2
+>>
+>> with this patch applied on top.
+>>
+>> Doesn't boot PV guest with X86_5LEVEL configured (very early crash).
 > 
-> I do not see an immediate problem. GFP_KERNEL allocations can fallback
-> to movable migrate pageblocks AFAIR. But I am not very much familiar
-> with migratetypes. Vlastimil, could you have a look please?
+> Hm. Okay.
+> 
+> Have you tried PVH?
 
--- 
-Michal Hocko
-SUSE Labs
+Now I have. Its coming up.
+
+> 
+>> Doesn't build with X86_5LEVEL not configured:
+>>
+>>   AS      arch/x86/kernel/head_64.o
+> 
+> I've fixed the patch and split the patch into two parts: cleanup and
+> re-enabling XEN_PV and XEN_PVH for X86_5LEVEL.
+> 
+> There's chance that I screw somthing up in clenaup part. Could you check
+> that?
+
+Not sure I'll manage to do this today. Stay tuned...
+
+
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
