@@ -1,86 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C7D4B6B04C2
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:12:12 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v77so15146652pgb.15
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 09:12:12 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j24si11074591pfa.685.2017.07.27.09.12.11
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5826B04C3
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:20:45 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z48so33770442wrc.4
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 09:20:45 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 128si1968647wme.241.2017.07.27.09.20.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 09:12:11 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6RGBE0l143795
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:12:11 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2byhfdep5p-1
+        Thu, 27 Jul 2017 09:20:44 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6RGJMY7153419
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:20:42 -0400
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2byj79vkqk-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:12:10 -0400
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:20:42 -0400
 Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 27 Jul 2017 10:12:10 -0600
+	Thu, 27 Jul 2017 10:20:41 -0600
 Subject: Re: [PATCH v3 1/3] mm/hugetlb: Allow arch to override and call the
  weak function
 References: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
- <20170727152556.s4uw5cuvdf36hodl@oracle.com>
+ <20170727130123.GE27766@dhcp22.suse.cz>
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Date: Thu, 27 Jul 2017 21:42:04 +0530
+Date: Thu, 27 Jul 2017 21:50:35 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170727152556.s4uw5cuvdf36hodl@oracle.com>
+In-Reply-To: <20170727130123.GE27766@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <da6a497b-e65c-b0db-3dab-83aa300a75ca@linux.vnet.ibm.com>
+Message-Id: <e963e910-1999-ddff-87cf-9e8c356fea82@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
 
 
-On 07/27/2017 08:55 PM, Liam R. Howlett wrote:
-> * Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com> [170727 02:18]:
+On 07/27/2017 06:31 PM, Michal Hocko wrote:
+> On Thu 27-07-17 11:48:26, Aneesh Kumar K.V wrote:
 >> For ppc64, we want to call this function when we are not running as guest.
->> Also, if we failed to allocate hugepages, let the user know.
->>
-> [...]
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index bc48ee783dd9..a3a7a7e6339e 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -2083,7 +2083,9 @@ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
->>   	return page;
->>   }
->>   
->> -int __weak alloc_bootmem_huge_page(struct hstate *h)
->> +int alloc_bootmem_huge_page(struct hstate *h)
->> +	__attribute__ ((weak, alias("__alloc_bootmem_huge_page")));
->> +int __alloc_bootmem_huge_page(struct hstate *h)
->>   {
->>   	struct huge_bootmem_page *m;
->>   	int nr_nodes, node;
->> @@ -2104,6 +2106,7 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
->>   			goto found;
->>   		}
->>   	}
->> +	pr_info("Failed to allocate hugepage of size %ld\n", huge_page_size(h));
->>   	return 0;
->>   
->>   found:
 > 
-> There is already a call to warn the user in the
-> hugetlb_hstate_alloc_pages function.  If you look there, you will see
-> that the huge_page_size was translated into a more user friendly format
-> and the count prior to the failure is included.  What call path are you
-> trying to cover?  Also, you may want your print to be a pr_warn since it
-> is a failure?
+> What does this mean?
 > 
 
-Sorry I missed that in the recent kernel. I wrote the above before the 
-mentioned changes was done. I will drop the pr_info from the patch.
+ppc64 guest (aka LPAR) support a different mechanism for hugetlb 
+allocation/reservation. The LPAR management application called HMC can 
+be used to reserve a set of hugepages and we pass the details of 
+reserved pages via device tree to the guest. You can find the details in
+htab_dt_scan_hugepage_blocks() . We do the memblock_reserve of the range 
+and later in the boot sequence, we just add the reserved range to
+huge_boot_pages.
 
-Thanks
+For baremetal config (when we are not running as guest) we want to 
+follow what other architecture does, that is look at the command line 
+and do memblock allocation. Hence the need to call generic function 
+__alloc_bootmem_huge_page() in that case.
+
+I can add all these details in to the commit message if that makes it easy ?
+
 -aneesh
 
 --
