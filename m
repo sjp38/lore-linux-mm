@@ -1,27 +1,21 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH] mm/slub: fix a deadlock due to incomplete patching
- of cpusets_enabled()
-Date: Wed, 26 Jul 2017 12:02:17 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1707261158560.9311@nuc-kabylake>
-References: <20170726165022.10326-1-dmitriyz@waymo.com>
+Subject: Re: [PATCH 2/5] mm: slub: constify attribute_group structures.
+Date: Thu, 27 Jul 2017 09:36:41 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1707270936260.14168@nuc-kabylake>
+References: <1501157186-3749-1-git-send-email-arvind.yadav.cs@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20170726165022.10326-1-dmitriyz@waymo.com>
+In-Reply-To: <1501157186-3749-1-git-send-email-arvind.yadav.cs@gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Dima Zavin <dmitriyz@waymo.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Cliff Spradlin <cspradlin@waymo.com>
+To: Arvind Yadav <arvind.yadav.cs@gmail.com>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-On Wed, 26 Jul 2017, Dima Zavin wrote:
+On Thu, 27 Jul 2017, Arvind Yadav wrote:
 
-> The fix is to cache the value that's returned by cpusets_enabled() at the
-> top of the loop, and only operate on the seqlock (both begin and retry) if
-> it was true.
+> attribute_group are not supposed to change at runtime. All functions
+> working with attribute_group provided by <linux/sysfs.h> work with
+> const attribute_group. So mark the non-const structs as const.
 
-I think the proper fix would be to ensure that the calls to
-read_mems_allowed_{begin,retry} cannot cause the deadlock. Otherwise you
-have to fix this in multiple places.
-
-Maybe read_mems_allowed_* can do some form of synchronization or *_retry
-can implictly rely on the results of cpusets_enabled() by *_begin?
+Acked-by: Christoph Lameter <cl@linux.com>
