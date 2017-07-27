@@ -1,110 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C42156B025F
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 05:12:02 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z36so26278063wrb.13
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:12:02 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 16si14633699wrt.399.2017.07.27.02.12.01
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C1ED66B025F
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 06:50:35 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id k68so5899416wmd.14
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 03:50:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q30si10272314wra.202.2017.07.27.03.50.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 02:12:01 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q189so11726519wmd.0
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:12:01 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
-Date: Thu, 27 Jul 2017 11:03:57 +0200
-Message-Id: <20170727090357.3205-3-mhocko@kernel.org>
-In-Reply-To: <20170727090357.3205-1-mhocko@kernel.org>
-References: <20170727090357.3205-1-mhocko@kernel.org>
+        Thu, 27 Jul 2017 03:50:34 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6RAmgYx078549
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 06:50:32 -0400
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2bycygd7e7-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 06:50:32 -0400
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 27 Jul 2017 06:50:32 -0400
+Subject: Re: [RFC PATCH 3/3] mm/hugetlb: Remove pmd_huge_split_prepare
+References: <20170727083756.32217-1-aneesh.kumar@linux.vnet.ibm.com>
+ <20170727083756.32217-3-aneesh.kumar@linux.vnet.ibm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Date: Thu, 27 Jul 2017 16:20:25 +0530
+MIME-Version: 1.0
+In-Reply-To: <20170727083756.32217-3-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <912dcb7d-4dff-979a-3777-2e9e13a7adda@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, "Kirill A . Shutemov" <kirill@shutemov.name>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
 
-TIF_MEMDIE is set only to the tasks whick were either directly selected
-by the OOM killer or passed through mark_oom_victim from the allocator
-path. tsk_is_oom_victim is more generic and allows to identify all tasks
-(threads) which share the mm with the oom victim.
 
-Please note that the freezer still needs to check TIF_MEMDIE because
-we cannot thaw tasks which do not participage in oom_victims counting
-otherwise a !TIF_MEMDIE task could interfere after oom_disbale returns.
+On 07/27/2017 02:07 PM, Aneesh Kumar K.V wrote:
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- kernel/cgroup/cpuset.c | 8 ++++----
- mm/memcontrol.c        | 2 +-
- mm/oom_kill.c          | 2 +-
- 3 files changed, 6 insertions(+), 6 deletions(-)
+> diff --git a/arch/powerpc/include/asm/book3s/64/hash-64k.h b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> index 8c8fb6fbdabe..b856e130c678 100644
+> --- a/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> +++ b/arch/powerpc/include/asm/book3s/64/hash-64k.h
+> @@ -164,8 +164,6 @@ extern pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma,
+>   extern void hash__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+>   					 pgtable_t pgtable);
+>   extern pgtable_t hash__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+> -extern void hash__pmdp_huge_split_prepare(struct vm_area_struct *vma,
+> 
+> @@ -1956,14 +1956,39 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>   		return __split_huge_zero_page_pmd(vma, haddr, pmd);
+>   	}
+> 
 
-diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-index ca8376e5008c..1cc53dff0d94 100644
---- a/kernel/cgroup/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
-@@ -2497,12 +2497,12 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
-  * If we're in interrupt, yes, we can always allocate.  If @node is set in
-  * current's mems_allowed, yes.  If it's not a __GFP_HARDWALL request and this
-  * node is set in the nearest hardwalled cpuset ancestor to current's cpuset,
-- * yes.  If current has access to memory reserves due to TIF_MEMDIE, yes.
-+ * yes.  If current has access to memory reserves as an oom victim, yes.
-  * Otherwise, no.
-  *
-  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
-  * and do not allow allocations outside the current tasks cpuset
-- * unless the task has been OOM killed as is marked TIF_MEMDIE.
-+ * unless the task has been OOM killed.
-  * GFP_KERNEL allocations are not so marked, so can escape to the
-  * nearest enclosing hardwalled ancestor cpuset.
-  *
-@@ -2525,7 +2525,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
-  * affect that:
-  *	in_interrupt - any node ok (current task context irrelevant)
-  *	GFP_ATOMIC   - any node ok
-- *	TIF_MEMDIE   - any node ok
-+ *	tsk_is_oom_victim   - any node ok
-  *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
-  *	GFP_USER     - only nodes in current tasks mems allowed ok.
-  */
-@@ -2543,7 +2543,7 @@ bool __cpuset_node_allowed(int node, gfp_t gfp_mask)
- 	 * Allow tasks that have access to memory reserves because they have
- 	 * been OOM killed to get memory anywhere.
- 	 */
--	if (unlikely(test_thread_flag(TIF_MEMDIE)))
-+	if (unlikely(tsk_is_oom_victim(current)))
- 		return true;
- 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
- 		return false;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 544d47e5cbbd..86a48affb938 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1896,7 +1896,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * bypass the last charges so that they can exit quickly and
- 	 * free their memory.
- 	 */
--	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
-+	if (unlikely(tsk_is_oom_victim(current) ||
- 		     fatal_signal_pending(current) ||
- 		     current->flags & PF_EXITING))
- 		goto force;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index c9f3569a76c7..65cc2f9aaa05 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -483,7 +483,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	 *				[...]
- 	 *				out_of_memory
- 	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
-+	 *				    # no TIF_MEMDIE, selects new victim
- 	 *  unmap_page_range # frees some memory
- 	 */
- 	mutex_lock(&oom_lock);
--- 
-2.13.2
+
+....
+
+> +	 */
+> +	old_pmd = pmdp_invalidate(vma, haddr, pmd);
+> +
+> +	page = pmd_page(old_pmd);
+>   	VM_BUG_ON_PAGE(!page_count(page), page);
+>   	page_ref_add(page, HPAGE_PMD_NR - 1);
+> -	write = pmd_write(*pmd);
+> -	young = pmd_young(*pmd);
+> -	soft_dirty = pmd_soft_dirty(*pmd);
+> -
+> -	pmdp_huge_split_prepare(vma, haddr, pmd);
+> +	write = pmd_write(old_pmd);
+> +	young = pmd_young(old_pmd);
+> +	dirty = pmd_dirty(*pmd);
+
+This should be
+
+	dirty = pmd_dirty(old_pmd);
+
+
+> +	soft_dirty = pmd_soft_dirty(old_pmd);
+> +	/*
+> +	 * withdraw the table only after we mark the pmd entry invalid
+> +	 */
+>   	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
