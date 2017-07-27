@@ -1,77 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C37616B02FD
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:32:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c184so17729746wmd.6
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:32:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DD16D6B025F
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:48:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p17so9523531wmd.5
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:48:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e12si6320681wrd.321.2017.07.26.23.32.07
+        by mx.google.com with ESMTPS id 42si3578755wrb.112.2017.07.26.23.48.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Jul 2017 23:32:07 -0700 (PDT)
-Date: Thu, 27 Jul 2017 08:32:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170727063202.GA20970@dhcp22.suse.cz>
-References: <20170724072332.31903-1-mhocko@kernel.org>
- <20170725152639.GP29716@redhat.com>
- <20170725154514.GN26723@dhcp22.suse.cz>
- <20170725182619.GQ29716@redhat.com>
- <20170726054533.GA960@dhcp22.suse.cz>
- <20170726163928.GB29716@redhat.com>
+        Wed, 26 Jul 2017 23:48:45 -0700 (PDT)
+Date: Thu, 27 Jul 2017 07:48:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2 1/2] mm: migrate: prevent racy access to
+ tlb_flush_pending
+Message-ID: <20170727064843.zp6mt67olxbkrfpu@suse.de>
+References: <20170726150214.11320-1-namit@vmware.com>
+ <20170726150214.11320-2-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170726163928.GB29716@redhat.com>
+In-Reply-To: <20170726150214.11320-2-namit@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Nadav Amit <namit@vmware.com>
+Cc: linux-mm@kvack.org, nadav.amit@gmail.com, riel@redhat.com, luto@kernel.org, stable@vger.kernel.org
 
-On Wed 26-07-17 18:39:28, Andrea Arcangeli wrote:
-> On Wed, Jul 26, 2017 at 07:45:33AM +0200, Michal Hocko wrote:
-> > Yes, exit_aio is the only blocking call I know of currently. But I would
-> > like this to be as robust as possible and so I do not want to rely on
-> > the current implementation. This can change in future and I can
-> > guarantee that nobody will think about the oom path when adding
-> > something to the final __mmput path.
+On Wed, Jul 26, 2017 at 08:02:13AM -0700, Nadav Amit wrote:
+> From: Nadav Amit <nadav.amit@gmail.com>
 > 
-> I think ksm_exit may block too waiting for allocations, the generic
-> idea is those calls before exit_mmap can cause a problem yes.
-
-I thought that ksm used __GFP_NORETRY but haven't checked too deeply.
-Anyway I guess we agree that enabling oom_reaper to race with the final
-__mmput is desirable?
-
-[...]
-> > This will work more or less the same to what we have currently.
-> > 
-> > [victim]		[oom reaper]				[oom killer]
-> > do_exit			__oom_reap_task_mm
-> >   mmput
-> >     __mmput
-> > 			  mmget_not_zero
-> > 			    test_and_set_bit(MMF_OOM_SKIP)
-> > 			    					oom_evaluate_task
-> > 								   # select next victim 
-> > 			  # reap the mm
-> >       unmap_vmas
-> >
-> > so we can select a next victim while the current one is still not
-> > completely torn down.
+> Setting and clearing mm->tlb_flush_pending can be performed by multiple
+> threads, since mmap_sem may only be acquired for read in
+> task_numa_work(). If this happens, tlb_flush_pending might be cleared
+> while one of the threads still changes PTEs and batches TLB flushes.
 > 
-> How does oom_evaluate_task possibly run at the same time of
-> test_and_set_bit in __oom_reap_task_mm considering both are running
-> under the oom_lock?
+> This can lead to the same race between migration and
+> change_protection_range() that led to the introduction of
+> tlb_flush_pending. The result of this race was data corruption, which
+> means that this patch also addresses a theoretically possible data
+> corruption.
+> 
+> An actual data corruption was not observed, yet the race was
+> was confirmed by adding assertion to check tlb_flush_pending is not set
+> by two threads, adding artificial latency in change_protection_range()
+> and using sysctl to reduce kernel.numa_balancing_scan_delay_ms.
+> 
+> Fixes: 20841405940e ("mm: fix TLB flush race between migration, and
+> change_protection_range")
+> 
+> Cc: stable@vger.kernel.org
+> 
+> Signed-off-by: Nadav Amit <namit@vmware.com>
 
-You are absolutely right. This race is impossible. It was just me
-assuming we are going to get rid of the oom_lock because I have that
-idea in the back of my head and I would really like to get rid of
-it. Global locks are nasty and I would prefer dropping it if we can.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-[...]
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
