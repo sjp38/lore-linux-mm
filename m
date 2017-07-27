@@ -1,77 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 39F086B049B
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:55:39 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id n140so236265291ywd.13
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:55:39 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l125si4362414ywd.69.2017.07.27.07.55.38
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA92B6B049D
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:56:10 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q198so64854645qke.13
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:56:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k5si15529763qtf.39.2017.07.27.07.56.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 07:55:38 -0700 (PDT)
-Date: Thu, 27 Jul 2017 15:55:13 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
-Message-ID: <20170727145513.GA1185@castle.DHCP.thefacebook.com>
-References: <20170727090357.3205-1-mhocko@kernel.org>
- <20170727090357.3205-3-mhocko@kernel.org>
- <201707272301.EII82876.tOOJOFLMHFQSFV@I-love.SAKURA.ne.jp>
- <20170727144544.GC31031@dhcp22.suse.cz>
+        Thu, 27 Jul 2017 07:56:10 -0700 (PDT)
+Date: Thu, 27 Jul 2017 16:55:59 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: <20170727145559.GD29716@redhat.com>
+References: <20170724161146.GQ25221@dhcp22.suse.cz>
+ <20170725142626.GJ26723@dhcp22.suse.cz>
+ <20170725151754.3txp44a2kbffsxdg@node.shutemov.name>
+ <20170725152300.GM26723@dhcp22.suse.cz>
+ <20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name>
+ <20170725160359.GO26723@dhcp22.suse.cz>
+ <20170725191952.GR29716@redhat.com>
+ <20170726054557.GB960@dhcp22.suse.cz>
+ <20170726162912.GA29716@redhat.com>
+ <20170727065023.GB20970@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170727144544.GC31031@dhcp22.suse.cz>
+In-Reply-To: <20170727065023.GB20970@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 27, 2017 at 04:45:44PM +0200, Michal Hocko wrote:
-> On Thu 27-07-17 23:01:05, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 544d47e5cbbd..86a48affb938 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -1896,7 +1896,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> > >  	 * bypass the last charges so that they can exit quickly and
-> > >  	 * free their memory.
-> > >  	 */
-> > > -	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
-> > > +	if (unlikely(tsk_is_oom_victim(current) ||
-> > >  		     fatal_signal_pending(current) ||
-> > >  		     current->flags & PF_EXITING))
-> > >  		goto force;
-> > 
-> > Did we check http://lkml.kernel.org/r/20160909140508.GO4844@dhcp22.suse.cz ?
+On Thu, Jul 27, 2017 at 08:50:24AM +0200, Michal Hocko wrote:
+> Yes this will work and it won't depend on the oom_lock. But isn't it
+> just more ugly than simply doing
 > 
-> OK, so your concern was
-> 
-> > Does this test_thread_flag(TIF_MEMDIE) (or tsk_is_oom_victim(current)) make sense?
-> > 
-> > If current thread is OOM-killed, SIGKILL must be pending before arriving at
-> > do_exit() and PF_EXITING must be set after arriving at do_exit().
-> 
-> > But I can't find locations which do memory allocation between clearing
-> > SIGKILL and setting PF_EXITING.
-> 
-> I can't find them either and maybe there are none. But why do we care
-> in this particular patch which merely replaces TIF_MEMDIE check by
-> tsk_is_oom_victim? The code will surely not become less valid. If
-> you believe this check is redundant then send a patch with the clear
-> justification. But I would say, at least from the robustness point of
-> view I would just keep it there. We do not really have any control on
-> what happens between clearing signals and setting PF_EXITING.
+> 	if (tsk_is_oom_victim) {
+> 		down_write(&mm->mmap_sem);
+> 		locked = true;
+> 	}
+> 	free_pgtables(...)
+> 	[...]
+> 	if (locked)
+> 		down_up(&mm->mmap_sem);
 
-I agree, this check is probably redundant, but it really makes no difference,
-let's keep it bullet-proof. If we care about performance here, we can rearrange
-the checks:
-  if (unlikely(fatal_signal_pending(current) ||
-  	     current->flags & PF_EXITING) ||
-  	     tsk_is_oom_victim(current))
-  	goto force;
+To me not doing if (tsk_is_oom...) { down_write; up_write } is by
+default a confusing implementation, because it's not strict and not
+strict code is not self documenting and you've to think twice of why
+you're doing something the way you're doing it.
 
-Roman
+The doubt on what was the point to hold the mmap_sem during
+free_pgtables is precisely why I started digging into this issue
+because it didn't look possible you could truly benefit from holding
+the mmap_sem during free_pgtables.
+
+I also don't like having a new invariant that your solution relies on,
+that is mm->mmap = NULL, when we can make just set the MMF_OOM_SKIP a
+bit earlier that it gets set anyway and use that to control the other
+side of the race.
+
+I like strict code that uses as fewer invariants as possible and that
+never holds a lock for any instruction more than it is required (again
+purely for self documenting reasons, the CPU won't notice much one
+instruction more or less).
+
+Even with your patch the two branches are unnecessary, that may not be
+measurable, but it's still wasted CPU. It's all about setting mm->mmap
+before the up_write. In fact my patch should at least put an incremental
+unlikely around my single branch added to exit_mmap.
+
+I see the {down_write;up_write} Hugh's ksm_exit-like as a strict
+solution to this issue and I wrote it specifically while trying to
+research a way to be more strict because from the start it didn't look
+the holding of the mmap_sem during free_pgtables was necessary.
+
+I'm also fine to drop the oom_lock but I think it can be done
+incrementally as it's a separate issue, my second patch should allow
+for it with no adverse side effects.
+
+All I care about is the exit_mmap path because it runs too many times
+not to pay deep attention to every bit of it ;).
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
