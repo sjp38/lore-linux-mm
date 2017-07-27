@@ -1,68 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 42B0B6B049F
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:26:08 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id f16so180713248itb.9
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 08:26:08 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a73si10976069itd.32.2017.07.27.08.26.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8C56B04A1
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:30:51 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x64so12772879wmg.11
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 08:30:51 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u11si3953216eda.521.2017.07.27.08.30.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 08:26:07 -0700 (PDT)
-Date: Thu, 27 Jul 2017 11:25:56 -0400
-From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Subject: Re: [PATCH v3 1/3] mm/hugetlb: Allow arch to override and call the
- weak function
-Message-ID: <20170727152556.s4uw5cuvdf36hodl@oracle.com>
-References: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Jul 2017 08:30:49 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 1/3] sched/loadavg: consolidate LOAD_INT, LOAD_FRAC macros
+Date: Thu, 27 Jul 2017 11:30:08 -0400
+Message-Id: <20170727153010.23347-2-hannes@cmpxchg.org>
+In-Reply-To: <20170727153010.23347-1-hannes@cmpxchg.org>
+References: <20170727153010.23347-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-* Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com> [170727 02:18]:
-> For ppc64, we want to call this function when we are not running as guest.
-> Also, if we failed to allocate hugepages, let the user know.
-> 
-[...]
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bc48ee783dd9..a3a7a7e6339e 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2083,7 +2083,9 @@ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
->  	return page;
->  }
->  
-> -int __weak alloc_bootmem_huge_page(struct hstate *h)
-> +int alloc_bootmem_huge_page(struct hstate *h)
-> +	__attribute__ ((weak, alias("__alloc_bootmem_huge_page")));
-> +int __alloc_bootmem_huge_page(struct hstate *h)
->  {
->  	struct huge_bootmem_page *m;
->  	int nr_nodes, node;
-> @@ -2104,6 +2106,7 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
->  			goto found;
->  		}
->  	}
-> +	pr_info("Failed to allocate hugepage of size %ld\n", huge_page_size(h));
->  	return 0;
->  
->  found:
+There are several identical definitions of those macros in places that
+mess with fixed-point load averages. Provide an official version.
 
-There is already a call to warn the user in the
-hugetlb_hstate_alloc_pages function.  If you look there, you will see
-that the huge_page_size was translated into a more user friendly format
-and the count prior to the failure is included.  What call path are you
-trying to cover?  Also, you may want your print to be a pr_warn since it
-is a failure?
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ arch/powerpc/platforms/cell/spufs/sched.c | 3 ---
+ arch/s390/appldata/appldata_os.c          | 4 ----
+ drivers/cpuidle/governors/menu.c          | 4 ----
+ fs/proc/loadavg.c                         | 3 ---
+ include/linux/sched/loadavg.h             | 3 +++
+ kernel/debug/kdb/kdb_main.c               | 7 +------
+ 6 files changed, 4 insertions(+), 20 deletions(-)
 
-Thanks,
-Liam
-
+diff --git a/arch/powerpc/platforms/cell/spufs/sched.c b/arch/powerpc/platforms/cell/spufs/sched.c
+index 1fbb5da17dd2..de544070def3 100644
+--- a/arch/powerpc/platforms/cell/spufs/sched.c
++++ b/arch/powerpc/platforms/cell/spufs/sched.c
+@@ -1071,9 +1071,6 @@ void spuctx_switch_state(struct spu_context *ctx,
+ 	}
+ }
+ 
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int show_spu_loadavg(struct seq_file *s, void *private)
+ {
+ 	int a, b, c;
+diff --git a/arch/s390/appldata/appldata_os.c b/arch/s390/appldata/appldata_os.c
+index 45b3178200ab..a8aac17e1e82 100644
+--- a/arch/s390/appldata/appldata_os.c
++++ b/arch/s390/appldata/appldata_os.c
+@@ -24,10 +24,6 @@
+ 
+ #include "appldata.h"
+ 
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ /*
+  * OS data
+  *
+diff --git a/drivers/cpuidle/governors/menu.c b/drivers/cpuidle/governors/menu.c
+index b2330fd69e34..3d7275ea541d 100644
+--- a/drivers/cpuidle/governors/menu.c
++++ b/drivers/cpuidle/governors/menu.c
+@@ -132,10 +132,6 @@ struct menu_device {
+ 	int		interval_ptr;
+ };
+ 
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static inline int get_loadavg(unsigned long load)
+ {
+ 	return LOAD_INT(load) * 10 + LOAD_FRAC(load) / 10;
+diff --git a/fs/proc/loadavg.c b/fs/proc/loadavg.c
+index 983fce5c2418..111a25e4b088 100644
+--- a/fs/proc/loadavg.c
++++ b/fs/proc/loadavg.c
+@@ -9,9 +9,6 @@
+ #include <linux/seqlock.h>
+ #include <linux/time.h>
+ 
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+-
+ static int loadavg_proc_show(struct seq_file *m, void *v)
+ {
+ 	unsigned long avnrun[3];
+diff --git a/include/linux/sched/loadavg.h b/include/linux/sched/loadavg.h
+index 4264bc6b2c27..745483bb5cca 100644
+--- a/include/linux/sched/loadavg.h
++++ b/include/linux/sched/loadavg.h
+@@ -26,6 +26,9 @@ extern void get_avenrun(unsigned long *loads, unsigned long offset, int shift);
+ 	load += n*(FIXED_1-exp); \
+ 	load >>= FSHIFT;
+ 
++#define LOAD_INT(x) ((x) >> FSHIFT)
++#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
++
+ extern void calc_global_load(unsigned long ticks);
+ 
+ #endif /* _LINUX_SCHED_LOADAVG_H */
+diff --git a/kernel/debug/kdb/kdb_main.c b/kernel/debug/kdb/kdb_main.c
+index c8146d53ca67..2dddd25ccd7a 100644
+--- a/kernel/debug/kdb/kdb_main.c
++++ b/kernel/debug/kdb/kdb_main.c
+@@ -2571,16 +2571,11 @@ static int kdb_summary(int argc, const char **argv)
+ 	}
+ 	kdb_printf("%02ld:%02ld\n", val.uptime/(60*60), (val.uptime/60)%60);
+ 
+-	/* lifted from fs/proc/proc_misc.c::loadavg_read_proc() */
+-
+-#define LOAD_INT(x) ((x) >> FSHIFT)
+-#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+ 	kdb_printf("load avg   %ld.%02ld %ld.%02ld %ld.%02ld\n",
+ 		LOAD_INT(val.loads[0]), LOAD_FRAC(val.loads[0]),
+ 		LOAD_INT(val.loads[1]), LOAD_FRAC(val.loads[1]),
+ 		LOAD_INT(val.loads[2]), LOAD_FRAC(val.loads[2]));
+-#undef LOAD_INT
+-#undef LOAD_FRAC
++
+ 	/* Display in kilobytes */
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	kdb_printf("\nMemTotal:       %8lu kB\nMemFree:        %8lu kB\n"
+-- 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
