@@ -1,91 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A86DF6B0492
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 13:33:16 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g32so11576926wrd.8
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:33:16 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id b4si15673055wrf.401.2017.07.27.10.33.14
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AD76B6B0496
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 13:36:19 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u89so36015323wrc.1
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:36:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d43si20307132wrd.85.2017.07.27.10.36.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 10:33:14 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6RHSivJ130281
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 13:33:13 -0400
-Received: from e24smtp01.br.ibm.com (e24smtp01.br.ibm.com [32.104.18.85])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2byj6xfnd4-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 13:33:13 -0400
-Received: from localhost
-	by e24smtp01.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Thu, 27 Jul 2017 14:33:11 -0300
-Received: from d24av01.br.ibm.com (d24av01.br.ibm.com [9.8.31.91])
-	by d24relay04.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6RHX9Dd25428206
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 14:33:09 -0300
-Received: from d24av01.br.ibm.com (localhost [127.0.0.1])
-	by d24av01.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6RHX97I025980
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 14:33:09 -0300
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-21-git-send-email-linuxram@us.ibm.com>
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 20/62] powerpc: store and restore the pkey state across context switches
-In-reply-to: <1500177424-13695-21-git-send-email-linuxram@us.ibm.com>
-Date: Thu, 27 Jul 2017 14:32:59 -0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 27 Jul 2017 10:36:18 -0700 (PDT)
+Date: Thu, 27 Jul 2017 18:36:13 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Potential race in TLB flush batching?
+Message-ID: <20170727173613.g3vz2dv3fcxrsnf7@suse.de>
+References: <20170726092228.pyjxamxweslgaemi@suse.de>
+ <A300D14C-D7EE-4A26-A7CF-A7643F1A61BA@gmail.com>
+ <20170726234025.GA4491@bbox>
+ <60FF1876-AC4F-49BB-BC36-A144C3B6EA9E@gmail.com>
+ <20170727003434.GA537@bbox>
+ <77AFE0A4-FE3D-4E05-B248-30ADE2F184EF@gmail.com>
+ <AACB7A95-A1E1-4ACD-812F-BD9F8F564FD7@gmail.com>
+ <20170727070420.GA1052@bbox>
+ <20170727072113.dpv2nsqaft3inpru@suse.de>
+ <68D28CCA-10CC-48F8-A38F-B682A98A4BA5@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <878tj94wfo.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <68D28CCA-10CC-48F8-A38F-B682A98A4BA5@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
+On Thu, Jul 27, 2017 at 09:04:11AM -0700, Nadav Amit wrote:
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Thu, Jul 27, 2017 at 04:04:20PM +0900, Minchan Kim wrote:
+> >>> There is one issue I forgot: pte_accessible() on x86 regards
+> >>> mm_tlb_flush_pending() as an indication for NUMA migration. But now the code
+> >>> does not make too much sense:
+> >>> 
+> >>>        if ((pte_flags(a) & _PAGE_PROTNONE) &&
+> >>>                        mm_tlb_flush_pending(mm))
+> >>> 
+> >>> Either we remove the _PAGE_PROTNONE check or we need to use the atomic field
+> >>> to count separately pending flushes due to migration and due to other
+> >>> reasons. The first option is safer, but Mel objected to it, because of the
+> >>> performance implications. The second one requires some thought on how to
+> >>> build a single counter for multiple reasons and avoid a potential overflow.
+> >>> 
+> >>> Thoughts?
+> >> 
+> >> I'm really new for the autoNUMA so not sure I understand your concern
+> >> If your concern is that increasing places where add up pending count,
+> >> autoNUMA performance might be hurt. Right?
+> >> If so, above _PAGE_PROTNONE check will filter out most of cases?
+> >> Maybe, Mel could answer.
+> > 
+> > I'm not sure what I'm being asked. In the case above, the TLB flush pending
+> > is only relevant against autonuma-related races so only those PTEs are
+> > checked to limit overhead. It could be checked on every PTE but it's
+> > adding more compiler barriers or more atomic reads which do not appear
+> > necessary. If the check is removed, a comment should be added explaining
+> > why every PTE has to be checked.
+> 
+> I considered breaking tlb_flush_pending to two: tlb_flush_pending_numa and
+> tlb_flush_pending_other (they can share one atomic64_t field). This way,
+> pte_accessible() would only consider ???tlb_flush_pending_numa", and the
+> changes that Minchan proposed would not increase the number unnecessary TLB
+> flushes.
+> 
+> However, considering the complexity of the TLB flushes scheme, and the fact
+> I am not fully convinced all of these TLB flushes are indeed unnecessary, I
+> will put it aside.
+> 
 
-Ram Pai <linuxram@us.ibm.com> writes:
-
-> Store and restore the AMR, IAMR and UMOR register state of the task
-> before scheduling out and after scheduling in, respectively.
->
-> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
-
-s/UMOR/UAMOR/
-
-> diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
-> index 2ad725e..9429361 100644
-> --- a/arch/powerpc/kernel/process.c
-> +++ b/arch/powerpc/kernel/process.c
-> @@ -1096,6 +1096,11 @@ static inline void save_sprs(struct thread_struct *t)
->  		t->tar = mfspr(SPRN_TAR);
->  	}
->  #endif
-> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> +	t->amr = mfspr(SPRN_AMR);
-> +	t->iamr = mfspr(SPRN_IAMR);
-> +	t->uamor = mfspr(SPRN_UAMOR);
-> +#endif
->  }
->
->  static inline void restore_sprs(struct thread_struct *old_thread,
-> @@ -1131,6 +1136,14 @@ static inline void restore_sprs(struct thread_struct *old_thread,
->  			mtspr(SPRN_TAR, new_thread->tar);
->  	}
->  #endif
-> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
-> +	if (old_thread->amr != new_thread->amr)
-> +		mtspr(SPRN_AMR, new_thread->amr);
-> +	if (old_thread->iamr != new_thread->iamr)
-> +		mtspr(SPRN_IAMR, new_thread->iamr);
-> +	if (old_thread->uamor != new_thread->uamor)
-> +		mtspr(SPRN_UAMOR, new_thread->uamor);
-> +#endif
->  }
-
-Shouldn't the saving and restoring of the SPRs be guarded by a check for
-whether memory protection keys are enabled? What happens when trying to
-access these registers on a CPU which doesn't have them?
+Ok, I understand now. With a second set/clear of mm_tlb_flush_pending,
+it is necessary to remove the PROT_NUMA check from pte_accessible because
+it's no longer change_prot_range that is the only user of concern. At
+this time, I do not see a value if adding two pending field because it's
+a maintenance headache and an API that would be harder to get right. It's
+also not clear it would add any performance advantage and even if it did,
+it's the type of complexity that would need hard data supporting it.
 
 -- 
-Thiago Jung Bauermann
-IBM Linux Technology Center
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
