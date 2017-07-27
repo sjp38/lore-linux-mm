@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8E76B02F4
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:18:54 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z36so25814132wrb.13
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:18:54 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B68F76B02FD
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:27:10 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id c184so17720607wmd.6
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:27:10 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l35si15129683wre.293.2017.07.26.23.18.53
+        by mx.google.com with ESMTPS id b58si15317246wra.454.2017.07.26.23.27.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 23:18:53 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6R6DfHV025181
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:18:52 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2by76hrxk8-1
+        Wed, 26 Jul 2017 23:27:09 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6R6O3nH080150
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:27:08 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2by364t79a-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:18:51 -0400
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 02:27:07 -0400
 Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 27 Jul 2017 02:18:51 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH v3 3/3] powerpc/mm/hugetlb: Allow runtime allocation of 16G.
-Date: Thu, 27 Jul 2017 11:48:28 +0530
-In-Reply-To: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
-References: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
-Message-Id: <20170727061828.11406-3-aneesh.kumar@linux.vnet.ibm.com>
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 27 Jul 2017 07:27:06 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
+Date: Thu, 27 Jul 2017 09:26:59 +0300
+Message-Id: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, stable@vger.kernel.org
 
-We now have GIGANTIC_PAGE on powerpc. Currently this is enabled only on
-radix with 1G as gigantic hugepage size. Enable this with hash translation mode
-too (ie, with 16G hugepage size). Depending on the total system memory we may
-be able to allocate 16G hugepage size. This bring parity between radix and hash
-translation mode. Also reduce the confusion of the user with respect to
-hugetlbfs usage.
+In the non-cooperative userfaultfd case, the process exit may race with
+outstanding mcopy_atomic called by the uffd monitor.  Returning -ENOSPC
+instead of -EINVAL when mm is already gone will allow uffd monitor to
+distinguish this case from other error conditions.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+
+Cc: stable@vger.kernel.org
+Fixes: 96333187ab162 ("userfaultfd_copy: return -ENOSPC in case mm has gone")
+
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/book3s/64/hugetlb.h | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-index 5c28bd6f2ae1..2d1ca488ca44 100644
---- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-+++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-@@ -54,9 +54,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
- #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
- static inline bool gigantic_page_supported(void)
- {
--	if (radix_enabled())
--		return true;
--	return false;
-+	return true;
- }
- #endif
- 
+Unfortunately, I've overlooked userfaultfd_zeropage when I updated
+userfaultd_copy :(
+
+ fs/userfaultfd.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index cadcd12a3d35..2d8c2d848668 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1643,6 +1643,8 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+ 		ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
+ 				     uffdio_zeropage.range.len);
+ 		mmput(ctx->mm);
++	} else {
++		return -ENOSPC;
+ 	}
+ 	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
+ 		return -EFAULT;
 -- 
-2.13.3
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
