@@ -1,65 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BA2A6B0494
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:45:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z48so33504856wrc.4
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:45:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 17AB86B0497
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:47:59 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id x43so35630548wrb.9
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:47:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e204si7298675wme.193.2017.07.27.07.45.47
+        by mx.google.com with ESMTPS id z37si20547057wrb.382.2017.07.27.07.47.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 07:45:47 -0700 (PDT)
-Date: Thu, 27 Jul 2017 16:45:44 +0200
+        Thu, 27 Jul 2017 07:47:58 -0700 (PDT)
+Date: Thu, 27 Jul 2017 16:47:55 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
-Message-ID: <20170727144544.GC31031@dhcp22.suse.cz>
-References: <20170727090357.3205-1-mhocko@kernel.org>
- <20170727090357.3205-3-mhocko@kernel.org>
- <201707272301.EII82876.tOOJOFLMHFQSFV@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH 1/2] mm, memcg: reset memory.low during memcg offlining
+Message-ID: <20170727144755.GD31031@dhcp22.suse.cz>
+References: <20170726083017.3yzeucmi7lcj46qd@esperanza>
+ <20170727130428.28856-1-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707272301.EII82876.tOOJOFLMHFQSFV@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170727130428.28856-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 27-07-17 23:01:05, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 544d47e5cbbd..86a48affb938 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1896,7 +1896,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	 * bypass the last charges so that they can exit quickly and
-> >  	 * free their memory.
-> >  	 */
-> > -	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
-> > +	if (unlikely(tsk_is_oom_victim(current) ||
-> >  		     fatal_signal_pending(current) ||
-> >  		     current->flags & PF_EXITING))
-> >  		goto force;
+On Thu 27-07-17 14:04:27, Roman Gushchin wrote:
+> A removed memory cgroup with a defined memory.low and some belonging
+> pagecache has very low chances to be freed.
 > 
-> Did we check http://lkml.kernel.org/r/20160909140508.GO4844@dhcp22.suse.cz ?
-
-OK, so your concern was
-
-> Does this test_thread_flag(TIF_MEMDIE) (or tsk_is_oom_victim(current)) make sense?
+> If a cgroup has been removed, there is likely no memory pressure inside
+> the cgroup, and the pagecache is protected from the external pressure
+> by the defined low limit. The cgroup will be freed only after
+> the reclaim of all belonging pages. And it will not happen until
+> there are any reclaimable memory in the system. That means,
+> there is a good chance, that a cold pagecache will reside
+> in the memory for an undefined amount of time, wasting
+> system resources.
 > 
-> If current thread is OOM-killed, SIGKILL must be pending before arriving at
-> do_exit() and PF_EXITING must be set after arriving at do_exit().
+> This problem was fixed earlier by commit fa06235b8eb0
+> ("cgroup: reset css on destruction"), but it's not a best way
+> to do it, as we can't really reset all limits/counters during
+> cgroup offlining.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
 
-> But I can't find locations which do memory allocation between clearing
-> SIGKILL and setting PF_EXITING.
+my ack for this patch still holds.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I can't find them either and maybe there are none. But why do we care
-in this particular patch which merely replaces TIF_MEMDIE check by
-tsk_is_oom_victim? The code will surely not become less valid. If
-you believe this check is redundant then send a patch with the clear
-justification. But I would say, at least from the robustness point of
-view I would just keep it there. We do not really have any control on
-what happens between clearing signals and setting PF_EXITING.
+> ---
+>  mm/memcontrol.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d61133e6af99..7b24210596ea 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4300,6 +4300,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+>  	}
+>  	spin_unlock(&memcg->event_list_lock);
+>  
+> +	memcg->low = 0;
+> +
+>  	memcg_offline_kmem(memcg);
+>  	wb_memcg_offline(memcg);
+>  
+> -- 
+> 2.13.3
+
 -- 
 Michal Hocko
 SUSE Labs
