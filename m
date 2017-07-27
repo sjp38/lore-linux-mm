@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E95AD6B025F
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:27:20 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r123so18462790wmb.1
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 01:27:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q11si6579502wrd.353.2017.07.27.01.27.19
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 937CB6B025F
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:38:17 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g28so34566102wrg.3
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 01:38:17 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 63si1356409wmr.230.2017.07.27.01.38.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 01:27:19 -0700 (PDT)
-Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
- with runtime-time
-References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
- <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
- <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
- <20170725090538.26sbgb4npkztsqj3@black.fi.intel.com>
- <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
- <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <c225cead-70e7-86fb-c754-053bbc3e2b7f@suse.com>
-Date: Thu, 27 Jul 2017 10:27:16 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Jul 2017 01:38:16 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6R8YNWu110182
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:38:15 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2by76hxrcu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 04:38:14 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 27 Jul 2017 02:38:14 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH 1/3] powerpc/mm: update pmdp_invalidate to return old pmd value
+Date: Thu, 27 Jul 2017 14:07:54 +0530
+Message-Id: <20170727083756.32217-1-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, "Kirill A . Shutemov" <kirill@shutemov.name>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On 26/07/17 18:43, Kirill A. Shutemov wrote:
-> On Wed, Jul 26, 2017 at 09:28:16AM +0200, Juergen Gross wrote:
->> On 25/07/17 11:05, Kirill A. Shutemov wrote:
->>> On Tue, Jul 18, 2017 at 04:24:06PM +0200, Juergen Gross wrote:
->>>> Xen PV guests will never run with 5-level-paging enabled. So I guess you
->>>> can drop the complete if (IS_ENABLED(CONFIG_X86_5LEVEL)) {} block.
->>>
->>> There is more code to drop from mmu_pv.c.
->>>
->>> But while there, I thought if with boot-time 5-level paging switching we
->>> can allow kernel to compile with XEN_PV and XEN_PVH, so the kernel image
->>> can be used in these XEN modes with 4-level paging.
->>>
->>> Could you check if with the patch below we can boot in XEN_PV and XEN_PVH
->>> modes?
->>
->> We can't. I have used your branch:
->>
->> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git
->> la57/boot-switching/v2
->>
->> with this patch applied on top.
->>
->> Doesn't boot PV guest with X86_5LEVEL configured (very early crash).
-> 
-> Hm. Okay.
-> 
-> Have you tried PVH?
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/book3s/64/pgtable.h | 4 ++--
+ arch/powerpc/mm/pgtable-book3s64.c           | 9 ++++++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)
 
-Now I have. Its coming up.
-
-> 
->> Doesn't build with X86_5LEVEL not configured:
->>
->>   AS      arch/x86/kernel/head_64.o
-> 
-> I've fixed the patch and split the patch into two parts: cleanup and
-> re-enabling XEN_PV and XEN_PVH for X86_5LEVEL.
-> 
-> There's chance that I screw somthing up in clenaup part. Could you check
-> that?
-
-Not sure I'll manage to do this today. Stay tuned...
-
-
-Juergen
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 41d484ac0822..ece6912fae8e 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -1119,8 +1119,8 @@ static inline pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm,
+ }
+ 
+ #define __HAVE_ARCH_PMDP_INVALIDATE
+-extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+-			    pmd_t *pmdp);
++extern pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
++			     pmd_t *pmdp);
+ 
+ #define __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
+ static inline void pmdp_huge_split_prepare(struct vm_area_struct *vma,
+diff --git a/arch/powerpc/mm/pgtable-book3s64.c b/arch/powerpc/mm/pgtable-book3s64.c
+index 3b65917785a5..0bb7f824ecdd 100644
+--- a/arch/powerpc/mm/pgtable-book3s64.c
++++ b/arch/powerpc/mm/pgtable-book3s64.c
+@@ -90,16 +90,19 @@ void serialize_against_pte_lookup(struct mm_struct *mm)
+  * We use this to invalidate a pmdp entry before switching from a
+  * hugepte to regular pmd entry.
+  */
+-void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+-		     pmd_t *pmdp)
++pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
++		      pmd_t *pmdp)
+ {
+-	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
++	unsigned long old_pmd;
++
++	old_pmd = pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
+ 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	/*
+ 	 * This ensures that generic code that rely on IRQ disabling
+ 	 * to prevent a parallel THP split work as expected.
+ 	 */
+ 	serialize_against_pte_lookup(vma->vm_mm);
++	return __pmd(old_pmd);
+ }
+ 
+ static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
+-- 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
