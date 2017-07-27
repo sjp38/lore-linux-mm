@@ -1,76 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DB2256B02B4
-	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:16:45 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id i19so60800608qte.5
-        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 20:16:45 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 136si14391649qkg.70.2017.07.26.20.16.44
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2196B6B025F
+	for <linux-mm@kvack.org>; Wed, 26 Jul 2017 23:30:52 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id y23so130914024uah.15
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 20:30:52 -0700 (PDT)
+Received: from mail-ua0-x243.google.com (mail-ua0-x243.google.com. [2607:f8b0:400c:c08::243])
+        by mx.google.com with ESMTPS id 131si6438516vkv.130.2017.07.26.20.30.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Jul 2017 20:16:45 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm/hugetlb: Make huge_pte_offset() consistent and
- document behaviour
-References: <20170725154114.24131-1-punit.agrawal@arm.com>
- <20170725154114.24131-2-punit.agrawal@arm.com>
- <20170726085038.GB2981@dhcp22.suse.cz> <20170726085325.GC2981@dhcp22.suse.cz>
- <87bmo7jt31.fsf@e105922-lin.cambridge.arm.com>
- <20170726123357.GP2981@dhcp22.suse.cz> <20170726124704.GQ2981@dhcp22.suse.cz>
- <8760efjp98.fsf@e105922-lin.cambridge.arm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <9b3b3585-f984-e592-122c-ed23c8558069@oracle.com>
-Date: Wed, 26 Jul 2017 20:16:31 -0700
+        Wed, 26 Jul 2017 20:30:51 -0700 (PDT)
+Received: by mail-ua0-x243.google.com with SMTP id w45so15620740uac.3
+        for <linux-mm@kvack.org>; Wed, 26 Jul 2017 20:30:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <8760efjp98.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170726134451.GR2981@dhcp22.suse.cz>
+References: <20170726130742.5976-1-wenwei.tww@gmail.com> <20170726134451.GR2981@dhcp22.suse.cz>
+From: Wenwei Tao <wenwei.tww@gmail.com>
+Date: Thu, 27 Jul 2017 11:30:50 +0800
+Message-ID: <CAEYKbkR6WRtD3G83RUqe12TQqEO618B2Ybhr4XbhsuPqCEYySQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: memcg: fix css double put in mem_cgroup_iter
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, steve.capper@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, kirill.shutemov@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com, yuwang.yuwang@alibaba-inc.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wenwei Tao <wenwei.tww@alibaba-inc.com>
 
-On 07/26/2017 06:34 AM, Punit Agrawal wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
->> On Wed 26-07-17 14:33:57, Michal Hocko wrote:
->>> On Wed 26-07-17 13:11:46, Punit Agrawal wrote:
->> [...]
->>>> I've been running tests from mce-test suite and libhugetlbfs for similar
->>>> changes we did on arm64. There could be assumptions that were not
->>>> exercised but I'm not sure how to check for all the possible usages.
->>>>
->>>> Do you have any other suggestions that can help improve confidence in
->>>> the patch?
->>>
->>> Unfortunatelly I don't. I just know there were many subtle assumptions
->>> all over the place so I am rather careful to not touch the code unless
->>> really necessary.
->>>
->>> That being said, I am not opposing your patch.
+2017-07-26 21:44 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> On Wed 26-07-17 21:07:42, Wenwei Tao wrote:
+>> From: Wenwei Tao <wenwei.tww@alibaba-inc.com>
 >>
->> Let me be more specific. I am not opposing your patch but we should
->> definitely need more reviewers to have a look. I am not seeing any
->> immediate problems with it but I do not see a large improvements either
->> (slightly less nightmare doesn't make me sleep all that well ;)). So I
->> will leave the decisions to others.
-> 
-> I hear you - I'd definitely appreciate more eyes on the code change and
-> description.
+>> By removing the child cgroup while the parent cgroup is
+>> under reclaim, we could trigger the following kernel panic
+>> on kernel 3.10:
+>> ------------------------------------------------------------------------
+>> kernel BUG at kernel/cgroup.c:893!
+>>  invalid opcode: 0000 [#1] SMP
+>>  CPU: 1 PID: 22477 Comm: kworker/1:1 Not tainted 3.10.107 #1
+>>  Workqueue: cgroup_destroy css_dput_fn
+>>  task: ffff8817959a5780 ti: ffff8817e8886000 task.ti: ffff8817e8886000
+>>  RIP: 0010:[<ffffffff810cd6e0>]  [<ffffffff810cd6e0>]
+>> cgroup_diput+0xc0/0xf0
+>>  RSP: 0000:ffff8817e8887da0  EFLAGS: 00010246
+>>  RAX: 0000000000000000 RBX: ffff8817a5dd5d40 RCX: dead000000000200
+>>  RDX: 0000000000000000 RSI: ffff8817973a6910 RDI: ffff8817f54c2a00
+>>  RBP: ffff8817e8887dc8 R08: ffff8817a5dd5dd0 R09: df9fb35794b01820
+>>  R10: df9fb35794b01820 R11: 00007fa95b1efcda R12: ffff8817a5dd5d9c
+>>  R13: ffff8817f38b3a40 R14: ffff8817973a6910 R15: ffff8817973a6910
+>>  FS:  0000000000000000(0000) GS:ffff88181f220000(0000)
+>> knlGS:0000000000000000
+>>  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>  CR2: 00007fa6e6234000 CR3: 000000179f19d000 CR4: 00000000000407e0
+>>  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>>  DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>>  Stack:
+>>   ffff8817a5dd5d40 ffff8817a5dd5d9c ffff8817f38b3a40 ffff8817973a6910
+>>   0000000000000040 ffff8817e8887df8 ffffffff811b37c2 ffff8817fa23c000
+>>   ffff8817f57dbb80 ffff88181f232ac0 ffff88181f237500 ffff8817e8887e10
+>>  Call Trace:
+>>   [<ffffffff811b37c2>] dput+0x1a2/0x2f0
+>>   [<ffffffff810cbacc>] cgroup_dput.isra.21+0x1c/0x30
+>>   [<ffffffff810cbafd>] css_dput_fn+0x1d/0x20
+>>   [<ffffffff81078ebc>] process_one_work+0x17c/0x460
+>>   [<ffffffff81079b66>] worker_thread+0x116/0x3b0
+>>   [<ffffffff81079a50>] ? manage_workers.isra.25+0x290/0x290
+>>   [<ffffffff81080330>] kthread+0xc0/0xd0
+>>   [<ffffffff81080270>] ? insert_kthread_work+0x40/0x40
+>>   [<ffffffff815b1e08>] ret_from_fork+0x58/0x90
+>>   [<ffffffff81080270>] ? insert_kthread_work+0x40/0x40
+>>  Code: 41 5e 41 5f 5d c3 0f 1f 44 00 00 48 8b 7f 78 48 8b 07 a8 01 74 15
+>> 48 81 c7 30 01 00 00 48 c7 c6 a0 a7 0c 81 e8 b2 83 02 00 eb c8 <0f> 0b
+>> 49 8b 4e 18 48 c7 c2 7e f1 7a 81 be 85 03 00 00 48 c7 c7
+>>  RIP  [<ffffffff810cd6e0>] cgroup_diput+0xc0/0xf0
+>>  RSP <ffff8817e8887da0>
+>>  ---[ end trace 85eeea5212c44f51 ]---
+>> ------------------------------------------------------------------------
+>>
+>> I think there is a css double put in mem_cgroup_iter. Under reclaim,
+>> we call mem_cgroup_iter the first time with prev == NULL, and we get
+>> last_visited memcg from per zone's reclaim_iter then call __mem_cgroup_iter_next
+>> try to get next alive memcg, __mem_cgroup_iter_next could return NULL
+>> if last_visited is already the last one so we put the last_visited's
+>> memcg css and continue to the next while loop, this time we might not
+>> do css_tryget(&last_visited->css) if the dead_count is changed, but
+>> we still do css_put(&last_visited->css), we put it twice, this could
+>> trigger the BUG_ON at kernel/cgroup.c:893.
+>
+> Yes, I guess your are right and I suspect that this has been silently
+> fixed by 519ebea3bf6d ("mm: memcontrol: factor out reclaim iterator
+> loading and updating"). I think a more appropriate fix is would be.
+> Are you able to reproduce and re-test it?
+> ---
 
-I like the change in semantics for the routine.  Like you, I examined all
-callers of huge_pte_offset() and it appears that they will not be impacted
-by your change.
+Yes, I think this commit can fix this issue, and I backport this
+commit to 3.10.107 kernel
+and cannot reproduce this issue. I guess this commit might need to be
+backported to 3.10.y
+stable kernel.
 
-My only concern is that arch specific versions of huge_pte_offset, may
-not (yet) follow the new semantic.  Someone could potentially introduce
-a new huge_pte_offset call and depend on the new 'documented' semantics.
-Yet, an unmodified arch specific version of huge_pte_offset might have
-different semantics.  I have not reviewed all the arch specific instances
-of the routine to know if this is even possible.  Just curious if you
-examined these, or perhaps you think this is not an issue?
-
--- 
-Mike Kravetz
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 437ae2cbe102..0848ec05c12a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1224,6 +1224,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                                 if (last_visited && last_visited != root &&
+>                                     !css_tryget(&last_visited->css))
+>                                         last_visited = NULL;
+> +                       } else {
+> +                               last_visited = true;
+>                         }
+>                 }
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
