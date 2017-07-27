@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E80B76B04B3
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:04:15 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id w187so16630107pgb.10
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 09:04:15 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id m9si11784569plk.240.2017.07.27.09.04.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 654906B04B5
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:07:14 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id h126so11280249wmf.10
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 09:07:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d6si16580587wra.72.2017.07.27.09.07.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 09:04:14 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id 125so7495413pgi.5
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 09:04:14 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: Potential race in TLB flush batching?
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170727072113.dpv2nsqaft3inpru@suse.de>
-Date: Thu, 27 Jul 2017 09:04:11 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <68D28CCA-10CC-48F8-A38F-B682A98A4BA5@gmail.com>
-References: <20170725100722.2dxnmgypmwnrfawp@suse.de>
- <20170726054306.GA11100@bbox> <20170726092228.pyjxamxweslgaemi@suse.de>
- <A300D14C-D7EE-4A26-A7CF-A7643F1A61BA@gmail.com> <20170726234025.GA4491@bbox>
- <60FF1876-AC4F-49BB-BC36-A144C3B6EA9E@gmail.com> <20170727003434.GA537@bbox>
- <77AFE0A4-FE3D-4E05-B248-30ADE2F184EF@gmail.com>
- <AACB7A95-A1E1-4ACD-812F-BD9F8F564FD7@gmail.com> <20170727070420.GA1052@bbox>
- <20170727072113.dpv2nsqaft3inpru@suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 27 Jul 2017 09:07:13 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 4/6] mm, kswapd: wake up kcompactd when kswapd had too many failures
+Date: Thu, 27 Jul 2017 18:06:59 +0200
+Message-Id: <20170727160701.9245-5-vbabka@suse.cz>
+In-Reply-To: <20170727160701.9245-1-vbabka@suse.cz>
+References: <20170727160701.9245-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, Andy Lutomirski <luto@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Mel Gorman <mgorman@suse.de> wrote:
+This patch deals with a corner case found when testing kcompactd with a very
+simple testcase that first fragments memory (by creating a large shmem file and
+then punching hole in every even page) and then uses artificial order-9
+GFP_NOWAIT allocations in a loop. This is freshly after virtme-run boot in KVM
+and no other activity.
 
-> On Thu, Jul 27, 2017 at 04:04:20PM +0900, Minchan Kim wrote:
->>> There is one issue I forgot: pte_accessible() on x86 regards
->>> mm_tlb_flush_pending() as an indication for NUMA migration. But now =
-the code
->>> does not make too much sense:
->>>=20
->>>        if ((pte_flags(a) & _PAGE_PROTNONE) &&
->>>                        mm_tlb_flush_pending(mm))
->>>=20
->>> Either we remove the _PAGE_PROTNONE check or we need to use the =
-atomic field
->>> to count separately pending flushes due to migration and due to =
-other
->>> reasons. The first option is safer, but Mel objected to it, because =
-of the
->>> performance implications. The second one requires some thought on =
-how to
->>> build a single counter for multiple reasons and avoid a potential =
-overflow.
->>>=20
->>> Thoughts?
->>=20
->> I'm really new for the autoNUMA so not sure I understand your concern
->> If your concern is that increasing places where add up pending count,
->> autoNUMA performance might be hurt. Right?
->> If so, above _PAGE_PROTNONE check will filter out most of cases?
->> Maybe, Mel could answer.
->=20
-> I'm not sure what I'm being asked. In the case above, the TLB flush =
-pending
-> is only relevant against autonuma-related races so only those PTEs are
-> checked to limit overhead. It could be checked on every PTE but it's
-> adding more compiler barriers or more atomic reads which do not appear
-> necessary. If the check is removed, a comment should be added =
-explaining
-> why every PTE has to be checked.
+What happens is that after few kswapd runs, there are no more reclaimable
+pages, and high-order pages can only be created by compaction. Because kswapd
+can't reclaim anything, pgdat->kswapd_failures increases up to
+MAX_RECLAIM_RETRIES and kswapd is no longer woken up. Thus kcompactd is also
+not woken up. After this patch, we will try to wake up kcompactd immediately
+instead of kswapd.
 
-I considered breaking tlb_flush_pending to two: tlb_flush_pending_numa =
-and
-tlb_flush_pending_other (they can share one atomic64_t field). This way,
-pte_accessible() would only consider =E2=80=9Ctlb_flush_pending_numa", =
-and the
-changes that Minchan proposed would not increase the number unnecessary =
-TLB
-flushes.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/vmscan.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-However, considering the complexity of the TLB flushes scheme, and the =
-fact
-I am not fully convinced all of these TLB flushes are indeed =
-unnecessary, I
-will put it aside.
-
-Nadav=
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a3f914c88dea..18ad0cd0c0f5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3578,9 +3578,15 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+ 	if (!waitqueue_active(&pgdat->kswapd_wait))
+ 		return;
+ 
+-	/* Hopeless node, leave it to direct reclaim */
+-	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES)
++	/*
++	 * Hopeless node, leave it to direct reclaim. For high-order
++	 * allocations, try to wake up kcompactd instead.
++	 */
++	if (pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES) {
++		if (order)
++			wakeup_kcompactd(pgdat, order, classzone_idx);
+ 		return;
++	}
+ 
+ 	if (pgdat_balanced(pgdat, order, classzone_idx))
+ 		return;
+-- 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
