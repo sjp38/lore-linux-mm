@@ -1,91 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 91AE86B04B9
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 15:10:43 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id t139so268278717ywg.6
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:10:43 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p15si4754601ybe.101.2017.07.27.12.10.41
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC806B04C0
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 15:46:31 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k190so56332211pge.9
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:46:31 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id e4si11533157pgn.444.2017.07.27.12.46.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 12:10:41 -0700 (PDT)
-Subject: Re: [PATCH 07/10] hugetlbfs: Use pagevec_lookup_range() in
- remove_inode_hugepages()
-References: <20170726114704.7626-1-jack@suse.cz>
- <20170726114704.7626-8-jack@suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <37d1740a-5ec4-1383-e862-a69ce6456353@oracle.com>
-Date: Thu, 27 Jul 2017 12:10:34 -0700
+        Thu, 27 Jul 2017 12:46:30 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id z129so47761300pfb.3
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 12:46:30 -0700 (PDT)
+Date: Thu, 27 Jul 2017 12:46:28 -0700
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: Re: [PATCH] mm: memcontrol: Cast mismatched enum types passed to
+ memcg state and event functions
+Message-ID: <20170727194628.GB84665@google.com>
+References: <20170726192356.18420-1-mka@chromium.org>
+ <20170726142309.ac40faf5eb99568e6edb064c@linux-foundation.org>
+ <20170726214914.GA84665@google.com>
+ <20170726150332.313e48837d97046924ddaa16@linux-foundation.org>
+ <20170727072451.GH20970@dhcp22.suse.cz>
+ <20170727141742.GA19738@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20170726114704.7626-8-jack@suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20170727141742.GA19738@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nadia Yvette Chambers <nyc@holomorphy.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
 
-On 07/26/2017 04:47 AM, Jan Kara wrote:
-> We want only pages from given range in remove_inode_hugepages(). Use
-> pagevec_lookup_range() instead of pagevec_lookup().
+El Thu, Jul 27, 2017 at 10:17:42AM -0400 Johannes Weiner ha dit:
+
+> On Thu, Jul 27, 2017 at 09:24:51AM +0200, Michal Hocko wrote:
+> > On Wed 26-07-17 15:03:32, Andrew Morton wrote:
+> > > On Wed, 26 Jul 2017 14:49:14 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
+> > > 
+> > > > El Wed, Jul 26, 2017 at 02:23:09PM -0700 Andrew Morton ha dit:
+> > > > 
+> > > > > On Wed, 26 Jul 2017 12:23:56 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
+> > > > > 
+> > > > > > In multiple instances enum values of an incorrect type are passed to
+> > > > > > mod_memcg_state() and other memcg functions. Apparently this is
+> > > > > > intentional, however clang rightfully generates tons of warnings about
+> > > > > > the mismatched types. Cast the offending values to the type expected
+> > > > > > by the called function. The casts add noise, but this seems preferable
+> > > > > > over losing the typesafe interface or/and disabling the warning.
+> > > > > > 
+> > > > > > ...
+> > > > > >
+> > > > > > --- a/include/linux/memcontrol.h
+> > > > > > +++ b/include/linux/memcontrol.h
+> > > > > > @@ -576,7 +576,7 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+> > > > > >  	if (mem_cgroup_disabled())
+> > > > > >  		return;
+> > > > > >  	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+> > > > > > -	__mod_memcg_state(pn->memcg, idx, val);
+> > > > > > +	__mod_memcg_state(pn->memcg, (enum memcg_stat_item)idx, val);
+> > > > > >  	__this_cpu_add(pn->lruvec_stat->count[idx], val);
+> > > > > >  }
+> > > > > 
+> > > > > __mod_memcg_state()'s `idx' arg can be either enum memcg_stat_item or
+> > > > > enum memcg_stat_item.  I think it would be better to just admit to
+> > > > > ourselves that __mod_memcg_state() is more general than it appears, and
+> > > > > change it to take `int idx'.  I assume that this implicit cast of an
+> > > > > enum to an int will not trigger a clang warning?
+> > > > 
+> > > > Sure, no warnings are raised for implicit casts from enum to
+> > > > int.
+> > > > 
+> > > > __mod_memcg_state() is not the only function though, all these
+> > > > functions are called with conflicting types:
+> > > > 
+> > > > memcg_page_state()
+> > > > __mod_memcg_state()
+> > > > mod_memcg_state()
+> > > > count_memcg_events()
+> > > > count_memcg_page_event()
+> > > > memcg_sum_events()
+> > > > 
+> > > > Should we change all of them to reveice an int instead of an enum?
+> > > 
+> > > I suspect so - the current implementation is denying reality and your
+> > > original proposal is a bit of a fudge.  But I'll await input from the
+> > > memcg peeps.
+> > 
+> > well, those enums do not help type safety much I am afraid so turining
+> > the idx to int sounds like a more preferable way to me. Johannes?
 > 
-> CC: Nadia Yvette Chambers <nyc@holomorphy.com>
-> Signed-off-by: Jan Kara <jack@suse.cz>
-
-Nice.  I like the new interface.
-
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-> ---
->  fs/hugetlbfs/inode.c | 18 ++----------------
->  1 file changed, 2 insertions(+), 16 deletions(-)
+> I agree, turning the parameter into an int makes for much nicer code
+> than the casts.
 > 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index b9678ce91e25..8931236f3ef4 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -403,7 +403,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  	struct pagevec pvec;
->  	pgoff_t next, index;
->  	int i, freed = 0;
-> -	long lookup_nr = PAGEVEC_SIZE;
->  	bool truncate_op = (lend == LLONG_MAX);
->  
->  	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
-> @@ -412,30 +411,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  	next = start;
->  	while (next < end) {
->  		/*
-> -		 * Don't grab more pages than the number left in the range.
-> -		 */
-> -		if (end - next < lookup_nr)
-> -			lookup_nr = end - next;
-> -
-> -		/*
->  		 * When no more pages are found, we are done.
->  		 */
-> -		if (!pagevec_lookup(&pvec, mapping, &next, lookup_nr))
-> +		if (!pagevec_lookup_range(&pvec, mapping, &next, end - 1,
-> +					  PAGEVEC_SIZE))
->  			break;
->  
->  		for (i = 0; i < pagevec_count(&pvec); ++i) {
->  			struct page *page = pvec.pages[i];
->  			u32 hash;
->  
-> -			/*
-> -			 * The page (index) could be beyond end.  This is
-> -			 * only possible in the punch hole case as end is
-> -			 * max page offset in the truncate case.
-> -			 */
->  			index = page->index;
-> -			if (index >= end)
-> -				break;
-> -
->  			hash = hugetlb_fault_mutex_hash(h, current->mm,
->  							&pseudo_vma,
->  							mapping, index, 0);
-> 
+> Matthias, would you care to update your patch to change these over?
+
+Ok, I'll respin the patch to use ints as parameters.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
