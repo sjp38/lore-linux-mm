@@ -1,65 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 241BA6B0313
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:08:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id x3so15759089oia.8
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:08:59 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r13si10476677oie.235.2017.07.27.07.08.57
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9911E6B037C
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:55 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 123so247460997pgj.4
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:15:55 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l1si8507424plg.715.2017.07.27.07.15.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 07:08:57 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170727090357.3205-1-mhocko@kernel.org>
-	<20170727090357.3205-3-mhocko@kernel.org>
-	<201707272301.EII82876.tOOJOFLMHFQSFV@I-love.SAKURA.ne.jp>
-In-Reply-To: <201707272301.EII82876.tOOJOFLMHFQSFV@I-love.SAKURA.ne.jp>
-Message-Id: <201707272308.GHD90652.OSHQtOOVJFLFMF@I-love.SAKURA.ne.jp>
-Date: Thu, 27 Jul 2017 23:08:42 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Jul 2017 07:15:54 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6REELjg103683
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:53 -0400
+Received: from e24smtp02.br.ibm.com (e24smtp02.br.ibm.com [32.104.18.86])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2byerm94uh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:53 -0400
+Received: from localhost
+	by e24smtp02.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
+	Thu, 27 Jul 2017 11:15:50 -0300
+Received: from d24av05.br.ibm.com (d24av05.br.ibm.com [9.18.232.44])
+	by d24relay03.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6REFlDq41025754
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:15:47 -0300
+Received: from d24av05.br.ibm.com (localhost [127.0.0.1])
+	by d24av05.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6RBFla6021682
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 08:15:47 -0300
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-18-git-send-email-linuxram@us.ibm.com>
+From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+Subject: Re: [RFC v6 17/62] powerpc: implementation for arch_set_user_pkey_access()
+In-reply-to: <1500177424-13695-18-git-send-email-linuxram@us.ibm.com>
+Date: Thu, 27 Jul 2017 11:15:36 -0300
+MIME-Version: 1.0
+Content-Type: text/plain
+Message-Id: <87d18m3r07.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
 
-Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 544d47e5cbbd..86a48affb938 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1896,7 +1896,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-> >  	 * bypass the last charges so that they can exit quickly and
-> >  	 * free their memory.
-> >  	 */
-> > -	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
-> > +	if (unlikely(tsk_is_oom_victim(current) ||
-> >  		     fatal_signal_pending(current) ||
-> >  		     current->flags & PF_EXITING))
-> >  		goto force;
-> 
-> Did we check http://lkml.kernel.org/r/20160909140508.GO4844@dhcp22.suse.cz ?
-> 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index c9f3569a76c7..65cc2f9aaa05 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -483,7 +483,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
-> >  	 *				[...]
-> >  	 *				out_of_memory
-> >  	 *				  select_bad_process
-> > -	 *				    # no TIF_MEMDIE task selects new victim
-> > +	 *				    # no TIF_MEMDIE, selects new victim
-> >  	 *  unmap_page_range # frees some memory
-> >  	 */
-> >  	mutex_lock(&oom_lock);
-> 
-> This comment is wrong. No MMF_OOM_SKIP mm selects new victim.
-> 
-Oops. "MMF_OOM_SKIP mm selects new victim." according to
-http://lkml.kernel.org/r/201706271952.FEB21375.SFJFHOQLOtVOMF@I-love.SAKURA.ne.jp .
+
+Ram Pai <linuxram@us.ibm.com> writes:
+> @@ -113,10 +117,14 @@ static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
+>  	return 0;
+>  }
+>
+> +extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+> +		unsigned long init_val);
+>  static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+>  		unsigned long init_val)
+>  {
+> -	return 0;
+> +	if (!pkey_inited)
+> +		return -1;
+> +	return __arch_set_user_pkey_access(tsk, pkey, init_val);
+>  }
+
+If non-zero, the return value of this function will be passed to
+userspace by the pkey_alloc syscall. Shouldn't it be returning an errno
+macro such as -EPERM?
+
+Also, why are there both arch_set_user_pkey_access and
+__arch_set_user_pkey_access? Is it a speed optimization so that the
+early return is inlined into the caller? Ditto for execute_only_pkey
+and __arch_override_mprotect_pkey.
+
+-- 
+Thiago Jung Bauermann
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
