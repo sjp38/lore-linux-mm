@@ -1,73 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9911E6B037C
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 123so247460997pgj.4
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:15:55 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l1si8507424plg.715.2017.07.27.07.15.54
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BA0B46B03A1
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:17:50 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a186so14226354wmh.9
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 07:17:50 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f54si10589770eda.86.2017.07.27.07.17.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 07:15:54 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6REELjg103683
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:53 -0400
-Received: from e24smtp02.br.ibm.com (e24smtp02.br.ibm.com [32.104.18.86])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2byerm94uh-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 10:15:53 -0400
-Received: from localhost
-	by e24smtp02.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Thu, 27 Jul 2017 11:15:50 -0300
-Received: from d24av05.br.ibm.com (d24av05.br.ibm.com [9.18.232.44])
-	by d24relay03.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6REFlDq41025754
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:15:47 -0300
-Received: from d24av05.br.ibm.com (localhost [127.0.0.1])
-	by d24av05.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6RBFla6021682
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 08:15:47 -0300
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-18-git-send-email-linuxram@us.ibm.com>
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 17/62] powerpc: implementation for arch_set_user_pkey_access()
-In-reply-to: <1500177424-13695-18-git-send-email-linuxram@us.ibm.com>
-Date: Thu, 27 Jul 2017 11:15:36 -0300
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 27 Jul 2017 07:17:49 -0700 (PDT)
+Date: Thu, 27 Jul 2017 10:17:42 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: Cast mismatched enum types passed to
+ memcg state and event functions
+Message-ID: <20170727141742.GA19738@cmpxchg.org>
+References: <20170726192356.18420-1-mka@chromium.org>
+ <20170726142309.ac40faf5eb99568e6edb064c@linux-foundation.org>
+ <20170726214914.GA84665@google.com>
+ <20170726150332.313e48837d97046924ddaa16@linux-foundation.org>
+ <20170727072451.GH20970@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87d18m3r07.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170727072451.GH20970@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthias Kaehlcke <mka@chromium.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
 
+On Thu, Jul 27, 2017 at 09:24:51AM +0200, Michal Hocko wrote:
+> On Wed 26-07-17 15:03:32, Andrew Morton wrote:
+> > On Wed, 26 Jul 2017 14:49:14 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
+> > 
+> > > El Wed, Jul 26, 2017 at 02:23:09PM -0700 Andrew Morton ha dit:
+> > > 
+> > > > On Wed, 26 Jul 2017 12:23:56 -0700 Matthias Kaehlcke <mka@chromium.org> wrote:
+> > > > 
+> > > > > In multiple instances enum values of an incorrect type are passed to
+> > > > > mod_memcg_state() and other memcg functions. Apparently this is
+> > > > > intentional, however clang rightfully generates tons of warnings about
+> > > > > the mismatched types. Cast the offending values to the type expected
+> > > > > by the called function. The casts add noise, but this seems preferable
+> > > > > over losing the typesafe interface or/and disabling the warning.
+> > > > > 
+> > > > > ...
+> > > > >
+> > > > > --- a/include/linux/memcontrol.h
+> > > > > +++ b/include/linux/memcontrol.h
+> > > > > @@ -576,7 +576,7 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+> > > > >  	if (mem_cgroup_disabled())
+> > > > >  		return;
+> > > > >  	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+> > > > > -	__mod_memcg_state(pn->memcg, idx, val);
+> > > > > +	__mod_memcg_state(pn->memcg, (enum memcg_stat_item)idx, val);
+> > > > >  	__this_cpu_add(pn->lruvec_stat->count[idx], val);
+> > > > >  }
+> > > > 
+> > > > __mod_memcg_state()'s `idx' arg can be either enum memcg_stat_item or
+> > > > enum memcg_stat_item.  I think it would be better to just admit to
+> > > > ourselves that __mod_memcg_state() is more general than it appears, and
+> > > > change it to take `int idx'.  I assume that this implicit cast of an
+> > > > enum to an int will not trigger a clang warning?
+> > > 
+> > > Sure, no warnings are raised for implicit casts from enum to
+> > > int.
+> > > 
+> > > __mod_memcg_state() is not the only function though, all these
+> > > functions are called with conflicting types:
+> > > 
+> > > memcg_page_state()
+> > > __mod_memcg_state()
+> > > mod_memcg_state()
+> > > count_memcg_events()
+> > > count_memcg_page_event()
+> > > memcg_sum_events()
+> > > 
+> > > Should we change all of them to reveice an int instead of an enum?
+> > 
+> > I suspect so - the current implementation is denying reality and your
+> > original proposal is a bit of a fudge.  But I'll await input from the
+> > memcg peeps.
+> 
+> well, those enums do not help type safety much I am afraid so turining
+> the idx to int sounds like a more preferable way to me. Johannes?
 
-Ram Pai <linuxram@us.ibm.com> writes:
-> @@ -113,10 +117,14 @@ static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
->  	return 0;
->  }
->
-> +extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-> +		unsigned long init_val);
->  static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
->  		unsigned long init_val)
->  {
-> -	return 0;
-> +	if (!pkey_inited)
-> +		return -1;
-> +	return __arch_set_user_pkey_access(tsk, pkey, init_val);
->  }
+I agree, turning the parameter into an int makes for much nicer code
+than the casts.
 
-If non-zero, the return value of this function will be passed to
-userspace by the pkey_alloc syscall. Shouldn't it be returning an errno
-macro such as -EPERM?
-
-Also, why are there both arch_set_user_pkey_access and
-__arch_set_user_pkey_access? Is it a speed optimization so that the
-early return is inlined into the caller? Ditto for execute_only_pkey
-and __arch_override_mprotect_pkey.
-
--- 
-Thiago Jung Bauermann
-IBM Linux Technology Center
+Matthias, would you care to update your patch to change these over?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
