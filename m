@@ -1,125 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D01972802FE
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 14:03:54 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id w51so74184933qtc.12
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:03:54 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l1si16392780qtf.280.2017.07.27.11.03.53
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 51C516B04AE
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 14:50:10 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u199so157684976pgb.13
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 11:50:10 -0700 (PDT)
+Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
+        by mx.google.com with ESMTPS id m3si8751825pgc.963.2017.07.27.11.50.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 11:03:53 -0700 (PDT)
-From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Subject: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for reclaiming hugepages on OOM events.
-Date: Thu, 27 Jul 2017 14:02:36 -0400
-Message-Id: <20170727180236.6175-2-Liam.Howlett@Oracle.com>
-In-Reply-To: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
-References: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 27 Jul 2017 11:50:08 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+Subject: [PATCH v3 1/2] mm: migrate: prevent racy access to tlb_flush_pending
+Date: Thu, 27 Jul 2017 04:40:14 -0700
+Message-ID: <20170727114015.3452-2-namit@vmware.com>
+In-Reply-To: <20170727114015.3452-1-namit@vmware.com>
+References: <20170727114015.3452-1-namit@vmware.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com, willy@infradead.org
+Cc: sergey.senozhatsky@gmail.com, minchan@kernel.org, nadav.amit@gmail.com, mgorman@suse.de, riel@redhat.com, luto@kernel.org, stable@vger.kernel.org, Nadav Amit <namit@vmware.com>
 
-When a system runs out of memory it may be desirable to reclaim
-unreserved hugepages.  This situation arises when a correctly configured
-system has a memory failure and takes corrective action of rebooting and
-removing the memory from the memory pool results in a system failing to
-boot.  With this change, the out of memory handler is able to reclaim
-any pages that are free and not reserved.
+From: Nadav Amit <nadav.amit@gmail.com>
 
-Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Setting and clearing mm->tlb_flush_pending can be performed by multiple
+threads, since mmap_sem may only be acquired for read in
+task_numa_work(). If this happens, tlb_flush_pending might be cleared
+while one of the threads still changes PTEs and batches TLB flushes.
+
+This can lead to the same race between migration and
+change_protection_range() that led to the introduction of
+tlb_flush_pending. The result of this race was data corruption, which
+means that this patch also addresses a theoretically possible data
+corruption.
+
+An actual data corruption was not observed, yet the race was
+was confirmed by adding assertion to check tlb_flush_pending is not set
+by two threads, adding artificial latency in change_protection_range()
+and using sysctl to reduce kernel.numa_balancing_scan_delay_ms.
+
+Fixes: 20841405940e ("mm: fix TLB flush race between migration, and
+change_protection_range")
+
+Cc: stable@vger.kernel.org
+
+Signed-off-by: Nadav Amit <namit@vmware.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/hugetlb.h |  1 +
- mm/hugetlb.c            | 35 +++++++++++++++++++++++++++++++++++
- mm/oom_kill.c           |  8 ++++++++
- 3 files changed, 44 insertions(+)
+ include/linux/mm_types.h | 8 ++++----
+ kernel/fork.c            | 4 +++-
+ mm/debug.c               | 2 +-
+ 3 files changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8d9fe131a240..20e5729b9e9a 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -470,6 +470,7 @@ static inline pgoff_t basepage_index(struct page *page)
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 45cdb27791a3..36f4ec589544 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -493,7 +493,7 @@ struct mm_struct {
+ 	 * can move process memory needs to flush the TLB when moving a
+ 	 * PROT_NONE or PROT_NUMA mapped page.
+ 	 */
+-	bool tlb_flush_pending;
++	atomic_t tlb_flush_pending;
+ #endif
+ 	struct uprobes_state uprobes_state;
+ #ifdef CONFIG_HUGETLB_PAGE
+@@ -528,11 +528,11 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	barrier();
+-	return mm->tlb_flush_pending;
++	return atomic_read(&mm->tlb_flush_pending) > 0;
  }
+ static inline void set_tlb_flush_pending(struct mm_struct *mm)
+ {
+-	mm->tlb_flush_pending = true;
++	atomic_inc(&mm->tlb_flush_pending);
  
- extern int dissolve_free_huge_page(struct page *page);
-+extern unsigned long decrease_free_hugepages(nodemask_t *nodes);
- extern int dissolve_free_huge_pages(unsigned long start_pfn,
- 				    unsigned long end_pfn);
- static inline bool hugepage_migration_supported(struct hstate *h)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bc48ee783dd9..00a0e08b96c5 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1454,6 +1454,41 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+ 	/*
+ 	 * Guarantee that the tlb_flush_pending store does not leak into the
+@@ -544,7 +544,7 @@ static inline void set_tlb_flush_pending(struct mm_struct *mm)
+ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	barrier();
+-	mm->tlb_flush_pending = false;
++	atomic_dec(&mm->tlb_flush_pending);
  }
- 
- /*
-+ * Decrement free hugepages.  Used by oom kill to avoid killing a task if
-+ * there is free huge pages that can be used instead.
-+ * Returns the number of bytes reclaimed from hugepages
-+ */
-+#define CONFIG_HUGETLB_PAGE_OOM
-+unsigned long decrease_free_hugepages(nodemask_t *nodes)
-+{
-+#ifdef CONFIG_HUGETLB_PAGE_OOM
-+	struct hstate *h;
-+	unsigned long ret = 0;
-+
-+	spin_lock(&hugetlb_lock);
-+	for_each_hstate(h) {
-+		if (h->free_huge_pages > h->resv_huge_pages) {
-+			char buf[32];
-+
-+			memfmt(buf, huge_page_size(h));
-+			ret = free_pool_huge_page(h, nodes ?
-+						  nodes : &node_online_map, 0);
-+			pr_warn("HugeTLB: Reclaiming %lu hugepage(s) of page size %s\n",
-+				ret, buf);
-+			ret *= huge_page_size(h);
-+			goto found;
-+		}
-+	}
-+
-+found:
-+	spin_unlock(&hugetlb_lock);
-+	return ret;
-+#else
-+	return 0;
-+#endif /* CONFIG_HUGETLB_PAGE_OOM */
-+}
-+
-+/*
-  * Dissolve a given free hugepage into free buddy pages. This function does
-  * nothing for in-use (including surplus) hugepages. Returns -EBUSY if the
-  * number of free hugepages would be reduced below the number of reserved
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 9e8b4f030c1c..0a42f6d7d253 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -40,6 +40,7 @@
- #include <linux/ratelimit.h>
- #include <linux/kthread.h>
- #include <linux/init.h>
-+#include <linux/hugetlb.h>
- 
- #include <asm/tlb.h>
- #include "internal.h"
-@@ -1044,6 +1045,13 @@ bool out_of_memory(struct oom_control *oc)
- 		return true;
- 	}
- 
-+	/* Reclaim a free, unreserved hugepage. */
-+	freed = decrease_free_hugepages(oc->nodemask);
-+	if (freed != 0) {
-+		pr_err("Out of memory: Reclaimed %lu from HugeTLB\n", freed);
-+		return true;
-+	}
-+
- 	select_bad_process(oc);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+ #else
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e53770d2bf95..d6bf35b1cf31 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -809,7 +809,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+ 	mmu_notifier_mm_init(mm);
+-	clear_tlb_flush_pending(mm);
++#if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
++	atomic_set(&mm->tlb_flush_pending, 0);
++#endif
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	mm->pmd_huge_pte = NULL;
+ #endif
+diff --git a/mm/debug.c b/mm/debug.c
+index db1cd26d8752..d70103bb4731 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -159,7 +159,7 @@ void dump_mm(const struct mm_struct *mm)
+ 		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
+ #endif
+ #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+-		mm->tlb_flush_pending,
++		atomic_read(&mm->tlb_flush_pending),
+ #endif
+ 		mm->def_flags, &mm->def_flags
+ 	);
 -- 
-2.13.0.90.g1eb437020
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
