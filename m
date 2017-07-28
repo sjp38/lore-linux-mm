@@ -1,114 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BBDE6B0527
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 07:26:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w63so38293118wrc.5
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:26:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n143si12816447wmd.255.2017.07.28.04.26.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 83ADD6B0529
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 07:33:51 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e204so12537449wma.2
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:33:51 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id j189si12745614wmd.191.2017.07.28.04.33.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 04:26:48 -0700 (PDT)
-Date: Fri, 28 Jul 2017 13:26:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 3/5] mm, memory_hotplug: allocate memmap from the
- added memory range for sparse-vmemmap
-Message-ID: <20170728112643.GJ2274@dhcp22.suse.cz>
-References: <20170726083333.17754-1-mhocko@kernel.org>
- <20170726083333.17754-4-mhocko@kernel.org>
- <20170726114539.GG3218@osiris>
- <20170726123040.GO2981@dhcp22.suse.cz>
- <20170726192039.48b81161@thinkpad>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jul 2017 04:33:50 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id y206so4030385wmd.5
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:33:50 -0700 (PDT)
+Date: Fri, 28 Jul 2017 14:33:47 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
+ reclaiming hugepages on OOM events.
+Message-ID: <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
+References: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
+ <20170727180236.6175-2-Liam.Howlett@Oracle.com>
+ <20170728064602.GC2274@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170726192039.48b81161@thinkpad>
+In-Reply-To: <20170728064602.GC2274@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dan Williams <dan.j.williams@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Martin Schwidefsky <mschwide@de.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com, willy@infradead.org
 
-On Wed 26-07-17 19:20:39, Gerald Schaefer wrote:
-> On Wed, 26 Jul 2017 14:30:41 +0200
-> Michal Hocko <mhocko@kernel.org> wrote:
+On Fri, Jul 28, 2017 at 08:46:02AM +0200, Michal Hocko wrote:
+> On Thu 27-07-17 14:02:36, Liam R. Howlett wrote:
+> > When a system runs out of memory it may be desirable to reclaim
+> > unreserved hugepages.  This situation arises when a correctly configured
+> > system has a memory failure and takes corrective action of rebooting and
+> > removing the memory from the memory pool results in a system failing to
+> > boot.  With this change, the out of memory handler is able to reclaim
+> > any pages that are free and not reserved.
 > 
-> > On Wed 26-07-17 13:45:39, Heiko Carstens wrote:
-> > [...]
-> > > In general I do like your idea, however if I understand your patches
-> > > correctly we might have an ordering problem on s390: it is not possible to
-> > > access hot-added memory on s390 before it is online (MEM_GOING_ONLINE
-> > > succeeded).
-> > 
-> > Could you point me to the code please? I cannot seem to find the
-> > notifier which implements that.
+> I am sorry but I have to Nack this. You are breaking the basic contract
+> of hugetlb user API. Administrator configures the pool to suit a
+> workload. It is a deliberate and privileged action. We allow to
+> overcommit that pool should there be a immediate need for more hugetlb
+> pages and we do remove those when they are freed. If we don't then this
+> should be fixed.
+> Other than that hugetlb pages are not reclaimable by design and users
+> do rely on that. Otherwise they could consider using THP instead.
 > 
-> It is in drivers/s390/char/sclp_cmd.c: sclp_mem_notifier(). 
-
-Thanks for the pointer. I will have a look.
-
-> > > On MEM_GOING_ONLINE we ask the hypervisor to back the potential available
-> > > hot-added memory region with physical pages. Accessing those ranges before
-> > > that will result in an exception.
-> > 
-> > Can we make the range which backs the memmap range available? E.g from
-> > s390 specific __vmemmap_populate path?
+> If somebody configures the initial pool too high it is a configuration
+> bug. Just think about it, we do not want to reset lowmem reserves
+> configured by admin just because we are hitting the oom killer and yes
+> insanely large lowmem reserves might lead to early OOM as well.
 > 
-> No, only the complete range of a storage increment can be made available.
-> The size of those increments may vary between z/VM and LPAR, but at least
-> with LPAR it will always be minimum 256 MB, IIRC.
+> Nacked-by: Michal Hocko <mhocko@suse.com>
 
-Is there any problem doing that before we even get to __add_pages - e.g.
-in arch_add_memory? X86 already does something along those lines by
-calling init_memory_mapping AFAIU. Yes it is different thing than s390
-but essentially it is preparing the physical address space for the new
-memory so it is not that far away...
+Hm. I'm not sure it's fully justified. To me, reclaiming hugetlb is
+something to be considered as last resort after all other measures have
+been tried.
 
-> > > However with your approach the memory is still allocated when add_memory()
-> > > is being called, correct? That wouldn't be a change to the current
-> > > behaviour; except for the ordering problem outlined above.
-> > 
-> > Could you be more specific please? I do not change when the memmap is
-> > allocated.
-> 
-> I guess this is about the difference between s390 and others, wrt when
-> we call add_memory(). It is also in drivers/s390/char/sclp_cmd.c, early
-> during memory detection, as opposed to other archs, where I guess this
-> could be triggered by an ACPI event during runtime, at least for newly
-> added and to-be-onlined memory.
+I think we can allow hugetlb reclaim just to keep system alive, taint
+kernel and indicate that "reboot needed".
 
-I guess this is trying to answer my question above about arch_add_memory
-but I still to grasp what this means.
+The situation is somewhat similar to BUG() vs. WARN().
 
-> This probably means that any approach that tries to allocate memmap
-> memory during add_memory(), out of the "to-be-onlined but still offline"
-> memory, will be difficult for s390, because we call add_memory() only once
-> during memory detection for the complete range of (hypervisor) defined
-> online and offline memory. The offline parts are then made available in
-> the MEM_GOING_ONLINE notifier called from online_pages(). Only after
-> this point the memory would then be available to allocate a memmap in it.
-
-Yes, this scheme is really unfortunate for the mechanism I am proposing
-and it is not compatible.
-
-> Nevertheless, we have great interest in such a "allocate memmap from
-> the added memory range" solution. I guess we would need some way to
-> separate the memmap allocation from add_memory(), which sounds odd,
-> or provide some way to have add_memory() only allocate a memmap for
-> online memory, and a mechanism to add the memmaps for offline memory
-> blocks later when they are being set online.
-
-Well, we cannot move the memmap allocation to later. We do have users
-which never online the memory (ZONE_DEVICE). And __add_pages is exactly
-about adding memmap for the range. I believe this should be addressed
-somewhere at arch_add_memory layer.
-
-Jerome has noted that there will have to be an opt-out from using altmap
-becuase his hotplug usecase (HMM) cannot allocate from the added range
-as well. So I will use the same thing for the s390 until we figure how
-to implement it there for now.
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
