@@ -1,100 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 430906B0551
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:51:05 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s14so11729320pgs.4
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:51:05 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0067.outbound.protection.outlook.com. [104.47.32.67])
-        by mx.google.com with ESMTPS id t4si9672407plj.941.2017.07.28.06.51.03
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B3CF36B0553
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:55:59 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id a186so152123531pge.7
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:55:59 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 31si13204111plg.683.2017.07.28.06.55.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 06:51:04 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 28 Jul 2017 06:55:58 -0700 (PDT)
 Subject: Re: Possible race condition in oom-killer
-References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
- <20170728123235.GN2274@dhcp22.suse.cz>
-From: Manish Jaggi <mjaggi@caviumnetworks.com>
-Message-ID: <88cbd07e-6e5e-924f-cdd3-82e65722ed30@caviumnetworks.com>
-Date: Fri, 28 Jul 2017 19:20:42 +0530
-MIME-Version: 1.0
-In-Reply-To: <20170728123235.GN2274@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170728123235.GN2274@dhcp22.suse.cz>
+	<46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
+	<20170728130723.GP2274@dhcp22.suse.cz>
+	<201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
+	<20170728132952.GQ2274@dhcp22.suse.cz>
+In-Reply-To: <20170728132952.GQ2274@dhcp22.suse.cz>
+Message-Id: <201707282255.BGI87015.FSFOVQtMOHLJFO@I-love.SAKURA.ne.jp>
+Date: Fri, 28 Jul 2017 22:55:51 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Michal Hocko wrote:
+> On Fri 28-07-17 22:15:01, Tetsuo Handa wrote:
+> > task_will_free_mem(current) in out_of_memory() returning false due to
+> > MMF_OOM_SKIP already set allowed each thread sharing that mm to select a new
+> > OOM victim. If task_will_free_mem(current) in out_of_memory() did not return
+> > false, threads sharing MMF_OOM_SKIP mm would not have selected new victims
+> > to the level where all OOM killable processes are killed and calls panic().
+> 
+> I am not sure I understand. Do you mean this?
 
-Hi Michal,
-On 7/28/2017 6:02 PM, Michal Hocko wrote:
-> [CC linux-mm]
->
-> On Fri 28-07-17 17:22:25, Manish Jaggi wrote:
->> was: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
->>
->> Hi Michal,
->> On 7/27/2017 2:54 PM, Michal Hocko wrote:
->>> On Thu 27-07-17 13:59:09, Manish Jaggi wrote:
->>> [...]
->>>> With 4.11.6 I was getting random kernel panics (Out of memory - No process left to kill),
->>>>   when running LTP oom01 /oom02 ltp tests on our arm64 hardware with ~256G memory and high core count.
->>>> The issue experienced was as follows
->>>> 	that either test (oom01/oom02) selected a pid as victim and waited for the pid to be killed.
->>>> 	that pid was marked as killed but somewhere there is a race and the process didnt get killed.
->>>> 	and the oom01/oom02 test started killing further processes, till it panics.
->>>> IIUC this issue is quite similar to your patch description. But applying your patch I still see the issue.
->>>> If it is not related to this patch, can you please suggest by looking at the log, what could be preventing
->>>> the killing of victim.
->>>>
->>>> Log (https://pastebin.com/hg5iXRj2)
->>>>
->>>> As a subtest of oom02 starts, it prints out the victim - In this case 4578
->>>>
->>>> oom02       0  TINFO  :  start OOM testing for mlocked pages.
->>>> oom02       0  TINFO  :  expected victim is 4578.
->>>>
->>>> When oom02 thread invokes oom-killer, it did select 4578  for killing...
->>> I will definitely have a look. Can you report it in a separate email
->>> thread please? Are you able to reproduce with the current Linus or
->>> linux-next trees?
->> Yes this issue is visible with linux-next.
-> Could you provide the full kernel log from this run please? I do not
-> expect there to be much difference but just to be sure that the code I
-> am looking at matches logs.
-The log is here: https://pastebin.com/Pmn5ZwEM
-mlocked memory keeps on increasing till panic.
+Yes.
 
-> [...]
->>>> [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
->>> Yes because
->>> [  365.283499] Node 1 Normal free:19500kB min:33804kB low:165916kB high:298028kB active_anon:13312kB inactive_anon:172kB active_file:0kB inactive_file:1044kB unevictable:131560064kB writepending:0kB present:134213632kB managed:132113248kB mlocked:131560064kB slab_reclaimable:5748kB slab_unreclaimable:17808kB kernel_stack:2720kB pagetables:254636kB bounce:0kB free_pcp:10476kB local_pcp:144kB free_cma:0kB
->>>
->>> Although we have killed and reaped oom02 process Node1 is still below
->>> min watermark and that is why we have hit the oom killer again. It
->>> is not immediatelly clear to me why, that would require a deeper
->>> inspection.
->> I have a doubt here
->> my understanding of oom test: oom() function basically forks itself and
->> starts n threads each thread has a loop which allocates and touches memory
->> thus will trigger oom-killer and will kill the process. the parent process
->> is on a wait() and will print pass/fail.
->>
->> So IIUC when 4578 is reaped all the child threads should be terminated,
->> which happens in pass case (line 152)
->> But even after being killed and reaped,  the oom killer is invoked again
->> which doesn't seem right.
-> As I've said the OOM killer hits because the memory from Node 1 didn't
-> get freed for some reasov or got immediatally populated.
->
->> Could it be that the process is just marked hidden from oom including its
->> threads, thus oom-killer continues.
-> The whole process should be killed and the OOM reaper should only mark
-> the victim oom invisible _after_ the address space has been reaped (and
-> memory freed). You said the patch from
-> http://lkml.kernel.org/r/20170724072332.31903-1-mhocko@kernel.org didn't
-> help so it shouldn't be a race with the last __mmput.
->
-> Thanks!
+> ---
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 9e8b4f030c1c..671e4a4107d0 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -779,13 +779,6 @@ static bool task_will_free_mem(struct task_struct *task)
+>  	if (!__task_will_free_mem(task))
+>  		return false;
+>  
+> -	/*
+> -	 * This task has already been drained by the oom reaper so there are
+> -	 * only small chances it will free some more
+> -	 */
+> -	if (test_bit(MMF_OOM_SKIP, &mm->flags))
+> -		return false;
+> -
+>  	if (atomic_read(&mm->mm_users) <= 1)
+>  		return true;
+>  
+> If yes I would have to think about this some more because that might
+> have weird side effects (e.g. oom_victims counting after threads passed
+> exit_oom_victim).
+
+But this check should not be removed unconditionally. We should still return
+false if returning true was not sufficient to solve the OOM situation, for
+we need to select next OOM victim in that case.
+
+> 
+> Anyway the proper fix for this is to allow reaping mlocked pages.
+
+Different approach is to set TIF_MEMDIE to all threads sharing the same
+memory so that threads sharing MMF_OOM_SKIP mm do not need to call
+out_of_memory() in order to get TIF_MEMDIE. 
+
+Yet another apporach is to use __GFP_KILLABLE (we can start it as
+best effort basis).
+
+>                                                                   Is
+> something other than the LTP test affected to give this more priority?
+> Do we have other usecases where something mlocks the whole memory?
+
+This panic was caused by 50 threads sharing MMF_OOM_SKIP mm exceeding
+number of OOM killable processes. Whether memory is locked or not isn't
+important. If a multi-threaded process which consumes little memory was
+selected as an OOM victim (and reaped by the OOM reaper and MMF_OOM_SKIP
+was set immediately), it might be still possible to select next OOM victims
+needlessly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
