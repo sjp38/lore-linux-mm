@@ -1,233 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D82986B054F
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:49:49 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 77so200193065itj.4
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:49:49 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id l127si21244293iof.54.2017.07.28.06.49.48
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 430906B0551
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:51:05 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s14so11729320pgs.4
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:51:05 -0700 (PDT)
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0067.outbound.protection.outlook.com. [104.47.32.67])
+        by mx.google.com with ESMTPS id t4si9672407plj.941.2017.07.28.06.51.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 06:49:48 -0700 (PDT)
-Date: Fri, 28 Jul 2017 15:49:31 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v4 10/10] x86/mm: Try to preserve old TLB entries using
- PCID
-Message-ID: <20170728134931.eeqjp5fffqjpqmln@hirez.programming.kicks-ass.net>
-References: <cover.1498751203.git.luto@kernel.org>
- <cf600d28712daa8e2222c08a10f6c914edab54f2.1498751203.git.luto@kernel.org>
- <20170705122506.GG4941@worktop>
- <CALCETrXYQHQm2qQ_4dLx8K2rFfapFUb-eqFdG8bk2377eFnNGg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Jul 2017 06:51:04 -0700 (PDT)
+Subject: Re: Possible race condition in oom-killer
+References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
+ <20170728123235.GN2274@dhcp22.suse.cz>
+From: Manish Jaggi <mjaggi@caviumnetworks.com>
+Message-ID: <88cbd07e-6e5e-924f-cdd3-82e65722ed30@caviumnetworks.com>
+Date: Fri, 28 Jul 2017 19:20:42 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrXYQHQm2qQ_4dLx8K2rFfapFUb-eqFdG8bk2377eFnNGg@mail.gmail.com>
+In-Reply-To: <20170728123235.GN2274@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 05, 2017 at 09:10:00AM -0700, Andy Lutomirski wrote:
-> On Wed, Jul 5, 2017 at 5:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Thu, Jun 29, 2017 at 08:53:22AM -0700, Andy Lutomirski wrote:
-> >> +static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
-> >> +                         u16 *new_asid, bool *need_flush)
-> >> +{
-> >> +     u16 asid;
-> >> +
-> >> +     if (!static_cpu_has(X86_FEATURE_PCID)) {
-> >> +             *new_asid = 0;
-> >> +             *need_flush = true;
-> >> +             return;
-> >> +     }
-> >> +
-> >> +     for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-> >> +             if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
-> >> +                 next->context.ctx_id)
-> >> +                     continue;
-> >> +
-> >> +             *new_asid = asid;
-> >> +             *need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
-> >> +                            next_tlb_gen);
-> >> +             return;
-> >> +     }
-> >> +
-> >> +     /*
-> >> +      * We don't currently own an ASID slot on this CPU.
-> >> +      * Allocate a slot.
-> >> +      */
-> >> +     *new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
-> >
-> > So this basically RR the ASID slots. Have you tried slightly more
-> > complex replacement policies like CLOCK ?
-> 
-> No, mainly because I'm lazy and because CLOCK requires scavenging a
-> bit.  (Which we can certainly do, but it will further complicate the
-> code.)  It could be worth playing with better replacement algorithms
-> as a followup, though.
-> 
-> I've also considered a slight elaboration of RR in which we make sure
-> not to reuse the most recent ASID slot, which would guarantee that, if
-> we switch from task A to B and back to A, we don't flush on the way
-> back to A.  (Currently, if B is not in the cache, there's a 1/6 chance
-> we'll flush on the way back.)
 
-How's this?
+Hi Michal,
+On 7/28/2017 6:02 PM, Michal Hocko wrote:
+> [CC linux-mm]
+>
+> On Fri 28-07-17 17:22:25, Manish Jaggi wrote:
+>> was: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+>>
+>> Hi Michal,
+>> On 7/27/2017 2:54 PM, Michal Hocko wrote:
+>>> On Thu 27-07-17 13:59:09, Manish Jaggi wrote:
+>>> [...]
+>>>> With 4.11.6 I was getting random kernel panics (Out of memory - No process left to kill),
+>>>>   when running LTP oom01 /oom02 ltp tests on our arm64 hardware with ~256G memory and high core count.
+>>>> The issue experienced was as follows
+>>>> 	that either test (oom01/oom02) selected a pid as victim and waited for the pid to be killed.
+>>>> 	that pid was marked as killed but somewhere there is a race and the process didnt get killed.
+>>>> 	and the oom01/oom02 test started killing further processes, till it panics.
+>>>> IIUC this issue is quite similar to your patch description. But applying your patch I still see the issue.
+>>>> If it is not related to this patch, can you please suggest by looking at the log, what could be preventing
+>>>> the killing of victim.
+>>>>
+>>>> Log (https://pastebin.com/hg5iXRj2)
+>>>>
+>>>> As a subtest of oom02 starts, it prints out the victim - In this case 4578
+>>>>
+>>>> oom02       0  TINFO  :  start OOM testing for mlocked pages.
+>>>> oom02       0  TINFO  :  expected victim is 4578.
+>>>>
+>>>> When oom02 thread invokes oom-killer, it did select 4578  for killing...
+>>> I will definitely have a look. Can you report it in a separate email
+>>> thread please? Are you able to reproduce with the current Linus or
+>>> linux-next trees?
+>> Yes this issue is visible with linux-next.
+> Could you provide the full kernel log from this run please? I do not
+> expect there to be much difference but just to be sure that the code I
+> am looking at matches logs.
+The log is here: https://pastebin.com/Pmn5ZwEM
+mlocked memory keeps on increasing till panic.
 
----
- arch/x86/include/asm/mmu.h         |  2 +-
- arch/x86/include/asm/mmu_context.h |  2 +-
- arch/x86/include/asm/tlbflush.h    |  2 +-
- arch/x86/mm/init.c                 |  2 +-
- arch/x86/mm/tlb.c                  | 47 ++++++++++++++++++++++++++------------
- 5 files changed, 36 insertions(+), 19 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h
-index bb8c597c2248..9f26ea900df0 100644
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -55,7 +55,7 @@ typedef struct {
- 
- #define INIT_MM_CONTEXT(mm)						\
- 	.context = {							\
--		.ctx_id = 1,						\
-+		.ctx_id = 2,						\
- 	}
- 
- void leave_mm(int cpu);
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index d25d9f4abb15..f7866733875d 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -137,7 +137,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
--	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
-+	mm->context.ctx_id = atomic64_add_return(2, &last_mm_ctx_id);
- 	atomic64_set(&mm->context.tlb_gen, 0);
- 
- 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index d23e61dc0640..43a4af25d78a 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -102,7 +102,7 @@ struct tlb_state {
- 	 */
- 	struct mm_struct *loaded_mm;
- 	u16 loaded_mm_asid;
--	u16 next_asid;
-+	u16 last_asid;
- 
- 	/*
- 	 * Access to this CR4 shadow and to H/W CR4 is protected by
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 65ae17d45c4a..570979714d49 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -812,7 +812,7 @@ void __init zone_sizes_init(void)
- 
- DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
- 	.loaded_mm = &init_mm,
--	.next_asid = 1,
-+	.last_asid = 0,
- 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
- };
- EXPORT_SYMBOL_GPL(cpu_tlbstate);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index ce104b962a17..aacb87f03428 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -28,12 +28,28 @@
-  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
-  */
- 
--atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
-+atomic64_t last_mm_ctx_id = ATOMIC64_INIT(2);
-+
-+static inline u64 asid_ctx_id(int asid)
-+{
-+	return this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) & ~1ULL;
-+}
-+
-+static inline void asid_hit(int asid)
-+{
-+	this_cpu_or(cpu_tlbstate.ctxs[asid].ctx_id, 1);
-+}
-+
-+static inline bool asid_age(int asid)
-+{
-+	return this_cpu_xchg(cpu_tlbstate.ctxs[asid].ctx_id, asid_ctx_id(asid)) & 1ULL;
-+}
- 
- static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
- 			    u16 *new_asid, bool *need_flush)
- {
- 	u16 asid;
-+	int i;
- 
- 	if (!static_cpu_has(X86_FEATURE_PCID)) {
- 		*new_asid = 0;
-@@ -42,10 +58,11 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
- 	}
- 
- 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
--		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
--		    next->context.ctx_id)
-+		if (asid_ctx_id(asid) != next->context.ctx_id)
- 			continue;
- 
-+		asid_hit(asid);
-+
- 		*new_asid = asid;
- 		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
- 			       next_tlb_gen);
-@@ -53,14 +70,17 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
- 	}
- 
- 	/*
--	 * We don't currently own an ASID slot on this CPU.
--	 * Allocate a slot.
-+	 * CLOCK - each entry has a single 'used' bit. Cycle through the array
-+	 * clearing this bit until we find an entry that doesn't have it set.
- 	 */
--	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
--	if (*new_asid >= TLB_NR_DYN_ASIDS) {
--		*new_asid = 0;
--		this_cpu_write(cpu_tlbstate.next_asid, 1);
--	}
-+	i = this_cpu_read(cpu_tlbstate.last_asid);
-+	do {
-+		if (--i < 0)
-+			i = TLB_NR_DYN_ASIDS - 1;
-+	} while (!asid_age(i));
-+	this_cpu_write(cpu_tlbstate.last_asid, i);
-+
-+	*new_asid = i;
- 	*need_flush = true;
- }
- 
-@@ -125,8 +145,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
- 	VM_BUG_ON(__read_cr3() != (__sme_pa(real_prev->pgd) | prev_asid));
- 
- 	if (real_prev == next) {
--		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
--			  next->context.ctx_id);
-+		VM_BUG_ON(asid_ctx_id(prev_asid) != next->context.ctx_id);
- 
- 		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
- 			/*
-@@ -239,9 +258,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
- 
- 	/* This code cannot presently handle being reentered. */
- 	VM_WARN_ON(!irqs_disabled());
--
--	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
--		   loaded_mm->context.ctx_id);
-+	VM_WARN_ON(asid_ctx_id(loaded_mm_asid) != loaded_mm->context.ctx_id);
- 
- 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
- 		/*
+> [...]
+>>>> [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+>>> Yes because
+>>> [  365.283499] Node 1 Normal free:19500kB min:33804kB low:165916kB high:298028kB active_anon:13312kB inactive_anon:172kB active_file:0kB inactive_file:1044kB unevictable:131560064kB writepending:0kB present:134213632kB managed:132113248kB mlocked:131560064kB slab_reclaimable:5748kB slab_unreclaimable:17808kB kernel_stack:2720kB pagetables:254636kB bounce:0kB free_pcp:10476kB local_pcp:144kB free_cma:0kB
+>>>
+>>> Although we have killed and reaped oom02 process Node1 is still below
+>>> min watermark and that is why we have hit the oom killer again. It
+>>> is not immediatelly clear to me why, that would require a deeper
+>>> inspection.
+>> I have a doubt here
+>> my understanding of oom test: oom() function basically forks itself and
+>> starts n threads each thread has a loop which allocates and touches memory
+>> thus will trigger oom-killer and will kill the process. the parent process
+>> is on a wait() and will print pass/fail.
+>>
+>> So IIUC when 4578 is reaped all the child threads should be terminated,
+>> which happens in pass case (line 152)
+>> But even after being killed and reaped,  the oom killer is invoked again
+>> which doesn't seem right.
+> As I've said the OOM killer hits because the memory from Node 1 didn't
+> get freed for some reasov or got immediatally populated.
+>
+>> Could it be that the process is just marked hidden from oom including its
+>> threads, thus oom-killer continues.
+> The whole process should be killed and the OOM reaper should only mark
+> the victim oom invisible _after_ the address space has been reaped (and
+> memory freed). You said the patch from
+> http://lkml.kernel.org/r/20170724072332.31903-1-mhocko@kernel.org didn't
+> help so it shouldn't be a race with the last __mmput.
+>
+> Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
