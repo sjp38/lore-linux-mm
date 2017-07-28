@@ -1,123 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 080F76B053B
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:54:46 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id u19so99380844qtc.14
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:54:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 125si12839058qkf.478.2017.07.28.05.54.45
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 149456B053D
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:59:58 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d5so117964194pfg.3
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:59:58 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t86si12335188pfa.296.2017.07.28.05.59.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 05:54:45 -0700 (PDT)
-Subject: Re: [PATCH v2 4/4] gfs2: convert to errseq_t based writeback error
- reporting for fsync
-References: <20170726175538.13885-1-jlayton@kernel.org>
- <20170726175538.13885-5-jlayton@kernel.org>
- <20170726192105.GD15980@bombadil.infradead.org>
- <1501107773.15159.6.camel@redhat.com>
- <932895023.34932662.1501159628674.JavaMail.zimbra@redhat.com>
- <16d62583-f677-bc34-dccf-d20d9405ca10@redhat.com>
- <1501246057.8241.1.camel@redhat.com>
-From: Steven Whitehouse <swhiteho@redhat.com>
-Message-ID: <1d8d38a4-38a4-cf65-5ecd-ec9410f7f504@redhat.com>
-Date: Fri, 28 Jul 2017 13:54:18 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 28 Jul 2017 05:59:56 -0700 (PDT)
+Subject: Re: Possible race condition in oom-killer
+References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
+ <20170728123235.GN2274@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
+Date: Fri, 28 Jul 2017 21:59:50 +0900
 MIME-Version: 1.0
-In-Reply-To: <1501246057.8241.1.camel@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20170728123235.GN2274@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>, Bob Peterson <rpeterso@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Jeff Layton <jlayton@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cluster-devel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>, Manish Jaggi <mjaggi@caviumnetworks.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+(Oops. Forgot to add CC.)
 
-
-On 28/07/17 13:47, Jeff Layton wrote:
-> On Fri, 2017-07-28 at 13:37 +0100, Steven Whitehouse wrote:
->> Hi,
->>
->>
->> On 27/07/17 13:47, Bob Peterson wrote:
->>> ----- Original Message -----
->>>> On Wed, 2017-07-26 at 12:21 -0700, Matthew Wilcox wrote:
->>>>> On Wed, Jul 26, 2017 at 01:55:38PM -0400, Jeff Layton wrote:
->>>>>> @@ -668,12 +668,14 @@ static int gfs2_fsync(struct file *file, loff_t
->>>>>> start, loff_t end,
->>>>>>   		if (ret)
->>>>>>   			return ret;
->>>>>>   		if (gfs2_is_jdata(ip))
->>>>>> -			filemap_write_and_wait(mapping);
->>>>>> +			ret = file_write_and_wait(file);
->>>>>> +		if (ret)
->>>>>> +			return ret;
->>>>>>   		gfs2_ail_flush(ip->i_gl, 1);
->>>>>>   	}
->>>>> Do we want to skip flushing the AIL if there was an error (possibly
->>>>> previously encountered)?  I'd think we'd want to flush the AIL then report
->>>>> the error, like this:
->>>>>
->>>> I wondered about that. Note that earlier in the function, we also bail
->>>> out without flushing the AIL if sync_inode_metadata fails, so I assumed
->>>> that we'd want to do the same here.
->>>>
->>>> I could definitely be wrong and am fine with changing it if so.
->>>> Discarding the error like we do today seems wrong though.
->>>>
->>>> Bob, thoughts?
->>> Hi Jeff, Matthew,
->>>
->>> I'm not sure there's a right or wrong answer here. I don't know what's
->>> best from a "correctness" point of view.
->>>
->>> I guess I'm leaning toward Jeff's original solution where we don't
->>> call gfs2_ail_flush() on error. The main purpose of ail_flush is to
->>> go through buffer descriptors (bds) attached to the glock and generate
->>> revokes for them in a new transaction. If there's an error condition,
->>> trying to go through more hoops will probably just get us into more
->>> trouble. If the error is -ENOMEM, we don't want to allocate new memory
->>> for the new transaction. If the error is -EIO, we probably don't
->>> want to encourage more writing either.
->>>
->>> So on the one hand, it might be good to get rid of the buffer descriptors
->>> so we don't leak memory, but that's probably also done elsewhere.
->>> I have not chased down what happens in that case, but the same thing
->>> would happen in the existing -EIO case a few lines above.
->>>
->>> On the other hand, we probably don't want to start a new transaction
->>> and start adding revokes to it, and such, due to the error.
->>>
->>> Perhaps Steve Whitehouse can weigh in?
->>>
->>> Regards,
->>>
->>> Bob Peterson
->>> Red Hat File Systems
->> Yes, we probably do want to skip the ail flush if there is an error. We
->> don't know whether the error is permanent or transient at that stage. If
->> a previous stage of the fsync has failed, then there may be nothing for
->> the next stage to do anyway, so it is probably not a big deal either
->> way. So long as the error is reported to the caller, then we should be ok,
->>
-> Ok, cool. I'll plan to carry this patch for now as it depends on an
-> earlier one in the series. One more question though:
+On 2017/07/28 21:32, Michal Hocko wrote:
+> [CC linux-mm]
 >
-> Is it correct in the gfs2_is_jdata case to ignore the range that was
-> passed in from the caller? ->fsync gets start and end arguments, but
-> this will always write back the whole range. Is that necessary in this
-> case?
+> On Fri 28-07-17 17:22:25, Manish Jaggi wrote:
+>> was: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+>>
+>> Hi Michal,
+>> On 7/27/2017 2:54 PM, Michal Hocko wrote:
+>>> On Thu 27-07-17 13:59:09, Manish Jaggi wrote:
+>>> [...]
+>>>> With 4.11.6 I was getting random kernel panics (Out of memory - No process left to kill),
+>>>>  when running LTP oom01 /oom02 ltp tests on our arm64 hardware with ~256G memory and high core count.
+>>>> The issue experienced was as follows
+>>>> 	that either test (oom01/oom02) selected a pid as victim and waited for the pid to be killed.
+>>>> 	that pid was marked as killed but somewhere there is a race and the process didnt get killed.
+>>>> 	and the oom01/oom02 test started killing further processes, till it panics.
+>>>> IIUC this issue is quite similar to your patch description. But applying your patch I still see the issue.
+>>>> If it is not related to this patch, can you please suggest by looking at the log, what could be preventing
+>>>> the killing of victim.
+>>>>
+>>>> Log (https://pastebin.com/hg5iXRj2)
+>>>>
+>>>> As a subtest of oom02 starts, it prints out the victim - In this case 4578
+>>>>
+>>>> oom02       0  TINFO  :  start OOM testing for mlocked pages.
+>>>> oom02       0  TINFO  :  expected victim is 4578.
+>>>>
+>>>> When oom02 thread invokes oom-killer, it did select 4578  for killing...
+>>> I will definitely have a look. Can you report it in a separate email
+>>> thread please? Are you able to reproduce with the current Linus or
+>>> linux-next trees?
+>> Yes this issue is visible with linux-next.
 >
-It probably doesn't matter really. We try to discourage the use of jdata 
-from userspace. There are a few internal files that use it still, and it 
-is there for backwards compatibility more than anything. So performance 
-is generally not a problem for that. The ordered write mode is the 
-important one.
+> Could you provide the full kernel log from this run please? I do not
+> expect there to be much difference but just to be sure that the code I
+> am looking at matches logs.
 
-So you are right that it might be better to add the range into that call 
-too, but it is not likely that anybody will notice the performance 
-improvement,
+4578 is consuming memory as mlocked pages. But the OOM reaper cannot reclaim
+mlocked pages (i.e. can_madv_dontneed_vma() returns false due to VM_LOCKED), can it?
 
-Steve.
+oom02       0  TINFO  :  start OOM testing for mlocked pages.
+oom02       0  TINFO  :  expected victim is 4578.
+[  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
+
+As a result, MMF_OOM_SKIP is set without reclaiming much memory.
+Thus, it is natural that subsequent OOM victims are selected immediately because
+almost all memory is still in use. Since 4578 is multi-threaded (isn't it?),
+it will take time to call final __mmput() because mm->users are large.
+Since there are many threads, it is possible that all OOM killable processes are
+killed before final __mmput() of 4578 (which releases mlocked pages) is called.
+
+>
+> [...]
+>>>> [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+>>> Yes because
+>>> [  365.283499] Node 1 Normal free:19500kB min:33804kB low:165916kB high:298028kB active_anon:13312kB inactive_anon:172kB active_file:0kB inactive_file:1044kB unevictable:131560064kB writepending:0kB present:134213632kB managed:132113248kB mlocked:131560064kB slab_reclaimable:5748kB slab_unreclaimable:17808kB kernel_stack:2720kB pagetables:254636kB bounce:0kB free_pcp:10476kB local_pcp:144kB free_cma:0kB
+>>>
+>>> Although we have killed and reaped oom02 process Node1 is still below
+>>> min watermark and that is why we have hit the oom killer again. It
+>>> is not immediatelly clear to me why, that would require a deeper
+>>> inspection.
+>> I have a doubt here
+>> my understanding of oom test: oom() function basically forks itself and
+>> starts n threads each thread has a loop which allocates and touches memory
+>> thus will trigger oom-killer and will kill the process. the parent process
+>> is on a wait() and will print pass/fail.
+>>
+>> So IIUC when 4578 is reaped all the child threads should be terminated,
+>> which happens in pass case (line 152)
+>> But even after being killed and reaped,  the oom killer is invoked again
+>> which doesn't seem right.
+>
+> As I've said the OOM killer hits because the memory from Node 1 didn't
+> get freed for some reasov or got immediatally populated.
+
+Because of mlocked pages by multi threaded process, it will take time to
+reclaim mlocked pages.
+
+>
+>> Could it be that the process is just marked hidden from oom including its
+>> threads, thus oom-killer continues.
+>
+> The whole process should be killed and the OOM reaper should only mark
+> the victim oom invisible _after_ the address space has been reaped (and
+> memory freed). You said the patch from
+> http://lkml.kernel.org/r/20170724072332.31903-1-mhocko@kernel.org didn't
+> help so it shouldn't be a race with the last __mmput.
+>
+> Thanks!
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
