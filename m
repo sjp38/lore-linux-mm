@@ -1,70 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C4DE6B0545
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:15:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e204so12755012wma.2
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:15:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o73si13061119wmi.82.2017.07.28.06.15.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 372ED6B0547
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:15:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e9so144933272pga.5
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:15:09 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h4si13053692pln.760.2017.07.28.06.15.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 06:15:06 -0700 (PDT)
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-References: <20170728091904.14627-1-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7ba2635d-68bd-ee1a-caa2-3ff571c7a3ee@suse.cz>
-Date: Fri, 28 Jul 2017 15:15:03 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170728091904.14627-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Fri, 28 Jul 2017 06:15:08 -0700 (PDT)
+Subject: Re: Possible race condition in oom-killer
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
+	<20170728123235.GN2274@dhcp22.suse.cz>
+	<46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
+	<20170728130723.GP2274@dhcp22.suse.cz>
+In-Reply-To: <20170728130723.GP2274@dhcp22.suse.cz>
+Message-Id: <201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
+Date: Fri, 28 Jul 2017 22:15:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: mhocko@kernel.org
+Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/28/2017 11:19 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+Michal Hocko wrote:
+> > 4578 is consuming memory as mlocked pages. But the OOM reaper cannot reclaim
+> > mlocked pages (i.e. can_madv_dontneed_vma() returns false due to VM_LOCKED), can it?
 > 
-> GFP_TEMPORARY has been introduced by e12ba74d8ff3 ("Group short-lived
-> and reclaimable kernel allocations") along with __GFP_RECLAIMABLE. It's
-> primary motivation was to allow users to tell that an allocation is
-> short lived and so the allocator can try to place such allocations close
-> together and prevent long term fragmentation. As much as this sounds
-> like a reasonable semantic it becomes much less clear when to use the
-> highlevel GFP_TEMPORARY allocation flag. How long is temporary? Can
-> the context holding that memory sleep? Can it take locks? It seems
-> there is no good answer for those questions.
+> You are absolutely right. I am pretty sure I've checked mlocked counter
+> as the first thing but that must be from one of the earlier oom reports.
+> My fault I haven't checked it in the critical one
 > 
-> The current implementation of GFP_TEMPORARY is basically
-> GFP_KERNEL | __GFP_RECLAIMABLE which in itself is tricky because
-> basically none of the existing caller provide a way to reclaim the
-> allocated memory. So this is rather misleading and hard to evaluate for
-> any benefits.
+> [  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
+> [  365.282658] oom_reaper: reaped process 4583 (oom02), now anon-rss:131561664kB, file-rss:0kB, shmem-rss:0kB
 > 
-> I have checked some random users and none of them has added the flag
-> with a specific justification. I suspect most of them just copied from
-> other existing users and others just thought it might be a good idea
-> to use without any measuring. This suggests that GFP_TEMPORARY just
-> motivates for cargo cult usage without any reasoning.
+> and the above screemed about the fact I was just completely blind.
 > 
-> I believe that our gfp flags are quite complex already and especially
-> those with highlevel semantic should be clearly defined to prevent from
-> confusion and abuse. Therefore I propose dropping GFP_TEMPORARY and
-> replace all existing users to simply use GFP_KERNEL. Please note that
-> SLAB users with shrinkers will still get __GFP_RECLAIMABLE heuristic
-> and so they will be placed properly for memory fragmentation prevention.
-> 
-> I can see reasons we might want some gfp flag to reflect shorterm
-> allocations but I propose starting from a clear semantic definition and
-> only then add users with proper justification.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> mlock pages handling is on my todo list for quite some time already but
+> I didn't get around it to implement that. mlock code is very tricky.
 
-Yes, it's best we remove it.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+task_will_free_mem(current) in out_of_memory() returning false due to
+MMF_OOM_SKIP already set allowed each thread sharing that mm to select a new
+OOM victim. If task_will_free_mem(current) in out_of_memory() did not return
+false, threads sharing MMF_OOM_SKIP mm would not have selected new victims
+to the level where all OOM killable processes are killed and calls panic().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
