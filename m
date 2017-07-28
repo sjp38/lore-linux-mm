@@ -1,155 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 132736B056D
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 16:48:35 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id o9so85639757iod.13
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 13:48:35 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a190si6166309itc.68.2017.07.28.13.48.32
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 496D86B056F
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:21 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id q50so39692716wrb.14
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 14:00:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m142si3049791wmd.203.2017.07.28.14.00.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 13:48:33 -0700 (PDT)
-Subject: Re: gigantic hugepages vs. movable zones
-References: <20170726105004.GI2981@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <6dd3171d-7d61-5476-5465-ab7c06b56e0b@oracle.com>
-Date: Fri, 28 Jul 2017 13:48:28 -0700
+        Fri, 28 Jul 2017 14:00:20 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6SKxh1e119522
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:18 -0400
+Received: from e24smtp04.br.ibm.com (e24smtp04.br.ibm.com [32.104.18.25])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c0aetdy7f-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:18 -0400
+Received: from localhost
+	by e24smtp04.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
+	Fri, 28 Jul 2017 18:00:16 -0300
+Received: from d24av04.br.ibm.com (d24av04.br.ibm.com [9.8.31.97])
+	by d24relay03.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6SL0Dv739649296
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 18:00:13 -0300
+Received: from d24av04.br.ibm.com (localhost [127.0.0.1])
+	by d24av04.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6SL0EjX013096
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 18:00:14 -0300
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
+From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+Subject: Re: [RFC v6 27/62] powerpc: helper to validate key-access permissions of a pte
+In-reply-to: <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
+Date: Fri, 28 Jul 2017 18:00:02 -0300
 MIME-Version: 1.0
-In-Reply-To: <20170726105004.GI2981@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <87tw1we0q5.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
 
-On 07/26/2017 03:50 AM, Michal Hocko wrote:
-> Hi,
-> I've just noticed that alloc_gigantic_page ignores movability of the
-> gigantic page and it uses any existing zone. Considering that
-> hugepage_migration_supported only supports 2MB and pgd level hugepages
-> then 1GB pages are not migratable and as such allocating them from a
-> movable zone will break the basic expectation of this zone. Standard
-> hugetlb allocations try to avoid that by using htlb_alloc_mask and I
-> believe we should do the same for gigantic pages as well.
-> 
-> I suspect this behavior is not intentional. What do you think about the
-> following untested patch?
-> ---
-> From 542d32c1eca7dcf38afca1a91bca4a472f6e8651 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Wed, 26 Jul 2017 12:43:43 +0200
-> Subject: [PATCH] mm, hugetlb: do not allocate non-migrateable gigantic pages
->  from movable zones
-> 
-> alloc_gigantic_page doesn't consider movability of the gigantic hugetlb
-> when scanning eligible ranges for the allocation. As 1GB hugetlb pages
-> are not movable currently this can break the movable zone assumption
-> that all allocations are migrateable and as such break memory hotplug.
-> 
-> Reorganize the code and use the standard zonelist allocations scheme
-> that we use for standard hugetbl pages. htlb_alloc_mask will ensure that
-> only migratable hugetlb pages will ever see a movable zone.
-> 
-> Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-This seems reasonable to me, and I like the fact that the code is more
-like the default huge page case.  I don't see any issues with the code.
-I did some simple smoke testing of allocating 1G pages with the new code
-and ensuring they ended up as expected.
+Ram Pai <linuxram@us.ibm.com> writes:
+> --- a/arch/powerpc/mm/pkeys.c
+> +++ b/arch/powerpc/mm/pkeys.c
+> @@ -201,3 +201,36 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
+>  	 */
+>  	return vma_pkey(vma);
+>  }
+> +
+> +static bool pkey_access_permitted(int pkey, bool write, bool execute)
+> +{
+> +	int pkey_shift;
+> +	u64 amr;
+> +
+> +	if (!pkey)
+> +		return true;
+> +
+> +	pkey_shift = pkeyshift(pkey);
+> +	if (!(read_uamor() & (0x3UL << pkey_shift)))
+> +		return true;
+> +
+> +	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
+> +		return true;
+> +
+> +	if (!write) {
+> +		amr = read_amr();
+> +		if (!(amr & (AMR_RD_BIT << pkey_shift)))
+> +			return true;
+> +	}
+> +
+> +	amr = read_amr(); /* delay reading amr uptil absolutely needed */
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Actually, this is causing amr to be read twice in case control enters
+the "if (!write)" block above but doesn't enter the other if block nested
+in it.
+
+read_amr should be called only once, right before "if (!write)".
 
 -- 
-Mike Kravetz
-
-> ---
->  mm/hugetlb.c | 35 ++++++++++++++++++++---------------
->  1 file changed, 20 insertions(+), 15 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bc48ee783dd9..60530bb3d228 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1066,11 +1066,11 @@ static void free_gigantic_page(struct page *page, unsigned int order)
->  }
->  
->  static int __alloc_gigantic_page(unsigned long start_pfn,
-> -				unsigned long nr_pages)
-> +				unsigned long nr_pages, gfp_t gfp_mask)
->  {
->  	unsigned long end_pfn = start_pfn + nr_pages;
->  	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
-> -				  GFP_KERNEL);
-> +				  gfp_mask);
->  }
->  
->  static bool pfn_range_valid_gigantic(struct zone *z,
-> @@ -1108,19 +1108,24 @@ static bool zone_spans_last_pfn(const struct zone *zone,
->  	return zone_spans_pfn(zone, last_pfn);
->  }
->  
-> -static struct page *alloc_gigantic_page(int nid, unsigned int order)
-> +static struct page *alloc_gigantic_page(int nid, struct hstate *h)
->  {
-> +	unsigned int order = huge_page_order(h);
->  	unsigned long nr_pages = 1 << order;
->  	unsigned long ret, pfn, flags;
-> -	struct zone *z;
-> +	struct zonelist *zonelist;
-> +	struct zone *zone;
-> +	struct zoneref *z;
-> +	gfp_t gfp_mask;
->  
-> -	z = NODE_DATA(nid)->node_zones;
-> -	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
-> -		spin_lock_irqsave(&z->lock, flags);
-> +	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
-> +	zonelist = node_zonelist(nid, gfp_mask);
-> +	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {
-> +		spin_lock_irqsave(&zone->lock, flags);
->  
-> -		pfn = ALIGN(z->zone_start_pfn, nr_pages);
-> -		while (zone_spans_last_pfn(z, pfn, nr_pages)) {
-> -			if (pfn_range_valid_gigantic(z, pfn, nr_pages)) {
-> +		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
-> +		while (zone_spans_last_pfn(zone, pfn, nr_pages)) {
-> +			if (pfn_range_valid_gigantic(zone, pfn, nr_pages)) {
->  				/*
->  				 * We release the zone lock here because
->  				 * alloc_contig_range() will also lock the zone
-> @@ -1128,16 +1133,16 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
->  				 * spinning on this lock, it may win the race
->  				 * and cause alloc_contig_range() to fail...
->  				 */
-> -				spin_unlock_irqrestore(&z->lock, flags);
-> -				ret = __alloc_gigantic_page(pfn, nr_pages);
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +				ret = __alloc_gigantic_page(pfn, nr_pages, gfp_mask);
->  				if (!ret)
->  					return pfn_to_page(pfn);
-> -				spin_lock_irqsave(&z->lock, flags);
-> +				spin_lock_irqsave(&zone->lock, flags);
->  			}
->  			pfn += nr_pages;
->  		}
->  
-> -		spin_unlock_irqrestore(&z->lock, flags);
-> +		spin_unlock_irqrestore(&zone->lock, flags);
->  	}
->  
->  	return NULL;
-> @@ -1150,7 +1155,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
->  {
->  	struct page *page;
->  
-> -	page = alloc_gigantic_page(nid, huge_page_order(h));
-> +	page = alloc_gigantic_page(nid, h);
->  	if (page) {
->  		prep_compound_gigantic_page(page, huge_page_order(h));
->  		prep_new_huge_page(h, page, nid);
-> 
+Thiago Jung Bauermann
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
