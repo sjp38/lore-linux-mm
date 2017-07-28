@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DB32A6B0513
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:38:03 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l3so38015315wrc.12
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:38:03 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id 192si4660615wmy.108.2017.07.28.02.38.02
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFEF6B04E7
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:52:52 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e204so12334236wma.2
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:52:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v76si3215292wmd.247.2017.07.28.02.52.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 02:38:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 49E6DF4033
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:38:02 +0000 (UTC)
-Date: Fri, 28 Jul 2017 10:38:01 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/6] mm, kswapd: refactor kswapd_try_to_sleep()
-Message-ID: <20170728093801.n62m3fzmoenax2ly@techsingularity.net>
-References: <20170727160701.9245-1-vbabka@suse.cz>
- <20170727160701.9245-2-vbabka@suse.cz>
+        Fri, 28 Jul 2017 02:52:51 -0700 (PDT)
+Date: Fri, 28 Jul 2017 10:52:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
+Message-ID: <20170728095249.n62p5nhqbekjd5yn@suse.de>
+References: <20170728091904.14627-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170727160701.9245-2-vbabka@suse.cz>
+In-Reply-To: <20170728091904.14627-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Jul 27, 2017 at 06:06:56PM +0200, Vlastimil Babka wrote:
-> The code of kswapd_try_to_sleep() is unnecessarily hard to follow. Also we
-> needlessly call prepare_kswapd_sleep() twice, if the first one fails.
-> Restructure the code so that each non-success case is accounted and returns
-> immediately.
+On Fri, Jul 28, 2017 at 11:19:04AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> This patch should not introduce any functional change, except when the first
-> prepare_kswapd_sleep() would have returned false, and then the second would be
-> true (because somebody else has freed memory), kswapd would sleep before this
-> patch and now it won't. This has likely been an accidental property of the
-> implementation, and extremely rare to happen in practice anyway.
+> GFP_TEMPORARY has been introduced by e12ba74d8ff3 ("Group short-lived
+> and reclaimable kernel allocations") along with __GFP_RECLAIMABLE. It's
+> primary motivation was to allow users to tell that an allocation is
+> short lived and so the allocator can try to place such allocations close
+> together and prevent long term fragmentation. As much as this sounds
+> like a reasonable semantic it becomes much less clear when to use the
+> highlevel GFP_TEMPORARY allocation flag. How long is temporary? Can
+> the context holding that memory sleep? Can it take locks? It seems
+> there is no good answer for those questions.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> The current implementation of GFP_TEMPORARY is basically
+> GFP_KERNEL | __GFP_RECLAIMABLE which in itself is tricky because
+> basically none of the existing caller provide a way to reclaim the
+> allocated memory. So this is rather misleading and hard to evaluate for
+> any benefits.
+> 
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+At the time of the introduction, the users were all very short-lived
+where short was for operations such as reading a proc file that discarded
+buffers afterwards. However, it does seem to have misused over the last
+few years and it was too easy to confuse "temporary" with "short lived"
+and too easy to get confused about "how short lived is short lived?". On
+that basis;
+
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
 Mel Gorman
