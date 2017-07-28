@@ -1,124 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1CD6B0577
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 19:09:01 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o65so108107090qkl.12
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 16:09:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e86si18804444qkj.368.2017.07.28.16.09.00
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CE9506B0579
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 19:52:52 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id t139so324615711ywg.6
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 16:52:52 -0700 (PDT)
+Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
+        by mx.google.com with ESMTPS id p17si5360917ybd.419.2017.07.28.16.52.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 16:09:00 -0700 (PDT)
-Date: Sat, 29 Jul 2017 02:08:54 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170729020231-mutt-send-email-mst@kernel.org>
-References: <20170712160129-mutt-send-email-mst@kernel.org>
- <5966241C.9060503@intel.com>
- <20170712163746-mutt-send-email-mst@kernel.org>
- <5967246B.9030804@intel.com>
- <20170713210819-mutt-send-email-mst@kernel.org>
- <59686EEB.8080805@intel.com>
- <20170723044036-mutt-send-email-mst@kernel.org>
- <59781119.8010200@intel.com>
- <20170726155856-mutt-send-email-mst@kernel.org>
- <597954E3.2070801@intel.com>
+        Fri, 28 Jul 2017 16:52:51 -0700 (PDT)
+Received: by mail-yw0-x244.google.com with SMTP id u207so9183434ywc.0
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 16:52:51 -0700 (PDT)
+Date: Fri, 28 Jul 2017 23:52:50 +0000
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH 1/2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170728235248.GA27897@li70-116.members.linode.com>
+References: <1500576331-31214-1-git-send-email-jbacik@fb.com>
+ <1500576331-31214-2-git-send-email-jbacik@fb.com>
+ <20170727165348.0e23487a9f98c359fbd5bfea@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <597954E3.2070801@intel.com>
+In-Reply-To: <20170727165348.0e23487a9f98c359fbd5bfea@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: josef@toxicpanda.com, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, david@fromorbit.com, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
 
-On Thu, Jul 27, 2017 at 10:50:11AM +0800, Wei Wang wrote:
-> > > > OK I thought this over. While we might need these new APIs in
-> > > > the future, I think that at the moment, there's a way to implement
-> > > > this feature that is significantly simpler. Just add each s/g
-> > > > as a separate input buffer.
-> > > 
-> > > Should it be an output buffer?
-> > Hypervisor overwrites these pages with zeroes. Therefore it is
-> > writeable by device: DMA_FROM_DEVICE.
+On Thu, Jul 27, 2017 at 04:53:48PM -0700, Andrew Morton wrote:
+> On Thu, 20 Jul 2017 14:45:30 -0400 josef@toxicpanda.com wrote:
 > 
-> Why would the hypervisor need to zero the buffer?
-
-The page is supplied to hypervisor and can lose the value that
-is there.  That is the definition of writeable by device.
-
-> I think it may only
-> need to read out the info(base,size).
-
-And then do what?
-
-> I think it should be like this:
-> the cmd hdr buffer: input, because the hypervisor would write it to
-> send a cmd to the guest
-> the payload buffer: output, for the hypervisor to read the info
-
-These should be split.
-
-We have:
-
-1. request that hypervisor sends to guest, includes ID: input
-2. synchronisation header with ID sent by guest: output
-3. list of pages: input
-
-2 and 3 must be on the same VQ. 1 can come on any VQ - reusing stats VQ
-might make sense.
-
-
-> > > I think output means from the
-> > > driver to device (i.e. DMA_TO_DEVICE).
-> > This part is correct I believe.
+> > From: Josef Bacik <jbacik@fb.com>
 > > 
-> > > > This needs zero new APIs.
-> > > > 
-> > > > I know that follow-up patches need to add a header in front
-> > > > so you might be thinking: how am I going to add this
-> > > > header? The answer is quite simple - add it as a separate
-> > > > out header.
-> > > > 
-> > > > Host will be able to distinguish between header and pages
-> > > > by looking at the direction, and - should we want to add
-> > > > IN data to header - additionally size (<4K => header).
-> > > 
-> > > I think this works fine when the cmdq is only used for
-> > > reporting the unused pages.
-> > > It would be an issue
-> > > if there are other usages (e.g. report memory statistics)
-> > > interleaving. I think one solution would be to lock the cmdq until
-> > > a cmd usage is done ((e.g. all the unused pages are reported) ) -
-> > > in this case, the periodically updated guest memory statistics
-> > > may be delayed for a while occasionally when live migration starts.
-> > > Would this be acceptable? If not, probably we can have the cmdq
-> > > for one usage only.
-> > > 
-> > > 
-> > > Best,
-> > > Wei
-> > OK I see, I think the issue is that reporting free pages
-> > was structured like stats. Let's split it -
-> > send pages on e.g. free_vq, get commands on vq shared with
-> > stats.
+> > Previously we were using the ratio of the number of lru pages scanned to
+> > the number of eligible lru pages to determine the number of slab objects
+> > to scan.  The problem with this is that these two things have nothing to
+> > do with each other,
+> 
+> "nothing"?
+> 
+> > so in slab heavy work loads where there is little to
+> > no page cache we can end up with the pages scanned being a very low
+> > number.
+> 
+> In this case the "number of eligible lru pages" will also be low, so
+> these things do have something to do with each other?
+> 
+
+The problem is scanned doesn't correlate to the scanned count we calculate, but
+rather the pages we're able to actually scan.  With almost no page cache we end
+up with really low scanned counts to "relatively" high lru count, which makes
+the ratio really really low.  Anecdotally we would have 10 million inodes in
+cache, but the ratios were such that our scan target was like 8k.
+
+> >  This means that we reclaim next to no slab pages and waste a
+> > lot of time reclaiming small amounts of space.
 > > 
+> > Instead use sc->priority in the same way we use it to determine scan
+> > amounts for the lru's.
 > 
-> Would it be better to have the "report free page" command to be sent
-> through the free_vq? In this case,we will have
-> stats_vq: for the stats usage, which is already there
-> free_vq: for reporting free pages.
+> That sounds like a good idea.
 > 
-> Best,
-> Wei
+> Alternatively did you consider hooking into the vmpressure code (or
+> hannes's new memdelay code) to determine how hard to scan slab?
+> 
 
-See above. I would get requests on stats vq but report
-free pages separately on free vq.
+Vmpressure requires memcg to be turned on.  As for memdelay that might be a good
+direction in the future, but right now it's just per task.  We could probably
+use it for direct reclaim, but I really want this to make kswapd better so we
+avoid direct reclaim.  If it's expanded to be system wide so we could have an
+idea of the effect of memory reclaim on the whole system that would tie in
+nicely here.  But for now I think staying consistent with everything else is
+good enough.  Thanks,
 
-> 
-> 
-> 
-> 
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
