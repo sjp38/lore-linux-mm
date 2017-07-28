@@ -1,102 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E47B66B04B2
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:05:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z53so36485252wrz.10
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:05:32 -0700 (PDT)
-Received: from mail-wr0-f194.google.com (mail-wr0-f194.google.com. [209.85.128.194])
-        by mx.google.com with ESMTPS id k32si3681497wrc.311.2017.07.28.00.58.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 752C86B04BE
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:22:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id c14so271055481pgn.11
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:22:45 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id g6si10925140pln.930.2017.07.28.01.22.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 00:58:40 -0700 (PDT)
-Received: by mail-wr0-f194.google.com with SMTP id y43so25925172wrd.0
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 00:58:39 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] fs, proc: remove priv argument from is_stack
-Date: Fri, 28 Jul 2017 09:58:33 +0200
-Message-Id: <20170728075833.7241-1-mhocko@kernel.org>
+        Fri, 28 Jul 2017 01:22:44 -0700 (PDT)
+Message-ID: <597AF4EF.4020705@intel.com>
+Date: Fri, 28 Jul 2017 16:25:19 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, mhocko@kernel.org, willy@infradead.org
+Cc: virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-From: Michal Hocko <mhocko@suse.com>
+On 07/12/2017 08:40 PM, Wei Wang wrote:
+> Add a new feature, VIRTIO_BALLOON_F_SG, which enables to
+> transfer a chunk of ballooned (i.e. inflated/deflated) pages using
+> scatter-gather lists to the host.
+>
+> The implementation of the previous virtio-balloon is not very
+> efficient, because the balloon pages are transferred to the
+> host one by one. Here is the breakdown of the time in percentage
+> spent on each step of the balloon inflating process (inflating
+> 7GB of an 8GB idle guest).
+>
+> 1) allocating pages (6.5%)
+> 2) sending PFNs to host (68.3%)
+> 3) address translation (6.1%)
+> 4) madvise (19%)
+>
+> It takes about 4126ms for the inflating process to complete.
+> The above profiling shows that the bottlenecks are stage 2)
+> and stage 4).
+>
+> This patch optimizes step 2) by transferring pages to the host in
+> sgs. An sg describes a chunk of guest physically continuous pages.
+> With this mechanism, step 4) can also be optimized by doing address
+> translation and madvise() in chunks rather than page by page.
+>
+> With this new feature, the above ballooning process takes ~491ms
+> resulting in an improvement of ~88%.
+>
 
-b18cb64ead40 ("fs/proc: Stop trying to report thread stacks") has
-removed the priv parameter user in is_stack so the argument is
-redundant. Drop it.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I have sent this trivial cleanup earlier when we were discussing stack
-gap issue and it seemed to fall between cracks. I have just rebased it
-on top of the current mmotm tree. It is a trivial cleanup. I was also
-considering to move it out of task_{no}mmu.c and do a generic helper out
-of it but then I just thought it might be more confusing than helpful
-so I kept it there with their only users.
+I found a recent mm patch, bb01b64cfab7c22f3848cb73dc0c2b46b8d38499
+, zeros all the ballooned pages, which is very time consuming.
 
- fs/proc/task_mmu.c   | 7 +++----
- fs/proc/task_nommu.c | 5 ++---
- 2 files changed, 5 insertions(+), 7 deletions(-)
+Tests show that the time to balloon 7G pages is increased from ~491 ms to
+2.8 seconds with the above patch.
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index b836fd61ed87..7f331ce63fc8 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -266,8 +266,7 @@ static int do_maps_open(struct inode *inode, struct file *file,
-  * Indicate if the VMA is a stack for the given task; for
-  * /proc/PID/maps that is the stack of the main task.
-  */
--static int is_stack(struct proc_maps_private *priv,
--		    struct vm_area_struct *vma)
-+static int is_stack(struct vm_area_struct *vma)
- {
- 	/*
- 	 * We make no effort to guess what a given thread considers to be
-@@ -341,7 +340,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
- 			goto done;
- 		}
- 
--		if (is_stack(priv, vma))
-+		if (is_stack(vma))
- 			name = "[stack]";
- 	}
- 
-@@ -1670,7 +1669,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 		seq_file_path(m, file, "\n\t= ");
- 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
- 		seq_puts(m, " heap");
--	} else if (is_stack(proc_priv, vma)) {
-+	} else if (is_stack(vma)) {
- 		seq_puts(m, " stack");
- 	}
- 
-diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-index 23266694db11..dea90b566a6e 100644
---- a/fs/proc/task_nommu.c
-+++ b/fs/proc/task_nommu.c
-@@ -125,8 +125,7 @@ unsigned long task_statm(struct mm_struct *mm,
- 	return size;
- }
- 
--static int is_stack(struct proc_maps_private *priv,
--		    struct vm_area_struct *vma)
-+static int is_stack(struct vm_area_struct *vma)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 
-@@ -178,7 +177,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
- 	if (file) {
- 		seq_pad(m, ' ');
- 		seq_file_path(m, file, "");
--	} else if (mm && is_stack(priv, vma)) {
-+	} else if (mm && is_stack(vma)) {
- 		seq_pad(m, ' ');
- 		seq_printf(m, "[stack]");
- 	}
--- 
-2.13.2
+How about moving the zero operation to the hypervisor? In this way, we
+will have a much faster balloon process.
+
+
+Best,
+Wei
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
