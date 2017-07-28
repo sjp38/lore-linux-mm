@@ -1,44 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A86556B052B
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:01:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id k68so8657443wmd.14
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:01:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u7si20835760wrb.292.2017.07.28.05.01.46
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83B0C6B052D
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:02:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d5so116777786pfg.3
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:02:38 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f34si13079238plf.739.2017.07.28.05.02.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 05:01:46 -0700 (PDT)
-Date: Fri, 28 Jul 2017 14:01:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20170728120141.GK2274@dhcp22.suse.cz>
-References: <20170726083333.17754-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170726083333.17754-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jul 2017 05:02:37 -0700 (PDT)
+Message-ID: <1501243352.6305.6.camel@linux.intel.com>
+Subject: Re: [PATCH 01/21] mm/shmem: introduce shmem_file_setup_with_mnt
+From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Date: Fri, 28 Jul 2017 15:02:32 +0300
+In-Reply-To: <20170725192133.2012-2-matthew.auld@intel.com>
+References: <20170725192133.2012-1-matthew.auld@intel.com>
+	 <20170725192133.2012-2-matthew.auld@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>
+To: Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org
+Cc: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>
 
-On Wed 26-07-17 10:33:28, Michal Hocko wrote:
-[...]
-> There is also one potential drawback, though. If somebody uses memory
-> hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
-> for them obviously because each memory section will contain 2MB reserved
-> area.
+Ping on the core MM folks.
 
-Actually I am wrong here. It is not each section in general. I have
-completely forgot that we do large memblocks on x86_64 with a lot of
-memory and then we hotadd 2GB memblocks and the altmap will allocate
-from the beginign of the _memblock_ and so all the memmaps will end up
-in the first memory section.
+We'd need either an ack or nack on this one to proceed with the huge
+page work for i915.
+
+Regards, Joonas
+
+On ti, 2017-07-25 at 20:21 +0100, Matthew Auld wrote:
+> We are planning to use our own tmpfs mnt in i915 in place of the
+> shm_mnt, such that we can control the mount options, in particular
+> huge=, which we require to support huge-gtt-pages. So rather than roll
+> our own version of __shmem_file_setup, it would be preferred if we could
+> just give shmem our mnt, and let it do the rest.
+> 
+> Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: linux-mm@kvack.org
+> ---
+> A include/linux/shmem_fs.h |A A 2 ++
+> A mm/shmem.cA A A A A A A A A A A A A A A | 30 ++++++++++++++++++++++--------
+> A 2 files changed, 24 insertions(+), 8 deletions(-)
+
+<SNIP>
+
 -- 
-Michal Hocko
-SUSE Labs
+Joonas Lahtinen
+Open Source Technology Center
+Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
