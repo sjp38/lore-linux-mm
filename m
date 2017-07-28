@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 83ACB6B04FE
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 03:06:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id y206so2269325wmd.1
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 00:06:14 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 572FC280393
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 03:43:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g71so15326405wmg.13
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 00:43:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k80si16682424wrc.540.2017.07.28.00.06.13
+        by mx.google.com with ESMTPS id d19si16501263wrb.486.2017.07.28.00.43.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 00:06:13 -0700 (PDT)
-Date: Fri, 28 Jul 2017 09:06:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 1/3] mm/hugetlb: Allow arch to override and call the
- weak function
-Message-ID: <20170728070611.GG2274@dhcp22.suse.cz>
-References: <20170727061828.11406-1-aneesh.kumar@linux.vnet.ibm.com>
- <20170727130123.GE27766@dhcp22.suse.cz>
- <e963e910-1999-ddff-87cf-9e8c356fea82@linux.vnet.ibm.com>
+        Fri, 28 Jul 2017 00:43:02 -0700 (PDT)
+Date: Fri, 28 Jul 2017 08:42:56 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v3 2/2] mm: migrate: fix barriers around tlb_flush_pending
+Message-ID: <20170728074256.7xsnoldtfuh7ywir@suse.de>
+References: <20170727114015.3452-1-namit@vmware.com>
+ <20170727114015.3452-3-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <e963e910-1999-ddff-87cf-9e8c356fea82@linux.vnet.ibm.com>
+In-Reply-To: <20170727114015.3452-3-namit@vmware.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Nadav Amit <namit@vmware.com>
+Cc: linux-mm@kvack.org, sergey.senozhatsky@gmail.com, minchan@kernel.org, nadav.amit@gmail.com, riel@redhat.com, luto@kernel.org
 
-On Thu 27-07-17 21:50:35, Aneesh Kumar K.V wrote:
+On Thu, Jul 27, 2017 at 04:40:15AM -0700, Nadav Amit wrote:
+> Reading tlb_flush_pending while the page-table lock is taken does not
+> require a barrier, since the lock/unlock already acts as a barrier.
+> Removing the barrier in mm_tlb_flush_pending() to address this issue.
 > 
+> However, migrate_misplaced_transhuge_page() calls mm_tlb_flush_pending()
+> while the page-table lock is already released, which may present a
+> problem on architectures with weak memory model (PPC). To deal with this
+> case, a new parameter is added to mm_tlb_flush_pending() to indicate
+> if it is read without the page-table lock taken, and calling
+> smp_mb__after_unlock_lock() in this case.
 > 
-> On 07/27/2017 06:31 PM, Michal Hocko wrote:
-> >On Thu 27-07-17 11:48:26, Aneesh Kumar K.V wrote:
-> >>For ppc64, we want to call this function when we are not running as guest.
-> >
-> >What does this mean?
-> >
-> 
-> ppc64 guest (aka LPAR) support a different mechanism for hugetlb
-> allocation/reservation. The LPAR management application called HMC can be
-> used to reserve a set of hugepages and we pass the details of reserved pages
-> via device tree to the guest. You can find the details in
-> htab_dt_scan_hugepage_blocks() . We do the memblock_reserve of the range and
-> later in the boot sequence, we just add the reserved range to
-> huge_boot_pages.
-> 
-> For baremetal config (when we are not running as guest) we want to follow
-> what other architecture does, that is look at the command line and do
-> memblock allocation. Hence the need to call generic function
-> __alloc_bootmem_huge_page() in that case.
-> 
-> I can add all these details in to the commit message if that makes it easy ?
+> Signed-off-by: Nadav Amit <namit@vmware.com>
 
-It certainly helped me to understand the context much better. Thanks! As
-you are patching a generic code this would be appropriate IMHO.
+Conditional locking based on function arguements are often considered
+extremely hazardous. Conditional barriers are even more troublesome because
+it's simply too easy to get wrong.
+
+Revert b0943d61b8fa420180f92f64ef67662b4f6cc493 instead of this patch. It's
+not a clean revert but conflicts are due to comment changes. It moves
+the check back under the PTL and the impact is marginal given that
+it a spurious TLB flush will only occur when potentially racing with
+change_prot_range. Since that commit went in, a lot of changes have happened
+that alter the scan rate of automatic NUMA balancing so it shouldn't be a
+serious issue. It's certainly a nicer option than using conditional barriers.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
