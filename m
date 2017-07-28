@@ -1,143 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 48F416B04F7
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:46:38 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l3so37881557wrc.12
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:46:38 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id c7si796700wmc.134.2017.07.28.01.46.35
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28FE26B04FB
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:57:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 184so21108630wmo.7
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:57:38 -0700 (PDT)
+Received: from mail-wr0-x236.google.com (mail-wr0-x236.google.com. [2a00:1450:400c:c0c::236])
+        by mx.google.com with ESMTPS id j20si960003wrb.31.2017.07.28.01.49.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 01:46:35 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 873CA9918F
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:46:35 +0000 (UTC)
-Date: Fri, 28 Jul 2017 09:46:34 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/3] mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem
-Message-ID: <20170728084634.foo3wjhsyydml6yj@techsingularity.net>
-References: <1501224112-23656-1-git-send-email-minchan@kernel.org>
- <1501224112-23656-3-git-send-email-minchan@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jul 2017 01:49:13 -0700 (PDT)
+Received: by mail-wr0-x236.google.com with SMTP id 12so152629349wrb.1
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:49:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1501224112-23656-3-git-send-email-minchan@kernel.org>
+Reply-To: dmitriyz@waymo.com
+In-Reply-To: <41954034-9de1-de8e-f915-51a4b0334f98@suse.cz>
+References: <alpine.DEB.2.20.1707261158560.9311@nuc-kabylake>
+ <20170727164608.12701-1-dmitriyz@waymo.com> <41954034-9de1-de8e-f915-51a4b0334f98@suse.cz>
+From: Dima Zavin <dmitriyz@waymo.com>
+Date: Fri, 28 Jul 2017 01:48:50 -0700
+Message-ID: <CAPz4a6C3JDPdkcvgo1JfynDfheDy2gkE1JcOZVhChry7C1yBwQ@mail.gmail.com>
+Subject: Re: [PATCH v2] cpuset: fix a deadlock due to incomplete patching of cpusets_enabled()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team <kernel-team@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Russell King <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-sh@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, user-mode-linux-devel@lists.sourceforge.net, linux-arch@vger.kernel.org, Nadav Amit <nadav.amit@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Christopher Lameter <cl@linux.com>, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cliff Spradlin <cspradlin@waymo.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>
 
-On Fri, Jul 28, 2017 at 03:41:51PM +0900, Minchan Kim wrote:
-> Nadav reported parallel MADV_DONTNEED on same range has a stale TLB
-> problem and Mel fixed it[1] and found same problem on MADV_FREE[2].
-> 
-> Quote from Mel Gorman
-> 
-> "The race in question is CPU 0 running madv_free and updating some PTEs
-> while CPU 1 is also running madv_free and looking at the same PTEs.
-> CPU 1 may have writable TLB entries for a page but fail the pte_dirty
-> check (because CPU 0 has updated it already) and potentially fail to flush.
-> Hence, when madv_free on CPU 1 returns, there are still potentially writable
-> TLB entries and the underlying PTE is still present so that a subsequent write
-> does not necessarily propagate the dirty bit to the underlying PTE any more.
-> Reclaim at some unknown time at the future may then see that the PTE is still
-> clean and discard the page even though a write has happened in the meantime.
-> I think this is possible but I could have missed some protection in madv_free
-> that prevents it happening."
-> 
-> This patch aims for solving both problems all at once and is ready for
-> other problem with KSM, MADV_FREE and soft-dirty story[3].
-> 
-> TLB batch API(tlb_[gather|finish]_mmu] uses [set|clear]_tlb_flush_pending
-> and mmu_tlb_flush_pending so that when tlb_finish_mmu is called, we can catch
-> there are parallel threads going on. In that case, flush TLB to prevent
-> for user to access memory via stale TLB entry although it fail to gather
-> pte entry.
-> 
-> I confiremd this patch works with [4] test program Nadav gave so this patch
-> supersedes "mm: Always flush VMA ranges affected by zap_page_range v2"
-> in current mmotm.
-> 
-> NOTE:
-> This patch modifies arch-specific TLB gathering interface(x86, ia64,
-> s390, sh, um). It seems most of architecture are straightforward but s390
-> need to be careful because tlb_flush_mmu works only if mm->context.flush_mm
-> is set to non-zero which happens only a pte entry really is cleared by
-> ptep_get_and_clear and friends. However, this problem never changes the
-> pte entries but need to flush to prevent memory access from stale tlb.
-> 
-> Any thoughts?
-> 
+On Fri, Jul 28, 2017 at 12:45 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> [+CC PeterZ]
+>
+> On 07/27/2017 06:46 PM, Dima Zavin wrote:
+>> In codepaths that use the begin/retry interface for reading
+>> mems_allowed_seq with irqs disabled, there exists a race condition that
+>> stalls the patch process after only modifying a subset of the
+>> static_branch call sites.
+>>
+>> This problem manifested itself as a dead lock in the slub
+>> allocator, inside get_any_partial. The loop reads
+>> mems_allowed_seq value (via read_mems_allowed_begin),
+>> performs the defrag operation, and then verifies the consistency
+>> of mem_allowed via the read_mems_allowed_retry and the cookie
+>> returned by xxx_begin. The issue here is that both begin and retry
+>> first check if cpusets are enabled via cpusets_enabled() static branch.
+>> This branch can be rewritted dynamically (via cpuset_inc) if a new
+>> cpuset is created. The x86 jump label code fully synchronizes across
+>> all CPUs for every entry it rewrites. If it rewrites only one of the
+>> callsites (specifically the one in read_mems_allowed_retry) and then
+>> waits for the smp_call_function(do_sync_core) to complete while a CPU is
+>> inside the begin/retry section with IRQs off and the mems_allowed value
+>> is changed, we can hang. This is because begin() will always return 0
+>> (since it wasn't patched yet) while retry() will test the 0 against
+>> the actual value of the seq counter.
+>
+> Hm I wonder if there are other static branch users potentially having
+> similar problem. Then it would be best to fix this at static branch
+> level. Any idea, Peter? An inelegant solution would be to have indicate
+> static_branch_(un)likely() callsites ordering for the patching. I.e.
+> here we would make sure that read_mems_allowed_begin() callsites are
+> patched before read_mems_allowed_retry() when enabling the static key,
+> and the opposite order when disabling the static key.
+>
 
-The cc list is somewhat ..... extensive, given the topic. Trim it if
-there is another version.
+This was my main worry, that I'm just patching up one incarnation of
+this problem
+and other clients will eventually trip over this.
 
-> index 3f2eb76243e3..8c26961f0503 100644
-> --- a/arch/arm/include/asm/tlb.h
-> +++ b/arch/arm/include/asm/tlb.h
-> @@ -163,13 +163,26 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start
->  #ifdef CONFIG_HAVE_RCU_TABLE_FREE
->  	tlb->batch = NULL;
->  #endif
-> +	set_tlb_flush_pending(tlb->mm);
->  }
->  
->  static inline void
->  tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
->  {
-> -	tlb_flush_mmu(tlb);
-> +	/*
-> +	 * If there are parallel threads are doing PTE changes on same range
-> +	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
-> +	 * flush by batching, a thread has stable TLB entry can fail to flush
-> +	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
-> +	 * if we detect parallel PTE batching threads.
-> +	 */
-> +	if (mm_tlb_flush_pending(tlb->mm, false) > 1) {
-> +		tlb->range_start = start;
-> +		tlb->range_end = end;
-> +	}
->  
-> +	tlb_flush_mmu(tlb);
-> +	clear_tlb_flush_pending(tlb->mm);
->  	/* keep the page table cache within bounds */
->  	check_pgt_cache();
->  
+>> The fix is to cache the value that's returned by cpusets_enabled() at the
+>> top of the loop, and only operate on the seqcount (both begin and retry) if
+>> it was true.
+>
+> Maybe we could just return e.g. -1 in read_mems_allowed_begin() when
+> cpusets are disabled, and test it in read_mems_allowed_retry() before
+> doing a proper seqcount retry check? Also I think you can still do the
+> cpusets_enabled() check in read_mems_allowed_retry() before the
+> was_enabled (or cookie == -1) test?
 
-mm_tlb_flush_pending shouldn't be taking a barrier specific arg. I expect
-this to change in the future and cause a conflict. At least I think in
-this context, it's the conditional barrier stuff.
+Hmm, good point! If cpusets_enabled() is true, then we can still test against
+was_enabled and do the right thing (adds one extra branch in that case). When
+it's false, we still benefit from the static_branch fanciness. Thanks!
 
-That aside, it's very unfortunate that the return value of
-mm_tlb_flush_pending really matters. Knowing why 1 is magic there requires
-knowledge of the internals on a per-arch basis which is a bit nuts.
-Consider renaming this to mm_tlb_flush_parallel() to return true if there
-is a nr_pending > 1 with comments explaining why. I don't think any of
-the callers expect a nr_pending of 0 ever. That removes some knowledge of
-the specifics.
-
-The arch-specific changes to tlb_gather_mmu are almost all identical.
-It's a little tricky to split the arch layer and core mm to have all
-the set/clear of mm_tlb_flush_pending handled by the core mm.  It's not
-required but it would be preferred. The set one is obvious. rename
-tlb_gather_mmu to arch_tlb_gather_mmu (including the generic implementation)
-and create a tlb_gather_mmu alias that calls arch_tlb_gather_mmu and
-set_tlb_flush_pending.
-
-The clear is not as straight-forward but can be done by creating a new
-arch helper that handles this hunk on a per-arch basis
-
-> +     if (mm_tlb_flush_pending(tlb->mm, false) > 1) {
-> +             tlb->start = start;
-> +             tlb->end = end;
-> +     }
-
-It'll be churn initially but it means any different handling in the TLB
-batching area will be mostly a core concern.
-
--- 
-Mel Gorman
-SUSE Labs
+Re setting the cookie to -1, I didn't really want to overload the
+cookie value but
+rather just make the state explicit so it's easier to grawk as this is
+all already
+subtle enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
