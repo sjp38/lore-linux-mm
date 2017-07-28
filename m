@@ -1,114 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 83F796B04F1
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:23:48 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g32so13124568wrd.8
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 23:23:48 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 493F06B04F2
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:30:38 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e204so11928761wma.2
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 23:30:38 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b94si14324895wrd.224.2017.07.27.23.23.46
+        by mx.google.com with ESMTPS id s78si9069516wma.251.2017.07.27.23.30.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 23:23:47 -0700 (PDT)
-Date: Fri, 28 Jul 2017 08:23:45 +0200
+        Thu, 27 Jul 2017 23:30:36 -0700 (PDT)
+Date: Fri, 28 Jul 2017 08:30:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170728062345.GA2274@dhcp22.suse.cz>
-References: <20170725142626.GJ26723@dhcp22.suse.cz>
- <20170725151754.3txp44a2kbffsxdg@node.shutemov.name>
- <20170725152300.GM26723@dhcp22.suse.cz>
- <20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name>
- <20170725160359.GO26723@dhcp22.suse.cz>
- <20170725191952.GR29716@redhat.com>
- <20170726054557.GB960@dhcp22.suse.cz>
- <20170726162912.GA29716@redhat.com>
- <20170727065023.GB20970@dhcp22.suse.cz>
- <20170727145559.GD29716@redhat.com>
+Subject: Re: [RFC PATCH 3/3] mm: shm: Use new hugetlb size encoding
+ definitions
+Message-ID: <20170728063030.GB2274@dhcp22.suse.cz>
+References: <20170328175408.GD7838@bombadil.infradead.org>
+ <1500330481-28476-1-git-send-email-mike.kravetz@oracle.com>
+ <1500330481-28476-4-git-send-email-mike.kravetz@oracle.com>
+ <20170726095338.GF2981@dhcp22.suse.cz>
+ <20170726100718.GG2981@dhcp22.suse.cz>
+ <d6c78995-bd4c-3894-0a48-b289ad81104b@oracle.com>
+ <20170727075051.GJ20970@dhcp22.suse.cz>
+ <9baf7efb-3772-b101-b68a-ab88c02bfc40@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170727145559.GD29716@redhat.com>
+In-Reply-To: <9baf7efb-3772-b101-b68a-ab88c02bfc40@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, akpm@linux-foundation.org, ak@linux.intel.com, mtk.manpages@gmail.com, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com
 
-On Thu 27-07-17 16:55:59, Andrea Arcangeli wrote:
-> On Thu, Jul 27, 2017 at 08:50:24AM +0200, Michal Hocko wrote:
-> > Yes this will work and it won't depend on the oom_lock. But isn't it
-> > just more ugly than simply doing
+On Thu 27-07-17 14:18:11, Mike Kravetz wrote:
+> On 07/27/2017 12:50 AM, Michal Hocko wrote:
+> > On Wed 26-07-17 10:39:30, Mike Kravetz wrote:
+> >> On 07/26/2017 03:07 AM, Michal Hocko wrote:
+> >>> On Wed 26-07-17 11:53:38, Michal Hocko wrote:
+> >>>> On Mon 17-07-17 15:28:01, Mike Kravetz wrote:
+> >>>>> Use the common definitions from hugetlb_encode.h header file for
+> >>>>> encoding hugetlb size definitions in shmget system call flags.  In
+> >>>>> addition, move these definitions to the from the internal to user
+> >>>>> (uapi) header file.
+> >>>>
+> >>>> s@to the from@from@
+> >>>>
+> >>>>>
+> >>>>> Suggested-by: Matthew Wilcox <willy@infradead.org>
+> >>>>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> >>>>
+> >>>> with s@HUGETLB_FLAG_ENCODE__16GB@HUGETLB_FLAG_ENCODE_16GB@
+> >>>>
+> >>>> Acked-by: Michal Hocko <mhocko@suse.com>
+> >>>
+> >>> Btw. man page mentions only 2MB and 1GB, we should document others and
+> >>> note that each arch might support only subset of them
+> >>
+> >> Thanks for looking at these Michal.
+> >> BTW, those definitions below are wrong.  They should be SHM_HUGE_*. :(
 > > 
-> > 	if (tsk_is_oom_victim) {
-> > 		down_write(&mm->mmap_sem);
-> > 		locked = true;
-> > 	}
-> > 	free_pgtables(...)
-> > 	[...]
-> > 	if (locked)
-> > 		down_up(&mm->mmap_sem);
+> > Ups, and I completely missed that.
+> > 
+> >> In the overview of this RFC, I mentioned still needing to address the
+> >> comment from Aneesh about splitting SHM_HUGE_* definitions into arch
+> >> specific header files.  This is how it is done for mmap.  If an arch
+> >> supports multiple huge page sizes, the 'asm/mman.h' contains definitions
+> >> for those sizes.  There will be a bit of churn (such as header file
+> >> renaming) to do this for shm as well.  So, I keep going back and forth
+> >> asking myself 'is it worth it'?
+> > 
+> > Why cannot we use a generic header? Btw. I think it would be better for
+> > MMAP definitions as well.
 > 
-> To me not doing if (tsk_is_oom...) { down_write; up_write } is by
-> default a confusing implementation, because it's not strict and not
-> strict code is not self documenting and you've to think twice of why
-> you're doing something the way you're doing it.
+> I assume you are asking about a uapi asm-generic header file?  Currently
+> mmap has two such files:  mman.h and mman-common.h.  In order to get the
+> definitions in such files, arch specific header files must #include the
+> asm-generic headers.  There are arch specific mmap headers today that do
+> not include either of the asm-generic headers.  And, they have their own
+> definitions for MAP_HUGE_SHIFT.  So, it seems we can not use one of the
+> existing mmap asm-generic header files.  Rather, we would need to create
+> a new one and have that included by all arch specific files.
 
-I disagree. But this is a matter of taste, I guess. I prefer when
-locking is explicit and clear about the scope. An empty locked region
-used for synchronization is just obscure and you have to think much more
-what it means when you can see what the lock actually protects. It is
-also less error prone I believe.
+yes, add a new one like you did in your first patch
 
-> The doubt on what was the point to hold the mmap_sem during
-> free_pgtables is precisely why I started digging into this issue
-> because it didn't look possible you could truly benefit from holding
-> the mmap_sem during free_pgtables.
+> However, ALL the MAP_HUGE_* definitions in all the arch specific and
+> asm-generic header files are the same.  It would be possible to just put
+> all those MAP_HUGE_* definitions in the primary uapi header file
+> (include/uapi/linux/mman.h).  If there was ever a need for arch specific
+> values in the future, we could split them out at that time.
 
-The point is that you cannot remove page tables while somebody is
-walking them. This is enforced in all other paths except for exit which
-was kind of special because nobody could race there.
+agreed
 
-> I also don't like having a new invariant that your solution relies on,
-> that is mm->mmap = NULL, when we can make just set the MMF_OOM_SKIP a
-> bit earlier that it gets set anyway and use that to control the other
-> side of the race.
+[...]
 
-Well, again a matter of taste. I prefer making it clear that mm->mmap is
-no longer valid because it points to a freed pointer. Relying on
-MMF_OOM_SKIP for the handshake is just abusing the flag for a different
-purpose than it was intended.
- 
-> I like strict code that uses as fewer invariants as possible and that
-> never holds a lock for any instruction more than it is required (again
-> purely for self documenting reasons, the CPU won't notice much one
-> instruction more or less).
+> >> - Another alternative is to make all known huge page sizes available
+> >>   to all users.  This is 'easier' as the definitions can likely reside
+> >>   in a common header file.  The user will  need to determine what
+> >>   huge page sizes are supported by the running kernel as mentioned in
+> >>   the man page.
+> > 
+> > yes I think this makes more sense.
 > 
-> Even with your patch the two branches are unnecessary, that may not be
-> measurable, but it's still wasted CPU. It's all about setting mm->mmap
-> before the up_write. In fact my patch should at least put an incremental
-> unlikely around my single branch added to exit_mmap.
->
-> I see the {down_write;up_write} Hugh's ksm_exit-like as a strict
-> solution to this issue and I wrote it specifically while trying to
-> research a way to be more strict because from the start it didn't look
-> the holding of the mmap_sem during free_pgtables was necessary.
+> Ok, thanks.
+> 
+> The only remaining question is what kind of common header to use:
+> 1) An asm-generic header file in case there may be arch specific differences
+>    in the future.
+> 2) Use the primary uapi header file in include/uapi/linux/mman|shm.h.
 
-While we have discussed that with Hugh he has shown an interest to
-actually get rid of this (peculiar) construct which would be possible if
-the down_write was implicit in exit_mmap [1].
-
-> I'm also fine to drop the oom_lock but I think it can be done
-> incrementally as it's a separate issue, my second patch should allow
-> for it with no adverse side effects.
->
-> All I care about is the exit_mmap path because it runs too many times
-> not to pay deep attention to every bit of it ;).
-
-Well, all I care about is to fix this over-eager oom killing due to oom
-reaper setting MMF_OOM_SKIP too early. That is a regression. I think we
-can agree that both proposed solutions are functionally equivalent. I do
-not want to push mine too hard so if you _believe_ that yours is really
-better feel free to post it for inclusion.
-
-[1] http://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
+I would use the primary one and only got the arch specific if we ever
+need to do arch specific thing.
 -- 
 Michal Hocko
 SUSE Labs
