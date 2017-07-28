@@ -1,83 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA1A6B0537
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:44:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x64so14981863wmg.11
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:44:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e13si5073429wmc.10.2017.07.28.05.44.46
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17BF26B0539
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:47:40 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id f72so227693001ywb.4
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:47:40 -0700 (PDT)
+Received: from mail-yw0-f173.google.com (mail-yw0-f173.google.com. [209.85.161.173])
+        by mx.google.com with ESMTPS id g7si5074027ywf.26.2017.07.28.05.47.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 05:44:46 -0700 (PDT)
-Date: Fri, 28 Jul 2017 14:44:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
- reclaiming hugepages on OOM events.
-Message-ID: <20170728124443.GO2274@dhcp22.suse.cz>
-References: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
- <20170727180236.6175-2-Liam.Howlett@Oracle.com>
- <20170728064602.GC2274@dhcp22.suse.cz>
- <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
- <20170728122350.GM2274@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170728122350.GM2274@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Jul 2017 05:47:39 -0700 (PDT)
+Received: by mail-yw0-f173.google.com with SMTP id u207so61586777ywc.3
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 05:47:39 -0700 (PDT)
+Message-ID: <1501246057.8241.1.camel@redhat.com>
+Subject: Re: [PATCH v2 4/4] gfs2: convert to errseq_t based writeback error
+ reporting for fsync
+From: Jeff Layton <jlayton@redhat.com>
+Date: Fri, 28 Jul 2017 08:47:37 -0400
+In-Reply-To: <16d62583-f677-bc34-dccf-d20d9405ca10@redhat.com>
+References: <20170726175538.13885-1-jlayton@kernel.org>
+	 <20170726175538.13885-5-jlayton@kernel.org>
+	 <20170726192105.GD15980@bombadil.infradead.org>
+	 <1501107773.15159.6.camel@redhat.com>
+	 <932895023.34932662.1501159628674.JavaMail.zimbra@redhat.com>
+	 <16d62583-f677-bc34-dccf-d20d9405ca10@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com, willy@infradead.org
+To: Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jeff Layton <jlayton@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J .
+ Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cluster-devel@redhat.com
 
-On Fri 28-07-17 14:23:50, Michal Hocko wrote:
-> On Fri 28-07-17 14:33:47, Kirill A. Shutemov wrote:
-> > On Fri, Jul 28, 2017 at 08:46:02AM +0200, Michal Hocko wrote:
-> > > On Thu 27-07-17 14:02:36, Liam R. Howlett wrote:
-> > > > When a system runs out of memory it may be desirable to reclaim
-> > > > unreserved hugepages.  This situation arises when a correctly configured
-> > > > system has a memory failure and takes corrective action of rebooting and
-> > > > removing the memory from the memory pool results in a system failing to
-> > > > boot.  With this change, the out of memory handler is able to reclaim
-> > > > any pages that are free and not reserved.
-> > > 
-> > > I am sorry but I have to Nack this. You are breaking the basic contract
-> > > of hugetlb user API. Administrator configures the pool to suit a
-> > > workload. It is a deliberate and privileged action. We allow to
-> > > overcommit that pool should there be a immediate need for more hugetlb
-> > > pages and we do remove those when they are freed. If we don't then this
-> > > should be fixed.
-> > > Other than that hugetlb pages are not reclaimable by design and users
-> > > do rely on that. Otherwise they could consider using THP instead.
-> > > 
-> > > If somebody configures the initial pool too high it is a configuration
-> > > bug. Just think about it, we do not want to reset lowmem reserves
-> > > configured by admin just because we are hitting the oom killer and yes
-> > > insanely large lowmem reserves might lead to early OOM as well.
-> > > 
-> > > Nacked-by: Michal Hocko <mhocko@suse.com>
-> > 
-> > Hm. I'm not sure it's fully justified. To me, reclaiming hugetlb is
-> > something to be considered as last resort after all other measures have
-> > been tried.
+On Fri, 2017-07-28 at 13:37 +0100, Steven Whitehouse wrote:
+> Hi,
 > 
-> System can recover from the OOM killer in most cases and there is no
-> real reason to break contracts which administrator established. On the
-> other hand you cannot assume correct operation of the SW which depends
-> on hugetlb pages in general. Such a SW might get unexpected crashes/data
-> corruptions and what not.
+> 
+> On 27/07/17 13:47, Bob Peterson wrote:
+> > ----- Original Message -----
+> > > On Wed, 2017-07-26 at 12:21 -0700, Matthew Wilcox wrote:
+> > > > On Wed, Jul 26, 2017 at 01:55:38PM -0400, Jeff Layton wrote:
+> > > > > @@ -668,12 +668,14 @@ static int gfs2_fsync(struct file *file, loff_t
+> > > > > start, loff_t end,
+> > > > >  		if (ret)
+> > > > >  			return ret;
+> > > > >  		if (gfs2_is_jdata(ip))
+> > > > > -			filemap_write_and_wait(mapping);
+> > > > > +			ret = file_write_and_wait(file);
+> > > > > +		if (ret)
+> > > > > +			return ret;
+> > > > >  		gfs2_ail_flush(ip->i_gl, 1);
+> > > > >  	}
+> > > > 
+> > > > Do we want to skip flushing the AIL if there was an error (possibly
+> > > > previously encountered)?  I'd think we'd want to flush the AIL then report
+> > > > the error, like this:
+> > > > 
+> > > 
+> > > I wondered about that. Note that earlier in the function, we also bail
+> > > out without flushing the AIL if sync_inode_metadata fails, so I assumed
+> > > that we'd want to do the same here.
+> > > 
+> > > I could definitely be wrong and am fine with changing it if so.
+> > > Discarding the error like we do today seems wrong though.
+> > > 
+> > > Bob, thoughts?
+> > 
+> > Hi Jeff, Matthew,
+> > 
+> > I'm not sure there's a right or wrong answer here. I don't know what's
+> > best from a "correctness" point of view.
+> > 
+> > I guess I'm leaning toward Jeff's original solution where we don't
+> > call gfs2_ail_flush() on error. The main purpose of ail_flush is to
+> > go through buffer descriptors (bds) attached to the glock and generate
+> > revokes for them in a new transaction. If there's an error condition,
+> > trying to go through more hoops will probably just get us into more
+> > trouble. If the error is -ENOMEM, we don't want to allocate new memory
+> > for the new transaction. If the error is -EIO, we probably don't
+> > want to encourage more writing either.
+> > 
+> > So on the one hand, it might be good to get rid of the buffer descriptors
+> > so we don't leak memory, but that's probably also done elsewhere.
+> > I have not chased down what happens in that case, but the same thing
+> > would happen in the existing -EIO case a few lines above.
+> > 
+> > On the other hand, we probably don't want to start a new transaction
+> > and start adding revokes to it, and such, due to the error.
+> > 
+> > Perhaps Steve Whitehouse can weigh in?
+> > 
+> > Regards,
+> > 
+> > Bob Peterson
+> > Red Hat File Systems
+> 
+> Yes, we probably do want to skip the ail flush if there is an error. We 
+> don't know whether the error is permanent or transient at that stage. If 
+> a previous stage of the fsync has failed, then there may be nothing for 
+> the next stage to do anyway, so it is probably not a big deal either 
+> way. So long as the error is reported to the caller, then we should be ok,
+> 
 
-And to be clear. The memory hotpug currently does the similar thing via
-dissolve_free_huge_pages and I believe that is wrong as well although
-one could argue that the memory offline is an admin action as well so
-reducing hugetlb pages is a reasonable thing to do. This would be for a
-separate discussion though.
+Ok, cool. I'll plan to carry this patch for now as it depends on an
+earlier one in the series. One more question though:
 
-But OOM can happen for entirely different reasons and hugetlb might be
-configured properly while this change would simply break that setup.
-This is simply nogo.
+Is it correct in the gfs2_is_jdata case to ignore the range that was
+passed in from the caller? ->fsync gets start and end arguments, but
+this will always write back the whole range. Is that necessary in this
+case?
 
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
