@@ -1,85 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 496D86B056F
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:21 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id q50so39692716wrb.14
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 14:00:21 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m142si3049791wmd.203.2017.07.28.14.00.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C46B36B0571
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:35:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r63so123120284pfb.7
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 14:35:07 -0700 (PDT)
+Received: from mail-pg0-f41.google.com (mail-pg0-f41.google.com. [74.125.83.41])
+        by mx.google.com with ESMTPS id g6si13576753plk.775.2017.07.28.14.35.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 14:00:20 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6SKxh1e119522
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:18 -0400
-Received: from e24smtp04.br.ibm.com (e24smtp04.br.ibm.com [32.104.18.25])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2c0aetdy7f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 17:00:18 -0400
-Received: from localhost
-	by e24smtp04.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Fri, 28 Jul 2017 18:00:16 -0300
-Received: from d24av04.br.ibm.com (d24av04.br.ibm.com [9.8.31.97])
-	by d24relay03.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6SL0Dv739649296
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 18:00:13 -0300
-Received: from d24av04.br.ibm.com (localhost [127.0.0.1])
-	by d24av04.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6SL0EjX013096
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 18:00:14 -0300
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 27/62] powerpc: helper to validate key-access permissions of a pte
-In-reply-to: <1500177424-13695-28-git-send-email-linuxram@us.ibm.com>
-Date: Fri, 28 Jul 2017 18:00:02 -0300
-MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87tw1we0q5.fsf@linux.vnet.ibm.com>
+        Fri, 28 Jul 2017 14:35:06 -0700 (PDT)
+Received: by mail-pg0-f41.google.com with SMTP id v190so115704927pgv.2
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 14:35:06 -0700 (PDT)
+From: Matthias Kaehlcke <mka@chromium.org>
+Subject: [PATCH v2] mm: memcontrol: Use int for event/state parameter in several functions
+Date: Fri, 28 Jul 2017 14:34:42 -0700
+Message-Id: <20170728213442.93823-1-mka@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>, Matthias Kaehlcke <mka@chromium.org>
 
+Several functions use an enum type as parameter for an event/state,
+but are called in some locations with an argument of a different enum
+type. Adjust the interface of these functions to reality by changing the
+parameter to int.
 
-Ram Pai <linuxram@us.ibm.com> writes:
-> --- a/arch/powerpc/mm/pkeys.c
-> +++ b/arch/powerpc/mm/pkeys.c
-> @@ -201,3 +201,36 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
->  	 */
->  	return vma_pkey(vma);
->  }
-> +
-> +static bool pkey_access_permitted(int pkey, bool write, bool execute)
-> +{
-> +	int pkey_shift;
-> +	u64 amr;
-> +
-> +	if (!pkey)
-> +		return true;
-> +
-> +	pkey_shift = pkeyshift(pkey);
-> +	if (!(read_uamor() & (0x3UL << pkey_shift)))
-> +		return true;
-> +
-> +	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
-> +		return true;
-> +
-> +	if (!write) {
-> +		amr = read_amr();
-> +		if (!(amr & (AMR_RD_BIT << pkey_shift)))
-> +			return true;
-> +	}
-> +
-> +	amr = read_amr(); /* delay reading amr uptil absolutely needed */
+This fixes a ton of enum-conversion warnings that are generated when
+building the kernel with clang.
 
-Actually, this is causing amr to be read twice in case control enters
-the "if (!write)" block above but doesn't enter the other if block nested
-in it.
+Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
+---
+Changes in v2:
+- also change parameter type of inc/dec/mod_memcg_page_state()
 
-read_amr should be called only once, right before "if (!write)".
+ include/linux/memcontrol.h | 52 ++++++++++++++++++++++++++++------------------
+ mm/memcontrol.c            |  4 +++-
+ 2 files changed, 35 insertions(+), 21 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3914e3dd6168..8556f1b86d40 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -487,8 +487,9 @@ extern int do_swap_account;
+ void lock_page_memcg(struct page *page);
+ void unlock_page_memcg(struct page *page);
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     enum memcg_stat_item idx)
++					     int idx)
+ {
+ 	long val = 0;
+ 	int cpu;
+@@ -502,15 +503,17 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+ 	return val;
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __mod_memcg_state(struct mem_cgroup *memcg,
+-				     enum memcg_stat_item idx, int val)
++				     int idx, int val)
+ {
+ 	if (!mem_cgroup_disabled())
+ 		__this_cpu_add(memcg->stat->count[idx], val);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void mod_memcg_state(struct mem_cgroup *memcg,
+-				   enum memcg_stat_item idx, int val)
++				   int idx, int val)
+ {
+ 	if (!mem_cgroup_disabled())
+ 		this_cpu_add(memcg->stat->count[idx], val);
+@@ -534,14 +537,14 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
+  * Kernel pages are an exception to this, since they'll never move.
+  */
+ static inline void __mod_memcg_page_state(struct page *page,
+-					  enum memcg_stat_item idx, int val)
++					  int idx, int val)
+ {
+ 	if (page->mem_cgroup)
+ 		__mod_memcg_state(page->mem_cgroup, idx, val);
+ }
+ 
+ static inline void mod_memcg_page_state(struct page *page,
+-					enum memcg_stat_item idx, int val)
++					int idx, int val)
+ {
+ 	if (page->mem_cgroup)
+ 		mod_memcg_state(page->mem_cgroup, idx, val);
+@@ -631,8 +634,9 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+ 		this_cpu_add(memcg->stat->events[idx], count);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void count_memcg_page_event(struct page *page,
+-					  enum memcg_stat_item idx)
++					  int idx)
+ {
+ 	if (page->mem_cgroup)
+ 		count_memcg_events(page->mem_cgroup, idx, 1);
+@@ -840,31 +844,31 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+ }
+ 
+ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     enum memcg_stat_item idx)
++					     int idx)
+ {
+ 	return 0;
+ }
+ 
+ static inline void __mod_memcg_state(struct mem_cgroup *memcg,
+-				     enum memcg_stat_item idx,
++				     int idx,
+ 				     int nr)
+ {
+ }
+ 
+ static inline void mod_memcg_state(struct mem_cgroup *memcg,
+-				   enum memcg_stat_item idx,
++				   int idx,
+ 				   int nr)
+ {
+ }
+ 
+ static inline void __mod_memcg_page_state(struct page *page,
+-					  enum memcg_stat_item idx,
++					  int idx,
+ 					  int nr)
+ {
+ }
+ 
+ static inline void mod_memcg_page_state(struct page *page,
+-					enum memcg_stat_item idx,
++					int idx,
+ 					int nr)
+ {
+ }
+@@ -918,7 +922,7 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+ }
+ 
+ static inline void count_memcg_page_event(struct page *page,
+-					  enum memcg_stat_item idx)
++					  int idx)
+ {
+ }
+ 
+@@ -928,26 +932,30 @@ void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
+ }
+ #endif /* CONFIG_MEMCG */
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __inc_memcg_state(struct mem_cgroup *memcg,
+-				     enum memcg_stat_item idx)
++				     int idx)
+ {
+ 	__mod_memcg_state(memcg, idx, 1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __dec_memcg_state(struct mem_cgroup *memcg,
+-				     enum memcg_stat_item idx)
++				     int idx)
+ {
+ 	__mod_memcg_state(memcg, idx, -1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __inc_memcg_page_state(struct page *page,
+-					  enum memcg_stat_item idx)
++					  int idx)
+ {
+ 	__mod_memcg_page_state(page, idx, 1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void __dec_memcg_page_state(struct page *page,
+-					  enum memcg_stat_item idx)
++					  int idx)
+ {
+ 	__mod_memcg_page_state(page, idx, -1);
+ }
+@@ -976,26 +984,30 @@ static inline void __dec_lruvec_page_state(struct page *page,
+ 	__mod_lruvec_page_state(page, idx, -1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void inc_memcg_state(struct mem_cgroup *memcg,
+-				   enum memcg_stat_item idx)
++				   int idx)
+ {
+ 	mod_memcg_state(memcg, idx, 1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void dec_memcg_state(struct mem_cgroup *memcg,
+-				   enum memcg_stat_item idx)
++				   int idx)
+ {
+ 	mod_memcg_state(memcg, idx, -1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void inc_memcg_page_state(struct page *page,
+-					enum memcg_stat_item idx)
++					int idx)
+ {
+ 	mod_memcg_page_state(page, idx, 1);
+ }
+ 
++/* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void dec_memcg_page_state(struct page *page,
+-					enum memcg_stat_item idx)
++					int idx)
+ {
+ 	mod_memcg_page_state(page, idx, -1);
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3df3c04d73ab..460130d2a796 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -550,10 +550,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
+  * value, and reading all cpu value can be performance bottleneck in some
+  * common workload, threshold and synchronization as vmstat[] should be
+  * implemented.
++ *
++ * The parameter idx can be of type enum memcg_event_item or vm_event_item.
+  */
+ 
+ static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
+-				      enum memcg_event_item event)
++				      int event)
+ {
+ 	unsigned long val = 0;
+ 	int cpu;
 -- 
-Thiago Jung Bauermann
-IBM Linux Technology Center
+2.14.0.rc0.400.g1c36432dff-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
