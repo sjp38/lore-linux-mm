@@ -1,90 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ED2B2802FE
-	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 22:06:09 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id b184so15460382oih.9
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 19:06:09 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 81si6792881oie.274.2017.07.27.19.06.08
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E66002802FE
+	for <linux-mm@kvack.org>; Thu, 27 Jul 2017 22:18:53 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id d29so143407588uai.14
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 19:18:53 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id s2si1455464uad.287.2017.07.27.19.18.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Jul 2017 19:06:08 -0700 (PDT)
-Received: from mail-ua0-f179.google.com (mail-ua0-f179.google.com [209.85.217.179])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D854B22CC1
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:06:07 +0000 (UTC)
-Received: by mail-ua0-f179.google.com with SMTP id q25so135209078uah.1
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 19:06:07 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170727195357.GM277355@stormcage.americas.sgi.com>
-References: <cover.1498022414.git.luto@kernel.org> <70f3a61658aa7c1c89f4db6a4f81d8df9e396ade.1498022414.git.luto@kernel.org>
- <20170622145013.n3slk7ip6wpany5d@pd.tnic> <CALCETrUA-+9ORRXFrYdyEg5ZQOEbDFrwq4uuRWDb89V49QRBWw@mail.gmail.com>
- <20170727195357.GM277355@stormcage.americas.sgi.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 27 Jul 2017 19:05:46 -0700
-Message-ID: <CALCETrW=_K7wmR+jv_e0RtYUUcm7yMEMf0Z_OrnXb8Mciu+wpw@mail.gmail.com>
-Subject: Re: [PATCH v3 06/11] x86/mm: Rework lazy TLB mode and TLB freshness tracking
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 27 Jul 2017 19:18:53 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [PATCH v2 2/2] userfaultfd: selftest: Add tests for UFFD_FEATURE_SIGBUS feature
+Date: Thu, 27 Jul 2017 22:18:40 -0400
+Message-Id: <1501208320-200277-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Banman <abanman@hpe.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Nadav Amit <nadav.amit@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Arjan van de Ven <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Banman <abanman@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>, Juergen Gross <jgross@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+Cc: aarcange@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-> On Jul 27, 2017, at 3:53 PM, Andrew Banman <abanman@hpe.com> wrote:
->
->> On Thu, Jun 22, 2017 at 10:47:29AM -0700, Andy Lutomirski wrote:
->>> On Thu, Jun 22, 2017 at 7:50 AM, Borislav Petkov <bp@alien8.de> wrote:
->>>> On Tue, Jun 20, 2017 at 10:22:12PM -0700, Andy Lutomirski wrote:
->>>> Rewrite it entirely.  When we enter lazy mode, we simply remove the
->>>> cpu from mm_cpumask.  This means that we need a way to figure out
->>>
->>> s/cpu/CPU/
->>
->> Done.
->>
->>>
->>>> whether we've missed a flush when we switch back out of lazy mode.
->>>> I use the tlb_gen machinery to track whether a context is up to
->>>> date.
->>>>
->>>> Note to reviewers: this patch, my itself, looks a bit odd.  I'm
->>>> using an array of length 1 containing (ctx_id, tlb_gen) rather than
->>>> just storing tlb_gen, and making it at array isn't necessary yet.
->>>> I'm doing this because the next few patches add PCID support, and,
->>>> with PCID, we need ctx_id, and the array will end up with a length
->>>> greater than 1.  Making it an array now means that there will be
->>>> less churn and therefore less stress on your eyeballs.
->>>>
->>>> NB: This is dubious but, AFAICT, still correct on Xen and UV.
->>>> xen_exit_mmap() uses mm_cpumask() for nefarious purposes and this
->>>> patch changes the way that mm_cpumask() works.  This should be okay,
->>>> since Xen *also* iterates all online CPUs to find all the CPUs it
->>>> needs to twiddle.
->>>
->>> This whole text should be under the "---" line below if we don't want it
->>> in the commit message.
->>
->> I figured that some future reader of this patch might actually want to
->> see this text, though.
->>
->>>
->>>>
->>>> The UV tlbflush code is rather dated and should be changed.
->>
->> And I'd definitely like the UV maintainers to notice this part, now or
->> in the future :)  I don't want to personally touch the UV code with a
->> ten-foot pole, but it really should be updated by someone who has a
->> chance of getting it right and being able to test it.
->
-> Noticed! We're aware of these changes and we're planning on updating this
-> code in the future. Presently the BAU tlb shootdown feature is working well
-> on our recent hardware.
+This patch adds tests for UFFD_FEATURE_SIGBUS feature. The
+tests will verify signal delivery instead of userfault events.
+Also, test use of UFFDIO_COPY to allocate memory and retry
+accessing monitored area after signal delivery.
 
-:)
+This patch also fixes a bug in uffd_poll_thread() where 'uffd'
+is leaked.
 
-I would suggest reworking it to hook the SMP function call
-infrastructure instead of the TLB shootdown code.
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+---
+Change log
+
+v2:
+  - Added comments to explain the tests.
+  - Fixed test to fail immediately if signal repeats.
+  - Addressed other review comments.
+
+v1: https://lkml.org/lkml/2017/7/26/101
+---
+ tools/testing/selftests/vm/userfaultfd.c |  127 +++++++++++++++++++++++++++++-
+ 1 files changed, 124 insertions(+), 3 deletions(-)
+
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index 1eae79a..3976d7a 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -66,6 +66,7 @@
+ #include <sys/wait.h>
+ #include <pthread.h>
+ #include <linux/userfaultfd.h>
++#include <setjmp.h>
+ 
+ #ifdef __NR_userfaultfd
+ 
+@@ -408,6 +409,7 @@ static int copy_page(int ufd, unsigned long offset)
+ 				userfaults++;
+ 			break;
+ 		case UFFD_EVENT_FORK:
++			close(uffd);
+ 			uffd = msg.arg.fork.ufd;
+ 			pollfd[0].fd = uffd;
+ 			break;
+@@ -572,6 +574,17 @@ static int userfaultfd_open(int features)
+ 	return 0;
+ }
+ 
++sigjmp_buf jbuf, *sigbuf;
++
++static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
++{
++	if (sig == SIGBUS) {
++		if (sigbuf)
++			siglongjmp(*sigbuf, 1);
++		abort();
++	}
++}
++
+ /*
+  * For non-cooperative userfaultfd test we fork() a process that will
+  * generate pagefaults, will mremap the area monitored by the
+@@ -585,19 +598,59 @@ static int userfaultfd_open(int features)
+  * The release of the pages currently generates event for shmem and
+  * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
+  * for hugetlb.
++ * For signal test(UFFD_FEATURE_SIGBUS), signal_test = 1, we register
++ * monitored area, generate pagefaults and test that signal is delivered.
++ * Use UFFDIO_COPY to allocate missing page and retry. For signal_test = 2
++ * test robustness use case - we release monitored area, fork a process
++ * that will generate pagefaults and verify signal is generated.
++ * This also tests UFFD_FEATURE_EVENT_FORK event along with the signal
++ * feature. Using monitor thread, verify no userfault events are generated.
+  */
+-static int faulting_process(void)
++static int faulting_process(int signal_test)
+ {
+ 	unsigned long nr;
+ 	unsigned long long count;
+ 	unsigned long split_nr_pages;
++	unsigned long lastnr;
++	struct sigaction act;
++	unsigned long signalled = 0, sig_repeats = 0;
+ 
+ 	if (test_type != TEST_HUGETLB)
+ 		split_nr_pages = (nr_pages + 1) / 2;
+ 	else
+ 		split_nr_pages = nr_pages;
+ 
++	if (signal_test) {
++		sigbuf = &jbuf;
++		memset(&act, 0, sizeof(act));
++		act.sa_sigaction = sighndl;
++		act.sa_flags = SA_SIGINFO;
++		if (sigaction(SIGBUS, &act, 0)) {
++			perror("sigaction");
++			return 1;
++		}
++		lastnr = (unsigned long)-1;
++	}
++
+ 	for (nr = 0; nr < split_nr_pages; nr++) {
++		if (signal_test) {
++			if (sigsetjmp(*sigbuf, 1) != 0) {
++				if (nr == lastnr) {
++					sig_repeats++;
++					break;
++				}
++
++				lastnr = nr;
++				if (signal_test == 1) {
++					if (copy_page(uffd, nr * page_size))
++						signalled++;
++				} else {
++					signalled++;
++					continue;
++				}
++			}
++		}
++
+ 		count = *area_count(area_dst, nr);
+ 		if (count != count_verify[nr]) {
+ 			fprintf(stderr,
+@@ -607,6 +660,9 @@ static int faulting_process(void)
+ 		}
+ 	}
+ 
++	if (signal_test)
++		return !(signalled == split_nr_pages && sig_repeats == 0);
++
+ 	if (test_type == TEST_HUGETLB)
+ 		return 0;
+ 
+@@ -761,7 +817,7 @@ static int userfaultfd_events_test(void)
+ 		perror("fork"), exit(1);
+ 
+ 	if (!pid)
+-		return faulting_process();
++		return faulting_process(0);
+ 
+ 	waitpid(pid, &err, 0);
+ 	if (err)
+@@ -778,6 +834,70 @@ static int userfaultfd_events_test(void)
+ 	return userfaults != nr_pages;
+ }
+ 
++static int userfaultfd_sig_test(void)
++{
++	struct uffdio_register uffdio_register;
++	unsigned long expected_ioctls;
++	unsigned long userfaults;
++	pthread_t uffd_mon;
++	int err, features;
++	pid_t pid;
++	char c;
++
++	printf("testing signal delivery: ");
++	fflush(stdout);
++
++	if (uffd_test_ops->release_pages(area_dst))
++		return 1;
++
++	features = UFFD_FEATURE_EVENT_FORK|UFFD_FEATURE_SIGBUS;
++	if (userfaultfd_open(features) < 0)
++		return 1;
++	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
++
++	uffdio_register.range.start = (unsigned long) area_dst;
++	uffdio_register.range.len = nr_pages * page_size;
++	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
++	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
++		fprintf(stderr, "register failure\n"), exit(1);
++
++	expected_ioctls = uffd_test_ops->expected_ioctls;
++	if ((uffdio_register.ioctls & expected_ioctls) !=
++	    expected_ioctls)
++		fprintf(stderr,
++			"unexpected missing ioctl for anon memory\n"),
++			exit(1);
++
++	if (faulting_process(1))
++		fprintf(stderr, "faulting process failed\n"), exit(1);
++
++	if (uffd_test_ops->release_pages(area_dst))
++		return 1;
++
++	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
++		perror("uffd_poll_thread create"), exit(1);
++
++	pid = fork();
++	if (pid < 0)
++		perror("fork"), exit(1);
++
++	if (!pid)
++		exit(faulting_process(2));
++
++	waitpid(pid, &err, 0);
++	if (err)
++		fprintf(stderr, "faulting process failed\n"), exit(1);
++
++	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
++		perror("pipe write"), exit(1);
++	if (pthread_join(uffd_mon, (void **)&userfaults))
++		return 1;
++
++	printf("done\n");
++	printf(" Signal test userfaults: %ld\n", userfaults);
++	close(uffd);
++	return userfaults != 0;
++}
+ static int userfaultfd_stress(void)
+ {
+ 	void *area;
+@@ -946,7 +1066,8 @@ static int userfaultfd_stress(void)
+ 		return err;
+ 
+ 	close(uffd);
+-	return userfaultfd_zeropage_test() || userfaultfd_events_test();
++	return userfaultfd_zeropage_test() || userfaultfd_sig_test()
++		|| userfaultfd_events_test();
+ }
+ 
+ /*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
