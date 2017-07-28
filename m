@@ -1,71 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 752C86B04BE
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:22:45 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id c14so271055481pgn.11
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:22:45 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id g6si10925140pln.930.2017.07.28.01.22.44
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F416B04F7
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 04:46:38 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l3so37881557wrc.12
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 01:46:38 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id c7si796700wmc.134.2017.07.28.01.46.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 28 Jul 2017 01:22:44 -0700 (PDT)
-Message-ID: <597AF4EF.4020705@intel.com>
-Date: Fri, 28 Jul 2017 16:25:19 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 28 Jul 2017 01:46:35 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 873CA9918F
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 08:46:35 +0000 (UTC)
+Date: Fri, 28 Jul 2017 09:46:34 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/3] mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem
+Message-ID: <20170728084634.foo3wjhsyydml6yj@techsingularity.net>
+References: <1501224112-23656-1-git-send-email-minchan@kernel.org>
+ <1501224112-23656-3-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1499863221-16206-1-git-send-email-wei.w.wang@intel.com> <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1499863221-16206-6-git-send-email-wei.w.wang@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1501224112-23656-3-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, david@redhat.com, cornelia.huck@de.ibm.com, akpm@linux-foundation.org, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, mhocko@kernel.org, willy@infradead.org
-Cc: virtio-dev@lists.oasis-open.org, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel-team <kernel-team@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Russell King <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, linux-sh@vger.kernel.org, Jeff Dike <jdike@addtoit.com>, user-mode-linux-devel@lists.sourceforge.net, linux-arch@vger.kernel.org, Nadav Amit <nadav.amit@gmail.com>
 
-On 07/12/2017 08:40 PM, Wei Wang wrote:
-> Add a new feature, VIRTIO_BALLOON_F_SG, which enables to
-> transfer a chunk of ballooned (i.e. inflated/deflated) pages using
-> scatter-gather lists to the host.
->
-> The implementation of the previous virtio-balloon is not very
-> efficient, because the balloon pages are transferred to the
-> host one by one. Here is the breakdown of the time in percentage
-> spent on each step of the balloon inflating process (inflating
-> 7GB of an 8GB idle guest).
->
-> 1) allocating pages (6.5%)
-> 2) sending PFNs to host (68.3%)
-> 3) address translation (6.1%)
-> 4) madvise (19%)
->
-> It takes about 4126ms for the inflating process to complete.
-> The above profiling shows that the bottlenecks are stage 2)
-> and stage 4).
->
-> This patch optimizes step 2) by transferring pages to the host in
-> sgs. An sg describes a chunk of guest physically continuous pages.
-> With this mechanism, step 4) can also be optimized by doing address
-> translation and madvise() in chunks rather than page by page.
->
-> With this new feature, the above ballooning process takes ~491ms
-> resulting in an improvement of ~88%.
->
+On Fri, Jul 28, 2017 at 03:41:51PM +0900, Minchan Kim wrote:
+> Nadav reported parallel MADV_DONTNEED on same range has a stale TLB
+> problem and Mel fixed it[1] and found same problem on MADV_FREE[2].
+> 
+> Quote from Mel Gorman
+> 
+> "The race in question is CPU 0 running madv_free and updating some PTEs
+> while CPU 1 is also running madv_free and looking at the same PTEs.
+> CPU 1 may have writable TLB entries for a page but fail the pte_dirty
+> check (because CPU 0 has updated it already) and potentially fail to flush.
+> Hence, when madv_free on CPU 1 returns, there are still potentially writable
+> TLB entries and the underlying PTE is still present so that a subsequent write
+> does not necessarily propagate the dirty bit to the underlying PTE any more.
+> Reclaim at some unknown time at the future may then see that the PTE is still
+> clean and discard the page even though a write has happened in the meantime.
+> I think this is possible but I could have missed some protection in madv_free
+> that prevents it happening."
+> 
+> This patch aims for solving both problems all at once and is ready for
+> other problem with KSM, MADV_FREE and soft-dirty story[3].
+> 
+> TLB batch API(tlb_[gather|finish]_mmu] uses [set|clear]_tlb_flush_pending
+> and mmu_tlb_flush_pending so that when tlb_finish_mmu is called, we can catch
+> there are parallel threads going on. In that case, flush TLB to prevent
+> for user to access memory via stale TLB entry although it fail to gather
+> pte entry.
+> 
+> I confiremd this patch works with [4] test program Nadav gave so this patch
+> supersedes "mm: Always flush VMA ranges affected by zap_page_range v2"
+> in current mmotm.
+> 
+> NOTE:
+> This patch modifies arch-specific TLB gathering interface(x86, ia64,
+> s390, sh, um). It seems most of architecture are straightforward but s390
+> need to be careful because tlb_flush_mmu works only if mm->context.flush_mm
+> is set to non-zero which happens only a pte entry really is cleared by
+> ptep_get_and_clear and friends. However, this problem never changes the
+> pte entries but need to flush to prevent memory access from stale tlb.
+> 
+> Any thoughts?
+> 
 
+The cc list is somewhat ..... extensive, given the topic. Trim it if
+there is another version.
 
-I found a recent mm patch, bb01b64cfab7c22f3848cb73dc0c2b46b8d38499
-, zeros all the ballooned pages, which is very time consuming.
+> index 3f2eb76243e3..8c26961f0503 100644
+> --- a/arch/arm/include/asm/tlb.h
+> +++ b/arch/arm/include/asm/tlb.h
+> @@ -163,13 +163,26 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start
+>  #ifdef CONFIG_HAVE_RCU_TABLE_FREE
+>  	tlb->batch = NULL;
+>  #endif
+> +	set_tlb_flush_pending(tlb->mm);
+>  }
+>  
+>  static inline void
+>  tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+>  {
+> -	tlb_flush_mmu(tlb);
+> +	/*
+> +	 * If there are parallel threads are doing PTE changes on same range
+> +	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+> +	 * flush by batching, a thread has stable TLB entry can fail to flush
+> +	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+> +	 * if we detect parallel PTE batching threads.
+> +	 */
+> +	if (mm_tlb_flush_pending(tlb->mm, false) > 1) {
+> +		tlb->range_start = start;
+> +		tlb->range_end = end;
+> +	}
+>  
+> +	tlb_flush_mmu(tlb);
+> +	clear_tlb_flush_pending(tlb->mm);
+>  	/* keep the page table cache within bounds */
+>  	check_pgt_cache();
+>  
 
-Tests show that the time to balloon 7G pages is increased from ~491 ms to
-2.8 seconds with the above patch.
+mm_tlb_flush_pending shouldn't be taking a barrier specific arg. I expect
+this to change in the future and cause a conflict. At least I think in
+this context, it's the conditional barrier stuff.
 
-How about moving the zero operation to the hypervisor? In this way, we
-will have a much faster balloon process.
+That aside, it's very unfortunate that the return value of
+mm_tlb_flush_pending really matters. Knowing why 1 is magic there requires
+knowledge of the internals on a per-arch basis which is a bit nuts.
+Consider renaming this to mm_tlb_flush_parallel() to return true if there
+is a nr_pending > 1 with comments explaining why. I don't think any of
+the callers expect a nr_pending of 0 ever. That removes some knowledge of
+the specifics.
 
+The arch-specific changes to tlb_gather_mmu are almost all identical.
+It's a little tricky to split the arch layer and core mm to have all
+the set/clear of mm_tlb_flush_pending handled by the core mm.  It's not
+required but it would be preferred. The set one is obvious. rename
+tlb_gather_mmu to arch_tlb_gather_mmu (including the generic implementation)
+and create a tlb_gather_mmu alias that calls arch_tlb_gather_mmu and
+set_tlb_flush_pending.
 
-Best,
-Wei
+The clear is not as straight-forward but can be done by creating a new
+arch helper that handles this hunk on a per-arch basis
 
+> +     if (mm_tlb_flush_pending(tlb->mm, false) > 1) {
+> +             tlb->start = start;
+> +             tlb->end = end;
+> +     }
+
+It'll be churn initially but it means any different handling in the TLB
+batching area will be mostly a core concern.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
