@@ -1,53 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EF5E56B04FC
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:46:05 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l3so37592254wrc.12
-        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 23:46:05 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B99280393
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 02:58:18 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g32so13197875wrd.8
+        for <linux-mm@kvack.org>; Thu, 27 Jul 2017 23:58:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u65si2998586wmg.82.2017.07.27.23.46.04
+        by mx.google.com with ESMTPS id t16si16622945wrb.484.2017.07.27.23.58.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 27 Jul 2017 23:46:04 -0700 (PDT)
-Date: Fri, 28 Jul 2017 08:46:02 +0200
+        Thu, 27 Jul 2017 23:58:17 -0700 (PDT)
+Date: Fri, 28 Jul 2017 08:58:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
- reclaiming hugepages on OOM events.
-Message-ID: <20170728064602.GC2274@dhcp22.suse.cz>
-References: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
- <20170727180236.6175-2-Liam.Howlett@Oracle.com>
+Subject: Re: [PATCH] mm: memcontrol: Use int for event/state parameter in
+ several functions
+Message-ID: <20170728065815.GD2274@dhcp22.suse.cz>
+References: <20170727211004.34435-1-mka@chromium.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170727180236.6175-2-Liam.Howlett@Oracle.com>
+In-Reply-To: <20170727211004.34435-1-mka@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com, willy@infradead.org
+To: Matthias Kaehlcke <mka@chromium.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
 
-On Thu 27-07-17 14:02:36, Liam R. Howlett wrote:
-> When a system runs out of memory it may be desirable to reclaim
-> unreserved hugepages.  This situation arises when a correctly configured
-> system has a memory failure and takes corrective action of rebooting and
-> removing the memory from the memory pool results in a system failing to
-> boot.  With this change, the out of memory handler is able to reclaim
-> any pages that are free and not reserved.
+On Thu 27-07-17 14:10:04, Matthias Kaehlcke wrote:
+> Several functions use an enum type as parameter for an event/state,
+> but are called in some locations with an argument of a different enum
+> type. Adjust the interface of these functions to reality by changing the
+> parameter to int.
 
-I am sorry but I have to Nack this. You are breaking the basic contract
-of hugetlb user API. Administrator configures the pool to suit a
-workload. It is a deliberate and privileged action. We allow to
-overcommit that pool should there be a immediate need for more hugetlb
-pages and we do remove those when they are freed. If we don't then this
-should be fixed.
-Other than that hugetlb pages are not reclaimable by design and users
-do rely on that. Otherwise they could consider using THP instead.
+enums are mostly for documentation purposes. Using defines would be
+possible but less elegant. If for anything else then things like
+MEMCG_NR_STAT.
 
-If somebody configures the initial pool too high it is a configuration
-bug. Just think about it, we do not want to reset lowmem reserves
-configured by admin just because we are hitting the oom killer and yes
-insanely large lowmem reserves might lead to early OOM as well.
+> This fixes a ton of enum-conversion warnings that are generated when
+> building the kernel with clang.
+> 
+> Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
 
-Nacked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+> ---
+>  include/linux/memcontrol.h | 20 ++++++++++++--------
+>  mm/memcontrol.c            |  4 +++-
+>  2 files changed, 15 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 3914e3dd6168..80edbc04361e 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -487,8 +487,9 @@ extern int do_swap_account;
+>  void lock_page_memcg(struct page *page);
+>  void unlock_page_memcg(struct page *page);
+>  
+> +/* idx can be of type enum memcg_stat_item or node_stat_item */
+>  static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+> -					     enum memcg_stat_item idx)
+> +					     int idx)
+>  {
+>  	long val = 0;
+>  	int cpu;
+> @@ -502,15 +503,17 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+>  	return val;
+>  }
+>  
+> +/* idx can be of type enum memcg_stat_item or node_stat_item */
+>  static inline void __mod_memcg_state(struct mem_cgroup *memcg,
+> -				     enum memcg_stat_item idx, int val)
+> +				     int idx, int val)
+>  {
+>  	if (!mem_cgroup_disabled())
+>  		__this_cpu_add(memcg->stat->count[idx], val);
+>  }
+>  
+> +/* idx can be of type enum memcg_stat_item or node_stat_item */
+>  static inline void mod_memcg_state(struct mem_cgroup *memcg,
+> -				   enum memcg_stat_item idx, int val)
+> +				   int idx, int val)
+>  {
+>  	if (!mem_cgroup_disabled())
+>  		this_cpu_add(memcg->stat->count[idx], val);
+> @@ -631,8 +634,9 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+>  		this_cpu_add(memcg->stat->events[idx], count);
+>  }
+>  
+> +/* idx can be of type enum memcg_stat_item or node_stat_item */
+>  static inline void count_memcg_page_event(struct page *page,
+> -					  enum memcg_stat_item idx)
+> +					  int idx)
+>  {
+>  	if (page->mem_cgroup)
+>  		count_memcg_events(page->mem_cgroup, idx, 1);
+> @@ -840,19 +844,19 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
+>  }
+>  
+>  static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+> -					     enum memcg_stat_item idx)
+> +					     int idx)
+>  {
+>  	return 0;
+>  }
+>  
+>  static inline void __mod_memcg_state(struct mem_cgroup *memcg,
+> -				     enum memcg_stat_item idx,
+> +				     int idx,
+>  				     int nr)
+>  {
+>  }
+>  
+>  static inline void mod_memcg_state(struct mem_cgroup *memcg,
+> -				   enum memcg_stat_item idx,
+> +				   int idx,
+>  				   int nr)
+>  {
+>  }
+> @@ -918,7 +922,7 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+>  }
+>  
+>  static inline void count_memcg_page_event(struct page *page,
+> -					  enum memcg_stat_item idx)
+> +					  int idx)
+>  {
+>  }
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3df3c04d73ab..460130d2a796 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -550,10 +550,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
+>   * value, and reading all cpu value can be performance bottleneck in some
+>   * common workload, threshold and synchronization as vmstat[] should be
+>   * implemented.
+> + *
+> + * The parameter idx can be of type enum memcg_event_item or vm_event_item.
+>   */
+>  
+>  static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
+> -				      enum memcg_event_item event)
+> +				      int event)
+>  {
+>  	unsigned long val = 0;
+>  	int cpu;
+> -- 
+> 2.14.0.rc0.400.g1c36432dff-goog
 
 -- 
 Michal Hocko
