@@ -1,111 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4556B0557
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 10:07:09 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v102so38734471wrb.2
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 07:07:09 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A41896B0559
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 10:12:55 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p43so34155553wrb.6
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 07:12:55 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 204si3550915wmw.252.2017.07.28.07.07.08
+        by mx.google.com with ESMTPS id m77si12763445wmc.23.2017.07.28.07.12.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 07:07:08 -0700 (PDT)
-Date: Fri, 28 Jul 2017 16:07:07 +0200
+        Fri, 28 Jul 2017 07:12:54 -0700 (PDT)
+Date: Fri, 28 Jul 2017 16:12:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: Possible race condition in oom-killer
-Message-ID: <20170728140706.GT2274@dhcp22.suse.cz>
-References: <20170728123235.GN2274@dhcp22.suse.cz>
- <46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
- <20170728130723.GP2274@dhcp22.suse.cz>
- <201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
- <20170728132952.GQ2274@dhcp22.suse.cz>
- <201707282255.BGI87015.FSFOVQtMOHLJFO@I-love.SAKURA.ne.jp>
+Message-ID: <20170728141252.GU2274@dhcp22.suse.cz>
+References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
+ <20170728123235.GN2274@dhcp22.suse.cz>
+ <88cbd07e-6e5e-924f-cdd3-82e65722ed30@caviumnetworks.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707282255.BGI87015.FSFOVQtMOHLJFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <88cbd07e-6e5e-924f-cdd3-82e65722ed30@caviumnetworks.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Manish Jaggi <mjaggi@caviumnetworks.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 28-07-17 22:55:51, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 28-07-17 22:15:01, Tetsuo Handa wrote:
-> > > task_will_free_mem(current) in out_of_memory() returning false due to
-> > > MMF_OOM_SKIP already set allowed each thread sharing that mm to select a new
-> > > OOM victim. If task_will_free_mem(current) in out_of_memory() did not return
-> > > false, threads sharing MMF_OOM_SKIP mm would not have selected new victims
-> > > to the level where all OOM killable processes are killed and calls panic().
-> > 
-> > I am not sure I understand. Do you mean this?
+On Fri 28-07-17 19:20:42, Manish Jaggi wrote:
 > 
-> Yes.
-> 
-> > ---
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 9e8b4f030c1c..671e4a4107d0 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -779,13 +779,6 @@ static bool task_will_free_mem(struct task_struct *task)
-> >  	if (!__task_will_free_mem(task))
-> >  		return false;
-> >  
-> > -	/*
-> > -	 * This task has already been drained by the oom reaper so there are
-> > -	 * only small chances it will free some more
-> > -	 */
-> > -	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-> > -		return false;
-> > -
-> >  	if (atomic_read(&mm->mm_users) <= 1)
-> >  		return true;
-> >  
-> > If yes I would have to think about this some more because that might
-> > have weird side effects (e.g. oom_victims counting after threads passed
-> > exit_oom_victim).
-> 
-> But this check should not be removed unconditionally. We should still return
-> false if returning true was not sufficient to solve the OOM situation, for
-> we need to select next OOM victim in that case.
-> 
-> > 
-> > Anyway the proper fix for this is to allow reaping mlocked pages.
-> 
-> Different approach is to set TIF_MEMDIE to all threads sharing the same
-> memory so that threads sharing MMF_OOM_SKIP mm do not need to call
-> out_of_memory() in order to get TIF_MEMDIE. 
+> Hi Michal,
+> On 7/28/2017 6:02 PM, Michal Hocko wrote:
+> >[CC linux-mm]
+> >
+> >On Fri 28-07-17 17:22:25, Manish Jaggi wrote:
+> >>was: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+> >>
+> >>Hi Michal,
+> >>On 7/27/2017 2:54 PM, Michal Hocko wrote:
+> >>>On Thu 27-07-17 13:59:09, Manish Jaggi wrote:
+> >>>[...]
+> >>>>With 4.11.6 I was getting random kernel panics (Out of memory - No process left to kill),
+> >>>>  when running LTP oom01 /oom02 ltp tests on our arm64 hardware with ~256G memory and high core count.
+> >>>>The issue experienced was as follows
+> >>>>	that either test (oom01/oom02) selected a pid as victim and waited for the pid to be killed.
+> >>>>	that pid was marked as killed but somewhere there is a race and the process didnt get killed.
+> >>>>	and the oom01/oom02 test started killing further processes, till it panics.
+> >>>>IIUC this issue is quite similar to your patch description. But applying your patch I still see the issue.
+> >>>>If it is not related to this patch, can you please suggest by looking at the log, what could be preventing
+> >>>>the killing of victim.
+> >>>>
+> >>>>Log (https://pastebin.com/hg5iXRj2)
+> >>>>
+> >>>>As a subtest of oom02 starts, it prints out the victim - In this case 4578
+> >>>>
+> >>>>oom02       0  TINFO  :  start OOM testing for mlocked pages.
+> >>>>oom02       0  TINFO  :  expected victim is 4578.
+> >>>>
+> >>>>When oom02 thread invokes oom-killer, it did select 4578  for killing...
+> >>>I will definitely have a look. Can you report it in a separate email
+> >>>thread please? Are you able to reproduce with the current Linus or
+> >>>linux-next trees?
+> >>Yes this issue is visible with linux-next.
+> >Could you provide the full kernel log from this run please? I do not
+> >expect there to be much difference but just to be sure that the code I
+> >am looking at matches logs.
+> The log is here: https://pastebin.com/Pmn5ZwEM
+> mlocked memory keeps on increasing till panic.
 
-This is not so simple. If it were we could simply remove TIF_MEMDIE
-altogether and rely on tsk_is_oom_victim.
+Thank you for retesting. I confirm the issue is that the oom reaper
+hides the oom victim too early because the whole address space is
+mlocked basically and there is not much to free. As the exit of the test
+takes some time a new instance of the test pid 4625 in this case will go
+and consume more than the exiting frees and that would go on an on until
+we kill other eligible tasks until we panic due to no more eligible
+tasks.
 
-> Yet another apporach is to use __GFP_KILLABLE (we can start it as
-> best effort basis).
-> 
-> >                                                                   Is
-> > something other than the LTP test affected to give this more priority?
-> > Do we have other usecases where something mlocks the whole memory?
-> 
-> This panic was caused by 50 threads sharing MMF_OOM_SKIP mm exceeding
-> number of OOM killable processes. Whether memory is locked or not isn't
-> important.
+This is a bad situation and as I've said elsewhere in the thread the
+proper fix is to teach the oom reaper to handle mlocked pages. This is
+not a trivial task. We could play some other dirty tricks but I am not
+sure it is worth it considering this is rather artificial test. 
 
-You are wrong here I believe. The whole problem is that the OOM victim
-is consuming basically all the memory (that is what the test case
-actually does IIRC) and that memory is mlocked. oom_reaper is much
-faster to evaluate the mm of the victim and bail out sooner than the
-exit path actually manages to tear down the address space. And so we
-have to find other oom victims until we simply kill everything and
-panic.
-
-> If a multi-threaded process which consumes little memory was
-> selected as an OOM victim (and reaped by the OOM reaper and MMF_OOM_SKIP
-> was set immediately), it might be still possible to select next OOM victims
-> needlessly.
-
-This would be true if the address space itself only contained a little
-amount of memory and the large part of the memory was in page tables or
-other resources which oom_reaper cannot work with. This is not a usual
-case though.
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
