@@ -1,51 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 372ED6B0547
-	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:15:09 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id e9so144933272pga.5
-        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:15:09 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h4si13053692pln.760.2017.07.28.06.15.07
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0706B0549
+	for <linux-mm@kvack.org>; Fri, 28 Jul 2017 09:16:17 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id f1so193426000ioj.11
+        for <linux-mm@kvack.org>; Fri, 28 Jul 2017 06:16:17 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0073.outbound.protection.outlook.com. [104.47.34.73])
+        by mx.google.com with ESMTPS id i136si20406683ioi.175.2017.07.28.06.16.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 28 Jul 2017 06:15:08 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 28 Jul 2017 06:16:16 -0700 (PDT)
 Subject: Re: Possible race condition in oom-killer
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com>
-	<20170728123235.GN2274@dhcp22.suse.cz>
-	<46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
-	<20170728130723.GP2274@dhcp22.suse.cz>
-In-Reply-To: <20170728130723.GP2274@dhcp22.suse.cz>
-Message-Id: <201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
-Date: Fri, 28 Jul 2017 22:15:01 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+ <20170728123235.GN2274@dhcp22.suse.cz>
+ <46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
+From: Manish Jaggi <mjaggi@caviumnetworks.com>
+Message-ID: <e77285c0-3bd1-17e4-0c29-76facd5dc9ee@caviumnetworks.com>
+Date: Fri, 28 Jul 2017 18:45:53 +0530
+MIME-Version: 1.0
+In-Reply-To: <46e1e3ee-af9a-4e67-8b4b-5cf21478ad21@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> > 4578 is consuming memory as mlocked pages. But the OOM reaper cannot reclaim
-> > mlocked pages (i.e. can_madv_dontneed_vma() returns false due to VM_LOCKED), can it?
-> 
-> You are absolutely right. I am pretty sure I've checked mlocked counter
-> as the first thing but that must be from one of the earlier oom reports.
-> My fault I haven't checked it in the critical one
-> 
+Hello Tetsuo Handa,
+
+On 7/28/2017 6:29 PM, Tetsuo Handa wrote:
+> (Oops. Forgot to add CC.)
+>
+> On 2017/07/28 21:32, Michal Hocko wrote:
+>> [CC linux-mm]
+>>
+>> On Fri 28-07-17 17:22:25, Manish Jaggi wrote:
+>>> was: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+>>>
+>>> Hi Michal,
+>>> On 7/27/2017 2:54 PM, Michal Hocko wrote:
+>>>> On Thu 27-07-17 13:59:09, Manish Jaggi wrote:
+>>>> [...]
+>>>>> With 4.11.6 I was getting random kernel panics (Out of memory - No process left to kill),
+>>>>>   when running LTP oom01 /oom02 ltp tests on our arm64 hardware with ~256G memory and high core count.
+>>>>> The issue experienced was as follows
+>>>>> 	that either test (oom01/oom02) selected a pid as victim and waited for the pid to be killed.
+>>>>> 	that pid was marked as killed but somewhere there is a race and the process didnt get killed.
+>>>>> 	and the oom01/oom02 test started killing further processes, till it panics.
+>>>>> IIUC this issue is quite similar to your patch description. But applying your patch I still see the issue.
+>>>>> If it is not related to this patch, can you please suggest by looking at the log, what could be preventing
+>>>>> the killing of victim.
+>>>>>
+>>>>> Log (https://pastebin.com/hg5iXRj2)
+>>>>>
+>>>>> As a subtest of oom02 starts, it prints out the victim - In this case 4578
+>>>>>
+>>>>> oom02       0  TINFO  :  start OOM testing for mlocked pages.
+>>>>> oom02       0  TINFO  :  expected victim is 4578.
+>>>>>
+>>>>> When oom02 thread invokes oom-killer, it did select 4578  for killing...
+>>>> I will definitely have a look. Can you report it in a separate email
+>>>> thread please? Are you able to reproduce with the current Linus or
+>>>> linux-next trees?
+>>> Yes this issue is visible with linux-next.
+>> Could you provide the full kernel log from this run please? I do not
+>> expect there to be much difference but just to be sure that the code I
+>> am looking at matches logs.
+> 4578 is consuming memory as mlocked pages. But the OOM reaper cannot reclaim
+> mlocked pages (i.e. can_madv_dontneed_vma() returns false due to VM_LOCKED), can it?
+>
+> oom02       0  TINFO  :  start OOM testing for mlocked pages.
+> oom02       0  TINFO  :  expected victim is 4578.
 > [  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
-> [  365.282658] oom_reaper: reaped process 4583 (oom02), now anon-rss:131561664kB, file-rss:0kB, shmem-rss:0kB
-> 
-> and the above screemed about the fact I was just completely blind.
-> 
-> mlock pages handling is on my todo list for quite some time already but
-> I didn't get around it to implement that. mlock code is very tricky.
-
-task_will_free_mem(current) in out_of_memory() returning false due to
-MMF_OOM_SKIP already set allowed each thread sharing that mm to select a new
-OOM victim. If task_will_free_mem(current) in out_of_memory() did not return
-false, threads sharing MMF_OOM_SKIP mm would not have selected new victims
-to the level where all OOM killable processes are killed and calls panic().
+>
+> As a result, MMF_OOM_SKIP is set without reclaiming much memory.
+> Thus, it is natural that subsequent OOM victims are selected immediately because
+> almost all memory is still in use. Since 4578 is multi-threaded (isn't it?),
+> it will take time to call final __mmput() because mm->users are large.
+> Since there are many threads, it is possible that all OOM killable processes are
+> killed before final __mmput() of 4578 (which releases mlocked pages) is called.
+My setup has 95 or more cores, so the large number of cores could be the 
+reason for the random failure?
+>> [...]
+>>>>> [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+>>>> Yes because
+>>>> [  365.283499] Node 1 Normal free:19500kB min:33804kB low:165916kB high:298028kB active_anon:13312kB inactive_anon:172kB active_file:0kB inactive_file:1044kB unevictable:131560064kB writepending:0kB present:134213632kB managed:132113248kB mlocked:131560064kB slab_reclaimable:5748kB slab_unreclaimable:17808kB kernel_stack:2720kB pagetables:254636kB bounce:0kB free_pcp:10476kB local_pcp:144kB free_cma:0kB
+>>>>
+>>>> Although we have killed and reaped oom02 process Node1 is still below
+>>>> min watermark and that is why we have hit the oom killer again. It
+>>>> is not immediatelly clear to me why, that would require a deeper
+>>>> inspection.
+>>> I have a doubt here
+>>> my understanding of oom test: oom() function basically forks itself and
+>>> starts n threads each thread has a loop which allocates and touches memory
+>>> thus will trigger oom-killer and will kill the process. the parent process
+>>> is on a wait() and will print pass/fail.
+>>>
+>>> So IIUC when 4578 is reaped all the child threads should be terminated,
+>>> which happens in pass case (line 152)
+>>> But even after being killed and reaped,  the oom killer is invoked again
+>>> which doesn't seem right.
+>> As I've said the OOM killer hits because the memory from Node 1 didn't
+>> get freed for some reasov or got immediatally populated.
+> Because of mlocked pages by multi threaded process, it will take time to
+> reclaim mlocked pages.
+>
+>>> Could it be that the process is just marked hidden from oom including its
+>>> threads, thus oom-killer continues.
+>> The whole process should be killed and the OOM reaper should only mark
+>> the victim oom invisible _after_ the address space has been reaped (and
+>> memory freed). You said the patch from
+>> http://lkml.kernel.org/r/20170724072332.31903-1-mhocko@kernel.org didn't
+>> help so it shouldn't be a race with the last __mmput.
+>>
+>> Thanks!
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
