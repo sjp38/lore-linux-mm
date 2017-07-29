@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DA976B0597
-	for <linux-mm@kvack.org>; Sat, 29 Jul 2017 18:59:21 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k71so42422706wrc.15
-        for <linux-mm@kvack.org>; Sat, 29 Jul 2017 15:59:21 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g10si23271877wrc.359.2017.07.29.15.59.20
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5364E6B054C
+	for <linux-mm@kvack.org>; Sat, 29 Jul 2017 19:06:12 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id u11so65215684qtu.10
+        for <linux-mm@kvack.org>; Sat, 29 Jul 2017 16:06:12 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id s13si20618109qks.161.2017.07.29.16.06.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Jul 2017 15:59:20 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6TMwV62004997
-	for <linux-mm@kvack.org>; Sat, 29 Jul 2017 18:59:19 -0400
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c0pc55b2g-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 29 Jul 2017 18:59:19 -0400
-Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Sat, 29 Jul 2017 18:59:18 -0400
-Date: Sat, 29 Jul 2017 15:59:04 -0700
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v6 17/62] powerpc: implementation for
- arch_set_user_pkey_access()
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
- <1500177424-13695-18-git-send-email-linuxram@us.ibm.com>
- <87d18m3r07.fsf@linux.vnet.ibm.com>
+        Sat, 29 Jul 2017 16:06:11 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id d136so23954553qkg.3
+        for <linux-mm@kvack.org>; Sat, 29 Jul 2017 16:06:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d18m3r07.fsf@linux.vnet.ibm.com>
-Message-Id: <20170729225904.GF5664@ram.oc3035372033.ibm.com>
+In-Reply-To: <CAKTCnznL9fxBq_xwm-z4yg_7muNKFJso26GMbEJCbSzN38N+fg@mail.gmail.com>
+References: <20170729140901.5887-1-bsingharora@gmail.com> <CAKTCnznL9fxBq_xwm-z4yg_7muNKFJso26GMbEJCbSzN38N+fg@mail.gmail.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Sun, 30 Jul 2017 09:06:10 +1000
+Message-ID: <CAKTCnzneP4Hn6Ko69TBPv4scaQYMQoNdg8eQ5dRx4TWS6a=o=Q@mail.gmail.com>
+Subject: Re: [RFC PATCH v1] powerpc/radix/kasan: KASAN support for Radix
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Michael Ellerman <mpe@ellerman.id.au>
+Cc: kasan-dev@googlegroups.com, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Thu, Jul 27, 2017 at 11:15:36AM -0300, Thiago Jung Bauermann wrote:
-> 
-> Ram Pai <linuxram@us.ibm.com> writes:
-> > @@ -113,10 +117,14 @@ static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
-> >  	return 0;
-> >  }
-> >
-> > +extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-> > +		unsigned long init_val);
-> >  static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-> >  		unsigned long init_val)
-> >  {
-> > -	return 0;
-> > +	if (!pkey_inited)
-> > +		return -1;
-> > +	return __arch_set_user_pkey_access(tsk, pkey, init_val);
-> >  }
-> 
-> If non-zero, the return value of this function will be passed to
-> userspace by the pkey_alloc syscall. Shouldn't it be returning an errno
-> macro such as -EPERM?
+On Sun, Jul 30, 2017 at 8:58 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+>> +
+>> +extern struct static_key_false powerpc_kasan_enabled_key;
+>> +#define check_return_arch_not_ready() \
+>> +       do {                                                            \
+>> +               if (!static_branch_likely(&powerpc_kasan_enabled_key))  \
+>> +                       return;                                         \
+>> +       } while (0)
+>
+> This is supposed to call __mem*() before returning, I'll do a new RFC,
+> I must have missed it in my rebasing somewhere
 
-Yes. it should be -EINVAL.  fixed it.
+Sorry for the noise, I am sleep deprived, I was trying to state that this
+does not work for hash (with disable_radix on the command-line)
 
-> 
-> Also, why are there both arch_set_user_pkey_access and
-> __arch_set_user_pkey_access? Is it a speed optimization so that the
-> early return is inlined into the caller? Ditto for execute_only_pkey
-> and __arch_override_mprotect_pkey.
-
-arch_set_user_pkey_access() is the interface expected by the
-architecture independent code.  The __arch_set_user_pkey_access() is an
-powerpc internal function that implements the bulk of the work. It can
-be called by any of the pkeys internal code only. This gives me the
-flexibility to change implementation without having to worry about
-changing the interface.
-
-RP
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
