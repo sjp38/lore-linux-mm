@@ -1,75 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F386B05A9
-	for <linux-mm@kvack.org>; Sun, 30 Jul 2017 01:59:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j79so281219538pfj.9
-        for <linux-mm@kvack.org>; Sat, 29 Jul 2017 22:59:22 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id r3si13502822plb.972.2017.07.29.22.59.20
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C67276B05AB
+	for <linux-mm@kvack.org>; Sun, 30 Jul 2017 03:02:18 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g28so43087335wrg.3
+        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 00:02:18 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z3si21010373wrb.434.2017.07.30.00.02.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 29 Jul 2017 22:59:21 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Date: Sun, 30 Jul 2017 05:59:17 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F739288D85@shsmsx102.ccr.corp.intel.com>
-References: <20170712163746-mutt-send-email-mst@kernel.org>
- <5967246B.9030804@intel.com> <20170713210819-mutt-send-email-mst@kernel.org>
- <59686EEB.8080805@intel.com> <20170723044036-mutt-send-email-mst@kernel.org>
- <59781119.8010200@intel.com> <20170726155856-mutt-send-email-mst@kernel.org>
- <597954E3.2070801@intel.com> <20170729020231-mutt-send-email-mst@kernel.org>
- <597C83CC.7060702@intel.com> <20170730043922-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170730043922-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Sun, 30 Jul 2017 00:02:17 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6U6wlKk087688
+	for <linux-mm@kvack.org>; Sun, 30 Jul 2017 03:02:16 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c0mh2v18c-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 30 Jul 2017 03:02:15 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Sun, 30 Jul 2017 08:02:14 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] userfaultfd: non-cooperative: flush event_wqh at release time
+Date: Sun, 30 Jul 2017 10:02:07 +0300
+Message-Id: <1501398127-30419-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, stable@vger.kernel.org
 
-On Sunday, July 30, 2017 12:23 PM, Michael S. Tsirkin wrote:
-> On Sat, Jul 29, 2017 at 08:47:08PM +0800, Wei Wang wrote:
-> > On 07/29/2017 07:08 AM, Michael S. Tsirkin wrote:
-> > > On Thu, Jul 27, 2017 at 10:50:11AM +0800, Wei Wang wrote:
-> > > > > > > OK I thought this over. While we might need these new APIs
-> > > > > > > in the future, I think that at the moment, there's a way to
-> > > > > > > implement this feature that is significantly simpler. Just
-> > > > > > > add each s/g as a separate input buffer.
-> > > > > > Should it be an output buffer?
-> > > > > Hypervisor overwrites these pages with zeroes. Therefore it is
-> > > > > writeable by device: DMA_FROM_DEVICE.
-> > > > Why would the hypervisor need to zero the buffer?
-> > > The page is supplied to hypervisor and can lose the value that is
-> > > there.  That is the definition of writeable by device.
-> >
-> > I think for the free pages, it should be clear that they will be added
-> > as output buffer to the device, because (as we discussed) they are
-> > just hints, and some of them may be used by the guest after the report_=
- API is
-> invoked.
-> > The device/hypervisor should not use or discard them.
->=20
-> Discarding contents is exactly what you propose doing if migration is goi=
-ng on,
-> isn't it?
+There maybe still threads waiting on event_wqh at the time the userfault
+file descriptor is closed. Flush the events wait-queue to prevent waiting
+threads from hanging.
 
-That's actually a different concept. Please let me explain it with this exa=
-mple:
+Cc: stable@vger.kernel.org
+Fixes: 9cd75c3cd4c3d ("userfaultfd: non-cooperative: add ability to report
+non-PF events from uffd descriptor")
 
-The hypervisor receives the hint saying the guest PageX is a free page, but=
- as we know,=20
-after that report_ API exits, the guest kernel may take PageX to use, so Pa=
-geX is not free
-page any more. At this time, if the hypervisor writes to the page, that wou=
-ld crash the guest.
-So, I think the cornerstone of this work is that the hypervisor should not =
-touch the
-reported pages.
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ fs/userfaultfd.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Best,
-Wei   =20
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 2d8c2d848668..06ea26b8c996 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -854,6 +854,9 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &range);
+ 	spin_unlock(&ctx->fault_pending_wqh.lock);
+ 
++	/* Flush pending events that may still wait on event_wqh */
++	wake_up_all(&ctx->event_wqh);
++
+ 	wake_up_poll(&ctx->fd_wqh, POLLHUP);
+ 	userfaultfd_ctx_put(ctx);
+ 	return 0;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
