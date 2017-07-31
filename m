@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 825AC6B04C7
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 15:49:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id x43so48065797wrb.9
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 12:49:48 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
-        by mx.google.com with ESMTPS id u17si6053233wra.219.2017.07.31.12.49.47
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E2AA96B04C9
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 16:17:23 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id w199so64726559lff.2
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:17:23 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id i15si11570730ljd.25.2017.07.31.13.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 12:49:47 -0700 (PDT)
-Message-ID: <1501530579.9118.43.camel@gmx.de>
-Subject: Re: [PATCH 3/3] mm/sched: memdelay: memory health interface for
- systems and workloads
-From: Mike Galbraith <efault@gmx.de>
-Date: Mon, 31 Jul 2017 21:49:39 +0200
-In-Reply-To: <20170731184142.GA30943@cmpxchg.org>
-References: <20170727153010.23347-1-hannes@cmpxchg.org>
-	 <20170727153010.23347-4-hannes@cmpxchg.org>
-	 <20170729091055.GA6524@worktop.programming.kicks-ass.net>
-	 <20170730152813.GA26672@cmpxchg.org>
-	 <20170731083111.tgjgkwge5dgt5m2e@hirez.programming.kicks-ass.net>
-	 <20170731184142.GA30943@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+        Mon, 31 Jul 2017 13:17:22 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id t128so15217040lff.3
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:17:22 -0700 (PDT)
+Reply-To: alex.popov@linux.com
+Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
+References: <20170706002718.GA102852@beast>
+ <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com>
+ <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com>
+ <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
+ <CAGXu5jLkOjDKSZ48jOyh2voP17xXMeEnqzV_=8dGSvFmqdCZCA@mail.gmail.com>
+ <alpine.DEB.2.20.1707261154140.9167@nuc-kabylake>
+ <515333f5-1815-8591-503e-c0cf6941670e@linux.com>
+ <alpine.DEB.2.20.1707271851390.17228@nuc-kabylake>
+From: Alexander Popov <alex.popov@linux.com>
+Message-ID: <4a6c0105-b084-aa87-6a2b-0650613df6ac@linux.com>
+Date: Mon, 31 Jul 2017 23:17:19 +0300
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1707271851390.17228@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Christopher Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Mon, 2017-07-31 at 14:41 -0400, Johannes Weiner wrote:
->=20
-> Adding an rq counter for tasks inside memdelay sections should be
-> straight-forward as well (except for maybe the migration cost of that
-> state between CPUs in ttwu that Mike pointed out).
+Hello Christopher and Kees,
 
-What I pointed out should be easily eliminated (zero use case).
-=C2=A0
-> That leaves the question of how to track these numbers per cgroup at
-> an acceptable cost. The idea for a tree of cgroups is that walltime
-> impact of delays at each level is reported for all tasks at or below
-> that level. E.g. a leave group aggregates the state of its own tasks,
-> the root/system aggregates the state of all tasks in the system; hence
-> the propagation of the task state counters up the hierarchy.
+Excuse me for the delayed reply.
 
-The crux of the biscuit is where exactly the investment return lies.
-=C2=A0Gathering of these numbers ain't gonna be free, no matter how hard yo=
-u
-try, and you're plugging into paths where every cycle added is made of
-userspace hide.
+On 28.07.2017 02:53, Christopher Lameter wrote:
+> On Fri, 28 Jul 2017, Alexander Popov wrote:
+> 
+>> I don't really like ignoring double-free. I think, that:
+>>   - it will hide dangerous bugs in the kernel,
+>>   - it can make some kernel exploits more stable.
+>> I would rather add BUG_ON to set_freepointer() behind SLAB_FREELIST_HARDENED. Is
+>> it fine?
+> 
+> I think Kees already added some logging output.
 
-	-Mike
+Hm, I don't see anything like that in v4 of "SLUB free list pointer
+obfuscation": https://patchwork.kernel.org/patch/9864165/
+
+>> At the same time avoiding the consequences of some double-free errors is better
+>> than not doing that. It may be considered as kernel "self-healing", I don't
+>> know. I can prepare a second patch for do_slab_free(), as you described. Would
+>> you like it?
+> 
+> The SLUB allocator is already self healing if you enable the option to do
+> so on bootup (covers more than just the double free case). What you
+> propose here is no different than that and just another way of having
+> similar functionality. In the best case it would work the same way.
+
+Ok, I see. Thanks.
+
+Best regards,
+Alexander
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
