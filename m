@@ -1,79 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F18D76B05C1
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 02:46:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 185so15990447wmk.12
-        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 23:46:30 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E60FE6B05C3
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 02:47:44 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id q50so45423329wrb.14
+        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 23:47:44 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f62si3048836wmf.6.2017.07.30.23.46.29
+        by mx.google.com with ESMTPS id 59si16436352wrp.7.2017.07.30.23.47.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 30 Jul 2017 23:46:29 -0700 (PDT)
-Date: Mon, 31 Jul 2017 08:46:26 +0200
+        Sun, 30 Jul 2017 23:47:43 -0700 (PDT)
+Date: Mon, 31 Jul 2017 08:47:41 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
-Message-ID: <20170731064625.GB13036@dhcp22.suse.cz>
-References: <20170727090357.3205-3-mhocko@kernel.org>
- <201707291609.lv5NwUPI%fengguang.wu@intel.com>
+Subject: Re: gigantic hugepages vs. movable zones
+Message-ID: <20170731064741.GC13036@dhcp22.suse.cz>
+References: <20170726105004.GI2981@dhcp22.suse.cz>
+ <6dd3171d-7d61-5476-5465-ab7c06b56e0b@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201707291609.lv5NwUPI%fengguang.wu@intel.com>
+In-Reply-To: <6dd3171d-7d61-5476-5465-ab7c06b56e0b@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sat 29-07-17 16:33:35, kbuild test robot wrote:
-> Hi Michal,
+On Fri 28-07-17 13:48:28, Mike Kravetz wrote:
+> On 07/26/2017 03:50 AM, Michal Hocko wrote:
+> > Hi,
+> > I've just noticed that alloc_gigantic_page ignores movability of the
+> > gigantic page and it uses any existing zone. Considering that
+> > hugepage_migration_supported only supports 2MB and pgd level hugepages
+> > then 1GB pages are not migratable and as such allocating them from a
+> > movable zone will break the basic expectation of this zone. Standard
+> > hugetlb allocations try to avoid that by using htlb_alloc_mask and I
+> > believe we should do the same for gigantic pages as well.
+> > 
+> > I suspect this behavior is not intentional. What do you think about the
+> > following untested patch?
+> > ---
+> > From 542d32c1eca7dcf38afca1a91bca4a472f6e8651 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Wed, 26 Jul 2017 12:43:43 +0200
+> > Subject: [PATCH] mm, hugetlb: do not allocate non-migrateable gigantic pages
+> >  from movable zones
+> > 
+> > alloc_gigantic_page doesn't consider movability of the gigantic hugetlb
+> > when scanning eligible ranges for the allocation. As 1GB hugetlb pages
+> > are not movable currently this can break the movable zone assumption
+> > that all allocations are migrateable and as such break memory hotplug.
+> > 
+> > Reorganize the code and use the standard zonelist allocations scheme
+> > that we use for standard hugetbl pages. htlb_alloc_mask will ensure that
+> > only migratable hugetlb pages will ever see a movable zone.
+> > 
+> > Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> [auto build test ERROR on cgroup/for-next]
-> [also build test ERROR on v4.13-rc2 next-20170728]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/mm-oom-do-not-rely-on-TIF_MEMDIE-for-memory-reserves-access/20170728-101955
-> base:   https://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git for-next
-> config: i386-randconfig-c0-07291424 (attached as .config)
-> compiler: gcc-4.9 (Debian 4.9.4-2) 4.9.4
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=i386 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    In file included from include/linux/ioport.h:12:0,
->                     from include/linux/device.h:16,
->                     from include/linux/node.h:17,
->                     from include/linux/cpu.h:16,
->                     from kernel/cgroup/cpuset.c:25:
->    kernel/cgroup/cpuset.c: In function '__cpuset_node_allowed':
-> >> include/linux/compiler.h:123:18: error: implicit declaration of function 'tsk_is_oom_victim' [-Werror=implicit-function-declaration]
+> This seems reasonable to me, and I like the fact that the code is more
+> like the default huge page case.  I don't see any issues with the code.
+> I did some simple smoke testing of allocating 1G pages with the new code
+> and ensuring they ended up as expected.
+>
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-Thanks for the report. We need this
----
-commit 638b5ab1ed275f23b52a71941b66c8966d332cd7
-Author: Michal Hocko <mhocko@suse.com>
-Date:   Mon Jul 31 08:45:53 2017 +0200
-
-    fold me
-    
-    - fix implicit declaration of function 'tsk_is_oom_victim' reported by
-      0day
-    
-    Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-index 1cc53dff0d94..734ae4fa9775 100644
---- a/kernel/cgroup/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
-@@ -56,6 +56,7 @@
- #include <linux/time64.h>
- #include <linux/backing-dev.h>
- #include <linux/sort.h>
-+#include <linux/oom.h>
- 
- #include <linux/uaccess.h>
- #include <linux/atomic.h>
+Thanks a lot Mike! I will play with this some more today and tomorrow
+and send the final patch later this week.
 -- 
 Michal Hocko
 SUSE Labs
