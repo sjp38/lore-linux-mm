@@ -1,100 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F5C6B025F
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 10:37:03 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 185so17358354wmk.12
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 07:37:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 63si18673089wri.231.2017.07.31.07.37.02
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B64696B03BD
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 10:37:39 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u199so259874691pgb.13
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 07:37:39 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id q2si16505888pgd.227.2017.07.31.07.37.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 31 Jul 2017 07:37:02 -0700 (PDT)
-Date: Mon, 31 Jul 2017 16:36:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/5] mm, arch: unify vmemmap_populate altmap handling
-Message-ID: <20170731143653.GE4829@dhcp22.suse.cz>
-References: <20170726083333.17754-1-mhocko@kernel.org>
- <20170726083333.17754-3-mhocko@kernel.org>
- <20170731144053.38c8b012@thinkpad>
- <20170731125555.GB4829@dhcp22.suse.cz>
- <20170731162746.60b8d98e@thinkpad>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Jul 2017 07:37:38 -0700 (PDT)
+Date: Mon, 31 Jul 2017 07:37:35 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
+ reclaiming hugepages on OOM events.
+Message-ID: <20170731143735.GI15980@bombadil.infradead.org>
+References: <20170727180236.6175-1-Liam.Howlett@Oracle.com>
+ <20170727180236.6175-2-Liam.Howlett@Oracle.com>
+ <20170728064602.GC2274@dhcp22.suse.cz>
+ <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
+ <20170728122350.GM2274@dhcp22.suse.cz>
+ <20170728124443.GO2274@dhcp22.suse.cz>
+ <20170729015638.lnazqgf5isjqqkqg@oracle.com>
+ <20170731091025.GH15767@dhcp22.suse.cz>
+ <20170731135647.wpzk56m5qrmz3xht@oracle.com>
+ <20170731140810.GD4829@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170731162746.60b8d98e@thinkpad>
+In-Reply-To: <20170731140810.GD4829@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com
 
-On Mon 31-07-17 16:27:46, Gerald Schaefer wrote:
-> On Mon, 31 Jul 2017 14:55:56 +0200
-> Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > On Mon 31-07-17 14:40:53, Gerald Schaefer wrote:
-> > [...]
-> > > > @@ -247,12 +248,12 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
-> > > >  			 * use large frames even if they are only partially
-> > > >  			 * used.
-> > > >  			 * Otherwise we would have also page tables since
-> > > > -			 * vmemmap_populate gets called for each section
-> > > > +			 * __vmemmap_populate gets called for each section
-> > > >  			 * separately. */
-> > > >  			if (MACHINE_HAS_EDAT1) {
-> > > >  				void *new_page;
-> > > > 
-> > > > -				new_page = vmemmap_alloc_block(PMD_SIZE, node);
-> > > > +				new_page = __vmemmap_alloc_block_buf(PMD_SIZE, node, altmap);
-> > > >  				if (!new_page)
-> > > >  					goto out;
-> > > >  				pmd_val(*pm_dir) = __pa(new_page) | sgt_prot;
+On Mon, Jul 31, 2017 at 04:08:10PM +0200, Michal Hocko wrote:
+> On Mon 31-07-17 09:56:48, Liam R. Howlett wrote:
+> > * Michal Hocko <mhocko@kernel.org> [170731 05:10]:
+> > > On Fri 28-07-17 21:56:38, Liam R. Howlett wrote:
+> > > > The case I raise is a correctly configured system which has a memory
+> > > > module failure.
 > > > 
-> > > There is another call to vmemmap_alloc_block() in this function, a couple
-> > > of lines below, this should also be replaced by __vmemmap_alloc_block_buf().
+> > > So you are concerned about MCEs due to failing memory modules? If yes
+> > > why do you care about hugetlb in particular?
 > > 
-> > I've noticed that one but in general I have only transformed PMD
-> > mappings because we shouldn't even get to pte level if the forme works
-> > AFAICS. Memory sections should be always 2MB aligned unless I am missing
-> > something. Or is this not true?
+> > No,  I am concerned about a failed memory module.  The system will
+> > detect certain failures, mark the memory as bad and automatically
+> > reboot.  Up on rebooting, that module will not be used.
 > 
-> vmemmap_populate() on s390 will only stop at pmd level if we have HW
-> support for large pages (MACHINE_HAS_EDAT1). In that case we will allocate
-> a PMD_SIZE block with vmemmap_alloc_block() and map it on pmd level as
-> a large page.
+> How do you detect/configure this? We do have HWPoison infrastructure
 > 
-> Without HW large page support, we will continue to allocate a pte page,
-> populate the pmd entry with that, and fall through to the pte_none()
-> check below, with its PAGE_SIZE vmemmap_alloc_block() allocation. In this
-> case we should use the __vmemmap_alloc_block_buf().
+> > My focus on hugetlb is that it can stop the automatic recovery of the
+> > system.
+> 
+> How?
 
-OK, I see. I've considered s390 will support large pages in general. I
-will fold this in. Thanks!
----
-commit df13e3a1237c3fef399e26b0f5a015715df12ede
-Author: Michal Hocko <mhocko@suse.com>
-Date:   Mon Jul 31 16:34:18 2017 +0200
+Let me try to explain the situation as I understand it.
 
-    fold me "mm, arch: unify vmemmap_populate altmap handling"
-    
-    - use altmap even for ptes in case the HW doesn't support large pages
-      as per Gerald Schaefer
-
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 07120bc137a1..764b6393e66c 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -273,7 +273,7 @@ int __meminit __vmemmap_populate(unsigned long start, unsigned long end, int nod
- 		if (pte_none(*pt_dir)) {
- 			void *new_page;
- 
--			new_page = vmemmap_alloc_block(PAGE_SIZE, node);
-+			new_page = __vmemmap_alloc_block_buf(PAGE_SIZE, node, altmap);
- 			if (!new_page)
- 				goto out;
- 			pte_val(*pt_dir) = __pa(new_page) | pgt_prot;
--- 
-Michal Hocko
-SUSE Labs
+The customer has purchased a 128TB machine in order to run a database.
+They reserve 124TB of memory for use by the database cache.  Everything
+works great.  Then a 4TB memory module goes bad.  The machine reboots
+itself in order to return to operation, now having only 124TB of memory
+and having 124TB of memory reserved.  It OOMs during boot.  The current
+output from our OOM machinery doesn't point the sysadmin at the kernel
+command line parameter as now being the problem.  So they file a priority
+1 problem ticket ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
