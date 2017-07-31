@@ -1,108 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BF3D6B04AA
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 12:49:30 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s21so23459954oie.5
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 09:49:30 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s67si11079712oig.379.2017.07.31.09.49.29
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E9A6B04AC
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:21:29 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id k14so93787618qkl.7
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 10:21:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i64si11421600qtb.371.2017.07.31.10.21.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 09:49:29 -0700 (PDT)
-From: Jeff Layton <jlayton@kernel.org>
-Subject: [PATCH v3] mm: add file_fdatawait_range and file_write_and_wait
-Date: Mon, 31 Jul 2017 12:49:25 -0400
-Message-Id: <20170731164925.2158-1-jlayton@kernel.org>
-In-Reply-To: <20170726175538.13885-3-jlayton@kernel.org>
-References: <20170726175538.13885-3-jlayton@kernel.org>
+        Mon, 31 Jul 2017 10:21:28 -0700 (PDT)
+Date: Mon, 31 Jul 2017 13:21:24 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 09/15] mm/hmm/devmem: device memory hotplug using
+ ZONE_DEVICE v6
+Message-ID: <20170731172122.GA24626@redhat.com>
+References: <20170628180047.5386-1-jglisse@redhat.com>
+ <20170628180047.5386-10-jglisse@redhat.com>
+ <20170728111003.GA2278@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170728111003.GA2278@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>
-Cc: "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>
 
-From: Jeff Layton <jlayton@redhat.com>
+On Fri, Jul 28, 2017 at 01:10:03PM +0200, Michal Hocko wrote:
+> I haven't seen a newer version posted but the same comment applies on
+> your hmm-v25-4.9 git version from
+> git://people.freedesktop.org/~glisse/linux
+> 
+> On Wed 28-06-17 14:00:41, Jerome Glisse wrote:
+> > This introduce a simple struct and associated helpers for device driver
+> > to use when hotpluging un-addressable device memory as ZONE_DEVICE. It
+> > will find a unuse physical address range and trigger memory hotplug for
+> > it which allocates and initialize struct page for the device memory.
+> 
+> Please document the hotplug semantic some more please (who is in charge,
+> what is the lifetime, userspace API to add/remove this memory if any
+> etc...).
+> 
+> I can see you call add_pages. Please document why arch_add_memory (like
+> devm_memremap_pages) is not used. You also never seem to online the
+> range which is in line with nvdim usage and it is OK. But then I fail to
+> understand why you need
 
-Necessary now for gfs2_fsync and sync_file_range, but there will
-eventually be other callers.
+I added documentation in function and in commit message:
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-next&id=33e236a64da84423c83db401fc62ea13877111f2
 
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- include/linux/fs.h | 11 ++++++++++-
- mm/filemap.c       | 23 +++++++++++++++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+Not much to say i am affraid as everything is under control of the device
+driver (when hotplug/hotremove happens, memory management, userspace API,
+...). 
 
-v3: make file_write_and_wait a wrapper around file_write_and_wait_range
+> 
+> [...]
+> > +	mem_hotplug_begin();
+> > +	ret = add_pages(nid, align_start >> PAGE_SHIFT,
+> > +			align_size >> PAGE_SHIFT, false);
+> > +	if (ret) {
+> > +		mem_hotplug_done();
+> > +		goto error_add_memory;
+> > +	}
+> > +	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+> > +				align_start >> PAGE_SHIFT,
+> > +				align_size >> PAGE_SHIFT);
+> > +	mem_hotplug_done();
+> > +
+> > +	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
+> > +		struct page *page = pfn_to_page(pfn);
+> > +
+> > +		/*
+> > +		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+> > +		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+> > +		 * freed or placed on a driver-private list. Therefore,
+> > +		 * seed the storage with LIST_POISON* values.
+> > +		 */
+> > +		list_del(&page->lru);
+> 
+> this? The page is not on any list yet - it hasn't been added to the page
+> allocator.
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 526b6a9f30d4..909210bd6366 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2549,6 +2549,8 @@ static inline int filemap_fdatawait(struct address_space *mapping)
- 
- extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
- 				  loff_t lend);
-+extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-+						loff_t lend);
- extern int filemap_write_and_wait(struct address_space *mapping);
- extern int filemap_write_and_wait_range(struct address_space *mapping,
- 				        loff_t lstart, loff_t lend);
-@@ -2557,12 +2559,19 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
- extern int filemap_fdatawrite_range(struct address_space *mapping,
- 				loff_t start, loff_t end);
- extern int filemap_check_errors(struct address_space *mapping);
--
- extern void __filemap_set_wb_err(struct address_space *mapping, int err);
-+
-+extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-+						loff_t lend);
- extern int __must_check file_check_and_advance_wb_err(struct file *file);
- extern int __must_check file_write_and_wait_range(struct file *file,
- 						loff_t start, loff_t end);
- 
-+static inline int file_write_and_wait(struct file *file)
-+{
-+	return file_write_and_wait_range(file, 0, LLONG_MAX);
-+}
-+
- /**
-  * filemap_set_wb_err - set a writeback error on an address_space
-  * @mapping: mapping in which to set writeback error
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 953804b29a75..85dfe3bee324 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -476,6 +476,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
- EXPORT_SYMBOL(filemap_fdatawait_range);
- 
- /**
-+ * file_fdatawait_range - wait for writeback to complete
-+ * @file:		file pointing to address space structure to wait for
-+ * @start_byte:		offset in bytes where the range starts
-+ * @end_byte:		offset in bytes where the range ends (inclusive)
-+ *
-+ * Walk the list of under-writeback pages of the address space that file
-+ * refers to, in the given range and wait for all of them.  Check error
-+ * status of the address space vs. the file->f_wb_err cursor and return it.
-+ *
-+ * Since the error status of the file is advanced by this function,
-+ * callers are responsible for checking the return value and handling and/or
-+ * reporting the error.
-+ */
-+int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
-+{
-+	struct address_space *mapping = file->f_mapping;
-+
-+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
-+	return file_check_and_advance_wb_err(file);
-+}
-+EXPORT_SYMBOL(file_fdatawait_range);
-+
-+/**
-  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
-  * @mapping: address space structure to wait for
-  *
--- 
-2.13.3
+Like comments says it was to init page->lru.next|prev with poison values
+it is not important so i remove it.
+
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
