@@ -1,72 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E56D66B03A1
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 10:49:37 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a186so23739088wmh.9
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 07:49:37 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s78si648305wma.251.2017.07.31.07.49.35
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DA1C6B0493
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:04:24 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 6so67856277qts.7
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:04:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m88si24099012qtd.363.2017.07.31.08.04.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 31 Jul 2017 07:49:35 -0700 (PDT)
-Date: Mon, 31 Jul 2017 16:49:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
- reclaiming hugepages on OOM events.
-Message-ID: <20170731144932.GF4829@dhcp22.suse.cz>
-References: <20170727180236.6175-2-Liam.Howlett@Oracle.com>
- <20170728064602.GC2274@dhcp22.suse.cz>
- <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
- <20170728122350.GM2274@dhcp22.suse.cz>
- <20170728124443.GO2274@dhcp22.suse.cz>
- <20170729015638.lnazqgf5isjqqkqg@oracle.com>
- <20170731091025.GH15767@dhcp22.suse.cz>
- <20170731135647.wpzk56m5qrmz3xht@oracle.com>
- <20170731140810.GD4829@dhcp22.suse.cz>
- <20170731143735.GI15980@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Jul 2017 08:04:23 -0700 (PDT)
+Subject: Re: [RFC] virtio-mem: paravirtualized memory
+References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
+ <0a7cd2a8-45ff-11d1-ddb5-036ce36af163@redhat.com>
+ <CAPcyv4iYdEAv7wqun5L1C-gT7fMDpO+M918or-bg5XiWLnM3=w@mail.gmail.com>
+ <d5a1f1d2-f7c8-cacc-3267-ed6f7d2507ca@redhat.com>
+ <20170731162757-mutt-send-email-mst@kernel.org>
+From: David Hildenbrand <david@redhat.com>
+Message-ID: <730c3076-6bfd-9a96-3851-42ea5c329891@redhat.com>
+Date: Mon, 31 Jul 2017 17:04:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170731143735.GI15980@bombadil.infradead.org>
+In-Reply-To: <20170731162757-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Liam R. Howlett" <Liam.Howlett@Oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Pankaj Gupta <pagupta@redhat.com>, Rik van Riel <riel@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-On Mon 31-07-17 07:37:35, Matthew Wilcox wrote:
-> On Mon, Jul 31, 2017 at 04:08:10PM +0200, Michal Hocko wrote:
-> > On Mon 31-07-17 09:56:48, Liam R. Howlett wrote:
-[...]
-> > > My focus on hugetlb is that it can stop the automatic recovery of the
-> > > system.
-> > 
-> > How?
+On 31.07.2017 16:12, Michael S. Tsirkin wrote:
+> On Fri, Jul 28, 2017 at 05:48:07PM +0200, David Hildenbrand wrote:
+>> In general, a paravirtualized interface (for detection of PMEM regions)
+>> might have one big advantage: not limited to certain architectures.
 > 
-> Let me try to explain the situation as I understand it.
+> What follows is a generic rant, and slightly offtopic -sorry about that.
+> I thought it's worth replying to above since people sometimes propose
+> random PV devices and portability is often the argument. I'd claim if
+> its the only argument - its not a very good one.
+
+Very good point. Thanks for that comment. I totally agree, that we have
+to decide for which parts we really need a paravirtualized interface. We
+already paravirtualized quite a lot (starting with clocks and mmios,
+ending with network devices).
+
+Related to fake DAX, think about this example (cc'ing Christian, so I
+don't talk too much nonsense):
+
+s390x hardware cannot map anything into the address space. Not even PCI
+devices on s390x work that way. So the whole architecture (to this point
+I am aware of) is built on this fact. We can indicate "valid memory
+regions" to the guest via a standardized interface, but the guest will
+simply treat it like RAM.
+
+With virtualization, this is different. We can map whatever we want into
+the guest address space, but we have to tell the guest that this area is
+special. There is no ACPI on s390x to do that.
+
+This implies, that for s390x, we could not support fake DAX, just
+because we don't have ACPI. No fake DAX, no avoiding of page caches in
+the guest. Which is something we _could_ avoid quite easily.
+
 > 
-> The customer has purchased a 128TB machine in order to run a database.
-> They reserve 124TB of memory for use by the database cache.  Everything
-> works great.  Then a 4TB memory module goes bad.  The machine reboots
-> itself in order to return to operation, now having only 124TB of memory
-> and having 124TB of memory reserved.  It OOMs during boot.  The current
-> output from our OOM machinery doesn't point the sysadmin at the kernel
-> command line parameter as now being the problem.  So they file a priority
-> 1 problem ticket ...
+> One of the points of KVM is to try and reuse the infrastructure in Linux
+> that runs containers/bare metal anyway.  The more paravirtualized
+> interfaces you build, the more effort you get to spend to maintain
+> various aspects of the system. As optimizations force more and more
+> paravirtualization into the picture, our solution has been to try to
+> localize their effect, so you can mix and match paravirtualization and
+> emulation, as well as enable a subset of PV things that makes sense. For
+> example, virtio devices look more or less like PCI devices on systems
+> that have PCI.
+We make paravirtualized devices look like them, but what we (in most
+cases) don't do is the following: Detect and use devices via a
+!paravirtualized way and later on decide "oh, this device is special"
+and treat it suddenly like a paravirtualized device*.
 
-Well, I would argue that the oom report is quite clear that the hugetlb
-memory has consumed the large part if not whole usable memory and that
-should give a clue...
+E.g. virtio-scsi, an unmodified guest will not simply detect and use,
+say, a virtio-scsi attached disk. (unless I am very wrong on that point ;) )
 
-Nevertheless, I can see some merit here, but I am arguing that there
-is simply no good way to handle this without admin involvement
-unless we want to risk other and much more subtle breakage where the
-application really expects it can consume the preallocated hugetlb pool
-completely. And I would even argue that the later is more probable than
-unintended memory failure reboot cycle. If somebody can tune hugetlb
-pool dynamically I would recommend doing so from an init script.
+*This might work for devices, where paravirtualization is e.g. just a
+way to speedup things. But if paravirtualization is part of the concept
+(fake DAX - we need that flush), this will not work.
+
+In the words of s390x: indicate fake DAX as ordinary ram. The guest will
+hotplug it and use it like ordinary ram. At that point, it is too late
+to convert it logically into a disk.
+
+
+What I think is the following: We need a way to advertise devices that
+are mapped into the address space via a paravirtualized way. This could
+e.g. be fake DAX devices or what virtio-mem's memory hotplug approach
+tries to solve.
+
+Basically what virtio-mem proposed: indicating devices in the form of
+memory regions that are special to the guest via a paravirtualized
+interface and providing paravirtualized features, that can (and even
+have to) be used along with these special devices.
+
+> 
+> It's not clear it applies here - memory overcommit on bare metal is
+> kind of different.
+
+Yes, there is no such thing as fine grained memory hot(un)plug on real
+hardware.
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
