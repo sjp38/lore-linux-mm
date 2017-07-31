@@ -1,44 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 89CCC6B05EF
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:33:30 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d5so189747742pfg.3
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 05:33:30 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u25si16354886pgn.515.2017.07.31.05.33.29
+	by kanga.kvack.org (Postfix) with ESMTP id AF3396B05F1
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:35:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id d5so189787414pfg.3
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 05:35:37 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f13si404043pff.143.2017.07.31.05.35.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 05:33:29 -0700 (PDT)
-Message-ID: <597F2439.5070309@intel.com>
-Date: Mon, 31 Jul 2017 20:36:09 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <59686EEB.8080805@intel.com> <20170723044036-mutt-send-email-mst@kernel.org> <59781119.8010200@intel.com> <20170726155856-mutt-send-email-mst@kernel.org> <597954E3.2070801@intel.com> <20170729020231-mutt-send-email-mst@kernel.org> <597C83CC.7060702@intel.com> <20170730043922-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F739288D85@shsmsx102.ccr.corp.intel.com> <20170730191735-mutt-send-email-mst@kernel.org> <20170730191911-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170730191911-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        Mon, 31 Jul 2017 05:35:36 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6VCWG2q041718
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:35:36 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c21x00dk9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:35:35 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Mon, 31 Jul 2017 13:35:32 +0100
+Date: Mon, 31 Jul 2017 14:35:21 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+In-Reply-To: <20170728121941.GL2274@dhcp22.suse.cz>
+References: <20170726083333.17754-1-mhocko@kernel.org>
+	<20170726210657.GE21717@redhat.com>
+	<20170727065652.GE20970@dhcp22.suse.cz>
+	<20170728121941.GL2274@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+Message-Id: <20170731143521.5809a6ca@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, gerald.schaefer@de.ibm.com
 
-On 07/31/2017 12:20 AM, Michael S. Tsirkin wrote:
-> On Sun, Jul 30, 2017 at 07:18:33PM +0300, Michael S. Tsirkin wrote:
->> On Sun, Jul 30, 2017 at 05:59:17AM +0000, Wang, Wei W wrote:
->> That's a hypervisor implementation detail. From guest point of view,
->> discarding contents can not be distinguished from writing old contents.
->>
-> Besides, ignoring the free page tricks, consider regular ballooning.
-> We map page with DONTNEED then back with WILLNEED. Result is
-> getting a zero page. So at least one of deflate/inflate should be input.
-> I'd say both for symmetry.
->
+On Fri, 28 Jul 2017 14:19:41 +0200
+Michal Hocko <mhocko@kernel.org> wrote:
 
-OK, I see the point. Thanks.
+> On Thu 27-07-17 08:56:52, Michal Hocko wrote:
+> > On Wed 26-07-17 17:06:59, Jerome Glisse wrote:
+> > [...]
+> > > This does not seems to be an opt-in change ie if i am reading patch 3
+> > > correctly if an altmap is not provided to __add_pages() you fallback
+> > > to allocating from begining of zone. This will not work with HMM ie
+> > > device private memory. So at very least i would like to see some way
+> > > to opt-out of this. Maybe a new argument like bool forbid_altmap ?
+> > 
+> > OK, I see! I will think about how to make a sane api for that.
+> 
+> This is what I came up with. s390 guys mentioned that I cannot simply
+> use the new range at this stage yet. This will need probably some other
+> changes but I guess we want an opt-in approach with an arch veto in general.
+> 
+> So what do you think about the following? Only x86 is update now and I
+> will split it into two parts but the idea should be clear at least.
 
-Best,
-Wei
+This looks good, and the kernel will also boot again on s390 when applied
+on top of the other 5 patches (plus adding the s390 part here).
+
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
