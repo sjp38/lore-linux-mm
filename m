@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 334B86B04B4
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB906B04B2
 	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:52:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id o82so111874131pfj.11
+Received: by mail-pf0-f199.google.com with SMTP id r187so168945117pfr.8
         for <linux-mm@kvack.org>; Mon, 31 Jul 2017 10:52:29 -0700 (PDT)
-Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
-        by mx.google.com with ESMTPS id f67si16383061pfg.687.2017.07.31.10.52.28
+Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
+        by mx.google.com with ESMTPS id d11si12448408pfk.253.2017.07.31.10.52.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Mon, 31 Jul 2017 10:52:28 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
-Subject: [PATCH v4 2/3] mm: migrate: fix barriers around tlb_flush_pending
-Date: Mon, 31 Jul 2017 03:42:48 -0700
-Message-ID: <20170731104249.233458-3-namit@vmware.com>
-In-Reply-To: <20170731104249.233458-1-namit@vmware.com>
-References: <20170731104249.233458-1-namit@vmware.com>
+Subject: [PATCH v4 0/3] mm: fixes of tlb_flush_pending
+Date: Mon, 31 Jul 2017 03:42:46 -0700
+Message-ID: <20170731104249.233458-1-namit@vmware.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: nadav.amit@gmail.com, mgorman@suse.de, riel@redhat.com, luto@kernel.org, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: nadav.amit@gmail.com, mgorman@suse.de, riel@redhat.com, luto@kernel.org, Nadav Amit <namit@vmware.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Reading tlb_flush_pending while the page-table lock is taken does not
-require a barrier, since the lock/unlock already acts as a barrier.
-Removing the barrier in mm_tlb_flush_pending() to address this issue.
+These three patches address tlb_flush_pending issues. The first one address
+a race when accessing tlb_flush_pending and is the important one.
 
-However, migrate_misplaced_transhuge_page() calls mm_tlb_flush_pending()
-while the page-table lock is already released, which may present a
-problem on architectures with weak memory model (PPC). To deal with this
-case, a new parameter is added to mm_tlb_flush_pending() to indicate
-if it is read without the page-table lock taken, and calling
-smp_mb__after_unlock_lock() in this case.
+The next two patch addresses Andrew Morton question regarding the barriers.
+These patches are not really related to the first one: the atomic
+operations atomic_read() and atomic_inc() do not act as a memory barrier,
+and replacing existing barriers with smp_mb__after_atomic() did not seem
+beneficial. Yet, while reviewing the memory barriers around the use of
+tlb_flush_pending, few issues were identified.
 
+v3 -> v4:
+ - Change function names to indicate they inc/dec and not set/clear
+   (Sergey)
+ - Avoid additional barriers, and instead revert the patch that accessed
+   mm_tlb_flush_pending without a lock (Mel)
+
+v2 -> v3:
+ - Do not init tlb_flush_pending if it is not defined without (Sergey)
+ - Internalize memory barriers to mm_tlb_flush_pending (Minchan) 
+
+v1 -> v2:
+ - Explain the implications of the implications of the race (Andrew)
+ - Mark the patch that address the race as stable (Andrew)
+ - Add another patch to clean the use of barriers (Andrew)
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Rik van Riel <riel@redhat.com>
 
-Signed-off-by: Nadav Amit <namit@vmware.com>
----
- include/linux/mm_types.h | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+Nadav Amit (3):
+  mm: migrate: prevent racy access to tlb_flush_pending
+  mm: migrate: fix barriers around tlb_flush_pending
+  Revert "mm: numa: defer TLB flush for THP migration as long as
+    possible"
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index f5263dd0f1bc..2956513619a7 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -522,12 +522,12 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
- /*
-  * Memory barriers to keep this state in sync are graciously provided by
-  * the page table locks, outside of which no page table modifications happen.
-- * The barriers below prevent the compiler from re-ordering the instructions
-- * around the memory barriers that are already present in the code.
-+ * The barriers are used to ensure the order between tlb_flush_pending updates,
-+ * which happen while the lock is not taken, and the PTE updates, which happen
-+ * while the lock is taken, are serialized.
-  */
- static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
- {
--	barrier();
- 	return atomic_read(&mm->tlb_flush_pending) > 0;
- }
- 
-@@ -550,7 +550,13 @@ static inline void inc_tlb_flush_pending(struct mm_struct *mm)
- /* Clearing is done after a TLB flush, which also provides a barrier. */
- static inline void dec_tlb_flush_pending(struct mm_struct *mm)
- {
--	barrier();
-+	/*
-+	 * Guarantee that the tlb_flush_pending does not not leak into the
-+	 * critical section, since we must order the PTE change and changes to
-+	 * the pending TLB flush indication. We could have relied on TLB flush
-+	 * as a memory barrier, but this behavior is not clearly documented.
-+	 */
-+	smp_mb__before_atomic();
- 	atomic_dec(&mm->tlb_flush_pending);
- }
- #else
+ include/linux/mm_types.h | 45 ++++++++++++++++++++++++++++++++-------------
+ kernel/fork.c            |  2 +-
+ mm/debug.c               |  2 +-
+ mm/huge_memory.c         |  7 +++++++
+ mm/migrate.c             |  6 ------
+ mm/mprotect.c            |  4 ++--
+ 6 files changed, 43 insertions(+), 23 deletions(-)
+
 -- 
 2.11.0
 
