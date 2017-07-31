@@ -1,129 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 921406B04A3
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:29:50 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id b130so20467658oii.4
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:29:50 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m96si5623143oik.412.2017.07.31.08.29.49
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 44F116B04A6
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:54:01 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k71so47255273wrc.15
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:54:01 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w76si22840653wrc.541.2017.07.31.08.53.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 08:29:49 -0700 (PDT)
-From: Jeff Layton <jlayton@kernel.org>
-Subject: [PATCH] mm: remove optimizations based on i_size in mapping writeback waits
-Date: Mon, 31 Jul 2017 11:29:46 -0400
-Message-Id: <20170731152946.13976-1-jlayton@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 31 Jul 2017 08:53:59 -0700 (PDT)
+Date: Mon, 31 Jul 2017 17:53:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+Message-ID: <20170731155350.GA1189@dhcp22.suse.cz>
+References: <20170726083333.17754-1-mhocko@kernel.org>
+ <20170726210657.GE21717@redhat.com>
+ <20170727065652.GE20970@dhcp22.suse.cz>
+ <20170728121941.GL2274@dhcp22.suse.cz>
+ <20170731143521.5809a6ca@thinkpad>
+ <20170731125319.GA4829@dhcp22.suse.cz>
+ <20170731170459.613d5cbd@thinkpad>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170731170459.613d5cbd@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>
 
-From: Jeff Layton <jlayton@redhat.com>
+On Mon 31-07-17 17:04:59, Gerald Schaefer wrote:
+> On Mon, 31 Jul 2017 14:53:19 +0200
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Mon 31-07-17 14:35:21, Gerald Schaefer wrote:
+> > > On Fri, 28 Jul 2017 14:19:41 +0200
+> > > Michal Hocko <mhocko@kernel.org> wrote:
+> > > 
+> > > > On Thu 27-07-17 08:56:52, Michal Hocko wrote:
+> > > > > On Wed 26-07-17 17:06:59, Jerome Glisse wrote:
+> > > > > [...]
+> > > > > > This does not seems to be an opt-in change ie if i am reading patch 3
+> > > > > > correctly if an altmap is not provided to __add_pages() you fallback
+> > > > > > to allocating from begining of zone. This will not work with HMM ie
+> > > > > > device private memory. So at very least i would like to see some way
+> > > > > > to opt-out of this. Maybe a new argument like bool forbid_altmap ?
+> > > > > 
+> > > > > OK, I see! I will think about how to make a sane api for that.
+> > > > 
+> > > > This is what I came up with. s390 guys mentioned that I cannot simply
+> > > > use the new range at this stage yet. This will need probably some other
+> > > > changes but I guess we want an opt-in approach with an arch veto in general.
+> > > > 
+> > > > So what do you think about the following? Only x86 is update now and I
+> > > > will split it into two parts but the idea should be clear at least.
+> > > 
+> > > This looks good, and the kernel will also boot again on s390 when applied
+> > > on top of the other 5 patches (plus adding the s390 part here).
+> > 
+> > Thanks for testing Gerald! I am still undecided whether the arch code
+> > should veto MHP_RANGE_ACCESSIBLE if it cannot be supported or just set
+> > it when it is supported. My last post did the later but the first one
+> > sounds like a more clear API to me. I will keep thinking about it.
+> > 
+> > Anyway, did you have any chance to consider mapping the new physical
+> > memory range inside arch_add_memory rather than during online on s390?
+> 
+> Well, it still looks like we cannot do w/o splitting up add_memory():
+> 1) (only) set up section map during our initial memory detection, w/o
+> allocating struct pages, so that the sysfs entries get created also for
+> our offline memory (or else we have no way to online it later)
+> 2) set up vmemmap and allocate struct pages with your new altmap approach
+> during our MEM_GOING_ONLINE callback, because only now the memory is really
+> accessible
 
-Marcelo added this i_size based optimization with a patch in 2004
-(commit 765dad09b4ac in the linux-history tree):
+As I've tried to mentioned in my other response. This is not possible
+because there are memory hotplug usecases which never do an explicit
+online.
 
-    commit 765dad09b4ac101a32d87af2bb793c3060497d3c
-    Author: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-    Date:   Tue Sep 7 17:51:17 2004 -0700
+I am sorry to ask again. But why exactly cannot we make the range
+accessible from arch_add_memory on s390?
 
-	small wait_on_page_writeback_range() optimization
+> Besides the obvious problem that this would need a new interface, there is
+> also the problem that (at least) show_valid_zones() in drivers/base/memory.c
+> operates on struct pages from _offline_ memory, for its page_zone() checks.
+> This will not work well if we have no struct pages for offline memory ...
 
-	filemap_fdatawait() calls wait_on_page_writeback_range() with -1
-	as "end" parameter.  This is not needed since we know the EOF
-	from the inode.  Use that instead.
+Yes.
 
-There may be races here, particularly with clustered or network
-filesystems. Block devices always have an i_size of 0 as well, which
-makes using this with a blockdev inode sort of pointless.
+> BTW, the latter may also be a issue with your rework on any architecture.
+> Not sure if I understood it correctly, but the situation on s390 (i.e.
+> having offline memory blocks visible in sysfs) should be similar to
+> the scenario on x86, when you plug in memory, set it online in the acpi
+> handler, and then manually set it offline again via sysfs. Now the
+> memory is still visible in sysfs, and reading the valid_zones attribute
+> will trigger an access to struct pages for that memory. What if this
+> memory is now physically removed, in a race with such a struct page
+> access?
 
-It also seems like a bit of a layering violation since we're operating
-on an address_space here, not an inode.
-
-Finally, it's also questionable whether this optimization really helps
-on workloads that we care about. Should we be optimizing for writeback
-vs. truncate races in a codepath where we expect to wait anyway? It
-doesn't seem worth the risk.
-
-Remove this optimization from the filemap_fdatawait codepaths. This
-means that filemap_fdatawait becomes a trivial wrapper around
-filemap_fdatawait_range.
-
-Signed-off-by: Jeff Layton <jlayton@redhat.com>
----
- include/linux/fs.h |  9 +++++++--
- mm/filemap.c       | 30 +-----------------------------
- 2 files changed, 8 insertions(+), 31 deletions(-)
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index af592ca3d509..656e04c6983e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2538,10 +2538,15 @@ extern int invalidate_inode_pages2_range(struct address_space *mapping,
- extern int write_inode_now(struct inode *, int);
- extern int filemap_fdatawrite(struct address_space *);
- extern int filemap_flush(struct address_space *);
--extern int filemap_fdatawait(struct address_space *);
--extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
- extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
- 				   loff_t lend);
-+extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
-+
-+static inline int filemap_fdatawait(struct address_space *mapping)
-+{
-+	return filemap_fdatawait_range(mapping, 0, LLONG_MAX);
-+}
-+
- extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
- 				  loff_t lend);
- extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 394bb5e96f87..85dfe3bee324 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -512,39 +512,11 @@ EXPORT_SYMBOL(file_fdatawait_range);
-  */
- int filemap_fdatawait_keep_errors(struct address_space *mapping)
- {
--	loff_t i_size = i_size_read(mapping->host);
--
--	if (i_size == 0)
--		return 0;
--
--	__filemap_fdatawait_range(mapping, 0, i_size - 1);
-+	__filemap_fdatawait_range(mapping, 0, LLONG_MAX);
- 	return filemap_check_and_keep_errors(mapping);
- }
- EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
- 
--/**
-- * filemap_fdatawait - wait for all under-writeback pages to complete
-- * @mapping: address space structure to wait for
-- *
-- * Walk the list of under-writeback pages of the given address space
-- * and wait for all of them.  Check error status of the address space
-- * and return it.
-- *
-- * Since the error status of the address space is cleared by this function,
-- * callers are responsible for checking the return value and handling and/or
-- * reporting the error.
-- */
--int filemap_fdatawait(struct address_space *mapping)
--{
--	loff_t i_size = i_size_read(mapping->host);
--
--	if (i_size == 0)
--		return 0;
--
--	return filemap_fdatawait_range(mapping, 0, i_size - 1);
--}
--EXPORT_SYMBOL(filemap_fdatawait);
--
- static bool mapping_needs_writeback(struct address_space *mapping)
- {
- 	return (!dax_mapping(mapping) && mapping->nrpages) ||
+The memmap goes away together with the whole section tear down. And we
+shouldn't have any users of any struct page by that time. Memblock sysfs
+should be down as well. I will go and double check whether there are any
+possible races.
 -- 
-2.13.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
