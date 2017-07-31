@@ -1,85 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B56B56B05B5
-	for <linux-mm@kvack.org>; Sun, 30 Jul 2017 12:20:55 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id u11so71564391qtu.10
-        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 09:20:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q34si15833166qtd.284.2017.07.30.09.20.54
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1B06B05B7
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 00:01:17 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id 91so190155369uau.10
+        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 21:01:17 -0700 (PDT)
+Received: from mail-vk0-f73.google.com (mail-vk0-f73.google.com. [209.85.213.73])
+        by mx.google.com with ESMTPS id m59si11795782uam.310.2017.07.30.21.01.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Jul 2017 09:20:55 -0700 (PDT)
-Date: Sun, 30 Jul 2017 19:20:47 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v12 5/8] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170730191911-mutt-send-email-mst@kernel.org>
-References: <59686EEB.8080805@intel.com>
- <20170723044036-mutt-send-email-mst@kernel.org>
- <59781119.8010200@intel.com>
- <20170726155856-mutt-send-email-mst@kernel.org>
- <597954E3.2070801@intel.com>
- <20170729020231-mutt-send-email-mst@kernel.org>
- <597C83CC.7060702@intel.com>
- <20170730043922-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F739288D85@shsmsx102.ccr.corp.intel.com>
- <20170730191735-mutt-send-email-mst@kernel.org>
+        Sun, 30 Jul 2017 21:01:16 -0700 (PDT)
+Received: by mail-vk0-f73.google.com with SMTP id x10so741419vkd.2
+        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 21:01:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170730191735-mutt-send-email-mst@kernel.org>
+Date: Sun, 30 Jul 2017 21:01:13 -0700
+In-Reply-To: <9e14ff85-1680-e76d-1b71-22301c16c286@suse.cz>
+Message-Id: <20170731040113.14197-1-dmitriyz@waymo.com>
+References: <9e14ff85-1680-e76d-1b71-22301c16c286@suse.cz>
+Subject: [PATCH v3] cpuset: fix a deadlock due to incomplete patching of cpusets_enabled()
+From: Dima Zavin <dmitriyz@waymo.com>
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Peter Zijlstra <peterz@infradead.org>, Christopher Lameter <cl@linux.com>, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Cliff Spradlin <cspradlin@waymo.com>
 
-On Sun, Jul 30, 2017 at 07:18:33PM +0300, Michael S. Tsirkin wrote:
-> On Sun, Jul 30, 2017 at 05:59:17AM +0000, Wang, Wei W wrote:
-> > On Sunday, July 30, 2017 12:23 PM, Michael S. Tsirkin wrote:
-> > > On Sat, Jul 29, 2017 at 08:47:08PM +0800, Wei Wang wrote:
-> > > > On 07/29/2017 07:08 AM, Michael S. Tsirkin wrote:
-> > > > > On Thu, Jul 27, 2017 at 10:50:11AM +0800, Wei Wang wrote:
-> > > > > > > > > OK I thought this over. While we might need these new APIs
-> > > > > > > > > in the future, I think that at the moment, there's a way to
-> > > > > > > > > implement this feature that is significantly simpler. Just
-> > > > > > > > > add each s/g as a separate input buffer.
-> > > > > > > > Should it be an output buffer?
-> > > > > > > Hypervisor overwrites these pages with zeroes. Therefore it is
-> > > > > > > writeable by device: DMA_FROM_DEVICE.
-> > > > > > Why would the hypervisor need to zero the buffer?
-> > > > > The page is supplied to hypervisor and can lose the value that is
-> > > > > there.  That is the definition of writeable by device.
-> > > >
-> > > > I think for the free pages, it should be clear that they will be added
-> > > > as output buffer to the device, because (as we discussed) they are
-> > > > just hints, and some of them may be used by the guest after the report_ API is
-> > > invoked.
-> > > > The device/hypervisor should not use or discard them.
-> > > 
-> > > Discarding contents is exactly what you propose doing if migration is going on,
-> > > isn't it?
-> > 
-> > That's actually a different concept. Please let me explain it with this example:
-> > 
-> > The hypervisor receives the hint saying the guest PageX is a free page, but as we know, 
-> > after that report_ API exits, the guest kernel may take PageX to use, so PageX is not free
-> > page any more. At this time, if the hypervisor writes to the page, that would crash the guest.
-> > So, I think the cornerstone of this work is that the hypervisor should not touch the
-> > reported pages.
-> > 
-> > Best,
-> > Wei    
-> 
-> That's a hypervisor implementation detail. From guest point of view,
-> discarding contents can not be distinguished from writing old contents.
-> 
+In codepaths that use the begin/retry interface for reading
+mems_allowed_seq with irqs disabled, there exists a race condition that
+stalls the patch process after only modifying a subset of the
+static_branch call sites.
 
-Besides, ignoring the free page tricks, consider regular ballooning.
-We map page with DONTNEED then back with WILLNEED. Result is
-getting a zero page. So at least one of deflate/inflate should be input.
-I'd say both for symmetry.
+This problem manifested itself as a dead lock in the slub
+allocator, inside get_any_partial. The loop reads
+mems_allowed_seq value (via read_mems_allowed_begin),
+performs the defrag operation, and then verifies the consistency
+of mem_allowed via the read_mems_allowed_retry and the cookie
+returned by xxx_begin. The issue here is that both begin and retry
+first check if cpusets are enabled via cpusets_enabled() static branch.
+This branch can be rewritted dynamically (via cpuset_inc) if a new
+cpuset is created. The x86 jump label code fully synchronizes across
+all CPUs for every entry it rewrites. If it rewrites only one of the
+callsites (specifically the one in read_mems_allowed_retry) and then
+waits for the smp_call_function(do_sync_core) to complete while a CPU is
+inside the begin/retry section with IRQs off and the mems_allowed value
+is changed, we can hang. This is because begin() will always return 0
+(since it wasn't patched yet) while retry() will test the 0 against
+the actual value of the seq counter.
 
+The fix is to use two different static keys: one for begin
+(pre_enable_key) and one for retry (enable_key). In cpuset_inc(), we
+first bump the pre_enable key to ensure that cpuset_mems_allowed_begin()
+always return a valid seqcount if are enabling cpusets. Similarly,
+when disabling cpusets via cpuset_dec(), we first ensure that callers
+of cpuset_mems_allowed_retry() will start ignoring the seqcount
+value before we let cpuset_mems_allowed_begin() return 0.
+
+The relevant stack traces of the two stuck threads:
+
+  CPU: 1 PID: 1415 Comm: mkdir Tainted: G L  4.9.36-00104-g540c51286237 #4
+  Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017
+  task: ffff8817f9c28000 task.stack: ffffc9000ffa4000
+  RIP: smp_call_function_many+0x1f9/0x260
+  Call Trace:
+    ? setup_data_read+0xa0/0xa0
+    ? ___slab_alloc+0x28b/0x5a0
+    smp_call_function+0x3b/0x70
+    ? setup_data_read+0xa0/0xa0
+    on_each_cpu+0x2f/0x90
+    ? ___slab_alloc+0x28a/0x5a0
+    ? ___slab_alloc+0x28b/0x5a0
+    text_poke_bp+0x87/0xd0
+    ? ___slab_alloc+0x28a/0x5a0
+    arch_jump_label_transform+0x93/0x100
+    __jump_label_update+0x77/0x90
+    jump_label_update+0xaa/0xc0
+    static_key_slow_inc+0x9e/0xb0
+    cpuset_css_online+0x70/0x2e0
+    online_css+0x2c/0xa0
+    cgroup_apply_control_enable+0x27f/0x3d0
+    cgroup_mkdir+0x2b7/0x420
+    kernfs_iop_mkdir+0x5a/0x80
+    vfs_mkdir+0xf6/0x1a0
+    SyS_mkdir+0xb7/0xe0
+    entry_SYSCALL_64_fastpath+0x18/0xad
+
+  ...
+
+  CPU: 2 PID: 1 Comm: init Tainted: G L  4.9.36-00104-g540c51286237 #4
+  Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017
+  task: ffff8818087c0000 task.stack: ffffc90000030000
+  RIP: int3+0x39/0x70
+  Call Trace:
+    <#DB> ? ___slab_alloc+0x28b/0x5a0
+    <EOE> ? copy_process.part.40+0xf7/0x1de0
+    ? __slab_alloc.isra.80+0x54/0x90
+    ? copy_process.part.40+0xf7/0x1de0
+    ? copy_process.part.40+0xf7/0x1de0
+    ? kmem_cache_alloc_node+0x8a/0x280
+    ? copy_process.part.40+0xf7/0x1de0
+    ? _do_fork+0xe7/0x6c0
+    ? _raw_spin_unlock_irq+0x2d/0x60
+    ? trace_hardirqs_on_caller+0x136/0x1d0
+    ? entry_SYSCALL_64_fastpath+0x5/0xad
+    ? do_syscall_64+0x27/0x350
+    ? SyS_clone+0x19/0x20
+    ? do_syscall_64+0x60/0x350
+    ? entry_SYSCALL64_slow_path+0x25/0x25
+
+Reported-by: Cliff Spradlin <cspradlin@waymo.com>
+Signed-off-by: Dima Zavin <dmitriyz@waymo.com>
+---
+
+v3:
+ - Changed the implementation based on Peter Zijlstra's suggestion. Now
+   using two keys for begin/retry instead of hacking the state into the
+   cookie.
+ - Rebased and tested on top of v4.13-rc3.
+
+v4:
+ - Moved the cached cpusets_enabled() state into the cookie, turned
+   the cookie into a struct and updated all the other call sites.
+ - Applied on top of v4.12 since one of the callers in page_alloc.c changed.
+   Still only tested on v4.9.36 and compile tested against v4.12.
+
+ include/linux/cpuset.h | 19 +++++++++++++++++--
+ kernel/cgroup/cpuset.c |  1 +
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 119a3f9604b0..e5a684c04c70 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -18,6 +18,19 @@
+ 
+ #ifdef CONFIG_CPUSETS
+ 
++/*
++ * Static branch rewrites can happen in an arbitrary order for a given
++ * key. In code paths where we need to loop with read_mems_allowed_begin() and
++ * read_mems_allowed_retry() to get a consistent view of mems_allowed, we need
++ * to ensure that begin() always gets rewritten before retry() in the
++ * disabled -> enabled transition. If not, then if local irqs are disabled
++ * around the loop, we can deadlock since retry() would always be
++ * comparing the latest value of the mems_allowed seqcount against 0 as
++ * begin() still would see cpusets_enabled() as false. The enabled -> disabled
++ * transition should happen in reverse order for the same reasons (want to stop
++ * looking at real value of mems_allowed.sequence in retry() first).
++ */
++extern struct static_key_false cpusets_pre_enable_key;
+ extern struct static_key_false cpusets_enabled_key;
+ static inline bool cpusets_enabled(void)
+ {
+@@ -32,12 +45,14 @@ static inline int nr_cpusets(void)
+ 
+ static inline void cpuset_inc(void)
+ {
++	static_branch_inc(&cpusets_pre_enable_key);
+ 	static_branch_inc(&cpusets_enabled_key);
+ }
+ 
+ static inline void cpuset_dec(void)
+ {
+ 	static_branch_dec(&cpusets_enabled_key);
++	static_branch_dec(&cpusets_pre_enable_key);
+ }
+ 
+ extern int cpuset_init(void);
+@@ -115,7 +130,7 @@ extern void cpuset_print_current_mems_allowed(void);
+  */
+ static inline unsigned int read_mems_allowed_begin(void)
+ {
+-	if (!cpusets_enabled())
++	if (!static_branch_unlikely(&cpusets_pre_enable_key))
+ 		return 0;
+ 
+ 	return read_seqcount_begin(&current->mems_allowed_seq);
+@@ -129,7 +144,7 @@ static inline unsigned int read_mems_allowed_begin(void)
+  */
+ static inline bool read_mems_allowed_retry(unsigned int seq)
+ {
+-	if (!cpusets_enabled())
++	if (!static_branch_unlikely(&cpusets_enabled_key))
+ 		return false;
+ 
+ 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index ca8376e5008c..8d5151688504 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -63,6 +63,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/wait.h>
+ 
++DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
+ DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
+ 
+ /* See "Frequency meter" comments, below. */
 -- 
-MST
+2.14.0.rc0.400.g1c36432dff-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
