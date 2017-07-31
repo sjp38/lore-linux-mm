@@ -1,114 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DA1C6B0493
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:04:24 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 6so67856277qts.7
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:04:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m88si24099012qtd.363.2017.07.31.08.04.23
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 917266B0498
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:05:15 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k190so358485701pgk.8
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 08:05:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l23si16558587pgo.408.2017.07.31.08.05.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 08:04:23 -0700 (PDT)
-Subject: Re: [RFC] virtio-mem: paravirtualized memory
-References: <547865a9-d6c2-7140-47e2-5af01e7d761d@redhat.com>
- <0a7cd2a8-45ff-11d1-ddb5-036ce36af163@redhat.com>
- <CAPcyv4iYdEAv7wqun5L1C-gT7fMDpO+M918or-bg5XiWLnM3=w@mail.gmail.com>
- <d5a1f1d2-f7c8-cacc-3267-ed6f7d2507ca@redhat.com>
- <20170731162757-mutt-send-email-mst@kernel.org>
-From: David Hildenbrand <david@redhat.com>
-Message-ID: <730c3076-6bfd-9a96-3851-42ea5c329891@redhat.com>
-Date: Mon, 31 Jul 2017 17:04:16 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170731162757-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Mon, 31 Jul 2017 08:05:14 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6VF4a69036043
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:05:13 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c22gxpgfv-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:05:13 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Mon, 31 Jul 2017 16:05:10 +0100
+Date: Mon, 31 Jul 2017 17:04:59 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+In-Reply-To: <20170731125319.GA4829@dhcp22.suse.cz>
+References: <20170726083333.17754-1-mhocko@kernel.org>
+	<20170726210657.GE21717@redhat.com>
+	<20170727065652.GE20970@dhcp22.suse.cz>
+	<20170728121941.GL2274@dhcp22.suse.cz>
+	<20170731143521.5809a6ca@thinkpad>
+	<20170731125319.GA4829@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+Message-Id: <20170731170459.613d5cbd@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, KVM <kvm@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Pankaj Gupta <pagupta@redhat.com>, Rik van Riel <riel@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, gerald.schaefer@de.ibm.com
 
-On 31.07.2017 16:12, Michael S. Tsirkin wrote:
-> On Fri, Jul 28, 2017 at 05:48:07PM +0200, David Hildenbrand wrote:
->> In general, a paravirtualized interface (for detection of PMEM regions)
->> might have one big advantage: not limited to certain architectures.
+On Mon, 31 Jul 2017 14:53:19 +0200
+Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Mon 31-07-17 14:35:21, Gerald Schaefer wrote:
+> > On Fri, 28 Jul 2017 14:19:41 +0200
+> > Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > > On Thu 27-07-17 08:56:52, Michal Hocko wrote:
+> > > > On Wed 26-07-17 17:06:59, Jerome Glisse wrote:
+> > > > [...]
+> > > > > This does not seems to be an opt-in change ie if i am reading patch 3
+> > > > > correctly if an altmap is not provided to __add_pages() you fallback
+> > > > > to allocating from begining of zone. This will not work with HMM ie
+> > > > > device private memory. So at very least i would like to see some way
+> > > > > to opt-out of this. Maybe a new argument like bool forbid_altmap ?
+> > > > 
+> > > > OK, I see! I will think about how to make a sane api for that.
+> > > 
+> > > This is what I came up with. s390 guys mentioned that I cannot simply
+> > > use the new range at this stage yet. This will need probably some other
+> > > changes but I guess we want an opt-in approach with an arch veto in general.
+> > > 
+> > > So what do you think about the following? Only x86 is update now and I
+> > > will split it into two parts but the idea should be clear at least.
+> > 
+> > This looks good, and the kernel will also boot again on s390 when applied
+> > on top of the other 5 patches (plus adding the s390 part here).
 > 
-> What follows is a generic rant, and slightly offtopic -sorry about that.
-> I thought it's worth replying to above since people sometimes propose
-> random PV devices and portability is often the argument. I'd claim if
-> its the only argument - its not a very good one.
-
-Very good point. Thanks for that comment. I totally agree, that we have
-to decide for which parts we really need a paravirtualized interface. We
-already paravirtualized quite a lot (starting with clocks and mmios,
-ending with network devices).
-
-Related to fake DAX, think about this example (cc'ing Christian, so I
-don't talk too much nonsense):
-
-s390x hardware cannot map anything into the address space. Not even PCI
-devices on s390x work that way. So the whole architecture (to this point
-I am aware of) is built on this fact. We can indicate "valid memory
-regions" to the guest via a standardized interface, but the guest will
-simply treat it like RAM.
-
-With virtualization, this is different. We can map whatever we want into
-the guest address space, but we have to tell the guest that this area is
-special. There is no ACPI on s390x to do that.
-
-This implies, that for s390x, we could not support fake DAX, just
-because we don't have ACPI. No fake DAX, no avoiding of page caches in
-the guest. Which is something we _could_ avoid quite easily.
-
+> Thanks for testing Gerald! I am still undecided whether the arch code
+> should veto MHP_RANGE_ACCESSIBLE if it cannot be supported or just set
+> it when it is supported. My last post did the later but the first one
+> sounds like a more clear API to me. I will keep thinking about it.
 > 
-> One of the points of KVM is to try and reuse the infrastructure in Linux
-> that runs containers/bare metal anyway.  The more paravirtualized
-> interfaces you build, the more effort you get to spend to maintain
-> various aspects of the system. As optimizations force more and more
-> paravirtualization into the picture, our solution has been to try to
-> localize their effect, so you can mix and match paravirtualization and
-> emulation, as well as enable a subset of PV things that makes sense. For
-> example, virtio devices look more or less like PCI devices on systems
-> that have PCI.
-We make paravirtualized devices look like them, but what we (in most
-cases) don't do is the following: Detect and use devices via a
-!paravirtualized way and later on decide "oh, this device is special"
-and treat it suddenly like a paravirtualized device*.
+> Anyway, did you have any chance to consider mapping the new physical
+> memory range inside arch_add_memory rather than during online on s390?
 
-E.g. virtio-scsi, an unmodified guest will not simply detect and use,
-say, a virtio-scsi attached disk. (unless I am very wrong on that point ;) )
+Well, it still looks like we cannot do w/o splitting up add_memory():
+1) (only) set up section map during our initial memory detection, w/o
+allocating struct pages, so that the sysfs entries get created also for
+our offline memory (or else we have no way to online it later)
+2) set up vmemmap and allocate struct pages with your new altmap approach
+during our MEM_GOING_ONLINE callback, because only now the memory is really
+accessible
 
-*This might work for devices, where paravirtualization is e.g. just a
-way to speedup things. But if paravirtualization is part of the concept
-(fake DAX - we need that flush), this will not work.
+Besides the obvious problem that this would need a new interface, there is
+also the problem that (at least) show_valid_zones() in drivers/base/memory.c
+operates on struct pages from _offline_ memory, for its page_zone() checks.
+This will not work well if we have no struct pages for offline memory ...
 
-In the words of s390x: indicate fake DAX as ordinary ram. The guest will
-hotplug it and use it like ordinary ram. At that point, it is too late
-to convert it logically into a disk.
+BTW, the latter may also be a issue with your rework on any architecture.
+Not sure if I understood it correctly, but the situation on s390 (i.e.
+having offline memory blocks visible in sysfs) should be similar to
+the scenario on x86, when you plug in memory, set it online in the acpi
+handler, and then manually set it offline again via sysfs. Now the
+memory is still visible in sysfs, and reading the valid_zones attribute
+will trigger an access to struct pages for that memory. What if this
+memory is now physically removed, in a race with such a struct page
+access? Before your patch that would probably be OK, because the struct
+pages were not part of the removed memory, but now you should get an
+addressing exception, right?
 
-
-What I think is the following: We need a way to advertise devices that
-are mapped into the address space via a paravirtualized way. This could
-e.g. be fake DAX devices or what virtio-mem's memory hotplug approach
-tries to solve.
-
-Basically what virtio-mem proposed: indicating devices in the form of
-memory regions that are special to the guest via a paravirtualized
-interface and providing paravirtualized features, that can (and even
-have to) be used along with these special devices.
-
-> 
-> It's not clear it applies here - memory overcommit on bare metal is
-> kind of different.
-
-Yes, there is no such thing as fine grained memory hot(un)plug on real
-hardware.
-
--- 
-
-Thanks,
-
-David
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
