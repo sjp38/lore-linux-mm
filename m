@@ -1,75 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BE3A56B05FF
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 09:00:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id o82so104729862pfj.11
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 06:00:57 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id p8si306586pli.624.2017.07.31.06.00.56
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7489D6B0601
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 09:32:46 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 185so17131254wmk.12
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 06:32:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v128si543388wmg.14.2017.07.31.06.32.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 31 Jul 2017 06:00:56 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [RFC v6 20/62] powerpc: store and restore the pkey state across context switches
-In-Reply-To: <20170729233113.GH5664@ram.oc3035372033.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-21-git-send-email-linuxram@us.ibm.com> <878tj94wfo.fsf@linux.vnet.ibm.com> <20170729233113.GH5664@ram.oc3035372033.ibm.com>
-Date: Mon, 31 Jul 2017 23:00:53 +1000
-Message-ID: <87wp6o4v7e.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 31 Jul 2017 06:32:45 -0700 (PDT)
+Date: Mon, 31 Jul 2017 15:32:43 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 2/4] mm: add file_fdatawait_range and
+ file_write_and_wait
+Message-ID: <20170731133243.GB27589@quack2.suse.cz>
+References: <20170726175538.13885-1-jlayton@kernel.org>
+ <20170726175538.13885-3-jlayton@kernel.org>
+ <20170727084914.GC21100@quack2.suse.cz>
+ <1501159710.6279.1.camel@redhat.com>
+ <1501500421.4663.4.camel@redhat.com>
+ <8d46c4c6-76b5-9726-7d85-249cd9a899f1@redhat.com>
+ <1501501456.4663.6.camel@redhat.com>
+ <20170731120744.GA25458@quack2.suse.cz>
+ <1501506037.4663.13.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1501506037.4663.13.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Cc: linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Steven Whitehouse <swhiteho@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
 
-Ram Pai <linuxram@us.ibm.com> writes:
-> On Thu, Jul 27, 2017 at 02:32:59PM -0300, Thiago Jung Bauermann wrote:
->> Ram Pai <linuxram@us.ibm.com> writes:
->> > diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
->> > index 2ad725e..9429361 100644
->> > --- a/arch/powerpc/kernel/process.c
->> > +++ b/arch/powerpc/kernel/process.c
->> > @@ -1096,6 +1096,11 @@ static inline void save_sprs(struct thread_struct *t)
->> >  		t->tar = mfspr(SPRN_TAR);
->> >  	}
->> >  #endif
->> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->> > +	t->amr = mfspr(SPRN_AMR);
->> > +	t->iamr = mfspr(SPRN_IAMR);
->> > +	t->uamor = mfspr(SPRN_UAMOR);
->> > +#endif
->> >  }
->> >
->> >  static inline void restore_sprs(struct thread_struct *old_thread,
->> > @@ -1131,6 +1136,14 @@ static inline void restore_sprs(struct thread_struct *old_thread,
->> >  			mtspr(SPRN_TAR, new_thread->tar);
->> >  	}
->> >  #endif
->> > +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
->> > +	if (old_thread->amr != new_thread->amr)
->> > +		mtspr(SPRN_AMR, new_thread->amr);
->> > +	if (old_thread->iamr != new_thread->iamr)
->> > +		mtspr(SPRN_IAMR, new_thread->iamr);
->> > +	if (old_thread->uamor != new_thread->uamor)
->> > +		mtspr(SPRN_UAMOR, new_thread->uamor);
->> > +#endif
->> >  }
->> 
->> Shouldn't the saving and restoring of the SPRs be guarded by a check for
->> whether memory protection keys are enabled? What happens when trying to
->> access these registers on a CPU which doesn't have them?
->
-> Good point. need to guard it.  However; i think, these registers have been
-> available since power6.
+On Mon 31-07-17 09:00:37, Jeff Layton wrote:
+> On Mon, 2017-07-31 at 14:07 +0200, Jan Kara wrote:
+> > On Mon 31-07-17 07:44:16, Jeff Layton wrote:
+> > > On Mon, 2017-07-31 at 12:32 +0100, Steven Whitehouse wrote:
+> > > > On 31/07/17 12:27, Jeff Layton wrote:
+> > > > > On Thu, 2017-07-27 at 08:48 -0400, Jeff Layton wrote:
+> > > > > > On Thu, 2017-07-27 at 10:49 +0200, Jan Kara wrote:
+> > > > > > > On Wed 26-07-17 13:55:36, Jeff Layton wrote:
+> > > > > > > > +int file_write_and_wait(struct file *file)
+> > > > > > > > +{
+> > > > > > > > +	int err = 0, err2;
+> > > > > > > > +	struct address_space *mapping = file->f_mapping;
+> > > > > > > > +
+> > > > > > > > +	if ((!dax_mapping(mapping) && mapping->nrpages) ||
+> > > > > > > > +	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+> > > > > > > > +		err = filemap_fdatawrite(mapping);
+> > > > > > > > +		/* See comment of filemap_write_and_wait() */
+> > > > > > > > +		if (err != -EIO) {
+> > > > > > > > +			loff_t i_size = i_size_read(mapping->host);
+> > > > > > > > +
+> > > > > > > > +			if (i_size != 0)
+> > > > > > > > +				__filemap_fdatawait_range(mapping, 0,
+> > > > > > > > +							  i_size - 1);
+> > > > > > > > +		}
+> > > > > > > > +	}
+> > > > > > > 
+> > > > > > > Err, what's the i_size check doing here? I'd just pass ~0 as the end of the
+> > > > > > > range and ignore i_size. It is much easier than trying to wrap your head
+> > > > > > > around possible races with file operations modifying i_size.
+> > > > > > > 
+> > > > > > > 								Honza
+> > > > > > 
+> > > > > > I'm basically emulating _exactly_ what filemap_write_and_wait does here,
+> > > > > > as I'm leery of making subtle behavior changes in the actual writeback
+> > > > > > behavior. For example:
+> > > > > > 
+> > > > > > -----------------8<----------------
+> > > > > > static inline int __filemap_fdatawrite(struct address_space *mapping,
+> > > > > >          int sync_mode)
+> > > > > > {
+> > > > > >          return __filemap_fdatawrite_range(mapping, 0, LLONG_MAX, sync_mode);
+> > > > > > }
+> > > > > > 
+> > > > > > int filemap_fdatawrite(struct address_space *mapping)
+> > > > > > {
+> > > > > >          return __filemap_fdatawrite(mapping, WB_SYNC_ALL);
+> > > > > > }
+> > > > > > EXPORT_SYMBOL(filemap_fdatawrite);
+> > > > > > -----------------8<----------------
+> > > > > > 
+> > > > > > ...which then sets up the wbc with the right ranges and sync mode and
+> > > > > > kicks off writepages. But then, it does the i_size_read to figure out
+> > > > > > what range it should wait on (with the shortcut for the size == 0 case).
+> > > > > > 
+> > > > > > My assumption was that it was intentionally designed that way, but I'm
+> > > > > > guessing from your comments that it wasn't? If so, then we can turn
+> > > > > > file_write_and_wait a static inline wrapper around
+> > > > > > file_write_and_wait_range.
+> > > > > 
+> > > > > FWIW, I did a bit of archaeology in the linux-history tree and found
+> > > > > this patch from Marcelo in 2004. Is this optimization still helpful? If
+> > > > > not, then that does simplify the code a bit.
+> > > > > 
+> > > > > -------------------8<--------------------
+> > > > > 
+> > > > > [PATCH] small wait_on_page_writeback_range() optimization
+> > > > > 
+> > > > > filemap_fdatawait() calls wait_on_page_writeback_range() with -1 as "end"
+> > > > > parameter.  This is not needed since we know the EOF from the inode.  Use
+> > > > > that instead.
+> > > > > 
+> > > > > Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+> > > > > Signed-off-by: Andrew Morton <akpm@osdl.org>
+> > > > > Signed-off-by: Linus Torvalds <torvalds@osdl.org>
+> > > > > ---
+> > > > >   mm/filemap.c | 8 +++++++-
+> > > > >   1 file changed, 7 insertions(+), 1 deletion(-)
+> > > > > 
+> > > > > diff --git a/mm/filemap.c b/mm/filemap.c
+> > > > > index 78e18b7639b6..55fb7b4141e4 100644
+> > > > > --- a/mm/filemap.c
+> > > > > +++ b/mm/filemap.c
+> > > > > @@ -287,7 +287,13 @@ EXPORT_SYMBOL(sync_page_range);
+> > > > >    */
+> > > > >   int filemap_fdatawait(struct address_space *mapping)
+> > > > >   {
+> > > > > -	return wait_on_page_writeback_range(mapping, 0, -1);
+> > > > > +	loff_t i_size = i_size_read(mapping->host);
+> > > > > +
+> > > > > +	if (i_size == 0)
+> > > > > +		return 0;
+> > > > > +
+> > > > > +	return wait_on_page_writeback_range(mapping, 0,
+> > > > > +				(i_size - 1) >> PAGE_CACHE_SHIFT);
+> > > > >   }
+> > > > >   EXPORT_SYMBOL(filemap_fdatawait);
+> > > > > 
+> > > > 
+> > > > Does this ever get called in cases where we would not hold fs locks? In 
+> > > > that case we definitely don't want to be relying on i_size,
+> > > > 
+> > > > Steve.
+> > > > 
+> > > 
+> > > Yes. We can initiate and wait on writeback from any context where you
+> > > can sleep, really.
+> > > 
+> > > We're just waiting on whole file writeback here, so I don't think
+> > > there's anything wrong. As long as the i_size was valid at some point in
+> > > time prior to waiting then you're ok.
+> > > 
+> > > The question I have is more whether this optimization is still useful. 
+> > > 
+> > > What we do now is just walk the radix tree and wait_on_page_writeback
+> > > for each page. Do we gain anything by avoiding ranges beyond the current
+> > > EOF with the pagecache infrastructure of 2017?
+> > 
+> > FWIW I'm not aware of any significant benefit of using i_size in
+> > filemap_fdatawait() - we iterate to the end of the radix tree node anyway
+> > since pagevec_lookup_tag() does not support range searches anyway (I'm
+> > working on fixing that however even after that the benefit would be still
+> > rather marginal).
+> > 
+> > What Marcello might have meant even back in 2004 was that if we are in the
+> > middle of truncate, i_size is already reduced but page cache not truncated
+> > yet, then filemap_fdatawait() does not have to wait for writeback of
+> > truncated pages. That might be a noticeable benefit even today if such race
+> > happens however I'm not sure it's worth optimizing for and surprises
+> > arising from randomly snapshotting i_size (which especially for clustered
+> > filesystems may be out of date) IMHO overweight the possible advantage.
+> > 
+> > 								Honza
+> 
+> Thanks for clarifying.
+> 
+> Given that file_write_and_wait is a new helper function anyway, I'll
+> just make it a wrapper around file_write_and_wait_range. Since it might
 
-The kernel runs on CPUs much older than that.
+Agreed.
 
-IAMR was added on Power8.
+> be racy, should remove this optimization from the "legacy"
+> filemap_fdatawait / filemap_fdatawait_keep_errors calls?
 
-And performance is also an issue, so we should only switch them when we
-need to.
+I'm for it.
 
-cheers
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
