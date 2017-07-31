@@ -1,71 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E2AA96B04C9
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 16:17:23 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id w199so64726559lff.2
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:17:23 -0700 (PDT)
-Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
-        by mx.google.com with ESMTPS id i15si11570730ljd.25.2017.07.31.13.17.22
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA256B04CB
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 16:38:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v102so48133407wrb.2
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:38:56 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p63si7961926edb.459.2017.07.31.13.38.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 13:17:22 -0700 (PDT)
-Received: by mail-lf0-f68.google.com with SMTP id t128so15217040lff.3
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 13:17:22 -0700 (PDT)
-Reply-To: alex.popov@linux.com
-Subject: Re: [v3] mm: Add SLUB free list pointer obfuscation
-References: <20170706002718.GA102852@beast>
- <cdd42a1b-ce15-df8c-6bd1-b0943275986f@linux.com>
- <CAGXu5jKRDhvqj0TU10W10hsdixN2P+hHzpYfSVvOFZy=hW72Mg@mail.gmail.com>
- <alpine.DEB.2.20.1707260906230.6341@nuc-kabylake>
- <CAGXu5jLkOjDKSZ48jOyh2voP17xXMeEnqzV_=8dGSvFmqdCZCA@mail.gmail.com>
- <alpine.DEB.2.20.1707261154140.9167@nuc-kabylake>
- <515333f5-1815-8591-503e-c0cf6941670e@linux.com>
- <alpine.DEB.2.20.1707271851390.17228@nuc-kabylake>
-From: Alexander Popov <alex.popov@linux.com>
-Message-ID: <4a6c0105-b084-aa87-6a2b-0650613df6ac@linux.com>
-Date: Mon, 31 Jul 2017 23:17:19 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 31 Jul 2017 13:38:54 -0700 (PDT)
+Date: Mon, 31 Jul 2017 16:38:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm/sched: memdelay: memory health interface for
+ systems and workloads
+Message-ID: <20170731203839.GA5162@cmpxchg.org>
+References: <20170727153010.23347-1-hannes@cmpxchg.org>
+ <20170727153010.23347-4-hannes@cmpxchg.org>
+ <20170729091055.GA6524@worktop.programming.kicks-ass.net>
+ <20170730152813.GA26672@cmpxchg.org>
+ <20170731083111.tgjgkwge5dgt5m2e@hirez.programming.kicks-ass.net>
+ <20170731184142.GA30943@cmpxchg.org>
+ <1501530579.9118.43.camel@gmx.de>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1707271851390.17228@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1501530579.9118.43.camel@gmx.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Josh Triplett <josh@joshtriplett.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, Tejun Heo <tj@kernel.org>, Daniel Mack <daniel@zonque.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Helge Deller <deller@gmx.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Tycho Andersen <tycho@docker.com>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Mike Galbraith <efault@gmx.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hello Christopher and Kees,
-
-Excuse me for the delayed reply.
-
-On 28.07.2017 02:53, Christopher Lameter wrote:
-> On Fri, 28 Jul 2017, Alexander Popov wrote:
+On Mon, Jul 31, 2017 at 09:49:39PM +0200, Mike Galbraith wrote:
+> On Mon, 2017-07-31 at 14:41 -0400, Johannes Weiner wrote:
+> > 
+> > Adding an rq counter for tasks inside memdelay sections should be
+> > straight-forward as well (except for maybe the migration cost of that
+> > state between CPUs in ttwu that Mike pointed out).
 > 
->> I don't really like ignoring double-free. I think, that:
->>   - it will hide dangerous bugs in the kernel,
->>   - it can make some kernel exploits more stable.
->> I would rather add BUG_ON to set_freepointer() behind SLAB_FREELIST_HARDENED. Is
->> it fine?
+> What I pointed out should be easily eliminated (zero use case).
+
+How so?
+
+> > That leaves the question of how to track these numbers per cgroup at
+> > an acceptable cost. The idea for a tree of cgroups is that walltime
+> > impact of delays at each level is reported for all tasks at or below
+> > that level. E.g. a leave group aggregates the state of its own tasks,
+> > the root/system aggregates the state of all tasks in the system; hence
+> > the propagation of the task state counters up the hierarchy.
 > 
-> I think Kees already added some logging output.
+> The crux of the biscuit is where exactly the investment return lies.
+>  Gathering of these numbers ain't gonna be free, no matter how hard you
+> try, and you're plugging into paths where every cycle added is made of
+> userspace hide.
 
-Hm, I don't see anything like that in v4 of "SLUB free list pointer
-obfuscation": https://patchwork.kernel.org/patch/9864165/
+Right. But how to implement it sanely and optimize for cycles, and
+whether we want to default-enable this interface are two separate
+conversations.
 
->> At the same time avoiding the consequences of some double-free errors is better
->> than not doing that. It may be considered as kernel "self-healing", I don't
->> know. I can prepare a second patch for do_slab_free(), as you described. Would
->> you like it?
-> 
-> The SLUB allocator is already self healing if you enable the option to do
-> so on bootup (covers more than just the double free case). What you
-> propose here is no different than that and just another way of having
-> similar functionality. In the best case it would work the same way.
+It makes sense to me to first make the implementation as lightweight
+on cycles and maintainability as possible, and then worry about the
+cost / benefit defaults of the shipped Linux kernel afterwards.
 
-Ok, I see. Thanks.
+That goes for the purely informative userspace interface, anyway. The
+easily-provoked thrashing livelock I have described in the email to
+Andrew is a different matter. If the OOM killer requires hooking up to
+this metric to fix it, it won't be optional. But the OOM code isn't
+part of this series yet, so again a conversation best had later, IMO.
 
-Best regards,
-Alexander
+PS: I'm stealing the "made of userspace hide" thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
