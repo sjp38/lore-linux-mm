@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0050F6B05BF
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 02:32:59 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id g13so75786844qta.0
-        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 23:32:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id x67si12291953qka.71.2017.07.30.23.32.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F18D76B05C1
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 02:46:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 185so15990447wmk.12
+        for <linux-mm@kvack.org>; Sun, 30 Jul 2017 23:46:30 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f62si3048836wmf.6.2017.07.30.23.46.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Jul 2017 23:32:59 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] userfaultfd: selftest: Add tests for
- UFFD_FEATURE_SIGBUS feature
-References: <1501208320-200277-1-git-send-email-prakash.sangappa@oracle.com>
- <20170730070749.GB22926@rapoport-lnx>
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Message-ID: <faa9fea7-f089-64aa-72e8-69f17ce1f48c@oracle.com>
-Date: Sun, 30 Jul 2017 23:32:53 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 30 Jul 2017 23:46:29 -0700 (PDT)
+Date: Mon, 31 Jul 2017 08:46:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
+Message-ID: <20170731064625.GB13036@dhcp22.suse.cz>
+References: <20170727090357.3205-3-mhocko@kernel.org>
+ <201707291609.lv5NwUPI%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170730070749.GB22926@rapoport-lnx>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201707291609.lv5NwUPI%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, mike.kravetz@oracle.com
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+On Sat 29-07-17 16:33:35, kbuild test robot wrote:
+> Hi Michal,
+> 
+> [auto build test ERROR on cgroup/for-next]
+> [also build test ERROR on v4.13-rc2 next-20170728]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Michal-Hocko/mm-oom-do-not-rely-on-TIF_MEMDIE-for-memory-reserves-access/20170728-101955
+> base:   https://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git for-next
+> config: i386-randconfig-c0-07291424 (attached as .config)
+> compiler: gcc-4.9 (Debian 4.9.4-2) 4.9.4
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    In file included from include/linux/ioport.h:12:0,
+>                     from include/linux/device.h:16,
+>                     from include/linux/node.h:17,
+>                     from include/linux/cpu.h:16,
+>                     from kernel/cgroup/cpuset.c:25:
+>    kernel/cgroup/cpuset.c: In function '__cpuset_node_allowed':
+> >> include/linux/compiler.h:123:18: error: implicit declaration of function 'tsk_is_oom_victim' [-Werror=implicit-function-declaration]
 
+Thanks for the report. We need this
+---
+commit 638b5ab1ed275f23b52a71941b66c8966d332cd7
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Mon Jul 31 08:45:53 2017 +0200
 
-On 7/30/17 12:07 AM, Mike Rapoport wrote:
-> On Thu, Jul 27, 2017 at 10:18:40PM -0400, Prakash Sangappa wrote:
->> This patch adds tests for UFFD_FEATURE_SIGBUS feature. The
->> tests will verify signal delivery instead of userfault events.
->> Also, test use of UFFDIO_COPY to allocate memory and retry
->> accessing monitored area after signal delivery.
->>
->> This patch also fixes a bug in uffd_poll_thread() where 'uffd'
->> is leaked.
->>
->> Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
->> ---
->> Change log
->>
->> v2:
->>    - Added comments to explain the tests.
->>    - Fixed test to fail immediately if signal repeats.
->>    - Addressed other review comments.
->>
->> v1: https://lkml.org/lkml/2017/7/26/101
->> ---
-> Overall looks good to me, just small nitpick below.
-[...]
->>   	for (nr = 0; nr < split_nr_pages; nr++) {
->> +		if (signal_test) {
->> +			if (sigsetjmp(*sigbuf, 1) != 0) {
->> +				if (nr == lastnr) {
->> +					sig_repeats++;
-> You can simply 'return 1' here, then sig_repeats variable can be dropped
-> and the return statement for signal_test can be simplified.
+    fold me
+    
+    - fix implicit declaration of function 'tsk_is_oom_victim' reported by
+      0day
+    
+    Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Ok, sent v3 patch with this change.
-
-Thanks,
--Prakash.
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 1cc53dff0d94..734ae4fa9775 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -56,6 +56,7 @@
+ #include <linux/time64.h>
+ #include <linux/backing-dev.h>
+ #include <linux/sort.h>
++#include <linux/oom.h>
+ 
+ #include <linux/uaccess.h>
+ #include <linux/atomic.h>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
