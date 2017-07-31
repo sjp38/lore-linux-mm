@@ -1,67 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B46DE6B04BA
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 14:16:14 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 92so47756651wra.11
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:16:14 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k63si974141wmf.26.2017.07.31.11.16.12
+	by kanga.kvack.org (Postfix) with ESMTP id CB2546B04BD
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 14:42:15 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v31so47803306wrc.7
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 11:42:15 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id w14si13423001edi.514.2017.07.31.11.42.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 11:16:12 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v6VIDwWw108319
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 14:16:11 -0400
-Received: from e24smtp02.br.ibm.com (e24smtp02.br.ibm.com [32.104.18.86])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c2511q64s-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 14:16:11 -0400
-Received: from localhost
-	by e24smtp02.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Mon, 31 Jul 2017 15:16:09 -0300
-Received: from d24av03.br.ibm.com (d24av03.br.ibm.com [9.8.31.95])
-	by d24relay04.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v6VIG5F518415744
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 15:16:05 -0300
-Received: from d24av03.br.ibm.com (localhost [127.0.0.1])
-	by d24av03.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v6VIG8ai016514
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 15:16:08 -0300
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-14-git-send-email-linuxram@us.ibm.com>
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: Re: [RFC v6 13/62] powerpc: track allocation status of all pkeys
-In-reply-to: <1500177424-13695-14-git-send-email-linuxram@us.ibm.com>
-Date: Mon, 31 Jul 2017 15:15:55 -0300
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 31 Jul 2017 11:42:12 -0700 (PDT)
+Date: Mon, 31 Jul 2017 14:41:42 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm/sched: memdelay: memory health interface for
+ systems and workloads
+Message-ID: <20170731184142.GA30943@cmpxchg.org>
+References: <20170727153010.23347-1-hannes@cmpxchg.org>
+ <20170727153010.23347-4-hannes@cmpxchg.org>
+ <20170729091055.GA6524@worktop.programming.kicks-ass.net>
+ <20170730152813.GA26672@cmpxchg.org>
+ <20170731083111.tgjgkwge5dgt5m2e@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87d18g5v6s.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170731083111.tgjgkwge5dgt5m2e@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, arnd@arndb.de, corbet@lwn.net, mhocko@kernel.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
+On Mon, Jul 31, 2017 at 10:31:11AM +0200, Peter Zijlstra wrote:
+> On Sun, Jul 30, 2017 at 11:28:13AM -0400, Johannes Weiner wrote:
+> > On Sat, Jul 29, 2017 at 11:10:55AM +0200, Peter Zijlstra wrote:
+> > > On Thu, Jul 27, 2017 at 11:30:10AM -0400, Johannes Weiner wrote:
+> > > > +static void domain_cpu_update(struct memdelay_domain *md, int cpu,
+> > > > +			      int old, int new)
+> > > > +{
+> > > > +	enum memdelay_domain_state state;
+> > > > +	struct memdelay_domain_cpu *mdc;
+> > > > +	unsigned long now, delta;
+> > > > +	unsigned long flags;
+> > > > +
+> > > > +	mdc = per_cpu_ptr(md->mdcs, cpu);
+> > > > +	spin_lock_irqsave(&mdc->lock, flags);
+> > > 
+> > > Afaict this is inside scheduler locks, this cannot be a spinlock. Also,
+> > > do we really want to add more atomics there?
+> > 
+> > I think we should be able to get away without an additional lock and
+> > rely on the rq lock instead. schedule, enqueue, dequeue already hold
+> > it, memdelay_enter/leave could be added. I need to think about what to
+> > do with try_to_wake_up in order to get the cpu move accounting inside
+> > the locked section of ttwu_queue(), but that should be doable too.
+> 
+> So could you start by describing what actual statistics we need? Because
+> as is the scheduler already does a gazillion stats and why can't re
+> repurpose some of those?
 
-Ram Pai <linuxram@us.ibm.com> writes:
->  static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
->  {
-> -	return -EINVAL;
-> +	if (!pkey_inited)
-> +		return -1;
+If that's possible, that would be great of course.
 
-Sorry, I missed this earlier but the pkey_free syscall will pass this
-value to userspace so it needs to be an errno as well (-EINVAL?).
+We want to be able to tell how many tasks in a domain (the system or a
+memory cgroup) are inside a memdelay section as opposed to how many
+are in a "productive" state such as runnable or iowait. Then derive
+from that whether the domain as a whole is unproductive (all non-idle
+tasks memdelayed), or partially unproductive (some delayed, but CPUs
+are productive or there are iowait tasks). Then derive the percentages
+of walltime the domain spends partially or fully unproductive.
 
-> +
-> +	if (!mm_pkey_is_allocated(mm, pkey))
-> +		return -EINVAL;
-> +
-> +	mm_set_pkey_free(mm, pkey);
-> +
-> +	return 0;
->  }
+For that we need per-domain counters for
 
--- 
-Thiago Jung Bauermann
-IBM Linux Technology Center
+	1) nr of tasks in memdelay sections
+	2) nr of iowait or runnable/queued tasks that are NOT inside
+	   memdelay sections
+
+The memdelay and runnable counts need to be per-cpu as well. (The idea
+is this: if you have one CPU and some tasks are delayed while others
+are runnable, you're 100% partially productive, as the CPU is fully
+used. But if you have two CPUs, and the tasks on one CPU are all
+runnable while the tasks on the others are all delayed, the domain is
+50% of the time fully unproductive (and not 100% partially productive)
+as half the available CPU time is being squandered by delays).
+
+On the system-level, we already count runnable/queued per cpu through
+rq->nr_running.
+
+However, we need to distinguish between productive runnables and tasks
+that are in runnable while in a memdelay section (doing reclaim). The
+current counters don't do that.
+
+Lastly, and somewhat obscurely, the presence of runnable tasks means
+that usually the domain is at least partially productive. But if the
+CPU is used by a task in a memdelay section (direct reclaim), the
+domain is fully unproductive (unless there are iowait tasks in the
+domain, since they make "progress" without CPU). So we need to track
+task_current() && task_memdelayed() per-domain per-cpu as well.
+
+Now, thinking only about the system-level, we could split
+rq->nr_running into a sets of delayed and non-delayed counters
+(present them as sum in all current read sides).
+
+Adding an rq counter for tasks inside memdelay sections should be
+straight-forward as well (except for maybe the migration cost of that
+state between CPUs in ttwu that Mike pointed out).
+
+That leaves the question of how to track these numbers per cgroup at
+an acceptable cost. The idea for a tree of cgroups is that walltime
+impact of delays at each level is reported for all tasks at or below
+that level. E.g. a leave group aggregates the state of its own tasks,
+the root/system aggregates the state of all tasks in the system; hence
+the propagation of the task state counters up the hierarchy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
